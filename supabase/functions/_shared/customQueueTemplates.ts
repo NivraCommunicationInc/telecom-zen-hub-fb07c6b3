@@ -93,17 +93,17 @@ function rowsBlock(rows: Array<[string, string]>, emphasizeLast: boolean): strin
   return rows.map(([label, value], i) => {
     const isLast = emphasizeLast && i === rows.length - 1;
     if (isLast) {
-      return `<tr><td style="padding:12px 18px;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#1a1a2e;">
+      return `<tr><td style="padding:12px 18px;background:${BRAND_CARD_BG_LAST};font-family:'Helvetica Neue',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:${BRAND_DARK};border-top:1px solid ${BRAND_CARD_BORDER};">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-          <td style="color:#1a1a2e;font-size:14px;font-weight:700;">${esc(label)}</td>
-          <td align="right" style="color:#1a1a2e;font-size:14px;font-weight:700;">${esc(value)}</td>
+          <td style="color:${BRAND_DARK};font-size:13px;font-weight:700;">${esc(label)}</td>
+          <td align="right" style="color:${BRAND_DARK};font-size:13px;font-weight:700;">${esc(value)}</td>
         </tr></table>
       </td></tr>`;
     }
-    return `<tr><td style="padding:10px 18px;border-bottom:1px solid #f3f0ff;font-family:Arial,Helvetica,sans-serif;font-size:13px;">
+    return `<tr><td style="padding:10px 18px;border-bottom:1px solid ${BRAND_HERO_BG};font-family:'Helvetica Neue',Arial,Helvetica,sans-serif;font-size:13px;">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-        <td style="color:#6b7280;font-size:13px;">${esc(label)}</td>
-        <td align="right" style="color:#1a1a2e;font-size:13px;font-weight:500;">${esc(value)}</td>
+        <td style="color:${BRAND_TEXT_MUTED};font-size:13px;">${esc(label)}</td>
+        <td align="right" style="color:${BRAND_DARK};font-size:13px;font-weight:500;">${esc(value)}</td>
       </tr></table>
     </td></tr>`;
   }).join("");
@@ -130,50 +130,48 @@ function shell(opts: ShellOpts): string {
     afterCardText,
   } = opts;
 
-  const helpBorder = helpVariant === "warning" ? "#f59e0b" : "#7c3aed";
+  const helpBorder = helpVariant === "warning" ? "#f59e0b" : BRAND_PRIMARY;
+  const fontStack = "'Helvetica Neue',Arial,Helvetica,sans-serif";
 
   const cardHtml = (cardTitle && cardRows && cardRows.length > 0)
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#faf9ff;border:1px solid #ede9fe;border-radius:12px;margin:20px 0;">
-        <tr><td style="background:#ede9fe;padding:10px 18px;border-radius:12px 12px 0 0;font-family:Arial,Helvetica,sans-serif;">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-            <td style="padding-right:8px;"><div style="width:6px;height:6px;border-radius:50%;background:#7c3aed;"></div></td>
-            <td style="font-size:10px;font-weight:800;color:#5b21b6;text-transform:uppercase;letter-spacing:1.5px;">${esc(cardTitle)}</td>
-          </tr></table>
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;border:1.5px solid ${BRAND_CARD_BORDER};border-radius:12px;margin:20px 0;border-collapse:separate;overflow:hidden;">
+        <tr><td style="background:${BRAND_DARK};padding:10px 18px;font-family:${fontStack};">
+          <div style="font-size:10px;font-weight:700;color:${BRAND_TEXT_FOOT};text-transform:uppercase;letter-spacing:2px;">${esc(cardTitle)}</div>
         </td></tr>
         ${rowsBlock(cardRows, cardEmphasizeLast)}
       </table>`
     : "";
 
   const ctaPrimary = (ctaPrimaryUrl && ctaPrimaryLabel)
-    ? `<a href="${esc(ctaPrimaryUrl)}" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:14px 40px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.3px;font-family:Arial,Helvetica,sans-serif;">${esc(ctaPrimaryLabel)}</a>`
+    ? `<a href="${esc(ctaPrimaryUrl)}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;padding:15px 44px;border-radius:99px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.5px;font-family:${fontStack};">${esc(ctaPrimaryLabel)}</a>`
     : "";
 
   const ctaSecondary = (ctaSecondaryUrl && ctaSecondaryLabel)
-    ? `<a href="${esc(ctaSecondaryUrl)}" style="display:inline-block;background:transparent;color:#7c3aed;padding:12px 28px;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;border:1.5px solid #7c3aed;margin-left:10px;font-family:Arial,Helvetica,sans-serif;">${esc(ctaSecondaryLabel)}</a>`
+    ? `<a href="${esc(ctaSecondaryUrl)}" style="display:inline-block;background:transparent;color:${BRAND_PRIMARY};padding:13px 32px;border-radius:99px;font-weight:600;font-size:13px;text-decoration:none;border:2px solid ${BRAND_PRIMARY};margin-left:10px;font-family:${fontStack};">${esc(ctaSecondaryLabel)}</a>`
     : "";
 
   const ctaBlock = (ctaPrimary || ctaSecondary)
-    ? `<div style="text-align:center;margin:28px 0 20px;">${ctaPrimary}${ctaSecondary}</div>`
+    ? `<div style="text-align:center;margin:28px 0;">${ctaPrimary}${ctaSecondary}</div>`
     : "";
 
   const helpBlock = helpHtml
-    ? `<div style="background:#faf9ff;border:1px solid #ede9fe;border-left:3px solid ${helpBorder};border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;color:#4b5563;margin-top:8px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">${helpHtml}</div>`
-    : `<div style="background:#faf9ff;border:1px solid #ede9fe;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;color:#4b5563;margin-top:8px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#1a1a2e;">Besoin d'aide ?</strong> Notre équipe est disponible 7j/7 à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.</div>`;
+    ? `<div style="background:#faf9ff;border-left:4px solid ${helpBorder};padding:14px 18px;font-size:13px;color:${BRAND_TEXT_BODY};margin-top:8px;line-height:1.6;font-family:${fontStack};">${helpHtml}</div>`
+    : `<div style="background:#faf9ff;border-left:4px solid ${BRAND_PRIMARY};padding:14px 18px;font-size:13px;color:${BRAND_TEXT_BODY};margin-top:8px;line-height:1.6;font-family:${fontStack};"><strong style="color:${BRAND_DARK};">Besoin d'aide ?</strong> Écrivez-nous à <strong style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</strong> — réponse en moins de 2h.</div>`;
 
   const greetingBlock = greeting
-    ? `<div style="font-size:15px;color:#1a1a2e;margin-bottom:14px;font-weight:700;font-family:Arial,Helvetica,sans-serif;">${esc(greeting)}</div>`
+    ? `<div style="font-size:15px;color:${BRAND_DARK};margin-bottom:14px;font-weight:700;font-family:${fontStack};">${esc(greeting)}</div>`
     : "";
 
   const bodyTextBlock = bodyText
-    ? `<div style="font-size:14px;color:#4b5563;line-height:1.8;margin-bottom:20px;font-family:Arial,Helvetica,sans-serif;">${bodyText}</div>`
+    ? `<div style="font-size:14px;color:${BRAND_TEXT_BODY};line-height:1.8;margin-bottom:20px;font-family:${fontStack};">${bodyText}</div>`
     : "";
 
   const afterCardBlock = afterCardText
-    ? `<div style="font-size:14px;color:#4b5563;line-height:1.8;margin-bottom:20px;font-family:Arial,Helvetica,sans-serif;">${afterCardText}</div>`
+    ? `<div style="font-size:14px;color:${BRAND_TEXT_BODY};line-height:1.8;margin-bottom:20px;font-family:${fontStack};">${afterCardText}</div>`
     : "";
 
   const heroSubBlock = heroSub
-    ? `<div style="font-size:14px;color:#6b7280;max-width:380px;margin:0 auto;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">${esc(heroSub)}</div>`
+    ? `<div style="font-size:14px;color:${BRAND_TEXT_MUTED};max-width:420px;margin:0 auto;line-height:1.6;font-family:${fontStack};">${esc(heroSub)}</div>`
     : "";
 
   return `<!DOCTYPE html>
@@ -183,36 +181,32 @@ function shell(opts: ShellOpts): string {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${esc(heroTitle)}</title>
 </head>
-<body style="margin:0;padding:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#ffffff;font-family:${fontStack};">
 <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">${esc(preheader)}</span>
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f3ff;">
-<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;">
+<tr><td align="center" style="padding:0;">
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;width:100%;background:#ffffff;">
 
-<tr><td style="height:4px;background:#7c3aed;line-height:4px;font-size:0;">&nbsp;</td></tr>
+<!-- Top bar gradient (Violet Bold) -->
+<tr><td style="height:5px;background:${BRAND_PRIMARY};line-height:5px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>
 
-<tr><td style="background:#ffffff;padding:20px 32px;border-bottom:1px solid #ede9fe;">
+<!-- Header -->
+<tr><td style="background:${BRAND_DARK};padding:24px 32px;font-family:${fontStack};">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-    <td>
-      <div style="font-size:20px;font-weight:800;color:#1a1a2e;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">NIVRA</div>
-      <div style="font-size:9px;color:#7c3aed;letter-spacing:4px;font-weight:700;margin-top:1px;font-family:Arial,Helvetica,sans-serif;">TELECOM</div>
-    </td>
-    <td align="right" style="font-size:11px;color:#9ca3af;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">Sans contrat · Support québécois</td>
+    <td style="color:#ffffff;font-size:18px;font-weight:800;letter-spacing:2px;">NIVRA<span style="color:${BRAND_PRIMARY};">.</span></td>
+    <td align="right" style="color:${BRAND_TEXT_FOOT};font-size:11px;">Sans contrat · Support québécois</td>
   </tr></table>
 </td></tr>
 
-<tr><td style="background:#f5f3ff;padding:44px 32px;text-align:center;border-bottom:1px solid #ede9fe;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td align="center">
-    <div style="width:56px;height:56px;border-radius:50%;background:#ede9fe;border:2px solid #7c3aed;text-align:center;line-height:56px;margin:0 auto 18px;">
-      <span style="display:inline-block;vertical-align:middle;line-height:0;">${ICONS[icon]}</span>
-    </div>
-  </td></tr></table>
-  <div style="display:inline-block;background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.5px;margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">${esc(badge)}</div>
-  <div style="font-size:26px;font-weight:800;color:#1a1a2e;margin-bottom:8px;line-height:1.2;font-family:Arial,Helvetica,sans-serif;">${esc(heroTitle)}</div>
+<!-- Hero -->
+<tr><td style="background:${BRAND_HERO_BG};padding:48px 32px;text-align:center;font-family:${fontStack};">
+  <div style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;font-size:10px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:2px;margin-bottom:16px;">${esc(badge)}</div>
+  <div style="font-size:28px;font-weight:800;color:${BRAND_DARK};line-height:1.2;margin-bottom:10px;">${esc(heroTitle)}</div>
   ${heroSubBlock}
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:36px 32px;">
+<!-- Body -->
+<tr><td style="background:#ffffff;padding:36px 32px;font-family:${fontStack};">
   ${greetingBlock}
   ${bodyTextBlock}
   ${cardHtml}
@@ -221,17 +215,17 @@ function shell(opts: ShellOpts): string {
   ${helpBlock}
 </td></tr>
 
-<tr><td style="background:#1a1a2e;padding:28px 32px;text-align:center;">
-  <div style="font-size:15px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:4px;font-family:Arial,Helvetica,sans-serif;">NIVRA</div>
-  <div style="font-size:9px;color:#7c3aed;letter-spacing:4px;font-weight:700;margin-bottom:16px;font-family:Arial,Helvetica,sans-serif;">TELECOM</div>
-  <div style="margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">
-    <a href="${PORTAL_URL}" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Mon compte</a>
-    <a href="mailto:${SUPPORT_EMAIL}" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Support</a>
-    <a href="${APP_URL}/legal/confidentialite" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Confidentialité</a>
-    <a href="${APP_URL}/desabonnement" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Se désabonner</a>
+<!-- Footer -->
+<tr><td style="background:${BRAND_DARK};padding:28px 32px;text-align:center;font-family:${fontStack};">
+  <div style="color:#ffffff;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:14px;">NIVRA TELECOM</div>
+  <div style="height:1px;background:${BRAND_DIVIDER};margin:12px 0;line-height:1px;font-size:0;">&nbsp;</div>
+  <div style="margin-bottom:12px;">
+    <a href="${PORTAL_URL}" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Mon compte</a>
+    <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Support</a>
+    <a href="${APP_URL}/legal/confidentialite" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Confidentialité</a>
+    <a href="${APP_URL}/desabonnement" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Se désabonner</a>
   </div>
-  <div style="height:1px;background:#2d2d4e;margin:14px 0;line-height:1px;font-size:0;">&nbsp;</div>
-  <div style="font-size:11px;color:#6b7280;line-height:1.7;font-family:Arial,Helvetica,sans-serif;">© 2026 Nivra Telecom. Tous droits réservés.<br>Ce message a été envoyé car vous êtes client Nivra Telecom.</div>
+  <div style="font-size:11px;color:${BRAND_TEXT_FOOT_LOW};line-height:1.6;">© 2026 Nivra Telecom. Tous droits réservés.<br>Ce message a été envoyé car vous êtes client Nivra Telecom.</div>
 </td></tr>
 
 </table>
