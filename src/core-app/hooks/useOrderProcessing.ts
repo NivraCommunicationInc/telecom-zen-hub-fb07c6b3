@@ -1208,6 +1208,158 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
+  /* ── Replace equipment ──
+   * Marks the currently assigned equipment as returned and (optionally) assigns
+   * a new in-stock unit to this order. Logs activity and queues an optional
+   * notification email. Email failures must never break the mutation. */
+  const replaceEquipment = async (params: {
+    old_serial_number: string;
+    reason: string;
+    new_equipment_id?: string;
+  }) => {
+    const oldSerial = (params.old_serial_number || "").trim();
+    const reason = (params.reason || "").trim();
+    if (!oldSerial) {
+      toast.error("Numéro de série de l'ancien équipement requis");
+      throw new Error("OLD_SERIAL_REQUIRED");
+    }
+    if (!reason) {
+      toast.error("Raison du remplacement requise");
+      throw new Error("REASON_REQUIRED");
+    }
+
+    try {
+      const nowIso = new Date().toISOString();
+
+      // 1. Locate the currently assigned equipment by serial number (scoped to this order if possible)
+      const { data: oldEquip, error: oldFindErr } = await supabase
+        .from("equipment_inventory")
+        .select("id, serial_number, sku, catalog_name, status, order_id, notes")
+        .eq("serial_number", oldSerial)
+        .maybeSingle();
+      if (oldFindErr) throw oldFindErr;
+      if (!oldEquip) {
+        toast.error(`Équipement S/N ${oldSerial} introuvable dans l'inventaire`);
+        throw new Error("OLD_EQUIPMENT_NOT_FOUND");
+      }
+
+      // 2. Mark old equipment as returned (clear order link, stamp retired_at, append reason in notes)
+      const returnNote = `[Retour ${new Date().toLocaleDateString("fr-CA")}] ${reason}`;
+      const mergedNotes = oldEquip.notes ? `${oldEquip.notes}\n${returnNote}` : returnNote;
+      const { error: oldUpdErr } = await supabase
+        .from("equipment_inventory")
+        .update({
+          status: "returned",
+          order_id: null,
+          retired_at: nowIso,
+          notes: mergedNotes,
+          updated_at: nowIso,
+        })
+        .eq("id", oldEquip.id);
+      if (oldUpdErr) throw oldUpdErr;
+
+      // 3. If a replacement was selected, assign it to this order
+      let newEquip: any = null;
+      if (params.new_equipment_id) {
+        const { data: candidate, error: newFindErr } = await supabase
+          .from("equipment_inventory")
+          .select("id, serial_number, sku, catalog_name, status")
+          .eq("id", params.new_equipment_id)
+          .maybeSingle();
+        if (newFindErr) throw newFindErr;
+        if (!candidate) {
+          toast.error("Équipement de remplacement introuvable");
+          throw new Error("NEW_EQUIPMENT_NOT_FOUND");
+        }
+        const status = String(candidate.status || "").toLowerCase();
+        if (status !== "in_stock" && status !== "available") {
+          toast.error(`L'équipement sélectionné n'est pas en stock (${candidate.status})`);
+          throw new Error("NEW_EQUIPMENT_NOT_AVAILABLE");
+        }
+
+        const { error: newUpdErr } = await supabase
+          .from("equipment_inventory")
+          .update({
+            status: "assigned",
+            order_id: orderId,
+            assigned_at: nowIso,
+            assigned_by: user?.id || null,
+            updated_at: nowIso,
+          })
+          .eq("id", candidate.id);
+        if (newUpdErr) throw newUpdErr;
+        newEquip = candidate;
+
+        // 4. Reflect new serial on the order so downstream UI/contracts stay in sync
+        try {
+          await updateOrder.mutateAsync({
+            serial_number: candidate.serial_number || null,
+          });
+        } catch (e: any) {
+          console.warn("[Equipment] order serial sync failed:", e?.message);
+        }
+      }
+
+      // 5. Activity log entry
+      const noteParts = [`Remplacement: ${reason}`, `Ancien S/N: ${oldSerial}`];
+      if (newEquip?.serial_number) noteParts.push(`Nouveau S/N: ${newEquip.serial_number}`);
+      await logActivity("equipment_replaced", "order", orderId, {
+        old_serial_number: oldSerial,
+        old_equipment_id: oldEquip.id,
+        new_equipment_id: newEquip?.id || null,
+        new_serial_number: newEquip?.serial_number || null,
+        reason,
+        note: noteParts.join(" · "),
+      });
+
+      // 6. Optional email notification (append-only, must never throw)
+      try {
+        const email = getClientEmail();
+        if (email) {
+          await queueClientEmail({
+            to_email: email,
+            template_key: "equipment_replaced",
+            event_key: `equipment_replaced_${orderId}_${Date.now()}`,
+            idempotency_key: `equipment_replaced_${orderId}_${oldEquip.id}`,
+            subject: "Votre équipement a été remplacé — Nivra",
+            entity_id: orderId,
+            template_vars: {
+              client_name: getClientName(),
+              order_number: data?.order?.order_number || "",
+              old_serial_number: oldSerial,
+              new_serial_number: newEquip?.serial_number || "",
+              reason,
+            },
+          });
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] equipment_replaced enqueue error:", e?.message);
+      }
+
+      // 7. Invalidate caches
+      invalidateAll();
+
+      // 8. Success toast
+      toast.success("Équipement remplacé avec succès");
+      return { old: oldEquip, new: newEquip };
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Equipment] Replace failed:", err);
+      const code = String(err?.message || "");
+      if (
+        ![
+          "OLD_SERIAL_REQUIRED",
+          "REASON_REQUIRED",
+          "OLD_EQUIPMENT_NOT_FOUND",
+          "NEW_EQUIPMENT_NOT_FOUND",
+          "NEW_EQUIPMENT_NOT_AVAILABLE",
+        ].some((k) => code.includes(k))
+      ) {
+        toast.error(`Erreur de remplacement: ${err?.message || "Erreur inconnue"}`);
+      }
+      throw err;
+    }
+  };
+
   /* ── Update shipping ── */
   const updateShipping = async (fields: {
     carrier?: string;
