@@ -158,8 +158,11 @@ export default function PhoneCheckout() {
     }
   }, [mode, mobilePlans.length]);
 
-  // -------- Totals --------
-  const phonePrice = Number(phone?.price_cad ?? 0);
+  // -------- Totals (storage upcharge applied to base) --------
+  const basePrice = Number(phone?.price_cad ?? 0);
+  const baseUpcharge = phone ? (STORAGE_UPCHARGE[phone.storage] ?? 0) : 0;
+  const selectedUpcharge = STORAGE_UPCHARGE[selectedStorage] ?? 0;
+  const phonePrice = +(basePrice - baseUpcharge + selectedUpcharge).toFixed(2);
   const subtotal = phonePrice + SHIPPING_FEE;
   const tax = +(subtotal * TAX_RATE).toFixed(2);
   const total = +(subtotal + tax).toFixed(2);
