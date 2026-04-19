@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Loader2, AlertCircle, ArrowLeft, Terminal, Briefcase, MapPin, Wrench, Megaphone } from "lucide-react";
+import { Shield, Loader2, AlertCircle, ArrowLeft, Terminal, Briefcase, MapPin, Wrench, Megaphone, UserCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ const PORTAL_CONFIG: Record<string, { label: string; icon: typeof Terminal; acce
   employee: { label: "Nivra Employee", icon: Briefcase, accessKey: "can_access_employee", href: "/employee" },
   field: { label: "Nivra Field", icon: MapPin, accessKey: "can_access_field", href: "/field" },
   technician: { label: "Nivra Technician", icon: Wrench, accessKey: "can_access_technician", href: "/staff/technician" },
+  rh: { label: "Nivra RH", icon: UserCheck, accessKey: "can_access_rh", href: "/rh" },
   marketing: { label: "Marketing Hub", icon: Megaphone, accessKey: "can_access_core", href: "/marketing" },
 };
 
@@ -73,7 +74,7 @@ export default function HubLoginPage() {
 
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
-      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician")
+      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician, can_access_rh")
       .eq("user_id", userId)
       .eq("status", "active")
       .in("role", INTERNAL_ROLES)

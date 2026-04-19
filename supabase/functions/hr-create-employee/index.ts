@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import { employeeWelcome } from "../_shared/emailTemplates/onboarding.ts";
 
 interface CreateEmployeeRequest {
   first_name: string;
@@ -292,6 +294,47 @@ Deno.serve(async (req) => {
 
     if (inviteErr) {
       console.error("Invitation generation error:", inviteErr);
+    }
+
+    // ── Step 5b: Send branded employee welcome email (BIENVENUE) ──
+    try {
+      const hasEmployeePortal = (body.roles || []).some((r) =>
+        ["admin", "employee", "supervisor", "sales", "kyc_agent", "billing_admin", "techops", "support"].includes(r)
+      );
+      const fullName = `${body.first_name} ${body.last_name}`.trim();
+      const welcome = employeeWelcome({
+        employeeName: fullName,
+        employeeEmail: body.work_email.trim().toLowerCase(),
+        jobTitle: body.job_title,
+        department: body.department,
+        hireDate: body.hire_date,
+        hasEmployeePortal,
+        rhUrl: "https://nivra-telecom.ca/rh",
+        employeeUrl: "https://nivra-telecom.ca/employee",
+        supportEmail: "support@nivra-telecom.ca",
+      });
+
+      const welcomeRes = await enqueueEmail({
+        to: body.work_email.trim().toLowerCase(),
+        templateKey: "employee_welcome",
+        subject: welcome.subject,
+        html: welcome.html,
+        fromEmail: "Nivra RH <rh@nivra-telecom.ca>",
+        replyTo: "support@nivra-telecom.ca",
+        messageType: "employee_onboarding",
+        entityType: "employee_record",
+        entityId: empRecord.id,
+        eventKey: `employee_welcome_${empRecord.id}`,
+      });
+
+      if (!welcomeRes?.success) {
+        console.error("Employee welcome enqueue failed:", welcomeRes?.error);
+      } else {
+        console.log(`Employee welcome queued for ${body.work_email}: ${welcomeRes.id}`);
+      }
+    } catch (welcomeErr) {
+      console.error("Employee welcome dispatch error:", welcomeErr);
+      // Non-blocking — magic link invite already sent above
     }
 
     // ── Step 6: Audit log ──
