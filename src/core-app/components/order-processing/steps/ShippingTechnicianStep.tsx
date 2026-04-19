@@ -429,6 +429,18 @@ export function ShippingTechnicianStep({ proc }: Props) {
               </div>
             )}
 
+            {!appointment && showTechnicianPanel && (
+              <div className="bg-[#0d1421] rounded-lg border border-slate-700/50 p-3">
+                <Label className={labelClass}>Créneau d'installation</Label>
+                <AppointmentSlotPicker value={newSlotIso} onChange={setNewSlotIso} variant="core" />
+                {newSlotIso && (
+                  <p className="text-[10px] text-emerald-400 mt-1">
+                    Sélectionné : {new Date(newSlotIso).toLocaleString("fr-CA")}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label className={labelClass}>Technicien</Label>
               <Select value={techFields.technician_id || undefined} onValueChange={(v) => setTechFields({ ...techFields, technician_id: v })} disabled={techLoading}>
