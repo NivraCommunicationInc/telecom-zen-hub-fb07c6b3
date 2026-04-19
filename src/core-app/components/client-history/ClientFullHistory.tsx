@@ -1,0 +1,417 @@
+/**
+ * ClientFullHistory — Tab content showing complete cross-time history
+ * for a client: orders, payments, KYC sessions, emails, and activity logs.
+ * All sections are collapsible with a count badge in the header.
+ */
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { corePath } from "@/core-app/lib/corePaths";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  ShoppingCart, CreditCard, Shield, Mail, Clock,
+  ChevronDown, ChevronRight, Loader2,
+} from "lucide-react";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { cn } from "@/lib/utils";
+
+// ── Action label translations (mirrors DashboardPage activity feed) ──
+const ACTION_LABELS: Record<string, string> = {
+  kyc_requested: "Vérification KYC demandée",
+  kyc_approved: "KYC approuvé",
+  kyc_rejected: "KYC rejeté",
+  order_created: "Nouvelle commande créée",
+  order_completed: "Commande complétée",
+  order_cancelled: "Commande annulée",
+  order_status_change: "Changement de statut commande",
+  payment_confirmed: "Paiement confirmé",
+  payment_received: "Paiement reçu",
+  payment_failed: "Paiement échoué",
+  invoice_created: "Facture créée",
+  invoice_sent: "Facture envoyée",
+  invoice_paid: "Facture payée",
+  subscription_created: "Abonnement créé",
+  subscription_cancelled: "Abonnement annulé",
+  equipment_assigned: "Équipement attribué",
+  equipment_replaced: "Équipement remplacé",
+  equipment_returned: "Équipement retourné",
+  account_created: "Compte créé",
+  profile_update: "Profil mis à jour",
+  note_added: "Note ajoutée",
+  ticket_created: "Ticket créé",
+  ticket_closed: "Ticket fermé",
+  appointment_scheduled: "Rendez-vous planifié",
+  appointment_completed: "Rendez-vous complété",
+  completed: "Complété",
+  created: "Créé",
+};
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  order_confirmation: "Confirmation de commande",
+  order_shipped: "Commande expédiée",
+  order_delivered: "Commande livrée",
+  payment_receipt: "Reçu de paiement",
+  payment_confirmed: "Paiement confirmé",
+  payment_failed: "Paiement échoué",
+  invoice_issued: "Facture émise",
+  invoice_reminder: "Rappel de facture",
+  kyc_requested: "Vérification KYC requise",
+  kyc_approved: "KYC approuvé",
+  kyc_rejected: "KYC refusé",
+  appointment_reminder: "Rappel de rendez-vous",
+  appointment_technician_en_route: "Technicien en route",
+  installation_completed: "Installation complétée",
+  contract_signed: "Contrat signé",
+  welcome: "Bienvenue",
+  password_reset: "Réinitialisation mot de passe",
+  account_created: "Compte créé",
+};
+
+const formatAction = (action: string | null | undefined): string => {
+  if (!action) return "—";
+  const key = action.toLowerCase().trim();
+  if (ACTION_LABELS[key]) return ACTION_LABELS[key];
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+const formatTemplate = (key: string | null | undefined): string => {
+  if (!key) return "—";
+  const k = key.toLowerCase().trim();
+  if (TEMPLATE_LABELS[k]) return TEMPLATE_LABELS[k];
+  return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+const fmtDate = (d: string | null | undefined) =>
+  d ? format(new Date(d), "d MMM yyyy HH:mm", { locale: fr }) : "—";
+
+// ── Collapsible section wrapper ──
+interface SectionProps {
+  title: string;
+  icon: any;
+  count: number;
+  loading?: boolean;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+const HistorySection = ({ title, icon: Icon, count, loading, defaultOpen = true, children }: SectionProps) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[hsl(220,20%,13%)] transition-colors"
+      >
+        {open ? <ChevronDown className="h-4 w-4 text-[hsl(220,10%,45%)]" /> : <ChevronRight className="h-4 w-4 text-[hsl(220,10%,45%)]" />}
+        <Icon className="h-4 w-4 text-emerald-400" />
+        <h3 className="text-[13px] font-semibold text-white flex-1 text-left">{title}</h3>
+        {loading ? (
+          <Loader2 className="h-3 w-3 animate-spin text-[hsl(220,10%,45%)]" />
+        ) : (
+          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold border border-emerald-500/20">
+            {count}
+          </span>
+        )}
+      </button>
+      {open && <div className="px-4 pb-4 pt-1 border-t border-[hsl(220,15%,14%)]">{children}</div>}
+    </div>
+  );
+};
+
+const EmptyRow = ({ label }: { label: string }) => (
+  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">{label}</p>
+);
+
+interface Props {
+  clientId: string;
+  email?: string | null;
+  billingCustomerId?: string | null;
+}
+
+export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props) => {
+  // ── All orders (all time) ──
+  const ordersQ = useQuery({
+    queryKey: ["client-history-orders", clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, order_number, created_at, service_type, status, payment_status, total_amount")
+        .eq("user_id", clientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  // ── All payments ──
+  const paymentsQ = useQuery({
+    queryKey: ["client-history-payments", billingCustomerId],
+    queryFn: async () => {
+      if (!billingCustomerId) return [];
+      const { data, error } = await supabase
+        .from("billing_payments")
+        .select("id, payment_number, amount, method, reference, status, created_at, received_at")
+        .eq("customer_id", billingCustomerId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!billingCustomerId,
+  });
+
+  // ── All KYC sessions ──
+  const kycQ = useQuery({
+    queryKey: ["client-history-kyc", clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("identity_verification_sessions")
+        .select("id, case_number, status, document_type, id_type, created_at, submitted_at, reviewed_at, reviewed_by")
+        .eq("user_id", clientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  // ── All emails sent ──
+  const emailsQ = useQuery({
+    queryKey: ["client-history-emails", email],
+    queryFn: async () => {
+      if (!email) return [];
+      const { data, error } = await supabase
+        .from("email_queue")
+        .select("id, template_key, subject, to_email, status, sent_at, created_at, last_error")
+        .eq("to_email", email.trim().toLowerCase())
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!email,
+  });
+
+  // ── Reviewer names for KYC sessions ──
+  const reviewerIds = useMemo(
+    () => Array.from(new Set((kycQ.data || []).map((k: any) => k.reviewed_by).filter(Boolean))),
+    [kycQ.data],
+  );
+  const reviewersQ = useQuery({
+    queryKey: ["client-history-kyc-reviewers", reviewerIds.sort().join(",")],
+    queryFn: async () => {
+      if (reviewerIds.length === 0) return {} as Record<string, string>;
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", reviewerIds);
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => {
+        map[p.user_id] = p.full_name || p.email || "—";
+      });
+      return map;
+    },
+    enabled: reviewerIds.length > 0,
+  });
+
+  // ── Activity logs (across all orders of this client) ──
+  const orderIds = useMemo(() => (ordersQ.data || []).map((o: any) => o.id), [ordersQ.data]);
+  const activityQ = useQuery({
+    queryKey: ["client-history-activity", clientId, orderIds.join(",")],
+    queryFn: async () => {
+      // Combine: logs where user_id = clientId OR entity_id in orderIds
+      const promises: Promise<any>[] = [
+        Promise.resolve(
+          supabase
+            .from("activity_logs")
+            .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
+            .eq("user_id", clientId)
+            .order("created_at", { ascending: false })
+            .limit(200),
+        ),
+      ];
+      if (orderIds.length > 0) {
+        promises.push(
+          Promise.resolve(
+            supabase
+              .from("activity_logs")
+              .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
+              .in("entity_id", orderIds)
+              .order("created_at", { ascending: false })
+              .limit(200),
+          ),
+        );
+      }
+      const results = await Promise.all(promises);
+      const merged = new Map<string, any>();
+      results.forEach((r) => (r.data || []).forEach((row: any) => merged.set(row.id, row)));
+      return Array.from(merged.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    },
+    enabled: !!clientId,
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* ═══ ORDERS ═══ */}
+      <HistorySection title="Toutes les commandes" icon={ShoppingCart} count={ordersQ.data?.length || 0} loading={ordersQ.isLoading}>
+        {ordersQ.data && ordersQ.data.length > 0 ? (
+          <div className="space-y-2 mt-2">
+            {ordersQ.data.map((o: any) => (
+              <Link
+                key={o.id}
+                to={corePath(`/orders/${o.id}`)}
+                className="flex items-center gap-3 p-3 rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] hover:border-emerald-500/30 hover:bg-[hsl(220,20%,12%)] transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[12px] text-white">#{o.order_number}</span>
+                    <span className="text-[10px] text-[hsl(220,10%,45%)]">{fmtDate(o.created_at)}</span>
+                  </div>
+                  <p className="text-[10px] text-[#A1A1AA] mt-0.5">{o.service_type || "—"}</p>
+                </div>
+                <span className="text-[12px] text-emerald-400 font-medium tabular-nums">
+                  {o.total_amount ? `${Number(o.total_amount).toFixed(2)} $` : "—"}
+                </span>
+                <StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" />
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <EmptyRow label="Aucune commande" />
+        )}
+      </HistorySection>
+
+      {/* ═══ PAYMENTS ═══ */}
+      <HistorySection title="Tous les paiements" icon={CreditCard} count={paymentsQ.data?.length || 0} loading={paymentsQ.isLoading}>
+        {paymentsQ.data && paymentsQ.data.length > 0 ? (
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[hsl(220,15%,14%)]">
+                  {["Date", "N° paiement", "Montant", "Méthode", "Référence", "Statut"].map((h) => (
+                    <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paymentsQ.data.map((p: any) => (
+                  <tr key={p.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                    <td className="px-2 py-2 text-[#A1A1AA]">{fmtDate(p.received_at || p.created_at)}</td>
+                    <td className="px-2 py-2 font-mono text-white">{p.payment_number}</td>
+                    <td className="px-2 py-2 text-emerald-400 font-medium tabular-nums">{Number(p.amount).toFixed(2)} $</td>
+                    <td className="px-2 py-2 text-[#A1A1AA] capitalize">{p.method || "—"}</td>
+                    <td className="px-2 py-2 text-[#A1A1AA] font-mono text-[10px]">{p.reference || "—"}</td>
+                    <td className="px-2 py-2"><StatusBadge label={p.status || "confirmed"} variant={statusToVariant(p.status || "confirmed")} size="sm" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyRow label={billingCustomerId ? "Aucun paiement" : "Aucun compte de facturation lié"} />
+        )}
+      </HistorySection>
+
+      {/* ═══ KYC SESSIONS ═══ */}
+      <HistorySection title="Sessions de vérification KYC" icon={Shield} count={kycQ.data?.length || 0} loading={kycQ.isLoading}>
+        {kycQ.data && kycQ.data.length > 0 ? (
+          <div className="space-y-2 mt-2">
+            {kycQ.data.map((k: any) => (
+              <div key={k.id} className="flex items-center gap-3 p-3 rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)]">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[12px] text-white">{k.case_number || k.id.slice(0, 8)}</span>
+                    <span className="text-[10px] text-[hsl(220,10%,45%)]">{fmtDate(k.submitted_at || k.created_at)}</span>
+                  </div>
+                  <p className="text-[10px] text-[#A1A1AA] mt-0.5">
+                    {k.document_type || k.id_type || "Document"}
+                    {k.reviewed_by && reviewersQ.data?.[k.reviewed_by] && (
+                      <> · Vérifié par <span className="text-[hsl(220,10%,60%)]">{reviewersQ.data[k.reviewed_by]}</span></>
+                    )}
+                  </p>
+                </div>
+                <StatusBadge label={k.status || "pending"} variant={statusToVariant(k.status || "pending")} size="sm" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyRow label="Aucune session KYC" />
+        )}
+      </HistorySection>
+
+      {/* ═══ EMAILS ═══ */}
+      <HistorySection title="Tous les courriels envoyés" icon={Mail} count={emailsQ.data?.length || 0} loading={emailsQ.isLoading} defaultOpen={false}>
+        {emailsQ.data && emailsQ.data.length > 0 ? (
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[hsl(220,15%,14%)]">
+                  {["Date", "Type", "Sujet", "Statut"].map((h) => (
+                    <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {emailsQ.data.map((e: any) => (
+                  <tr key={e.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                    <td className="px-2 py-2 text-[#A1A1AA] whitespace-nowrap">{fmtDate(e.sent_at || e.created_at)}</td>
+                    <td className="px-2 py-2 text-white">{formatTemplate(e.template_key)}</td>
+                    <td className="px-2 py-2 text-[#A1A1AA] truncate max-w-[280px]">{e.subject || "—"}</td>
+                    <td className="px-2 py-2">
+                      <StatusBadge
+                        label={e.status === "sent" ? "envoyé" : e.status === "failed" ? "échoué" : e.status === "queued" ? "en file" : e.status}
+                        variant={statusToVariant(e.status === "sent" ? "active" : e.status)}
+                        size="sm"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyRow label={email ? "Aucun courriel" : "Adresse courriel introuvable"} />
+        )}
+      </HistorySection>
+
+      {/* ═══ ACTIVITY TIMELINE ═══ */}
+      <HistorySection title="Journal d'activité" icon={Clock} count={activityQ.data?.length || 0} loading={activityQ.isLoading} defaultOpen={false}>
+        {activityQ.data && activityQ.data.length > 0 ? (
+          <div className="space-y-1 mt-2 max-h-[500px] overflow-y-auto">
+            {activityQ.data.map((log: any) => (
+              <div key={log.id} className="flex items-start gap-3 py-2 border-b border-[hsl(220,15%,14%)] last:border-0">
+                <div className={cn("mt-1.5 h-1.5 w-1.5 rounded-full shrink-0", "bg-emerald-400/60")} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] text-white">
+                    <span className="text-emerald-400 font-medium">{formatAction(log.action)}</span>
+                    {log.entity_type && <span className="text-[hsl(220,10%,45%)]"> · {log.entity_type}</span>}
+                  </p>
+                  {log.changed_field && (
+                    <p className="text-[10px] text-[hsl(220,10%,45%)] mt-0.5">
+                      {log.changed_field}: <span className="text-[hsl(220,10%,55%)]">{log.old_value || "∅"}</span> → <span className="text-[hsl(220,10%,70%)]">{log.new_value || "∅"}</span>
+                    </p>
+                  )}
+                  {log.actor_name && (
+                    <p className="text-[10px] text-[hsl(220,10%,40%)] mt-0.5">
+                      par {log.actor_name}{log.actor_role ? ` (${log.actor_role})` : ""}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[10px] text-[hsl(220,10%,35%)] shrink-0 whitespace-nowrap">
+                  {fmtDate(log.created_at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyRow label="Aucune activité enregistrée" />
+        )}
+      </HistorySection>
+    </div>
+  );
+};
+
+export default ClientFullHistory;

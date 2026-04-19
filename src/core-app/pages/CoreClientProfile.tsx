@@ -17,12 +17,14 @@ import {
   Calendar, DollarSign, Wrench, TicketIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 import { ClientSupplierAccountSection } from "@/core-app/components/supplier-accounts/ClientSupplierAccountSection";
 import { ClientAdminNotesSection } from "@/core-app/components/admin-notes/ClientAdminNotesSection";
+import { ClientFullHistory } from "@/core-app/components/client-history/ClientFullHistory";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -296,6 +298,14 @@ const CoreClientProfile = () => {
         </div>
       </div>
 
+      {/* ═══ TABS ═══ */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="bg-[hsl(220,20%,11%)] border border-[hsl(220,15%,16%)] h-9">
+          <TabsTrigger value="overview" className="text-[12px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="history" className="text-[12px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Historique complet</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4 mt-4">
       {/* ═══ MAIN GRID ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Identity */}
@@ -546,6 +556,16 @@ const CoreClientProfile = () => {
           <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune activité enregistrée</p>
         )}
       </Section>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-4">
+          <ClientFullHistory
+            clientId={clientId!}
+            email={profile.email}
+            billingCustomerId={billingCustomer?.id}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* ═══ COMPTE FOURNISSEUR (admin only) ═══ */}
       <ClientSupplierAccountSection clientId={clientId} />
