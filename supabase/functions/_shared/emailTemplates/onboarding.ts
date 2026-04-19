@@ -457,11 +457,11 @@ export const employeeWelcome = (params: BaseParams & {
       ${sectionHeader('Vos informations', 'purple')}
       <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: ${colors.gray50}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
         <tr><td>
-          ${infoRow('Nom', escapeHtml(employeeName))}
-          ${jobTitle ? infoRow('Poste', escapeHtml(jobTitle)) : ''}
-          ${department ? infoRow('Département', escapeHtml(department)) : ''}
+          ${infoRow('Nom', employeeName)}
+          ${jobTitle ? infoRow('Poste', jobTitle) : ''}
+          ${department ? infoRow('Département', department) : ''}
           ${infoRow('Date de début', formattedHireDate)}
-          ${infoRow('Email de connexion', escapeHtml(employeeEmail))}
+          ${infoRow('Email de connexion', employeeEmail)}
         </td></tr>
       </table>
 
