@@ -93,23 +93,18 @@ const handler = async (req: Request): Promise<Response> => {
             messageType: "appointment_confirmation",
             entityType: "appointment",
             entityId: appointment?.id,
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-                    <h1 style="color: white; margin: 0;">Nivra</h1>
-                  </div>
-                  <div style="padding: 30px; background: #f8fafc;">
-                    <h2 style="color: #0f172a;">Bonjour ${invitee.name},</h2>
-                    <p style="color: #475569; font-size: 16px;">Votre rendez-vous a été confirmé!</p>
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                      <p style="margin: 0; color: #0f172a;"><strong>Date et heure:</strong> ${new Date(scheduledEvent.start_time).toLocaleString('fr-CA', { dateStyle: 'full', timeStyle: 'short' })}</p>
-                      <p style="margin: 10px 0 0; color: #0f172a;"><strong>Type:</strong> ${scheduledEvent.name}</p>
-                    </div>
-                    <p style="color: #475569;">Si vous avez des questions, n'hésitez pas à nous contacter.</p>
-                    <p style="color: #475569;">Cordialement,<br>L'équipe Nivra</p>
-                  </div>
-                </div>
-              `,
+            html: violetShell({
+              preheader: "Votre rendez-vous Nivra est confirmé.",
+              badge: "RENDEZ-VOUS CONFIRMÉ",
+              heroTitle: "Rendez-vous confirmé",
+              greeting: `Bonjour ${invitee.name},`,
+              bodyHtml: "Votre rendez-vous a été confirmé. Voici les détails ci-dessous.",
+              cardTitle: "Rendez-vous",
+              cardRows: [
+                ["Date et heure", new Date(scheduledEvent.start_time).toLocaleString('fr-CA', { dateStyle: 'full', timeStyle: 'short' })],
+                ["Type", scheduledEvent.name || "Rendez-vous"],
+              ],
+            }),
           });
           console.log("Email queued:", eqResult);
         } catch (emailError) {
