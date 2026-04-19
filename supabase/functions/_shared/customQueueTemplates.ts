@@ -879,7 +879,6 @@ export function renderQueueTemplate(
     case "appointment_missed_by_client": {
       const date = fmtDate(v.date || v.appointment_date);
       const time = esc(v.time || v.appointment_time || "—");
-      const address = esc(v.address || "—");
       const rebookingUrl = String(v.rebooking_url || `${portalUrl}/rendez-vous`);
       return {
         subject: `Rendez-vous manqué — Replanifiez votre installation`,
@@ -887,18 +886,16 @@ export function renderQueueTemplate(
           preheader: `Notre technicien s'est présenté mais personne n'était disponible.`,
           badge: "RENDEZ-VOUS MANQUÉ",
           heroTitle: "Nous avons raté votre rendez-vous",
-          heroSub: "Notre technicien s'est présenté mais personne n'était disponible.",
           icon: "alert",
           greeting,
           bodyText: "Vous pouvez replanifier votre installation à tout moment depuis votre espace client.",
-          cardTitle: "Rendez-vous manqué",
+          cardTitle: "Détails",
           cardRows: [
             ["Date", date],
             ["Heure", String(time)],
-            ["Adresse", String(address)],
           ],
           ctaPrimaryUrl: rebookingUrl,
-          ctaPrimaryLabel: "Replanifier mon installation",
+          ctaPrimaryLabel: "Replanifier",
         }),
       };
     }
@@ -908,11 +905,11 @@ export function renderQueueTemplate(
         subject: `Votre rendez-vous a été annulé`,
         html: shell({
           preheader: `Votre rendez-vous a été annulé par Nivra.`,
-          badge: "RENDEZ-VOUS ANNULÉ",
+          badge: "ANNULÉ",
           heroTitle: "Votre rendez-vous a été annulé",
           icon: "x",
           greeting,
-          bodyText: "Nous nous excusons pour cet inconvénient. Notre équipe vous contactera sous 24h pour replanifier.",
+          bodyText: "Notre équipe vous contactera sous 24h.",
           ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
           ctaPrimaryLabel: "Nous contacter",
         }),
@@ -935,7 +932,7 @@ export function renderQueueTemplate(
           icon: "truck",
           greeting,
           bodyText: "Votre équipement vient d'être expédié.",
-          cardTitle: "Suivi de livraison",
+          cardTitle: "Détails",
           cardRows: [
             ["Transporteur", String(carrier)],
             ["Suivi", String(tracking)],
@@ -978,15 +975,15 @@ export function renderQueueTemplate(
           icon: "check",
           greeting,
           bodyText: `Bonne nouvelle — votre service <strong style="color:#1a1a2e;">${service}</strong> est maintenant actif.`,
-          cardTitle: "Détails de votre service",
+          cardTitle: "Détails",
           cardRows: [
             ["Service", String(service)],
             ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-            ["Date d'activation", fmtDate(v.activated_at || new Date().toISOString())],
+            ["Date activation", fmtDate(v.activated_at || new Date().toISOString())],
             ["Cycle de facturation", esc(v.billing_cycle || "Mensuel")],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Accéder à mon espace client",
+          ctaPrimaryLabel: "Mon espace client",
         }),
       };
     }
@@ -996,18 +993,6 @@ export function renderQueueTemplate(
     case "account_created": {
       const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || "Service Nivra");
       const billingDate = fmtDate(v.billing_date || v.next_billing_date);
-      const wifiSsid = esc(v.wifi_ssid || "");
-      const wifiPassword = esc(v.wifi_password || "");
-      const guideUrl = String(v.guide_url || `${APP_URL}/aide`);
-
-      const rows: Array<[string, string]> = [
-        ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-        ["Service", String(service)],
-        ["Date de facturation", billingDate],
-      ];
-      if (wifiSsid) rows.push(["WiFi (SSID)", String(wifiSsid)]);
-      if (wifiPassword) rows.push(["Mot de passe WiFi", String(wifiPassword)]);
-
       return {
         subject: `Bienvenue chez Nivra — Tout ce qu'il faut savoir`,
         html: shell({
@@ -1017,13 +1002,15 @@ export function renderQueueTemplate(
           heroSub: "Nous sommes ravis de vous avoir parmi nous.",
           icon: "star",
           greeting,
-          bodyText: "Votre compte est prêt. Voici tout ce qu'il vous faut pour démarrer.",
-          cardTitle: "Vos informations",
-          cardRows: rows,
+          bodyText: "Votre compte est prêt. Connectez-vous pour tout gérer.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Service", String(service)],
+            ["Date de facturation", billingDate],
+          ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Mon espace client",
-          ctaSecondaryUrl: guideUrl,
-          ctaSecondaryLabel: "Guide de démarrage",
         }),
       };
     }
@@ -1044,8 +1031,8 @@ export function renderQueueTemplate(
           heroTitle: "Votre contrat est prêt à signer",
           icon: "pen",
           greeting,
-          bodyText: "Votre contrat de service Nivra est disponible. Veuillez le signer pour finaliser votre commande.",
-          cardTitle: "Détails du contrat",
+          bodyText: "Votre contrat de service Nivra est disponible.",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Service", String(service)],
@@ -1063,7 +1050,7 @@ export function renderQueueTemplate(
         subject: `Votre contrat attend votre signature`,
         html: shell({
           preheader: `Votre contrat expire bientôt.`,
-          badge: "RAPPEL — SIGNATURE",
+          badge: "RAPPEL SIGNATURE",
           heroTitle: "Votre contrat attend votre signature",
           icon: "pen",
           greeting,
@@ -1084,7 +1071,7 @@ export function renderQueueTemplate(
           heroTitle: "Contrat signé — Merci",
           icon: "check",
           greeting,
-          bodyText: "Nous avons bien reçu votre signature. Une copie de votre contrat est disponible dans votre espace client.",
+          bodyText: "Une copie de votre contrat est disponible dans votre espace client.",
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Voir mon contrat",
         }),
