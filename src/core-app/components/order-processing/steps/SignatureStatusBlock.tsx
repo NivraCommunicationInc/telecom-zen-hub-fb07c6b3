@@ -32,11 +32,73 @@ function maskIp(ip?: string | null): string {
 }
 
 export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureStatusBlockProps) {
-  const [busy, setBusy] = useState<"resend" | "generate" | null>(null);
+  const [busy, setBusy] = useState<"resend" | "generate" | "sendNow" | null>(null);
 
   const signed = !!contract?.client_signed_at;
   const token: string | null = contract?.signature_token || null;
   const signatureUrl = useMemo(() => (token ? `${SIGN_BASE_URL}/${token}` : null), [token]);
+
+  // ── One-click: generate token (if needed) + email link to client ──
+  const handleGenerateAndSend = async () => {
+    if (!contract?.id) {
+      toast.error("Aucun contrat à signer");
+      return;
+    }
+    const clientEmail =
+      order?.client_email ||
+      order?.profile?.email ||
+      contract?.client_email ||
+      null;
+    if (!clientEmail) {
+      toast.error("Aucun courriel client — ajoutez-en un d'abord");
+      return;
+    }
+
+    setBusy("sendNow");
+    try {
+      // 1. Issue (or rotate) a fresh signature token
+      const { data: tk, error: tkErr } = await supabase.rpc(
+        "generate_contract_signature_token" as any,
+        { p_contract_id: contract.id },
+      );
+      if (tkErr) throw tkErr;
+      const freshToken = String(tk || "").trim();
+      if (!freshToken) throw new Error("Token vide retourné par le serveur");
+      const url = `${SIGN_BASE_URL}/${freshToken}`;
+
+      // 2. Queue branded email through canonical pipeline
+      const { error: qErr } = await supabase.from("email_queue").insert({
+        to_email: clientEmail,
+        template_type: "contract_signature_request",
+        template_data: {
+          client_name: order?.client_full_name || "Client",
+          signature_url: url,
+          order_number: order?.order_number || "",
+          contract_number: contract?.contract_number || "",
+        } as any,
+        priority: "high",
+        status: "queued",
+      } as any);
+      if (qErr) throw qErr;
+
+      // 3. Update sent_at / sent_count for traceability
+      await supabase
+        .from("contracts")
+        .update({
+          sent_at: new Date().toISOString(),
+          sent_count: (contract.sent_count || 0) + 1,
+        })
+        .eq("id", contract.id);
+
+      toast.success(`Lien de signature envoyé à ${clientEmail}`);
+      onRefresh?.();
+    } catch (err: any) {
+      console.error("[SignatureStatusBlock] generate+send error:", err);
+      toast.error(err?.message || "Erreur lors de l'envoi du lien");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const handleCopyLink = async () => {
     if (!signatureUrl) {
