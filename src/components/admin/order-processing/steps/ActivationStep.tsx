@@ -246,6 +246,114 @@ export function ActivationStep({ proc }: Props) {
         </div>
       )}
 
+      {/* ── Equipment replacement panel ── */}
+      <div className="bg-muted/40 rounded-lg border border-border p-4 mb-4">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
+          <Replace className="w-3.5 h-3.5" /> Remplacement d'équipement
+        </h4>
+        {assignedSerial ? (
+          <p className="text-xs text-muted-foreground mb-3">
+            Équipement actuellement assigné — S/N{" "}
+            <span className="font-mono text-foreground">{assignedSerial}</span>
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground mb-3">
+            Aucun équipement détecté sur la commande — saisissez manuellement le S/N à retourner.
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Ancien S/N</Label>
+            <Input
+              value={oldSerial}
+              onChange={(e) => setOldSerial(e.target.value)}
+              placeholder="S/N à retourner"
+              className="h-9 text-sm font-mono"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Raison</Label>
+            <Select value={replaceReason} onValueChange={setReplaceReason}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Choisir une raison…" />
+              </SelectTrigger>
+              <SelectContent>
+                {REPLACEMENT_REASONS.map((r) => (
+                  <SelectItem key={r} value={r} className="text-sm">
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="mb-3">
+          <Label className="text-xs text-muted-foreground">
+            Nouvel équipement (optionnel)
+          </Label>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={selectedNew ? `${selectedNew.catalog_name || selectedNew.sku || ""} · ${selectedNew.serial_number || ""}` : searchTerm}
+              onChange={(e) => {
+                setSelectedNew(null);
+                setSearchTerm(e.target.value);
+              }}
+              placeholder="Rechercher par S/N, SKU ou nom…"
+              className="h-9 text-sm pl-7 font-mono"
+            />
+          </div>
+          {searching && (
+            <p className="text-[11px] text-muted-foreground mt-1">Recherche…</p>
+          )}
+          {!selectedNew && results.length > 0 && (
+            <div className="mt-1 border border-border rounded-md bg-background max-h-48 overflow-auto">
+              {results.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedNew(r);
+                    setResults([]);
+                    setSearchTerm("");
+                  }}
+                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-muted border-b border-border last:border-b-0"
+                >
+                  <div className="font-medium text-foreground">
+                    {r.catalog_name || r.sku || "Équipement"}
+                  </div>
+                  <div className="text-muted-foreground font-mono text-[11px]">
+                    S/N {r.serial_number || "—"} · SKU {r.sku || "—"}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {!selectedNew && !searching && debouncedTerm.length >= 2 && results.length === 0 && (
+            <p className="text-[11px] text-muted-foreground mt-1">Aucun équipement en stock trouvé.</p>
+          )}
+          {selectedNew && (
+            <p className="text-[11px] text-emerald-700 mt-1">
+              Sélectionné: {selectedNew.catalog_name || selectedNew.sku} — S/N{" "}
+              <span className="font-mono">{selectedNew.serial_number}</span>
+            </p>
+          )}
+        </div>
+
+        <Button
+          size="sm"
+          onClick={handleReplace}
+          disabled={!canReplace || proc.isUpdating}
+          className="text-xs h-8"
+          variant="outline"
+        >
+          <Replace className="w-3 h-3 mr-1" />
+          {isReplacing ? "Remplacement…" : "Initier remplacement"}
+        </Button>
+      </div>
+
       <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
         <Button
           size="sm"
