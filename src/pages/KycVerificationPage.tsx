@@ -214,7 +214,7 @@ export default function KycVerificationPage() {
 
         <div className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
           <Lock className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-          <p>Vos documents sont chiffrés et conservés de manière sécurisée. Ils sont automatiquement supprimés 30 jours après validation. Aucune copie n'est partagée.</p>
+          <p>Vos documents d'identité sont supprimés automatiquement après vérification de votre identité. Nivra Telecom ne conserve aucune copie de vos pièces d'identité.</p>
         </div>
       </div>
     </div>
