@@ -744,14 +744,14 @@ function TimeTab({ userId, empId }: { userId: string | null; empId: string }) {
   const logAudit = async (action: string, before: any, after: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const meta = user?.user_metadata as any;
       await supabase.from("hr_audit_log").insert({
         action,
         entity_type: "time_entry",
-        entity_id: after?.id ?? before?.id,
-        target_user_id: userId,
+        entity_id: (after?.id ?? before?.id) ?? "",
         actor_user_id: user?.id,
-        before_data: before,
-        after_data: after,
+        actor_name: meta?.full_name ?? meta?.name ?? user?.email ?? null,
+        details: { target_user_id: userId, before, after } as any,
       });
     } catch { /* non-fatal */ }
   };
