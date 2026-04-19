@@ -471,14 +471,27 @@ const ClientInvoices = () => {
                 <FileText className="w-5 h-5 text-teal-600" />
                 Historique des factures
               </CardTitle>
-              <Tabs value={filterTab} onValueChange={setFilterTab}>
-                <TabsList className="h-auto flex-wrap">
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">Toutes</TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs sm:text-sm">En attente</TabsTrigger>
-                  <TabsTrigger value="paid" className="text-xs sm:text-sm">Payées</TabsTrigger>
-                  <TabsTrigger value="overdue" className="text-xs sm:text-sm">En retard</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Tabs value={filterTab} onValueChange={setFilterTab}>
+                  <TabsList className="h-auto flex-wrap">
+                    <TabsTrigger value="all" className="text-xs sm:text-sm">Toutes</TabsTrigger>
+                    <TabsTrigger value="pending" className="text-xs sm:text-sm">En attente</TabsTrigger>
+                    <TabsTrigger value="paid" className="text-xs sm:text-sm">Payées</TabsTrigger>
+                    <TabsTrigger value="overdue" className="text-xs sm:text-sm">En retard</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleExportCSV}
+                  disabled={!filteredInvoices.length}
+                  title="Exporter la sélection en CSV (Excel)"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Exporter CSV
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
