@@ -520,6 +520,55 @@ export default function CorePhoneInventoryPage() {
                   </div>
                 </FormSection>
 
+                {/* SECTION 1b — Variantes disponibles (publiques) */}
+                <FormSection icon={<Tag className="h-4 w-4" />} title="1b. Variantes disponibles sur le site">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs font-medium mb-2 block">
+                        Couleurs disponibles (le client choisit sur la page produit)
+                      </Label>
+                      <ColorTagInput
+                        values={form.available_colors}
+                        onChange={(v) => setForm({ ...form, available_colors: v })}
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Tapez une couleur et appuyez sur Entrée. Couleur par défaut affichée à l'ouverture : <strong>{form.color || "—"}</strong>
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium mb-2 block">
+                        Options de stockage disponibles
+                      </Label>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {STORAGE_OPTIONS.map((s) => {
+                          const checked = form.available_storage.includes(s);
+                          return (
+                            <label
+                              key={s}
+                              className={`flex items-center gap-2 text-sm border rounded-md px-3 py-2 cursor-pointer transition ${
+                                checked ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                              }`}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() => {
+                                  const set = new Set(form.available_storage);
+                                  if (set.has(s)) set.delete(s); else set.add(s);
+                                  setForm({ ...form, available_storage: Array.from(set) });
+                                }}
+                              />
+                              {s}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Stockage par défaut : <strong>{form.storage}</strong>. Surcharges automatiques côté client : 512GB +100$, 1TB +200$.
+                      </p>
+                    </div>
+                  </div>
+                </FormSection>
+
                 {/* SECTION 2 — Condition & warranty */}
                 <FormSection icon={<Shield className="h-4 w-4" />} title="2. État et garantie">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
