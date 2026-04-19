@@ -34,11 +34,13 @@ import {
   CheckCircle,
   AlertCircle,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
 import { AddAccountCredit } from "@/components/client/AddAccountCredit";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
+import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
