@@ -23,6 +23,7 @@ import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
 
 import { PayPalButton } from "@/components/payment/PayPalButton";
+import { AutoPayPalOption } from "@/components/checkout/AutoPayPalOption";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,6 +122,13 @@ const GuestCheckout = () => {
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
   const [etransferRef, setEtransferRef] = useState("");
   const [etransferSender, setEtransferSender] = useState("");
+
+  // ── PayPal pre-authorized (auto-billing) recurring payment opt-in ──
+  // When enabled, the order routes through billing-create-order-with-paypal-subscription
+  // and the client is redirected to PayPal to approve a recurring billing agreement.
+  // They get a $5/month discount on every future invoice.
+  const [enableAutoBilling, setEnableAutoBilling] = useState(false);
+  const AUTOPAY_DISCOUNT = 5;
 
   // ── Legal checklist (replaces simple termsAccepted) ──
   const [legalChecklist, setLegalChecklist] = useState<ChecklistState>({
@@ -588,11 +596,10 @@ const GuestCheckout = () => {
             order_id: response.order_id,
             user_id: userId,
             terms_accepted: isLegalComplete,
-            // TODO(paypal-auto-billing): Le paiement récurrent automatique PayPal n'est pas encore
-            // câblé côté guest checkout. Pour l'activer, il faut: (1) afficher AutoPayPalOption,
-            // (2) router vers billing-create-order-with-paypal-subscription, (3) gérer
-            // l'approval_url + return URL PayPal. Voir mem://technical/paypal/canonical-lifecycle-standard-v2.
-            recurring_payment_accepted: false,
+            // Pre-authorized PayPal recurring billing — flipped true when the client
+            // opts in via AutoPayPalOption. The webhook (paypal-webhook) is the
+            // source of truth; this is the consent record snapshot.
+            recurring_payment_accepted: enableAutoBilling,
             total_amount_displayed: todayTotal,
             payment_method: paymentMethodValue,
             services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
@@ -664,6 +671,68 @@ const GuestCheckout = () => {
         });
       } catch (e) {
         console.warn("[GuestCheckout] Email failed:", e);
+      }
+
+      // Step 8 (optional): PayPal pre-authorized recurring billing enrollment.
+      // When the client opted in via AutoPayPalOption, create a PayPal subscription
+      // and redirect to PayPal's approval page. The webhook + return handler
+      // (/commander/paypal-retour) take over from there.
+      if (enableAutoBilling && paymentMethod === "paypal") {
+        try {
+          const monthlyAfterDiscount = Math.max(0, monthlyTotalWithTax - AUTOPAY_DISCOUNT);
+          const planLabel = selectedServices.map(s => s.name).join(" + ") || "Forfait Nivra";
+
+          const { data: subData, error: subErr } = await supabase.functions.invoke(
+            "billing-create-order-with-paypal-subscription",
+            {
+              body: {
+                user_id: userId,
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                email: email.trim().toLowerCase(),
+                phone: phone.trim(),
+                order_id: response.order_id,
+                order_number: response.order_number,
+                enable_auto_billing: true,
+                services: selectedServices.map(s => ({
+                  plan_code: s.plan_code || s.sku || s.id,
+                  plan_name: s.name,
+                  plan_price: toMoney(s.price),
+                  category: s.category,
+                })),
+              },
+            }
+          );
+
+          if (subErr) throw subErr;
+          if (!subData?.success || !subData?.approval_url) {
+            throw new Error(subData?.error || "Réponse PayPal invalide");
+          }
+
+          // Persist pending order so /commander/paypal-retour can reconcile.
+          try {
+            localStorage.setItem(
+              "nivra-paypal-pending-order",
+              JSON.stringify({
+                order_id: response.order_id,
+                order_number: response.order_number,
+                paypal_subscription_id: subData.paypal_subscription_id,
+                monthly_after_discount: monthlyAfterDiscount,
+                plan_label: planLabel,
+              })
+            );
+          } catch { /* localStorage may be blocked — non-fatal */ }
+
+          toast.success("Redirection vers PayPal pour approuver le paiement automatique...");
+          window.location.href = subData.approval_url;
+          return; // halt — PayPal takes over
+        } catch (autopayErr: any) {
+          console.error("[GuestCheckout] Auto-billing enrollment failed:", autopayErr);
+          toast.error(
+            "Le paiement automatique n'a pas pu être activé. Votre commande est confirmée et facturée manuellement."
+          );
+          // fall through to normal confirmation
+        }
       }
 
       setOrderResult({
@@ -1269,6 +1338,19 @@ const GuestCheckout = () => {
 
                     <Separator />
 
+                    {/* ── PayPal Pre-Authorized Auto-Billing Option (Step 1+2) ── */}
+                    {paymentMethod === "paypal" && monthlyTotalWithTax > AUTOPAY_DISCOUNT && (
+                      <AutoPayPalOption
+                        isFrench
+                        isEnabled={enableAutoBilling}
+                        onEnabledChange={setEnableAutoBilling}
+                        monthlyAmount={monthlyTotalWithTax}
+                        discountAmount={AUTOPAY_DISCOUNT}
+                      />
+                    )}
+
+                    <Separator />
+
                     {/* Legal Checklist - Full CheckoutEssentialTerms */}
                     <CheckoutEssentialTermsBase
                       isFrench
@@ -1309,6 +1391,8 @@ const GuestCheckout = () => {
                   >
                     {isSubmitting ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Traitement...</>
+                    ) : enableAutoBilling ? (
+                      <>Activer le paiement automatique <ArrowRight className="w-5 h-5 ml-2" /></>
                     ) : (
                       <>Confirmer la commande <Check className="w-5 h-5 ml-2" /></>
                     )}
@@ -1483,6 +1567,14 @@ const GuestCheckout = () => {
                           <div className="flex justify-between text-xs text-emerald-600">
                             <span>Rabais</span>
                             <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
+                          </div>
+                        )}
+
+                        {/* Pre-authorized auto-billing discount (recurring monthly) */}
+                        {enableAutoBilling && (
+                          <div className="flex justify-between text-xs text-emerald-600">
+                            <span>Rabais pré-autorisé (mensuel)</span>
+                            <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
                           </div>
                         )}
 
