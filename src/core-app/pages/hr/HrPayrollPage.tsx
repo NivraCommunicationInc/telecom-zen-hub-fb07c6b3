@@ -1,7 +1,8 @@
 /**
- * HrPayrollPage — Real payroll admin: periods, slips, approve, pay.
+ * HrPayrollPage — Professional payroll administration
+ * Sections: Header period nav | Employee payroll table | Bulk actions | Adjustments | History
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -20,17 +22,28 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DollarSign, Plus, CheckCircle, Eye, FileText, Loader2, Calendar, Download, Send, Wand2,
+  DollarSign, CheckCircle, FileText, Loader2, Calendar, Download, Send, Wand2,
+  ChevronLeft, ChevronRight, Lock, Edit, Plus, Users, TrendingUp, Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+// ─── Tax constants (Quebec 2026 estimates) ───────────────────────────────────
+const TAX_RATES = {
+  federal: 0.15,
+  provincial: 0.12,
+  rpc: 0.0595,
+  ae: 0.0134,
+  rqap: 0.00494,
+};
+const RPC_MAX_ANNUAL = 4055.50; // 2025 max — used as ceiling estimate
+
+const PERIOD_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Brouillon", variant: "secondary" },
   open: { label: "Ouverte", variant: "default" },
   processing: { label: "En traitement", variant: "outline" },
-  closed: { label: "Fermée", variant: "destructive" },
+  closed: { label: "Finalisée", variant: "destructive" },
 };
 
 const ENTRY_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -41,14 +54,31 @@ const ENTRY_STATUS: Record<string, { label: string; variant: "default" | "second
   rejected: { label: "Rejetée", variant: "destructive" },
 };
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const fmt = (n: number) => `${(n || 0).toFixed(2)} $`;
+
+function computeDeductions(gross: number) {
+  const fed = gross * TAX_RATES.federal;
+  const prov = gross * TAX_RATES.provincial;
+  const rpc = Math.min(gross * TAX_RATES.rpc, RPC_MAX_ANNUAL / 24);
+  const ae = gross * TAX_RATES.ae;
+  const rqap = gross * TAX_RATES.rqap;
+  const total = fed + prov + rpc + ae + rqap;
+  return { fed, prov, rpc, ae, rqap, total };
+}
+
 export default function HrPayrollPage() {
   const qc = useQueryClient();
+  const [activeTab, setActiveTab] = useState("payroll");
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newPeriod, setNewPeriod] = useState({ period_name: "", start_date: "", end_date: "" });
   const [filterStatus, setFilterStatus] = useState("all");
 
-  // Fetch pay periods
+  // Adjustment dialog state
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustEntry, setAdjustEntry] = useState<any>(null);
+  const [adjustForm, setAdjustForm] = useState({ type: "bonus", amount: "", reason: "", notes: "" });
+
+  // ─── Periods ──────────────────────────────────────────────────────────────
   const { data: periods = [], isLoading: loadingPeriods } = useQuery({
     queryKey: ["hr-pay-periods"],
     queryFn: async () => {
@@ -56,74 +86,181 @@ export default function HrPayrollPage() {
         .from("pay_periods")
         .select("*")
         .order("start_date", { ascending: false })
-        .limit(50);
+        .limit(100);
       if (error) throw error;
+      // Auto-select most recent period if none chosen
+      if (!selectedPeriod && data && data.length > 0) {
+        setSelectedPeriod(data[0].id);
+      }
       return data;
     },
   });
 
-  // Fetch entries for selected period
+  const currentPeriod = periods.find((p: any) => p.id === selectedPeriod) || null;
+  const periodIndex = periods.findIndex((p: any) => p.id === selectedPeriod);
+  const isLocked = currentPeriod?.status === "closed";
+
+  // ─── Entries for selected period ──────────────────────────────────────────
   const { data: entries = [], isLoading: loadingEntries } = useQuery({
     queryKey: ["hr-payroll-entries", selectedPeriod],
     enabled: !!selectedPeriod,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("payroll_entries")
-        .select("*, pay_periods(period_name)")
+        .select("*")
         .eq("pay_period_id", selectedPeriod!)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Enrich with employee names
       const userIds = [...new Set(data.map((e: any) => e.user_id))];
       if (userIds.length) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name, email")
+        const { data: emps } = await supabase
+          .from("employee_records")
+          .select("user_id, first_name, last_name, job_title, hourly_rate, work_email")
           .in("user_id", userIds);
-        const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p]));
-        return data.map((e: any) => ({ ...e, _profile: profileMap[e.user_id] || null }));
+        const map = Object.fromEntries((emps || []).map((p: any) => [p.user_id, p]));
+        return data.map((e: any) => ({
+          ...e,
+          _emp: map[e.user_id] || null,
+          _name: map[e.user_id] ? `${map[e.user_id].first_name} ${map[e.user_id].last_name}` : e.user_id.slice(0, 8),
+        }));
       }
       return data;
     },
   });
 
-  // Fetch commission links for entries
-  const { data: commLinks = [] } = useQuery({
-    queryKey: ["hr-comm-links", selectedPeriod],
+  // ─── Adjustments for current period ──────────────────────────────────────
+  const { data: adjustments = [] } = useQuery({
+    queryKey: ["hr-payroll-adjustments", selectedPeriod, entries.length],
     enabled: !!selectedPeriod && entries.length > 0,
     queryFn: async () => {
       const entryIds = entries.map((e: any) => e.id);
       const { data, error } = await supabase
-        .from("payroll_commission_links")
+        .from("payroll_adjustments")
         .select("*")
-        .in("payroll_entry_id", entryIds);
+        .in("payroll_entry_id", entryIds)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
 
-  // Create period
-  const createPeriodMut = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("pay_periods").insert({
-        period_name: newPeriod.period_name,
-        start_date: newPeriod.start_date,
-        end_date: newPeriod.end_date,
-        status: "draft",
-      });
+  // ─── History (all periods with summary) ──────────────────────────────────
+  const { data: history = [] } = useQuery({
+    queryKey: ["hr-payroll-history"],
+    queryFn: async () => {
+      const { data: pds, error } = await supabase
+        .from("pay_periods")
+        .select("*")
+        .order("start_date", { ascending: false })
+        .limit(20);
       if (error) throw error;
+      // Aggregate per period
+      const summary = await Promise.all((pds || []).map(async (p: any) => {
+        const { data: ents } = await supabase
+          .from("payroll_entries")
+          .select("gross_pay, net_pay, status")
+          .eq("pay_period_id", p.id);
+        const totalGross = (ents || []).reduce((s: number, e: any) => s + (e.gross_pay || 0), 0);
+        const totalNet = (ents || []).reduce((s: number, e: any) => s + (e.net_pay || 0), 0);
+        return {
+          ...p,
+          _employees: ents?.length || 0,
+          _totalGross: totalGross,
+          _totalNet: totalNet,
+        };
+      }));
+      return summary;
     },
-    onSuccess: () => {
-      toast.success("Période de paie créée");
+  });
+
+  // ─── Mutations ───────────────────────────────────────────────────────────
+  const autoGenerateMut = useMutation({
+    mutationFn: async (which: "first" | "fifteenth") => {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      let start: Date, end: Date, label: string;
+      if (which === "first") {
+        const prev = new Date(y, m - 1, 16);
+        const endPrev = new Date(y, m, 0);
+        start = prev; end = endPrev;
+        label = `Période 16-${endPrev.getDate()} ${format(prev, "MMMM yyyy", { locale: fr })}`;
+      } else {
+        start = new Date(y, m, 1); end = new Date(y, m, 15);
+        label = `Période 1-15 ${format(start, "MMMM yyyy", { locale: fr })}`;
+      }
+      const startISO = start.toISOString().slice(0, 10);
+      const endISO = end.toISOString().slice(0, 10);
+
+      const { data: existing } = await supabase.from("pay_periods")
+        .select("id").eq("start_date", startISO).eq("end_date", endISO).maybeSingle();
+      if (existing) throw new Error("Cette période existe déjà");
+
+      const { data: period, error: pErr } = await supabase.from("pay_periods").insert({
+        period_name: label, start_date: startISO, end_date: endISO, status: "draft",
+      }).select("id").single();
+      if (pErr) throw pErr;
+
+      const { data: emps } = await supabase
+        .from("employee_records")
+        .select("user_id, base_salary, hourly_rate, salary_type")
+        .eq("status", "active")
+        .not("user_id", "is", null);
+
+      let created = 0;
+      for (const emp of emps ?? []) {
+        if (!emp.user_id) continue;
+        const { data: hrs } = await supabase
+          .from("time_entries")
+          .select("total_hours")
+          .eq("user_id", emp.user_id)
+          .gte("punch_in", `${startISO}T00:00:00Z`)
+          .lte("punch_in", `${endISO}T23:59:59Z`)
+          .not("total_hours", "is", null);
+        const totalHours = (hrs ?? []).reduce((s: number, e: any) => s + (Number(e.total_hours) || 0), 0);
+
+        const { data: comms } = await supabase
+          .from("unified_commissions" as any)
+          .select("amount")
+          .eq("employee_id", emp.user_id)
+          .in("status", ["validated", "payable", "pending"])
+          .gte("created_at", `${startISO}T00:00:00Z`)
+          .lte("created_at", `${endISO}T23:59:59Z`);
+        const commTotal = ((comms as any[]) ?? []).reduce((s, c) => s + Number(c.amount || 0), 0);
+
+        const baseHalf = emp.salary_type === "hourly"
+          ? totalHours * Number(emp.hourly_rate || 0)
+          : Number(emp.base_salary || 0) / 24;
+        const gross = baseHalf + commTotal;
+        const ded = computeDeductions(gross);
+
+        const { error: eErr } = await supabase.from("payroll_entries").insert({
+          pay_period_id: period.id,
+          user_id: emp.user_id,
+          base_salary: Math.round(baseHalf * 100) / 100,
+          commission_total: Math.round(commTotal * 100) / 100,
+          bonus_total: 0,
+          hours_worked: Math.round(totalHours * 100) / 100,
+          overtime_hours: 0,
+          gross_pay: Math.round(gross * 100) / 100,
+          deductions_total: Math.round(ded.total * 100) / 100,
+          net_pay: Math.round((gross - ded.total) * 100) / 100,
+          status: "draft",
+        });
+        if (!eErr) created++;
+      }
+      return { periodId: period.id, created };
+    },
+    onSuccess: (r) => {
+      toast.success(`Période créée — ${r.created} fiche(s) générée(s)`);
       qc.invalidateQueries({ queryKey: ["hr-pay-periods"] });
-      setCreateOpen(false);
-      setNewPeriod({ period_name: "", start_date: "", end_date: "" });
+      qc.invalidateQueries({ queryKey: ["hr-payroll-history"] });
+      setSelectedPeriod(r.periodId);
     },
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
-  // Approve entry
   const approveMut = useMutation({
     mutationFn: async (entryId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -140,7 +277,25 @@ export default function HrPayrollPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
-  // Mark paid
+  const approveAllMut = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const ids = entries.filter((e: any) => e.status === "draft" || e.status === "pending_approval").map((e: any) => e.id);
+      if (ids.length === 0) throw new Error("Aucune fiche à approuver");
+      const { error } = await supabase
+        .from("payroll_entries")
+        .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} fiche(s) approuvée(s)`);
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
   const markPaidMut = useMutation({
     mutationFn: async (entryId: string) => {
       const { error } = await supabase
@@ -156,169 +311,98 @@ export default function HrPayrollPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
-  // Phase 4 — Bi-monthly auto-generate (1st or 15th of current month)
-  const autoGenerateMut = useMutation({
-    mutationFn: async (which: "first" | "fifteenth") => {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = now.getMonth();
-      let start: Date, end: Date, label: string;
-      if (which === "first") {
-        // Period covers previous month's 16th → end of month
-        const prev = new Date(y, m - 1, 16);
-        const endPrev = new Date(y, m, 0); // last day of previous month
-        start = prev; end = endPrev;
-        label = `Paie ${format(now, "1 MMM yyyy", { locale: fr })} (16-${endPrev.getDate()} ${format(prev, "MMM", { locale: fr })})`;
-      } else {
-        // Period covers 1st → 15th of current month
-        start = new Date(y, m, 1); end = new Date(y, m, 15);
-        label = `Paie ${format(now, "15 MMM yyyy", { locale: fr })} (1-15 ${format(start, "MMM", { locale: fr })})`;
-      }
-      const startISO = start.toISOString().slice(0, 10);
-      const endISO = end.toISOString().slice(0, 10);
-
-      // Check if period already exists
-      const { data: existing } = await supabase.from("pay_periods")
-        .select("id").eq("start_date", startISO).eq("end_date", endISO).maybeSingle();
-      if (existing) throw new Error("Cette période existe déjà");
-
-      const { data: period, error: pErr } = await supabase.from("pay_periods").insert({
-        period_name: label, start_date: startISO, end_date: endISO, status: "draft",
-      }).select("id").single();
-      if (pErr) throw pErr;
-
-      // Build entries for active employees (hours from time_entries, base from employee_records)
-      const { data: emps } = await supabase
-        .from("employee_records")
-        .select("user_id, base_salary, hourly_rate, salary_type")
-        .eq("status", "active")
-        .not("user_id", "is", null);
-
-      let created = 0;
-      for (const emp of emps ?? []) {
-        if (!emp.user_id) continue;
-        // Aggregate hours
-        const { data: hrs } = await supabase
-          .from("time_entries")
-          .select("total_hours")
-          .eq("user_id", emp.user_id)
-          .gte("punch_in", `${startISO}T00:00:00Z`)
-          .lte("punch_in", `${endISO}T23:59:59Z`)
-          .not("total_hours", "is", null);
-        const totalHours = (hrs ?? []).reduce((s: number, e: any) => s + (Number(e.total_hours) || 0), 0);
-
-        // Aggregate commissions for the period
-        const { data: comms } = await supabase
-          .from("unified_commissions" as any)
-          .select("amount")
-          .eq("employee_id", emp.user_id)
-          .in("status", ["validated", "payable", "pending"])
-          .gte("created_at", `${startISO}T00:00:00Z`)
-          .lte("created_at", `${endISO}T23:59:59Z`);
-        const commTotal = ((comms as any[]) ?? []).reduce((s, c) => s + Number(c.amount || 0), 0);
-
-        const baseHalf = emp.salary_type === "hourly"
-          ? totalHours * Number(emp.hourly_rate || 0)
-          : Number(emp.base_salary || 0) / 24; // bi-monthly => 24 periods per year
-        const gross = baseHalf + commTotal;
-
-        const { error: eErr } = await supabase.from("payroll_entries").insert({
-          pay_period_id: period.id,
-          user_id: emp.user_id,
-          base_salary: Math.round(baseHalf * 100) / 100,
-          commission_total: Math.round(commTotal * 100) / 100,
-          bonus_total: 0,
-          hours_worked: Math.round(totalHours * 100) / 100,
-          overtime_hours: 0,
-          gross_pay: Math.round(gross * 100) / 100,
-          deductions_total: 0,
-          net_pay: Math.round(gross * 100) / 100,
-          status: "draft",
-        });
-        if (!eErr) created++;
-      }
-      return { periodId: period.id, created };
+  const finalizePeriodMut = useMutation({
+    mutationFn: async () => {
+      if (!selectedPeriod) throw new Error("Aucune période");
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("pay_periods")
+        .update({ status: "closed", closed_at: new Date().toISOString(), closed_by: user?.id })
+        .eq("id", selectedPeriod);
+      if (error) throw error;
     },
-    onSuccess: (r) => {
-      toast.success(`Période créée — ${r.created} fiche(s) générée(s)`);
+    onSuccess: () => {
+      toast.success("Période finalisée — verrouillée");
       qc.invalidateQueries({ queryKey: ["hr-pay-periods"] });
-      setSelectedPeriod(r.periodId);
+      qc.invalidateQueries({ queryKey: ["hr-payroll-history"] });
     },
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
-  // Phase 4 — Notify employees that their payslip is ready
+  const adjustMut = useMutation({
+    mutationFn: async () => {
+      if (!adjustEntry) throw new Error("Aucune fiche");
+      const amt = parseFloat(adjustForm.amount);
+      if (isNaN(amt) || amt === 0) throw new Error("Montant invalide");
+      const { data: { user } } = await supabase.auth.getUser();
+      const signedAmount = adjustForm.type === "deduction" ? -Math.abs(amt) : Math.abs(amt);
+
+      const { error: aErr } = await supabase.from("payroll_adjustments").insert({
+        payroll_entry_id: adjustEntry.id,
+        adjustment_type: adjustForm.type,
+        label: adjustForm.reason || (adjustForm.type === "bonus" ? "Bonus" : "Déduction"),
+        amount: signedAmount,
+        applied_by: user?.id,
+        notes: adjustForm.notes || null,
+      });
+      if (aErr) throw aErr;
+
+      // Recompute entry totals
+      const newBonus = adjustForm.type === "bonus" ? (adjustEntry.bonus_total || 0) + Math.abs(amt) : (adjustEntry.bonus_total || 0);
+      const newDed = adjustForm.type === "deduction"
+        ? (adjustEntry.deductions_total || 0) + Math.abs(amt)
+        : (adjustEntry.deductions_total || 0);
+      const newGross = (adjustEntry.base_salary || 0) + (adjustEntry.commission_total || 0) + newBonus;
+      const taxDed = computeDeductions(newGross).total;
+      const newTotalDed = taxDed + (adjustForm.type === "deduction" ? Math.abs(amt) : 0)
+        + Math.max(0, (adjustEntry.deductions_total || 0) - computeDeductions(adjustEntry.gross_pay || 0).total);
+
+      const { error: uErr } = await supabase.from("payroll_entries").update({
+        bonus_total: Math.round(newBonus * 100) / 100,
+        gross_pay: Math.round(newGross * 100) / 100,
+        deductions_total: Math.round(newTotalDed * 100) / 100,
+        net_pay: Math.round((newGross - newTotalDed) * 100) / 100,
+      }).eq("id", adjustEntry.id);
+      if (uErr) throw uErr;
+    },
+    onSuccess: () => {
+      toast.success("Ajustement enregistré");
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
+      qc.invalidateQueries({ queryKey: ["hr-payroll-adjustments"] });
+      setAdjustOpen(false);
+      setAdjustForm({ type: "bonus", amount: "", reason: "", notes: "" });
+      setAdjustEntry(null);
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
   const notifyMut = useMutation({
     mutationFn: async () => {
-      const approved = entries.filter((e: any) => e.status === "approved" || e.status === "paid");
+      const eligible = entries.filter((e: any) => e.status === "approved" || e.status === "paid");
       let sent = 0;
-      for (const e of approved as any[]) {
+      for (const e of eligible as any[]) {
         const { error } = await supabase.from("employee_notifications").insert({
           user_id: e.user_id,
           title: "Fiche de paie disponible",
-          body: `Votre fiche de paie pour ${e.pay_periods?.period_name || "la période en cours"} est disponible. Net: ${(e.net_pay || 0).toFixed(2)} $`,
+          body: `Votre fiche de paie pour ${currentPeriod?.period_name || "la période en cours"} est disponible. Net: ${fmt(e.net_pay || 0)}`,
           notification_type: "payroll",
         });
         if (!error) sent++;
       }
       return sent;
     },
-    onSuccess: (n) => toast.success(`${n} notification(s) envoyée(s) aux employés`),
+    onSuccess: (n) => toast.success(`${n} notification(s) envoyée(s)`),
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
-  const fmt = (n: number) => `${n.toFixed(2)} $`;
-  const filteredEntries = filterStatus === "all" ? entries : entries.filter((e: any) => e.status === filterStatus);
-
-  const commLinksByEntry = commLinks.reduce((acc: Record<string, any[]>, cl: any) => {
-    acc[cl.payroll_entry_id] = acc[cl.payroll_entry_id] || [];
-    acc[cl.payroll_entry_id].push(cl);
-    return acc;
-  }, {});
-
-  // CSV export
-  const exportCSV = () => {
-    if (entries.length === 0) {
-      toast.error("Aucune fiche à exporter");
-      return;
-    }
-    const cols = [
-      ["Numéro", "Employé", "Heures", "Base ($)", "Commission ($)", "Bonus ($)", "Déductions ($)", "Brut ($)", "Net ($)", "Statut"],
-    ];
-    const rows = entries.map((e: any) => [
-      e.payroll_number || "",
-      (e._profile?.full_name || e.user_id.slice(0, 8)),
-      e.hours_worked,
-      e.base_salary,
-      e.commission_total,
-      e.bonus_total,
-      e.deductions_total,
-      e.gross_pay,
-      e.net_pay,
-      e.status,
-    ]);
-    const csv = [...cols, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `paie_${selectedPeriod?.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("CSV exporté");
-  };
-
-  // Generate printable payslip PDF (uses browser print)
+  // ─── PDF generation ──────────────────────────────────────────────────────
   const generatePayslipPDF = (entry: any) => {
-    const periodName = entry.pay_periods?.period_name || "Période";
-    const fullName = entry._profile?.full_name || entry.user_id.slice(0, 8);
-    const email = entry._profile?.email || "";
+    const periodName = currentPeriod?.period_name || "Période";
+    const fullName = entry._name;
+    const email = entry._emp?.work_email || "";
+    const ded = computeDeductions(entry.gross_pay || 0);
     const html = `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8" />
-<title>Fiche de paie - ${fullName}</title>
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8" /><title>Fiche de paie - ${fullName}</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 40px; color: #1a1a1a; }
   .header { border-bottom: 3px solid #0066CC; padding-bottom: 16px; margin-bottom: 24px; }
@@ -328,19 +412,14 @@ export default function HrPayrollPage() {
   .info-grid div { padding: 8px; background: #f5f5f5; border-radius: 4px; }
   .info-grid strong { display: block; color: #0066CC; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
-  table th, table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-  table th { background: #0066CC; color: white; font-weight: 600; }
+  th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+  th { background: #0066CC; color: white; font-weight: 600; }
+  .section-title { background: #f0f0f0; font-weight: bold; }
   .total-row { background: #f9f9f9; font-weight: bold; }
   .net-row { background: #0066CC; color: white; font-weight: bold; font-size: 15px; }
-  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 10px; color: #888; text-align: center; }
   @media print { body { padding: 20px; } }
-</style>
-</head>
-<body>
-  <div class="header">
-    <h1>Nivra Telecom</h1>
-    <p>Fiche de paie — ${periodName}</p>
-  </div>
+</style></head><body>
+  <div class="header"><h1>Nivra Telecom</h1><p>Fiche de paie — ${periodName}</p></div>
   <div class="info-grid">
     <div><strong>Employé</strong>${fullName}</div>
     <div><strong>Email</strong>${email}</div>
@@ -350,252 +429,423 @@ export default function HrPayrollPage() {
   <table>
     <thead><tr><th>Description</th><th style="text-align:right">Montant</th></tr></thead>
     <tbody>
+      <tr class="section-title"><td colspan="2">Revenus</td></tr>
       <tr><td>Heures travaillées</td><td style="text-align:right">${entry.hours_worked || 0} h</td></tr>
-      <tr><td>Heures supplémentaires</td><td style="text-align:right">${entry.overtime_hours || 0} h</td></tr>
-      <tr><td>Salaire de base</td><td style="text-align:right">${(entry.base_salary || 0).toFixed(2)} $</td></tr>
-      <tr><td>Commissions</td><td style="text-align:right">${(entry.commission_total || 0).toFixed(2)} $</td></tr>
-      <tr><td>Bonus</td><td style="text-align:right">${(entry.bonus_total || 0).toFixed(2)} $</td></tr>
-      <tr class="total-row"><td>Salaire brut</td><td style="text-align:right">${(entry.gross_pay || 0).toFixed(2)} $</td></tr>
-      <tr><td>Déductions</td><td style="text-align:right">-${Math.abs(entry.deductions_total || 0).toFixed(2)} $</td></tr>
-      <tr class="net-row"><td>Salaire net</td><td style="text-align:right">${(entry.net_pay || 0).toFixed(2)} $</td></tr>
+      <tr><td>Salaire de base</td><td style="text-align:right">${fmt(entry.base_salary)}</td></tr>
+      <tr><td>Commissions</td><td style="text-align:right">${fmt(entry.commission_total)}</td></tr>
+      <tr><td>Bonus</td><td style="text-align:right">${fmt(entry.bonus_total)}</td></tr>
+      <tr class="total-row"><td>Salaire brut</td><td style="text-align:right">${fmt(entry.gross_pay)}</td></tr>
+      <tr class="section-title"><td colspan="2">Déductions estimées</td></tr>
+      <tr><td>Impôt fédéral (15%)</td><td style="text-align:right">-${fmt(ded.fed)}</td></tr>
+      <tr><td>Impôt provincial QC (12%)</td><td style="text-align:right">-${fmt(ded.prov)}</td></tr>
+      <tr><td>RPC (5.95%)</td><td style="text-align:right">-${fmt(ded.rpc)}</td></tr>
+      <tr><td>AE (1.34%)</td><td style="text-align:right">-${fmt(ded.ae)}</td></tr>
+      <tr><td>RQAP (0.494%)</td><td style="text-align:right">-${fmt(ded.rqap)}</td></tr>
+      <tr class="total-row"><td>Total déductions</td><td style="text-align:right">-${fmt(entry.deductions_total)}</td></tr>
+      <tr class="net-row"><td>Salaire net</td><td style="text-align:right">${fmt(entry.net_pay)}</td></tr>
     </tbody>
   </table>
-  <div class="footer">
-    Document généré le ${format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })} — Nivra Telecom inc.
-  </div>
-  <script>window.onload = () => { window.print(); };</script>
-</body>
-</html>`;
+  <p style="font-size:10px;color:#888;text-align:center;margin-top:32px">Document généré le ${format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })} — Nivra Telecom inc.</p>
+  <script>window.onload = () => window.print();</script>
+</body></html>`;
     const win = window.open("", "_blank", "width=900,height=700");
-    if (!win) {
-      toast.error("Veuillez autoriser les fenêtres contextuelles");
-      return;
-    }
+    if (!win) return toast.error("Veuillez autoriser les fenêtres contextuelles");
     win.document.write(html);
     win.document.close();
-    toast.success("Fiche de paie générée");
   };
 
-  // KPIs
+  const generateAllPDFs = () => {
+    if (entries.length === 0) return toast.error("Aucune fiche");
+    entries.forEach((e: any, i: number) => setTimeout(() => generatePayslipPDF(e), i * 500));
+    toast.success(`${entries.length} fiche(s) en génération`);
+  };
+
+  // ─── CSV exports ────────────────────────────────────────────────────────
+  const exportCSV = (entriesToExport: any[] = entries, periodName?: string) => {
+    if (entriesToExport.length === 0) return toast.error("Aucune fiche à exporter");
+    const cols = [["Numéro", "Employé", "Heures", "Base ($)", "Commission ($)", "Bonus ($)", "Brut ($)", "Déductions ($)", "Net ($)", "Statut"]];
+    const rows = entriesToExport.map((e: any) => [
+      e.payroll_number || "", e._name || e.user_id?.slice(0, 8),
+      e.hours_worked, e.base_salary, e.commission_total, e.bonus_total,
+      e.gross_pay, e.deductions_total, e.net_pay, e.status,
+    ]);
+    const csv = [...cols, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paie_${(periodName || currentPeriod?.period_name || "export").replace(/\s+/g, "_")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exporté");
+  };
+
+  const exportHistoryPeriod = async (periodId: string, periodName: string) => {
+    const { data } = await supabase.from("payroll_entries").select("*").eq("pay_period_id", periodId);
+    if (!data) return;
+    const userIds = [...new Set(data.map((e: any) => e.user_id))];
+    const { data: emps } = await supabase.from("employee_records").select("user_id,first_name,last_name").in("user_id", userIds);
+    const map = Object.fromEntries((emps || []).map((p: any) => [p.user_id, `${p.first_name} ${p.last_name}`]));
+    exportCSV(data.map((e: any) => ({ ...e, _name: map[e.user_id] })), periodName);
+  };
+
+  // ─── Computed ───────────────────────────────────────────────────────────
+  const filteredEntries = filterStatus === "all" ? entries : entries.filter((e: any) => e.status === filterStatus);
   const totalGross = entries.reduce((s: number, e: any) => s + (e.gross_pay || 0), 0);
   const totalNet = entries.reduce((s: number, e: any) => s + (e.net_pay || 0), 0);
-  const approved = entries.filter((e: any) => e.status === "approved" || e.status === "paid").length;
+  const adjustmentsByEntry = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    adjustments.forEach((a: any) => {
+      m[a.payroll_entry_id] = m[a.payroll_entry_id] || [];
+      m[a.payroll_entry_id].push(a);
+    });
+    return m;
+  }, [adjustments]);
 
+  const periodStatus = currentPeriod ? PERIOD_STATUS[currentPeriod.status] || { label: currentPeriod.status, variant: "secondary" as const } : null;
+
+  // ─── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="space-y-4 max-w-7xl">
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />
             Paie — Administration
           </h1>
-          <p className="text-xs text-muted-foreground">Périodes, fiches de paie, approbation et paiement</p>
+          <p className="text-xs text-muted-foreground">Périodes bi-mensuelles, fiches, ajustements, historique</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
             onClick={() => autoGenerateMut.mutate("first")} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />Générer paie du 1er
+            <Wand2 className="h-3.5 w-3.5" />Générer paie 16-fin
           </Button>
           <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
             onClick={() => autoGenerateMut.mutate("fifteenth")} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />Générer paie du 15
+            <Wand2 className="h-3.5 w-3.5" />Générer paie 1-15
           </Button>
-          {selectedPeriod && (
-            <>
-              <Button size="sm" variant="outline" onClick={exportCSV} className="gap-1.5">
-                <Download className="h-3.5 w-3.5" />Export CSV
-              </Button>
-              <Button size="sm" variant="outline" disabled={notifyMut.isPending}
-                onClick={() => notifyMut.mutate()} className="gap-1.5">
-                <Send className="h-3.5 w-3.5" />Envoyer fiches
-              </Button>
-            </>
-          )}
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" />Période manuelle</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Créer une période de paie</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Nom de la période</Label>
-                  <Input value={newPeriod.period_name} onChange={(e) => setNewPeriod(p => ({ ...p, period_name: e.target.value }))}
-                    placeholder="Paie Mars 2026 - 1ère quinzaine" className="h-8 text-xs" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Début</Label>
-                    <Input type="date" value={newPeriod.start_date}
-                      onChange={(e) => setNewPeriod(p => ({ ...p, start_date: e.target.value }))} className="h-8 text-xs" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Fin</Label>
-                    <Input type="date" value={newPeriod.end_date}
-                      onChange={(e) => setNewPeriod(p => ({ ...p, end_date: e.target.value }))} className="h-8 text-xs" />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button size="sm" disabled={!newPeriod.period_name || !newPeriod.start_date || !newPeriod.end_date || createPeriodMut.isPending}
-                  onClick={() => createPeriodMut.mutate()}>
-                  {createPeriodMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
-      {/* Periods list */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />Périodes de paie</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loadingPeriods ? (
-            <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-          ) : periods.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">Aucune période de paie. Créez-en une.</p>
-          ) : (
-            <div className="space-y-1">
-              {periods.map((p: any) => {
-                const st = STATUS_MAP[p.status] || { label: p.status, variant: "secondary" as const };
-                const isSelected = selectedPeriod === p.id;
-                return (
-                  <div key={p.id}
-                    className={`flex items-center justify-between p-2.5 rounded-md cursor-pointer transition-colors ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50 border border-transparent"}`}
-                    onClick={() => setSelectedPeriod(p.id)}>
-                    <div>
-                      <p className="text-xs font-medium">{p.period_name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(p.start_date), "d MMM", { locale: fr })} — {format(new Date(p.end_date), "d MMM yyyy", { locale: fr })}
-                      </p>
-                    </div>
-                    <Badge variant={st.variant} className="text-[10px]">{st.label}</Badge>
-                  </div>
-                );
-              })}
+      {/* SECTION 1 — Period header with prev/next nav */}
+      {loadingPeriods ? (
+        <Card><CardContent className="p-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
+      ) : periods.length === 0 ? (
+        <Card><CardContent className="p-6 text-center text-xs text-muted-foreground">Aucune période. Cliquez "Générer paie" pour démarrer.</CardContent></Card>
+      ) : currentPeriod && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <Button size="sm" variant="outline" disabled={periodIndex >= periods.length - 1}
+                onClick={() => setSelectedPeriod(periods[periodIndex + 1]?.id)}>
+                <ChevronLeft className="h-4 w-4" />Précédente
+              </Button>
+              <div className="flex-1 text-center">
+                <div className="flex items-center justify-center gap-3 mb-1">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold">{currentPeriod.period_name}</h2>
+                  {periodStatus && <Badge variant={periodStatus.variant}>{periodStatus.label}</Badge>}
+                  {isLocked && <Lock className="h-4 w-4 text-destructive" />}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(currentPeriod.start_date), "d MMM yyyy", { locale: fr })} — {format(new Date(currentPeriod.end_date), "d MMM yyyy", { locale: fr })}
+                </p>
+              </div>
+              <Button size="sm" variant="outline" disabled={periodIndex <= 0}
+                onClick={() => setSelectedPeriod(periods[periodIndex - 1]?.id)}>
+                Suivante<ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Entries for selected period */}
-      {selectedPeriod && (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-4 gap-3">
-            <Card><CardContent className="p-3">
-              <p className="text-[10px] text-muted-foreground">Fiches</p>
-              <p className="text-lg font-bold">{entries.length}</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-3">
-              <p className="text-[10px] text-muted-foreground">Brut total</p>
-              <p className="text-lg font-bold text-primary">{fmt(totalGross)}</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-3">
-              <p className="text-[10px] text-muted-foreground">Net total</p>
-              <p className="text-lg font-bold">{fmt(totalNet)}</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-3">
-              <p className="text-[10px] text-muted-foreground">Approuvées</p>
-              <p className="text-lg font-bold text-green-600">{approved}/{entries.length}</p>
-            </CardContent></Card>
-          </div>
-
-          {/* Filter */}
-          <div className="flex gap-2 items-center">
-            <Label className="text-xs">Filtre statut:</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-7 text-xs w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="draft">Brouillon</SelectItem>
-                <SelectItem value="pending_approval">En attente</SelectItem>
-                <SelectItem value="approved">Approuvée</SelectItem>
-                <SelectItem value="paid">Payée</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Card>
-            <CardContent className="p-0">
-              {loadingEntries ? (
-                <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-              ) : filteredEntries.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-8">Aucune fiche de paie pour cette période.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-[10px]">#</TableHead>
-                      <TableHead className="text-[10px]">Employé</TableHead>
-                      <TableHead className="text-[10px]">Heures</TableHead>
-                      <TableHead className="text-[10px]">Base</TableHead>
-                      <TableHead className="text-[10px]">Commission</TableHead>
-                      <TableHead className="text-[10px]">Bonus</TableHead>
-                      <TableHead className="text-[10px]">Déductions</TableHead>
-                      <TableHead className="text-[10px]">Brut</TableHead>
-                      <TableHead className="text-[10px]">Net</TableHead>
-                      <TableHead className="text-[10px]">Commissions liées</TableHead>
-                      <TableHead className="text-[10px]">Statut</TableHead>
-                      <TableHead className="text-[10px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEntries.map((e: any) => {
-                      const st = ENTRY_STATUS[e.status] || { label: e.status, variant: "secondary" as const };
-                      const links = commLinksByEntry[e.id] || [];
-                      return (
-                        <TableRow key={e.id}>
-                          <TableCell className="text-[10px] font-mono">{e.payroll_number || "—"}</TableCell>
-                          <TableCell className="text-xs">{e._profile?.full_name || e.user_id.slice(0, 8)}</TableCell>
-                          <TableCell className="text-xs">{e.hours_worked}h{e.overtime_hours > 0 ? ` (+${e.overtime_hours}h OT)` : ""}</TableCell>
-                          <TableCell className="text-xs">{fmt(e.base_salary)}</TableCell>
-                          <TableCell className="text-xs">{fmt(e.commission_total)}</TableCell>
-                          <TableCell className="text-xs">{fmt(e.bonus_total)}</TableCell>
-                          <TableCell className="text-xs text-destructive">-{fmt(Math.abs(e.deductions_total))}</TableCell>
-                          <TableCell className="text-xs font-medium">{fmt(e.gross_pay)}</TableCell>
-                          <TableCell className="text-xs font-bold">{fmt(e.net_pay)}</TableCell>
-                          <TableCell className="text-[10px]">
-                            {links.length > 0 ? (
-                              <span className="text-primary">{links.length} comm.</span>
-                            ) : "—"}
-                          </TableCell>
-                          <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
-                                onClick={() => generatePayslipPDF(e)}>
-                                <FileText className="h-3 w-3" />PDF
-                              </Button>
-                              {(e.status === "draft" || e.status === "pending_approval") && (
-                                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
-                                  disabled={approveMut.isPending}
-                                  onClick={() => approveMut.mutate(e.id)}>
-                                  <CheckCircle className="h-3 w-3" />Approuver
-                                </Button>
-                              )}
-                              {e.status === "approved" && (
-                                <Button size="sm" variant="default" className="h-6 text-[10px] gap-1"
-                                  disabled={markPaidMut.isPending}
-                                  onClick={() => markPaidMut.mutate(e.id)}>
-                                  <DollarSign className="h-3 w-3" />Payer
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </>
+            {/* Period KPIs */}
+            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t">
+              <div className="text-center">
+                <Users className="h-4 w-4 mx-auto text-muted-foreground mb-1" />
+                <p className="text-[10px] text-muted-foreground">Employés</p>
+                <p className="text-lg font-bold">{entries.length}</p>
+              </div>
+              <div className="text-center">
+                <TrendingUp className="h-4 w-4 mx-auto text-muted-foreground mb-1" />
+                <p className="text-[10px] text-muted-foreground">Total brut</p>
+                <p className="text-lg font-bold text-primary">{fmt(totalGross)}</p>
+              </div>
+              <div className="text-center">
+                <Receipt className="h-4 w-4 mx-auto text-muted-foreground mb-1" />
+                <p className="text-[10px] text-muted-foreground">Total net estimé</p>
+                <p className="text-lg font-bold text-green-600">{fmt(totalNet)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* TABS — payroll | adjustments | history */}
+      {currentPeriod && (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="payroll" className="text-xs">Fiches de paie</TabsTrigger>
+            <TabsTrigger value="adjustments" className="text-xs">Ajustements ({adjustments.length})</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs">Historique</TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1 — Payroll table + bulk actions */}
+          <TabsContent value="payroll" className="space-y-3">
+            {/* SECTION 3 — Bulk actions */}
+            <Card>
+              <CardContent className="p-3 flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex gap-2 items-center">
+                  <Label className="text-xs">Filtre:</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="draft">Brouillon</SelectItem>
+                      <SelectItem value="approved">Approuvée</SelectItem>
+                      <SelectItem value="paid">Payée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" disabled={isLocked || approveAllMut.isPending}
+                    onClick={() => approveAllMut.mutate()} className="gap-1.5">
+                    <CheckCircle className="h-3.5 w-3.5" />Approuver tous
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={generateAllPDFs} className="gap-1.5">
+                    <FileText className="h-3.5 w-3.5" />Générer toutes les fiches
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={notifyMut.isPending}
+                    onClick={() => notifyMut.mutate()} className="gap-1.5">
+                    <Send className="h-3.5 w-3.5" />Envoyer aux employés
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => exportCSV()} className="gap-1.5">
+                    <Download className="h-3.5 w-3.5" />Export CSV
+                  </Button>
+                  <Button size="sm" variant="destructive" disabled={isLocked || finalizePeriodMut.isPending}
+                    onClick={() => {
+                      if (confirm("Finaliser la période ? Aucune modification ne sera permise après.")) finalizePeriodMut.mutate();
+                    }} className="gap-1.5">
+                    <Lock className="h-3.5 w-3.5" />Finaliser la période
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 2 — Employee payroll table */}
+            <Card>
+              <CardContent className="p-0">
+                {loadingEntries ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                ) : filteredEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-8">Aucune fiche pour ce filtre.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px]">Employé</TableHead>
+                        <TableHead className="text-[10px]">Heures</TableHead>
+                        <TableHead className="text-[10px]">Taux</TableHead>
+                        <TableHead className="text-[10px]">Base</TableHead>
+                        <TableHead className="text-[10px]">Commission</TableHead>
+                        <TableHead className="text-[10px]">Bonus</TableHead>
+                        <TableHead className="text-[10px]">Brut</TableHead>
+                        <TableHead className="text-[10px]">Déductions</TableHead>
+                        <TableHead className="text-[10px]">Net estimé</TableHead>
+                        <TableHead className="text-[10px]">Statut</TableHead>
+                        <TableHead className="text-[10px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEntries.map((e: any) => {
+                        const st = ENTRY_STATUS[e.status] || { label: e.status, variant: "secondary" as const };
+                        const ded = computeDeductions(e.gross_pay || 0);
+                        return (
+                          <TableRow key={e.id}>
+                            <TableCell className="text-xs">
+                              <div className="font-medium">{e._name}</div>
+                              <div className="text-[10px] text-muted-foreground">{e._emp?.job_title || "—"}</div>
+                            </TableCell>
+                            <TableCell className="text-xs">{e.hours_worked}h</TableCell>
+                            <TableCell className="text-xs">{e._emp?.hourly_rate ? `${e._emp.hourly_rate}$/h` : "—"}</TableCell>
+                            <TableCell className="text-xs">{fmt(e.base_salary)}</TableCell>
+                            <TableCell className="text-xs">{fmt(e.commission_total)}</TableCell>
+                            <TableCell className="text-xs">{fmt(e.bonus_total)}</TableCell>
+                            <TableCell className="text-xs font-medium">{fmt(e.gross_pay)}</TableCell>
+                            <TableCell className="text-[10px] text-destructive" title={`Féd: ${fmt(ded.fed)} | Prov: ${fmt(ded.prov)} | RPC: ${fmt(ded.rpc)} | AE: ${fmt(ded.ae)} | RQAP: ${fmt(ded.rqap)}`}>
+                              -{fmt(e.deductions_total)}
+                            </TableCell>
+                            <TableCell className="text-xs font-bold text-green-600">{fmt(e.net_pay)}</TableCell>
+                            <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                                  disabled={isLocked}
+                                  onClick={() => { setAdjustEntry(e); setAdjustOpen(true); }}>
+                                  <Edit className="h-3 w-3" />Modifier
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                                  onClick={() => generatePayslipPDF(e)}>
+                                  <FileText className="h-3 w-3" />PDF
+                                </Button>
+                                {(e.status === "draft" || e.status === "pending_approval") && (
+                                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                                    disabled={isLocked || approveMut.isPending}
+                                    onClick={() => approveMut.mutate(e.id)}>
+                                    <CheckCircle className="h-3 w-3" />Approuver
+                                  </Button>
+                                )}
+                                {e.status === "approved" && (
+                                  <Button size="sm" variant="default" className="h-6 text-[10px] gap-1"
+                                    disabled={isLocked || markPaidMut.isPending}
+                                    onClick={() => markPaidMut.mutate(e.id)}>
+                                    <DollarSign className="h-3 w-3" />Payé
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 2 — Adjustments */}
+          <TabsContent value="adjustments">
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">Ajustements de la période</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {adjustments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-8">Aucun ajustement enregistré.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px]">Employé</TableHead>
+                        <TableHead className="text-[10px]">Type</TableHead>
+                        <TableHead className="text-[10px]">Montant</TableHead>
+                        <TableHead className="text-[10px]">Raison</TableHead>
+                        <TableHead className="text-[10px]">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {adjustments.map((a: any) => {
+                        const entry = entries.find((e: any) => e.id === a.payroll_entry_id);
+                        return (
+                          <TableRow key={a.id}>
+                            <TableCell className="text-xs">{entry?._name || "—"}</TableCell>
+                            <TableCell><Badge variant={a.adjustment_type === "bonus" ? "default" : "destructive"} className="text-[10px]">{a.adjustment_type}</Badge></TableCell>
+                            <TableCell className={`text-xs font-medium ${a.amount < 0 ? "text-destructive" : "text-green-600"}`}>{fmt(a.amount)}</TableCell>
+                            <TableCell className="text-xs">{a.label}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground">{format(new Date(a.created_at), "d MMM yyyy HH:mm", { locale: fr })}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 3 — History */}
+          <TabsContent value="history">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Historique des paies</CardTitle></CardHeader>
+              <CardContent>
+                {history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-8">Aucun historique.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px]">Période</TableHead>
+                        <TableHead className="text-[10px]">Employés</TableHead>
+                        <TableHead className="text-[10px]">Total brut</TableHead>
+                        <TableHead className="text-[10px]">Total net</TableHead>
+                        <TableHead className="text-[10px]">Statut</TableHead>
+                        <TableHead className="text-[10px]">Finalisée le</TableHead>
+                        <TableHead className="text-[10px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {history.map((h: any) => {
+                        const st = PERIOD_STATUS[h.status] || { label: h.status, variant: "secondary" as const };
+                        return (
+                          <TableRow key={h.id} className="cursor-pointer hover:bg-muted/30" onClick={() => { setSelectedPeriod(h.id); setActiveTab("payroll"); }}>
+                            <TableCell className="text-xs font-medium">{h.period_name}</TableCell>
+                            <TableCell className="text-xs">{h._employees}</TableCell>
+                            <TableCell className="text-xs">{fmt(h._totalGross)}</TableCell>
+                            <TableCell className="text-xs font-bold text-green-600">{fmt(h._totalNet)}</TableCell>
+                            <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground">{h.closed_at ? format(new Date(h.closed_at), "d MMM yyyy", { locale: fr }) : "—"}</TableCell>
+                            <TableCell>
+                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                                onClick={(ev) => { ev.stopPropagation(); exportHistoryPeriod(h.id, h.period_name); }}>
+                                <Download className="h-3 w-3" />CSV
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Adjustment Dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajustement — {adjustEntry?._name}</DialogTitle>
+            <DialogDescription>Bonus ou déduction manuelle pour cette fiche</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Type</Label>
+              <Select value={adjustForm.type} onValueChange={(v) => setAdjustForm(f => ({ ...f, type: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bonus">Bonus (+)</SelectItem>
+                  <SelectItem value="deduction">Déduction (-)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Montant ($)</Label>
+              <Input type="number" step="0.01" value={adjustForm.amount}
+                onChange={(e) => setAdjustForm(f => ({ ...f, amount: e.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Raison</Label>
+              <Input value={adjustForm.reason}
+                onChange={(e) => setAdjustForm(f => ({ ...f, reason: e.target.value }))}
+                placeholder="Bonus performance, retenue avance..." className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes (optionnel)</Label>
+              <Textarea value={adjustForm.notes}
+                onChange={(e) => setAdjustForm(f => ({ ...f, notes: e.target.value }))}
+                rows={2} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setAdjustOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={!adjustForm.amount || adjustMut.isPending}
+              onClick={() => adjustMut.mutate()}>
+              {adjustMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
