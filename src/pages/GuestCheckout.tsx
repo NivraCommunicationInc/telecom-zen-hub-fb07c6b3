@@ -183,6 +183,9 @@ const GuestCheckout = () => {
   const [wifiRouterQty, setWifiRouterQty] = useState(1);
   const [tvTerminalQty, setTvTerminalQty] = useState(1);
 
+  // ── SIM type (physical | esim) — required only when a Mobile plan is in cart ──
+  const [simType, setSimType] = useState<"physical" | "esim">("physical");
+
   // ── Welcome discount ──
   const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
 
@@ -204,7 +207,8 @@ const GuestCheckout = () => {
 
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
-  const simFee = hasMobileService ? SIM_PRICE : 0;
+  // eSIM is delivered electronically — no physical card fee. Physical SIM keeps the SIM_PRICE.
+  const simFee = hasMobileService ? (simType === "esim" ? 0 : SIM_PRICE) : 0;
   const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
   const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
   const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
@@ -486,7 +490,13 @@ const GuestCheckout = () => {
         equipment: [
           ...((hasInternetService || hasTVService) ? [{ sku: "EQ-ROUTER", name: "Routeur Nivra Born WiFi 6", quantity: 1, unit_price: ROUTER_PRICE }] : []),
           ...(hasTVService ? [{ sku: "EQ-TERMINAL-TV", name: "Terminal TV", quantity: Math.min(Math.max(tvTerminalQty, 1), 4), unit_price: terminalPrice ?? 0 }] : []),
-          ...(hasMobileService ? [{ sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE }] : []),
+          ...(hasMobileService
+            ? [
+                simType === "esim"
+                  ? { sku: "EQ-SIM-ESIM", name: "eSIM", quantity: 1, unit_price: 0 }
+                  : { sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE },
+              ]
+            : []),
         ],
         fees: [
           ...(activationFee > 0 ? [{ sku: "FEE-ACTIVATION-1", name: "Frais d'activation", amount: activationFee }] : []),
@@ -522,6 +532,8 @@ const GuestCheckout = () => {
         line_items: [],
         notes: notes || "",
         account_id: accountId,
+        // sim_type is passed as additional metadata for fulfillment routing (physical vs eSIM).
+        ...(hasMobileService ? { sim_type: simType } as any : {}),
         referral: appliedReferral ? {
           code: appliedReferral.code,
           type: appliedReferral.type,
@@ -949,8 +961,12 @@ const GuestCheckout = () => {
                       {hasMobileService && (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-foreground">Carte SIM</p>
-                            <p className="text-xs text-muted-foreground">{fmt(SIM_PRICE)}</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {simType === "esim" ? "eSIM" : "Carte SIM physique"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {simType === "esim" ? "Livraison électronique — gratuite" : `${fmt(SIM_PRICE)}`}
+                            </p>
                           </div>
                           <Badge variant="secondary">1</Badge>
                         </div>
@@ -959,7 +975,73 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
-                {/* Welcome Discount Banner */}
+                {/* SIM type selector — shown whenever a Mobile plan is in the cart */}
+                {hasMobileService && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Smartphone className="w-5 h-5 text-primary" />
+                        Quel type de SIM votre appareil utilise-t-il ?
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSimType("physical")}
+                          className={`text-left p-4 rounded-xl border-2 transition-all ${
+                            simType === "physical"
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border hover:border-primary/30 hover:shadow-sm"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground text-sm">SIM physique</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Pour la majorité des appareils — Android, iPhone 13 et versions antérieures.
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-foreground ml-3">{fmt(SIM_PRICE)}</span>
+                          </div>
+                          {simType === "physical" && (
+                            <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
+                              <Check className="w-3.5 h-3.5" /> Sélectionné
+                            </div>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSimType("esim")}
+                          className={`text-left p-4 rounded-xl border-2 transition-all ${
+                            simType === "esim"
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border hover:border-primary/30 hover:shadow-sm"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground text-sm">eSIM</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Pour les appareils compatibles — iPhone 14+, Pixel 6+, Samsung Galaxy S21+ et plus récents.
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-foreground ml-3">Gratuit</span>
+                          </div>
+                          {simType === "esim" && (
+                            <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
+                              <Check className="w-3.5 h-3.5" /> Sélectionné
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-3">
+                        Vérifiez la compatibilité dans les réglages de votre appareil avant de choisir l'eSIM.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
                 {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
                   <Card className="bg-emerald-500/10 border-emerald-500/30">
                     <CardContent className="py-4">
