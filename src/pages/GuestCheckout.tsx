@@ -1277,6 +1277,19 @@ const GuestCheckout = () => {
 
                     <Separator />
 
+                    {/* ── PayPal Pre-Authorized Auto-Billing Option (Step 1+2) ── */}
+                    {paymentMethod === "paypal" && monthlyTotalWithTax > AUTOPAY_DISCOUNT && (
+                      <AutoPayPalOption
+                        isFrench
+                        isEnabled={enableAutoBilling}
+                        onEnabledChange={setEnableAutoBilling}
+                        monthlyAmount={monthlyTotalWithTax}
+                        discountAmount={AUTOPAY_DISCOUNT}
+                      />
+                    )}
+
+                    <Separator />
+
                     {/* Legal Checklist - Full CheckoutEssentialTerms */}
                     <CheckoutEssentialTermsBase
                       isFrench
