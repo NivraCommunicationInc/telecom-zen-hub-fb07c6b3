@@ -126,17 +126,14 @@ export default function PhoneCheckout() {
     })();
   }, [id]);
 
-  // Lazy-load mobile plans when toggle flips on
+  // Mobile plans — placeholder list (Core can manage these via existing services catalog)
   useEffect(() => {
     if (mode === "phone_plus_plan" && mobilePlans.length === 0) {
-      (async () => {
-        const { data } = await supabase
-          .from("mobile_plans")
-          .select("id, name, monthly_price")
-          .eq("is_active", true)
-          .order("monthly_price", { ascending: true });
-        setMobilePlans((data as MobilePlan[]) ?? []);
-      })();
+      setMobilePlans([
+        { id: "mobile-basic", name: "Mobile Essentiel", monthly_price: 25 },
+        { id: "mobile-plus", name: "Mobile Plus", monthly_price: 40 },
+        { id: "mobile-illimite", name: "Mobile Illimité", monthly_price: 55 },
+      ]);
     }
   }, [mode, mobilePlans.length]);
 
