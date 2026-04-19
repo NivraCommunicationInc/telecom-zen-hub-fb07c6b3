@@ -1,5 +1,5 @@
 /**
- * SignContract — Public click-to-sign page (/sign/:token)
+ * SignContract — Public click-to-sign page (/signer/:token)
  *
  * - No login required
  * - Bilingual (FR/EN based on browser language, FR fallback)
@@ -228,8 +228,8 @@ export default function SignContract() {
     return (
       <ShellPage>
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-          <span className="ml-3 text-sm text-gray-600">{tr.loading}</span>
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-3 text-sm text-muted-foreground">{tr.loading}</span>
         </div>
       </ShellPage>
     );
@@ -240,18 +240,18 @@ export default function SignContract() {
     const isAlready = data?.already_signed && !signedOk;
     return (
       <ShellPage lang={lang} setLang={setLang}>
-        <div className="text-center py-10 px-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-            <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+        <div className="px-4 py-10 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <CheckCircle2 className="h-9 w-9 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="mb-2 text-2xl font-bold text-foreground">
             {isAlready ? tr.alreadySignedTitle : tr.successTitle}
           </h1>
-          <p className="text-sm text-gray-600 max-w-md mx-auto">
+          <p className="mx-auto max-w-md text-sm text-muted-foreground">
             {isAlready ? tr.alreadySignedBody : tr.successBody}
           </p>
           {data?.contract_number && (
-            <p className="mt-4 text-xs text-gray-500">
+            <p className="mt-4 text-xs text-muted-foreground">
               {tr.contractNumber}: <span className="font-mono">{data.contract_number}</span>
             </p>
           )}
@@ -273,12 +273,12 @@ export default function SignContract() {
     }
     return (
       <ShellPage lang={lang} setLang={setLang}>
-        <div className="text-center py-10 px-4">
-          <div className="mx-auto w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+        <div className="px-4 py-10 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-8 w-8 text-destructive" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">{title}</h1>
-          <p className="text-sm text-gray-600 max-w-md mx-auto">{body}</p>
+          <h1 className="mb-2 text-xl font-bold text-foreground">{title}</h1>
+          <p className="mx-auto max-w-md text-sm text-muted-foreground">{body}</p>
         </div>
       </ShellPage>
     );
@@ -296,22 +296,22 @@ export default function SignContract() {
   return (
     <ShellPage lang={lang} setLang={setLang}>
       {/* Header */}
-      <div className="px-5 sm:px-8 pt-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-white" />
+      <div className="px-5 pt-6 sm:px-8">
+        <div className="mb-2 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm shadow-primary/20">
+            <FileText className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{tr.title}</h1>
-            <p className="text-xs text-gray-500">{tr.subtitle}</p>
+            <h1 className="text-lg font-bold leading-tight text-foreground sm:text-xl">{tr.title}</h1>
+            <p className="text-xs text-muted-foreground">{tr.subtitle}</p>
           </div>
         </div>
       </div>
 
       {/* Summary */}
-      <div className="px-5 sm:px-8 mt-4">
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">{tr.summary}</h2>
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+      <div className="mt-4 px-5 sm:px-8">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{tr.summary}</h2>
+        <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-card p-4 text-sm shadow-sm sm:grid-cols-2">
           {c?.contract_number && <Field label={tr.contractNumber} value={c.contract_number} mono />}
           {o?.order_number && <Field label={tr.orderNumber} value={o.order_number} mono />}
           {data?.account_number && <Field label={tr.accountNumber} value={data.account_number} mono />}
@@ -329,12 +329,12 @@ export default function SignContract() {
       </div>
 
       {/* Key terms */}
-      <div className="px-5 sm:px-8 mt-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-2">{tr.keyTerms}</h2>
-        <ul className="text-sm text-gray-700 space-y-1.5">
+      <div className="mt-5 px-5 sm:px-8">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">{tr.keyTerms}</h2>
+        <ul className="space-y-1.5 text-sm text-foreground/80">
           {[tr.term1, tr.term2, tr.term3, tr.term4].map((term) => (
             <li key={term} className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <span>{term}</span>
             </li>
           ))}
@@ -342,16 +342,16 @@ export default function SignContract() {
       </div>
 
       {/* Full text scrollable */}
-      <div className="px-5 sm:px-8 mt-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-2">{tr.fullText}</h2>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 max-h-44 overflow-y-auto text-xs text-gray-600 leading-relaxed">
+      <div className="mt-5 px-5 sm:px-8">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">{tr.fullText}</h2>
+        <div className="max-h-44 overflow-y-auto rounded-xl border border-border bg-card p-4 text-xs leading-relaxed text-muted-foreground">
           {tr.fullTextBody}
         </div>
       </div>
 
       {/* Signature form */}
-      <div className="px-5 sm:px-8 mt-5 pb-2">
-        <label htmlFor="signer-name" className="block text-xs font-medium text-gray-700 mb-1">
+      <div className="mt-5 px-5 pb-2 sm:px-8">
+        <label htmlFor="signer-name" className="mb-1 block text-xs font-medium text-foreground/80">
           {tr.nameLabel}
         </label>
         <input
@@ -360,29 +360,29 @@ export default function SignContract() {
           value={signerName}
           onChange={(e) => setSignerName(e.target.value)}
           placeholder={tr.namePlaceholder}
-          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      <div className="px-5 sm:px-8 mt-3">
-        <label className="flex items-start gap-2 cursor-pointer text-sm text-gray-800">
+      <div className="mt-3 px-5 sm:px-8">
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-foreground/90">
           <input
             type="checkbox"
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-ring"
           />
           <span>{tr.consent}</span>
         </label>
       </div>
 
       {/* Sign button */}
-      <div className="px-5 sm:px-8 mt-5">
+      <div className="mt-5 px-5 sm:px-8">
         <button
           type="button"
           onClick={handleSign}
           disabled={!consent || !signerName.trim() || signing}
-          className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
         >
           {signing ? (
             <>
@@ -399,8 +399,8 @@ export default function SignContract() {
       </div>
 
       {/* Legal notice */}
-      <div className="px-5 sm:px-8 mt-4 pb-6">
-        <p className="text-[11px] text-gray-500 leading-relaxed">{tr.legalNotice}</p>
+      <div className="mt-4 px-5 pb-6 sm:px-8">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{tr.legalNotice}</p>
       </div>
     </ShellPage>
   );
@@ -418,29 +418,29 @@ function ShellPage({
 }) {
   const tr = useMemo(() => t[lang || "fr"], [lang]);
   return (
-    <div className="min-h-screen bg-gray-100 py-6 px-3 sm:px-0">
-      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-background via-secondary/40 to-background px-3 py-6 sm:px-0">
+      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-primary/5">
         {setLang && (
-          <div className="flex justify-end gap-2 px-5 sm:px-8 pt-4">
+          <div className="flex justify-end gap-2 px-5 pt-4 sm:px-8">
             <button
               type="button"
               onClick={() => setLang("fr")}
-              className={`text-xs px-2 py-1 rounded ${lang === "fr" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-900"}`}
+              className={`rounded px-2 py-1 text-xs ${lang === "fr" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               FR
             </button>
             <button
               type="button"
               onClick={() => setLang("en")}
-              className={`text-xs px-2 py-1 rounded ${lang === "en" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-900"}`}
+              className={`rounded px-2 py-1 text-xs ${lang === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               EN
             </button>
           </div>
         )}
         {children}
-        <div className="bg-gray-50 px-5 sm:px-8 py-3 border-t border-gray-100">
-          <p className="text-[10px] text-gray-500 text-center">{tr.poweredBy}</p>
+        <div className="border-t border-border bg-secondary/50 px-5 py-3 sm:px-8">
+          <p className="text-center text-[10px] text-muted-foreground">{tr.poweredBy}</p>
         </div>
       </div>
     </div>
@@ -462,9 +462,9 @@ function Field({
 }) {
   return (
     <div className={full ? "sm:col-span-2" : ""}>
-      <p className="text-[11px] uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p
-        className={`mt-0.5 ${mono ? "font-mono" : "font-medium"} ${highlight ? "text-blue-700 font-bold" : "text-gray-900"}`}
+        className={`mt-0.5 ${mono ? "font-mono" : "font-medium"} ${highlight ? "font-bold text-primary" : "text-foreground"}`}
       >
         {value}
       </p>
