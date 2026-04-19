@@ -11443,6 +11443,192 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_inventory: {
+        Row: {
+          assigned_at: string | null
+          brand: string
+          color: string
+          condition: string
+          created_at: string
+          description: string | null
+          id: string
+          imei: string
+          model: string
+          order_id: string | null
+          photos: string[]
+          price_cad: number
+          purchase_price_cad: number | null
+          status: string
+          storage: string
+          updated_at: string
+          warranty_days: number
+        }
+        Insert: {
+          assigned_at?: string | null
+          brand: string
+          color: string
+          condition: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          imei: string
+          model: string
+          order_id?: string | null
+          photos?: string[]
+          price_cad: number
+          purchase_price_cad?: number | null
+          status?: string
+          storage: string
+          updated_at?: string
+          warranty_days?: number
+        }
+        Update: {
+          assigned_at?: string | null
+          brand?: string
+          color?: string
+          condition?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          imei?: string
+          model?: string
+          order_id?: string | null
+          photos?: string[]
+          price_cad?: number
+          purchase_price_cad?: number | null
+          status?: string
+          storage?: string
+          updated_at?: string
+          warranty_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_inventory_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "phone_inventory_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phone_orders: {
+        Row: {
+          account_id: string | null
+          carrier: string | null
+          created_at: string
+          delivered_at: string | null
+          fraud_factors: Json
+          fraud_level: string
+          fraud_score: number
+          id: string
+          kyc_session_id: string | null
+          notes: string | null
+          order_id: string
+          phone_inventory_id: string
+          refunded_at: string | null
+          return_imei: string | null
+          return_reason: string | null
+          return_requested_at: string | null
+          shipped_at: string | null
+          shipping_address: Json | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          fraud_factors?: Json
+          fraud_level?: string
+          fraud_score?: number
+          id?: string
+          kyc_session_id?: string | null
+          notes?: string | null
+          order_id: string
+          phone_inventory_id: string
+          refunded_at?: string | null
+          return_imei?: string | null
+          return_reason?: string | null
+          return_requested_at?: string | null
+          shipped_at?: string | null
+          shipping_address?: Json | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          fraud_factors?: Json
+          fraud_level?: string
+          fraud_score?: number
+          id?: string
+          kyc_session_id?: string | null
+          notes?: string | null
+          order_id?: string
+          phone_inventory_id?: string
+          refunded_at?: string | null
+          return_imei?: string | null
+          return_reason?: string | null
+          return_requested_at?: string | null
+          shipped_at?: string | null
+          shipping_address?: Json | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_orders_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_orders_kyc_session_id_fkey"
+            columns: ["kyc_session_id"]
+            isOneToOne: false
+            referencedRelation: "identity_verification_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "phone_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_orders_phone_inventory_id_fkey"
+            columns: ["phone_inventory_id"]
+            isOneToOne: false
+            referencedRelation: "phone_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pin_invite_tokens: {
         Row: {
           created_at: string
