@@ -5271,33 +5271,48 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="date-of-birth" className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      Date de naissance
-                    </Label>
-                    <Input
-                      id="date-of-birth"
-                      type="date"
-                      value={profile?.date_of_birth || dateOfBirth}
-                      readOnly
-                      disabled
-                      className="bg-muted/50 cursor-not-allowed"
-                    />
-                    {(profile?.date_of_birth || dateOfBirth) && (() => {
-                      const displayDob = profile?.date_of_birth || dateOfBirth;
-                      // If DOB comes from verified profile, always show as valid (already validated)
-                      if (profile?.date_of_birth) {
-                        return (
-                          <p className="text-xs text-emerald-500 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Âge vérifié
-                          </p>
-                        );
-                      }
-                      try {
-                        const parsed = parseISO(displayDob);
-                        if (!isValid(parsed)) {
+                  {/* DOB field — hidden entirely when profile already has a verified date_of_birth.
+                      Only shown for clients whose profile is missing this field. Guests are unaffected (handled in GuestCheckout). */}
+                  {!profile?.date_of_birth?.trim() && (
+                    <div className="space-y-2">
+                      <Label htmlFor="date-of-birth" className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        Date de naissance
+                      </Label>
+                      <Input
+                        id="date-of-birth"
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                        max={format(new Date(), "yyyy-MM-dd")}
+                      />
+                      {dateOfBirth && (() => {
+                        try {
+                          const parsed = parseISO(dateOfBirth);
+                          if (!isValid(parsed)) {
+                            return (
+                              <p className="text-xs text-destructive flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Date invalide
+                              </p>
+                            );
+                          }
+                          const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+                          if (!result.isValid) {
+                            return (
+                              <p className="text-xs text-destructive flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
+                              </p>
+                            );
+                          }
+                          return (
+                            <p className="text-xs text-emerald-500 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Âge vérifié
+                            </p>
+                          );
+                        } catch {
                           return (
                             <p className="text-xs text-destructive flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" />
@@ -5305,31 +5320,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             </p>
                           );
                         }
-                        const result = validateDob(displayDob, { minAge: MIN_AGE_TELECOM });
-                        if (!result.isValid) {
-                          return (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" />
-                              {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
-                            </p>
-                          );
-                        }
-                        return (
-                          <p className="text-xs text-emerald-500 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Âge vérifié
-                          </p>
-                        );
-                      } catch {
-                        return (
-                          <p className="text-xs text-destructive flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            Date invalide
-                          </p>
-                        );
-                      }
-                    })()}
-                  </div>
+                      })()}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg">
                     <Shield className="w-4 h-4 flex-shrink-0" />
