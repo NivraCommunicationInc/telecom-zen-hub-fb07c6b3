@@ -27,16 +27,24 @@ const ORDER_FINAL_STATUSES = [
 ];
 
 export function CompletionStep({ proc }: Props) {
-  const { order } = proc;
+  const { order, kycSession } = proc;
   const [finalStatus, setFinalStatus] = useState(order.status || "completed");
   const [loading, setLoading] = useState(false);
+
+  const kycVerified =
+    order.kyc_status === "approved" ||
+    kycSession?.status === "approved" ||
+    order.id_verification_status === "approved" ||
+    order.id_verification_status === "verified" ||
+    order.kyc_policy === "none" ||
+    order.kyc_policy === "skip";
 
   // each item now has a `tone`: completed/required/pending — for left border color
   const checks: Array<{ label: string; done: boolean; tone: "done" | "required" | "pending" }> = [
     { label: "Client vérifié", done: !!(order.client_first_name && order.client_last_name && order.client_email), tone: order.client_first_name && order.client_last_name && order.client_email ? "done" : "required" },
     { label: "Commande vérifiée", done: order.status !== "pending", tone: order.status !== "pending" ? "done" : "pending" },
     { label: "Paiement vérifié", done: ["paid", "captured", "confirmed"].includes(order.payment_status || ""), tone: ["paid", "captured", "confirmed"].includes(order.payment_status || "") ? "done" : "required" },
-    { label: "KYC vérifié", done: order.id_verification_status === "approved" || order.kyc_policy === "none" || order.kyc_policy === "skip", tone: (order.id_verification_status === "approved" || order.kyc_policy === "none" || order.kyc_policy === "skip") ? "done" : "required" },
+    { label: "KYC vérifié", done: kycVerified, tone: kycVerified ? "done" : "required" },
     { label: "Fulfillment assigné", done: !!order.fulfillment_type, tone: order.fulfillment_type ? "done" : "pending" },
     { label: "Activation complétée", done: ["active", "activated", "completed"].includes(order.status || ""), tone: ["active", "activated", "completed"].includes(order.status || "") ? "done" : "pending" },
     { label: "Documents envoyés", done: !!order.related_contract_id || !!order.confirmation_email_sent_at, tone: (order.related_contract_id || order.confirmation_email_sent_at) ? "done" : "pending" },

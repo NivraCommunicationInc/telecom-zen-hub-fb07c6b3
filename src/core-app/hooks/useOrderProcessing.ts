@@ -197,13 +197,29 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         break;
       }
       case "kyc": {
-        // Source of truth: orders.kyc_status (Phase 1 KYC guest)
+        // Source of truth (in order): orders.kyc_status, kycSession.status,
+        // legacy id_verification_status. Also treat kyc_policy=none|skip as N/A.
         const orderKycStatus = (order as any).kyc_status || "not_required";
-        if (orderKycStatus === "approved" || orderKycStatus === "not_required") status = "completed";
-        else if (orderKycStatus === "rejected") status = "blocked";
-        // fallback to legacy fields
-        else if ((order._kycSessionStatus || order.id_verification_status) === "approved") status = "completed";
-        else if ((order._kycSessionStatus || order.id_verification_status) === "rejected") status = "blocked";
+        const sessionStatus = (order as any)._kycSessionStatus || "";
+        const legacyStatus = order.id_verification_status || "";
+        const policy = (order as any).kyc_policy || "";
+        if (
+          orderKycStatus === "approved" ||
+          orderKycStatus === "not_required" ||
+          policy === "none" ||
+          policy === "skip" ||
+          sessionStatus === "approved" ||
+          legacyStatus === "approved" ||
+          legacyStatus === "verified"
+        ) {
+          status = "completed";
+        } else if (
+          orderKycStatus === "rejected" ||
+          sessionStatus === "rejected" ||
+          legacyStatus === "rejected"
+        ) {
+          status = "blocked";
+        }
         break;
       }
       case "fulfillment":

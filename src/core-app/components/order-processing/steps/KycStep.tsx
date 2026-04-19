@@ -45,7 +45,17 @@ export function KycStep({ proc }: Props) {
   const [resubmitting, setResubmitting] = useState(false);
 
   const sessionId = kycSession?.id;
-  const rawStatus = (kycSession?.status || "unknown") as string;
+  // Source of truth: orders.kyc_status takes precedence over kycSession.status
+  // so a successful approveKyc reflects immediately even if no session exists.
+  const orderKycStatus = (order?.kyc_status || "") as string;
+  const sessionStatus = (kycSession?.status || "") as string;
+  const rawStatus = (
+    orderKycStatus === "approved" || sessionStatus === "approved"
+      ? "approved"
+      : orderKycStatus === "rejected" || sessionStatus === "rejected"
+        ? "rejected"
+        : sessionStatus || (orderKycStatus ? orderKycStatus : "unknown")
+  ) as string;
   const statusKey: StatusKey = (STATUS_BANNER as any)[rawStatus] ? (rawStatus as StatusKey) : "unknown";
   const sc = STATUS_BANNER[statusKey];
   const StatusIcon = sc.Icon;
@@ -234,9 +244,9 @@ export function KycStep({ proc }: Props) {
 
         {(rawStatus === "approved" || rawStatus === "rejected") && (
           <StepCompletionCard
-            title={rawStatus === "approved" ? "Identité approuvée" : "Identité rejetée"}
+            title={rawStatus === "approved" ? "Identité vérifiée et approuvée" : "Identité rejetée"}
             by={kycSession?.reviewed_by ? `Agent ${String(kycSession.reviewed_by).slice(0, 8)}` : null}
-            at={kycSession?.reviewed_at}
+            at={kycSession?.reviewed_at || order?.id_verified_at || order?.updated_at}
             details={[
               { label: "Décision", value: rawStatus === "approved" ? "Approuvé" : "Rejeté" },
               { label: "Raison", value: kycSession?.review_reason },
