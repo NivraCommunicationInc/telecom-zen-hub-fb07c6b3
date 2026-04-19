@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle, ScrollText } from "lucide-react";
+import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle, ScrollText, FileSpreadsheet } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -322,6 +322,58 @@ const ClientInvoices = () => {
   // ── Currency formatter ──
   const cad = (n: number) => n.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
   const getDisplayStatus = (bd: InvoiceBreakdown) => (bd as any).display_status || bd.status;
+
+  // ── CSV export of currently filtered invoices ──
+  const handleExportCSV = useCallback(() => {
+    if (!filteredInvoices || filteredInvoices.length === 0) {
+      toast.error("Aucune facture à exporter");
+      return;
+    }
+    const headers = [
+      "Numero",
+      "Date",
+      "Type",
+      "Statut",
+      "Sous-total",
+      "Rabais",
+      "TPS",
+      "TVQ",
+      "Total",
+      "Montant paye",
+      "Solde du",
+      "Echeance",
+    ];
+    const escape = (v: any) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filteredInvoices.map((bd) => [
+      bd.invoice_number,
+      format(new Date(bd.created_at), "yyyy-MM-dd"),
+      TYPE_LABELS[bd.type] || bd.type,
+      STATUS_LABELS[getDisplayStatus(bd)] || bd.status,
+      Number(bd.subtotal || 0).toFixed(2),
+      Number((bd as any).discounts_total || 0).toFixed(2),
+      Number((bd as any).tps_amount || 0).toFixed(2),
+      Number((bd as any).tvq_amount || 0).toFixed(2),
+      Number(bd.total || 0).toFixed(2),
+      Number((bd as any).amount_paid || 0).toFixed(2),
+      Number(bd.balance_due || 0).toFixed(2),
+      bd.due_date ? format(parseISO(bd.due_date), "yyyy-MM-dd") : "",
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    // Prepend BOM so Excel detects UTF-8 properly
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `factures_nivra_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${filteredInvoices.length} facture(s) exportée(s)`);
+  }, [filteredInvoices]);
 
   // ── Render ─────────────────────────────────────────────────────────
   return (
