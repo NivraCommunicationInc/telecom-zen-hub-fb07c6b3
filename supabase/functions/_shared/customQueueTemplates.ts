@@ -1218,6 +1218,281 @@ export function renderQueueTemplate(
         }),
       };
     }
+
+    // ─── Account: created (legacy template_key, UPPER_CASE vars) ───
+    case "account_created": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const email = esc(v.EMAIL || v.email || "");
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Votre compte Nivra a été créé",
+        html: shell({
+          title: "Compte créé",
+          preheader: "Votre espace client est prêt.",
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Bienvenue ${fullName} !</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Votre compte client Nivra a été créé suite à votre commande. Vous pouvez maintenant suivre votre commande, payer vos factures et gérer votre service depuis votre espace client.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Courriel de connexion", String(email)],
+            ])}
+            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
+              Si vous n'avez pas encore défini de mot de passe, utilisez l'option « Mot de passe oublié » lors de votre première connexion.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Accéder à mon espace client",
+        }),
+      };
+    }
+
+    // ─── KYC: identity verified (legacy alias of kyc_approved) ───
+    case "identity_verified": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Votre identité a été vérifiée — Nivra",
+        html: shell({
+          title: "Identité vérifiée",
+          preheader: "Votre commande progresse normalement.",
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Identité vérifiée</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, votre identité a été vérifiée avec succès. Votre commande <strong>${orderNumber}</strong> est en cours de traitement.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Statut KYC", "Approuvé"],
+            ])}
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Mon espace client",
+        }),
+      };
+    }
+
+    // ─── Service activated (legacy template_key, UPPER_CASE vars) ───
+    case "service_activated": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const serviceType = esc(v.SERVICE_TYPE || v.service_type || "votre service Nivra");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Votre service Nivra est activé",
+        html: shell({
+          title: "Service activé",
+          preheader: `${serviceType} est maintenant actif.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Service activé</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, votre service <strong>${serviceType}</strong> est maintenant activé. Vous pouvez en profiter dès maintenant.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Service", String(serviceType)],
+              ["Statut", "Actif"],
+            ])}
+            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
+              Toutes les informations de votre service, factures et configuration sont disponibles dans votre espace client.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Mon espace client",
+        }),
+      };
+    }
+
+    // ─── Installation completed ───
+    case "installation_completed": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Installation complétée — Nivra",
+        html: shell({
+          title: "Installation complétée",
+          preheader: "Votre installation est terminée avec succès.",
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Installation complétée</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, l'installation de votre service Nivra est complétée. Tout est opérationnel.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Statut", "Installation terminée"],
+            ])}
+            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
+              Pour toute question sur votre nouvelle installation, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Mon espace client",
+        }),
+      };
+    }
+
+    // ─── Technician assigned ───
+    case "technician_assigned": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const technicianName = esc(v.TECHNICIAN_NAME || v.technician_name || "Notre technicien");
+      const date = fmtDate(v.APPOINTMENT_DATE || v.appointment_date || v.date);
+      const time = esc(v.APPOINTMENT_TIME || v.appointment_time || v.time || "—");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Un technicien a été assigné à votre installation",
+        html: shell({
+          title: "Technicien assigné",
+          preheader: `${technicianName} effectuera votre installation.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">👷 Technicien assigné</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, un technicien a été assigné à votre installation. Vous recevrez un rappel 24h avant le rendez-vous.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Technicien", technicianName],
+              ["Date prévue", date],
+              ["Heure prévue", time],
+            ])}
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Voir mon rendez-vous",
+        }),
+      };
+    }
+
+    // ─── Technician on the way ───
+    case "technician_on_the_way": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const technicianName = esc(v.TECHNICIAN_NAME || v.technician_name || "Notre technicien");
+      const eta = esc(v.ETA || v.eta || "sous peu");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Votre technicien est en route",
+        html: shell({
+          title: "Technicien en route",
+          preheader: `${technicianName} arrive ${eta}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">🚚 Technicien en route</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, ${technicianName} est en route pour votre installation et arrivera <strong>${eta}</strong>.
+            </p>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Veuillez vous assurer qu'un adulte (18 ans+) soit présent à l'adresse et que l'accès aux équipements soit dégagé.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Voir les détails",
+        }),
+      };
+    }
+
+    // ─── Appointment scheduled (alias of appointment booked) ───
+    case "appointment_scheduled": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const date = fmtDate(v.APPOINTMENT_DATE || v.appointment_date || v.date);
+      const time = esc(v.APPOINTMENT_TIME || v.appointment_time || v.time || "—");
+      const address = esc(v.ADDRESS || v.address || "—");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: "Votre rendez-vous d'installation est confirmé",
+        html: shell({
+          title: "Rendez-vous confirmé",
+          preheader: `Installation prévue le ${date} à ${time}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📅 Rendez-vous confirmé</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, votre rendez-vous d'installation est confirmé.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Date", date],
+              ["Heure", time],
+              ["Adresse", address],
+            ])}
+            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
+              Vous recevrez un rappel automatique 24h avant le rendez-vous.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Voir mon rendez-vous",
+        }),
+      };
+    }
+
+    // ─── Appointment reminder (generic) ───
+    case "appointment_reminder": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const date = fmtDate(v.APPOINTMENT_DATE || v.appointment_date || v.date);
+      const time = esc(v.APPOINTMENT_TIME || v.appointment_time || v.time || "—");
+      const address = esc(v.ADDRESS || v.address || "—");
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: `Rappel — votre rendez-vous Nivra le ${date}`,
+        html: shell({
+          title: "Rappel de rendez-vous",
+          preheader: `Rendez-vous prévu le ${date} à ${time}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📅 Rappel de rendez-vous</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, ceci est un rappel pour votre rendez-vous d'installation Nivra.
+            </p>
+            ${rowsTable([
+              ["Date", date],
+              ["Heure", time],
+              ["Adresse", address],
+            ])}
+            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
+              Veuillez vous assurer qu'un adulte (18 ans+) soit présent au rendez-vous.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Voir mon rendez-vous",
+        }),
+      };
+    }
+
+    // ─── Order update / custom_html fallback (generic notification) ───
+    case "order_update":
+    case "custom_html": {
+      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
+      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
+      const changed = v.CHANGED_FIELDS || v.changed_fields;
+      const changedStr = Array.isArray(changed)
+        ? changed.map((c) => esc(String(c))).join(", ")
+        : changed
+          ? esc(String(changed))
+          : "Mise à jour générale";
+      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      return {
+        subject: `Mise à jour de votre commande ${orderNumber}`,
+        html: shell({
+          title: "Mise à jour de commande",
+          preheader: `Modifications apportées à la commande ${orderNumber}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📋 Mise à jour de votre commande</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${fullName}, des modifications ont été apportées à votre commande <strong>${orderNumber}</strong>.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNumber)],
+              ["Éléments modifiés", changedStr],
+            ])}
+            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
+              Consultez votre espace client pour voir tous les détails à jour de votre commande.
+            </p>
+          `,
+          ctaUrl: portalLink,
+          ctaLabel: "Voir ma commande",
+        }),
+      };
+    }
   }
 
   return null;
