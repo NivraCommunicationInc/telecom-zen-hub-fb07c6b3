@@ -171,6 +171,16 @@ serve(async (req) => {
     const payerFirstName = captureData.payer?.name?.given_name || "";
     const payerLastName = captureData.payer?.name?.surname || "";
     const payerPhone = captureData.payer?.phone?.phone_number?.national_number || "";
+    const payerAddress = captureData.payer?.address
+      ? {
+          address_line_1: captureData.payer.address.address_line_1 || "",
+          address_line_2: captureData.payer.address.address_line_2 || "",
+          admin_area_2: captureData.payer.address.admin_area_2 || "",
+          admin_area_1: captureData.payer.address.admin_area_1 || "",
+          postal_code: captureData.payer.address.postal_code || "",
+          country_code: captureData.payer.address.country_code || "",
+        }
+      : null;
 
     // Ensure billing_customer exists
     let linkedCustomerId: string | null = body.customer_id || null;
@@ -372,6 +382,7 @@ serve(async (req) => {
         currency: currencyCode,
         status: "COMPLETED",
         payer_email: payerEmail,
+        payer_address: payerAddress,
         linked_customer_id: linkedCustomerId,
         invoice_updated: invoiceUpdated,
         already_processed: paymentResult?.already_processed || false,

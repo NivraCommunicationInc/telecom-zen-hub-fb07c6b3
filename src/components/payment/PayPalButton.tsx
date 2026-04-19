@@ -235,7 +235,7 @@ export const PayPalButton = ({
             });
           }
 
-          callbacksRef.current.onSuccess?.(captureData.capture_id);
+          callbacksRef.current.onSuccess?.(captureData.capture_id, captureData.payer_address ?? null);
         } catch (err) {
           console.error("PayPal capture error:", err);
           const errorMessage = await getInvokeErrorMessage(err);
