@@ -268,15 +268,16 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
             {!signatureUrl ? (
               <Button
                 size="sm"
-                variant="outline"
-                onClick={handleGenerateToken}
-                disabled={busy === "generate"}
+                onClick={handleGenerateAndSend}
+                disabled={busy === "sendNow"}
                 className="h-7 text-xs"
               >
-                {busy === "generate" ? (
+                {busy === "sendNow" ? (
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                ) : null}
-                Générer le lien
+                ) : (
+                  <Send className="h-3 w-3 mr-1" />
+                )}
+                Générer & envoyer le lien
               </Button>
             ) : (
               <>
@@ -287,21 +288,20 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
                   className="h-7 text-xs"
                 >
                   <Copy className="h-3 w-3 mr-1" />
-                  Copier le lien
+                  Copier
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={handleResend}
-                  disabled={busy === "resend"}
+                  onClick={handleGenerateAndSend}
+                  disabled={busy === "sendNow"}
                   className="h-7 text-xs"
                 >
-                  {busy === "resend" ? (
+                  {busy === "sendNow" ? (
                     <Loader2 className="h-3 w-3 animate-spin mr-1" />
                   ) : (
                     <Send className="h-3 w-3 mr-1" />
                   )}
-                  Renvoyer le lien
+                  {contract?.sent_count > 0 ? "Renvoyer le lien" : "Envoyer par courriel"}
                 </Button>
               </>
             )}
