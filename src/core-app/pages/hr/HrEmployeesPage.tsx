@@ -47,6 +47,29 @@ export default function HrEmployeesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const handleResend = async (e: React.MouseEvent, empId: string, email: string | null) => {
+    e.stopPropagation();
+    if (!email) {
+      toast.error("Aucun email pour cet employé");
+      return;
+    }
+    setResendingId(empId);
+    try {
+      const { data, error } = await sb.functions.invoke("resend-employee-invite", {
+        body: { employee_id: empId },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || error?.message || "Erreur");
+      }
+      toast.success(`Invitation envoyée à ${email}`);
+    } catch (err: any) {
+      toast.error(`Erreur lors de l'envoi: ${err.message ?? "inconnue"}`);
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["hr-employees"],
