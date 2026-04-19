@@ -2,16 +2,27 @@
  * ActivationStep — Step 7: Activation / Provisioning (Admin variant)
  * Calls canonical provision_services_for_order RPC, creates subscription,
  * updates account billing cycle, and marks order as activated.
- * 
+ *
+ * Also exposes an Equipment Replacement panel that calls
+ * proc.replaceEquipment({ old_serial_number, reason, new_equipment_id }).
+ *
  * GATED: Uses safe state machine transitions via hook.
  */
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Zap, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Zap, RefreshCw, CheckCircle2, AlertTriangle, Replace, Search } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props { proc: any; }
 
