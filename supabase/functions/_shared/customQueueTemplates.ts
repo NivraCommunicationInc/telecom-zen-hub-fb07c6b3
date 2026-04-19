@@ -848,7 +848,19 @@ export function renderQueueTemplate(
     // ===================================================================
     case "service_activated":
     case "installation_completed": {
-      const service = esc(v.service || v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      const service = esc(v.service || v.service_type || v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      const phone = v.phone_number || v.PHONE_NUMBER;
+      const iccid = v.iccid || v.ICCID;
+      const carrier = v.carrier || v.CARRIER;
+      const rows: Array<[string, string]> = [
+        ["Service", String(service)],
+        ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+        ["Date activation", fmtDate(v.activated_at || new Date().toISOString())],
+        ["Cycle de facturation", esc(v.billing_cycle || "Mensuel")],
+      ];
+      if (phone) rows.splice(1, 0, ["Numéro", esc(phone)]);
+      if (iccid) rows.splice(2, 0, ["ICCID", esc(iccid)]);
+      if (carrier) rows.push(["Opérateur", esc(carrier)]);
       return {
         subject: `Votre service est maintenant actif`,
         html: shell({
@@ -859,17 +871,13 @@ export function renderQueueTemplate(
           greeting,
           bodyText: `Bonne nouvelle — votre service <strong style="color:#1a1a2e;">${service}</strong> est maintenant actif.`,
           cardTitle: "Détails",
-          cardRows: [
-            ["Service", String(service)],
-            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-            ["Date activation", fmtDate(v.activated_at || new Date().toISOString())],
-            ["Cycle de facturation", esc(v.billing_cycle || "Mensuel")],
-          ],
+          cardRows: rows,
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Mon espace client",
         }),
       };
     }
+
 
     case "welcome_to_nivra":
     case "welcome_new_client":
