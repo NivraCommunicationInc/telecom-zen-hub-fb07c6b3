@@ -285,7 +285,7 @@ const WorkQueuePage = () => {
       {/* SECTION 1 — Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCardLocal icon={Package} label="Commandes actives" value={isLoading ? "—" : stats.active} tone="neutral" />
-        <StatCardLocal icon={AlertTriangle} label="SLA dépassés (>24h)" value={isLoading ? "—" : stats.slaBreached} tone={stats.slaBreached > 0 ? "red" : "neutral"} />
+        <StatCardLocal icon={AlertTriangle} label={`SLA dépassés (>${SLA_BREACH_HOURS}h)`} value={isLoading ? "—" : stats.slaBreached} tone={stats.slaBreached > 0 ? "red" : "neutral"} />
         <StatCardLocal icon={ShieldCheck} label="En attente KYC" value={isLoading ? "—" : stats.kycPending} tone={stats.kycPending > 0 ? "amber" : "neutral"} />
         <StatCardLocal icon={Zap} label="Activations aujourd'hui" value={isLoading ? "—" : stats.activatedToday} tone="emerald" />
       </div>
