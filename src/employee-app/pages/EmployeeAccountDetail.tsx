@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import EmployeeCancellationRequestDialog from "@/employee-app/components/EmployeeCancellationRequestDialog";
 
 const OPERATIONAL_ENVS = ["live", "production"] as const;
 
@@ -45,6 +46,7 @@ export default function EmployeeAccountDetail() {
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [showEscalation, setShowEscalation] = useState(false);
   const [escalationPreset, setEscalationPreset] = useState<EscalationPreset | null>(null);
+  const [showCancellation, setShowCancellation] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["employee-account-detail", accountId],
