@@ -5,12 +5,8 @@
  */
 
 import { enqueueEmail, type EnqueueResult } from "./ResendProxy.ts";
-import {
-  emailDocument, header, statusBanner, contentWrapper, footer,
-  greeting, bodyText, button, helpSection, sectionHeader, infoRow,
-  divider, amountBox, alertBox,
-  colors, fonts, escapeHtml, formatCurrency, formatDate, formatDateTime
-} from "./emailTemplates/components.ts";
+import { violetShell } from "./violetEmailShell.ts";
+import { formatCurrency, formatDateTime } from "./emailTemplates/components.ts";
 
 const SUPPORT_EMAIL = "Support@nivra-telecom.ca";
 
@@ -20,15 +16,6 @@ const joinUrl = (baseUrl: string, path: string): string => {
   return `${base}/${cleanPath}`;
 };
 
-// Build a details table using the original style
-const detailsTable = (items: Array<{ label: string; value: string }>): string => `
-  <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 16px 0;">
-    ${items.map(item => infoRow(item.label, item.value)).join("")}
-  </table>
-`;
-
-// ── Template rendering using ORIGINAL corporate blue design ────────
-
 const BASE_URL = "https://nivra-telecom.ca";
 
 interface TemplateRenderResult {
@@ -36,33 +23,36 @@ interface TemplateRenderResult {
   html: string;
 }
 
-// Build email using original components (corporate blue #0066CC design)
+// Build email using the unified Violet Bold shell
 function buildEmail(
   title: string,
   preheader: string,
   bannerType: "success" | "warning" | "error" | "info",
-  bannerIcon: string,
+  _bannerIcon: string,
   bannerTitle: string,
   bannerSubtitle: string,
   vars: Record<string, any>,
   details: Array<{ label: string; value: string }>,
   ctaText: string,
   ctaUrl: string,
-  extraContent?: string
+  extraContent?: string,
 ): string {
-  return emailDocument(title, preheader,
-    header() +
-    statusBanner(bannerType, bannerIcon, bannerTitle, bannerSubtitle) +
-    contentWrapper(
-      greeting(vars.client_name || "Client") +
-      bodyText(bannerSubtitle) +
-      detailsTable(details) +
-      (extraContent || "") +
-      `<div style="text-align: center; margin-top: 24px;">${button(ctaText, ctaUrl)}</div>` +
-      helpSection(SUPPORT_EMAIL)
-    ) +
-    footer(SUPPORT_EMAIL)
-  );
+  const helpVariant: "info" | "warning" =
+    bannerType === "warning" || bannerType === "error" ? "warning" : "info";
+  return violetShell({
+    preheader: preheader || title,
+    badge: bannerTitle.toUpperCase(),
+    heroTitle: bannerTitle,
+    heroSub: bannerSubtitle,
+    greeting: `Bonjour ${vars.client_name || "Client"},`,
+    bodyHtml: bannerSubtitle,
+    cardTitle: details.length ? "Détails" : undefined,
+    cardRows: details.map((d) => [d.label, d.value] as [string, string]),
+    ctaPrimaryUrl: ctaUrl,
+    ctaPrimaryLabel: ctaText,
+    extraBodyHtml: extraContent,
+    helpVariant,
+  });
 }
 
 export function renderTemplate(templateKey: string, vars: Record<string, any>): TemplateRenderResult | null {

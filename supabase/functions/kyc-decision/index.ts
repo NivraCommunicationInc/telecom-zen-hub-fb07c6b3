@@ -1,15 +1,11 @@
 /**
  * kyc-decision — Admin approves or rejects a completed KYC request.
- *
- * Body: { kyc_request_id: string, decision: 'approve' | 'reject', rejection_reason?: string }
- * - Verifies caller is staff
- * - Updates kyc_requests + orders.kyc_status
- * - Sends client notification email (rejection includes reason)
- * - Logs activity
+ * Emails are rendered with the unified Violet Bold shell.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 interface Body {
   kyc_request_id: string;
@@ -18,35 +14,43 @@ interface Body {
 }
 
 function approvalEmail(firstName: string, orderNumber: string) {
-  return `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;margin:0;padding:32px 16px;color:#1a202c;">
-  <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
-    <tr><td style="background:#16a34a;padding:20px 28px;color:#fff;font-size:18px;font-weight:700;">Identité vérifiée ✓</td></tr>
-    <tr><td style="padding:28px;font-size:14px;line-height:1.6;">
-      <p>Bonjour ${firstName || "client"},</p>
-      <p>Votre identité a été <strong>validée avec succès</strong>. Votre commande <strong>#${orderNumber}</strong> peut désormais être traitée normalement.</p>
-      <p>Merci d'avoir choisi Nivra Telecom.</p>
-      <p style="margin-top:24px;color:#64748b;font-size:12px;">L'équipe Nivra Telecom · support@nivra-telecom.ca</p>
-    </td></tr>
-  </table></body></html>`;
+  return violetShell({
+    preheader: "Votre identité a été vérifiée avec succès.",
+    badge: "IDENTITÉ VÉRIFIÉE",
+    heroTitle: "Votre identité a été vérifiée",
+    heroSub: "Votre dossier est complet.",
+    greeting: `Bonjour ${firstName || "client"},`,
+    bodyHtml: `Votre identité a été <strong>validée avec succès</strong>. Votre commande peut désormais être traitée normalement.`,
+    cardTitle: "Détails",
+    cardRows: [
+      ["Commande", `#${orderNumber}`],
+      ["Statut", "Approuvé"],
+      ["Date", new Date().toLocaleDateString("fr-CA", { dateStyle: "long" })],
+    ],
+  });
 }
 
 function rejectionEmail(firstName: string, orderNumber: string, reason: string) {
-  return `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;margin:0;padding:32px 16px;color:#1a202c;">
-  <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
-    <tr><td style="background:#dc2626;padding:20px 28px;color:#fff;font-size:18px;font-weight:700;">Vérification d'identité — non acceptée</td></tr>
-    <tr><td style="padding:28px;font-size:14px;line-height:1.6;">
-      <p>Bonjour ${firstName || "client"},</p>
-      <p>La pièce d'identité soumise pour la commande <strong>#${orderNumber}</strong> n'a pas pu être validée.</p>
-      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin:16px 0;color:#991b1b;font-size:13px;"><strong>Motif:</strong> ${reason || "Document non valide"}</div>
-      <p>Pour toute question ou pour soumettre une nouvelle demande, écrivez-nous à <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;">support@nivra-telecom.ca</a>.</p>
-      <p style="margin-top:24px;color:#64748b;font-size:12px;">L'équipe Nivra Telecom</p>
-    </td></tr>
-  </table></body></html>`;
+  return violetShell({
+    preheader: "Votre document d'identité n'a pas été accepté.",
+    badge: "ACTION REQUISE",
+    heroTitle: "Document d'identité refusé",
+    greeting: `Bonjour ${firstName || "client"},`,
+    bodyHtml: `La pièce d'identité soumise pour la commande <strong>#${orderNumber}</strong> n'a pas pu être validée.`,
+    cardTitle: "Détails",
+    cardRows: [
+      ["Commande", `#${orderNumber}`],
+      ["Raison", reason || "Document non valide"],
+    ],
+    ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+    ctaPrimaryLabel: "Resoumettre",
+    helpVariant: "warning",
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -84,7 +88,6 @@ Deno.serve(async (req) => {
 
     const newStatus = body.decision === "approve" ? "approved" : "rejected";
 
-    // Update KYC + order
     const updates: Record<string, any> = { status: newStatus };
     if (body.decision === "approve") {
       updates.approved_at = new Date().toISOString();
@@ -97,7 +100,6 @@ Deno.serve(async (req) => {
 
     await supabase.from("orders").update({ kyc_status: newStatus }).eq("id", kycReq.order_id);
 
-    // Email client
     const { data: order } = await supabase.from("orders").select("order_number, client_first_name").eq("id", kycReq.order_id).maybeSingle();
     const firstName = order?.client_first_name || "";
     const orderNumber = order?.order_number || kycReq.order_id?.slice(0, 8);
@@ -107,7 +109,7 @@ Deno.serve(async (req) => {
         to: kycReq.client_email,
         subject: body.decision === "approve"
           ? "Votre identité a été vérifiée — Nivra Telecom"
-          : "Vérification d'identité — Action requise — Nivra Telecom",
+          : "Document d'identité refusé — Nivra Telecom",
         html: body.decision === "approve"
           ? approvalEmail(firstName, orderNumber)
           : rejectionEmail(firstName, orderNumber, body.rejection_reason || ""),

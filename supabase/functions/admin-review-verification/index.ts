@@ -7,6 +7,7 @@
  * - default: approve/reject/in_review decision
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
@@ -162,32 +163,27 @@ Deno.serve(async (req) => {
                 to: profile.email,
                 templateKey: "custom_html",
                 subject: `Documents requis — Dossier ${session.case_number || session_id.slice(0, 8)}`,
-                fromEmail: "Nivra Télécom <Support@nivra-telecom.ca>",
-                replyTo: "Support@nivra-telecom.ca",
+                fromEmail: "Nivra Telecom <support@nivra-telecom.ca>",
+                replyTo: "support@nivra-telecom.ca",
                 messageType: "kyc_documents_requested",
                 entityType: "kyc_session",
                 entityId: session_id,
                 eventKey: `kyc_docs_${session_id}_${Date.now()}`,
-                html: `
-                    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-                      <div style="background:#f97316;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-                        <h2 style="margin:0">Documents requis</h2>
-                      </div>
-                      <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
-                        <p>Bonjour ${profile.full_name || ""},</p>
-                        <p>Notre équipe a besoin de documents supplémentaires pour compléter votre vérification d'identité.</p>
-                        <p><strong>Dossier :</strong> ${session.case_number || "—"}</p>
-                        <p><strong>Note de l'agent :</strong> ${reason}</p>
-                        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin:16px 0">
-                          <p style="margin:0 0 8px;font-weight:bold;color:#9a3412">Documents demandés :</p>
-                          <pre style="margin:0;white-space:pre-wrap;font-size:14px;color:#c2410c">${docList}</pre>
-                        </div>
-                        <p style="text-align:center;margin:24px 0">
-                          <a href="https://nivra-telecom.ca/portal/identity-verification" style="background:#f97316;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Téléverser mes documents</a>
-                        </p>
-                        <p style="color:#6b7280;font-size:12px">Si vous avez des questions, contactez notre support.</p>
-                      </div>
-                    </div>`,
+                html: violetShell({
+                  preheader: "Documents supplémentaires requis pour votre vérification.",
+                  badge: "ACTION REQUISE",
+                  heroTitle: "Documents requis",
+                  greeting: `Bonjour ${profile.full_name || ""},`,
+                  bodyHtml: `Notre équipe a besoin de documents supplémentaires pour compléter votre vérification d'identité.<br><br><strong>Note de l'agent :</strong> ${reason}`,
+                  cardTitle: "Documents demandés",
+                  cardRows: [
+                    ["Dossier", session.case_number || "—"],
+                    ["Liste", docList.replace(/\n/g, " · ")],
+                  ],
+                  ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+                  ctaPrimaryLabel: "Téléverser mes documents",
+                  helpVariant: "warning",
+                }),
               });
               console.log("[admin-review] Email queued for pending_docs to", profile.email);
             }

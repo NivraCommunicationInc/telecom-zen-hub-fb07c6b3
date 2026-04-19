@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 /**
  * NOTIFY CLIENT UPDATE - Send email notifications to clients for case updates
@@ -51,94 +52,22 @@ const EVENT_TEMPLATES: Record<string, { emoji: string; subject_prefix: string; c
   payment_failed: { emoji: "❌", subject_prefix: "Échec de paiement", color: "#ef4444" },
 };
 
-function buildClientEmailHtml(data: NotifyClientRequest, deepLink: string, loginRedirectUrl: string): string {
+function buildClientEmailHtml(data: NotifyClientRequest, deepLink: string, _loginRedirectUrl: string): string {
   const template = EVENT_TEMPLATES[data.event_type] || { emoji: "📢", subject_prefix: "Mise à jour", color: "#3b82f6" };
-  
-  return `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${template.emoji} ${template.subject_prefix}</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, ${template.color} 0%, ${template.color}dd 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                ${template.emoji} ${template.subject_prefix}
-              </h1>
-              ${data.entity_number ? `<p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">#${data.entity_number}</p>` : ""}
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="background-color: #ffffff; padding: 30px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-              
-              <!-- Greeting -->
-              <p style="margin: 0 0 20px; color: #374151; font-size: 16px;">
-                Bonjour ${data.client_name || ""},
-              </p>
-              
-              <!-- Summary -->
-              <div style="background-color: #f9fafb; border-left: 4px solid ${template.color}; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
-                <p style="margin: 0; color: #374151; font-size: 15px; line-height: 1.6;">
-                  ${data.summary}
-                </p>
-              </div>
-              
-              ${data.action_required ? `
-              <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px;">
-                <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">
-                  ⚠️ Action requise de votre part
-                </p>
-              </div>
-              ` : ""}
-              
-              <!-- CTA Button -->
-              <table role="presentation" style="width: 100%;">
-                <tr>
-                  <td align="center">
-                    <a href="${deepLink}" style="display: inline-block; background-color: ${template.color}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-                      Voir dans mon compte →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              
-              <p style="margin: 24px 0 0; color: #6b7280; font-size: 13px; text-align: center;">
-                Si le bouton ne fonctionne pas, <a href="${loginRedirectUrl}" style="color: ${template.color};">cliquez ici</a>.
-              </p>
-              
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #1f2937; padding: 24px; text-align: center; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0 0 8px; color: #d1d5db; font-size: 14px; font-weight: 600;">
-                Nivra Télécom
-              </p>
-              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                Cet email a été envoyé automatiquement suite à une activité sur votre compte.
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
+  return violetShell({
+    preheader: `${template.subject_prefix} — Nivra Telecom`,
+    badge: template.subject_prefix.toUpperCase(),
+    heroTitle: template.subject_prefix,
+    heroSub: data.entity_number ? `Référence #${data.entity_number}` : undefined,
+    greeting: data.client_name ? `Bonjour ${data.client_name},` : undefined,
+    bodyHtml: data.summary,
+    helpHtml: data.action_required
+      ? `<strong>Action requise de votre part.</strong> Consultez votre espace client pour les prochaines étapes.`
+      : undefined,
+    helpVariant: data.action_required ? "warning" : "info",
+    ctaPrimaryUrl: deepLink,
+    ctaPrimaryLabel: "Voir dans mon compte",
+  });
 }
 
 serve(async (req) => {

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
@@ -247,15 +248,15 @@ Deno.serve(async (req) => {
           entityType: "user",
           entityId: user_id,
           html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #0891b2;">Code de vérification</h2>
-                <p>Votre code de vérification pour accéder au portail Nivra est :</p>
-                <div style="background: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">${otp}</span>
-                </div>
-                <p style="color: #6b7280; font-size: 14px;">Ce code expire dans 10 minutes.</p>
-                <p style="color: #6b7280; font-size: 14px;">Si vous n'avez pas demandé ce code, ignorez ce message.</p>
-              </div>
+              ${violetShell({
+                preheader: "Votre code de vérification Nivra (10 min).",
+                badge: "CODE DE VÉRIFICATION",
+                heroTitle: "Votre code de vérification",
+                heroSub: "Saisissez ce code pour accéder au portail Nivra.",
+                bodyHtml: `<div style="text-align:center;background:#f5f3ff;border:2px solid #ede9fe;border-radius:12px;padding:24px;margin:8px 0;"><div style="font-size:32px;font-weight:800;letter-spacing:10px;color:#1e1b4b;font-family:'Helvetica Neue',Arial,sans-serif;">${otp}</div></div>`,
+                helpHtml: `Ce code expire dans <strong>10 minutes</strong>. Si vous n'avez pas demandé ce code, ignorez ce message.`,
+                helpVariant: "warning",
+              })}
             `,
         });
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -17,72 +18,13 @@ interface SendInvoiceRequest {
 }
 
 function buildEmailHtml(): string {
-  // Keep this email template extremely compatible (inline styles, simple layout).
-  // Note: We intentionally avoid external assets/fonts for deliverability.
-  return `
-    <!DOCTYPE html>
-    <html lang="fr">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Nivra Telecom</title>
-      </head>
-      <body style="margin:0;padding:0;background:#F6F8FB;color:#0F172A;font-family:Arial,Helvetica,sans-serif;">
-        <!-- Preheader (hidden) -->
-        <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-          Votre document PDF Nivra est prêt.
-        </div>
-
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F8FB;padding:24px 0;">
-          <tr>
-            <td align="center">
-              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:92vw;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E6EBF2;">
-                <tr>
-                  <td style="background:#0066CC;padding:18px 22px;">
-                    <div style="font-size:18px;font-weight:700;letter-spacing:0.4px;color:#ffffff;">Nivra Telecom</div>
-                    <div style="font-size:12px;opacity:0.9;color:#ffffff; margin-top:4px;">Télécom prépayée au Québec — simple, rapide, sans engagement</div>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style="padding:22px;">
-                    <h1 style="margin:0 0 10px 0;font-size:18px;line-height:1.3;color:#0F172A;">Votre document PDF est joint</h1>
-                    <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#334155;">
-                      Bonjour,<br />
-                      Veuillez trouver en pièce jointe votre document au format PDF.
-                    </p>
-
-                    <div style="margin:16px 0;padding:14px 14px;border:1px solid #E6EBF2;border-radius:12px;background:#F8FAFC;">
-                      <div style="font-size:12px;color:#64748B;margin-bottom:6px;">Besoin d’aide?</div>
-                      <div style="font-size:14px;color:#0F172A;line-height:1.6;">
-                        Répondez à ce courriel ou contactez-nous à
-                        <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;text-decoration:none;font-weight:700;">support@nivra-telecom.ca</a>.
-                      </div>
-                    </div>
-
-                    <p style="margin:0;font-size:12px;line-height:1.6;color:#64748B;">
-                      Merci,<br />
-                      <strong style="color:#0F172A;">L’équipe Nivra Telecom</strong>
-                    </p>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style="padding:16px 22px;border-top:1px solid #E6EBF2;background:#FBFCFE;">
-                    <div style="font-size:12px;line-height:1.6;color:#64748B;">
-                      Nivra Telecom · 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5<br />
-                      <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;text-decoration:none;">support@nivra-telecom.ca</a>
-                      · <a href="https://nivra-telecom.ca" style="color:#0066CC;text-decoration:none;">nivra-telecom.ca</a>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-    </html>
-  `;
+  return violetShell({
+    preheader: "Votre document PDF Nivra est prêt.",
+    badge: "DOCUMENT JOINT",
+    heroTitle: "Votre document est joint",
+    heroSub: "Vous trouverez le PDF en pièce jointe à ce courriel.",
+    bodyHtml: "Bonjour, veuillez trouver en pièce jointe votre document au format PDF.",
+  });
 }
 
 function buildEmailText(): string {
