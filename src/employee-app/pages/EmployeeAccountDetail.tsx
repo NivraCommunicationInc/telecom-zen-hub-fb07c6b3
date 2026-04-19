@@ -521,6 +521,15 @@ export default function EmployeeAccountDetail() {
           onSuccess={() => refetch()}
         />
       )}
+
+      <EmployeeCancellationRequestDialog
+        open={showCancellation}
+        onOpenChange={setShowCancellation}
+        clientId={account.client_id}
+        accountId={account.id}
+        accountNumber={account.account_number}
+        onSubmitted={() => refetch()}
+      />
     </div>
   );
 }
