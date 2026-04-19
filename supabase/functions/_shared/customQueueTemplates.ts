@@ -14,6 +14,18 @@ const APP_URL = "https://nivra-telecom.ca";
 const PORTAL_URL = `${APP_URL}/portail`;
 const SUPPORT_EMAIL = "support@nivratelecom.ca";
 
+// Brand palette — "Violet Bold" template (matches uploaded reference)
+const BRAND_PRIMARY = "#7c3aed";       // primary violet
+const BRAND_DARK = "#1e1b4b";          // deep indigo (header / footer / titles)
+const BRAND_HERO_BG = "#f5f3ff";       // hero light lavender
+const BRAND_CARD_BORDER = "#ede9fe";   // card border lavender
+const BRAND_CARD_BG_LAST = "#f5f3ff";  // last (emphasized) row background
+const BRAND_TEXT_BODY = "#4b5563";     // body text
+const BRAND_TEXT_MUTED = "#6b7280";    // muted labels
+const BRAND_TEXT_FOOT = "#a5b4fc";     // footer accent text
+const BRAND_TEXT_FOOT_LOW = "#6b7280"; // footer copyright
+const BRAND_DIVIDER = "#2d2b55";       // footer divider
+
 const esc = (v: unknown): string => {
   if (v === null || v === undefined) return "";
   return String(v)
@@ -81,17 +93,17 @@ function rowsBlock(rows: Array<[string, string]>, emphasizeLast: boolean): strin
   return rows.map(([label, value], i) => {
     const isLast = emphasizeLast && i === rows.length - 1;
     if (isLast) {
-      return `<tr><td style="padding:12px 18px;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#1a1a2e;">
+      return `<tr><td style="padding:12px 18px;background:${BRAND_CARD_BG_LAST};font-family:'Helvetica Neue',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:${BRAND_DARK};border-top:1px solid ${BRAND_CARD_BORDER};">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-          <td style="color:#1a1a2e;font-size:14px;font-weight:700;">${esc(label)}</td>
-          <td align="right" style="color:#1a1a2e;font-size:14px;font-weight:700;">${esc(value)}</td>
+          <td style="color:${BRAND_DARK};font-size:13px;font-weight:700;">${esc(label)}</td>
+          <td align="right" style="color:${BRAND_DARK};font-size:13px;font-weight:700;">${esc(value)}</td>
         </tr></table>
       </td></tr>`;
     }
-    return `<tr><td style="padding:10px 18px;border-bottom:1px solid #f3f0ff;font-family:Arial,Helvetica,sans-serif;font-size:13px;">
+    return `<tr><td style="padding:10px 18px;border-bottom:1px solid ${BRAND_HERO_BG};font-family:'Helvetica Neue',Arial,Helvetica,sans-serif;font-size:13px;">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-        <td style="color:#6b7280;font-size:13px;">${esc(label)}</td>
-        <td align="right" style="color:#1a1a2e;font-size:13px;font-weight:500;">${esc(value)}</td>
+        <td style="color:${BRAND_TEXT_MUTED};font-size:13px;">${esc(label)}</td>
+        <td align="right" style="color:${BRAND_DARK};font-size:13px;font-weight:500;">${esc(value)}</td>
       </tr></table>
     </td></tr>`;
   }).join("");
@@ -118,50 +130,48 @@ function shell(opts: ShellOpts): string {
     afterCardText,
   } = opts;
 
-  const helpBorder = helpVariant === "warning" ? "#f59e0b" : "#7c3aed";
+  const helpBorder = helpVariant === "warning" ? "#f59e0b" : BRAND_PRIMARY;
+  const fontStack = "'Helvetica Neue',Arial,Helvetica,sans-serif";
 
   const cardHtml = (cardTitle && cardRows && cardRows.length > 0)
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#faf9ff;border:1px solid #ede9fe;border-radius:12px;margin:20px 0;">
-        <tr><td style="background:#ede9fe;padding:10px 18px;border-radius:12px 12px 0 0;font-family:Arial,Helvetica,sans-serif;">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-            <td style="padding-right:8px;"><div style="width:6px;height:6px;border-radius:50%;background:#7c3aed;"></div></td>
-            <td style="font-size:10px;font-weight:800;color:#5b21b6;text-transform:uppercase;letter-spacing:1.5px;">${esc(cardTitle)}</td>
-          </tr></table>
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;border:1.5px solid ${BRAND_CARD_BORDER};border-radius:12px;margin:20px 0;border-collapse:separate;overflow:hidden;">
+        <tr><td style="background:${BRAND_DARK};padding:10px 18px;font-family:${fontStack};">
+          <div style="font-size:10px;font-weight:700;color:${BRAND_TEXT_FOOT};text-transform:uppercase;letter-spacing:2px;">${esc(cardTitle)}</div>
         </td></tr>
         ${rowsBlock(cardRows, cardEmphasizeLast)}
       </table>`
     : "";
 
   const ctaPrimary = (ctaPrimaryUrl && ctaPrimaryLabel)
-    ? `<a href="${esc(ctaPrimaryUrl)}" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:14px 40px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.3px;font-family:Arial,Helvetica,sans-serif;">${esc(ctaPrimaryLabel)}</a>`
+    ? `<a href="${esc(ctaPrimaryUrl)}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;padding:15px 44px;border-radius:99px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.5px;font-family:${fontStack};">${esc(ctaPrimaryLabel)}</a>`
     : "";
 
   const ctaSecondary = (ctaSecondaryUrl && ctaSecondaryLabel)
-    ? `<a href="${esc(ctaSecondaryUrl)}" style="display:inline-block;background:transparent;color:#7c3aed;padding:12px 28px;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;border:1.5px solid #7c3aed;margin-left:10px;font-family:Arial,Helvetica,sans-serif;">${esc(ctaSecondaryLabel)}</a>`
+    ? `<a href="${esc(ctaSecondaryUrl)}" style="display:inline-block;background:transparent;color:${BRAND_PRIMARY};padding:13px 32px;border-radius:99px;font-weight:600;font-size:13px;text-decoration:none;border:2px solid ${BRAND_PRIMARY};margin-left:10px;font-family:${fontStack};">${esc(ctaSecondaryLabel)}</a>`
     : "";
 
   const ctaBlock = (ctaPrimary || ctaSecondary)
-    ? `<div style="text-align:center;margin:28px 0 20px;">${ctaPrimary}${ctaSecondary}</div>`
+    ? `<div style="text-align:center;margin:28px 0;">${ctaPrimary}${ctaSecondary}</div>`
     : "";
 
   const helpBlock = helpHtml
-    ? `<div style="background:#faf9ff;border:1px solid #ede9fe;border-left:3px solid ${helpBorder};border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;color:#4b5563;margin-top:8px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">${helpHtml}</div>`
-    : `<div style="background:#faf9ff;border:1px solid #ede9fe;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;color:#4b5563;margin-top:8px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#1a1a2e;">Besoin d'aide ?</strong> Notre équipe est disponible 7j/7 à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.</div>`;
+    ? `<div style="background:#faf9ff;border-left:4px solid ${helpBorder};padding:14px 18px;font-size:13px;color:${BRAND_TEXT_BODY};margin-top:8px;line-height:1.6;font-family:${fontStack};">${helpHtml}</div>`
+    : `<div style="background:#faf9ff;border-left:4px solid ${BRAND_PRIMARY};padding:14px 18px;font-size:13px;color:${BRAND_TEXT_BODY};margin-top:8px;line-height:1.6;font-family:${fontStack};"><strong style="color:${BRAND_DARK};">Besoin d'aide ?</strong> Écrivez-nous à <strong style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</strong> — réponse en moins de 2h.</div>`;
 
   const greetingBlock = greeting
-    ? `<div style="font-size:15px;color:#1a1a2e;margin-bottom:14px;font-weight:700;font-family:Arial,Helvetica,sans-serif;">${esc(greeting)}</div>`
+    ? `<div style="font-size:15px;color:${BRAND_DARK};margin-bottom:14px;font-weight:700;font-family:${fontStack};">${esc(greeting)}</div>`
     : "";
 
   const bodyTextBlock = bodyText
-    ? `<div style="font-size:14px;color:#4b5563;line-height:1.8;margin-bottom:20px;font-family:Arial,Helvetica,sans-serif;">${bodyText}</div>`
+    ? `<div style="font-size:14px;color:${BRAND_TEXT_BODY};line-height:1.8;margin-bottom:20px;font-family:${fontStack};">${bodyText}</div>`
     : "";
 
   const afterCardBlock = afterCardText
-    ? `<div style="font-size:14px;color:#4b5563;line-height:1.8;margin-bottom:20px;font-family:Arial,Helvetica,sans-serif;">${afterCardText}</div>`
+    ? `<div style="font-size:14px;color:${BRAND_TEXT_BODY};line-height:1.8;margin-bottom:20px;font-family:${fontStack};">${afterCardText}</div>`
     : "";
 
   const heroSubBlock = heroSub
-    ? `<div style="font-size:14px;color:#6b7280;max-width:380px;margin:0 auto;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">${esc(heroSub)}</div>`
+    ? `<div style="font-size:14px;color:${BRAND_TEXT_MUTED};max-width:420px;margin:0 auto;line-height:1.6;font-family:${fontStack};">${esc(heroSub)}</div>`
     : "";
 
   return `<!DOCTYPE html>
@@ -171,36 +181,32 @@ function shell(opts: ShellOpts): string {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${esc(heroTitle)}</title>
 </head>
-<body style="margin:0;padding:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#ffffff;font-family:${fontStack};">
 <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">${esc(preheader)}</span>
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f3ff;">
-<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;">
+<tr><td align="center" style="padding:0;">
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;width:100%;background:#ffffff;">
 
-<tr><td style="height:4px;background:#7c3aed;line-height:4px;font-size:0;">&nbsp;</td></tr>
+<!-- Top bar gradient (Violet Bold) -->
+<tr><td style="height:5px;background:${BRAND_PRIMARY};line-height:5px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>
 
-<tr><td style="background:#ffffff;padding:20px 32px;border-bottom:1px solid #ede9fe;">
+<!-- Header -->
+<tr><td style="background:${BRAND_DARK};padding:24px 32px;font-family:${fontStack};">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-    <td>
-      <div style="font-size:20px;font-weight:800;color:#1a1a2e;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">NIVRA</div>
-      <div style="font-size:9px;color:#7c3aed;letter-spacing:4px;font-weight:700;margin-top:1px;font-family:Arial,Helvetica,sans-serif;">TELECOM</div>
-    </td>
-    <td align="right" style="font-size:11px;color:#9ca3af;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">Sans contrat · Support québécois</td>
+    <td style="color:#ffffff;font-size:18px;font-weight:800;letter-spacing:2px;">NIVRA<span style="color:${BRAND_PRIMARY};">.</span></td>
+    <td align="right" style="color:${BRAND_TEXT_FOOT};font-size:11px;">Sans contrat · Support québécois</td>
   </tr></table>
 </td></tr>
 
-<tr><td style="background:#f5f3ff;padding:44px 32px;text-align:center;border-bottom:1px solid #ede9fe;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td align="center">
-    <div style="width:56px;height:56px;border-radius:50%;background:#ede9fe;border:2px solid #7c3aed;text-align:center;line-height:56px;margin:0 auto 18px;">
-      <span style="display:inline-block;vertical-align:middle;line-height:0;">${ICONS[icon]}</span>
-    </div>
-  </td></tr></table>
-  <div style="display:inline-block;background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.5px;margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">${esc(badge)}</div>
-  <div style="font-size:26px;font-weight:800;color:#1a1a2e;margin-bottom:8px;line-height:1.2;font-family:Arial,Helvetica,sans-serif;">${esc(heroTitle)}</div>
+<!-- Hero -->
+<tr><td style="background:${BRAND_HERO_BG};padding:48px 32px;text-align:center;font-family:${fontStack};">
+  <div style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;font-size:10px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:2px;margin-bottom:16px;">${esc(badge)}</div>
+  <div style="font-size:28px;font-weight:800;color:${BRAND_DARK};line-height:1.2;margin-bottom:10px;">${esc(heroTitle)}</div>
   ${heroSubBlock}
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:36px 32px;">
+<!-- Body -->
+<tr><td style="background:#ffffff;padding:36px 32px;font-family:${fontStack};">
   ${greetingBlock}
   ${bodyTextBlock}
   ${cardHtml}
@@ -209,17 +215,17 @@ function shell(opts: ShellOpts): string {
   ${helpBlock}
 </td></tr>
 
-<tr><td style="background:#1a1a2e;padding:28px 32px;text-align:center;">
-  <div style="font-size:15px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:4px;font-family:Arial,Helvetica,sans-serif;">NIVRA</div>
-  <div style="font-size:9px;color:#7c3aed;letter-spacing:4px;font-weight:700;margin-bottom:16px;font-family:Arial,Helvetica,sans-serif;">TELECOM</div>
-  <div style="margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">
-    <a href="${PORTAL_URL}" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Mon compte</a>
-    <a href="mailto:${SUPPORT_EMAIL}" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Support</a>
-    <a href="${APP_URL}/legal/confidentialite" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Confidentialité</a>
-    <a href="${APP_URL}/desabonnement" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Se désabonner</a>
+<!-- Footer -->
+<tr><td style="background:${BRAND_DARK};padding:28px 32px;text-align:center;font-family:${fontStack};">
+  <div style="color:#ffffff;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:14px;">NIVRA TELECOM</div>
+  <div style="height:1px;background:${BRAND_DIVIDER};margin:12px 0;line-height:1px;font-size:0;">&nbsp;</div>
+  <div style="margin-bottom:12px;">
+    <a href="${PORTAL_URL}" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Mon compte</a>
+    <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Support</a>
+    <a href="${APP_URL}/legal/confidentialite" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Confidentialité</a>
+    <a href="${APP_URL}/desabonnement" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Se désabonner</a>
   </div>
-  <div style="height:1px;background:#2d2d4e;margin:14px 0;line-height:1px;font-size:0;">&nbsp;</div>
-  <div style="font-size:11px;color:#6b7280;line-height:1.7;font-family:Arial,Helvetica,sans-serif;">© 2026 Nivra Telecom. Tous droits réservés.<br>Ce message a été envoyé car vous êtes client Nivra Telecom.</div>
+  <div style="font-size:11px;color:${BRAND_TEXT_FOOT_LOW};line-height:1.6;">© 2026 Nivra Telecom. Tous droits réservés.<br>Ce message a été envoyé car vous êtes client Nivra Telecom.</div>
 </td></tr>
 
 </table>
@@ -260,23 +266,21 @@ export function renderQueueTemplate(
     case "order_confirmed": {
       const planName = esc(v.plan_name || v.SERVICES_LIST || "Service Nivra");
       const total = money(v.monthly_total_tax_in ?? v.amount_paid_today ?? v.total ?? v.amount ?? v.MONTHLY_TOTAL);
-      const status = esc(v.status || "En traitement");
       return {
         subject: `Commande reçue — ${orderNum}`,
         html: shell({
           preheader: `Votre commande Nivra ${orderNum} a été reçue.`,
           badge: "COMMANDE REÇUE",
           heroTitle: "Votre commande a été reçue",
-          heroSub: "Nous traitons votre demande. Vous recevrez une confirmation dès l'activation.",
+          heroSub: "Nous traitons votre demande avec priorité.",
           icon: "check",
           greeting,
           bodyText: `Merci pour votre confiance. Voici le résumé de votre commande <strong style="color:#1a1a2e;">${orderNum}</strong>.`,
-          cardTitle: "Détails de votre commande",
+          cardTitle: "Détails",
           cardRows: [
-            ["Numéro de commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Date", fmtDate(v.created_at || v.order_date || new Date().toISOString())],
             ["Service", String(planName)],
-            ["Statut", String(status)],
             ["Montant", String(total)],
           ],
           ctaPrimaryUrl: portalUrl,
@@ -296,7 +300,7 @@ export function renderQueueTemplate(
           icon: "doc",
           greeting,
           bodyText: "Une modification a été appliquée à votre commande.",
-          cardTitle: "Modification appliquée",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Modification", String(change)],
@@ -320,13 +324,14 @@ export function renderQueueTemplate(
           icon: "x",
           greeting,
           bodyText: "Votre commande a été annulée comme demandé.",
-          cardTitle: "Détails de l'annulation",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Date d'annulation", fmtDate(v.cancelled_at || new Date().toISOString())],
+            ["Date", fmtDate(v.cancelled_at || new Date().toISOString())],
             ["Raison", String(reason)],
           ],
-          helpHtml: `<strong style="color:#1a1a2e;">Des questions ?</strong> Contactez-nous à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.`,
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
         }),
       };
     }
@@ -372,13 +377,13 @@ export function renderQueueTemplate(
           icon: "check",
           greeting,
           bodyText: "Nous confirmons la réception de votre paiement.",
-          cardTitle: "Détails du paiement",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Montant", amount],
             ["Méthode", String(method)],
             ["Référence", String(reference)],
             ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
-            ["Montant payé", amount],
           ],
           ctaPrimaryUrl: invoiceUrl,
           ctaPrimaryLabel: "Voir ma facture",
@@ -482,7 +487,6 @@ export function renderQueueTemplate(
     case "payment_failed":
     case "paypal_charge_failed_retry": {
       const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
-      const attempt = esc(v.attempt || v.attempt_number || "1");
       const paymentUrl = String(v.payment_url || `${portalUrl}/facturation`);
       return {
         subject: `Action requise — Paiement non traité`,
@@ -490,14 +494,12 @@ export function renderQueueTemplate(
           preheader: `Votre paiement n'a pas été traité.`,
           badge: "ACTION REQUISE",
           heroTitle: "Votre paiement n'a pas été traité",
-          heroSub: "Une action est requise pour maintenir votre service.",
           icon: "alert",
           greeting,
           bodyText: "Le traitement de votre paiement a échoué. Mettez à jour votre méthode de paiement pour éviter toute interruption.",
-          cardTitle: "Détails du paiement",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Tentative", String(attempt)],
             ["Montant dû", amount],
           ],
           ctaPrimaryUrl: paymentUrl,
@@ -608,7 +610,6 @@ export function renderQueueTemplate(
     case "identity_verification_requested": {
       const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
       const expires = fmtDate(v.expires_at || v.EXPIRES_AT);
-      const maxAttempts = esc(v.max_attempts || "3");
       return {
         subject: `Vérification d'identité requise — Commande ${orderNum}`,
         html: shell({
@@ -623,7 +624,6 @@ export function renderQueueTemplate(
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Expire le", expires],
-            ["Tentatives", `1 / ${String(maxAttempts)}`],
           ],
           ctaPrimaryUrl: verificationUrl,
           ctaPrimaryLabel: "Soumettre mes documents",
@@ -639,15 +639,15 @@ export function renderQueueTemplate(
           preheader: `Votre identité a été vérifiée avec succès.`,
           badge: "IDENTITÉ VÉRIFIÉE",
           heroTitle: "Votre identité a été vérifiée",
-          heroSub: "Votre dossier est complet. Votre service est en cours d'activation.",
+          heroSub: "Votre dossier est complet.",
           icon: "check",
           greeting,
           bodyText: "Merci d'avoir soumis vos documents. Tout est en ordre.",
-          cardTitle: "Vérification",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Vérifié le", fmtDate(v.verified_at || new Date().toISOString())],
             ["Statut", "Approuvé"],
+            ["Date", fmtDate(v.verified_at || new Date().toISOString())],
           ],
         }),
       };
@@ -657,14 +657,12 @@ export function renderQueueTemplate(
     case "identity_rejected": {
       const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
       const reason = esc(v.reason || v.rejection_reason || "Document non valide");
-      const remaining = esc(v.attempts_remaining || v.remaining_attempts || "—");
       return {
         subject: `Action requise — Document d'identité refusé`,
         html: shell({
           preheader: `Votre document n'a pas pu être vérifié.`,
           badge: "ACTION REQUISE",
           heroTitle: "Document d'identité refusé",
-          heroSub: "Votre document n'a pas pu être vérifié.",
           icon: "alert",
           greeting,
           bodyText: "Veuillez soumettre un nouveau document pour finaliser votre vérification.",
@@ -672,10 +670,9 @@ export function renderQueueTemplate(
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Raison", String(reason)],
-            ["Tentatives restantes", String(remaining)],
           ],
           ctaPrimaryUrl: verificationUrl,
-          ctaPrimaryLabel: "Resoumettre mon document",
+          ctaPrimaryLabel: "Resoumettre",
         }),
       };
     }
@@ -697,7 +694,7 @@ export function renderQueueTemplate(
           icon: "phone",
           greeting,
           bodyText: "Votre carte SIM est maintenant active. Voici vos informations.",
-          cardTitle: "Détails de votre ligne",
+          cardTitle: "Détails",
           cardRows: [
             ["Numéro", String(phone)],
             ["ICCID", String(iccid)],
@@ -705,7 +702,7 @@ export function renderQueueTemplate(
             ["Forfait", String(plan)],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Accéder à mon compte",
+          ctaPrimaryLabel: "Mon compte",
         }),
       };
     }
@@ -772,12 +769,11 @@ export function renderQueueTemplate(
           bodyText: "Bonne nouvelle — votre numéro est maintenant actif sur le réseau Nivra.",
           cardTitle: "Détails",
           cardRows: [
-            ["Numéro transféré", String(phone)],
-            ["Date", fmtDate(v.completed_at || new Date().toISOString())],
+            ["Numéro", String(phone)],
             ["Statut", "Actif"],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Accéder à mon compte",
+          ctaPrimaryLabel: "Mon compte",
         }),
       };
     }
@@ -823,15 +819,13 @@ export function renderQueueTemplate(
           icon: "calendar",
           greeting,
           bodyText: "Votre installation est confirmée. Voici les détails.",
-          cardTitle: "Détails du rendez-vous",
+          cardTitle: "Détails",
           cardRows: [
             ["Date", date],
             ["Heure", String(time)],
             ["Technicien", String(tech)],
             ["Adresse", String(address)],
-            ["Durée estimée", "1 à 2 heures"],
           ],
-          helpHtml: `<strong style="color:#1a1a2e;">À noter :</strong> Assurez-vous d'être présent ou de désigner quelqu'un de 18 ans et plus.`,
         }),
       };
     }
@@ -850,13 +844,12 @@ export function renderQueueTemplate(
           icon: "calendar",
           greeting,
           bodyText: "Petit rappel — votre rendez-vous d'installation est demain.",
-          cardTitle: "Rappel rendez-vous",
+          cardTitle: "Détails",
           cardRows: [
             ["Date", date],
             ["Heure", String(time)],
             ["Technicien", String(tech)],
           ],
-          helpHtml: `<strong style="color:#1a1a2e;">Préparation :</strong> Préparez l'accès à votre local technique ou à votre boîte de connexion.`,
         }),
       };
     }
@@ -871,14 +864,13 @@ export function renderQueueTemplate(
           preheader: `Le technicien arrive bientôt.`,
           badge: "DANS 2 HEURES",
           heroTitle: "Votre technicien arrive bientôt",
-          heroSub: "Assurez-vous d'être disponible à l'adresse d'installation.",
           icon: "calendar",
           greeting,
           bodyText: "Notre technicien sera bientôt chez vous.",
           cardTitle: "Détails",
           cardRows: [
             ["Technicien", String(tech)],
-            ["Heure d'arrivée estimée", String(eta)],
+            ["Heure estimée", String(eta)],
           ],
         }),
       };
@@ -887,7 +879,6 @@ export function renderQueueTemplate(
     case "appointment_missed_by_client": {
       const date = fmtDate(v.date || v.appointment_date);
       const time = esc(v.time || v.appointment_time || "—");
-      const address = esc(v.address || "—");
       const rebookingUrl = String(v.rebooking_url || `${portalUrl}/rendez-vous`);
       return {
         subject: `Rendez-vous manqué — Replanifiez votre installation`,
@@ -895,18 +886,16 @@ export function renderQueueTemplate(
           preheader: `Notre technicien s'est présenté mais personne n'était disponible.`,
           badge: "RENDEZ-VOUS MANQUÉ",
           heroTitle: "Nous avons raté votre rendez-vous",
-          heroSub: "Notre technicien s'est présenté mais personne n'était disponible.",
           icon: "alert",
           greeting,
           bodyText: "Vous pouvez replanifier votre installation à tout moment depuis votre espace client.",
-          cardTitle: "Rendez-vous manqué",
+          cardTitle: "Détails",
           cardRows: [
             ["Date", date],
             ["Heure", String(time)],
-            ["Adresse", String(address)],
           ],
           ctaPrimaryUrl: rebookingUrl,
-          ctaPrimaryLabel: "Replanifier mon installation",
+          ctaPrimaryLabel: "Replanifier",
         }),
       };
     }
@@ -916,11 +905,11 @@ export function renderQueueTemplate(
         subject: `Votre rendez-vous a été annulé`,
         html: shell({
           preheader: `Votre rendez-vous a été annulé par Nivra.`,
-          badge: "RENDEZ-VOUS ANNULÉ",
+          badge: "ANNULÉ",
           heroTitle: "Votre rendez-vous a été annulé",
           icon: "x",
           greeting,
-          bodyText: "Nous nous excusons pour cet inconvénient. Notre équipe vous contactera sous 24h pour replanifier.",
+          bodyText: "Notre équipe vous contactera sous 24h.",
           ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
           ctaPrimaryLabel: "Nous contacter",
         }),
@@ -943,7 +932,7 @@ export function renderQueueTemplate(
           icon: "truck",
           greeting,
           bodyText: "Votre équipement vient d'être expédié.",
-          cardTitle: "Suivi de livraison",
+          cardTitle: "Détails",
           cardRows: [
             ["Transporteur", String(carrier)],
             ["Suivi", String(tracking)],
@@ -986,15 +975,15 @@ export function renderQueueTemplate(
           icon: "check",
           greeting,
           bodyText: `Bonne nouvelle — votre service <strong style="color:#1a1a2e;">${service}</strong> est maintenant actif.`,
-          cardTitle: "Détails de votre service",
+          cardTitle: "Détails",
           cardRows: [
             ["Service", String(service)],
             ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-            ["Date d'activation", fmtDate(v.activated_at || new Date().toISOString())],
+            ["Date activation", fmtDate(v.activated_at || new Date().toISOString())],
             ["Cycle de facturation", esc(v.billing_cycle || "Mensuel")],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Accéder à mon espace client",
+          ctaPrimaryLabel: "Mon espace client",
         }),
       };
     }
@@ -1004,18 +993,6 @@ export function renderQueueTemplate(
     case "account_created": {
       const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || "Service Nivra");
       const billingDate = fmtDate(v.billing_date || v.next_billing_date);
-      const wifiSsid = esc(v.wifi_ssid || "");
-      const wifiPassword = esc(v.wifi_password || "");
-      const guideUrl = String(v.guide_url || `${APP_URL}/aide`);
-
-      const rows: Array<[string, string]> = [
-        ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-        ["Service", String(service)],
-        ["Date de facturation", billingDate],
-      ];
-      if (wifiSsid) rows.push(["WiFi (SSID)", String(wifiSsid)]);
-      if (wifiPassword) rows.push(["Mot de passe WiFi", String(wifiPassword)]);
-
       return {
         subject: `Bienvenue chez Nivra — Tout ce qu'il faut savoir`,
         html: shell({
@@ -1025,13 +1002,15 @@ export function renderQueueTemplate(
           heroSub: "Nous sommes ravis de vous avoir parmi nous.",
           icon: "star",
           greeting,
-          bodyText: "Votre compte est prêt. Voici tout ce qu'il vous faut pour démarrer.",
-          cardTitle: "Vos informations",
-          cardRows: rows,
+          bodyText: "Votre compte est prêt. Connectez-vous pour tout gérer.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Service", String(service)],
+            ["Date de facturation", billingDate],
+          ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Mon espace client",
-          ctaSecondaryUrl: guideUrl,
-          ctaSecondaryLabel: "Guide de démarrage",
         }),
       };
     }
@@ -1052,8 +1031,8 @@ export function renderQueueTemplate(
           heroTitle: "Votre contrat est prêt à signer",
           icon: "pen",
           greeting,
-          bodyText: "Votre contrat de service Nivra est disponible. Veuillez le signer pour finaliser votre commande.",
-          cardTitle: "Détails du contrat",
+          bodyText: "Votre contrat de service Nivra est disponible.",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Service", String(service)],
@@ -1071,7 +1050,7 @@ export function renderQueueTemplate(
         subject: `Votre contrat attend votre signature`,
         html: shell({
           preheader: `Votre contrat expire bientôt.`,
-          badge: "RAPPEL — SIGNATURE",
+          badge: "RAPPEL SIGNATURE",
           heroTitle: "Votre contrat attend votre signature",
           icon: "pen",
           greeting,
@@ -1092,7 +1071,7 @@ export function renderQueueTemplate(
           heroTitle: "Contrat signé — Merci",
           icon: "check",
           greeting,
-          bodyText: "Nous avons bien reçu votre signature. Une copie de votre contrat est disponible dans votre espace client.",
+          bodyText: "Une copie de votre contrat est disponible dans votre espace client.",
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Voir mon contrat",
         }),
