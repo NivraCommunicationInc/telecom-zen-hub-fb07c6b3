@@ -596,11 +596,10 @@ const GuestCheckout = () => {
             order_id: response.order_id,
             user_id: userId,
             terms_accepted: isLegalComplete,
-            // TODO(paypal-auto-billing): Le paiement récurrent automatique PayPal n'est pas encore
-            // câblé côté guest checkout. Pour l'activer, il faut: (1) afficher AutoPayPalOption,
-            // (2) router vers billing-create-order-with-paypal-subscription, (3) gérer
-            // l'approval_url + return URL PayPal. Voir mem://technical/paypal/canonical-lifecycle-standard-v2.
-            recurring_payment_accepted: false,
+            // Pre-authorized PayPal recurring billing — flipped true when the client
+            // opts in via AutoPayPalOption. The webhook (paypal-webhook) is the
+            // source of truth; this is the consent record snapshot.
+            recurring_payment_accepted: enableAutoBilling,
             total_amount_displayed: todayTotal,
             payment_method: paymentMethodValue,
             services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
@@ -1506,6 +1505,14 @@ const GuestCheckout = () => {
                           <div className="flex justify-between text-xs text-emerald-600">
                             <span>Rabais</span>
                             <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
+                          </div>
+                        )}
+
+                        {/* Pre-authorized auto-billing discount (recurring monthly) */}
+                        {enableAutoBilling && (
+                          <div className="flex justify-between text-xs text-emerald-600">
+                            <span>Rabais pré-autorisé (mensuel)</span>
+                            <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
                           </div>
                         )}
 
