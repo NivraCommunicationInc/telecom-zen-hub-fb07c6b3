@@ -11446,6 +11446,8 @@ export type Database = {
       phone_inventory: {
         Row: {
           assigned_at: string | null
+          available_colors: string[]
+          available_storage: string[]
           brand: string
           color: string
           condition: string
@@ -11465,6 +11467,8 @@ export type Database = {
         }
         Insert: {
           assigned_at?: string | null
+          available_colors?: string[]
+          available_storage?: string[]
           brand: string
           color: string
           condition: string
@@ -11484,6 +11488,8 @@ export type Database = {
         }
         Update: {
           assigned_at?: string | null
+          available_colors?: string[]
+          available_storage?: string[]
           brand?: string
           color?: string
           condition?: string
