@@ -223,6 +223,7 @@ const Install = lazy(() => import("@/pages/Install"));
 const ComparePlans = lazy(() => import("@/pages/ComparePlans"));
 const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
 const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
+const PayPalSubscriptionReturn = lazy(() => import("@/pages/PayPalSubscriptionReturn"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 const QuoteCheckoutPage = lazy(() => import("@/pages/QuoteCheckout"));
 const PolitiqueConfidentialite = lazy(() => import("@/pages/PolitiqueConfidentialite"));
@@ -504,6 +505,8 @@ const AppRoutes = () => {
       <Route path="/parrainage" element={<MaintenanceGuard><PublicLayout><Parrainage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><GuestCheckout /></Suspense></MaintenanceGuard>} />
+      <Route path="/commander/paypal-retour" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PayPalSubscriptionReturn /></Suspense>} />
+      <Route path="/checkout/paypal-success" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PayPalSubscriptionReturn /></Suspense>} />
       <Route path="/install" element={<Install />} />
       {/* DEV-ONLY: Routes stripped from production builds */}
       {!import.meta.env.PROD && <Route path="/dev-login" element={<DevLogin />} />}
