@@ -552,85 +552,292 @@ function FilterSelect({ label, value, onChange, options, renderOption }: {
 function SidePreview({ order, onClose }: { order: QueueOrder; onClose: () => void }) {
   const sla = getSlaInfo(order.created_at, order.status);
   const fullName = `${order.client_first_name || ""} ${order.client_last_name || ""}`.trim();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const currentStep = getCurrentStep(order);
+
+  // Step state derivation
+  const stepStateLabel: string =
+    ["completed", "activated"].includes(order.status?.toLowerCase()) ? "Complété"
+    : ["cancelled", "fraud", "provisioning_failed", "invalid_payment", "on_hold", "hold"].includes(order.status?.toLowerCase()) ? "Bloqué"
+    : "En cours";
+  const stepStateColor =
+    stepStateLabel === "Complété" ? "text-emerald-400"
+    : stepStateLabel === "Bloqué" ? "text-red-400"
+    : "text-blue-400";
+
+  // Account number from canonical accounts table (via order user)
+  const { data: accountInfo } = useQuery({
+    queryKey: ["wq-account", order.id],
+    queryFn: async () => {
+      // Try via order.account_id first, then via client_email
+      const { data: ord } = await supabase
+        .from("orders")
+        .select("account_id, user_id, client_email")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (ord?.account_id) {
+        const { data: acc } = await supabase
+          .from("accounts")
+          .select("account_number")
+          .eq("id", ord.account_id)
+          .maybeSingle();
+        if (acc?.account_number) return acc.account_number;
+      }
+      if (ord?.user_id) {
+        const { data: acc } = await supabase
+          .from("accounts")
+          .select("account_number")
+          .eq("client_id", ord.user_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (acc?.account_number) return acc.account_number;
+      }
+      return null;
+    },
+    staleTime: 60_000,
+  });
+
+  // Last activity entry
+  const { data: lastActivity } = useQuery({
+    queryKey: ["wq-last-activity", order.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("activity_logs")
+        .select("action, created_at, actor_name, actor_role")
+        .eq("entity_type", "order")
+        .eq("entity_id", order.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 30_000,
+  });
+
+  // Approve KYC mutation
+  const approveKyc = useMutation({
+    mutationFn: async () => {
+      const now = new Date().toISOString();
+      const reason = "Approuvé depuis la file de travail";
+
+      // Try edge function if a session exists
+      const { data: ord } = await supabase
+        .from("orders")
+        .select("identity_verification_session_id")
+        .eq("id", order.id)
+        .maybeSingle();
+
+      if (ord?.identity_verification_session_id) {
+        const resp = await supabase.functions.invoke("admin-review-verification", {
+          body: {
+            session_id: ord.identity_verification_session_id,
+            decision: "approved",
+            reason,
+            idempotency_key: `kyc_approve_${ord.identity_verification_session_id}_${Date.now()}`,
+          },
+        });
+        if (resp.error) throw resp.error;
+      }
+
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          kyc_status: "approved",
+          id_verification_status: "verified",
+          id_verified_at: now,
+          id_verification_notes: reason,
+          updated_at: now,
+        })
+        .eq("id", order.id);
+      if (error) throw error;
+
+      await supabase.from("activity_logs").insert({
+        entity_type: "order",
+        entity_id: order.id,
+        action: "kyc_approved",
+        reason,
+        user_id: order.id, // user_id is required, fallback to order id (RLS-safe)
+        details: { source: "work_queue_panel", order_kyc_status: "approved" },
+      });
+    },
+    onSuccess: () => {
+      toast.success("KYC approuvé");
+      qc.invalidateQueries({ queryKey: ["work-queue-all-orders"] });
+      qc.invalidateQueries({ queryKey: ["wq-last-activity", order.id] });
+    },
+    onError: (err: any) => {
+      toast.error(`Erreur: ${err?.message || "Approbation KYC échouée"}`);
+    },
+  });
+
+  const notifyClient = () => {
+    if (!order.client_email) {
+      toast.error("Aucun email pour ce client");
+      return;
+    }
+    const subject = encodeURIComponent(`Nivra Telecom — Commande ${order.order_number || ""}`);
+    const body = encodeURIComponent(`Bonjour ${order.client_first_name || ""},\n\nNous vous contactons au sujet de votre commande #${order.order_number || order.id.slice(0, 8)}.\n\nCordialement,\nÉquipe Nivra`);
+    window.location.href = `mailto:${order.client_email}?subject=${subject}&body=${body}`;
+  };
+
+  const payStatusFr =
+    order.payment_status?.toLowerCase() === "paid" ? "Payé"
+    : order.payment_status?.toLowerCase() === "pending" ? "En attente"
+    : order.payment_status?.toLowerCase() === "failed" ? "Échoué"
+    : order.payment_status?.toLowerCase() === "authorized" ? "Autorisé"
+    : order.payment_status || "—";
+  const payStatusColor =
+    payStatusFr === "Payé" ? "text-emerald-400"
+    : payStatusFr === "Échoué" ? "text-red-400"
+    : payStatusFr === "En attente" ? "text-amber-400"
+    : "text-[hsl(220,10%,70%)]";
+
+  const slaBadge =
+    sla.tone === "red" ? { label: "En retard", cls: "bg-red-500/15 text-red-400 border-red-500/30" }
+    : sla.tone === "amber" ? { label: "Urgent", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" }
+    : { label: "À jour", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
+
+  const isKycPending = (order.kyc_status || "").toLowerCase() === "pending";
+
   return (
-    <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[#0d1421] sticky top-4">
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,16%)]">
-        <div>
+    <div
+      key={order.id}
+      className="rounded-lg border border-slate-700 bg-[#0d1421] sticky top-4 animate-in slide-in-from-right-4 fade-in duration-200"
+    >
+      {/* HEADER */}
+      <div className="flex items-start justify-between gap-2 px-3 py-2.5 border-b border-slate-700">
+        <div className="min-w-0 flex-1">
           <div className="font-mono font-semibold text-white text-sm">
             {order.order_number || order.id.slice(0, 8)}
           </div>
-          <div className="text-[10px] text-[hsl(220,10%,45%)]">Aperçu rapide</div>
+          <div className="text-[11px] text-slate-400 truncate">{fullName || "—"}</div>
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <StatusPill value={order.status} kind="status" />
+            <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded border ${slaBadge.cls}`}>
+              <Clock className="h-2.5 w-2.5 mr-1" />
+              {slaBadge.label}
+            </span>
+          </div>
         </div>
-        <button onClick={onClose} className="h-6 w-6 flex items-center justify-center rounded text-[hsl(220,10%,50%)] hover:text-white hover:bg-[hsl(220,15%,16%)]">
+        <button
+          onClick={onClose}
+          className="h-6 w-6 flex items-center justify-center rounded text-slate-500 hover:text-white hover:bg-slate-800 shrink-0"
+        >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className="p-3 space-y-3">
+
+      {/* Open button */}
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => navigate(`/core/orders/${order.id}`)}
+          className="w-full flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Ouvrir la commande
+        </button>
+      </div>
+
+      <div className="p-3 space-y-3.5">
+        {/* SECTION 1 — Client */}
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">Client</p>
-          <div className="text-xs text-white">{fullName || "—"}</div>
-          <div className="text-[11px] text-[hsl(220,10%,60%)]">{order.client_email || "—"}</div>
-          {order.client_phone && <div className="text-[11px] text-[hsl(220,10%,60%)]">{order.client_phone}</div>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">Statut</p>
-            <StatusPill value={order.status} kind="status" />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">KYC</p>
-            <StatusPill value={order.kyc_status} kind="kyc" />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">Type</p>
-            <span className="text-xs text-white capitalize">{order.service_type || "—"}</span>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">Zone</p>
-            <span className="text-xs text-white">{getZone(order.shipping_city)}</span>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Client</p>
+          <div className="space-y-0.5 text-[11px]">
+            <div className="text-white">{fullName || "—"}</div>
+            <div className="text-slate-400">{order.client_email || "—"}</div>
+            <div className="text-slate-400">{order.client_phone || "—"}</div>
+            <div className="text-slate-400 font-mono">
+              {accountInfo ? `Compte #${accountInfo}` : "Aucun compte lié"}
+            </div>
           </div>
         </div>
 
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">SLA</p>
-          <div className={`text-xs font-medium ${sla.tone === "red" ? "text-red-400" : sla.tone === "amber" ? "text-amber-400" : "text-emerald-400"}`}>
-            <Clock className="h-3 w-3 inline mr-1" />
-            {sla.label} depuis création
-          </div>
-          <div className="text-[10px] text-[hsl(220,10%,45%)] mt-0.5">
-            Créée {format(new Date(order.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+        {/* SECTION 2 — Commande */}
+        <div className="border-t border-slate-800 pt-3">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Commande</p>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <div className="text-slate-500 text-[10px]">Service</div>
+              <div className="text-white capitalize">{order.service_type || "—"}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 text-[10px]">Montant</div>
+              <div className="text-white tabular-nums font-semibold">
+                {order.total_amount != null
+                  ? order.total_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
+                  : "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-slate-500 text-[10px]">Paiement</div>
+              <div className={`font-medium ${payStatusColor}`}>{payStatusFr}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 text-[10px]">KYC</div>
+              <StatusPill value={order.kyc_status} kind="kyc" />
+            </div>
           </div>
         </div>
 
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] font-semibold mb-1">Montant</p>
-          <div className="text-sm font-semibold text-white tabular-nums">
-            {order.total_amount != null
-              ? order.total_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
-              : "—"}
+        {/* SECTION 3 — Étape actuelle */}
+        <div className="border-t border-slate-800 pt-3">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Étape actuelle</p>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-semibold text-white">{currentStep}</span>
+            <span className={`text-[10px] font-medium ${stepStateColor}`}>{stepStateLabel}</span>
+          </div>
+          <div className="text-[10px] text-slate-500 mb-2">
+            Créée {format(new Date(order.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })} · {sla.label}
+          </div>
+          <div className="rounded-md bg-slate-800/40 border border-slate-700/40 px-2 py-1.5">
+            <div className="text-[10px] text-slate-500">Dernière activité</div>
+            {lastActivity ? (
+              <>
+                <div className="text-[11px] text-slate-200 truncate">{lastActivity.action}</div>
+                <div className="text-[10px] text-slate-500">
+                  {formatDistanceToNowStrict(new Date(lastActivity.created_at), { locale: fr, addSuffix: true })}
+                  {lastActivity.actor_name && ` · ${lastActivity.actor_name}`}
+                </div>
+              </>
+            ) : (
+              <div className="text-[11px] text-slate-500 italic">Aucune activité enregistrée</div>
+            )}
           </div>
         </div>
 
-        <div className="pt-2 border-t border-[hsl(220,15%,16%)] space-y-1.5">
-          <Link
-            to={`/core/orders/${order.id}`}
-            className="block w-full text-center rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors"
+        {/* SECTION 4 — Actions rapides */}
+        <div className="border-t border-slate-800 pt-3 space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Actions rapides</p>
+
+          {isKycPending && (
+            <button
+              onClick={() => approveKyc.mutate()}
+              disabled={approveKyc.isPending}
+              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 text-xs font-semibold text-white transition-colors"
+            >
+              {approveKyc.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Approuver KYC
+            </button>
+          )}
+
+          <button
+            onClick={notifyClient}
+            disabled={!order.client_email}
+            className="w-full flex items-center justify-center gap-1.5 rounded-md border border-slate-700 hover:border-blue-500/40 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 text-xs font-medium text-slate-300 transition-colors"
           >
-            Ouvrir la commande
-          </Link>
-          <Link
-            to={`/core/orders/${order.id}#kyc`}
-            className="block w-full text-center rounded-md border border-[hsl(220,15%,20%)] px-3 py-2 text-xs font-medium text-[hsl(220,10%,70%)] hover:text-white hover:border-amber-500/40 transition-colors"
-          >
-            Approuver KYC
-          </Link>
-          <Link
-            to={`/core/orders/${order.id}#notify`}
-            className="block w-full text-center rounded-md border border-[hsl(220,15%,20%)] px-3 py-2 text-xs font-medium text-[hsl(220,10%,70%)] hover:text-white hover:border-blue-500/40 transition-colors"
-          >
+            <Mail className="h-3.5 w-3.5" />
             Notifier client
-          </Link>
+          </button>
+
+          <button
+            onClick={() => navigate(`/core/orders/${order.id}`)}
+            className="w-full flex items-center justify-center gap-1.5 rounded-md border border-slate-700 hover:border-emerald-500/40 hover:text-white px-3 py-2 text-xs font-medium text-slate-300 transition-colors"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            Ouvrir commande
+          </button>
         </div>
       </div>
     </div>
