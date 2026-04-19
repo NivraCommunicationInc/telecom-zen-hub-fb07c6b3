@@ -904,7 +904,7 @@ export function renderQueueTemplate(
     case "contract_ready":
     case "contract_ready_to_sign":
     case "contract_signature_request": {
-      const contractUrl = String(v.contract_url || v.signature_url || `${portalUrl}/contrats`);
+      const contractUrl = "https://nivra-telecom.ca/portal/contracts";
       const service = esc(v.service || v.plan_name || "Service Nivra");
       return {
         subject: `Votre contrat est prêt à signer`,
@@ -928,7 +928,7 @@ export function renderQueueTemplate(
     }
 
     case "contract_reminder": {
-      const contractUrl = String(v.contract_url || `${portalUrl}/contrats`);
+      const contractUrl = "https://nivra-telecom.ca/portal/contracts";
       return {
         subject: `Votre contrat attend votre signature`,
         html: shell({

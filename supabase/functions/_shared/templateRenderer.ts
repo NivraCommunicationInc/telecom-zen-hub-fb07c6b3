@@ -284,7 +284,7 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
         "Votre contrat est prêt à être signé.",
         vars, [
           ...(vars.contract_number ? [{ label: "Nº contrat", value: vars.contract_number }] : []),
-        ], "Voir le contrat", portalUrl),
+        ], "Voir le contrat", "https://nivra-telecom.ca/portal/contracts"),
     }),
 
     contract_ready_for_signature: () => ({
@@ -293,7 +293,7 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
         "Votre contrat est prêt et attend votre signature.",
         vars, [
           ...(vars.contract_number ? [{ label: "Nº contrat", value: vars.contract_number }] : []),
-        ], "Signer le contrat", portalUrl),
+        ], "Signer le contrat", "https://nivra-telecom.ca/portal/contracts"),
     }),
 
     contract_signed: () => ({
