@@ -28,12 +28,114 @@ interface Props { proc: any; }
 
 const TERMINAL_STATES = ["active", "activated", "completed"];
 
+const REPLACEMENT_REASONS = [
+  "Défectueux",
+  "Mise à niveau",
+  "Perte ou vol",
+  "Upgrade client",
+  "Autre",
+] as const;
+
+interface InventoryHit {
+  id: string;
+  serial_number: string | null;
+  sku: string | null;
+  catalog_name: string | null;
+  status: string | null;
+}
+
 export function ActivationStep({ proc }: Props) {
   const { order, account, invoice } = proc;
   const serviceType = (order.service_type || "").toLowerCase();
   const [providerRef, setProviderRef] = useState("");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
+
+  // ── Equipment replacement state ──
+  const orderId: string | undefined = order?.id;
+  const assignedSerial: string = order?.serial_number || "";
+  const [oldSerial, setOldSerial] = useState<string>(assignedSerial);
+  const [replaceReason, setReplaceReason] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedTerm, setDebouncedTerm] = useState<string>("");
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<InventoryHit[]>([]);
+  const [selectedNew, setSelectedNew] = useState<InventoryHit | null>(null);
+  const [isReplacing, setIsReplacing] = useState(false);
+
+  // Sync local "old serial" with order if it changes
+  useEffect(() => {
+    if (assignedSerial && !oldSerial) setOldSerial(assignedSerial);
+  }, [assignedSerial, oldSerial]);
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // Query equipment_inventory when debounced term has 2+ chars
+  useEffect(() => {
+    let cancelled = false;
+    const term = debouncedTerm;
+    if (term.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    (async () => {
+      const like = `%${term}%`;
+      const { data, error } = await supabase
+        .from("equipment_inventory")
+        .select("id, serial_number, sku, catalog_name, status")
+        .eq("status", "in_stock")
+        .or(
+          `serial_number.ilike.${like},sku.ilike.${like},catalog_name.ilike.${like}`
+        )
+        .limit(8);
+      if (cancelled) return;
+      if (error) {
+        console.error("[ActivationStep] equipment search failed:", error.message);
+        setResults([]);
+      } else {
+        setResults((data || []) as InventoryHit[]);
+      }
+      setSearching(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedTerm]);
+
+  const canReplace = useMemo(
+    () => !!oldSerial.trim() && !!replaceReason && !isReplacing,
+    [oldSerial, replaceReason, isReplacing]
+  );
+
+  const handleReplace = async () => {
+    if (!proc.replaceEquipment) {
+      toast.error("Action de remplacement indisponible");
+      return;
+    }
+    setIsReplacing(true);
+    try {
+      await proc.replaceEquipment({
+        old_serial_number: oldSerial.trim(),
+        reason: replaceReason,
+        new_equipment_id: selectedNew?.id || undefined,
+      });
+      // Reset selection on success; keep the (now updated) old serial visible
+      setSelectedNew(null);
+      setSearchTerm("");
+      setResults([]);
+      setReplaceReason("");
+    } catch {
+      // toast handled in hook
+    } finally {
+      setIsReplacing(false);
+    }
+  };
 
   const currentStatus = order.status || "";
   const isActivated = TERMINAL_STATES.includes(currentStatus);
