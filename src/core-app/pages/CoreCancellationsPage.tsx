@@ -131,16 +131,233 @@ export default function CoreCancellationsPage() {
         processed_by_name: profile?.full_name ?? user?.email ?? null,
         processed_at: new Date().toISOString(),
       };
+
+      // STEP 1 — update the cancellation request itself
       const { error } = await supabase
         .from("service_cancellation_requests")
         .update(update)
         .eq("id", id);
       if (error) throw error;
-      return { id, ...update };
+
+      // Pull a full snapshot of the request so downstream steps have all fields
+      const { data: req } = await supabase
+        .from("service_cancellation_requests")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      const result: any = { id, ...update, _sideEffects: { subscription: false, sim: false, equipment: false, invoice: null as null | "voided" | "marked_overdue", account: false, email: false, note: false } };
+
+      // Side-effects only run on approval transitions
+      if (fields.status !== "approved" || !req) return result;
+
+      const accountId: string | null = req.account_id ?? null;
+      const effective: string = (fields.effective_date as string) || new Date().toISOString();
+      const serviceType: string = (req.service_type ?? "").toString().toLowerCase();
+
+      // STEP 2 — Deactivate billing subscription(s) tied to the account (via orders)
+      try {
+        if (accountId) {
+          const { data: orderRows } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("account_id", accountId);
+          const orderIds = (orderRows ?? []).map((o: any) => o.id);
+          if (orderIds.length) {
+            const { error: subErr } = await supabase
+              .from("billing_subscriptions")
+              .update({
+                status: "cancelled",
+                stripe_canceled_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .in("order_id", orderIds)
+              .eq("status", "active");
+            if (subErr) throw subErr;
+            result._sideEffects.subscription = true;
+          }
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 2 subscription deactivation failed:", e?.message ?? e);
+      }
+
+      // STEP 3 — Deactivate SIM (mobile fulfillment) when service is mobile/sim
+      try {
+        if (accountId && (serviceType.includes("mobile") || serviceType.includes("sim"))) {
+          const { data: actOrders } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("account_id", accountId)
+            .eq("status", "activated");
+          const orderIds = (actOrders ?? []).map((o: any) => o.id);
+          if (orderIds.length) {
+            const { error: simErr } = await supabase
+              .from("mobile_fulfillment")
+              .update({ activation_status: "deactivated", updated_at: new Date().toISOString() })
+              .in("order_id", orderIds);
+            if (simErr) throw simErr;
+            result._sideEffects.sim = true;
+          }
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 3 SIM deactivation failed:", e?.message ?? e);
+      }
+
+      // STEP 4 — Mark assigned equipment for return
+      try {
+        if (accountId) {
+          const { error: eqErr } = await supabase
+            .from("equipment_inventory")
+            .update({ status: "return_requested" })
+            .eq("account_id", accountId)
+            .eq("status", "assigned");
+          if (eqErr) throw eqErr;
+          result._sideEffects.equipment = true;
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 4 equipment return flag failed:", e?.message ?? e);
+      }
+
+      // STEP 5 — Resolve outstanding invoices (void if zero balance, overdue if balance > 0)
+      try {
+        if (accountId) {
+          const { data: orderRows } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("account_id", accountId);
+          const orderIds = (orderRows ?? []).map((o: any) => o.id);
+          if (orderIds.length) {
+            const { data: openInvoices } = await supabase
+              .from("billing_invoices")
+              .select("id, balance_due")
+              .in("order_id", orderIds)
+              .not("status", "in", "(paid,void,cancelled,refunded)");
+            const toVoid = (openInvoices ?? []).filter((i: any) => Number(i.balance_due ?? 0) <= 0).map((i: any) => i.id);
+            const toOverdue = (openInvoices ?? []).filter((i: any) => Number(i.balance_due ?? 0) > 0).map((i: any) => i.id);
+            if (toVoid.length) {
+              await supabase.from("billing_invoices").update({ status: "void" }).in("id", toVoid);
+              result._sideEffects.invoice = "voided";
+            }
+            if (toOverdue.length) {
+              await supabase.from("billing_invoices").update({ status: "overdue" }).in("id", toOverdue);
+              result._sideEffects.invoice = result._sideEffects.invoice === "voided" ? "voided" : "marked_overdue";
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 5 invoice resolution failed:", e?.message ?? e);
+      }
+
+      // STEP 6 — Cancel the account
+      try {
+        if (accountId) {
+          const { error: acctErr } = await supabase
+            .from("accounts")
+            .update({
+              status: "cancelled",
+              cancelled_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", accountId);
+          if (acctErr) throw acctErr;
+          result._sideEffects.account = true;
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 6 account cancellation failed:", e?.message ?? e);
+      }
+
+      // STEP 7 — Activity log
+      try {
+        if (accountId && req.user_id) {
+          await supabase.from("activity_logs").insert({
+            user_id: req.user_id,
+            action: "service_cancelled",
+            entity_type: "account",
+            entity_id: accountId,
+            actor_user_id: user?.id ?? null,
+            actor_name: profile?.full_name ?? user?.email ?? null,
+            actor_role: "admin",
+            details: {
+              cancellation_request_id: id,
+              reason_code: req.reason_code,
+              effective_date: effective,
+              processed_by_id: user?.id ?? null,
+              processed_by_name: profile?.full_name ?? user?.email ?? null,
+              service_type: req.service_type,
+            },
+          } as any);
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 7 activity log failed:", e?.message ?? e);
+      }
+
+      // STEP 8 — Send confirmation email
+      try {
+        const { data: clientProfile } = req.user_id
+          ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
+          : { data: null };
+        if (clientProfile?.email) {
+          const { error: emailErr } = await supabase.functions.invoke("send-cancellation-notification", {
+            body: {
+              template: "cancellation_scheduled",
+              to_email: clientProfile.email,
+              client_name: clientProfile.full_name ?? "Client",
+              request_number: req.request_number ?? id.slice(0, 8),
+              service_type: req.service_type,
+              effective_date: effective,
+              public_message: fields.public_message ?? null,
+            },
+          });
+          if (emailErr) throw emailErr;
+          result._sideEffects.email = true;
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 8 confirmation email failed:", e?.message ?? e);
+      }
+
+      // STEP 9 — Auto-note (no helper exists in repo → log via activity_logs as service_cancelled_note)
+      try {
+        if (req.user_id) {
+          await supabase.from("activity_logs").insert({
+            user_id: req.user_id,
+            action: "service_cancelled_note",
+            entity_type: "client_profile",
+            entity_id: req.user_id,
+            actor_user_id: user?.id ?? null,
+            actor_name: profile?.full_name ?? user?.email ?? null,
+            actor_role: "admin",
+            details: {
+              event: "service_cancelled",
+              cancellation_request_id: id,
+              reason_code: req.reason_code,
+              effective_date: effective,
+              service_type: req.service_type,
+            },
+          } as any);
+          result._sideEffects.note = true;
+        }
+      } catch (e: any) {
+        console.error("[CoreCancellations] STEP 9 client auto-note failed:", e?.message ?? e);
+      }
+
+      return result;
     },
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["core-cancellations"] });
-      toast.success("Demande mise à jour");
+      const fx = data?._sideEffects;
+      if (fx && data?.status === "approved") {
+        const parts: string[] = [];
+        if (fx.subscription) parts.push("abonnement résilié");
+        if (fx.sim) parts.push("SIM désactivée");
+        if (fx.equipment) parts.push("équipement marqué pour retour");
+        if (fx.invoice === "voided") parts.push("factures annulées");
+        if (fx.invoice === "marked_overdue") parts.push("solde marqué en retard");
+        if (fx.account) parts.push("compte fermé");
+        if (fx.email) parts.push("email envoyé");
+        toast.success(`Annulation approuvée — ${parts.length ? parts.join(", ") : "aucune action en aval"}`);
+      } else {
+        toast.success("Demande mise à jour");
+      }
       if (selected?.id === data.id) setSelected({ ...selected, ...data });
     },
     onError: (err: any) => {
