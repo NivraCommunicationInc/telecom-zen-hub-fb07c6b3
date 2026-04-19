@@ -356,8 +356,8 @@ export function KycStep({ proc }: Props) {
           />
         </div>
 
-        {/* SECTION 4 — Review actions (submitted, manual_review, OR created — agent can act anytime) */}
-        {(rawStatus === "submitted" || rawStatus === "manual_review" || rawStatus === "created") && (
+        {/* SECTION 4 — Review actions (submitted, manual_review, created, or missing status — agent can act anytime) */}
+        {(rawStatus === "submitted" || rawStatus === "manual_review" || rawStatus === "created" || !kycSession?.status) && (
           <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
             <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
               <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Révision administrative</h4>

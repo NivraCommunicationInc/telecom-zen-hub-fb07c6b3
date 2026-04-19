@@ -1973,33 +1973,55 @@ export function useOrderProcessing(orderId: string | undefined) {
       const profile = data?.profile;
       const session = data?.kycSession;
       if (!order) throw new Error("Commande introuvable");
-      if (!session?.id) throw new Error("Aucune session KYC associée à cette commande");
 
       const reason = (opts?.reason || "").trim() || "Approuvé par agent — documents conformes";
+      const now = new Date().toISOString();
+      let result: any = null;
 
-      const { data: result, error } = await supabase.functions.invoke("admin-review-verification", {
-        body: {
-          session_id: session.id,
-          decision: "approved",
-          reason,
-          idempotency_key: `kyc_approve_${session.id}_${Date.now()}`,
-        },
-      });
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
+      if (session?.id) {
+        const response = await supabase.functions.invoke("admin-review-verification", {
+          body: {
+            session_id: session.id,
+            decision: "approved",
+            reason,
+            idempotency_key: `kyc_approve_${session.id}_${Date.now()}`,
+          },
+        });
+        if (response.error) throw response.error;
+        if (response.data?.error) throw new Error(response.data.error);
+        result = response.data;
+      }
 
-      // Enqueue branded approval email (separate from the edge function's event log)
+      const orderPatch: Record<string, any> = {
+        kyc_status: "approved",
+        id_verification_status: "verified",
+        id_verified_at: now,
+        id_verification_notes: reason,
+        updated_at: now,
+      };
+
+      if (session?.id && !order.identity_verification_session_id) {
+        orderPatch.identity_verification_session_id = session.id;
+      }
+
+      const { error: orderUpdateError } = await supabase
+        .from("orders")
+        .update(orderPatch)
+        .eq("id", order.id);
+      if (orderUpdateError) throw orderUpdateError;
+
       await enqueueOrderEmail(orderEmails.kycApproved(order, profile));
 
-      // Order-scoped activity log entry
       await logActivity("kyc_approved", "order", orderId, {
-        session_id: session.id,
+        session_id: session?.id ?? null,
         reason,
+        order_kyc_status: "approved",
       });
 
       invalidateAll();
-      toast.success("KYC approuvé — identité vérifiée");
-      return result;
+      await orderQuery.refetch();
+      toast.success("KYC approuvé");
+      return result ?? { success: true, order_id: order.id, kyc_status: "approved" };
     } catch (err: any) {
       console.error("[KYC] approveKyc failed:", err);
       toast.error(`Erreur d'approbation: ${err?.message || "Erreur inconnue"}`);
