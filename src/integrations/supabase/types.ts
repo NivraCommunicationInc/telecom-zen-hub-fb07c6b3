@@ -11542,6 +11542,8 @@ export type Database = {
           return_imei: string | null
           return_reason: string | null
           return_requested_at: string | null
+          selected_color: string | null
+          selected_storage: string | null
           shipped_at: string | null
           shipping_address: Json | null
           status: string
@@ -11566,6 +11568,8 @@ export type Database = {
           return_imei?: string | null
           return_reason?: string | null
           return_requested_at?: string | null
+          selected_color?: string | null
+          selected_storage?: string | null
           shipped_at?: string | null
           shipping_address?: Json | null
           status?: string
@@ -11590,6 +11594,8 @@ export type Database = {
           return_imei?: string | null
           return_reason?: string | null
           return_requested_at?: string | null
+          selected_color?: string | null
+          selected_storage?: string | null
           shipped_at?: string | null
           shipping_address?: Json | null
           status?: string
