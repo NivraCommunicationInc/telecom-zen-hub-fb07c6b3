@@ -139,11 +139,11 @@ function sanitizeSubject(raw: string): string {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function getSupabaseClient() {
+function getSupabaseClient(): any {
   const url = Deno.env.get("SUPABASE_URL");
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing");
-  return createClient(url, key);
+  return createClient(url, key) as any;
 }
 
 function generateEventKey(to: string): string {
@@ -172,13 +172,10 @@ function htmlToPlainText(html: string): string {
     .trim();
 }
 
-// ── Unsubscribe token management ──────────────────────────────────
-
 async function getOrCreateUnsubscribeToken(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   email: string
 ): Promise<string> {
-  // Check for existing token
   const { data: existing } = await supabase
     .from("email_unsubscribe_tokens")
     .select("token")
@@ -187,32 +184,26 @@ async function getOrCreateUnsubscribeToken(
 
   if (existing?.token) return existing.token;
 
-  // Create new token
   const token = crypto.randomUUID();
   const { error } = await supabase
     .from("email_unsubscribe_tokens")
-    .insert({ email, token })
-    .single();
+    .insert({ email, token });
 
   if (error) {
-    // Race condition: another process created it
     const { data: retry } = await supabase
       .from("email_unsubscribe_tokens")
       .select("token")
       .eq("email", email)
       .maybeSingle();
     if (retry?.token) return retry.token;
-    // Fallback: use a deterministic token
     return token;
   }
 
   return token;
 }
 
-// ── Suppression check ─────────────────────────────────────────────
-
 async function isEmailSuppressed(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   email: string
 ): Promise<boolean> {
   const { data } = await supabase
