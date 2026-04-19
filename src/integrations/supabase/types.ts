@@ -7785,6 +7785,41 @@ export type Database = {
           },
         ]
       }
+      hr_request_notes: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string | null
+          id: string
+          note: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name?: string | null
+          id?: string
+          note: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string | null
+          id?: string
+          note?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_request_notes_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "hr_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_requests: {
         Row: {
           created_at: string
