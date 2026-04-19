@@ -82,6 +82,33 @@ export default function HrCommissionsPage() {
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [ruleForm, setRuleForm] = useState<RuleForm>(emptyRuleForm);
 
+  // Sales targets state
+  const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+  const [targetForm, setTargetForm] = useState({
+    scope: "employee" as "employee" | "role",
+    employee_id: "",
+    role: "sales",
+    service_type: "all",
+    target_amount: "",
+    target_count: "",
+    bonus_amount: "",
+    period_month: new Date().getMonth() + 1,
+    period_year: new Date().getFullYear(),
+    notes: "",
+  });
+  const emptyTargetForm = {
+    scope: "employee" as "employee" | "role",
+    employee_id: "",
+    role: "sales",
+    service_type: "all",
+    target_amount: "",
+    target_count: "",
+    bonus_amount: "",
+    period_month: new Date().getMonth() + 1,
+    period_year: new Date().getFullYear(),
+    notes: "",
+  };
+
   // ─── Commission rules ───
   const { data: rules = [], isLoading: loadingRules } = useQuery({
     queryKey: ["hr-commission-rules"],
