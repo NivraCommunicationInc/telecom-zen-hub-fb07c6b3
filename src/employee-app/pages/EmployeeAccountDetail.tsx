@@ -91,7 +91,7 @@ export default function EmployeeAccountDetail() {
           .limit(100),
         supabase
           .from("billing_subscriptions")
-          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, customer_id, order_id")
+          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, customer_id, order_id, paypal_subscription_id")
           .in("environment", [...OPERATIONAL_ENVS])
           .order("created_at", { ascending: false })
           .limit(50),

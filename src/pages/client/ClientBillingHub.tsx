@@ -248,6 +248,9 @@ const ClientBillingHub = () => {
           </CardContent>
         </Card>
 
+        {/* Mode de paiement (PayPal pre-auth) */}
+        <ClientPaymentMethodCard />
+
         {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto gap-1 bg-muted/50 p-1">
