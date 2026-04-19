@@ -76,6 +76,8 @@ interface PhoneRow {
   warranty_days: number;
   description: string | null;
   order_id: string | null;
+  available_colors: string[] | null;
+  available_storage: string[] | null;
 }
 
 type ConditionT = PhoneRow["condition"];
@@ -107,6 +109,8 @@ interface FormState {
   battery_pct: number | null;
   accessories: string[];
   cosmetic: CosmeticT;
+  available_colors: string[];
+  available_storage: string[];
 }
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -220,7 +224,7 @@ function emptyForm(): FormState {
     brand: "",
     brand_other: "",
     model: "",
-    storage: "128GB",
+    storage: "256GB",
     color: "",
     condition: "new",
     imei: "",
@@ -233,6 +237,8 @@ function emptyForm(): FormState {
     battery_pct: null,
     accessories: [],
     cosmetic: "perfect",
+    available_colors: [],
+    available_storage: ["256GB"],
   };
 }
 
@@ -257,6 +263,8 @@ function fromRow(row: PhoneRow): FormState {
     battery_pct: meta.battery_pct ?? null,
     accessories: meta.accessories ?? [],
     cosmetic: meta.cosmetic ?? "perfect",
+    available_colors: row.available_colors ?? [],
+    available_storage: (row.available_storage && row.available_storage.length > 0) ? row.available_storage : [row.storage],
   };
 }
 
@@ -370,6 +378,8 @@ export default function CorePhoneInventoryPage() {
       toast.error(err);
       return;
     }
+    const colorsList = (form.available_colors.length > 0 ? form.available_colors : [form.color.trim()]).filter(Boolean);
+    const storageList = (form.available_storage.length > 0 ? form.available_storage : [form.storage.trim()]).filter(Boolean);
     const payload = {
       brand: effectiveBrand(form),
       model: form.model.trim(),
@@ -381,6 +391,8 @@ export default function CorePhoneInventoryPage() {
       purchase_price_cad: form.purchase_price_cad === null ? null : Number(form.purchase_price_cad),
       warranty_days: Number(form.warranty_days),
       description: packDescription(form),
+      available_colors: colorsList,
+      available_storage: storageList,
     };
     try {
       if (form.id) {
@@ -504,6 +516,55 @@ export default function CorePhoneInventoryPage() {
                           <p className="text-xs text-emerald-600 mt-1">IMEI valide ✓</p>
                         )}
                       </Field>
+                    </div>
+                  </div>
+                </FormSection>
+
+                {/* SECTION 1b — Variantes disponibles (publiques) */}
+                <FormSection icon={<Tag className="h-4 w-4" />} title="1b. Variantes disponibles sur le site">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs font-medium mb-2 block">
+                        Couleurs disponibles (le client choisit sur la page produit)
+                      </Label>
+                      <ColorTagInput
+                        values={form.available_colors}
+                        onChange={(v) => setForm({ ...form, available_colors: v })}
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Tapez une couleur et appuyez sur Entrée. Couleur par défaut affichée à l'ouverture : <strong>{form.color || "—"}</strong>
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium mb-2 block">
+                        Options de stockage disponibles
+                      </Label>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {STORAGE_OPTIONS.map((s) => {
+                          const checked = form.available_storage.includes(s);
+                          return (
+                            <label
+                              key={s}
+                              className={`flex items-center gap-2 text-sm border rounded-md px-3 py-2 cursor-pointer transition ${
+                                checked ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                              }`}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() => {
+                                  const set = new Set(form.available_storage);
+                                  if (set.has(s)) set.delete(s); else set.add(s);
+                                  setForm({ ...form, available_storage: Array.from(set) });
+                                }}
+                              />
+                              {s}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Stockage par défaut : <strong>{form.storage}</strong>. Surcharges automatiques côté client : 512GB +100$, 1TB +200$.
+                      </p>
                     </div>
                   </div>
                 </FormSection>
@@ -857,6 +918,64 @@ function PreviewCard({
           <p className="mt-1 whitespace-pre-line">{form.internal_notes}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function ColorTagInput({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  function addTag(raw: string) {
+    const tag = raw.trim();
+    if (!tag) return;
+    if (values.some((v) => v.toLowerCase() === tag.toLowerCase())) return;
+    onChange([...values, tag]);
+    setDraft("");
+  }
+  function removeTag(t: string) {
+    onChange(values.filter((v) => v !== t));
+  }
+  return (
+    <div className="rounded-md border border-input bg-background p-2 min-h-[44px]">
+      <div className="flex flex-wrap gap-2">
+        {values.map((v) => (
+          <span
+            key={v}
+            className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-foreground border border-primary/30 px-2.5 py-1 text-xs"
+          >
+            {v}
+            <button
+              type="button"
+              onClick={() => removeTag(v)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label={`Retirer ${v}`}
+            >
+              <XIcon className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              addTag(draft);
+            } else if (e.key === "Backspace" && draft === "" && values.length > 0) {
+              removeTag(values[values.length - 1]);
+            }
+          }}
+          onBlur={() => draft && addTag(draft)}
+          placeholder={values.length === 0 ? "Ex: Noir, Bleu, Rose..." : "Ajouter..."}
+          className="flex-1 min-w-[120px] bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+        />
+      </div>
     </div>
   );
 }

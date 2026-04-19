@@ -13,6 +13,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Shield, Smartphone, Loader2, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -28,6 +29,17 @@ type Phone = {
   warranty_days: number;
   description: string | null;
   status: string;
+  available_colors: string[] | null;
+  available_storage: string[] | null;
+};
+
+// Storage upcharges relative to the base (default) configuration
+const STORAGE_UPCHARGE: Record<string, number> = {
+  "64GB": 0,
+  "128GB": 0,
+  "256GB": 0,
+  "512GB": 100,
+  "1TB": 200,
 };
 
 const condLabel = (c: string, fr: boolean) =>
@@ -49,17 +61,24 @@ export default function PhoneDetail() {
   const [phone, setPhone] = useState<Phone | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [selectedColor, setSelectedColor] = useState<string>("");
+  const [selectedStorage, setSelectedStorage] = useState<string>("");
 
   useEffect(() => {
     if (!id) return;
     (async () => {
       const { data, error } = await supabase
         .from("phone_inventory")
-        .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, description, status")
+        .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, description, status, available_colors, available_storage")
         .eq("id", id)
         .maybeSingle();
       if (error) console.error("[phone-detail]", error);
-      setPhone(data as Phone | null);
+      const p = data as Phone | null;
+      setPhone(p);
+      if (p) {
+        setSelectedColor(p.color);
+        setSelectedStorage(p.storage);
+      }
       setLoading(false);
     })();
   }, [id]);
@@ -101,6 +120,16 @@ export default function PhoneDetail() {
   }
 
   const isAvailable = phone.status === "available";
+  const colors = (phone.available_colors && phone.available_colors.length > 0)
+    ? phone.available_colors
+    : [phone.color];
+  const storages = (phone.available_storage && phone.available_storage.length > 0)
+    ? phone.available_storage
+    : [phone.storage];
+  const basePrice = Number(phone.price_cad);
+  const baseUpcharge = STORAGE_UPCHARGE[phone.storage] ?? 0;
+  const selectedUpcharge = STORAGE_UPCHARGE[selectedStorage] ?? 0;
+  const displayPrice = +(basePrice - baseUpcharge + selectedUpcharge).toFixed(2);
 
   return (
     <>
@@ -146,16 +175,74 @@ export default function PhoneDetail() {
                 {phone.brand} {phone.model}
               </h1>
               <p className="text-lg text-muted-foreground mb-6">
-                {phone.storage} · {phone.color}
+                {selectedStorage} · {selectedColor}
               </p>
 
               <div className="text-4xl font-bold text-foreground mb-2">
-                {Number(phone.price_cad).toFixed(2)}$
+                {displayPrice.toFixed(2)}$
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
                 <Shield className="w-4 h-4" />
                 {isFr ? `Garantie ${phone.warranty_days} jours` : `${phone.warranty_days}-day warranty`}
               </div>
+
+              {/* Color selector */}
+              {colors.length > 0 && (
+                <div className="mb-5">
+                  <Label className="text-sm font-medium mb-2 block">
+                    {isFr ? "Couleur" : "Color"} : <span className="text-muted-foreground font-normal">{selectedColor}</span>
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {colors.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setSelectedColor(c)}
+                        className={`px-3 py-2 rounded-full border text-sm transition ${
+                          selectedColor === c
+                            ? "border-primary bg-primary/10 text-foreground ring-2 ring-primary/30"
+                            : "border-border hover:border-primary/50 text-foreground"
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Storage selector */}
+              {storages.length > 0 && (
+                <div className="mb-6">
+                  <Label className="text-sm font-medium mb-2 block">
+                    {isFr ? "Stockage" : "Storage"}
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {storages.map((s) => {
+                      const upcharge = (STORAGE_UPCHARGE[s] ?? 0) - baseUpcharge;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setSelectedStorage(s)}
+                          className={`px-4 py-2 rounded-full border text-sm transition ${
+                            selectedStorage === s
+                              ? "border-primary bg-primary/10 text-foreground ring-2 ring-primary/30"
+                              : "border-border hover:border-primary/50 text-foreground"
+                          }`}
+                        >
+                          {s}
+                          {upcharge !== 0 && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              {upcharge > 0 ? `+${upcharge}$` : `${upcharge}$`}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {phone.description && (
                 <Card className="mb-6">
@@ -167,7 +254,7 @@ export default function PhoneDetail() {
 
               {isAvailable ? (
                 <Button asChild size="lg" className="w-full">
-                  <Link to={`/telephones/${phone.id}/commander`}>
+                  <Link to={`/telephones/${phone.id}/commander?color=${encodeURIComponent(selectedColor)}&storage=${encodeURIComponent(selectedStorage)}`}>
                     {isFr ? "Commander cet appareil" : "Order this device"}
                   </Link>
                 </Button>

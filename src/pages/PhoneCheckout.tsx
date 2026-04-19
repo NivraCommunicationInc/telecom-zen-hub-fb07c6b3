@@ -20,7 +20,7 @@
  * it does NOT touch billing-generate-renewals or paypal-webhook.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -48,6 +48,8 @@ type Phone = {
   photos: string[];
   warranty_days: number;
   status: string;
+  available_colors: string[] | null;
+  available_storage: string[] | null;
 };
 
 type MobilePlan = { id: string; name: string; monthly_price: number };
@@ -56,8 +58,18 @@ const SHIPPING_FEE = 15; // flat CAD shipping
 const TAX_RATE = 0.14975; // QC GST+QST combined approximation
 const CANADIAN_PROVINCES = ["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"];
 
+// Storage upcharges relative to the base (default) configuration
+const STORAGE_UPCHARGE: Record<string, number> = {
+  "64GB": 0,
+  "128GB": 0,
+  "256GB": 0,
+  "512GB": 100,
+  "1TB": 200,
+};
+
 export default function PhoneCheckout() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { language } = useLanguage();
   const isFr = language === "fr";
   const navigate = useNavigate();
@@ -70,6 +82,10 @@ export default function PhoneCheckout() {
 
   const [mode, setMode] = useState<"phone_only" | "phone_plus_plan">("phone_only");
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+
+  // Selected variant (from URL params, falls back to phone defaults)
+  const [selectedColor, setSelectedColor] = useState<string>(searchParams.get("color") ?? "");
+  const [selectedStorage, setSelectedStorage] = useState<string>(searchParams.get("storage") ?? "");
 
   // Client info
   const [firstName, setFirstName] = useState("");
@@ -93,13 +109,18 @@ export default function PhoneCheckout() {
       const [{ data: phoneData }, { data: { user: u } }] = await Promise.all([
         supabase
           .from("phone_inventory")
-          .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, status")
+          .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, status, available_colors, available_storage")
           .eq("id", id)
           .maybeSingle(),
         supabase.auth.getUser(),
       ]);
 
-      setPhone(phoneData as Phone | null);
+      const p = phoneData as Phone | null;
+      setPhone(p);
+      if (p) {
+        if (!searchParams.get("color")) setSelectedColor(p.color);
+        if (!searchParams.get("storage")) setSelectedStorage(p.storage);
+      }
       if (u) {
         setUser({ id: u.id, email: u.email });
         setEmail(u.email ?? "");
@@ -137,8 +158,11 @@ export default function PhoneCheckout() {
     }
   }, [mode, mobilePlans.length]);
 
-  // -------- Totals --------
-  const phonePrice = Number(phone?.price_cad ?? 0);
+  // -------- Totals (storage upcharge applied to base) --------
+  const basePrice = Number(phone?.price_cad ?? 0);
+  const baseUpcharge = phone ? (STORAGE_UPCHARGE[phone.storage] ?? 0) : 0;
+  const selectedUpcharge = STORAGE_UPCHARGE[selectedStorage] ?? 0;
+  const phonePrice = +(basePrice - baseUpcharge + selectedUpcharge).toFixed(2);
   const subtotal = phonePrice + SHIPPING_FEE;
   const tax = +(subtotal * TAX_RATE).toFixed(2);
   const total = +(subtotal + tax).toFixed(2);
@@ -261,6 +285,8 @@ export default function PhoneCheckout() {
         fraud_level: level,
         fraud_factors: factors,
         shipping_address: shippingAddress,
+        selected_color: selectedColor,
+        selected_storage: selectedStorage,
       });
 
       // 6. Send KYC request email (best-effort — never block checkout)
@@ -345,7 +371,7 @@ export default function PhoneCheckout() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold">{phone.brand} {phone.model}</h3>
-                  <p className="text-sm text-muted-foreground">{phone.storage} · {phone.color}</p>
+                  <p className="text-sm text-muted-foreground">{selectedStorage} · {selectedColor}</p>
                   <p className="text-xl font-bold mt-1">{phonePrice.toFixed(2)}$</p>
                 </div>
               </div>
