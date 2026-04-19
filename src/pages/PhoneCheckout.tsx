@@ -481,7 +481,17 @@ export default function PhoneCheckout() {
               <div><Label htmlFor="ln">{isFr ? "Nom" : "Last name"} *</Label><Input id="ln" value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
               <div><Label htmlFor="em">{isFr ? "Courriel" : "Email"} *</Label><Input id="em" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!user} /></div>
               <div><Label htmlFor="ph">{isFr ? "Téléphone" : "Phone"} *</Label><Input id="ph" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} /></div>
-              <div className="md:col-span-2"><Label htmlFor="dob">{isFr ? "Date de naissance" : "Date of birth"} *</Label><Input id="dob" type="date" value={dob} onChange={(e) => setDob(e.target.value)} /></div>
+              {dobRequired && (
+                <div className="md:col-span-2">
+                  <Label htmlFor="dob">{isFr ? "Date de naissance" : "Date of birth"} *</Label>
+                  <Input id="dob" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isFr
+                      ? "Requise pour l'activation du forfait mobile (vérification d'âge légal)."
+                      : "Required to activate your mobile plan (age verification)."}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
