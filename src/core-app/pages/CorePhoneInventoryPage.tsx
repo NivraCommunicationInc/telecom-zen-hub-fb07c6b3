@@ -76,6 +76,8 @@ interface PhoneRow {
   warranty_days: number;
   description: string | null;
   order_id: string | null;
+  available_colors: string[] | null;
+  available_storage: string[] | null;
 }
 
 type ConditionT = PhoneRow["condition"];
@@ -107,6 +109,8 @@ interface FormState {
   battery_pct: number | null;
   accessories: string[];
   cosmetic: CosmeticT;
+  available_colors: string[];
+  available_storage: string[];
 }
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -220,7 +224,7 @@ function emptyForm(): FormState {
     brand: "",
     brand_other: "",
     model: "",
-    storage: "128GB",
+    storage: "256GB",
     color: "",
     condition: "new",
     imei: "",
@@ -233,6 +237,8 @@ function emptyForm(): FormState {
     battery_pct: null,
     accessories: [],
     cosmetic: "perfect",
+    available_colors: [],
+    available_storage: ["256GB"],
   };
 }
 
@@ -257,6 +263,8 @@ function fromRow(row: PhoneRow): FormState {
     battery_pct: meta.battery_pct ?? null,
     accessories: meta.accessories ?? [],
     cosmetic: meta.cosmetic ?? "perfect",
+    available_colors: row.available_colors ?? [],
+    available_storage: (row.available_storage && row.available_storage.length > 0) ? row.available_storage : [row.storage],
   };
 }
 
