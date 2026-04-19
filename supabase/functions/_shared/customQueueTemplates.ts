@@ -1094,6 +1094,152 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // PHONE SALES (hardware orders)
+    // ===================================================================
+    case "phone_order_confirmed": {
+      const brand = esc(v.brand || "—");
+      const model = esc(v.model || "—");
+      const amount = money(v.amount ?? v.total ?? v.total_payable);
+      const kycUrl = String(v.kyc_url || `${portalUrl}/identite`);
+      return {
+        subject: `Commande confirmée — ${brand} ${model}`,
+        html: shell({
+          preheader: `Votre commande #${String(orderNum).replace(/^#/, "")} a été reçue.`,
+          badge: "COMMANDE REÇUE",
+          heroTitle: "Votre commande d'appareil est confirmée",
+          icon: "phone",
+          greeting,
+          bodyText: `Votre commande #${String(orderNum).replace(/^#/, "")} pour ${brand} ${model} a été reçue et payée. Une vérification d'identité est requise avant l'expédition.`,
+          cardTitle: "Détails de la commande",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Appareil", `${brand} ${model}`],
+            ["Montant", amount],
+            ["Statut", "En attente de vérification"],
+          ],
+          ctaPrimaryUrl: kycUrl,
+          ctaPrimaryLabel: "Vérifier mon identité",
+        }),
+      };
+    }
+
+    case "phone_kyc_reminder": {
+      const kycUrl = String(v.kyc_url || `${portalUrl}/identite`);
+      return {
+        subject: `Vérification d'identité requise — Commande #${String(orderNum).replace(/^#/, "")}`,
+        html: shell({
+          preheader: `Votre commande attend votre vérification d'identité.`,
+          badge: "ACTION REQUISE",
+          heroTitle: "Vérification d'identité en attente",
+          icon: "alert",
+          greeting,
+          bodyText: `Votre commande #${String(orderNum).replace(/^#/, "")} attend votre vérification d'identité. Elle ne pourra être expédiée qu'une fois cette étape complétée.`,
+          ctaPrimaryUrl: kycUrl,
+          ctaPrimaryLabel: "Compléter ma vérification",
+        }),
+      };
+    }
+
+    case "phone_approved_shipping": {
+      const carrier = esc(v.carrier || "Postes Canada");
+      const tracking = esc(v.tracking_number || "—");
+      const trackingUrl = String(v.tracking_url || `${portalUrl}/phones`);
+      return {
+        subject: `Votre appareil est en route 📦`,
+        html: shell({
+          preheader: `Votre appareil a été expédié.`,
+          badge: "EN COURS D'EXPÉDITION",
+          heroTitle: "Votre appareil est en route",
+          icon: "truck",
+          greeting,
+          bodyText: "Votre appareil a été expédié et est en route vers vous.",
+          cardTitle: "Détails d'expédition",
+          cardRows: [
+            ["Transporteur", String(carrier)],
+            ["Suivi", String(tracking)],
+            ["Délai estimé", "3 à 5 jours ouvrables"],
+          ],
+          ctaPrimaryUrl: trackingUrl,
+          ctaPrimaryLabel: "Suivre mon colis",
+        }),
+      };
+    }
+
+    case "phone_blocked": {
+      return {
+        subject: `Commande non traitée — Remboursement initié`,
+        html: shell({
+          preheader: `Votre commande n'a pas pu être traitée. Remboursement en cours.`,
+          badge: "COMMANDE ANNULÉE",
+          heroTitle: "Votre commande n'a pas pu être traitée",
+          icon: "x",
+          greeting,
+          bodyText: "Suite à une vérification, votre commande n'a pas pu être traitée. Un remboursement a été initié via PayPal et apparaîtra dans 3 à 5 jours ouvrables.",
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
+        }),
+      };
+    }
+
+    case "phone_return_requested_ack": {
+      const brand = esc(v.brand || "—");
+      const model = esc(v.model || "—");
+      return {
+        subject: `Demande de retour reçue — ${brand} ${model}`,
+        html: shell({
+          preheader: `Nous avons bien reçu votre demande de retour.`,
+          badge: "DEMANDE REÇUE",
+          heroTitle: "Demande de retour reçue",
+          icon: "doc",
+          greeting,
+          bodyText: `Nous avons bien reçu votre demande de retour pour la commande #${String(orderNum).replace(/^#/, "")} (${brand} ${model}). Notre équipe l'examinera sous 24 à 48 heures.`,
+          ctaPrimaryUrl: `${portalUrl}/phones`,
+          ctaPrimaryLabel: "Voir ma commande",
+        }),
+      };
+    }
+
+    case "phone_return_confirmed": {
+      return {
+        subject: `Retour accepté — Étiquette à venir`,
+        html: shell({
+          preheader: `Votre demande de retour est acceptée.`,
+          badge: "RETOUR CONFIRMÉ",
+          heroTitle: "Votre demande de retour est acceptée",
+          icon: "check",
+          greeting,
+          bodyText: "Vous recevrez une étiquette de retour prépayée par email dans les 24 à 48 heures. Le remboursement sera traité dès la réception de l'appareil dans nos entrepôts.",
+          ctaPrimaryUrl: `${portalUrl}/phones`,
+          ctaPrimaryLabel: "Voir ma commande",
+        }),
+      };
+    }
+
+    case "phone_refund_processed": {
+      const amount = money(v.amount ?? v.refund_amount ?? v.total);
+      return {
+        subject: `Remboursement traité — ${amount}`,
+        html: shell({
+          preheader: `Votre remboursement de ${amount} a été traité.`,
+          badge: "REMBOURSEMENT TRAITÉ",
+          heroTitle: "Votre remboursement a été traité",
+          icon: "check",
+          greeting,
+          bodyText: `Votre remboursement a été émis avec succès. Il apparaîtra sur votre compte PayPal ou votre relevé bancaire dans 3 à 5 jours ouvrables.`,
+          cardTitle: "Détails du remboursement",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Montant", amount],
+            ["Méthode", "PayPal"],
+            ["Date", fmtDate(new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/phones`,
+          ctaPrimaryLabel: "Voir mes commandes",
+        }),
+      };
+    }
+
+    // ===================================================================
     // GENERIC FALLBACK
     // ===================================================================
     case "order_update":
