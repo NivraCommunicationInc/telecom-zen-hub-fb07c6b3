@@ -411,3 +411,88 @@ export const preauthorizedPaymentConfirmed = (params: BaseParams & {
     content
   );
 };
+
+// ============================================================
+// EMPLOYEE WELCOME — Onboarding for new staff (RH portal access)
+// ============================================================
+export const employeeWelcome = (params: BaseParams & {
+  employeeName: string;
+  employeeEmail: string;
+  jobTitle?: string;
+  department?: string;
+  hireDate?: string;
+  hasEmployeePortal?: boolean;
+  rhUrl?: string;
+  employeeUrl?: string;
+}): { subject: string; html: string } => {
+  const {
+    employeeName,
+    employeeEmail,
+    jobTitle,
+    department,
+    hireDate,
+    hasEmployeePortal = false,
+    rhUrl = 'https://nivra-telecom.ca/rh',
+    employeeUrl = 'https://nivra-telecom.ca/employee',
+    supportEmail,
+  } = params;
+
+  const subject = "Bienvenue chez Nivra — Accès à votre espace employé";
+
+  const formattedHireDate = hireDate
+    ? new Date(hireDate).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '—';
+
+  const content = `
+    ${header()}
+    ${statusBanner('purple', '🎉', 'BIENVENUE', 'Bienvenue dans l\u2019équipe Nivra')}
+    ${contentWrapper(`
+      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 16px 0;">
+        Bonjour ${escapeHtml(employeeName)},
+      </p>
+      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
+        Votre espace employé est prêt. Utilisez les identifiants ci-dessous pour accéder à tous vos portails Nivra.
+      </p>
+
+      ${sectionHeader('Vos informations', 'purple')}
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: ${colors.gray50}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <tr><td>
+          ${infoRow('Nom', escapeHtml(employeeName))}
+          ${jobTitle ? infoRow('Poste', escapeHtml(jobTitle)) : ''}
+          ${department ? infoRow('Département', escapeHtml(department)) : ''}
+          ${infoRow('Date de début', formattedHireDate)}
+          ${infoRow('Email de connexion', escapeHtml(employeeEmail))}
+        </td></tr>
+      </table>
+
+      ${alertBox('info', 'Première connexion',
+        'Vous recevrez sous peu un courriel séparé contenant un lien magique pour configurer votre compte (mot de passe, NIP, MFA si requis). Conservez cet email comme référence pour vos accès.')}
+
+      <div style="text-align: center; margin-top: 32px;">
+        ${button('Accéder à mon espace RH →', rhUrl, 'primary')}
+      </div>
+
+      ${hasEmployeePortal ? `
+      <div style="text-align: center; margin-top: 16px;">
+        ${button('Accéder à Nivra Employee →', employeeUrl, 'secondary')}
+      </div>` : ''}
+
+      <p style="color: ${colors.gray500}; font-size: 14px; line-height: 1.6; margin: 32px 0 0 0;">
+        Utilisez ces identifiants pour accéder à tous vos portails Nivra (RH, Employee, Field selon votre rôle). Pour toute question, contactez l\u2019équipe RH à
+        <a href="mailto:${supportEmail}" style="color: ${colors.primary};">${supportEmail}</a>.
+      </p>
+
+      ${helpSection(supportEmail)}
+    `)}
+    ${footer(supportEmail)}
+  `;
+
+  return {
+    subject,
+    html: emailDocument(
+      subject,
+      `${employeeName}, votre espace employé Nivra est prêt.`,
+      content
+    ),
+  };
+};
