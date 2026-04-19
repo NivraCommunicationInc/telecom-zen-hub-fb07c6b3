@@ -378,6 +378,8 @@ export default function CorePhoneInventoryPage() {
       toast.error(err);
       return;
     }
+    const colorsList = (form.available_colors.length > 0 ? form.available_colors : [form.color.trim()]).filter(Boolean);
+    const storageList = (form.available_storage.length > 0 ? form.available_storage : [form.storage.trim()]).filter(Boolean);
     const payload = {
       brand: effectiveBrand(form),
       model: form.model.trim(),
@@ -389,6 +391,8 @@ export default function CorePhoneInventoryPage() {
       purchase_price_cad: form.purchase_price_cad === null ? null : Number(form.purchase_price_cad),
       warranty_days: Number(form.warranty_days),
       description: packDescription(form),
+      available_colors: colorsList,
+      available_storage: storageList,
     };
     try {
       if (form.id) {
