@@ -77,7 +77,7 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
     (s: any) => s.paypal_subscription_id && s.status === "active"
   );
   const isPreAuth = !!paypalSub;
-  const [chargeOpen, setChargeOpen] = (require("react") as typeof import("react")).useState(false);
+  const [chargeOpen, setChargeOpen] = useState(false);
 
   return (
   <div className="space-y-3">
