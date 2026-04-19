@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ const ClientContracts = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = usePortalActivityLog();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
@@ -202,12 +204,40 @@ const ClientContracts = () => {
   const openSignDialog = (contract: any) => {
     setSelectedContract(contract);
     setIsAgreed(false);
-    setTypedSignature("");
+    setTypedSignature(profile?.full_name || user?.email || "");
     setSignatureError(null);
     setSignDialogOpen(true);
   };
 
-  const handleSign = () => {
+  useEffect(() => {
+    const token = searchParams.get("token");
+    if (!token || !contracts?.length) return;
+
+    const matchedContract = contracts.find((contract: any) => contract.signature_token === token);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("token");
+    setSearchParams(nextParams, { replace: true });
+
+    if (!matchedContract) {
+      toast({
+        title: "Lien de signature invalide",
+        description: "Aucun contrat correspondant n'a été trouvé dans votre portail.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (matchedContract.is_signed) {
+      toast({
+        title: "Contrat déjà signé",
+        description: "Ce contrat est déjà signé dans votre portail.",
+      });
+      return;
+    }
+
+    openSignDialog(matchedContract);
+  }, [contracts, openSignDialog, searchParams, setSearchParams, toast]);
+
     if (!typedSignature.trim()) {
       setSignatureError("Veuillez taper votre nom pour signer");
       return;
