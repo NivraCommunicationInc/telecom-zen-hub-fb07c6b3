@@ -16,16 +16,15 @@ Deno.serve(async (req) => {
     if (!apiKey) throw new Error("RESEND_API_KEY missing");
     const resend = new Resend(apiKey);
 
-    const { html, subject } = renderQueueTemplate({
-      kind: "order_confirmation",
-      data: {
-        client_name: "Oldo",
-        order_number: "99999",
-        order_total: 120.72,
-        plan_name: "GIGA Internet + TV 25 choix",
-        next_billing_date: "2026-05-19",
-      },
+    const result = renderQueueTemplate("order_confirmation", {
+      client_name: "Oldo",
+      order_number: "99999",
+      monthly_total_tax_in: 120.72,
+      plan_name: "GIGA Internet + TV 25 choix",
+      created_at: new Date().toISOString(),
     });
+    if (!result) throw new Error("Template not found");
+    const { html, subject } = result;
 
     const result = await resend.emails.send({
       from: "Nivra Telecom <support@nivra-telecom.ca>",
