@@ -34,6 +34,7 @@ interface QueueOrder {
 }
 
 const TERMINAL_STATUSES = ["completed", "cancelled", "refunded"];
+const SLA_BREACH_HOURS = 72; // realistic telecom SLA threshold
 
 /* ── Zone classification ── */
 function getZone(city: string | null): string {
@@ -66,11 +67,31 @@ function getSlaInfo(createdAt: string, status: string) {
   }
   let tone: "red" | "amber" | "green" = "green";
   let severity = 0;
-  if (hours > 24) { tone = "red"; severity = 3; }
+  if (hours > SLA_BREACH_HOURS) { tone = "red"; severity = 3; }
   else if (hours > 12) { tone = "amber"; severity = 2; }
   else if (hours > 4) { tone = "amber"; severity = 1; }
   const label = formatDistanceToNowStrict(new Date(createdAt), { locale: fr, addSuffix: false });
   return { hours, label, tone, severity };
+}
+
+/* ── Translation helpers ── */
+function translateSla(value: string | null): string {
+  if (!value) return "—";
+  const v = value.toLowerCase();
+  if (v === "on_time" || v === "ontime") return "À jour";
+  if (v === "overdue" || v === "breached") return "En retard";
+  if (v === "urgent" || v === "at_risk") return "Urgent";
+  return value;
+}
+
+function translateKyc(value: string | null): string {
+  if (!value) return "—";
+  const v = value.toLowerCase();
+  if (v === "approved" || v === "verified") return "Approuvé";
+  if (v === "pending") return "En attente";
+  if (v === "rejected") return "Rejeté";
+  if (v === "not_required" || v === "none") return "Non requis";
+  return value;
 }
 
 /* ── Status badge ── */
@@ -90,9 +111,10 @@ function StatusPill({ value, kind = "status" }: { value: string | null; kind?: "
     else if (v === "rejected") cls = "bg-red-500/10 text-red-400 border-red-500/20";
     else if (v === "none" || v === "not_required") cls = "bg-[hsl(220,15%,18%)] text-[hsl(220,10%,55%)] border-[hsl(220,15%,22%)]";
   }
+  const display = kind === "kyc" ? translateKyc(value) : kind === "sla" ? translateSla(value) : value;
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded border ${cls}`}>
-      {value}
+      {display}
     </span>
   );
 }
@@ -138,6 +160,7 @@ const WorkQueuePage = () => {
   const [typeFilter, setTypeFilter] = useState<string>("tous");
   const [slaFilter, setSlaFilter] = useState<string>("tous");
   const [zoneFilter, setZoneFilter] = useState<string>("tous");
+  const [kycFilter, setKycFilter] = useState<string>("tous");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -166,13 +189,13 @@ const WorkQueuePage = () => {
   // Stats
   const stats = useMemo(() => {
     const todayStart = startOfDay(new Date()).getTime();
-    const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+    const cutoffBreach = Date.now() - SLA_BREACH_HOURS * 60 * 60 * 1000;
     let active = 0, slaBreached = 0, kycPending = 0, activatedToday = 0;
     for (const o of orders) {
       const isTerminal = TERMINAL_STATUSES.includes(o.status);
       if (!isTerminal) {
         active++;
-        if (new Date(o.created_at).getTime() < cutoff24h) slaBreached++;
+        if (new Date(o.created_at).getTime() < cutoffBreach) slaBreached++;
         if (o.kyc_status === "pending") kycPending++;
       }
       if ((o.status === "activated" || o.status === "completed") && new Date(o.created_at).getTime() >= todayStart) {
@@ -191,6 +214,13 @@ const WorkQueuePage = () => {
         if (statusFilter !== "tous" && o.status !== statusFilter) return false;
         if (typeFilter !== "tous" && o.service_type !== typeFilter) return false;
         if (zoneFilter !== "tous" && getZone(o.shipping_city) !== zoneFilter) return false;
+        if (kycFilter !== "tous") {
+          const k = (o.kyc_status || "").toLowerCase();
+          if (kycFilter === "pending" && k !== "pending") return false;
+          if (kycFilter === "approved" && k !== "approved" && k !== "verified") return false;
+          if (kycFilter === "rejected" && k !== "rejected") return false;
+          if (kycFilter === "not_required" && k !== "not_required" && k !== "none" && k !== "") return false;
+        }
         if (slaFilter !== "tous") {
           const { hours } = getSlaInfo(o.created_at, o.status);
           if (slaFilter === "depasse" && hours <= 24) return false;
@@ -209,24 +239,24 @@ const WorkQueuePage = () => {
         const sb = getSlaInfo(b.created_at, b.status).hours;
         return sb - sa;
       });
-  }, [orders, search, statusFilter, typeFilter, slaFilter, zoneFilter, tick]);
+  }, [orders, search, statusFilter, typeFilter, slaFilter, zoneFilter, kycFilter, tick]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
   const pageRows = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
 
-  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, slaFilter, zoneFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, slaFilter, zoneFilter, kycFilter]);
 
   const selectedOrder = selectedId ? orders.find(o => o.id === selectedId) || null : null;
 
   const clearFilters = () => {
     setSearch(""); setStatusFilter("tous"); setTypeFilter("tous");
-    setSlaFilter("tous"); setZoneFilter("tous");
+    setSlaFilter("tous"); setZoneFilter("tous"); setKycFilter("tous");
   };
 
   const hasActiveFilter = search || statusFilter !== "tous" || typeFilter !== "tous" ||
-    slaFilter !== "tous" || zoneFilter !== "tous";
+    slaFilter !== "tous" || zoneFilter !== "tous" || kycFilter !== "tous";
 
   return (
     <div className="min-h-screen bg-[#111827] -m-6 p-6 space-y-4">
@@ -255,7 +285,7 @@ const WorkQueuePage = () => {
       {/* SECTION 1 — Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCardLocal icon={Package} label="Commandes actives" value={isLoading ? "—" : stats.active} tone="neutral" />
-        <StatCardLocal icon={AlertTriangle} label="SLA dépassés (>24h)" value={isLoading ? "—" : stats.slaBreached} tone={stats.slaBreached > 0 ? "red" : "neutral"} />
+        <StatCardLocal icon={AlertTriangle} label={`SLA dépassés (>${SLA_BREACH_HOURS}h)`} value={isLoading ? "—" : stats.slaBreached} tone={stats.slaBreached > 0 ? "red" : "neutral"} />
         <StatCardLocal icon={ShieldCheck} label="En attente KYC" value={isLoading ? "—" : stats.kycPending} tone={stats.kycPending > 0 ? "amber" : "neutral"} />
         <StatCardLocal icon={Zap} label="Activations aujourd'hui" value={isLoading ? "—" : stats.activatedToday} tone="emerald" />
       </div>
@@ -282,14 +312,17 @@ const WorkQueuePage = () => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
           <FilterSelect label="Statut" value={statusFilter} onChange={setStatusFilter}
             options={["tous", "submitted", "pending", "in_progress", "activated", "completed", "cancelled"]} />
           <FilterSelect label="Type" value={typeFilter} onChange={setTypeFilter}
             options={["tous", "internet", "mobile", "tv", "bundle"]} />
           <FilterSelect label="SLA" value={slaFilter} onChange={setSlaFilter}
             options={["tous", "depasse", "urgent", "normal"]}
-            renderOption={(v) => v === "depasse" ? "dépassé (>24h)" : v === "urgent" ? "urgent (<4h)" : v === "normal" ? "normal" : v} />
+            renderOption={(v) => v === "depasse" ? `dépassé (>${SLA_BREACH_HOURS}h)` : v === "urgent" ? "urgent (<4h)" : v === "normal" ? "normal" : v} />
+          <FilterSelect label="KYC" value={kycFilter} onChange={setKycFilter}
+            options={["tous", "pending", "approved", "not_required", "rejected"]}
+            renderOption={(v) => v === "tous" ? "tous" : translateKyc(v)} />
           <FilterSelect label="Zone" value={zoneFilter} onChange={setZoneFilter}
             options={["tous", "Montréal", "Laval", "Longueuil", "Rive-Nord", "Rive-Sud", "Autre"]} />
         </div>
@@ -364,8 +397,8 @@ const WorkQueuePage = () => {
                             {sla.label}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-[hsl(220,10%,55%)] capitalize">
-                          {o.sla_status || o.payment_status || "—"}
+                        <td className="px-3 py-2.5 text-[hsl(220,10%,55%)]">
+                          {o.sla_status ? translateSla(o.sla_status) : (o.payment_status || "—")}
                         </td>
                         <td className="px-3 py-2.5 text-right">
                           <Link
