@@ -72,6 +72,14 @@ export const NAV_TARGETS: NavTarget[] = [
     fallbackRoute: '/mobile',
   },
   {
+    id: 'phones',
+    label: 'Phones',
+    labelFr: 'Téléphones',
+    type: 'route',
+    target: '/telephones',
+    fallbackRoute: '/telephones',
+  },
+  {
     id: 'streaming',
     label: 'Streaming+',
     labelFr: 'Streaming+',
