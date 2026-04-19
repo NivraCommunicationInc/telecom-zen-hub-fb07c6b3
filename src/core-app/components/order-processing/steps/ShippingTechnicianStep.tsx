@@ -30,12 +30,50 @@ const inputClass = "h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rou
 const labelClass = "text-[10px] uppercase tracking-wider text-slate-500 mb-1 block";
 
 export function ShippingTechnicianStep({ proc }: Props) {
-  const { order, appointment, installationEstimate } = proc;
-  const fulfillmentType = order.fulfillment_type || "shipping";
-  const hasShipping = fulfillmentType === "shipping" || fulfillmentType === "self_install" || order.tracking_number || order.carrier;
-  const hasAppointment = !!appointment;
-  const showTechnicianPanel = hasAppointment || fulfillmentType === "technician" || fulfillmentType === "installation";
-  const showShippingPanel = hasShipping || !showTechnicianPanel;
+  const { order, appointment, installationEstimate, items } = proc;
+
+  // ── INTELLIGENT FULFILLMENT ROUTING ──
+  // Determine what was ordered to show ONLY relevant sections.
+  const svcType = String(order?.service_type || "").toLowerCase();
+  const itemList: any[] = Array.isArray(items) ? items : [];
+  const itemTypes = itemList
+    .map((i) => String(i?.item_type || i?.product_type || i?.service_type || "").toLowerCase())
+    .filter(Boolean);
+  const itemNames = itemList
+    .map((i) => String(i?.product_name || i?.name || i?.description || "").toLowerCase())
+    .join(" ");
+
+  const hasInternet =
+    svcType.includes("internet") ||
+    itemTypes.some((t) => t.includes("internet")) ||
+    /\binternet\b/.test(itemNames);
+  const hasTv =
+    svcType.includes("tv") ||
+    svcType.includes("télé") ||
+    itemTypes.some((t) => t.includes("tv") || t.includes("television") || t.includes("télé")) ||
+    /\b(tv|télé|television)\b/.test(itemNames);
+  const hasMobile =
+    svcType.includes("mobile") ||
+    svcType.includes("sim") ||
+    itemTypes.some((t) => t.includes("mobile") || t.includes("sim") || t.includes("esim")) ||
+    /\b(mobile|sim|esim)\b/.test(itemNames);
+
+  const fulfillmentType = order.fulfillment_type || "";
+  const isSelfInstall = fulfillmentType === "self_install";
+
+  // Fulfillment rules:
+  //  • Internet only OR Internet+TV       → technician installation only
+  //  • Internet+TV+Mobile (full bundle)   → BOTH technician (internet/TV) + shipping (SIM)
+  //  • Mobile only                        → shipping only
+  //  • self_install explicit              → confirmation only (no panels)
+  const requiresTechnician = !isSelfInstall && (hasInternet || hasTv);
+  const requiresShipping = !isSelfInstall && (hasMobile || (!hasInternet && !hasTv));
+
+  // Show panel if rule applies OR data already exists for that fulfillment
+  const showTechnicianPanel =
+    !isSelfInstall && (requiresTechnician || !!appointment || fulfillmentType === "technician" || fulfillmentType === "installation");
+  const showShippingPanel =
+    !isSelfInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping");
 
   const [loading, setLoading] = useState<string | null>(null);
   const [contractGate, setContractGate] = useState<{
