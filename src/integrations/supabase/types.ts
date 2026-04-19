@@ -13987,6 +13987,62 @@ export type Database = {
           },
         ]
       }
+      sales_targets: {
+        Row: {
+          bonus_amount: number | null
+          created_at: string
+          created_by: string | null
+          employee_id: string | null
+          id: string
+          notes: string | null
+          period_month: number
+          period_year: number
+          role: string | null
+          service_type: string
+          target_amount: number | null
+          target_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          bonus_amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          id?: string
+          notes?: string | null
+          period_month: number
+          period_year: number
+          role?: string | null
+          service_type?: string
+          target_amount?: number | null
+          target_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          bonus_amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          id?: string
+          notes?: string | null
+          period_month?: number
+          period_year?: number
+          role?: string | null
+          service_type?: string
+          target_amount?: number | null
+          target_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_targets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_action_logs: {
         Row: {
           action: string
