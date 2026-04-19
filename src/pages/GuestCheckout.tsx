@@ -961,8 +961,12 @@ const GuestCheckout = () => {
                       {hasMobileService && (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-foreground">Carte SIM</p>
-                            <p className="text-xs text-muted-foreground">{fmt(SIM_PRICE)}</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {simType === "esim" ? "eSIM" : "Carte SIM physique"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {simType === "esim" ? "Livraison électronique — gratuite" : `${fmt(SIM_PRICE)}`}
+                            </p>
                           </div>
                           <Badge variant="secondary">1</Badge>
                         </div>
