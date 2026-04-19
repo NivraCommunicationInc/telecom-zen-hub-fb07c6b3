@@ -29,7 +29,7 @@ const HTML = `<!DOCTYPE html>
     .stack{display:block!important;width:100%!important;}
     .stack td{display:block!important;width:100%!important;padding:0 0 16px 0!important;}
   }
-  a{color:#E20074;text-decoration:none;}
+  a{color:#7c3aed;text-decoration:none;}
   .btn-primary:hover{background:#6d28d9!important;}
 </style>
 </head>
@@ -47,7 +47,7 @@ Votre service GIGA Internet + TV 25 choix est maintenant actif. Compte #200711 �
 <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 12px 40px rgba(30,27,75,0.10);">
 
 <!-- ===== TOP ACCENT GRADIENT BAR ===== -->
-<tr><td style="height:4px;background:#E20074;background:linear-gradient(90deg,#E20074 0%,#ec4899 50%,#E20074 100%);line-height:4px;font-size:0;">&nbsp;</td></tr>
+<tr><td style="height:4px;background:#7c3aed;background:linear-gradient(90deg,#7c3aed 0%,#a78bfa 50%,#7c3aed 100%);line-height:4px;font-size:0;">&nbsp;</td></tr>
 
 <!-- ===== HEADER (clean white, logo + utility) ===== -->
 <tr><td class="px" style="background:#ffffff;padding:22px 36px;border-bottom:1px solid #f1f1f5;">
@@ -55,7 +55,7 @@ Votre service GIGA Internet + TV 25 choix est maintenant actif. Compte #200711 �
 <td align="left" style="vertical-align:middle;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td style="vertical-align:middle;padding-right:10px;">
-<div style="width:32px;height:32px;background:#E20074;border-radius:8px;text-align:center;line-height:32px;color:#ffffff;font-size:14px;font-weight:800;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;">N</div>
+<div style="width:32px;height:32px;background:#7c3aed;border-radius:8px;text-align:center;line-height:32px;color:#ffffff;font-size:14px;font-weight:800;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;">N</div>
 </td>
 <td style="vertical-align:middle;">
 <div style="color:#0a0a23;font-size:17px;font-weight:700;letter-spacing:-0.3px;line-height:1;">Nivra</div>
@@ -90,7 +90,7 @@ Service actif
 
 <!-- Hero headline -->
 <h1 class="hero-title" style="margin:0 0 14px;font-size:36px;font-weight:800;color:#0a0a23;line-height:1.1;letter-spacing:-1.2px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;">
-Bonjour Oldo,<br><span style="color:#E20074;">votre service est actif.</span>
+Bonjour Oldo,<br><span style="color:#7c3aed;">votre service est actif.</span>
 </h1>
 
 <p style="margin:0 0 0;font-size:16px;color:#52525b;line-height:1.55;font-weight:400;">
@@ -105,17 +105,17 @@ Tout est prêt. Votre forfait <strong style="color:#0a0a23;font-weight:600;">GIG
 <tr>
 <td class="stack" width="33.33%" style="padding:22px 18px;text-align:center;border-right:1px solid #f1f1f5;vertical-align:top;">
 <div style="font-size:11px;color:#71717a;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">Vitesse</div>
-<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">1<span style="color:#E20074;">Gbps</span></div>
+<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">1<span style="color:#7c3aed;">Gbps</span></div>
 <div style="font-size:11px;color:#71717a;font-weight:500;margin-top:4px;">téléchargement</div>
 </td>
 <td class="stack" width="33.33%" style="padding:22px 18px;text-align:center;border-right:1px solid #f1f1f5;vertical-align:top;">
 <div style="font-size:11px;color:#71717a;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">Chaînes TV</div>
-<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">25<span style="color:#E20074;">+</span></div>
+<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">25<span style="color:#7c3aed;">+</span></div>
 <div style="font-size:11px;color:#71717a;font-weight:500;margin-top:4px;">au choix</div>
 </td>
 <td class="stack" width="33.33%" style="padding:22px 18px;text-align:center;vertical-align:top;">
 <div style="font-size:11px;color:#71717a;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">Engagement</div>
-<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">0<span style="color:#E20074;">$</span></div>
+<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">0<span style="color:#7c3aed;">$</span></div>
 <div style="font-size:11px;color:#71717a;font-weight:500;margin-top:4px;">sans contrat</div>
 </td>
 </tr>
@@ -163,7 +163,7 @@ Récapitulatif
 <tr><td style="padding:18px 20px;background:linear-gradient(135deg,#faf9ff 0%,#f5f3ff 100%);">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td>
-<div style="font-size:11px;color:#E20074;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:3px;">Prochaine facture</div>
+<div style="font-size:11px;color:#7c3aed;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:3px;">Prochaine facture</div>
 <div style="font-size:13px;color:#52525b;font-weight:500;">19 mai 2026</div>
 </td>
 <td align="right">
@@ -181,13 +181,13 @@ Récapitulatif
 <tr><td class="px" align="center" style="padding:8px 36px 36px;background:#ffffff;">
 
 <!--[if mso]>
-<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://nivra-telecom.ca/mon-compte" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="50%" stroke="f" fillcolor="#E20074">
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://nivra-telecom.ca/mon-compte" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="50%" stroke="f" fillcolor="#7c3aed">
 <w:anchorlock/>
 <center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:bold;">Accéder à mon compte</center>
 </v:roundrect>
 <![endif]-->
 <!--[if !mso]><!-->
-<a href="https://nivra-telecom.ca/mon-compte" class="btn-primary" style="display:inline-block;background:#E20074;color:#ffffff;text-decoration:none;padding:16px 36px;border-radius:99px;font-weight:700;font-size:15px;letter-spacing:-0.2px;box-shadow:0 4px 14px rgba(124,58,237,0.32);transition:background 0.2s;">
+<a href="https://nivra-telecom.ca/mon-compte" class="btn-primary" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;padding:16px 36px;border-radius:99px;font-weight:700;font-size:15px;letter-spacing:-0.2px;box-shadow:0 4px 14px rgba(124,58,237,0.32);transition:background 0.2s;">
 Accéder à mon compte →
 </a>
 <!--<![endif]-->
@@ -241,7 +241,7 @@ Gérez votre forfait, factures et paiements
 <tr><td style="padding:22px 24px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td style="vertical-align:middle;">
-<div style="font-size:11px;color:#ec4899;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:4px;">Support québécois</div>
+<div style="font-size:11px;color:#a78bfa;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:4px;">Support québécois</div>
 <div style="font-size:15px;color:#ffffff;font-weight:600;letter-spacing:-0.2px;line-height:1.4;">Une question ? On répond en moins de 2h.</div>
 </td>
 <td align="right" style="vertical-align:middle;" class="hide-mobile">
@@ -262,7 +262,7 @@ Nous écrire
 <td>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td style="vertical-align:middle;padding-right:8px;">
-<div style="width:24px;height:24px;background:#E20074;border-radius:6px;text-align:center;line-height:24px;color:#ffffff;font-size:11px;font-weight:800;">N</div>
+<div style="width:24px;height:24px;background:#7c3aed;border-radius:6px;text-align:center;line-height:24px;color:#ffffff;font-size:11px;font-weight:800;">N</div>
 </td>
 <td style="vertical-align:middle;color:#0a0a23;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
 Nivra Telecom
