@@ -178,7 +178,7 @@ function StatusPill({ value, kind = "status" }: { value: string | null; kind?: "
     else if (v === "rejected") cls = "bg-red-500/10 text-red-400 border-red-500/20";
     else if (v === "none" || v === "not_required") cls = "bg-[hsl(220,15%,18%)] text-[hsl(220,10%,55%)] border-[hsl(220,15%,22%)]";
   }
-  const display = kind === "kyc" ? translateKyc(value) : kind === "sla" ? translateSla(value) : value;
+  const display = kind === "kyc" ? translateKyc(value) : kind === "sla" ? translateSla(value) : translateStatus(value);
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded border ${cls}`}>
       {display}
