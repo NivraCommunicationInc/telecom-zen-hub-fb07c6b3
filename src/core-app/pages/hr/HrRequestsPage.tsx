@@ -152,6 +152,77 @@ export default function HrRequestsPage() {
     },
   });
 
+  // Leave requests (vacances / maladie / personnel / temps partiel)
+  const { data: leaveReqs = [], isLoading: loadLeave } = useQuery({
+    queryKey: ["hr-req-leaves"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_requests")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      const ids = [...new Set((data || []).map((r: any) => r.employee_id))];
+      if (ids.length) {
+        const { data: recs } = await supabase
+          .from("employee_records")
+          .select("id, user_id, first_name, last_name, employee_number")
+          .in("id", ids);
+        const map = Object.fromEntries((recs || []).map((r: any) => [r.id, r]));
+        return (data || []).map((r: any) => ({ ...r, _emp: map[r.employee_id] || null }));
+      }
+      return data || [];
+    },
+  });
+
+  // Approve / decline leave request → updates status, sends notification
+  const leaveDecisionMut = useMutation({
+    mutationFn: async (vars: { id: string; decision: "approved" | "declined"; reason?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const req = (leaveReqs as any[]).find((l) => l.id === vars.id);
+      if (!req) throw new Error("Demande introuvable");
+
+      const { error: upErr } = await supabase
+        .from("hr_requests")
+        .update({
+          status: vars.decision,
+          reviewed_by: user?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+          review_note: vars.reason ?? null,
+        })
+        .eq("id", vars.id);
+      if (upErr) throw upErr;
+
+      // Send notification to employee
+      if (req._emp?.user_id) {
+        const typeLabel = LEAVE_TYPE_LABEL[req.request_type] || req.request_type;
+        const dateRange = req.start_date && req.end_date
+          ? `du ${format(new Date(req.start_date), "d MMM yyyy", { locale: fr })} au ${format(new Date(req.end_date), "d MMM yyyy", { locale: fr })}`
+          : "demandé";
+        const title = vars.decision === "approved"
+          ? "Demande de congé approuvée"
+          : "Demande de congé refusée";
+        const message = vars.decision === "approved"
+          ? `Votre demande de ${typeLabel} ${dateRange} a été approuvée.`
+          : `Votre demande de ${typeLabel} ${dateRange} a été refusée.${vars.reason ? ` Raison: ${vars.reason}` : ""}`;
+
+        await supabase.from("employee_notifications").insert({
+          user_id: req._emp.user_id,
+          notification_type: "leave_request",
+          title,
+          message,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Décision enregistrée");
+      qc.invalidateQueries({ queryKey: ["hr-req-leaves"] });
+      setRefuseDialog(null);
+      setRefuseReason("");
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
   // Generic status update
   const updateMut = useMutation({
     mutationFn: async ({ table, id, status, extraFields }: { table: string; id: string; status: string; extraFields?: Record<string, any> }) => {
@@ -178,9 +249,26 @@ export default function HrRequestsPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
+  // Filtered leave list
+  const filteredLeaves = (leaveReqs as any[]).filter((r) => {
+    if (leaveFilterStatus !== "all" && r.status !== leaveFilterStatus) return false;
+    if (leaveFilterType !== "all" && r.request_type !== leaveFilterType) return false;
+    return true;
+  });
+
+  // Counters (current month for approved/declined)
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const leavePending = (leaveReqs as any[]).filter((r) => r.status === "pending").length;
+  const leaveApprovedThisMonth = (leaveReqs as any[]).filter(
+    (r) => r.status === "approved" && r.reviewed_at && new Date(r.reviewed_at) >= monthStart
+  ).length;
+  const leaveDeclinedThisMonth = (leaveReqs as any[]).filter(
+    (r) => r.status === "declined" && r.reviewed_at && new Date(r.reviewed_at) >= monthStart
+  ).length;
+
   const pendingW = withdrawals.filter((w: any) => w.status === "pending" || w.status === "requested").length;
   const pendingD = disputes.filter((d: any) => d.status === "pending").length;
-  const pendingTotal = pendingW + pendingD + letterReqs.length + punchCorrections.length;
+  const pendingTotal = pendingW + pendingD + letterReqs.length + punchCorrections.length + leavePending;
   const loading = loadW || loadD || loadL || loadP;
 
   const empName = (item: any) => item._emp ? `${item._emp.first_name} ${item._emp.last_name}` : (item._profile?.full_name || "—");
