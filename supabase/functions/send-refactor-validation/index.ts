@@ -26,14 +26,14 @@ Deno.serve(async (req) => {
     if (!result) throw new Error("Template not found");
     const { html, subject } = result;
 
-    const result = await resend.emails.send({
+    const sent = await resend.emails.send({
       from: "Nivra Telecom <support@nivra-telecom.ca>",
       to: ["support@nivra-telecom.ca"],
       subject: `[REFACTOR-TEST] ${subject}`,
       html,
     });
 
-    return new Response(JSON.stringify({ success: true, result }), {
+    return new Response(JSON.stringify({ success: true, sent }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
