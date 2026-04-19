@@ -633,15 +633,17 @@ async function queueAdminAlert(
 }
 
 // ========================================
-// P0 GAP #1 — J+3 suspension warning email
-// Sent 3 days after due_date when invoice is still overdue (2 days before J+5 suspension)
+// P0 GAP #1 — J+2 suspension warning email
+// Sent 2 days after due_date when invoice is still overdue (3 days before J+5 suspension)
+// Threshold lowered from J+3 → J+2 per ops request: clients should hear from
+// recouvrement faster when an invoice goes unpaid.
 // ========================================
 async function processSuspensionWarningJ3(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
   today: string,
 ) {
-  const targetDueDate = addDays(today, -3); // due_date was 3 days ago
+  const targetDueDate = addDays(today, -2); // due_date was 2 days ago
 
   const { data: invoices, error } = await supabase
     .from("billing_invoices")
@@ -652,16 +654,18 @@ async function processSuspensionWarningJ3(
     .eq("due_date", targetDueDate);
 
   if (error) {
-    stats.errors.push(`J+3 warning query error: ${error.message}`);
+    stats.errors.push(`J+2 warning query error: ${error.message}`);
     stats.errors_count++;
     return;
   }
 
-  console.log(`[lifecycle] Found ${invoices?.length || 0} invoices at J+3 needing suspension warning`);
+  console.log(`[lifecycle] Found ${invoices?.length || 0} invoices at J+2 needing suspension warning`);
 
   for (const inv of invoices || []) {
     if (!inv.customer?.email) continue;
 
+    // Keep the legacy event_key prefix so we don't double-send to customers
+    // who already received the J+3 version on a previous run.
     const eventKey = `billing_warning_j3_${inv.id}`;
     const { data: existing } = await supabase
       .from("email_queue")
@@ -693,11 +697,11 @@ async function processSuspensionWarningJ3(
     });
 
     if (queueErr) {
-      stats.errors.push(`J+3 warning queue error ${inv.invoice_number}: ${queueErr.message}`);
+      stats.errors.push(`J+2 warning queue error ${inv.invoice_number}: ${queueErr.message}`);
       stats.errors_count++;
     } else {
       stats.reminders_queued++;
-      console.log(`[lifecycle] Queued J+3 suspension warning for ${inv.invoice_number} → ${inv.customer.email}`);
+      console.log(`[lifecycle] Queued J+2 suspension warning for ${inv.invoice_number} → ${inv.customer.email}`);
     }
   }
 }
