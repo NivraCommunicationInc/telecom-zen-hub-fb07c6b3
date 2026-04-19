@@ -101,14 +101,29 @@ const ClientMyServices = () => {
 
   // CANONICAL: Load all plans from the database catalog
   const { data: catalogServices = [] } = usePublicServices({ surface: "portal" });
-  
+
+  // CANONICAL streaming services (separate table — used for direct one-click subscribe)
+  const { data: streamingCatalog = [] } = useQuery({
+    queryKey: ["streaming-services-portal"],
+    queryFn: async () => {
+      const { data, error } = await portalSupabase
+        .from("streaming_services")
+        .select("id, name, monthly_price, description, category, logo_url")
+        .eq("is_active", true)
+        .order("monthly_price", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const catalogPlans = useMemo(() => {
     const internet = catalogServices.filter(s => s.category === "Internet").map(s => ({ id: s.id, name: s.name, price: s.price, speed: s.description || "" }));
     const tv_bundles = catalogServices.filter(s => s.category === "TV").map(s => ({ id: s.id, name: s.name, price: s.price, description: s.description || "" }));
     const mobile = catalogServices.filter(s => s.category === "Mobile").map(s => ({ id: s.id, name: s.name, price: s.price, data: s.description || "" }));
-    const streaming = catalogServices.filter(s => s.name.toLowerCase().includes("streaming")).map(s => ({ id: s.id, name: s.name, price: s.price, description: s.description || "" }));
+    const streaming = streamingCatalog.map((s: any) => ({ id: s.id, name: s.name, price: Number(s.monthly_price), description: s.description || "", logo_url: s.logo_url }));
     return { internet, tv_bundles, mobile, streaming };
-  }, [catalogServices]);
+  }, [catalogServices, streamingCatalog]);
+
   
   // Dialog states
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
@@ -373,6 +388,36 @@ const ClientMyServices = () => {
     },
     onError: () => {
       toast({ title: "Erreur", variant: "destructive" });
+    },
+  });
+
+  // Direct streaming subscription via portal (no full new-order flow)
+  const subscribeStreamingMutation = useMutation({
+    mutationFn: async (vars: { streaming_service_id: string; plan_name: string }) => {
+      const { data, error } = await portalSupabase.functions.invoke("request-streaming-subscription", {
+        body: { streaming_service_id: vars.streaming_service_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ...data, plan_name: vars.plan_name };
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["client-billing-subscriptions-canonical"] });
+      queryClient.invalidateQueries({ queryKey: ["client-orders-in-progress"] });
+      logActivity("create", "streaming_subscription", data.subscription_id, {
+        plan_name: data.plan_name,
+      });
+      toast({
+        title: "Demande envoyée 🎬",
+        description: data.message || `${data.plan_name} en cours d'activation.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Impossible de souscrire",
+        description: err?.message || "Veuillez réessayer ou contacter le support.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -821,20 +866,52 @@ const ClientMyServices = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {catalogPlans.streaming.map((plan) => (
-                <div key={plan.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-cyan-500/50 transition-colors">
-                  <div>
-                    <p className="font-medium text-foreground">{plan.name}</p>
-                    <p className="text-xs text-muted-foreground">{plan.description}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-foreground">{plan.price.toFixed(2)}$/mois</span>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href="/portal/new-order">Souscrire</a>
-                    </Button>
-                  </div>
-                </div>
-              ))}
+              {catalogPlans.streaming.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucune offre disponible pour le moment.</p>
+              ) : (
+                catalogPlans.streaming.map((plan: any) => {
+                  const alreadyActive = allActiveServices.some((s: any) =>
+                    (s.plan_name || "").toLowerCase() === plan.name.toLowerCase()
+                  );
+                  return (
+                    <div key={plan.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-cyan-500/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {plan.logo_url ? (
+                          <img src={plan.logo_url} alt={plan.name} className="w-10 h-10 rounded object-contain bg-muted/30 p-1" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-orange-500/15 flex items-center justify-center">
+                            <MonitorPlay className="w-5 h-5 text-orange-500" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-foreground">{plan.name}</p>
+                          {plan.description && <p className="text-xs text-muted-foreground line-clamp-1">{plan.description}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-foreground whitespace-nowrap">{plan.price.toFixed(2)}$/mois</span>
+                        <Button
+                          variant={alreadyActive ? "outline" : "default"}
+                          size="sm"
+                          disabled={alreadyActive || subscribeStreamingMutation.isPending}
+                          onClick={() => subscribeStreamingMutation.mutate({ streaming_service_id: plan.id, plan_name: plan.name })}
+                        >
+                          {alreadyActive ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Actif
+                            </>
+                          ) : subscribeStreamingMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Souscrire"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
 
