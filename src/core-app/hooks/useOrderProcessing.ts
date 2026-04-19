@@ -2290,6 +2290,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     setFulfillmentType,
     updateFulfillmentDetails,
     assignEquipment,
+    replaceEquipment,
     updateShipping,
     assignTechnician,
     addNote,
