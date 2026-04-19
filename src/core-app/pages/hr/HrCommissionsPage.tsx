@@ -806,6 +806,99 @@ export default function HrCommissionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* New target dialog */}
+      <Dialog open={targetDialogOpen} onOpenChange={setTargetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Nouvel objectif de vente</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Cible</Label>
+              <Select value={targetForm.scope} onValueChange={(v: any) => setTargetForm((p) => ({ ...p, scope: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Un employé spécifique</SelectItem>
+                  <SelectItem value="role">Un rôle</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {targetForm.scope === "employee" ? (
+              <div>
+                <Label className="text-xs">Employé</Label>
+                <Select value={targetForm.employee_id} onValueChange={(v) => setTargetForm((p) => ({ ...p, employee_id: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                  <SelectContent>
+                    {(employees as any[]).map((e: any) => (
+                      <SelectItem key={e.user_id} value={e.user_id}>
+                        {e.first_name} {e.last_name} {e.job_title ? `– ${e.job_title}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs">Rôle</Label>
+                <Select value={targetForm.role} onValueChange={(v) => setTargetForm((p) => ({ ...p, role: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {APP_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label className="text-xs">Service</Label>
+              <Select value={targetForm.service_type} onValueChange={(v) => setTargetForm((p) => ({ ...p, service_type: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(APPLIES_TO_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Objectif montant ($)</Label>
+                <Input type="number" min="0" value={targetForm.target_amount}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, target_amount: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Objectif nombre (#)</Label>
+                <Input type="number" min="0" value={targetForm.target_count}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, target_count: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Mois</Label>
+                <Input type="number" min="1" max="12" value={targetForm.period_month}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, period_month: Number(e.target.value) }))} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Année</Label>
+                <Input type="number" min="2024" max="2100" value={targetForm.period_year}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, period_year: Number(e.target.value) }))} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Bonus si atteint ($)</Label>
+                <Input type="number" min="0" value={targetForm.bonus_amount}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, bonus_amount: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Textarea rows={2} value={targetForm.notes}
+                onChange={(e) => setTargetForm((p) => ({ ...p, notes: e.target.value }))} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" disabled={createTargetMut.isPending} onClick={() => createTargetMut.mutate(targetForm)}>
+              {createTargetMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer l'objectif"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
