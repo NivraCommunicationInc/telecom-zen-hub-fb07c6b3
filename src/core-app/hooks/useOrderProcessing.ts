@@ -1916,8 +1916,14 @@ export function useOrderProcessing(orderId: string | undefined) {
     // ── service_activated + welcome_to_nivra emails (append-only) ──
     try {
       if (data?.order && data?.profile) {
+        const mf = data?.mobileFulfillment;
         await enqueueOrderEmail(
-          orderEmails.serviceActivated(data.order, data.profile)
+          orderEmails.serviceActivated(data.order, data.profile, {
+            phone_number: mf?.assigned_number || mf?.port_in_number || null,
+            iccid: mf?.sim_iccid || null,
+            carrier: mf?.sim_carrier || null,
+            plan: data.order?.service_type || null,
+          })
         );
         await enqueueOrderEmail(
           orderEmails.welcomeToNivra(data.order, data.profile)
