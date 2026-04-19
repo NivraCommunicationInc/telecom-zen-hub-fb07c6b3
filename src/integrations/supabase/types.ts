@@ -5355,6 +5355,44 @@ export type Database = {
           },
         ]
       }
+      employee_notes: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          employee_id: string
+          id: string
+          note: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          employee_id: string
+          id?: string
+          note: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          employee_id?: string
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_notifications: {
         Row: {
           created_at: string
@@ -5697,8 +5735,11 @@ export type Database = {
           base_salary: number | null
           commission_enabled: boolean
           commission_grid_id: string | null
+          commission_rate: number | null
+          compensation_notes: string | null
           created_at: string
           created_by: string | null
+          date_of_birth: string | null
           department: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -5707,12 +5748,14 @@ export type Database = {
           employment_type: string
           first_name: string
           hire_date: string | null
+          home_address: string | null
           hourly_rate: number | null
           id: string
           invitation_accepted_at: string | null
           invitation_sent_at: string | null
           job_title: string | null
           last_name: string
+          last_salary_review_date: string | null
           notes: string | null
           onboarding_checklist: Json | null
           onboarding_completed_at: string | null
@@ -5721,6 +5764,7 @@ export type Database = {
           phone: string | null
           probation_end_date: string | null
           salary_type: string
+          sin_encrypted: string | null
           status: string
           termination_date: string | null
           updated_at: string
@@ -5731,8 +5775,11 @@ export type Database = {
           base_salary?: number | null
           commission_enabled?: boolean
           commission_grid_id?: string | null
+          commission_rate?: number | null
+          compensation_notes?: string | null
           created_at?: string
           created_by?: string | null
+          date_of_birth?: string | null
           department?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -5741,12 +5788,14 @@ export type Database = {
           employment_type?: string
           first_name: string
           hire_date?: string | null
+          home_address?: string | null
           hourly_rate?: number | null
           id?: string
           invitation_accepted_at?: string | null
           invitation_sent_at?: string | null
           job_title?: string | null
           last_name: string
+          last_salary_review_date?: string | null
           notes?: string | null
           onboarding_checklist?: Json | null
           onboarding_completed_at?: string | null
@@ -5755,6 +5804,7 @@ export type Database = {
           phone?: string | null
           probation_end_date?: string | null
           salary_type?: string
+          sin_encrypted?: string | null
           status?: string
           termination_date?: string | null
           updated_at?: string
@@ -5765,8 +5815,11 @@ export type Database = {
           base_salary?: number | null
           commission_enabled?: boolean
           commission_grid_id?: string | null
+          commission_rate?: number | null
+          compensation_notes?: string | null
           created_at?: string
           created_by?: string | null
+          date_of_birth?: string | null
           department?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -5775,12 +5828,14 @@ export type Database = {
           employment_type?: string
           first_name?: string
           hire_date?: string | null
+          home_address?: string | null
           hourly_rate?: number | null
           id?: string
           invitation_accepted_at?: string | null
           invitation_sent_at?: string | null
           job_title?: string | null
           last_name?: string
+          last_salary_review_date?: string | null
           notes?: string | null
           onboarding_checklist?: Json | null
           onboarding_completed_at?: string | null
@@ -5789,6 +5844,7 @@ export type Database = {
           phone?: string | null
           probation_end_date?: string | null
           salary_type?: string
+          sin_encrypted?: string | null
           status?: string
           termination_date?: string | null
           updated_at?: string
