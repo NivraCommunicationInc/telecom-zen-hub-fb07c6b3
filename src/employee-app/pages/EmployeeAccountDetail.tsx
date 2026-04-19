@@ -328,6 +328,13 @@ export default function EmployeeAccountDetail() {
               Annuler abonnement
             </button>
           )}
+
+          <button
+            onClick={() => setShowCancellation(true)}
+            className="px-3 py-1.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            Demander résiliation
+          </button>
         </div>
       </div>
 
