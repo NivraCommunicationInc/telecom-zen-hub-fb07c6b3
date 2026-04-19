@@ -587,6 +587,10 @@ const GuestCheckout = () => {
             order_id: response.order_id,
             user_id: userId,
             terms_accepted: isLegalComplete,
+            // TODO(paypal-auto-billing): Le paiement récurrent automatique PayPal n'est pas encore
+            // câblé côté guest checkout. Pour l'activer, il faut: (1) afficher AutoPayPalOption,
+            // (2) router vers billing-create-order-with-paypal-subscription, (3) gérer
+            // l'approval_url + return URL PayPal. Voir mem://technical/paypal/canonical-lifecycle-standard-v2.
             recurring_payment_accepted: false,
             total_amount_displayed: todayTotal,
             payment_method: paymentMethodValue,

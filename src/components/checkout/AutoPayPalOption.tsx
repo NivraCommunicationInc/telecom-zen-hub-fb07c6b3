@@ -18,6 +18,20 @@ interface AutoPayPalOptionProps {
 /**
  * Auto-billing PayPal option with $5 monthly discount.
  * When enabled, creates a PayPal recurring subscription.
+ *
+ * ⚠️ NOT WIRED IN GUEST CHECKOUT (Fix 3 — Option B, 2026-04-19).
+ * The component is functional but not rendered in src/pages/GuestCheckout.tsx
+ * because the full PayPal subscription approval flow (approval_url redirect +
+ * return handler) is not yet implemented for guest users. The backend
+ * (billing-create-order-with-paypal-subscription, paypal-webhook,
+ * paypal-charge-subscription reconciler) is ready. To activate end-to-end:
+ *   1) Render <AutoPayPalOption /> in checkout step 5
+ *   2) Switch order endpoint to billing-create-order-with-paypal-subscription
+ *      when isEnabled === true
+ *   3) Redirect the user to the returned approval_url and add a /commander/paypal-return
+ *      route that resumes order finalization
+ *   4) Set recurring_payment_accepted: true in checkout_consent_records
+ * See mem://technical/paypal/canonical-lifecycle-standard-v2.
  */
 export const AutoPayPalOption = ({
   isFrench,
