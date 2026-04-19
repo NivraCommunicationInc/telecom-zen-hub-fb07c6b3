@@ -285,6 +285,44 @@ export function ShippingTechnicianStep({ proc }: Props) {
                     <User className="h-3 w-3" /> Technicien: <span className="font-mono">{appointment.technician_id.slice(0, 8)}</span>
                   </div>
                 )}
+                {appointment.status !== "completed" && appointment.status !== "cancelled" && (
+                  <div className="pt-2 mt-2 border-t border-slate-700/50">
+                    {!rescheduleOpen ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setRescheduleOpen(true); setNewSlotIso(null); }}
+                        className="h-7 text-xs text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 px-2"
+                      >
+                        <CalendarClock className="h-3 w-3 mr-1" /> Replanifier le rendez-vous
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className={labelClass}>Nouveau créneau</Label>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { setRescheduleOpen(false); setNewSlotIso(null); }}
+                            className="h-6 w-6 p-0 text-slate-400 hover:text-slate-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <AppointmentSlotPicker value={newSlotIso} onChange={setNewSlotIso} variant="core" />
+                        <Button
+                          size="sm"
+                          onClick={handleReschedule}
+                          disabled={!newSlotIso || loading === "reschedule"}
+                          className="w-full text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          {loading === "reschedule" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CalendarClock className="w-3 h-3 mr-1" />}
+                          Confirmer la replanification
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
