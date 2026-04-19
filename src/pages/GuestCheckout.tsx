@@ -1330,6 +1330,8 @@ const GuestCheckout = () => {
                   >
                     {isSubmitting ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Traitement...</>
+                    ) : enableAutoBilling ? (
+                      <>Activer le paiement automatique <ArrowRight className="w-5 h-5 ml-2" /></>
                     ) : (
                       <>Confirmer la commande <Check className="w-5 h-5 ml-2" /></>
                     )}
