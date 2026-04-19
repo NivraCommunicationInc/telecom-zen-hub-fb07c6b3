@@ -14,6 +14,18 @@ const APP_URL = "https://nivra-telecom.ca";
 const PORTAL_URL = `${APP_URL}/portail`;
 const SUPPORT_EMAIL = "support@nivratelecom.ca";
 
+// Brand palette — "Violet Bold" template (matches uploaded reference)
+const BRAND_PRIMARY = "#7c3aed";       // primary violet
+const BRAND_DARK = "#1e1b4b";          // deep indigo (header / footer / titles)
+const BRAND_HERO_BG = "#f5f3ff";       // hero light lavender
+const BRAND_CARD_BORDER = "#ede9fe";   // card border lavender
+const BRAND_CARD_BG_LAST = "#f5f3ff";  // last (emphasized) row background
+const BRAND_TEXT_BODY = "#4b5563";     // body text
+const BRAND_TEXT_MUTED = "#6b7280";    // muted labels
+const BRAND_TEXT_FOOT = "#a5b4fc";     // footer accent text
+const BRAND_TEXT_FOOT_LOW = "#6b7280"; // footer copyright
+const BRAND_DIVIDER = "#2d2b55";       // footer divider
+
 const esc = (v: unknown): string => {
   if (v === null || v === undefined) return "";
   return String(v)
