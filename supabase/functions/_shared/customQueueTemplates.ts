@@ -266,23 +266,21 @@ export function renderQueueTemplate(
     case "order_confirmed": {
       const planName = esc(v.plan_name || v.SERVICES_LIST || "Service Nivra");
       const total = money(v.monthly_total_tax_in ?? v.amount_paid_today ?? v.total ?? v.amount ?? v.MONTHLY_TOTAL);
-      const status = esc(v.status || "En traitement");
       return {
         subject: `Commande reçue — ${orderNum}`,
         html: shell({
           preheader: `Votre commande Nivra ${orderNum} a été reçue.`,
           badge: "COMMANDE REÇUE",
           heroTitle: "Votre commande a été reçue",
-          heroSub: "Nous traitons votre demande. Vous recevrez une confirmation dès l'activation.",
+          heroSub: "Nous traitons votre demande avec priorité.",
           icon: "check",
           greeting,
           bodyText: `Merci pour votre confiance. Voici le résumé de votre commande <strong style="color:#1a1a2e;">${orderNum}</strong>.`,
-          cardTitle: "Détails de votre commande",
+          cardTitle: "Détails",
           cardRows: [
-            ["Numéro de commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Date", fmtDate(v.created_at || v.order_date || new Date().toISOString())],
             ["Service", String(planName)],
-            ["Statut", String(status)],
             ["Montant", String(total)],
           ],
           ctaPrimaryUrl: portalUrl,
@@ -302,7 +300,7 @@ export function renderQueueTemplate(
           icon: "doc",
           greeting,
           bodyText: "Une modification a été appliquée à votre commande.",
-          cardTitle: "Modification appliquée",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Modification", String(change)],
@@ -326,13 +324,14 @@ export function renderQueueTemplate(
           icon: "x",
           greeting,
           bodyText: "Votre commande a été annulée comme demandé.",
-          cardTitle: "Détails de l'annulation",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Date d'annulation", fmtDate(v.cancelled_at || new Date().toISOString())],
+            ["Date", fmtDate(v.cancelled_at || new Date().toISOString())],
             ["Raison", String(reason)],
           ],
-          helpHtml: `<strong style="color:#1a1a2e;">Des questions ?</strong> Contactez-nous à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.`,
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
         }),
       };
     }
