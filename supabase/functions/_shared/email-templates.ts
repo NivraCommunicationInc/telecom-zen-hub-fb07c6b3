@@ -666,7 +666,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
         { label: 'Nº contrat / Contract #', value: vars.contract_number || vars.contractNumber || 'N/A' },
         { label: 'Commande / Order', value: vars.order_number || vars.orderNumber || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.signatureUrl || vars.portal_path || "/portal/contracts"), "Signer le contrat / Sign contract", config.supportEmail),
+    `, "https://nivra-telecom.ca/portal/contracts", "Signer le contrat / Sign contract", config.supportEmail),
   },
 
   // CONTRACT READY FOR SIGNATURE (V2.5 - Auto-generated on payment)
@@ -686,7 +686,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
         La signature électronique est rapide et sécurisée. Une fois signé, vous recevrez une copie de votre contrat.<br>
         <em style="color:${emailStyles.textMuted};">Electronic signature is quick and secure. Once signed, you will receive a copy of your contract.</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.signatureUrl || "/portal/contracts"), "Signer mon contrat / Sign my contract", config.supportEmail),
+    `, "https://nivra-telecom.ca/portal/contracts", "Signer mon contrat / Sign my contract", config.supportEmail),
   },
 
   // CONTRACT SENT TO CLIENT (Admin notification)
