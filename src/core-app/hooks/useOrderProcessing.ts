@@ -563,6 +563,20 @@ export function useOrderProcessing(orderId: string | undefined) {
       || "Client";
   };
 
+  /* ── Auto-note shortcut bound to this order's client ── */
+  const noteClient = (event: Parameters<typeof addClientAutoNote>[0]["event"], detail?: string, metadata?: Record<string, any>) => {
+    const clientId = data?.order?.user_id;
+    if (!clientId) return;
+    addClientAutoNote({
+      clientId,
+      event,
+      detail,
+      metadata,
+      actorId: user?.id || null,
+      actorName: user?.email || null,
+    });
+  };
+
   /* ── Update order fields ── */
   const updateOrder = useMutation({
     mutationFn: async (fields: Record<string, any>) => {
