@@ -94,6 +94,73 @@ function translateKyc(value: string | null): string {
   return value;
 }
 
+function translateStatus(value: string | null): string {
+  if (!value) return "—";
+  const map: Record<string, string> = {
+    pending_admin_review: "Révision admin",
+    confirmed: "Confirmé",
+    activated: "Activé",
+    provisioning_failed: "Échec provisionnement",
+    cancelled: "Annulé",
+    submitted: "Soumis",
+    pending: "En attente",
+    fraud: "Fraude",
+    completed: "Complété",
+    in_progress: "En cours",
+    processing: "Traitement",
+    shipped: "Expédié",
+    delivered: "Livré",
+    installed: "Installé",
+    on_hold: "En attente",
+    hold: "En attente",
+    incomplete: "Incomplet",
+    failed: "Échoué",
+    refunded: "Remboursé",
+    invalid_payment: "Paiement invalide",
+  };
+  return map[value.toLowerCase()] || value;
+}
+
+/* ── Current workflow step resolver ── */
+function getCurrentStep(order: {
+  status: string;
+  payment_status: string | null;
+  kyc_status: string | null;
+}): string {
+  const s = (order.status || "").toLowerCase();
+  // Terminal states
+  if (s === "completed") return "Terminé";
+  if (s === "activated") return "Service actif";
+  if (s === "cancelled") return "Annulée";
+  if (s === "fraud") return "Examen fraude";
+  if (s === "provisioning_failed") return "Échec provisionnement";
+  if (s === "invalid_payment") return "Paiement invalide";
+  if (s === "on_hold" || s === "hold") return "En suspens";
+
+  // Payment first
+  const pay = (order.payment_status || "").toLowerCase();
+  if (pay && pay !== "paid" && pay !== "captured" && pay !== "completed") {
+    if (pay === "failed") return "Paiement échoué";
+    if (pay === "pending" || pay === "unpaid") return "Paiement";
+    if (pay === "authorized") return "Capture paiement";
+  }
+
+  // KYC
+  const kyc = (order.kyc_status || "").toLowerCase();
+  if (kyc === "pending") return "Vérification KYC";
+  if (kyc === "rejected") return "KYC rejeté";
+
+  // Status-driven
+  if (s === "pending" || s === "submitted") return "Traitement initial";
+  if (s === "pending_admin_review") return "Révision admin";
+  if (s === "confirmed") return "Préparation activation";
+  if (s === "in_progress" || s === "processing") return "Provisionnement";
+  if (s === "shipped") return "Livraison";
+  if (s === "delivered" || s === "installed") return "Activation";
+
+  return translateStatus(order.status);
+}
+
 /* ── Status badge ── */
 function StatusPill({ value, kind = "status" }: { value: string | null; kind?: "status" | "kyc" | "sla" }) {
   if (!value) return <span className="text-[11px] text-[hsl(220,10%,40%)]">—</span>;
