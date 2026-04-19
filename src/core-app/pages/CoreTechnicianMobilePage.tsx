@@ -212,11 +212,23 @@ export default function CoreTechnicianMobilePage() {
   /* ─── Mutations ─── */
   const setTechStatus = useMutation({
     mutationFn: async (newStatus: "available" | "busy") => {
-      if (!technicianId) throw new Error("Aucun profil technicien associé");
+      if (!user?.id) throw new Error("Session non authentifiée");
+      if (!technicianId) {
+        // No technician row — nothing to update. Surface a soft warning instead of crashing.
+        throw new Error("Aucun profil technicien associé à votre compte");
+      }
+      // Use upsert keyed on user_id so we never silently fail when the row is missing.
       const { error } = await supabase
         .from("technicians")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", technicianId);
+        .upsert(
+          {
+            id: technicianId,
+            user_id: user.id,
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        );
       if (error) throw error;
       return newStatus;
     },
