@@ -76,7 +76,7 @@ export default function PhoneCheckout() {
   const [phone, setPhone] = useState<Phone | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [mobilePlans, setMobilePlans] = useState<MobilePlan[]>([]);
+  const { plans: mobilePlans, isLoading: plansLoading } = useMobilePlans(isFr);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
   const [mode, setMode] = useState<"phone_only" | "phone_plus_plan">("phone_only");
