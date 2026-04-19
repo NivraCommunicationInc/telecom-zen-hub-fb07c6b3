@@ -89,150 +89,32 @@ interface ShellOpts {
   afterCardText?: string;     // optional paragraph between card and CTA
 }
 
-function rowsBlock(rows: Array<[string, string]>, emphasizeLast: boolean): string {
-  return rows.map(([label, value], i) => {
-    const isLast = emphasizeLast && i === rows.length - 1;
-    if (isLast) {
-      return `<tr><td style="padding:12px 18px;background:${BRAND_CARD_BG_LAST};font-family:'Helvetica Neue',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:${BRAND_DARK};border-top:1px solid ${BRAND_CARD_BORDER};">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-          <td style="color:${BRAND_DARK};font-size:13px;font-weight:700;">${esc(label)}</td>
-          <td align="right" style="color:${BRAND_DARK};font-size:13px;font-weight:700;">${esc(value)}</td>
-        </tr></table>
-      </td></tr>`;
-    }
-    return `<tr><td style="padding:10px 18px;border-bottom:1px solid ${BRAND_HERO_BG};font-family:'Helvetica Neue',Arial,Helvetica,sans-serif;font-size:13px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-        <td style="color:${BRAND_TEXT_MUTED};font-size:13px;">${esc(label)}</td>
-        <td align="right" style="color:${BRAND_DARK};font-size:13px;font-weight:500;">${esc(value)}</td>
-      </tr></table>
-    </td></tr>`;
-  }).join("");
-}
+// All rendering is delegated to the central Nivra shell so every email in
+// the system shares the exact same "Service Activé" violet design.
+import { violetShell } from "./violetEmailShell.ts";
 
 function shell(opts: ShellOpts): string {
-  const {
-    preheader = "",
-    badge,
-    heroTitle,
-    heroSub,
-    icon = "check",
-    greeting,
-    bodyText,
-    cardTitle,
-    cardRows,
-    cardEmphasizeLast = true,
-    ctaPrimaryUrl,
-    ctaPrimaryLabel,
-    ctaSecondaryUrl,
-    ctaSecondaryLabel,
-    helpHtml,
-    helpVariant = "info",
-    afterCardText,
-  } = opts;
-
-  const helpBorder = helpVariant === "warning" ? "#f59e0b" : BRAND_PRIMARY;
-  const fontStack = "'Helvetica Neue',Arial,Helvetica,sans-serif";
-
-  const cardHtml = (cardTitle && cardRows && cardRows.length > 0)
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;border:1.5px solid ${BRAND_CARD_BORDER};border-radius:12px;margin:20px 0;border-collapse:separate;overflow:hidden;">
-        <tr><td style="background:${BRAND_DARK};padding:10px 18px;font-family:${fontStack};">
-          <div style="font-size:10px;font-weight:700;color:${BRAND_TEXT_FOOT};text-transform:uppercase;letter-spacing:2px;">${esc(cardTitle)}</div>
-        </td></tr>
-        ${rowsBlock(cardRows, cardEmphasizeLast)}
-      </table>`
-    : "";
-
-  const ctaPrimary = (ctaPrimaryUrl && ctaPrimaryLabel)
-    ? `<a href="${esc(ctaPrimaryUrl)}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;padding:15px 44px;border-radius:99px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.5px;font-family:${fontStack};">${esc(ctaPrimaryLabel)}</a>`
-    : "";
-
-  const ctaSecondary = (ctaSecondaryUrl && ctaSecondaryLabel)
-    ? `<a href="${esc(ctaSecondaryUrl)}" style="display:inline-block;background:transparent;color:${BRAND_PRIMARY};padding:13px 32px;border-radius:99px;font-weight:600;font-size:13px;text-decoration:none;border:2px solid ${BRAND_PRIMARY};margin-left:10px;font-family:${fontStack};">${esc(ctaSecondaryLabel)}</a>`
-    : "";
-
-  const ctaBlock = (ctaPrimary || ctaSecondary)
-    ? `<div style="text-align:center;margin:28px 0;">${ctaPrimary}${ctaSecondary}</div>`
-    : "";
-
-  const helpBlock = helpHtml
-    ? `<div style="background:#faf9ff;border-left:4px solid ${helpBorder};padding:14px 18px;font-size:13px;color:${BRAND_TEXT_BODY};margin-top:8px;line-height:1.6;font-family:${fontStack};">${helpHtml}</div>`
-    : `<div style="background:#faf9ff;border-left:4px solid ${BRAND_PRIMARY};padding:14px 18px;font-size:13px;color:${BRAND_TEXT_BODY};margin-top:8px;line-height:1.6;font-family:${fontStack};"><strong style="color:${BRAND_DARK};">Besoin d'aide ?</strong> Écrivez-nous à <strong style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</strong> — réponse en moins de 2h.</div>`;
-
-  const greetingBlock = greeting
-    ? `<div style="font-size:15px;color:${BRAND_DARK};margin-bottom:14px;font-weight:700;font-family:${fontStack};">${esc(greeting)}</div>`
-    : "";
-
-  const bodyTextBlock = bodyText
-    ? `<div style="font-size:14px;color:${BRAND_TEXT_BODY};line-height:1.8;margin-bottom:20px;font-family:${fontStack};">${bodyText}</div>`
-    : "";
-
-  const afterCardBlock = afterCardText
-    ? `<div style="font-size:14px;color:${BRAND_TEXT_BODY};line-height:1.8;margin-bottom:20px;font-family:${fontStack};">${afterCardText}</div>`
-    : "";
-
-  const heroSubBlock = heroSub
-    ? `<div style="font-size:14px;color:${BRAND_TEXT_MUTED};max-width:420px;margin:0 auto;line-height:1.6;font-family:${fontStack};">${esc(heroSub)}</div>`
-    : "";
-
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${esc(heroTitle)}</title>
-</head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:${fontStack};">
-<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">${esc(preheader)}</span>
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;">
-<tr><td align="center" style="padding:0;">
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;width:100%;background:#ffffff;">
-
-<!-- Top bar gradient (Violet Bold) -->
-<tr><td style="height:5px;background:${BRAND_PRIMARY};line-height:5px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>
-
-<!-- Header -->
-<tr><td style="background:${BRAND_DARK};padding:24px 32px;font-family:${fontStack};">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-    <td style="color:#ffffff;font-size:18px;font-weight:800;letter-spacing:2px;">NIVRA<span style="color:${BRAND_PRIMARY};">.</span></td>
-    <td align="right" style="color:${BRAND_TEXT_FOOT};font-size:11px;">Sans contrat · Support québécois</td>
-  </tr></table>
-</td></tr>
-
-<!-- Hero -->
-<tr><td style="background:${BRAND_HERO_BG};padding:48px 32px;text-align:center;font-family:${fontStack};">
-  <div style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;font-size:10px;font-weight:700;padding:4px 14px;border-radius:99px;letter-spacing:2px;margin-bottom:16px;">${esc(badge)}</div>
-  <div style="font-size:28px;font-weight:800;color:${BRAND_DARK};line-height:1.2;margin-bottom:10px;">${esc(heroTitle)}</div>
-  ${heroSubBlock}
-</td></tr>
-
-<!-- Body -->
-<tr><td style="background:#ffffff;padding:36px 32px;font-family:${fontStack};">
-  ${greetingBlock}
-  ${bodyTextBlock}
-  ${cardHtml}
-  ${afterCardBlock}
-  ${ctaBlock}
-  ${helpBlock}
-</td></tr>
-
-<!-- Footer -->
-<tr><td style="background:${BRAND_DARK};padding:28px 32px;text-align:center;font-family:${fontStack};">
-  <div style="color:#ffffff;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:14px;">NIVRA TELECOM</div>
-  <div style="height:1px;background:${BRAND_DIVIDER};margin:12px 0;line-height:1px;font-size:0;">&nbsp;</div>
-  <div style="margin-bottom:12px;">
-    <a href="${PORTAL_URL}" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Mon compte</a>
-    <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Support</a>
-    <a href="${APP_URL}/legal/confidentialite" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Confidentialité</a>
-    <a href="${APP_URL}/desabonnement" style="color:${BRAND_TEXT_FOOT};font-size:11px;text-decoration:none;margin:0 8px;">Se désabonner</a>
-  </div>
-  <div style="font-size:11px;color:${BRAND_TEXT_FOOT_LOW};line-height:1.6;">© 2026 Nivra Telecom. Tous droits réservés.<br>Ce message a été envoyé car vous êtes client Nivra Telecom.</div>
-</td></tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  // `bodyText` is treated as already-safe HTML by callers in this file
+  // (they pass plain text or pre-escaped strings). The central shell expects
+  // `bodyHtml`, so we forward it as-is.
+  return violetShell({
+    preheader: opts.preheader,
+    badge: opts.badge,
+    heroTitle: opts.heroTitle,
+    heroSub: opts.heroSub,
+    greeting: opts.greeting,
+    bodyHtml: opts.bodyText,
+    cardTitle: opts.cardTitle,
+    cardRows: opts.cardRows,
+    cardEmphasizeLast: opts.cardEmphasizeLast,
+    ctaPrimaryUrl: opts.ctaPrimaryUrl,
+    ctaPrimaryLabel: opts.ctaPrimaryLabel,
+    ctaSecondaryUrl: opts.ctaSecondaryUrl,
+    ctaSecondaryLabel: opts.ctaSecondaryLabel,
+    helpHtml: opts.helpHtml,
+    helpVariant: opts.helpVariant,
+    afterCardHtml: opts.afterCardText,
+  });
 }
 
 // ---------------------------------------------------------------------------
