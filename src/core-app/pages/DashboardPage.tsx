@@ -166,22 +166,27 @@ function useWeeklyPerformance() {
       const week = startOfWeekISO();
       const seven = sevenDaysAgoISO();
 
-      const [processed, kycAll, kycApproved, emails] = await Promise.all([
-        supabase.from("orders").select("created_at, activated_at").gte("created_at", week),
+      const [processedRes, processedCount, kycAll, kycApproved, emails] = await Promise.all([
+        // For avg processing time: completed orders this week with activated_at
+        supabase.from("orders").select("created_at, activated_at")
+          .gte("updated_at", seven).in("status", ["activated", "completed"]),
+        // Count of orders processed this week (status activated or completed, updated in last 7 days)
+        supabase.from("orders").select("id", { count: "exact", head: true })
+          .gte("updated_at", seven).in("status", ["activated", "completed"]),
         supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", week).not("kyc_status", "is", null),
         supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", week).eq("kyc_status", "approved"),
         supabase.from("email_queue").select("id", { count: "exact", head: true }).gte("created_at", seven),
       ]);
 
-      const rows = processed.data ?? [];
-      const completed = rows.filter((r: any) => r.activated_at);
-      const avgHours = completed.length
-        ? completed.reduce((s: number, r: any) => s + (new Date(r.activated_at).getTime() - new Date(r.created_at).getTime()), 0) /
-          completed.length / 3600000
+      const rows = processedRes.data ?? [];
+      const withActivation = rows.filter((r: any) => r.activated_at);
+      const avgHours = withActivation.length
+        ? withActivation.reduce((s: number, r: any) => s + (new Date(r.activated_at).getTime() - new Date(r.created_at).getTime()), 0) /
+          withActivation.length / 3600000
         : 0;
 
       return {
-        processed: completed.length,
+        processed: processedCount.count ?? 0,
         avgHours,
         kycRate: kycAll.count && kycAll.count > 0 ? ((kycApproved.count ?? 0) / kycAll.count) * 100 : 0,
         emails: emails.count ?? 0,
@@ -243,21 +248,51 @@ function actionDotColor(action: string): string {
 }
 
 function actionLabelFr(action: string): string {
+  if (!action) return "—";
+  const key = action.toLowerCase();
   const map: Record<string, string> = {
-    order_created: "Commande créée",
+    kyc_requested: "Vérification KYC demandée",
+    kyc_approved: "KYC approuvé",
+    kyc_rejected: "KYC rejeté",
+    kyc_submitted: "KYC soumis",
+    order_created: "Nouvelle commande créée",
     order_submitted: "Commande soumise",
     order_confirmed: "Commande confirmée",
     order_activated: "Commande activée",
+    order_completed: "Commande complétée",
     order_cancelled: "Commande annulée",
     order_updated: "Commande mise à jour",
-    kyc_approved: "KYC approuvé",
-    kyc_rejected: "KYC refusé",
+    payment_confirmed: "Paiement confirmé",
     payment_received: "Paiement reçu",
     payment_failed: "Paiement échoué",
+    payment_captured: "Paiement capturé",
     invoice_created: "Facture créée",
     invoice_paid: "Facture payée",
+    invoice_voided: "Facture annulée",
+    service_activated: "Service activé",
+    service_suspended: "Service suspendu",
+    service_cancelled: "Service annulé",
+    activation_force_override: "Activation forcée (override)",
+    contract_gate_bypassed: "Expédition forcée (override)",
+    technician_assigned: "Technicien assigné",
+    equipment_assigned: "Équipement assigné",
+    equipment_shipped: "Équipement expédié",
+    equipment_delivered: "Équipement livré",
+    sim_activated: "SIM activée",
+    esim_provisioned: "eSIM provisionnée",
+    portin_initiated: "Port-in initié",
+    portin_completed: "Port-in complété",
+    portin_failed: "Port-in échoué",
+    appointment_scheduled: "Rendez-vous planifié",
+    appointment_completed: "Rendez-vous complété",
+    appointment_cancelled: "Rendez-vous annulé",
+    contract_signed: "Contrat signé",
+    contract_sent: "Contrat envoyé",
+    created: "Création",
+    completed: "Complété",
+    updated: "Mise à jour",
   };
-  if (map[action]) return map[action];
+  if (map[key]) return map[key];
   return action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
