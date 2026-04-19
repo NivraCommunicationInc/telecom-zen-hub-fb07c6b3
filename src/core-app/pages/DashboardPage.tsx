@@ -515,8 +515,17 @@ export default function DashboardPage() {
                 const sevColor = sev === "critical" ? "bg-red-500/15 text-red-300 border-red-500/30"
                   : sev === "warning" ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
                   : "bg-blue-500/15 text-blue-300 border-blue-500/30";
-                const detailMsg = (a.details && typeof a.details === "object" && (a.details as any).message)
-                  || a.entity_reference || a.alert_type;
+                const rawMsg = (a.details && typeof a.details === "object" && ((a.details as any).message || (a.details as any).description))
+                  || null;
+                const ref = a.entity_reference;
+                const isOrderRef = a.entity_type === "order" && ref;
+                const detailMsg = rawMsg
+                  ? rawMsg
+                  : isOrderRef
+                  ? `Commande #${ref} — Vérification requise`
+                  : ref
+                  ? `${a.entity_type ?? "Entité"} ${ref} — ${(a.alert_type ?? "alerte").replace(/_/g, " ")}`
+                  : (a.alert_type ?? "Alerte système").replace(/_/g, " ");
                 return (
                   <div key={a.id} className="flex items-start gap-2 p-2 rounded-md bg-slate-800/30 border border-slate-800">
                     <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-semibold border ${sevColor}`}>{sev}</span>
