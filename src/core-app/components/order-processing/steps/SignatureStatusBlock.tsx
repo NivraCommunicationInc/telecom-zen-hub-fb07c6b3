@@ -20,9 +20,9 @@ interface SignatureStatusBlockProps {
   onRefresh?: () => void;
 }
 
-// Public client-facing signature page (lives on the client portal — NOT inside /core/*).
-// Route: /portal/signer/:token (also accessible via legacy aliases /signer/:token and /sign/:token).
-const SIGN_BASE_URL = "https://nivra-telecom.ca/portal/signer";
+// Client-facing contract link must land in the authenticated client portal contracts section.
+// Canonical route used in emails: /portal/contracts?token=...
+const SIGN_BASE_URL = "https://nivra-telecom.ca/portal/contracts";
 
 function maskIp(ip?: string | null): string {
   if (!ip) return "—";
@@ -38,7 +38,7 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
 
   const signed = !!contract?.client_signed_at;
   const token: string | null = contract?.signature_token || null;
-  const signatureUrl = useMemo(() => (token ? `${SIGN_BASE_URL}/${token}` : null), [token]);
+  const signatureUrl = useMemo(() => (token ? `${SIGN_BASE_URL}?token=${encodeURIComponent(token)}` : null), [token]);
 
   // ── One-click: generate token (if needed) + email link to client ──
   const handleGenerateAndSend = async () => {
@@ -66,7 +66,7 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
       if (tkErr) throw tkErr;
       const freshToken = String(tk || "").trim();
       if (!freshToken) throw new Error("Token vide retourné par le serveur");
-      const url = `${SIGN_BASE_URL}/${freshToken}`;
+      const url = `${SIGN_BASE_URL}?token=${encodeURIComponent(freshToken)}`;
 
       // 2. Queue branded email through canonical pipeline
       const { error: qErr } = await supabase.from("email_queue").insert({
