@@ -10,6 +10,7 @@ import { useOptionalAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { toast } from "sonner";
 import { orderEmails } from "@/core-app/lib/emails/orderEmails";
+import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
 
 /**
  * Append-only email enqueue. NEVER throws — an email failure must not break
