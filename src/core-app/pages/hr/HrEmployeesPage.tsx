@@ -17,11 +17,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Search, Plus, FolderOpen, Users, Filter,
+  Search, Plus, FolderOpen, Users, Filter, Mail, Loader2,
 } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { supabase as sb } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending_invitation: { label: "Invitation en attente", variant: "outline" },
@@ -45,6 +47,29 @@ export default function HrEmployeesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const handleResend = async (e: React.MouseEvent, empId: string, email: string | null) => {
+    e.stopPropagation();
+    if (!email) {
+      toast.error("Aucun email pour cet employé");
+      return;
+    }
+    setResendingId(empId);
+    try {
+      const { data, error } = await sb.functions.invoke("resend-employee-invite", {
+        body: { employee_id: empId },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || error?.message || "Erreur");
+      }
+      toast.success(`Invitation envoyée à ${email}`);
+    } catch (err: any) {
+      toast.error(`Erreur lors de l'envoi: ${err.message ?? "inconnue"}`);
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["hr-employees"],
@@ -208,17 +233,35 @@ export default function HrEmployeesPage() {
                           : "—"}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(corePath(`/hr/employees/${emp.id}`));
-                          }}
-                        >
-                          <FolderOpen className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {emp.status !== "active" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              title="Renvoyer l'invitation"
+                              disabled={resendingId === emp.id}
+                              onClick={(e) => handleResend(e, emp.id, emp.work_email)}
+                            >
+                              {resendingId === emp.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(corePath(`/hr/employees/${emp.id}`));
+                            }}
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
