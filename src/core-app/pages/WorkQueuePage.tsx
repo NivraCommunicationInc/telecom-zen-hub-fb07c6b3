@@ -394,8 +394,8 @@ const WorkQueuePage = () => {
                             {sla.label}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-[hsl(220,10%,55%)] capitalize">
-                          {o.sla_status || o.payment_status || "—"}
+                        <td className="px-3 py-2.5 text-[hsl(220,10%,55%)]">
+                          {o.sla_status ? translateSla(o.sla_status) : (o.payment_status || "—")}
                         </td>
                         <td className="px-3 py-2.5 text-right">
                           <Link
