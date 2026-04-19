@@ -44,6 +44,9 @@ export function ShippingTechnicianStep({ proc }: Props) {
     reason: string;
     forcing: boolean;
   }>({ open: false, targetStatus: null, reason: "", forcing: false });
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [newSlotIso, setNewSlotIso] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const [shippingFields, setShippingFields] = useState({
     carrier: order.carrier || "",
