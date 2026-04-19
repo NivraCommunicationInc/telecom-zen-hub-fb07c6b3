@@ -150,22 +150,22 @@ export default function CoreEmployee360() {
           <Employee360Profile profile={profile} />
         </TabsContent>
         <TabsContent value="remuneration">
-          <Employee360Remuneration profile={profile} userId={userId!} />
+          <Employee360Remuneration profile={profile} userId={userId ?? ""} />
         </TabsContent>
         <TabsContent value="commissions">
-          <Employee360Commissions userId={userId!} />
+          <Employee360Commissions userId={userId ?? ""} />
         </TabsContent>
         <TabsContent value="payroll">
-          <Employee360Payroll userId={userId!} />
+          <Employee360Payroll userId={userId ?? ""} />
         </TabsContent>
         <TabsContent value="time">
-          <Employee360Time userId={userId!} />
+          <Employee360Time userId={userId ?? ""} />
         </TabsContent>
         <TabsContent value="documents">
-          <Employee360Documents userId={userId!} />
+          <Employee360Documents userId={userId ?? ""} />
         </TabsContent>
         <TabsContent value="history">
-          <Employee360History userId={userId!} />
+          <Employee360History userId={userId ?? ""} />
         </TabsContent>
       </Tabs>
     </div>
