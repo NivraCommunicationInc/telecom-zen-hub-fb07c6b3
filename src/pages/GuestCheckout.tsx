@@ -673,6 +673,68 @@ const GuestCheckout = () => {
         console.warn("[GuestCheckout] Email failed:", e);
       }
 
+      // Step 8 (optional): PayPal pre-authorized recurring billing enrollment.
+      // When the client opted in via AutoPayPalOption, create a PayPal subscription
+      // and redirect to PayPal's approval page. The webhook + return handler
+      // (/commander/paypal-retour) take over from there.
+      if (enableAutoBilling && paymentMethod === "paypal") {
+        try {
+          const monthlyAfterDiscount = Math.max(0, monthlyTotalWithTax - AUTOPAY_DISCOUNT);
+          const planLabel = selectedServices.map(s => s.name).join(" + ") || "Forfait Nivra";
+
+          const { data: subData, error: subErr } = await supabase.functions.invoke(
+            "billing-create-order-with-paypal-subscription",
+            {
+              body: {
+                user_id: userId,
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                email: email.trim().toLowerCase(),
+                phone: phone.trim(),
+                order_id: response.order_id,
+                order_number: response.order_number,
+                enable_auto_billing: true,
+                services: selectedServices.map(s => ({
+                  plan_code: s.plan_code || s.sku || s.id,
+                  plan_name: s.name,
+                  plan_price: toMoney(s.price),
+                  category: s.category,
+                })),
+              },
+            }
+          );
+
+          if (subErr) throw subErr;
+          if (!subData?.success || !subData?.approval_url) {
+            throw new Error(subData?.error || "Réponse PayPal invalide");
+          }
+
+          // Persist pending order so /commander/paypal-retour can reconcile.
+          try {
+            localStorage.setItem(
+              "nivra-paypal-pending-order",
+              JSON.stringify({
+                order_id: response.order_id,
+                order_number: response.order_number,
+                paypal_subscription_id: subData.paypal_subscription_id,
+                monthly_after_discount: monthlyAfterDiscount,
+                plan_label: planLabel,
+              })
+            );
+          } catch { /* localStorage may be blocked — non-fatal */ }
+
+          toast.success("Redirection vers PayPal pour approuver le paiement automatique...");
+          window.location.href = subData.approval_url;
+          return; // halt — PayPal takes over
+        } catch (autopayErr: any) {
+          console.error("[GuestCheckout] Auto-billing enrollment failed:", autopayErr);
+          toast.error(
+            "Le paiement automatique n'a pas pu être activé. Votre commande est confirmée et facturée manuellement."
+          );
+          // fall through to normal confirmation
+        }
+      }
+
       setOrderResult({
         orderNumber: response.order_number,
         orderId: response.order_id,
