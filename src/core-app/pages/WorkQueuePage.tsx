@@ -214,6 +214,13 @@ const WorkQueuePage = () => {
         if (statusFilter !== "tous" && o.status !== statusFilter) return false;
         if (typeFilter !== "tous" && o.service_type !== typeFilter) return false;
         if (zoneFilter !== "tous" && getZone(o.shipping_city) !== zoneFilter) return false;
+        if (kycFilter !== "tous") {
+          const k = (o.kyc_status || "").toLowerCase();
+          if (kycFilter === "pending" && k !== "pending") return false;
+          if (kycFilter === "approved" && k !== "approved" && k !== "verified") return false;
+          if (kycFilter === "rejected" && k !== "rejected") return false;
+          if (kycFilter === "not_required" && k !== "not_required" && k !== "none" && k !== "") return false;
+        }
         if (slaFilter !== "tous") {
           const { hours } = getSlaInfo(o.created_at, o.status);
           if (slaFilter === "depasse" && hours <= 24) return false;
@@ -232,24 +239,24 @@ const WorkQueuePage = () => {
         const sb = getSlaInfo(b.created_at, b.status).hours;
         return sb - sa;
       });
-  }, [orders, search, statusFilter, typeFilter, slaFilter, zoneFilter, tick]);
+  }, [orders, search, statusFilter, typeFilter, slaFilter, zoneFilter, kycFilter, tick]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
   const pageRows = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
 
-  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, slaFilter, zoneFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, slaFilter, zoneFilter, kycFilter]);
 
   const selectedOrder = selectedId ? orders.find(o => o.id === selectedId) || null : null;
 
   const clearFilters = () => {
     setSearch(""); setStatusFilter("tous"); setTypeFilter("tous");
-    setSlaFilter("tous"); setZoneFilter("tous");
+    setSlaFilter("tous"); setZoneFilter("tous"); setKycFilter("tous");
   };
 
   const hasActiveFilter = search || statusFilter !== "tous" || typeFilter !== "tous" ||
-    slaFilter !== "tous" || zoneFilter !== "tous";
+    slaFilter !== "tous" || zoneFilter !== "tous" || kycFilter !== "tous";
 
   return (
     <div className="min-h-screen bg-[#111827] -m-6 p-6 space-y-4">
