@@ -266,6 +266,9 @@ const Header = () => {
             <Link to="/a-propos" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "À propos" : "About"}
             </Link>
+            <Link to="/emplois" className="hover:text-[#0D0D0D] transition-colors">
+              {isFr ? "Emplois" : "Careers"}
+            </Link>
             <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "Nous joindre" : "Contact Us"}
             </Link>
