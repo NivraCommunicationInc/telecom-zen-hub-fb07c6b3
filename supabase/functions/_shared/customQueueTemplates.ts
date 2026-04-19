@@ -418,6 +418,7 @@ export function renderQueueTemplate(
       };
     }
 
+    case "payment_reminder":
     case "payment_reminder_7days":
     case "payment_reminder_3days":
     case "payment_reminder_1day":

@@ -6,14 +6,13 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
-import { EMAIL_SENDER, formatCurrencyForTemplate, formatDateTimeForTemplate } from "../_shared/resendTemplates.ts";
+import { EMAIL_SENDER, formatDateTimeForTemplate } from "../_shared/resendTemplates.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { violetEsc, violetShell } from "../_shared/violetEmailShell.ts";
 
-// Admin notification email address
 const ADMIN_NOTIFICATION_EMAIL = "support@nivra-telecom.ca";
 
-// Event types that trigger admin notifications
-type NotificationEventType = 
+type NotificationEventType =
   | "new_order"
   | "new_ticket"
   | "new_appointment"
@@ -37,7 +36,6 @@ interface AdminNotificationRequest {
   admin_portal_link?: string;
 }
 
-// Event configuration with emoji, subject, and color
 const EVENT_CONFIG: Record<NotificationEventType, { emoji: string; label: string; color: string }> = {
   new_order: { emoji: "🛒", label: "Nouvelle Commande", color: "#22c55e" },
   new_ticket: { emoji: "🎫", label: "Nouveau Ticket", color: "#3b82f6" },
@@ -50,7 +48,6 @@ const EVENT_CONFIG: Record<NotificationEventType, { emoji: string; label: string
   new_replacement_request: { emoji: "🔄", label: "Demande Remplacement", color: "#14b8a6" },
 };
 
-// Priority configuration
 const PRIORITY_CONFIG: Record<string, { emoji: string; label: string; color: string }> = {
   low: { emoji: "🟢", label: "Basse", color: "#22c55e" },
   normal: { emoji: "🟡", label: "Normale", color: "#f59e0b" },
@@ -58,144 +55,54 @@ const PRIORITY_CONFIG: Record<string, { emoji: string; label: string; color: str
   urgent: { emoji: "🔴", label: "Urgente", color: "#ef4444" },
 };
 
+function stringifyDetailValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function buildAdminEmailHtml(data: AdminNotificationRequest): string {
   const eventConfig = EVENT_CONFIG[data.event_type];
   const priorityConfig = PRIORITY_CONFIG[data.priority || "normal"];
   const timestamp = formatDateTimeForTemplate(new Date());
-  
-  const detailsHtml = data.details 
-    ? Object.entries(data.details)
-        .map(([key, value]) => `
-          <tr>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; width: 40%;">${key}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #111827; font-size: 14px;">${value}</td>
-          </tr>
-        `)
-        .join("")
-    : "";
 
-  return `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${eventConfig.emoji} ${eventConfig.label}</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, ${eventConfig.color} 0%, ${eventConfig.color}dd 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                ${eventConfig.emoji} ${eventConfig.label}
-              </h1>
-              <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
-                ${timestamp}
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="background-color: #ffffff; padding: 30px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-              
-              <!-- Priority Badge -->
-              <table role="presentation" style="width: 100%; margin-bottom: 20px;">
-                <tr>
-                  <td>
-                    <span style="display: inline-block; background-color: ${priorityConfig.color}22; color: ${priorityConfig.color}; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
-                      ${priorityConfig.emoji} Priorité ${priorityConfig.label}
-                    </span>
-                    ${data.event_number ? `
-                    <span style="display: inline-block; background-color: #f3f4f6; color: #374151; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-left: 8px;">
-                      #${data.event_number}
-                    </span>
-                    ` : ""}
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- Client Info -->
-              ${data.client_name || data.client_email || data.client_phone ? `
-              <table role="presentation" style="width: 100%; background-color: #f9fafb; border-radius: 8px; margin-bottom: 20px;">
-                <tr>
-                  <td style="padding: 16px;">
-                    <h3 style="margin: 0 0 12px; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">
-                      👤 Informations Client
-                    </h3>
-                    ${data.client_name ? `<p style="margin: 0 0 6px; color: #111827; font-size: 16px; font-weight: 600;">${data.client_name}</p>` : ""}
-                    ${data.client_email ? `<p style="margin: 0 0 4px; color: #6b7280; font-size: 14px;">📧 ${data.client_email}</p>` : ""}
-                    ${data.client_phone ? `<p style="margin: 0; color: #6b7280; font-size: 14px;">📞 ${data.client_phone}</p>` : ""}
-                  </td>
-                </tr>
-              </table>
-              ` : ""}
-              
-              <!-- Summary -->
-              ${data.summary ? `
-              <table role="presentation" style="width: 100%; margin-bottom: 20px;">
-                <tr>
-                  <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 0 8px 8px 0;">
-                    <p style="margin: 0; color: #92400e; font-size: 15px; line-height: 1.6;">
-                      ${data.summary}
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              ` : ""}
-              
-              <!-- Details Table -->
-              ${detailsHtml ? `
-              <table role="presentation" style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                <tr>
-                  <th colspan="2" style="background-color: #f9fafb; padding: 12px; text-align: left; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">
-                    📋 Détails
-                  </th>
-                </tr>
-                ${detailsHtml}
-              </table>
-              ` : ""}
-              
-              <!-- CTA Button -->
-              ${data.admin_portal_link ? `
-              <table role="presentation" style="width: 100%; margin-top: 30px;">
-                <tr>
-                  <td align="center">
-                    <a href="${data.admin_portal_link}" style="display: inline-block; background-color: ${eventConfig.color}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-                      Voir dans le portail admin →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              ` : ""}
-              
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #1f2937; padding: 24px; text-align: center; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0 0 8px; color: #9ca3af; font-size: 13px;">
-                Notification automatique du système Nivra Télécom
-              </p>
-              <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Cet email a été envoyé automatiquement. Ne pas répondre.
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
+  const introBits = [
+    data.client_name ? `Client: <strong>${violetEsc(data.client_name)}</strong>` : null,
+    data.client_email ? `Courriel: <strong>${violetEsc(data.client_email)}</strong>` : null,
+    data.client_phone ? `Téléphone: <strong>${violetEsc(data.client_phone)}</strong>` : null,
+    `Horodatage: <strong>${violetEsc(timestamp)}</strong>`,
+  ].filter(Boolean);
+
+  const cardRows: Array<[string, string]> = [
+    ["Priorité", `${priorityConfig.emoji} ${priorityConfig.label}`],
+    ...(data.event_number ? [["Référence", `#${data.event_number}`] as [string, string]] : []),
+    ...(data.event_id ? [["Event ID", data.event_id] as [string, string]] : []),
+    ...Object.entries(data.details || {}).map(([key, value]) => [key, stringifyDetailValue(value)] as [string, string]),
+  ];
+
+  return violetShell({
+    preheader: `${eventConfig.label}${data.event_number ? ` #${data.event_number}` : ""}`,
+    badge: `${eventConfig.emoji} ADMIN`,
+    heroTitle: eventConfig.label,
+    heroSub: `Priorité ${priorityConfig.label.toLowerCase()} · Notification interne Nivra`,
+    greeting: "Bonjour équipe Nivra,",
+    bodyHtml: `
+      <p style="margin:0 0 12px;">Une nouvelle notification administrative a été générée par le système.</p>
+      ${data.summary ? `<p style="margin:0 0 12px;"><strong>Résumé:</strong> ${violetEsc(data.summary)}</p>` : ""}
+      ${introBits.length ? `<p style="margin:0;">${introBits.join("<br>")}</p>` : ""}
+    `,
+    cardTitle: "Détails",
+    cardRows,
+    ctaPrimaryUrl: data.admin_portal_link,
+    ctaPrimaryLabel: data.admin_portal_link ? "Voir dans le portail admin" : undefined,
+    helpHtml: `Notification automatique du système Nivra Télécom.<br>Ce message interne a été envoyé à <strong>${violetEsc(ADMIN_NOTIFICATION_EMAIL)}</strong>.`,
+  });
 }
 
 Deno.serve(async (req) => {

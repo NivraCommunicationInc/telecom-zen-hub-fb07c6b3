@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -629,9 +630,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if template exists
+    // Check if template exists locally, otherwise fall back to the real queue renderer
     const template = emailTemplates[template_key];
-    if (!template) {
+    const renderedQueueTemplate = template ? null : renderQueueTemplate(template_key, variables || {});
+    if (!template && !renderedQueueTemplate) {
       return new Response(JSON.stringify({ success: false, error: `Unknown template: ${template_key}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -647,14 +649,16 @@ Deno.serve(async (req) => {
     };
 
     // Generate subject with variable substitution
-    let subject = template.subject;
+    let subject = template ? template.subject : renderedQueueTemplate!.subject;
     if (templateVars.order_number) subject = subject.replace("{order_number}", templateVars.order_number);
     if (templateVars.invoice_number) subject = subject.replace("{invoice_number}", templateVars.invoice_number);
     if (templateVars.ticket_number) subject = subject.replace("{ticket_number}", templateVars.ticket_number);
     if (templateVars.contract_number) subject = subject.replace("{contract_number}", templateVars.contract_number);
 
     // Generate HTML
-    const htmlContent = template.getHtml(templateVars, emailConfig);
+    const htmlContent = template
+      ? template.getHtml(templateVars, emailConfig)
+      : renderedQueueTemplate!.html;
 
     console.log("[send-template-test] Sending email to:", recipient, "with template:", template_key);
 
