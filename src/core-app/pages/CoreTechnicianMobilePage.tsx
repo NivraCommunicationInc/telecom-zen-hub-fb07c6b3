@@ -711,27 +711,28 @@ export default function CoreTechnicianMobilePage() {
   );
 
   /* ─── Section: Support (mailto fallback view) ─── */
-  const SupportView = () => {
-    useEffect(() => {
-      // Trigger mail client when this tab is opened
-      window.location.href = "mailto:support@nivratelecom.ca";
-    }, []);
-    return (
-      <div className="px-4 pb-24 pt-3">
-        <h2 className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">Support</h2>
-        <div className="bg-[#111827] border border-slate-700 rounded-xl p-4 text-center">
-          <MessageCircle className="w-7 h-7 text-blue-400 mx-auto mb-2" />
-          <p className="text-sm text-slate-200">Contacter le support</p>
-          <a
-            href="mailto:support@nivratelecom.ca"
-            className="text-xs text-blue-300 underline mt-1 inline-block"
-          >
-            support@nivratelecom.ca
-          </a>
-        </div>
+  const SupportView = () => (
+    <div className="px-4 pb-24 pt-3">
+      <h2 className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">Support</h2>
+      <div className="bg-[#111827] border border-slate-700 rounded-xl p-4 text-center">
+        <MessageCircle className="w-7 h-7 text-blue-400 mx-auto mb-2" />
+        <p className="text-sm text-slate-200">Contacter le support</p>
+        <a
+          href="mailto:support@nivratelecom.ca"
+          className="text-xs text-blue-300 underline mt-1 inline-block"
+        >
+          support@nivratelecom.ca
+        </a>
       </div>
-    );
-  };
+    </div>
+  );
+
+  // Trigger mail client when Support tab opens
+  useEffect(() => {
+    if (activeTab === "support") {
+      window.location.href = "mailto:support@nivratelecom.ca";
+    }
+  }, [activeTab]);
 
   return (
     <MobileShell activeTab={activeTab} setActiveTab={setActiveTab}>
