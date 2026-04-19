@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
