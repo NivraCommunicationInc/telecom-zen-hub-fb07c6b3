@@ -6,12 +6,13 @@
  * to produce the final HTML + subject, then forwards the email through
  * `enqueueEmail` (ResendProxy → pgmq → process-email-queue → Lovable Email).
  *
- * Design = Nivra "Corporate Blue #0066CC" template style, matching
- * the canonical templates in _shared/email-templates.ts.
+ * Design = Nivra "Violet Brand" template (#7c3aed) — table-based for
+ * email-client compatibility (Gmail, Outlook, Apple Mail).
  */
 
 const APP_URL = "https://nivra-telecom.ca";
-const SUPPORT_EMAIL = "support@nivra-telecom.ca";
+const PORTAL_URL = `${APP_URL}/portail`;
+const SUPPORT_EMAIL = "support@nivratelecom.ca";
 
 const esc = (v: unknown): string => {
   if (v === null || v === undefined) return "";
@@ -24,8 +25,8 @@ const esc = (v: unknown): string => {
 
 const money = (v: unknown): string => {
   const n = typeof v === "number" ? v : parseFloat(String(v ?? 0));
-  if (!isFinite(n)) return String(v ?? "");
-  return n.toFixed(2) + " $ CAD";
+  if (!isFinite(n)) return String(v ?? "—");
+  return n.toFixed(2).replace(".", ",") + " $";
 };
 
 const fmtDate = (v: unknown): string => {
@@ -35,72 +36,202 @@ const fmtDate = (v: unknown): string => {
   return d.toLocaleDateString("fr-CA", { dateStyle: "long" });
 };
 
-// Shared layout (header + body + footer).
-function shell(opts: {
-  title: string;
-  bodyHtml: string;
+// ---------------------------------------------------------------------------
+// SVG icons (kept simple for email-client compatibility)
+// ---------------------------------------------------------------------------
+const ICONS = {
+  check: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12l2 2 4-4" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="#7c3aed" stroke-width="1.8"/></svg>`,
+  alert: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 8v5M12 16.5h.01" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="#7c3aed" stroke-width="1.8"/></svg>`,
+  doc: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 4h6l4 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 4v4h4" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+  truck: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7" cy="18" r="1.8" stroke="#7c3aed" stroke-width="1.8"/><circle cx="17" cy="18" r="1.8" stroke="#7c3aed" stroke-width="1.8"/></svg>`,
+  calendar: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="16" height="14" rx="2" stroke="#7c3aed" stroke-width="1.8"/><path d="M8 3v4M16 3v4M4 11h16" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  phone: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="7" y="3" width="10" height="18" rx="2" stroke="#7c3aed" stroke-width="1.8"/><path d="M11 17h2" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  pen: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20l4-1 11-11-3-3L5 16l-1 4z" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+  star: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l2.6 5.6 6.1.7-4.6 4.2 1.3 6L12 16.7 6.6 19.5l1.3-6L3.3 9.3l6.1-.7L12 3z" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+  x: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9l6 6M15 9l-6 6" stroke="#7c3aed" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="#7c3aed" stroke-width="1.8"/></svg>`,
+};
+
+type IconKey = keyof typeof ICONS;
+
+// ---------------------------------------------------------------------------
+// Shell — Nivra violet brand template (table-based, inline CSS only)
+// ---------------------------------------------------------------------------
+
+interface ShellOpts {
   preheader?: string;
-  ctaUrl?: string;
-  ctaLabel?: string;
-}): string {
-  const { title, bodyHtml, preheader = "", ctaUrl, ctaLabel } = opts;
-  const cta = ctaUrl && ctaLabel
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0;">
-         <tr><td bgcolor="#0066CC" style="border-radius:6px;">
-           <a href="${esc(ctaUrl)}" style="display:inline-block; padding:14px 28px; font-family:Arial,sans-serif; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:6px;">${esc(ctaLabel)}</a>
-         </td></tr>
-       </table>`
+  badge: string;          // e.g. "COMMANDE REÇUE"
+  heroTitle: string;
+  heroSub?: string;
+  icon?: IconKey;         // defaults to "check"
+  greeting?: string;      // "Bonjour {name},"
+  bodyText?: string;      // intro paragraph (HTML allowed)
+  cardTitle?: string;     // card header label (uppercased)
+  cardRows?: Array<[string, string]>; // [label, value]
+  cardEmphasizeLast?: boolean; // default true (matches reference)
+  ctaPrimaryUrl?: string;
+  ctaPrimaryLabel?: string;
+  ctaSecondaryUrl?: string;
+  ctaSecondaryLabel?: string;
+  helpHtml?: string;          // inner HTML of help-box
+  helpVariant?: "info" | "warning"; // border-left color
+  afterCardText?: string;     // optional paragraph between card and CTA
+}
+
+function rowsBlock(rows: Array<[string, string]>, emphasizeLast: boolean): string {
+  return rows.map(([label, value], i) => {
+    const isLast = emphasizeLast && i === rows.length - 1;
+    if (isLast) {
+      return `<tr><td style="padding:12px 18px;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#1a1a2e;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+          <td style="color:#1a1a2e;font-size:14px;font-weight:700;">${esc(label)}</td>
+          <td align="right" style="color:#1a1a2e;font-size:14px;font-weight:700;">${esc(value)}</td>
+        </tr></table>
+      </td></tr>`;
+    }
+    return `<tr><td style="padding:10px 18px;border-bottom:1px solid #f3f0ff;font-family:Arial,Helvetica,sans-serif;font-size:13px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+        <td style="color:#6b7280;font-size:13px;">${esc(label)}</td>
+        <td align="right" style="color:#1a1a2e;font-size:13px;font-weight:500;">${esc(value)}</td>
+      </tr></table>
+    </td></tr>`;
+  }).join("");
+}
+
+function shell(opts: ShellOpts): string {
+  const {
+    preheader = "",
+    badge,
+    heroTitle,
+    heroSub,
+    icon = "check",
+    greeting,
+    bodyText,
+    cardTitle,
+    cardRows,
+    cardEmphasizeLast = true,
+    ctaPrimaryUrl,
+    ctaPrimaryLabel,
+    ctaSecondaryUrl,
+    ctaSecondaryLabel,
+    helpHtml,
+    helpVariant = "info",
+    afterCardText,
+  } = opts;
+
+  const helpBorder = helpVariant === "warning" ? "#f59e0b" : "#7c3aed";
+
+  const cardHtml = (cardTitle && cardRows && cardRows.length > 0)
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#faf9ff;border:1px solid #ede9fe;border-radius:12px;margin:20px 0;">
+        <tr><td style="background:#ede9fe;padding:10px 18px;border-radius:12px 12px 0 0;font-family:Arial,Helvetica,sans-serif;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+            <td style="padding-right:8px;"><div style="width:6px;height:6px;border-radius:50%;background:#7c3aed;"></div></td>
+            <td style="font-size:10px;font-weight:800;color:#5b21b6;text-transform:uppercase;letter-spacing:1.5px;">${esc(cardTitle)}</td>
+          </tr></table>
+        </td></tr>
+        ${rowsBlock(cardRows, cardEmphasizeLast)}
+      </table>`
     : "";
+
+  const ctaPrimary = (ctaPrimaryUrl && ctaPrimaryLabel)
+    ? `<a href="${esc(ctaPrimaryUrl)}" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:14px 40px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.3px;font-family:Arial,Helvetica,sans-serif;">${esc(ctaPrimaryLabel)}</a>`
+    : "";
+
+  const ctaSecondary = (ctaSecondaryUrl && ctaSecondaryLabel)
+    ? `<a href="${esc(ctaSecondaryUrl)}" style="display:inline-block;background:transparent;color:#7c3aed;padding:12px 28px;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;border:1.5px solid #7c3aed;margin-left:10px;font-family:Arial,Helvetica,sans-serif;">${esc(ctaSecondaryLabel)}</a>`
+    : "";
+
+  const ctaBlock = (ctaPrimary || ctaSecondary)
+    ? `<div style="text-align:center;margin:28px 0 20px;">${ctaPrimary}${ctaSecondary}</div>`
+    : "";
+
+  const helpBlock = helpHtml
+    ? `<div style="background:#faf9ff;border:1px solid #ede9fe;border-left:3px solid ${helpBorder};border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;color:#4b5563;margin-top:8px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">${helpHtml}</div>`
+    : `<div style="background:#faf9ff;border:1px solid #ede9fe;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;color:#4b5563;margin-top:8px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#1a1a2e;">Besoin d'aide ?</strong> Notre équipe est disponible 7j/7 à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.</div>`;
+
+  const greetingBlock = greeting
+    ? `<div style="font-size:15px;color:#1a1a2e;margin-bottom:14px;font-weight:700;font-family:Arial,Helvetica,sans-serif;">${esc(greeting)}</div>`
+    : "";
+
+  const bodyTextBlock = bodyText
+    ? `<div style="font-size:14px;color:#4b5563;line-height:1.8;margin-bottom:20px;font-family:Arial,Helvetica,sans-serif;">${bodyText}</div>`
+    : "";
+
+  const afterCardBlock = afterCardText
+    ? `<div style="font-size:14px;color:#4b5563;line-height:1.8;margin-bottom:20px;font-family:Arial,Helvetica,sans-serif;">${afterCardText}</div>`
+    : "";
+
+  const heroSubBlock = heroSub
+    ? `<div style="font-size:14px;color:#6b7280;max-width:380px;margin:0 auto;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">${esc(heroSub)}</div>`
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${esc(title)}</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${esc(heroTitle)}</title>
 </head>
-<body style="margin:0; padding:0; background-color:#F8FAFB; font-family:Arial,Helvetica,sans-serif;">
-  <span style="display:none !important; visibility:hidden; opacity:0; height:0; width:0; overflow:hidden;">${esc(preheader)}</span>
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#F8FAFB;">
-    <tr><td align="center" style="padding:32px 16px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; width:100%; background-color:#ffffff; border:1px solid #E5E7EB; border-radius:8px;">
-        <tr>
-          <td style="padding:28px 32px; border-bottom:3px solid #0066CC;">
-            <h1 style="margin:0; font-size:26px; font-weight:700; color:#0066CC;">Nivra Telecom</h1>
-            <p style="margin:4px 0 0; font-size:11px; color:#6B7280; text-transform:uppercase; letter-spacing:1px;">Télécommunications</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            ${bodyHtml}
-            ${cta}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 32px; background-color:#1F2937; border-radius:0 0 8px 8px;">
-            <p style="margin:0 0 6px; color:#D1D5DB; font-size:12px;">
-              Une question ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#93C5FD;">${SUPPORT_EMAIL}</a>
-            </p>
-            <p style="margin:0; color:#9CA3AF; font-size:11px;">
-              Nivra Telecom — Québec, Canada — <a href="${APP_URL}" style="color:#93C5FD;">${APP_URL}</a>
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
+<body style="margin:0;padding:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;">
+<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">${esc(preheader)}</span>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f3ff;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;width:100%;background:#ffffff;">
+
+<tr><td style="height:4px;background:#7c3aed;line-height:4px;font-size:0;">&nbsp;</td></tr>
+
+<tr><td style="background:#ffffff;padding:20px 32px;border-bottom:1px solid #ede9fe;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+    <td>
+      <div style="font-size:20px;font-weight:800;color:#1a1a2e;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">NIVRA</div>
+      <div style="font-size:9px;color:#7c3aed;letter-spacing:4px;font-weight:700;margin-top:1px;font-family:Arial,Helvetica,sans-serif;">TELECOM</div>
+    </td>
+    <td align="right" style="font-size:11px;color:#9ca3af;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">Sans contrat · Support québécois</td>
+  </tr></table>
+</td></tr>
+
+<tr><td style="background:#f5f3ff;padding:44px 32px;text-align:center;border-bottom:1px solid #ede9fe;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td align="center">
+    <div style="width:56px;height:56px;border-radius:50%;background:#ede9fe;border:2px solid #7c3aed;text-align:center;line-height:56px;margin:0 auto 18px;">
+      <span style="display:inline-block;vertical-align:middle;line-height:0;">${ICONS[icon]}</span>
+    </div>
+  </td></tr></table>
+  <div style="display:inline-block;background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.5px;margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">${esc(badge)}</div>
+  <div style="font-size:26px;font-weight:800;color:#1a1a2e;margin-bottom:8px;line-height:1.2;font-family:Arial,Helvetica,sans-serif;">${esc(heroTitle)}</div>
+  ${heroSubBlock}
+</td></tr>
+
+<tr><td style="background:#ffffff;padding:36px 32px;">
+  ${greetingBlock}
+  ${bodyTextBlock}
+  ${cardHtml}
+  ${afterCardBlock}
+  ${ctaBlock}
+  ${helpBlock}
+</td></tr>
+
+<tr><td style="background:#1a1a2e;padding:28px 32px;text-align:center;">
+  <div style="font-size:15px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:4px;font-family:Arial,Helvetica,sans-serif;">NIVRA</div>
+  <div style="font-size:9px;color:#7c3aed;letter-spacing:4px;font-weight:700;margin-bottom:16px;font-family:Arial,Helvetica,sans-serif;">TELECOM</div>
+  <div style="margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">
+    <a href="${PORTAL_URL}" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Mon compte</a>
+    <a href="mailto:${SUPPORT_EMAIL}" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Support</a>
+    <a href="${APP_URL}/legal/confidentialite" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Confidentialité</a>
+    <a href="${APP_URL}/desabonnement" style="color:#9ca3af;font-size:12px;text-decoration:none;margin:0 9px;">Se désabonner</a>
+  </div>
+  <div style="height:1px;background:#2d2d4e;margin:14px 0;line-height:1px;font-size:0;">&nbsp;</div>
+  <div style="font-size:11px;color:#6b7280;line-height:1.7;font-family:Arial,Helvetica,sans-serif;">© 2026 Nivra Telecom. Tous droits réservés.<br>Ce message a été envoyé car vous êtes client Nivra Telecom.</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
 </body>
 </html>`;
 }
 
-function rowsTable(rows: Array<[string, string]>): string {
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse; margin:16px 0;">
-    ${rows.map(([k, v]) => `
-      <tr>
-        <td style="padding:8px 0; border-bottom:1px solid #E5E7EB; color:#6B7280; font-size:13px;">${esc(k)}</td>
-        <td style="padding:8px 0; border-bottom:1px solid #E5E7EB; color:#1A1A1A; font-size:14px; text-align:right; font-weight:600;">${esc(v)}</td>
-      </tr>`).join("")}
-  </table>`;
-}
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export interface RenderResult {
   html: string;
@@ -112,91 +243,172 @@ export function renderQueueTemplate(
   vars: Record<string, unknown>,
 ): RenderResult | null {
   const v = vars || {};
-  const clientName = String(v.client_name || v.first_name || "Client");
+  const clientName = String(
+    v.client_name || v.first_name || v.CLIENT_FIRST_NAME || v.CLIENT_NAME || "Client",
+  );
+  const greeting = `Bonjour ${clientName},`;
+  const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
+  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "—");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "—");
 
   switch (templateKey) {
+    // ===================================================================
+    // ORDERS
+    // ===================================================================
     case "order_submitted":
-    case "order_confirmation": {
-      const orderNum = esc(v.order_number || v.order_id || "—");
-      const planName = esc(v.plan_name || "Service Nivra");
-      const total = money(v.monthly_total_tax_in ?? v.amount_paid_today ?? v.total ?? v.amount);
+    case "order_confirmation":
+    case "order_confirmed": {
+      const planName = esc(v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      const total = money(v.monthly_total_tax_in ?? v.amount_paid_today ?? v.total ?? v.amount ?? v.MONTHLY_TOTAL);
+      const status = esc(v.status || "En traitement");
       return {
-        subject: `Commande confirmée — ${orderNum}`,
+        subject: `Commande reçue — ${orderNum}`,
         html: shell({
-          title: "Commande confirmée",
-          preheader: `Merci ${clientName}, votre commande Nivra est confirmée.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">Merci ${esc(clientName)} !</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Nous avons bien reçu votre commande. Notre équipe la traite et vous écrira dès que votre équipement est expédié.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNum)],
-              ["Forfait", String(planName)],
-              ["Montant payé", String(total)],
-            ])}
-            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
-              Vous pouvez suivre votre commande dans votre espace client.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Accéder à mon espace client",
+          preheader: `Votre commande Nivra ${orderNum} a été reçue.`,
+          badge: "COMMANDE REÇUE",
+          heroTitle: "Votre commande a été reçue",
+          heroSub: "Nous traitons votre demande. Vous recevrez une confirmation dès l'activation.",
+          icon: "check",
+          greeting,
+          bodyText: `Merci pour votre confiance. Voici le résumé de votre commande <strong style="color:#1a1a2e;">${orderNum}</strong>.`,
+          cardTitle: "Détails de votre commande",
+          cardRows: [
+            ["Numéro de commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Date", fmtDate(v.created_at || v.order_date || new Date().toISOString())],
+            ["Service", String(planName)],
+            ["Statut", String(status)],
+            ["Montant", String(total)],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Suivre ma commande",
         }),
       };
     }
 
-    case "payment_confirmed": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable);
-      const reference = esc(v.reference || "—");
-      const method = esc(v.payment_method || "PayPal");
+    case "order_modified": {
+      const change = esc(v.modification || v.change || "Modification de la commande");
       return {
-        subject: `Paiement confirmé — ${invoiceNum}`,
+        subject: `Commande modifiée — ${orderNum}`,
         html: shell({
-          title: "Paiement confirmé",
+          preheader: `Votre commande ${orderNum} a été mise à jour.`,
+          badge: "COMMANDE MODIFIÉE",
+          heroTitle: "Votre commande a été mise à jour",
+          icon: "doc",
+          greeting,
+          bodyText: "Une modification a été appliquée à votre commande.",
+          cardTitle: "Modification appliquée",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Modification", String(change)],
+            ["Date", fmtDate(v.modified_at || new Date().toISOString())],
+          ],
+          afterCardText: `Contactez-nous à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> si vous n'avez pas demandé cette modification.`,
+        }),
+      };
+    }
+
+    case "order_cancelled":
+    case "order_canceled": {
+      const reason = esc(v.reason || v.cancellation_reason || "Annulation à votre demande");
+      return {
+        subject: `Commande annulée — ${orderNum}`,
+        html: shell({
+          preheader: `Votre commande ${orderNum} a été annulée.`,
+          badge: "COMMANDE ANNULÉE",
+          heroTitle: "Votre commande a été annulée",
+          heroSub: "Nous sommes désolés de vous voir partir.",
+          icon: "x",
+          greeting,
+          bodyText: "Votre commande a été annulée comme demandé.",
+          cardTitle: "Détails de l'annulation",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Date d'annulation", fmtDate(v.cancelled_at || new Date().toISOString())],
+            ["Raison", String(reason)],
+          ],
+          helpHtml: `<strong style="color:#1a1a2e;">Des questions ?</strong> Contactez-nous à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.`,
+        }),
+      };
+    }
+
+    case "order_completed": {
+      return {
+        subject: `Commande complétée — ${orderNum}`,
+        html: shell({
+          preheader: `Votre commande ${orderNum} est complétée.`,
+          badge: "COMMANDE COMPLÉTÉE",
+          heroTitle: "Votre commande est complétée",
+          icon: "check",
+          greeting,
+          bodyText: "Toutes les étapes de votre commande sont terminées.",
+          cardTitle: "Résumé",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Date de complétion", fmtDate(v.completed_at || new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon espace client",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // PAYMENTS / BILLING
+    // ===================================================================
+    case "payment_confirmed":
+    case "payment_receipt":
+    case "payment_received": {
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
+      const reference = esc(v.reference || v.payment_reference || "—");
+      const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
+      const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
+      return {
+        subject: `Paiement reçu — Merci`,
+        html: shell({
           preheader: `Votre paiement de ${amount} a été reçu.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#059669; font-size:22px;">✓ Paiement reçu</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, nous confirmons la réception de votre paiement.
-            </p>
-            ${rowsTable([
-              ["Facture", String(invoiceNum)],
-              ["Montant", amount],
-              ["Méthode", String(method)],
-              ["Référence", String(reference)],
-            ])}
-          `,
-          ctaUrl: `${APP_URL}/portail/facturation`,
-          ctaLabel: "Voir mes factures",
+          badge: "PAIEMENT CONFIRMÉ",
+          heroTitle: "Paiement reçu — Merci",
+          icon: "check",
+          greeting,
+          bodyText: "Nous confirmons la réception de votre paiement.",
+          cardTitle: "Détails du paiement",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Méthode", String(method)],
+            ["Référence", String(reference)],
+            ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
+            ["Montant payé", amount],
+          ],
+          ctaPrimaryUrl: invoiceUrl,
+          ctaPrimaryLabel: "Voir ma facture",
         }),
       };
     }
 
     case "invoice_created":
     case "billing_renewal": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const total = money(v.total ?? v.amount);
-      const dueDate = fmtDate(v.due_date);
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const total = money(v.total ?? v.amount ?? v.AMOUNT);
+      const dueDate = fmtDate(v.due_date || v.DUE_DATE);
       return {
         subject: `Nouvelle facture — ${invoiceNum}`,
         html: shell({
-          title: "Nouvelle facture",
           preheader: `Facture ${invoiceNum} de ${total}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">Nouvelle facture disponible</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre nouvelle facture est disponible dans votre espace client.
-            </p>
-            ${rowsTable([
-              ["Numéro de facture", String(invoiceNum)],
-              ["Montant", total],
-              ["Date d'échéance", dueDate],
-              ["Cycle", `${fmtDate(v.cycle_start)} → ${fmtDate(v.cycle_end)}`],
-            ])}
-          `,
-          ctaUrl: `${APP_URL}/portail/facturation`,
-          ctaLabel: "Payer maintenant",
+          badge: "NOUVELLE FACTURE",
+          heroTitle: "Nouvelle facture disponible",
+          icon: "doc",
+          greeting,
+          bodyText: "Votre nouvelle facture est disponible dans votre espace client.",
+          cardTitle: "Détails de la facture",
+          cardRows: [
+            ["Numéro de facture", String(invoiceNum)],
+            ["Date d'échéance", dueDate],
+            ["Cycle", `${fmtDate(v.cycle_start)} → ${fmtDate(v.cycle_end)}`],
+            ["Montant", total],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/facturation`,
+          ctaPrimaryLabel: "Payer maintenant",
         }),
       };
     }
@@ -205,1296 +417,835 @@ export function renderQueueTemplate(
     case "payment_reminder_3days":
     case "payment_reminder_1day":
     case "payment_due_today": {
-      const days = templateKey === "payment_due_today"
-        ? "aujourd'hui"
-        : templateKey === "payment_reminder_1day"
-          ? "demain"
-          : templateKey === "payment_reminder_3days"
-            ? "dans 3 jours"
-            : "dans 7 jours";
+      const invoiceNum = esc(v.invoice_number || "—");
       const total = money(v.total ?? v.amount);
+      const dueDate = fmtDate(v.due_date);
+      const labels: Record<string, string> = {
+        payment_reminder_7days: "Rappel — 7 jours",
+        payment_reminder_3days: "Rappel — 3 jours",
+        payment_reminder_1day: "Rappel — Demain",
+        payment_due_today: "Échéance aujourd'hui",
+      };
+      const badge = (labels[templateKey] || "RAPPEL DE PAIEMENT").toUpperCase();
+      return {
+        subject: `Rappel — Facture ${invoiceNum}`,
+        html: shell({
+          preheader: `Votre facture ${invoiceNum} arrive à échéance.`,
+          badge,
+          heroTitle: "Rappel de paiement",
+          heroSub: "Votre facture arrive à échéance prochainement.",
+          icon: "alert",
+          greeting,
+          bodyText: "Pour éviter toute interruption de service, veuillez régler votre facture.",
+          cardTitle: "Facture à payer",
+          cardRows: [
+            ["Numéro de facture", String(invoiceNum)],
+            ["Date d'échéance", dueDate],
+            ["Montant dû", total],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/facturation`,
+          ctaPrimaryLabel: "Payer maintenant",
+        }),
+      };
+    }
+
+    case "payment_overdue":
+    case "invoice_overdue": {
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const total = money(v.total ?? v.amount ?? v.AMOUNT);
+      const days = esc(v.days_overdue || v.DAYS_OVERDUE || "—");
+      return {
+        subject: `Facture en retard — ${invoiceNum}`,
+        html: shell({
+          preheader: `Votre facture ${invoiceNum} est en retard.`,
+          badge: "FACTURE EN RETARD",
+          heroTitle: "Votre facture est en retard",
+          heroSub: "Une action est requise pour éviter la suspension du service.",
+          icon: "alert",
+          greeting,
+          bodyText: "Votre facture est en retard. Veuillez la régler rapidement.",
+          cardTitle: "Détails de la facture",
+          cardRows: [
+            ["Facture", String(invoiceNum)],
+            ["Jours de retard", String(days)],
+            ["Date d'échéance", fmtDate(v.due_date || v.DUE_DATE)],
+            ["Montant dû", total],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/facturation`,
+          ctaPrimaryLabel: "Payer maintenant",
+          helpVariant: "warning",
+          helpHtml: `<strong style="color:#1a1a2e;">Attention :</strong> Sans paiement rapide, votre service pourrait être suspendu.`,
+        }),
+      };
+    }
+
+    case "payment_failed":
+    case "paypal_charge_failed_retry": {
+      const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
+      const attempt = esc(v.attempt || v.attempt_number || "1");
+      const paymentUrl = String(v.payment_url || `${portalUrl}/facturation`);
+      return {
+        subject: `Action requise — Paiement non traité`,
+        html: shell({
+          preheader: `Votre paiement n'a pas été traité.`,
+          badge: "ACTION REQUISE",
+          heroTitle: "Votre paiement n'a pas été traité",
+          heroSub: "Une action est requise pour maintenir votre service.",
+          icon: "alert",
+          greeting,
+          bodyText: "Le traitement de votre paiement a échoué. Mettez à jour votre méthode de paiement pour éviter toute interruption.",
+          cardTitle: "Détails du paiement",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Tentative", String(attempt)],
+            ["Montant dû", amount],
+          ],
+          ctaPrimaryUrl: paymentUrl,
+          ctaPrimaryLabel: "Mettre à jour mon paiement",
+          helpVariant: "warning",
+          helpHtml: `<strong style="color:#1a1a2e;">Important :</strong> Sans mise à jour, votre service pourrait être suspendu.`,
+        }),
+      };
+    }
+
+    case "invoice_voided": {
       const invoiceNum = esc(v.invoice_number || "—");
       return {
-        subject: `Rappel — votre facture est due ${days}`,
+        subject: `Facture annulée — ${invoiceNum}`,
         html: shell({
-          title: "Rappel de paiement",
-          preheader: `Facture ${invoiceNum} due ${days}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#D97706; font-size:22px;">Rappel — paiement à venir</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre facture est due ${days}. Pour éviter toute interruption de service, payez dès maintenant.
-            </p>
-            ${rowsTable([
-              ["Facture", String(invoiceNum)],
-              ["Montant dû", total],
-              ["Échéance", fmtDate(v.due_date)],
-            ])}
-          `,
-          ctaUrl: String(v.payment_link || `${APP_URL}/portail/facturation`),
-          ctaLabel: "Payer ma facture",
+          preheader: `Votre facture ${invoiceNum} a été annulée.`,
+          badge: "FACTURE ANNULÉE",
+          heroTitle: "Votre facture a été annulée",
+          icon: "x",
+          greeting,
+          bodyText: "La facture mentionnée a été annulée. Aucun montant n'est dû.",
+          cardTitle: "Facture annulée",
+          cardRows: [
+            ["Numéro", String(invoiceNum)],
+            ["Date d'annulation", fmtDate(v.voided_at || new Date().toISOString())],
+          ],
         }),
       };
     }
 
-    case "payment_overdue": {
-      const total = money(v.total ?? v.amount);
+    case "invoice_suspension_warning": {
       const invoiceNum = esc(v.invoice_number || "—");
+      const total = money(v.total ?? v.amount);
       return {
-        subject: `Action requise — facture en retard ${invoiceNum}`,
+        subject: `Avertissement — Risque de suspension`,
         html: shell({
-          title: "Facture en retard",
-          preheader: `Facture ${invoiceNum} de ${total} en retard.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠ Paiement en retard</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre facture est en retard. Sans paiement, votre service sera suspendu prochainement.
-            </p>
-            ${rowsTable([
-              ["Facture", String(invoiceNum)],
-              ["Montant dû", total],
-              ["Échéance dépassée", fmtDate(v.due_date)],
-            ])}
-          `,
-          ctaUrl: String(v.payment_link || `${APP_URL}/portail/facturation`),
-          ctaLabel: "Régulariser maintenant",
+          preheader: `Votre service risque la suspension.`,
+          badge: "AVERTISSEMENT",
+          heroTitle: "Risque de suspension de service",
+          heroSub: "Votre facture impayée peut entraîner la suspension de vos services.",
+          icon: "alert",
+          greeting,
+          bodyText: "Veuillez régler votre facture pour éviter toute interruption.",
+          cardTitle: "Facture impayée",
+          cardRows: [
+            ["Numéro", String(invoiceNum)],
+            ["Date d'échéance", fmtDate(v.due_date)],
+            ["Montant dû", total],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/facturation`,
+          ctaPrimaryLabel: "Payer maintenant",
+          helpVariant: "warning",
+          helpHtml: `<strong style="color:#1a1a2e;">Attention :</strong> Sans paiement, votre service sera suspendu.`,
         }),
       };
     }
 
-    case "payment_failed": {
+    case "service_suspended": {
       return {
-        subject: `Échec du paiement — commande ${esc(v.order_number || "")}`,
+        subject: `Service suspendu`,
         html: shell({
-          title: "Paiement échoué",
-          preheader: "Votre paiement n'a pas pu être traité.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">Paiement non traité</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, le paiement de votre commande n'a pas pu être traité.
-              ${v.reason ? `Raison : ${esc(v.reason)}.` : ""}
-            </p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Pour finaliser votre commande, veuillez réessayer le paiement depuis votre espace client.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail/facturation`,
-          ctaLabel: "Réessayer le paiement",
+          preheader: `Votre service a été suspendu.`,
+          badge: "SERVICE SUSPENDU",
+          heroTitle: "Votre service a été suspendu",
+          heroSub: "Votre service est interrompu en raison d'un solde impayé.",
+          icon: "alert",
+          greeting,
+          bodyText: "Pour réactiver votre service, veuillez régler votre solde.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Date de suspension", fmtDate(v.suspended_at || new Date().toISOString())],
+            ["Solde dû", money(v.balance_due ?? v.amount)],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/facturation`,
+          ctaPrimaryLabel: "Régler maintenant",
+          helpVariant: "warning",
+          helpHtml: `<strong style="color:#1a1a2e;">Réactivation :</strong> Le service est réactivé automatiquement après réception du paiement.`,
         }),
       };
     }
 
-    case "welcome_new_client": {
-      const portalUrl = String(v.portal_url || `${APP_URL}/portail`);
+    case "service_reactivated": {
       return {
-        subject: "Bienvenue chez Nivra Telecom",
+        subject: `Service réactivé`,
         html: shell({
-          title: "Bienvenue chez Nivra",
-          preheader: "Votre espace client est prêt.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Bienvenue ${esc(clientName)} !</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Votre compte client Nivra est créé. Vous pouvez désormais consulter vos factures, gérer votre service et soumettre vos demandes d'activation depuis votre espace client.
-            </p>
-            <p style="margin:0 0 16px; color:#6B7280; font-size:13px;">
-              Courriel : <strong>${esc(v.email || "")}</strong>
-            </p>
-          `,
-          ctaUrl: portalUrl,
-          ctaLabel: "Accéder à mon espace client",
+          preheader: `Votre service a été réactivé.`,
+          badge: "SERVICE RÉACTIVÉ",
+          heroTitle: "Votre service a été réactivé",
+          icon: "check",
+          greeting,
+          bodyText: "Bonne nouvelle — votre service est de nouveau actif.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Date de réactivation", fmtDate(v.reactivated_at || new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon espace client",
         }),
       };
     }
 
-    case "contract_ready": {
+    // ===================================================================
+    // KYC / IDENTITY
+    // ===================================================================
+    case "kyc_document_required":
+    case "identity_verification_requested": {
+      const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
+      const expires = fmtDate(v.expires_at || v.EXPIRES_AT);
+      const maxAttempts = esc(v.max_attempts || "3");
       return {
-        subject: "Votre contrat est prêt",
+        subject: `Vérification d'identité requise — Commande ${orderNum}`,
         html: shell({
-          title: "Contrat prêt",
-          preheader: "Votre contrat de service est disponible.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">Votre contrat est prêt</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre contrat de service Nivra est disponible dans votre espace client. Veuillez le consulter et le signer pour finaliser votre commande.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Voir mon contrat",
+          preheader: `Soumettez votre pièce d'identité pour activer votre service.`,
+          badge: "VÉRIFICATION REQUISE",
+          heroTitle: "Vérification d'identité requise",
+          heroSub: "Pour activer votre service, nous devons vérifier votre identité.",
+          icon: "doc",
+          greeting,
+          bodyText: "Soumettez une pièce d'identité valide (passeport, permis de conduire ou carte d'identité).",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Expire le", expires],
+            ["Tentatives", `1 / ${String(maxAttempts)}`],
+          ],
+          ctaPrimaryUrl: verificationUrl,
+          ctaPrimaryLabel: "Soumettre mes documents",
+        }),
+      };
+    }
+
+    case "kyc_approved":
+    case "identity_verified": {
+      return {
+        subject: `Votre identité a été vérifiée — Nivra`,
+        html: shell({
+          preheader: `Votre identité a été vérifiée avec succès.`,
+          badge: "IDENTITÉ VÉRIFIÉE",
+          heroTitle: "Votre identité a été vérifiée",
+          heroSub: "Votre dossier est complet. Votre service est en cours d'activation.",
+          icon: "check",
+          greeting,
+          bodyText: "Merci d'avoir soumis vos documents. Tout est en ordre.",
+          cardTitle: "Vérification",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Vérifié le", fmtDate(v.verified_at || new Date().toISOString())],
+            ["Statut", "Approuvé"],
+          ],
+        }),
+      };
+    }
+
+    case "kyc_rejected":
+    case "identity_rejected": {
+      const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
+      const reason = esc(v.reason || v.rejection_reason || "Document non valide");
+      const remaining = esc(v.attempts_remaining || v.remaining_attempts || "—");
+      return {
+        subject: `Action requise — Document d'identité refusé`,
+        html: shell({
+          preheader: `Votre document n'a pas pu être vérifié.`,
+          badge: "ACTION REQUISE",
+          heroTitle: "Document d'identité refusé",
+          heroSub: "Votre document n'a pas pu être vérifié.",
+          icon: "alert",
+          greeting,
+          bodyText: "Veuillez soumettre un nouveau document pour finaliser votre vérification.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Raison", String(reason)],
+            ["Tentatives restantes", String(remaining)],
+          ],
+          ctaPrimaryUrl: verificationUrl,
+          ctaPrimaryLabel: "Resoumettre mon document",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // SIM / MOBILE / PORT-IN
+    // ===================================================================
+    case "sim_activated": {
+      const phone = esc(v.phone_number || v.PHONE_NUMBER || "—");
+      const iccid = esc(v.iccid || v.ICCID || "—");
+      const carrier = esc(v.carrier || v.CARRIER || "Nivra Telecom");
+      const plan = esc(v.plan || v.PLAN || "—");
+      return {
+        subject: `Votre SIM Nivra est active — ${phone}`,
+        html: shell({
+          preheader: `Votre SIM ${phone} est active.`,
+          badge: "SIM ACTIVÉE",
+          heroTitle: "Votre SIM Nivra est active",
+          icon: "phone",
+          greeting,
+          bodyText: "Votre carte SIM est maintenant active. Voici vos informations.",
+          cardTitle: "Détails de votre ligne",
+          cardRows: [
+            ["Numéro", String(phone)],
+            ["ICCID", String(iccid)],
+            ["Opérateur", String(carrier)],
+            ["Forfait", String(plan)],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon compte",
+        }),
+      };
+    }
+
+    case "esim_ready": {
+      const phone = esc(v.phone_number || v.PHONE_NUMBER || "—");
+      const eid = esc(v.eid || v.EID || "—");
+      return {
+        subject: `Votre eSIM est prête à installer`,
+        html: shell({
+          preheader: `Votre eSIM est prête.`,
+          badge: "ESIM PRÊTE",
+          heroTitle: "Votre eSIM est prête à installer",
+          heroSub: "Scannez le QR code pour activer votre eSIM.",
+          icon: "phone",
+          greeting,
+          bodyText: "<strong style=\"color:#1a1a2e;\">Instructions :</strong> Allez dans Réglages → Données cellulaires → Ajouter un forfait → Scanner le QR code.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["EID", String(eid)],
+            ["Numéro", String(phone)],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Voir mes instructions",
+        }),
+      };
+    }
+
+    case "portin_initiated": {
+      const phone = esc(v.phone_number || "—");
+      const currentOp = esc(v.current_operator || "—");
+      return {
+        subject: `Transfert de votre numéro en cours`,
+        html: shell({
+          preheader: `Transfert de ${phone} en cours.`,
+          badge: "TRANSFERT EN COURS",
+          heroTitle: "Transfert de votre numéro en cours",
+          heroSub: "Gardez votre ancienne SIM active jusqu'à confirmation du transfert.",
+          icon: "phone",
+          greeting,
+          bodyText: "Nous avons reçu votre demande de transfert. Le processus est en cours.",
+          cardTitle: "Détails du transfert",
+          cardRows: [
+            ["Numéro", String(phone)],
+            ["Opérateur actuel", String(currentOp)],
+            ["Délai estimé", "2 à 4 heures ouvrables"],
+          ],
+          helpVariant: "warning",
+          helpHtml: `<strong style="color:#1a1a2e;">Important :</strong> Ne résiliez pas votre ancien forfait avant de recevoir la confirmation.`,
+        }),
+      };
+    }
+
+    case "portin_completed": {
+      const phone = esc(v.phone_number || "—");
+      return {
+        subject: `Votre numéro ${phone} a été transféré`,
+        html: shell({
+          preheader: `Transfert complété.`,
+          badge: "TRANSFERT COMPLÉTÉ",
+          heroTitle: "Votre numéro a été transféré",
+          icon: "check",
+          greeting,
+          bodyText: "Bonne nouvelle — votre numéro est maintenant actif sur le réseau Nivra.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Numéro transféré", String(phone)],
+            ["Date", fmtDate(v.completed_at || new Date().toISOString())],
+            ["Statut", "Actif"],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon compte",
+        }),
+      };
+    }
+
+    case "portin_failed": {
+      const phone = esc(v.phone_number || "—");
+      const reason = esc(v.reason || "Transfert refusé par l'opérateur d'origine");
+      return {
+        subject: `Problème avec le transfert de votre numéro`,
+        html: shell({
+          preheader: `Le transfert de ${phone} a échoué.`,
+          badge: "TRANSFERT ÉCHOUÉ",
+          heroTitle: "Problème avec le transfert de votre numéro",
+          icon: "alert",
+          greeting,
+          bodyText: "Le transfert n'a pas pu être complété. Notre équipe peut vous aider à résoudre le problème.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Numéro", String(phone)],
+            ["Raison", String(reason)],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // APPOINTMENTS
+    // ===================================================================
+    case "appointment_scheduled":
+    case "appointment_confirmed": {
+      const date = fmtDate(v.appointment_date || v.APPOINTMENT_DATE || v.date || v.scheduled_at);
+      const time = esc(v.appointment_time || v.APPOINTMENT_TIME || v.time || "—");
+      const tech = esc(v.technician_name || v.TECHNICIAN_NAME || "À confirmer");
+      const address = esc(v.address || v.APPOINTMENT_ADDRESS_LINE1 || "—");
+      return {
+        subject: `Installation confirmée — ${date}`,
+        html: shell({
+          preheader: `Votre installation est confirmée pour le ${date}.`,
+          badge: "RENDEZ-VOUS CONFIRMÉ",
+          heroTitle: `Installation confirmée — ${date}`,
+          icon: "calendar",
+          greeting,
+          bodyText: "Votre installation est confirmée. Voici les détails.",
+          cardTitle: "Détails du rendez-vous",
+          cardRows: [
+            ["Date", date],
+            ["Heure", String(time)],
+            ["Technicien", String(tech)],
+            ["Adresse", String(address)],
+            ["Durée estimée", "1 à 2 heures"],
+          ],
+          helpHtml: `<strong style="color:#1a1a2e;">À noter :</strong> Assurez-vous d'être présent ou de désigner quelqu'un de 18 ans et plus.`,
+        }),
+      };
+    }
+
+    case "appointment_reminder":
+    case "appointment_reminder_24h": {
+      const date = fmtDate(v.appointment_date || v.date);
+      const time = esc(v.appointment_time || v.time || "—");
+      const tech = esc(v.technician_name || "À confirmer");
+      return {
+        subject: `Rappel — Installation demain à ${time}`,
+        html: shell({
+          preheader: `Votre installation est demain à ${time}.`,
+          badge: "RAPPEL — DEMAIN",
+          heroTitle: "Votre installation est demain",
+          icon: "calendar",
+          greeting,
+          bodyText: "Petit rappel — votre rendez-vous d'installation est demain.",
+          cardTitle: "Rappel rendez-vous",
+          cardRows: [
+            ["Date", date],
+            ["Heure", String(time)],
+            ["Technicien", String(tech)],
+          ],
+          helpHtml: `<strong style="color:#1a1a2e;">Préparation :</strong> Préparez l'accès à votre local technique ou à votre boîte de connexion.`,
+        }),
+      };
+    }
+
+    case "appointment_reminder_2h":
+    case "technician_on_the_way": {
+      const tech = esc(v.technician_name || "À confirmer");
+      const eta = esc(v.eta || v.arrival_time || "Dans environ 2 heures");
+      return {
+        subject: `Votre technicien arrive bientôt`,
+        html: shell({
+          preheader: `Le technicien arrive bientôt.`,
+          badge: "DANS 2 HEURES",
+          heroTitle: "Votre technicien arrive bientôt",
+          heroSub: "Assurez-vous d'être disponible à l'adresse d'installation.",
+          icon: "calendar",
+          greeting,
+          bodyText: "Notre technicien sera bientôt chez vous.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Technicien", String(tech)],
+            ["Heure d'arrivée estimée", String(eta)],
+          ],
+        }),
+      };
+    }
+
+    case "appointment_missed_by_client": {
+      const date = fmtDate(v.date || v.appointment_date);
+      const time = esc(v.time || v.appointment_time || "—");
+      const address = esc(v.address || "—");
+      const rebookingUrl = String(v.rebooking_url || `${portalUrl}/rendez-vous`);
+      return {
+        subject: `Rendez-vous manqué — Replanifiez votre installation`,
+        html: shell({
+          preheader: `Notre technicien s'est présenté mais personne n'était disponible.`,
+          badge: "RENDEZ-VOUS MANQUÉ",
+          heroTitle: "Nous avons raté votre rendez-vous",
+          heroSub: "Notre technicien s'est présenté mais personne n'était disponible.",
+          icon: "alert",
+          greeting,
+          bodyText: "Vous pouvez replanifier votre installation à tout moment depuis votre espace client.",
+          cardTitle: "Rendez-vous manqué",
+          cardRows: [
+            ["Date", date],
+            ["Heure", String(time)],
+            ["Adresse", String(address)],
+          ],
+          ctaPrimaryUrl: rebookingUrl,
+          ctaPrimaryLabel: "Replanifier mon installation",
+        }),
+      };
+    }
+
+    case "appointment_cancelled_by_nivra": {
+      return {
+        subject: `Votre rendez-vous a été annulé`,
+        html: shell({
+          preheader: `Votre rendez-vous a été annulé par Nivra.`,
+          badge: "RENDEZ-VOUS ANNULÉ",
+          heroTitle: "Votre rendez-vous a été annulé",
+          icon: "x",
+          greeting,
+          bodyText: "Nous nous excusons pour cet inconvénient. Notre équipe vous contactera sous 24h pour replanifier.",
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // EQUIPMENT / SHIPPING
+    // ===================================================================
+    case "equipment_shipped": {
+      const carrier = esc(v.carrier || v.shipping_carrier || "—");
+      const tracking = esc(v.tracking_number || "—");
+      const trackingUrl = String(v.tracking_url || `${portalUrl}/livraison`);
+      return {
+        subject: `Votre équipement est en route`,
+        html: shell({
+          preheader: `Votre équipement Nivra est en livraison.`,
+          badge: "EN LIVRAISON",
+          heroTitle: "Votre équipement est en route",
+          icon: "truck",
+          greeting,
+          bodyText: "Votre équipement vient d'être expédié.",
+          cardTitle: "Suivi de livraison",
+          cardRows: [
+            ["Transporteur", String(carrier)],
+            ["Suivi", String(tracking)],
+            ["Délai estimé", "3 à 5 jours ouvrables"],
+          ],
+          ctaPrimaryUrl: trackingUrl,
+          ctaPrimaryLabel: "Suivre mon colis",
+        }),
+      };
+    }
+
+    case "equipment_delivered": {
+      return {
+        subject: `Votre équipement a été livré`,
+        html: shell({
+          preheader: `Votre équipement Nivra est arrivé.`,
+          badge: "LIVRÉ",
+          heroTitle: "Votre équipement a été livré",
+          icon: "check",
+          greeting,
+          bodyText: "Votre équipement Nivra est arrivé. Suivez le guide d'installation inclus dans la boîte.",
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Guide d'installation",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // SERVICE / WELCOME
+    // ===================================================================
+    case "service_activated":
+    case "installation_completed": {
+      const service = esc(v.service || v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      return {
+        subject: `Votre service est maintenant actif`,
+        html: shell({
+          preheader: `Votre service ${service} est actif.`,
+          badge: "SERVICE ACTIF",
+          heroTitle: "Votre service est maintenant actif",
+          icon: "check",
+          greeting,
+          bodyText: `Bonne nouvelle — votre service <strong style="color:#1a1a2e;">${service}</strong> est maintenant actif.`,
+          cardTitle: "Détails de votre service",
+          cardRows: [
+            ["Service", String(service)],
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Date d'activation", fmtDate(v.activated_at || new Date().toISOString())],
+            ["Cycle de facturation", esc(v.billing_cycle || "Mensuel")],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon espace client",
+        }),
+      };
+    }
+
+    case "welcome_to_nivra":
+    case "welcome_new_client":
+    case "account_created": {
+      const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      const billingDate = fmtDate(v.billing_date || v.next_billing_date);
+      const wifiSsid = esc(v.wifi_ssid || "");
+      const wifiPassword = esc(v.wifi_password || "");
+      const guideUrl = String(v.guide_url || `${APP_URL}/aide`);
+
+      const rows: Array<[string, string]> = [
+        ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+        ["Service", String(service)],
+        ["Date de facturation", billingDate],
+      ];
+      if (wifiSsid) rows.push(["WiFi (SSID)", String(wifiSsid)]);
+      if (wifiPassword) rows.push(["Mot de passe WiFi", String(wifiPassword)]);
+
+      return {
+        subject: `Bienvenue chez Nivra — Tout ce qu'il faut savoir`,
+        html: shell({
+          preheader: `Bienvenue chez Nivra Telecom.`,
+          badge: "BIENVENUE",
+          heroTitle: "Bienvenue chez Nivra Telecom",
+          heroSub: "Nous sommes ravis de vous avoir parmi nous.",
+          icon: "star",
+          greeting,
+          bodyText: "Votre compte est prêt. Voici tout ce qu'il vous faut pour démarrer.",
+          cardTitle: "Vos informations",
+          cardRows: rows,
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Mon espace client",
+          ctaSecondaryUrl: guideUrl,
+          ctaSecondaryLabel: "Guide de démarrage",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CONTRACTS
+    // ===================================================================
+    case "contract_ready":
+    case "contract_ready_to_sign":
+    case "contract_signature_request": {
+      const contractUrl = String(v.contract_url || v.signature_url || `${portalUrl}/contrats`);
+      const service = esc(v.service || v.plan_name || "Service Nivra");
+      return {
+        subject: `Votre contrat est prêt à signer`,
+        html: shell({
+          preheader: `Votre contrat Nivra est disponible.`,
+          badge: "SIGNATURE REQUISE",
+          heroTitle: "Votre contrat est prêt à signer",
+          icon: "pen",
+          greeting,
+          bodyText: "Votre contrat de service Nivra est disponible. Veuillez le signer pour finaliser votre commande.",
+          cardTitle: "Détails du contrat",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Service", String(service)],
+            ["Expire dans", "7 jours"],
+          ],
+          ctaPrimaryUrl: contractUrl,
+          ctaPrimaryLabel: "Signer mon contrat",
+        }),
+      };
+    }
+
+    case "contract_reminder": {
+      const contractUrl = String(v.contract_url || `${portalUrl}/contrats`);
+      return {
+        subject: `Votre contrat attend votre signature`,
+        html: shell({
+          preheader: `Votre contrat expire bientôt.`,
+          badge: "RAPPEL — SIGNATURE",
+          heroTitle: "Votre contrat attend votre signature",
+          icon: "pen",
+          greeting,
+          bodyText: "Votre contrat expire bientôt. Signez-le pour éviter tout délai d'activation.",
+          ctaPrimaryUrl: contractUrl,
+          ctaPrimaryLabel: "Signer maintenant",
+        }),
+      };
+    }
+
+    case "contract_signed":
+    case "contract_signed_confirmation": {
+      return {
+        subject: `Contrat signé — Merci`,
+        html: shell({
+          preheader: `Votre contrat a été signé.`,
+          badge: "CONTRAT SIGNÉ",
+          heroTitle: "Contrat signé — Merci",
+          icon: "check",
+          greeting,
+          bodyText: "Nous avons bien reçu votre signature. Une copie de votre contrat est disponible dans votre espace client.",
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Voir mon contrat",
+        }),
+      };
+    }
+
+    case "contract_signed_admin_alert": {
+      return {
+        subject: `[Admin] Contrat signé — ${clientName}`,
+        html: shell({
+          preheader: `Notification interne — contrat signé.`,
+          badge: "NOTIFICATION INTERNE",
+          heroTitle: "Contrat signé",
+          icon: "doc",
+          bodyText: `Le client <strong style="color:#1a1a2e;">${esc(clientName)}</strong> a signé son contrat.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Client", String(esc(clientName))],
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Date", fmtDate(v.signed_at || new Date().toISOString())],
+          ],
+        }),
+      };
+    }
+
+    // ===================================================================
+    // QUOTES / TICKETS / MISC
+    // ===================================================================
+    case "quote_sent": {
+      const quoteNum = esc(v.quote_number || "—");
+      const total = money(v.total ?? v.amount);
+      const quoteUrl = String(v.quote_url || `${APP_URL}/soumission/${esc(v.quote_id || "")}`);
+      return {
+        subject: `Votre soumission Nivra — ${quoteNum}`,
+        html: shell({
+          preheader: `Votre soumission ${quoteNum} est prête.`,
+          badge: "SOUMISSION ENVOYÉE",
+          heroTitle: "Votre soumission est prête",
+          icon: "doc",
+          greeting,
+          bodyText: "Voici votre soumission personnalisée.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Numéro", String(quoteNum)],
+            ["Total estimé", total],
+          ],
+          ctaPrimaryUrl: quoteUrl,
+          ctaPrimaryLabel: "Voir ma soumission",
         }),
       };
     }
 
     case "ticket_created": {
+      const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "—");
+      const subject = esc(v.subject || v.SUBJECT || "Votre demande");
       return {
-        subject: `Demande reçue — ${esc(v.ticket_number || v.subject || "support")}`,
+        subject: `Demande reçue — ${ticketNum}`,
         html: shell({
-          title: "Demande reçue",
-          preheader: "Votre demande a été enregistrée.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">Nous avons reçu votre demande</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, notre équipe a bien reçu votre demande et vous répondra dans les meilleurs délais (max 24h, 7j/7).
-            </p>
-            ${v.ticket_number ? rowsTable([["Numéro de demande", String(v.ticket_number)]]) : ""}
-          `,
-          ctaUrl: `${APP_URL}/support`,
-          ctaLabel: "Centre d'aide",
+          preheader: `Votre demande ${ticketNum} a été reçue.`,
+          badge: "DEMANDE REÇUE",
+          heroTitle: "Nous avons reçu votre demande",
+          icon: "doc",
+          greeting,
+          bodyText: "Notre équipe vous répondra dans les meilleurs délais.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Numéro", String(ticketNum)],
+            ["Sujet", String(subject)],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Suivre ma demande",
         }),
       };
     }
 
-    case "order_completed": {
-      return {
-        subject: "Votre commande est complétée",
-        html: shell({
-          title: "Commande complétée",
-          preheader: "Merci pour votre confiance.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#059669; font-size:22px;">✓ Commande complétée</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre commande est complétée. Bienvenue dans la famille Nivra !
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    case "quote_sent": {
-      const quoteNum = esc(v.quote_number || v.quote_id || "—");
-      const total = money(v.total ?? v.amount);
-      return {
-        subject: `Votre soumission Nivra — ${quoteNum}`,
-        html: shell({
-          title: "Soumission Nivra",
-          preheader: `Votre soumission ${quoteNum} est prête.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Votre soumission est prête</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre soumission Nivra est disponible. Cliquez sur le bouton ci-dessous pour la consulter et finaliser votre commande.
-            </p>
-            ${rowsTable([
-              ["Numéro de soumission", String(quoteNum)],
-              ["Total", total],
-            ])}
-          `,
-          ctaUrl: String(v.quote_link || `${APP_URL}/portail`),
-          ctaLabel: "Voir ma soumission",
-        }),
-      };
-    }
-
-    // ─── B2: Autopay activation invitation (sent at J+25, ~5 days before renewal) ───
     case "autopay_activation_invitation": {
-      const planName = esc(v.plan_name || "votre forfait Nivra");
-      const monthlyTotal = money(v.monthly_total ?? v.total ?? v.amount);
-      const renewalDate = fmtDate(v.next_renewal_date);
-      const activationLink = String(v.activation_link || `${APP_URL}/portail/facturation`);
+      const setupUrl = String(v.setup_url || `${portalUrl}/paiement`);
       return {
-        subject: `Évitez les coupures — activez le paiement automatique`,
+        subject: `Activez le paiement automatique`,
         html: shell({
-          title: "Activez le paiement automatique",
-          preheader: `Votre prochain renouvellement est le ${renewalDate}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Activez le paiement automatique</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre forfait <strong>${planName}</strong> se renouvelle automatiquement le <strong>${renewalDate}</strong>.
-              Pour éviter toute interruption de service, activez le paiement automatique sécurisé via PayPal.
-            </p>
-            ${rowsTable([
-              ["Forfait", String(planName)],
-              ["Renouvellement", renewalDate],
-              ["Montant mensuel", monthlyTotal],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              ✓ Paiement automatique chaque mois<br>
-              ✓ Sans compte PayPal requis (carte de crédit/débit acceptée)<br>
-              ✓ Annulable à tout moment dans votre espace client
-            </p>
-          `,
-          ctaUrl: activationLink,
-          ctaLabel: "Activer le paiement automatique",
+          preheader: `Activez le paiement automatique Nivra.`,
+          badge: "PAIEMENT AUTOMATIQUE",
+          heroTitle: "Activez le paiement automatique",
+          heroSub: "Ne ratez plus jamais une facture.",
+          icon: "check",
+          greeting,
+          bodyText: "Activez le paiement automatique pour simplifier votre gestion mensuelle.",
+          ctaPrimaryUrl: setupUrl,
+          ctaPrimaryLabel: "Activer maintenant",
         }),
       };
     }
 
-    // ─── B2: Failed PayPal charge retry notification ───
-    case "paypal_charge_failed_retry": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const total = money(v.total ?? v.amount);
-      const retryDate = fmtDate(v.retry_date);
-      return {
-        subject: `Paiement automatique échoué — nouvelle tentative ${retryDate}`,
-        html: shell({
-          title: "Paiement automatique échoué",
-          preheader: `Nouvelle tentative le ${retryDate}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#D97706; font-size:22px;">Paiement automatique échoué</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, le paiement automatique de votre facture n'a pas pu être traité.
-              Nous réessaierons automatiquement le <strong>${retryDate}</strong>.
-            </p>
-            ${rowsTable([
-              ["Facture", String(invoiceNum)],
-              ["Montant", total],
-              ["Prochaine tentative", retryDate],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              Pour éviter toute interruption, vous pouvez aussi payer manuellement dès maintenant via votre espace client.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail/facturation`,
-          ctaLabel: "Payer maintenant",
-        }),
-      };
-    }
-
-    // ─── J+3: Suspension warning (P0 GAP #1) ───
-    case "invoice_suspension_warning": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const total = money(v.total ?? v.amount);
-      const suspensionDate = fmtDate(v.suspension_date);
-      return {
-        subject: `Rappel: votre service Nivra (#${invoiceNum})`,
-        html: shell({
-          title: "Avertissement de suspension imminente",
-          preheader: `Service suspendu dans 2 jours si non payé.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠️ Suspension dans 2 jours</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre facture de <strong>${total}</strong> est en souffrance depuis 3 jours.
-              Si le paiement n'est pas reçu dans les 2 prochains jours, votre service sera <strong>suspendu automatiquement</strong> le ${suspensionDate}.
-            </p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Payez maintenant pour éviter l'interruption de votre service.
-            </p>
-            ${rowsTable([
-              ["Facture", String(invoiceNum)],
-              ["Montant dû", total],
-              ["Suspension prévue", suspensionDate],
-            ])}
-          `,
-          ctaUrl: String(v.payment_link || `${APP_URL}/portail/facturation`),
-          ctaLabel: "Payer maintenant",
-        }),
-      };
-    }
-
-    // ─── ADMIN ALERT: Suspension at J+5 ───
-    case "admin_alert_suspended": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const total = money(v.total ?? v.amount);
-      return {
-        subject: `Mise à jour de compte — ${esc(v.client_full_name || clientName)}`,
-        html: shell({
-          title: "Alerte: Service suspendu",
-          preheader: `Compte ${esc(v.account_number || "")} suspendu (J+5).`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">🔴 Service suspendu (J+5)</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Le service du client <strong>${esc(v.client_full_name || clientName)}</strong> vient d'être suspendu automatiquement après 5 jours de non-paiement.
-            </p>
-            ${rowsTable([
-              ["Client", esc(v.client_full_name || clientName)],
-              ["Courriel", esc(v.client_email || "—")],
-              ["Compte", esc(v.account_number || "—")],
-              ["Facture", String(invoiceNum)],
-              ["Montant", total],
-              ["Échéance", fmtDate(v.due_date)],
-            ])}
-            <p style="margin:16px 0; color:#6B7280; font-size:13px;">
-              Fenêtre de réactivation jusqu'au <strong>${fmtDate(v.void_date)}</strong> (J+10).
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/admin/recouvrement`,
-          ctaLabel: "Voir le compte",
-        }),
-      };
-    }
-
-    // ─── ADMIN ALERT: Cancellation at J+10 ───
-    case "admin_alert_cancelled": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const total = money(v.total ?? v.amount);
-      return {
-        subject: `⚫ Abonnement annulé — ${esc(v.client_full_name || clientName)}`,
-        html: shell({
-          title: "Alerte: Abonnement annulé",
-          preheader: `Compte ${esc(v.account_number || "")} annulé (J+10).`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">⚫ Abonnement annulé (J+10)</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              L'abonnement du client <strong>${esc(v.client_full_name || clientName)}</strong> a été annulé automatiquement.
-              La facture a été marquée comme nulle (aucune dette).
-            </p>
-            ${rowsTable([
-              ["Client", esc(v.client_full_name || clientName)],
-              ["Courriel", esc(v.client_email || "—")],
-              ["Compte", esc(v.account_number || "—")],
-              ["Facture annulée", String(invoiceNum)],
-              ["Montant initial", total],
-              ["Échéance dépassée", fmtDate(v.due_date)],
-            ])}
-          `,
-          ctaUrl: `${APP_URL}/admin/recouvrement`,
-          ctaLabel: "Voir le dossier",
-        }),
-      };
-    }
-
-    // ─── ADMIN DAILY DIGEST 8h AM ───
+    // ===================================================================
+    // ADMIN ALERTS (internal notifications)
+    // ===================================================================
+    case "admin_alert_suspended":
+    case "admin_alert_cancelled":
+    case "admin_alert_chargeback":
+    case "admin_alert_anonymization":
     case "admin_overdue_daily_digest": {
-      const total = String(v.total_overdue_count ?? 0);
-      const warningCount = String(v.warning_count ?? 0);
-      const urgentCount = String(v.urgent_count ?? 0);
-      const suspendedCount = String(v.suspended_count ?? 0);
-      const totalAmount = money(v.total_amount_overdue);
-      const reportDate = fmtDate(v.report_date);
+      const labelMap: Record<string, { badge: string; title: string }> = {
+        admin_alert_suspended: { badge: "ALERTE — SUSPENSION", title: "Compte suspendu" },
+        admin_alert_cancelled: { badge: "ALERTE — ANNULATION", title: "Compte annulé" },
+        admin_alert_chargeback: { badge: "ALERTE — CHARGEBACK", title: "Chargeback signalé" },
+        admin_alert_anonymization: { badge: "ALERTE — ANONYMISATION", title: "Compte anonymisé" },
+        admin_overdue_daily_digest: { badge: "DIGEST QUOTIDIEN", title: "Factures en retard — résumé" },
+      };
+      const m = labelMap[templateKey];
+      const detail = esc(v.detail || v.summary || v.message || "Voir les détails dans le tableau de bord.");
       return {
-        subject: `Rapport quotidien — ${total} compte${Number(total) > 1 ? "s" : ""} en retard`,
+        subject: `[Admin] ${m.title}`,
         html: shell({
-          title: "Rapport quotidien — Comptes en souffrance",
-          preheader: `${total} compte(s) en retard ce matin.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📊 Rapport quotidien — Souffrance</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Rapport au <strong>${reportDate}</strong>. ${total} compte${Number(total) > 1 ? "s" : ""} en retard de paiement.
-            </p>
-            ${rowsTable([
-              ["⚠️ Avertissement (J0–J+2)", warningCount],
-              ["🟠 Urgent (J+3–J+4)", urgentCount],
-              ["🔴 Suspendus (J+5+)", suspendedCount],
-              ["Total à recouvrer", totalAmount],
-            ])}
-            <p style="margin:16px 0; color:#6B7280; font-size:13px;">
-              Consultez la section Recouvrement dans Nivra Core pour le détail.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/admin/recouvrement`,
-          ctaLabel: "Ouvrir Recouvrement",
+          preheader: m.title,
+          badge: m.badge,
+          heroTitle: m.title,
+          icon: "alert",
+          bodyText: detail,
+          cardTitle: "Référence",
+          cardRows: [
+            ["Client", String(esc(clientName))],
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Date", fmtDate(new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core`,
+          ctaPrimaryLabel: "Ouvrir Nivra Core",
         }),
       };
     }
 
-    // ─── B2: Service suspended (J+5) ───
-    case "service_suspended": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      const total = money(v.total ?? v.amount);
-      const voidDate = fmtDate(v.void_date);
-      return {
-        subject: `Service suspendu — paiement requis avant ${voidDate}`,
-        html: shell({
-          title: "Service suspendu",
-          preheader: `Réactivez avant ${voidDate}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠ Service suspendu</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre service Nivra est <strong>temporairement suspendu</strong> faute de paiement.
-              Vous pouvez encore réactiver votre service en payant la facture avant le <strong>${voidDate}</strong>.
-            </p>
-            ${rowsTable([
-              ["Facture", String(invoiceNum)],
-              ["Montant dû", total],
-              ["Date limite réactivation", voidDate],
-            ])}
-          `,
-          ctaUrl: String(v.payment_link || `${APP_URL}/portail/facturation`),
-          ctaLabel: "Payer et réactiver",
-        }),
-      };
-    }
-
-    // ─── B2: Invoice voided after J+10 ───
-    case "invoice_voided": {
-      const invoiceNum = esc(v.invoice_number || "—");
-      return {
-        subject: `Facture ${invoiceNum} annulée`,
-        html: shell({
-          title: "Facture annulée",
-          preheader: "Aucune dette restante.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">Facture annulée</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre facture <strong>${invoiceNum}</strong> a été annulée
-              car la fenêtre de réactivation est expirée. Vous n'avez aucune dette à régler.
-            </p>
-            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              Pour reprendre votre service, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/support`,
-          ctaLabel: "Nous contacter",
-        }),
-      };
-    }
-
-    // ─── P2: Chargeback / dispute admin alert ───
-    case "admin_alert_chargeback": {
-      const amount = money(v.amount);
-      const orderId = v.order_id ? String(v.order_id) : "";
-      const orderLink = orderId ? `${APP_URL}/core/orders/${orderId}` : `${APP_URL}/admin/recouvrement`;
-      return {
-        subject: `Alerte: litige PayPal — ${esc(v.client_full_name || clientName)}`,
-        html: shell({
-          title: "Alerte critique: Chargeback PayPal",
-          preheader: `Litige PayPal ouvert — action requise dans 10 jours.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">🚨 Chargeback détecté</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Un litige PayPal a été ouvert par un client. Le service a été suspendu automatiquement.
-            </p>
-            ${rowsTable([
-              ["Client", esc(v.client_full_name || clientName)],
-              ["Courriel", esc(v.client_email || "—")],
-              ["Montant contesté", amount],
-              ["Transaction PayPal", esc(v.paypal_transaction_id || "—")],
-              ["ID Litige PayPal", esc(v.paypal_dispute_id || "—")],
-              ["Type d'événement", esc(v.event_type || "—")],
-              ["Date", fmtDate(v.dispute_timestamp)],
-            ])}
-            <p style="margin:16px 0; color:#DC2626; font-size:14px; line-height:1.6; font-weight:600;">
-              ⏰ Action requise: Connectez-vous à PayPal pour répondre au litige dans les <strong>10 jours</strong>.
-            </p>
-            <p style="margin:16px 0; color:#4A4A4A; font-size:13px; line-height:1.6;">
-              Lien PayPal: <a href="https://www.paypal.com/disputes" style="color:#0066CC;">paypal.com/disputes</a>
-            </p>
-          `,
-          ctaUrl: orderLink,
-          ctaLabel: orderId ? "Ouvrir le dossier dans Core" : "Voir Recouvrement",
-        }),
-      };
-    }
-
-    // ─── P1: Service reactivated after late payment + $15 fee ───
-    case "service_reactivated": {
-      const fee = money(v.reactivation_fee ?? 15);
-      const reactivationInvoice = esc(v.reactivation_invoice_number || "—");
-      return {
-        subject: `✓ Service réactivé — frais de réactivation 15$ ajoutés`,
-        html: shell({
-          title: "Service réactivé",
-          preheader: `Bienvenue de retour, ${clientName}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Service réactivé</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre paiement a été reçu et votre service Nivra est maintenant <strong>réactivé</strong>.
-            </p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Conformément à nos conditions, des frais de réactivation de <strong>${fee}</strong> (taxes en sus) ont été ajoutés sur une facture séparée.
-            </p>
-            ${rowsTable([
-              ["Facture de frais de réactivation", reactivationInvoice],
-              ["Montant", fee],
-              ["Échéance", fmtDate(v.fee_due_date)],
-            ])}
-            <p style="margin:16px 0; color:#6B7280; font-size:13px; line-height:1.6;">
-              Merci de régler ces frais dans les 7 jours pour éviter une nouvelle suspension.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail/facturation`,
-          ctaLabel: "Voir mes factures",
-        }),
-      };
-    }
-
-    // ─── P2: Loi 25 anonymization admin notification ───
-    case "admin_alert_anonymization": {
-      const count = String(v.anonymized_count ?? 0);
-      return {
-        subject: `📋 ${count} compte${Number(count) > 1 ? "s" : ""} anonymisé${Number(count) > 1 ? "s" : ""} — Conformité Loi 25`,
-        html: shell({
-          title: "Conformité Loi 25 — Anonymisation automatique",
-          preheader: `Rapport quotidien de conservation des données.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📋 Anonymisation Loi 25</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Le système a anonymisé <strong>${count}</strong> compte${Number(count) > 1 ? "s" : ""} qui étaient annulés depuis plus de 90 jours.
-              Les données personnelles (PII) ont été supprimées conformément à la Loi 25 du Québec et à la LPRPDE.
-            </p>
-            ${rowsTable([
-              ["Comptes anonymisés", count],
-              ["Date du rapport", fmtDate(v.report_date)],
-              ["Données conservées", "Numéro de compte, historique de facturation (montants)"],
-              ["Données supprimées", "Nom, courriel, téléphone, adresse, date de naissance, documents KYC"],
-            ])}
-            <p style="margin:16px 0; color:#6B7280; font-size:13px; line-height:1.6;">
-              Détails complets dans la table data_retention_log.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/admin/recouvrement`,
-          ctaLabel: "Voir le journal",
-        }),
-      };
-    }
-
-    // ─── PHASE A: Click-to-sign — initial signature request ───
-    case "contract_signature_request": {
-      const signatureUrl = String(v.signature_url || `${APP_URL}/sign`);
-      const orderNum = esc(v.order_number || "—");
-      const planName = esc(v.plan_name || v.service_type || "Service Nivra");
-      return {
-        subject: `Votre contrat Nivra Telecom est prêt à signer`,
-        html: shell({
-          title: "Contrat prêt à signer",
-          preheader: "Signez en ligne pour que votre équipement soit expédié.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Votre contrat est prêt</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre contrat de service Nivra Telecom est prêt à signer électroniquement.
-              Cliquez sur le bouton ci-dessous pour le consulter et le signer en quelques secondes — c'est l'étape finale
-              avant que votre équipement soit expédié.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNum)],
-              ["Forfait", String(planName)],
-              ["Mensualité", money(v.monthly_price ?? v.amount)],
-            ])}
-            <p style="margin:16px 0; color:#6B7280; font-size:13px; line-height:1.6;">
-              Sans engagement · Annulation possible à tout moment · Garantie 30 jours satisfait ou remboursé
-            </p>
-            <p style="margin:16px 0 0; color:#6B7280; font-size:12px;">
-              Le lien expire dans 30 jours. Si le bouton ne fonctionne pas, copiez ce lien :<br>
-              <a href="${esc(signatureUrl)}" style="color:#0066CC; word-break:break-all;">${esc(signatureUrl)}</a>
-            </p>
-          `,
-          ctaUrl: signatureUrl,
-          ctaLabel: "Signer mon contrat",
-        }),
-      };
-    }
-
-    // ─── PHASE A: Confirmation sent to client after signing ───
-    case "contract_signed_confirmation": {
-      const orderNum = esc(v.order_number || "—");
-      const signedAt = fmtDate(v.signed_at);
-      return {
-        subject: `Contrat signé — Votre équipement sera expédié sous peu`,
-        html: shell({
-          title: "Contrat signé",
-          preheader: `Merci ${clientName}, nous préparons votre commande.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Contrat signé avec succès</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Merci ${esc(clientName)} ! Nous avons bien enregistré votre signature électronique.
-              Votre commande va maintenant passer en préparation et votre équipement sera expédié sous peu.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNum)],
-              ["Date de signature", signedAt],
-              ["Méthode", "Signature électronique (click-to-sign)"],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              <strong>Prochaines étapes :</strong>
-            </p>
-            <ol style="margin:0 0 16px 20px; color:#4A4A4A; font-size:14px; line-height:1.7;">
-              <li>Notre équipe prépare votre commande</li>
-              <li>Vous recevrez un courriel avec le numéro de suivi dès l'expédition</li>
-              <li>À la livraison, suivez le guide d'installation joint</li>
-            </ol>
-            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
-              Une copie signée du contrat est disponible dans votre espace client.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Accéder à mon espace client",
-        }),
-      };
-    }
-
-    // ─── PHASE A: Admin alert when client signs ───
-    case "contract_signed_admin_alert": {
-      const orderNum = esc(v.order_number || "—");
-      const orderId = v.order_id ? String(v.order_id) : "";
-      const orderLink = orderId
-        ? `${APP_URL}/core/orders/${orderId}`
-        : `${APP_URL}/core/orders`;
-      return {
-        subject: `Contrat signé — ${esc(v.client_full_name || clientName)} — Commande ${orderNum}`,
-        html: shell({
-          title: "Nouveau contrat signé",
-          preheader: `Action recommandée : préparer l'expédition.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📝 Contrat client signé</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Le client a signé électroniquement son contrat. La commande peut maintenant être expédiée.
-            </p>
-            ${rowsTable([
-              ["Client", esc(v.client_full_name || clientName)],
-              ["Numéro de commande", String(orderNum)],
-              ["Signé le", fmtDate(v.signed_at)],
-              ["Adresse IP", esc(v.ip || "—")],
-              ["Méthode", "click_to_sign"],
-            ])}
-            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
-              ✅ Le verrou d'expédition (gate) est levé. La commande peut passer au statut « expédié ».
-            </p>
-          `,
-          ctaUrl: orderLink,
-          ctaLabel: "Ouvrir la commande dans Core",
-        }),
-      };
-    }
-
-    // ─── KYC: Document required ───
-    case "kyc_document_required": {
-      const orderNum = esc(v.order_number || "—");
-      const verificationUrl = String(v.verification_url || `${APP_URL}/portail`);
-      const expiresAt = v.expires_at ? fmtDate(v.expires_at) : "";
-      return {
-        subject: `Vérification d'identité requise — Commande ${orderNum}`,
-        html: shell({
-          title: "Vérification d'identité requise",
-          preheader: `Soumettez vos documents pour finaliser la commande ${orderNum}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Vérification d'identité requise</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, pour finaliser votre commande <strong>${orderNum}</strong>, nous devons vérifier votre identité conformément à la réglementation en vigueur.
-            </p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Veuillez soumettre une pièce d'identité valide (permis de conduire, passeport ou carte d'assurance maladie) en cliquant sur le bouton ci-dessous.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNum)],
-              ...(expiresAt ? [["Lien valide jusqu'au", expiresAt] as [string, string]] : []),
-            ])}
-            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
-              Le processus prend moins de 2 minutes et se fait depuis votre téléphone ou ordinateur.
-            </p>
-          `,
-          ctaUrl: verificationUrl,
-          ctaLabel: "Soumettre mes documents",
-        }),
-      };
-    }
-
-    // ─── KYC: Approved ───
-    case "kyc_approved": {
-      const orderNum = esc(v.order_number || "—");
-      return {
-        subject: "Votre identité a été vérifiée — Nivra",
-        html: shell({
-          title: "Identité vérifiée",
-          preheader: "Votre commande progresse normalement.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Identité vérifiée</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre identité a été vérifiée avec succès. Votre commande <strong>${orderNum}</strong> est en cours de traitement.
-            </p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Vous recevrez une mise à jour dès que votre équipement est expédié ou que votre service est activé.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNum)],
-              ["Statut KYC", "Approuvé"],
-            ])}
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    // ─── KYC: Rejected ───
-    case "kyc_rejected": {
-      const orderNum = esc(v.order_number || "—");
-      const reason = esc(v.reason || "Document illisible ou non valide");
-      const verificationUrl = String(v.verification_url || `${APP_URL}/portail`);
-      return {
-        subject: "Action requise — Document d'identité refusé",
-        html: shell({
-          title: "Document d'identité refusé",
-          preheader: `Veuillez resoumettre un document valide pour la commande ${orderNum}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠ Document refusé</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, le document d'identité soumis pour la commande <strong>${orderNum}</strong> n'a pas pu être validé.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNum)],
-              ["Raison du refus", reason],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Veuillez soumettre à nouveau un document valide, lisible et non expiré (permis de conduire, passeport ou carte d'assurance maladie).
-            </p>
-          `,
-          ctaUrl: verificationUrl,
-          ctaLabel: "Resoumettre mon document",
-        }),
-      };
-    }
-
-    // ─── Mobile: SIM activated ───
-    case "sim_activated": {
-      const phoneNumber = esc(v.phone_number || "—");
-      const iccid = esc(v.iccid || "—");
-      const carrier = esc(v.carrier || "Nivra Mobile");
-      const plan = esc(v.plan || v.plan_name || "Forfait Nivra");
-      return {
-        subject: `Votre SIM Nivra est active — ${phoneNumber}`,
-        html: shell({
-          title: "SIM activée",
-          preheader: `Votre numéro ${phoneNumber} est maintenant actif.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Votre SIM est active</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre carte SIM Nivra a été activée avec succès. Vous pouvez dès maintenant utiliser votre service mobile.
-            </p>
-            ${rowsTable([
-              ["Numéro de téléphone", phoneNumber],
-              ["ICCID", iccid],
-              ["Réseau", carrier],
-              ["Forfait", plan],
-            ])}
-            <p style="margin:16px 0 8px; color:#1A1A1A; font-size:15px; font-weight:600;">Configuration des données mobiles (APN)</p>
-            <p style="margin:0 0 8px; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              Si vos données mobiles ne fonctionnent pas, configurez l'APN comme suit :
-            </p>
-            ${rowsTable([
-              ["Nom (APN)", "internet.nivra.ca"],
-              ["Type d'authentification", "Aucune"],
-              ["Type d'APN", "default,supl"],
-            ])}
-            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
-              Redémarrez votre appareil après la configuration. Pour toute aide, contactez-nous à ${SUPPORT_EMAIL}.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    // ─── Mobile: eSIM ready ───
-    case "esim_ready": {
-      const phoneNumber = esc(v.phone_number || "—");
-      const eid = esc(v.eid || "—");
-      return {
-        subject: "Votre eSIM est prête à installer",
-        html: shell({
-          title: "eSIM prête",
-          preheader: `Installez votre eSIM en quelques secondes.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📱 Votre eSIM est prête</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre profil eSIM Nivra est prêt à être installé sur votre appareil compatible.
-            </p>
-            ${rowsTable([
-              ["Numéro attribué", phoneNumber],
-              ["EID", eid],
-            ])}
-            <p style="margin:16px 0 8px; color:#1A1A1A; font-size:15px; font-weight:600;">Comment installer votre eSIM</p>
-            <ol style="margin:0 0 16px 20px; color:#4A4A4A; font-size:14px; line-height:1.7;">
-              <li>Sur votre téléphone, allez dans <strong>Réglages → Cellulaire → Ajouter un forfait</strong></li>
-              <li>Scannez le code QR fourni dans votre espace client</li>
-              <li>Suivez les instructions à l'écran pour activer la ligne</li>
-              <li>Définissez l'eSIM Nivra comme ligne par défaut pour les données</li>
-            </ol>
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Le code QR et les instructions complètes sont disponibles dans votre espace client.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Voir mes instructions eSIM",
-        }),
-      };
-    }
-
-    // ─── Mobile: Port-in initiated ───
-    case "portin_initiated": {
-      const phoneNumber = esc(v.phone_number || "—");
-      const currentOperator = esc(v.current_operator || "votre opérateur actuel");
-      const expectedDate = fmtDate(v.expected_date);
-      return {
-        subject: "Transfert de votre numéro en cours",
-        html: shell({
-          title: "Transfert de numéro en cours",
-          preheader: `Votre transfert depuis ${currentOperator} est en traitement.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📞 Transfert en cours</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, nous avons reçu votre demande de transfert de numéro et nous la traitons avec ${currentOperator}.
-            </p>
-            ${rowsTable([
-              ["Numéro à transférer", phoneNumber],
-              ["Opérateur actuel", currentOperator],
-              ["Date prévue de transfert", expectedDate],
-            ])}
-            <p style="margin:16px 0; color:#D97706; font-size:14px; line-height:1.6; font-weight:600;">
-              ⚠ Important : conservez votre SIM actuelle active jusqu'à la fin du transfert.
-            </p>
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Vous recevrez un courriel de confirmation dès que le transfert est complété. Aucune action n'est requise de votre part pour le moment.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Suivre mon transfert",
-        }),
-      };
-    }
-
-    // ─── Mobile: Port-in completed ───
-    case "portin_completed": {
-      const phoneNumber = esc(v.phone_number || "—");
-      return {
-        subject: `Votre numéro ${phoneNumber} a été transféré`,
-        html: shell({
-          title: "Transfert complété",
-          preheader: `Votre numéro ${phoneNumber} est maintenant chez Nivra.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Transfert complété</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, votre numéro <strong>${phoneNumber}</strong> a été transféré avec succès vers le réseau Nivra.
-            </p>
-            ${rowsTable([
-              ["Numéro transféré", phoneNumber],
-              ["Statut", "Actif chez Nivra"],
-              ["Ancienne SIM", "Désactivée automatiquement"],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Votre SIM Nivra est maintenant la seule active pour ce numéro. Vous pouvez retirer et recycler l'ancienne SIM en toute sécurité.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    // ─── Mobile: Port-in failed ───
-    case "portin_failed": {
-      const phoneNumber = esc(v.phone_number || "—");
-      const reason = esc(v.reason || "Information non concordante avec l'opérateur précédent");
-      return {
-        subject: "Problème avec le transfert de votre numéro",
-        html: shell({
-          title: "Échec du transfert de numéro",
-          preheader: `Le transfert de ${phoneNumber} n'a pas pu être complété.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠ Transfert non complété</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, malheureusement, le transfert de votre numéro n'a pas pu être complété.
-            </p>
-            ${rowsTable([
-              ["Numéro concerné", phoneNumber],
-              ["Raison", reason],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Notre équipe vous contactera sous peu pour vous aider à résoudre le problème. Vous pouvez aussi nous joindre directement à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.
-            </p>
-            <p style="margin:0 0 0; color:#D97706; font-size:14px; line-height:1.6; font-weight:600;">
-              💡 Conservez votre SIM actuelle active jusqu'à ce que le problème soit résolu.
-            </p>
-          `,
-          ctaUrl: `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Transfert numéro ${String(v.phone_number || "")}`)}`,
-          ctaLabel: "Contacter le support",
-        }),
-      };
-    }
-
-    // ─── Appointment: 24h reminder ───
-    case "appointment_reminder_24h": {
-      const technicianName = esc(v.technician_name || "Notre technicien");
-      const date = fmtDate(v.date);
-      const time = esc(v.time || "—");
-      const address = esc(v.address || "—");
-      return {
-        subject: `Rappel — Installation demain à ${time}`,
-        html: shell({
-          title: "Rappel d'installation",
-          preheader: `${technicianName} vous rendra visite demain à ${time}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📅 Rappel d'installation</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, ceci est un rappel amical : votre installation Nivra est prévue <strong>demain</strong>.
-            </p>
-            ${rowsTable([
-              ["Technicien", technicianName],
-              ["Date", date],
-              ["Heure", time],
-              ["Adresse", address],
-            ])}
-            <p style="margin:16px 0 8px; color:#1A1A1A; font-size:15px; font-weight:600;">Pour préparer la visite</p>
-            <ul style="margin:0 0 16px 20px; color:#4A4A4A; font-size:14px; line-height:1.7;">
-              <li>Assurez-vous qu'un adulte (18 ans+) soit présent</li>
-              <li>Dégagez l'accès aux prises téléphoniques et à votre routeur</li>
-              <li>Identifiez l'endroit souhaité pour l'équipement</li>
-              <li>Prévoyez une pièce d'identité valide</li>
-            </ul>
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Pour toute modification ou question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.
-            </p>
-          `,
-          ctaUrl: `${APP_URL}/portail`,
-          ctaLabel: "Voir mon rendez-vous",
-        }),
-      };
-    }
-
-    // ─── Appointment: Missed by client ───
-    case "appointment_missed_by_client": {
-      const date = fmtDate(v.date);
-      const time = esc(v.time || "—");
-      const rebookingUrl = String(v.rebooking_url || `${APP_URL}/portail`);
-      return {
-        subject: "Rendez-vous manqué — Replanifiez votre installation",
-        html: shell({
-          title: "Rendez-vous manqué",
-          preheader: "Replanifiez votre installation rapidement.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#D97706; font-size:22px;">⏰ Rendez-vous manqué</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${esc(clientName)}, notre technicien s'est présenté à votre adresse comme prévu, mais personne n'était disponible pour l'accueillir.
-            </p>
-            ${rowsTable([
-              ["Date prévue", date],
-              ["Heure prévue", time],
-              ["Statut", "Aucun accès au domicile"],
-            ])}
-            <p style="margin:16px 0; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Pas d'inquiétude — vous pouvez replanifier votre installation à un moment qui vous convient mieux. Des frais de déplacement supplémentaires peuvent s'appliquer en cas de second rendez-vous manqué.
-            </p>
-          `,
-          ctaUrl: rebookingUrl,
-          ctaLabel: "Replanifier mon installation",
-        }),
-      };
-    }
-
-    // ─── Welcome to Nivra (post-activation full welcome) ───
-    case "welcome_to_nivra": {
-      const serviceType = esc(v.service_type || "votre service Nivra");
-      const accountNumber = esc(v.account_number || "—");
-      const billingDate = fmtDate(v.billing_date);
-      const portalUrl = String(v.portal_url || `${APP_URL}/portail`);
-      const wifiSsid = v.wifi_ssid ? esc(v.wifi_ssid) : "";
-      const wifiPassword = v.wifi_password ? esc(v.wifi_password) : "";
-      const supportPhone = esc(v.support_phone || "1-800-NIVRA");
-      const wifiBlock = wifiSsid
-        ? `
-          <p style="margin:16px 0 8px; color:#1A1A1A; font-size:15px; font-weight:600;">Vos identifiants WiFi</p>
-          ${rowsTable([
-            ["Réseau (SSID)", wifiSsid],
-            ...(wifiPassword ? [["Mot de passe", wifiPassword] as [string, string]] : []),
-          ])}
-          <p style="margin:0 0 16px; color:#6B7280; font-size:13px;">
-            Vous pouvez modifier ces identifiants à tout moment depuis votre espace client.
-          </p>`
-        : "";
-      return {
-        subject: "Bienvenue chez Nivra — Tout ce qu'il faut savoir",
-        html: shell({
-          title: "Bienvenue chez Nivra",
-          preheader: "Votre service est actif. Voici tout ce qu'il faut savoir.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Bienvenue chez Nivra, ${esc(clientName)} !</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Votre service est maintenant actif. Voici un résumé de ce qu'il faut savoir pour profiter pleinement de Nivra.
-            </p>
-            ${rowsTable([
-              ["Service", serviceType],
-              ["Numéro de compte", accountNumber],
-              ["Prochaine facturation", billingDate],
-            ])}
-            ${wifiBlock}
-            <p style="margin:16px 0 8px; color:#1A1A1A; font-size:15px; font-weight:600;">Votre espace client</p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              Depuis votre espace client, vous pouvez :
-            </p>
-            <ul style="margin:0 0 16px 20px; color:#4A4A4A; font-size:14px; line-height:1.7;">
-              <li>Consulter et payer vos factures</li>
-              <li>Activer le paiement automatique sécurisé</li>
-              <li>Modifier vos services et options</li>
-              <li>Soumettre une demande de support 7j/7</li>
-            </ul>
-            <p style="margin:16px 0 8px; color:#1A1A1A; font-size:15px; font-weight:600;">Besoin d'aide ?</p>
-            <p style="margin:0 0 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
-              Notre équipe est disponible 7 jours sur 7 :<br>
-              📞 <strong>${supportPhone}</strong><br>
-              ✉ <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>
-            </p>
-          `,
-          ctaUrl: portalUrl,
-          ctaLabel: "Accéder à mon espace client",
-        }),
-      };
-    }
-
-    // ─── Account: created (legacy template_key, UPPER_CASE vars) ───
-    case "account_created": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const email = esc(v.EMAIL || v.email || "");
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Votre compte Nivra a été créé",
-        html: shell({
-          title: "Compte créé",
-          preheader: "Votre espace client est prêt.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Bienvenue ${fullName} !</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Votre compte client Nivra a été créé suite à votre commande. Vous pouvez maintenant suivre votre commande, payer vos factures et gérer votre service depuis votre espace client.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Courriel de connexion", String(email)],
-            ])}
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Si vous n'avez pas encore défini de mot de passe, utilisez l'option « Mot de passe oublié » lors de votre première connexion.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Accéder à mon espace client",
-        }),
-      };
-    }
-
-    // ─── KYC: identity verified (legacy alias of kyc_approved) ───
-    case "identity_verified": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Votre identité a été vérifiée — Nivra",
-        html: shell({
-          title: "Identité vérifiée",
-          preheader: "Votre commande progresse normalement.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Identité vérifiée</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, votre identité a été vérifiée avec succès. Votre commande <strong>${orderNumber}</strong> est en cours de traitement.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Statut KYC", "Approuvé"],
-            ])}
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    // ─── Service activated (legacy template_key, UPPER_CASE vars) ───
-    case "service_activated": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const serviceType = esc(v.SERVICE_TYPE || v.service_type || "votre service Nivra");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Votre service Nivra est activé",
-        html: shell({
-          title: "Service activé",
-          preheader: `${serviceType} est maintenant actif.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Service activé</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, votre service <strong>${serviceType}</strong> est maintenant activé. Vous pouvez en profiter dès maintenant.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Service", String(serviceType)],
-              ["Statut", "Actif"],
-            ])}
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Toutes les informations de votre service, factures et configuration sont disponibles dans votre espace client.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    // ─── Installation completed ───
-    case "installation_completed": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Installation complétée — Nivra",
-        html: shell({
-          title: "Installation complétée",
-          preheader: "Votre installation est terminée avec succès.",
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Installation complétée</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, l'installation de votre service Nivra est complétée. Tout est opérationnel.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Statut", "Installation terminée"],
-            ])}
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Pour toute question sur votre nouvelle installation, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Mon espace client",
-        }),
-      };
-    }
-
-    // ─── Technician assigned ───
-    case "technician_assigned": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const technicianName = esc(v.TECHNICIAN_NAME || v.technician_name || "Notre technicien");
-      const date = fmtDate(v.APPOINTMENT_DATE || v.appointment_date || v.date);
-      const time = esc(v.APPOINTMENT_TIME || v.appointment_time || v.time || "—");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Un technicien a été assigné à votre installation",
-        html: shell({
-          title: "Technicien assigné",
-          preheader: `${technicianName} effectuera votre installation.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">👷 Technicien assigné</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, un technicien a été assigné à votre installation. Vous recevrez un rappel 24h avant le rendez-vous.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Technicien", technicianName],
-              ["Date prévue", date],
-              ["Heure prévue", time],
-            ])}
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Voir mon rendez-vous",
-        }),
-      };
-    }
-
-    // ─── Technician on the way ───
-    case "technician_on_the_way": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const technicianName = esc(v.TECHNICIAN_NAME || v.technician_name || "Notre technicien");
-      const eta = esc(v.ETA || v.eta || "sous peu");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Votre technicien est en route",
-        html: shell({
-          title: "Technicien en route",
-          preheader: `${technicianName} arrive ${eta}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">🚚 Technicien en route</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, ${technicianName} est en route pour votre installation et arrivera <strong>${eta}</strong>.
-            </p>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Veuillez vous assurer qu'un adulte (18 ans+) soit présent à l'adresse et que l'accès aux équipements soit dégagé.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Voir les détails",
-        }),
-      };
-    }
-
-    // ─── Appointment scheduled (alias of appointment booked) ───
-    case "appointment_scheduled": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const date = fmtDate(v.APPOINTMENT_DATE || v.appointment_date || v.date);
-      const time = esc(v.APPOINTMENT_TIME || v.appointment_time || v.time || "—");
-      const address = esc(v.ADDRESS || v.address || "—");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: "Votre rendez-vous d'installation est confirmé",
-        html: shell({
-          title: "Rendez-vous confirmé",
-          preheader: `Installation prévue le ${date} à ${time}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📅 Rendez-vous confirmé</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, votre rendez-vous d'installation est confirmé.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Date", date],
-              ["Heure", time],
-              ["Adresse", address],
-            ])}
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Vous recevrez un rappel automatique 24h avant le rendez-vous.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Voir mon rendez-vous",
-        }),
-      };
-    }
-
-    // ─── Appointment reminder (generic) ───
-    case "appointment_reminder": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const date = fmtDate(v.APPOINTMENT_DATE || v.appointment_date || v.date);
-      const time = esc(v.APPOINTMENT_TIME || v.appointment_time || v.time || "—");
-      const address = esc(v.ADDRESS || v.address || "—");
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
-      return {
-        subject: `Rappel — votre rendez-vous Nivra le ${date}`,
-        html: shell({
-          title: "Rappel de rendez-vous",
-          preheader: `Rendez-vous prévu le ${date} à ${time}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📅 Rappel de rendez-vous</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, ceci est un rappel pour votre rendez-vous d'installation Nivra.
-            </p>
-            ${rowsTable([
-              ["Date", date],
-              ["Heure", time],
-              ["Adresse", address],
-            ])}
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Veuillez vous assurer qu'un adulte (18 ans+) soit présent au rendez-vous.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Voir mon rendez-vous",
-        }),
-      };
-    }
-
-    // ─── Order update / custom_html fallback (generic notification) ───
+    // ===================================================================
+    // GENERIC FALLBACK
+    // ===================================================================
     case "order_update":
     case "custom_html": {
-      const fullName = esc(v.CLIENT_FULL_NAME || v.client_full_name || clientName);
-      const orderNumber = esc(v.ORDER_NUMBER || v.order_number || "—");
-      const changed = v.CHANGED_FIELDS || v.changed_fields;
-      const changedStr = Array.isArray(changed)
-        ? changed.map((c) => esc(String(c))).join(", ")
-        : changed
-          ? esc(String(changed))
-          : "Mise à jour générale";
-      const portalLink = String(v.PORTAL_LINK || v.portal_link || `${APP_URL}/portail`);
+      const subject = String(v.subject || v._subject || "Mise à jour Nivra");
+      const message = String(v.message || v.body || "Une mise à jour concernant votre compte est disponible.");
       return {
-        subject: `Mise à jour de votre commande ${orderNumber}`,
+        subject,
         html: shell({
-          title: "Mise à jour de commande",
-          preheader: `Modifications apportées à la commande ${orderNumber}.`,
-          bodyHtml: `
-            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📋 Mise à jour de votre commande</h2>
-            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
-              Bonjour ${fullName}, des modifications ont été apportées à votre commande <strong>${orderNumber}</strong>.
-            </p>
-            ${rowsTable([
-              ["Numéro de commande", String(orderNumber)],
-              ["Éléments modifiés", changedStr],
-            ])}
-            <p style="margin:0 0 0; color:#6B7280; font-size:13px;">
-              Consultez votre espace client pour voir tous les détails à jour de votre commande.
-            </p>
-          `,
-          ctaUrl: portalLink,
-          ctaLabel: "Voir ma commande",
+          preheader: subject,
+          badge: "MISE À JOUR",
+          heroTitle: subject,
+          icon: "doc",
+          greeting,
+          bodyText: esc(message),
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon espace client",
         }),
       };
     }
+
+    default:
+      return null;
   }
-
-  return null;
 }
-
