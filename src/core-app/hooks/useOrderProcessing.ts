@@ -1011,6 +1011,11 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.warning("Paiement marqué comme invalide — facture recalculée");
+      noteClient("payment_invalid", `${fmtMoney(invalidatedAmount)} invalidé — Raison: ${reason || "non précisée"}`, {
+        invoice_id: targetInvoice.id,
+        amount: invalidatedAmount,
+        reason,
+      });
 
       // ── payment_failed email (append-only) ──
       try {
@@ -1068,6 +1073,9 @@ export function useOrderProcessing(orderId: string | undefined) {
       await logActivity("payment_partial", "order", orderId, { invoice_id: targetInvoice.id });
       invalidateAll();
       toast.info("Paiement marqué comme partiel — facture recalculée");
+      noteClient("payment_partial", `Facture ${targetInvoice.invoice_number || ""} marquée comme partiellement payée`, {
+        invoice_id: targetInvoice.id,
+      });
     } catch (err: any) {
       console.error("[GUARDRAIL][PaymentPartial] Failed:", err);
       toast.error(`Erreur paiement partiel: ${err?.message || "Erreur inconnue"}`);
@@ -1170,6 +1178,9 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
+      noteClient("payment_recorded", `${fmtMoney(amount)} (${params.method})${params.reference ? ` — Réf: ${params.reference}` : ""}`, {
+        amount, method: params.method, reference: params.reference,
+      });
       return created;
     } catch (err: any) {
       console.error("[GUARDRAIL][ManualPayment] Failed:", err);
@@ -1192,6 +1203,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       });
       await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
       toast.success(`Mode de livraison: ${type}`);
+      noteClient("fulfillment_set", `Type: ${type}`);
     } catch (err: any) {
       console.error("[GUARDRAIL][Fulfillment] Failed:", err);
       toast.error(`Erreur fulfillment: ${err?.message || "Erreur inconnue"}`);
@@ -1431,6 +1443,9 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       toast.success("Expédition mise à jour");
+      if (fields.tracking_number) {
+        noteClient("shipping_updated", `${fields.carrier || "Transporteur"} — Suivi ${fields.tracking_number}`, fields);
+      }
 
       // ── equipment_shipped email (append-only) ──
       try {
