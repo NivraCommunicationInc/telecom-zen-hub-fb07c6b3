@@ -10,13 +10,14 @@ import {
 import {
   Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare,
   Calendar, Shield, Activity, AlertTriangle, ExternalLink, Zap, User,
-  MapPin, Globe, Hash, Clock,
+  MapPin, Globe, Hash, Clock, CheckCircle2, Wallet,
 } from "lucide-react";
 import { InvoiceActionMenu } from "@/core-app/components/account-actions/InvoiceActions";
 import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
 import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
+import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/CorePayPalManualChargeDialog";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
