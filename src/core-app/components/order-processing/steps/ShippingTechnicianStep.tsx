@@ -306,8 +306,20 @@ export function ShippingTechnicianStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-        {showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
+        {isSelfInstall ? "Auto-installation" : showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
       </div>
+
+      {isSelfInstall && (
+        <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-200">Auto-installation par le client</p>
+            <p className="text-xs text-emerald-300/80 mt-1">
+              Le client a explicitement choisi l'auto-installation. Aucune assignation de technicien ni expédition gérée n'est requise.
+            </p>
+          </div>
+        </div>
+      )}
 
       {appointment?.status === "completed" && (
         <StepCompletionCard
