@@ -74,7 +74,7 @@ export default function HubLoginPage() {
 
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
-      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician")
+      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician, can_access_rh")
       .eq("user_id", userId)
       .eq("status", "active")
       .in("role", INTERNAL_ROLES)
