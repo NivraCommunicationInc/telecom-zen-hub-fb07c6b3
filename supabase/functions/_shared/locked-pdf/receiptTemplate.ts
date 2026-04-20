@@ -56,6 +56,14 @@ export interface ReceiptData {
   discount_label?: string;
   tps_amount?: number;
   tvq_amount?: number;
+
+  // Detailed line items (with qty / unit_price)
+  detailed_items?: Array<{
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }>;
 }
 
 // ============================================================================
@@ -73,6 +81,18 @@ const fmtDate = (dateStr: string | undefined | null): string => {
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
   return "—";
+};
+
+const fmtDateTime = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  const day = d.getDate();
+  const month = d.toLocaleString("fr-CA", { month: "long" });
+  const year = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${day} ${month} ${year} a ${hh}h${mm}`;
 };
 
 const fmtMethod = (m: string): string => {
@@ -96,7 +116,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pw = doc.internal.pageSize.getWidth();
 
-    // GREEN HEADER
+    // GREEN HEADER — receipt number is primary, invoice is secondary reference
     doc.setFillColor(34, 120, 60);
     doc.rect(0, 0, pw, 40, "F");
     doc.setFont("helvetica", "bold");
@@ -108,7 +128,10 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.text("RECU DE PAIEMENT", 15, 28);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(`No ${data.invoice_number}`, pw - 15, 18, { align: "right" });
+    doc.text(`No ${data.receipt_number}`, pw - 15, 16, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Facture: ${data.invoice_number}`, pw - 15, 22, { align: "right" });
 
     // WATERMARK (bottom area, light green)
     doc.setFont("helvetica", "bold");
@@ -149,7 +172,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     // PAYMENT DETAILS
     doc.setFontSize(9);
     const payDetails = [
-      `Date du paiement: ${fmtDate(data.payment_date)}`,
+      `Date du paiement: ${fmtDateTime(data.payment_date)}`,
       `No paiement: ${data.receipt_number}`,
       `Methode: ${fmtMethod(data.payment_method)}`,
       ...(data.transaction_reference ? [`Reference: ${data.transaction_reference}`] : []),
@@ -161,7 +184,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     }
     y += 5;
 
-    // BILLED ITEMS SUMMARY
+    // BILLED ITEMS SUMMARY — header row when detailed_items available
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text("Resume des services factures", 15, y);
@@ -171,7 +194,28 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    if (data.billed_items && data.billed_items.length > 0) {
+    if (data.detailed_items && data.detailed_items.length > 0) {
+      // Column headers
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.text("Description", 15, y);
+      doc.text("Qte", 130, y, { align: "right" });
+      doc.text("Prix unit.", 158, y, { align: "right" });
+      doc.text("Total", 185, y, { align: "right" });
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      for (const item of data.detailed_items) {
+        const isDiscount = item.line_total < 0;
+        doc.setTextColor(isDiscount ? 0 : 0, isDiscount ? 128 : 0, isDiscount ? 0 : 0);
+        const desc = doc.splitTextToSize(item.description, 110);
+        doc.text(desc, 15, y);
+        doc.text(String(item.quantity), 130, y, { align: "right" });
+        doc.text(fmt(item.unit_price), 158, y, { align: "right" });
+        doc.text(fmt(item.line_total), 185, y, { align: "right" });
+        y += Math.max(5, desc.length * 4);
+      }
+    } else if (data.billed_items && data.billed_items.length > 0) {
       for (const item of data.billed_items) {
         const isDiscount = item.amount < 0;
         doc.setTextColor(isDiscount ? 0 : 0, isDiscount ? 128 : 0, isDiscount ? 0 : 0);
@@ -206,14 +250,22 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setTextColor(0, 0, 0);
     doc.text(`TOTAL PAYE: ${fmt(data.amount_paid)}`, tx + 32.5, y + 6.5, { align: "center" });
 
-    // FOOTER
+    // FOOTER — TPS/TVQ + adresse Nivra
     const ph = doc.internal.pageSize.getHeight();
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `${NIVRA.tradeName} Inc. | ${NIVRA.email} | ${NIVRA.website}`,
-      pw / 2, ph - 15, { align: "center" }
+      `${NIVRA.legalName} | ${NIVRA.address}`,
+      pw / 2, ph - 21, { align: "center" }
+    );
+    doc.text(
+      `${NIVRA.tpsLabel} | ${NIVRA.tvqLabel} | NEQ ${NIVRA.neq}`,
+      pw / 2, ph - 16, { align: "center" }
+    );
+    doc.text(
+      `${NIVRA.email} | ${NIVRA.website}`,
+      pw / 2, ph - 11, { align: "center" }
     );
 
     const blob = doc.output("blob");

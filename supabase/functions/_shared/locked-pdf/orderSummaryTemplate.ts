@@ -58,6 +58,11 @@ export interface OrderSummaryV3Data {
     quantity: number;
     unit_price: number;
     serial?: string;
+    imei?: string;
+    storage?: string;
+    color?: string;
+    condition?: string;
+    warranty_days?: number;
   }>;
 
   fees: Array<{
@@ -76,6 +81,15 @@ export interface OrderSummaryV3Data {
   payment_method?: string;
   payment_status?: string;
   estimated_activation?: string;
+
+  // New canonical activation/install details
+  mobile_assigned_number?: string;
+  mobile_sim_iccid?: string;
+  mobile_sim_carrier?: string;
+  mobile_sim_type?: string;
+  mobile_activated_at?: string;
+  install_date?: string;
+  technician_name?: string;
 }
 
 // ============================================================================
@@ -181,15 +195,57 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
       y += 9;
       doc.setFont("helvetica", "normal");
       for (const eq of d.equipment || []) {
-        doc.text(eq.name, 20, y);
+        // Build enriched equipment label: "iPhone 16 Pro Max - 256GB - Titane naturel - Neuf"
+        const parts: string[] = [eq.name];
+        if (eq.storage) parts.push(eq.storage);
+        if (eq.color) parts.push(eq.color);
+        if (eq.condition) {
+          const condMap: Record<string, string> = { new: "Neuf", refurbished: "Remis a neuf", used: "Usage" };
+          parts.push(condMap[eq.condition] || eq.condition);
+        }
+        const label = parts.join(" - ");
+        doc.text(label, 20, y);
         doc.text(fmt(eq.unit_price * eq.quantity), 185, y, { align: "right" });
-        y += 6;
+        y += 5;
+        if (eq.imei || eq.serial || eq.warranty_days) {
+          doc.setFontSize(7);
+          doc.setTextColor(100, 100, 100);
+          const meta: string[] = [];
+          if (eq.imei) meta.push(`IMEI: ${eq.imei}`);
+          if (eq.serial) meta.push(`S/N: ${eq.serial}`);
+          if (eq.warranty_days) meta.push(`Garantie: ${eq.warranty_days} jours`);
+          doc.text(meta.join("  |  "), 22, y);
+          doc.setFontSize(9);
+          doc.setTextColor(0, 0, 0);
+          y += 5;
+        }
+        y += 1;
       }
       for (const fee of d.fees || []) {
         doc.text(fee.label, 20, y);
         doc.text(fmt(fee.amount), 185, y, { align: "right" });
         y += 6;
       }
+      y += 3;
+    }
+
+    // ACTIVATION / INSTALLATION DETAILS (mobile/internet/TV)
+    const hasActivation = d.mobile_assigned_number || d.mobile_sim_iccid || d.install_date || d.technician_name;
+    if (hasActivation) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setFillColor(220, 240, 255);
+      doc.rect(15, y, 170, 7, "F");
+      doc.setTextColor(0, 0, 0);
+      doc.text("Details d'activation / installation", 17, y + 5);
+      y += 9;
+      doc.setFont("helvetica", "normal");
+      if (d.mobile_assigned_number) { doc.text(`Numero attribue: ${d.mobile_assigned_number}`, 20, y); y += 5; }
+      if (d.mobile_sim_iccid) { doc.text(`SIM ICCID: ${d.mobile_sim_iccid}` + (d.mobile_sim_type ? ` (${d.mobile_sim_type})` : ""), 20, y); y += 5; }
+      if (d.mobile_sim_carrier) { doc.text(`Reseau: ${d.mobile_sim_carrier}`, 20, y); y += 5; }
+      if (d.mobile_activated_at) { doc.text(`Activation mobile: ${fmtDate(d.mobile_activated_at)}`, 20, y); y += 5; }
+      if (d.install_date) { doc.text(`Date d'installation: ${fmtDate(d.install_date)}`, 20, y); y += 5; }
+      if (d.technician_name) { doc.text(`Technicien: ${d.technician_name}`, 20, y); y += 5; }
       y += 3;
     }
 
