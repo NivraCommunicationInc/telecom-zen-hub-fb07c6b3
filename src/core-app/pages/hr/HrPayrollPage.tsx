@@ -117,6 +117,22 @@ export default function HrPayrollPage() {
   const periodIndex = periods.findIndex((p: any) => p.id === selectedPeriod);
   const isLocked = currentPeriod?.status === "closed";
 
+  // ─── Detect expected current period (based on today's date) ──────────────
+  const today = new Date();
+  const expectedHalf: "first" | "fifteenth" = today.getDate() <= 15 ? "first" : "fifteenth";
+  const expectedStart = new Date(today.getFullYear(), today.getMonth(), expectedHalf === "first" ? 1 : 16);
+  const expectedEnd = expectedHalf === "first"
+    ? new Date(today.getFullYear(), today.getMonth(), 15)
+    : new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const expectedStartISO = expectedStart.toISOString().slice(0, 10);
+  const expectedEndISO = expectedEnd.toISOString().slice(0, 10);
+  const expectedLabel = expectedHalf === "first"
+    ? `Période 1-15 ${format(expectedStart, "MMMM yyyy", { locale: fr })}`
+    : `Période 16-${format(expectedEnd, "d", { locale: fr })} ${format(expectedStart, "MMMM yyyy", { locale: fr })}`;
+  const currentPeriodExists = periods.some((p: any) =>
+    p.start_date === expectedStartISO && p.end_date === expectedEndISO
+  );
+
   // ─── Entries for selected period ──────────────────────────────────────────
   const { data: entries = [], isLoading: loadingEntries } = useQuery({
     queryKey: ["hr-payroll-entries", selectedPeriod],
@@ -325,6 +341,24 @@ export default function HrPayrollPage() {
     },
     onSuccess: () => {
       toast.success("Fiche marquée payée");
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
+  const markAllPaidMut = useMutation({
+    mutationFn: async () => {
+      const ids = entries.filter((e: any) => e.status === "approved").map((e: any) => e.id);
+      if (ids.length === 0) throw new Error("Aucune fiche approuvée à marquer payée");
+      const { error } = await supabase
+        .from("payroll_entries")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} fiche(s) marquée(s) payée(s)`);
       qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
     },
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
@@ -702,9 +736,35 @@ export default function HrPayrollPage() {
       {/* SECTION 1 — Period header with prev/next nav */}
       {loadingPeriods ? (
         <Card><CardContent className="p-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
-      ) : periods.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-xs text-muted-foreground">Aucune période. Cliquez "Générer paie" pour démarrer.</CardContent></Card>
-      ) : currentPeriod && (
+      ) : !currentPeriodExists ? (
+        // Hero CTA — current half not yet generated
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Calendar className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">{expectedLabel} non générée</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Aucune fiche de paie n'existe pour la période en cours. Cliquez ci-dessous pour la créer et générer automatiquement les fiches de tous les employés actifs.
+              </p>
+            </div>
+            <Button size="lg" disabled={autoGenerateMut.isPending}
+              onClick={() => autoGenerateMut.mutate(expectedHalf)} className="gap-2">
+              {autoGenerateMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              Générer maintenant
+            </Button>
+            {periods.length > 0 && currentPeriod && (
+              <p className="text-[11px] text-muted-foreground">
+                Vous pouvez consulter la période précédente ci-dessous : <button className="underline text-primary" onClick={() => { /* keep selectedPeriod */ }}>{currentPeriod.period_name}</button>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Period header (shown when a period is selected) */}
+      {!loadingPeriods && currentPeriod && (
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-4">
@@ -785,6 +845,12 @@ export default function HrPayrollPage() {
                     onClick={() => approveAllMut.mutate()} className="gap-1.5">
                     <CheckCircle className="h-3.5 w-3.5" />Approuver tous
                   </Button>
+                  <Button size="sm" variant="default" disabled={isLocked || markAllPaidMut.isPending}
+                    onClick={() => {
+                      if (confirm("Marquer toutes les fiches approuvées comme payées ?")) markAllPaidMut.mutate();
+                    }} className="gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />Marquer tous payés
+                  </Button>
                   <Button size="sm" variant="outline" onClick={generateAllPDFs} className="gap-1.5">
                     <FileText className="h-3.5 w-3.5" />Générer toutes les fiches
                   </Button>
@@ -836,8 +902,17 @@ export default function HrPayrollPage() {
                         return (
                           <TableRow key={e.id}>
                             <TableCell className="text-xs">
-                              <div className="font-medium">{e._name}</div>
-                              <div className="text-[10px] text-muted-foreground">{e._emp?.job_title || "—"}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold shrink-0">
+                                  {(e._emp?.first_name?.[0] || e._name?.[0] || "?").toUpperCase()}{(e._emp?.last_name?.[0] || "").toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{e._name}</div>
+                                  {e._emp?.job_title && (
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 mt-0.5">{e._emp.job_title}</Badge>
+                                  )}
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell className="text-xs">{e.hours_worked}h</TableCell>
                             <TableCell className="text-xs">{e._emp?.hourly_rate ? `${e._emp.hourly_rate}$/h` : "—"}</TableCell>
