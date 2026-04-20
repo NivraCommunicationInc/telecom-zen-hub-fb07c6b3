@@ -7,9 +7,6 @@
  *   - Contract → locked-pdf/contractTemplateV3.ts (generateContractV3PDF)
  *   - Summary  → locked-pdf/orderSummaryTemplate.ts (generateOrderSummaryPDF)
  *
- * NEVER use the legacy ./pdfGenerator.ts here. These are the only approved
- * generators per src/lib/pdf/LOCKED_TEMPLATES.md.
- *
  * Every function is non-blocking: returns null on any error so the caller
  * can still send the email (without the attachment).
  */
@@ -44,6 +41,212 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
+const CONDITION_LABEL_FR: Record<string, string> = {
+  new: "Neuf",
+  refurbished: "Remis a neuf",
+  used: "Usage",
+};
+
+/**
+ * Resolve the best available address for a client.
+ * Priority: accounts.billing_* -> orders.shipping_* -> profiles.service_*
+ */
+async function resolveClientAddress(
+  supabase: SupabaseClient,
+  opts: { userId?: string | null; orderId?: string | null },
+): Promise<{
+  billing: { line1: string; city: string; province: string; postal: string };
+  service: { line1: string; city: string; province: string; postal: string };
+}> {
+  let billing = { line1: "", city: "", province: "QC", postal: "" };
+  let service = { line1: "", city: "", province: "QC", postal: "" };
+
+  // 1) accounts.billing_*  +  accounts.primary_service_*
+  if (opts.userId) {
+    const { data: acct } = await supabase
+      .from("accounts")
+      .select(
+        "billing_address, billing_city, billing_province, billing_postal_code, primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code",
+      )
+      .eq("client_id", opts.userId)
+      .maybeSingle();
+    if (acct?.billing_address) {
+      billing = {
+        line1: acct.billing_address || "",
+        city: acct.billing_city || "",
+        province: acct.billing_province || "QC",
+        postal: acct.billing_postal_code || "",
+      };
+    }
+    if (acct?.primary_service_address) {
+      service = {
+        line1: acct.primary_service_address || "",
+        city: acct.primary_service_city || "",
+        province: acct.primary_service_province || "QC",
+        postal: acct.primary_service_postal_code || "",
+      };
+    }
+  }
+
+  // 2) orders.shipping_*
+  if (opts.orderId && (!service.line1 || !billing.line1)) {
+    const { data: ord } = await supabase
+      .from("orders")
+      .select("shipping_address, shipping_city, shipping_province, shipping_postal_code")
+      .eq("id", opts.orderId)
+      .maybeSingle();
+    if (ord?.shipping_address) {
+      const shipped = {
+        line1: ord.shipping_address || "",
+        city: ord.shipping_city || "",
+        province: ord.shipping_province || "QC",
+        postal: ord.shipping_postal_code || "",
+      };
+      if (!service.line1) service = shipped;
+      if (!billing.line1) billing = shipped;
+    }
+  }
+
+  // 3) profiles.service_*
+  if (opts.userId && (!service.line1 || !billing.line1)) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("service_address, service_city, service_province, service_postal_code")
+      .eq("id", opts.userId)
+      .maybeSingle();
+    if (prof?.service_address) {
+      const profAddr = {
+        line1: prof.service_address || "",
+        city: prof.service_city || "",
+        province: prof.service_province || "QC",
+        postal: prof.service_postal_code || "",
+      };
+      if (!service.line1) service = profAddr;
+      if (!billing.line1) billing = profAddr;
+    }
+  }
+
+  return { billing, service };
+}
+
+function joinAddress(a: { line1: string; city: string; province: string; postal: string }): string {
+  return [a.line1, a.city, [a.province, a.postal].filter(Boolean).join(" ")]
+    .filter((s) => s && s.trim())
+    .join(", ");
+}
+
+/**
+ * Fetch phone + mobile + appointment + technician details for an order.
+ * All fields are optional; returns whatever could be resolved.
+ */
+async function fetchOrderTelecomDetails(
+  supabase: SupabaseClient,
+  orderId: string,
+): Promise<{
+  phones: Array<{
+    brand: string;
+    model: string;
+    storage: string;
+    color: string;
+    condition: string;
+    imei: string;
+    warranty_days: number;
+  }>;
+  mobile?: {
+    assigned_number?: string;
+    sim_iccid?: string;
+    sim_carrier?: string;
+    sim_type?: string;
+    activated_at?: string;
+  };
+  install_date?: string;
+  technician_name?: string;
+}> {
+  const out: any = { phones: [] };
+
+  // phone_orders + phone_inventory (multiple devices possible)
+  const { data: phoneOrders } = await supabase
+    .from("phone_orders")
+    .select(
+      "phone_inventory_id, selected_color, selected_storage, phone_inventory:phone_inventory_id(brand, model, storage, color, condition, imei, warranty_days)",
+    )
+    .eq("order_id", orderId);
+
+  if (Array.isArray(phoneOrders)) {
+    for (const po of phoneOrders) {
+      const inv: any = (po as any).phone_inventory || {};
+      out.phones.push({
+        brand: inv.brand || "",
+        model: inv.model || "",
+        storage: (po as any).selected_storage || inv.storage || "",
+        color: (po as any).selected_color || inv.color || "",
+        condition: inv.condition || "",
+        imei: inv.imei || "",
+        warranty_days: Number(inv.warranty_days || 0),
+      });
+    }
+  }
+
+  // mobile_fulfillment
+  const { data: mf } = await supabase
+    .from("mobile_fulfillment")
+    .select("assigned_number, sim_iccid, sim_carrier, sim_type, activated_at")
+    .eq("order_id", orderId)
+    .maybeSingle();
+  if (mf) {
+    out.mobile = {
+      assigned_number: (mf as any).assigned_number || undefined,
+      sim_iccid: (mf as any).sim_iccid || undefined,
+      sim_carrier: (mf as any).sim_carrier || undefined,
+      sim_type: (mf as any).sim_type || undefined,
+      activated_at: (mf as any).activated_at || undefined,
+    };
+  }
+
+  // appointments + technician
+  const { data: appt } = await supabase
+    .from("appointments")
+    .select("scheduled_at, technician_id")
+    .eq("order_id", orderId)
+    .order("scheduled_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (appt?.scheduled_at) out.install_date = (appt as any).scheduled_at;
+  if (appt?.technician_id) {
+    const { data: tech } = await supabase
+      .from("technicians")
+      .select("full_name")
+      .eq("id", (appt as any).technician_id)
+      .maybeSingle();
+    if (tech?.full_name) out.technician_name = (tech as any).full_name;
+  }
+
+  return out;
+}
+
+function buildEnrichedDescription(
+  baseDescription: string,
+  phone?: {
+    brand: string;
+    model: string;
+    storage: string;
+    color: string;
+    condition: string;
+    imei: string;
+  },
+): string {
+  if (!phone || !phone.model) return baseDescription;
+  const parts = [
+    [phone.brand, phone.model].filter(Boolean).join(" "),
+    phone.storage,
+    phone.color,
+    CONDITION_LABEL_FR[phone.condition] || phone.condition,
+  ].filter(Boolean);
+  let label = parts.join(" — ");
+  if (phone.imei) label += `  (IMEI: ${phone.imei})`;
+  return label || baseDescription;
+}
+
 // ============================================================================
 // INVOICE — uses locked invoiceTemplateV3 (generateInvoiceV3PDF)
 // ============================================================================
@@ -59,7 +262,7 @@ export async function buildInvoicePdfAttachment(
       .select(`
         id, invoice_number, created_at, due_date, total, subtotal,
         tps_amount, tvq_amount, amount_paid, balance_due, status,
-        cycle_start_date, cycle_end_date, type,
+        cycle_start_date, cycle_end_date, type, order_id,
         billing_snapshot_account_number,
         customer:billing_customers(id, email, first_name, last_name, phone, user_id),
         order:orders(id, order_number, service_type),
@@ -76,17 +279,17 @@ export async function buildInvoicePdfAttachment(
     const customer = (invoice as any).customer || {};
     const lines: any[] = (invoice as any).lines || [];
     const order = (invoice as any).order || {};
+    const orderId: string | null = (invoice as any).order_id || order?.id || null;
+    const orderNumber: string | undefined = order?.order_number || undefined;
     const clientName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client";
 
     let accountNumber = (invoice as any).billing_snapshot_account_number || "";
-    let acctRow: any = null;
-    if (customer.user_id) {
+    if (!accountNumber && customer.user_id) {
       const { data } = await supabase
         .from("accounts")
-        .select("account_number, billing_address, billing_city, billing_province, billing_postal_code")
+        .select("account_number")
         .eq("client_id", customer.user_id)
         .maybeSingle();
-      acctRow = data;
       if (!accountNumber) accountNumber = data?.account_number || "";
     }
     if (!accountNumber) {
@@ -94,18 +297,44 @@ export async function buildInvoicePdfAttachment(
       return null;
     }
 
-    const items = lines.map((l) => ({
-      category: (l.line_type as any) || "Other",
-      description: l.description || "Service",
-      qty: Number(l.quantity || 1),
-      unit_price: Number(l.unit_price ?? 0),
-      amount: Number(l.line_total ?? l.unit_price ?? 0),
-      is_recurring: l.line_type === "recurring" || l.line_type === "service",
-    }));
+    // Address fallback chain: accounts → orders.shipping → profiles.service
+    const addr = await resolveClientAddress(supabase, {
+      userId: customer.user_id,
+      orderId,
+    });
+
+    // Phone enrichment if invoice ties to an order with phone(s)
+    const hasEquipmentLine = lines.some(
+      (l) => (l.line_type || "").toLowerCase() === "equipment" || (l.line_type || "").toLowerCase() === "phone",
+    );
+    let phones: any[] = [];
+    if (orderId && hasEquipmentLine) {
+      const tele = await fetchOrderTelecomDetails(supabase, orderId);
+      phones = tele.phones;
+    }
+
+    // Map lines, enriching equipment/phone descriptions when a phone is available
+    let phoneIdx = 0;
+    const items = lines.map((l) => {
+      const lt = (l.line_type || "").toLowerCase();
+      let description = l.description || "Service";
+      if ((lt === "equipment" || lt === "phone") && phones[phoneIdx]) {
+        description = buildEnrichedDescription(description, phones[phoneIdx]);
+        phoneIdx += 1;
+      }
+      return {
+        category: (l.line_type as any) || "Other",
+        description,
+        qty: Number(l.quantity || 1),
+        unit_price: Number(l.unit_price ?? 0),
+        amount: Number(l.line_total ?? l.unit_price ?? 0),
+        is_recurring: lt === "recurring" || lt === "service",
+      };
+    });
 
     const isPaid = ((invoice as any).status || "").toLowerCase() === "paid";
 
-    const data: InvoiceDataV2 = {
+    const data: InvoiceDataV2 & { order_number?: string } = {
       invoice_type: ((invoice as any).type || "MONTHLY").toUpperCase() === "ONETIME" ? "ONETIME" : "MONTHLY",
       invoice_number: (invoice as any).invoice_number || `INV-${invoiceId.slice(0, 8)}`,
       invoice_date: (invoice as any).created_at,
@@ -119,10 +348,10 @@ export async function buildInvoicePdfAttachment(
         full_name: clientName,
         email: customer.email || "",
         phone: customer.phone || undefined,
-        address_line1: acctRow?.billing_address || "",
-        city: acctRow?.billing_city || "",
-        province: acctRow?.billing_province || "QC",
-        postal_code: acctRow?.billing_postal_code || "",
+        address_line1: addr.billing.line1,
+        city: addr.billing.city,
+        province: addr.billing.province,
+        postal_code: addr.billing.postal,
       },
       items: items.length ? items : [{
         category: "Other",
@@ -147,6 +376,7 @@ export async function buildInvoicePdfAttachment(
         paid_amount: Number((invoice as any).amount_paid || (invoice as any).total || 0),
         payment_reference: "",
       }] : [],
+      order_number: orderNumber,
     };
 
     const result = generateInvoiceV3PDF(data);
@@ -185,7 +415,7 @@ export async function buildReceiptPdfAttachment(
         billing_snapshot_account_number,
         customer:billing_customers(email, first_name, last_name, phone, user_id),
         order:orders(order_number),
-        lines:billing_invoice_lines(description, line_total, line_type)
+        lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
       `)
       .eq("id", invoiceId)
       .maybeSingle();
@@ -197,7 +427,9 @@ export async function buildReceiptPdfAttachment(
 
     const { data: payment } = await supabase
       .from("billing_payments")
-      .select("amount, method, reference, received_at, captured_at, created_at, payment_number")
+      .select(
+        "amount, method, reference, received_at, captured_at, created_at, payment_number, provider_payment_id",
+      )
       .eq("invoice_id", invoiceId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -209,14 +441,12 @@ export async function buildReceiptPdfAttachment(
     const clientName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client";
 
     let accountNumber = (invoice as any).billing_snapshot_account_number || "";
-    let acctRow: any = null;
-    if (customer.user_id) {
+    if (!accountNumber && customer.user_id) {
       const { data } = await supabase
         .from("accounts")
-        .select("account_number, billing_address, billing_city, billing_province, billing_postal_code")
+        .select("account_number")
         .eq("client_id", customer.user_id)
         .maybeSingle();
-      acctRow = data;
       if (!accountNumber) accountNumber = data?.account_number || "";
     }
     if (!accountNumber) {
@@ -224,10 +454,8 @@ export async function buildReceiptPdfAttachment(
       return null;
     }
 
-    const clientAddress = acctRow
-      ? [acctRow.billing_address, acctRow.billing_city, acctRow.billing_province, acctRow.billing_postal_code]
-          .filter(Boolean).join(", ")
-      : undefined;
+    const addr = await resolveClientAddress(supabase, { userId: customer.user_id, orderId: null });
+    const clientAddress = joinAddress(addr.billing) || joinAddress(addr.service) || undefined;
 
     const data: ReceiptData = {
       receipt_number: payment?.payment_number || `REC-${invoiceId.slice(0, 8)}`,
@@ -246,7 +474,14 @@ export async function buildReceiptPdfAttachment(
         description: l.description || "Article",
         amount: Number(l.line_total || 0),
       })),
-      transaction_reference: payment?.reference || undefined,
+      detailed_items: lines.map((l) => ({
+        description: l.description || "Article",
+        quantity: Number(l.quantity || 1),
+        unit_price: Number(l.unit_price ?? 0),
+        line_total: Number(l.line_total ?? 0),
+      })),
+      transaction_reference:
+        payment?.reference || (payment as any)?.provider_payment_id || undefined,
       balance_remaining: Number((invoice as any).balance_due || 0),
       subtotal: Number((invoice as any).subtotal || 0),
       tps_amount: Number((invoice as any).tps_amount || 0),
@@ -287,7 +522,7 @@ export async function buildContractPdfAttachment(
         id, order_number, created_at, service_type, category,
         client_email, client_first_name, client_last_name, client_phone,
         client_full_address,
-        shipping_address, shipping_city, shipping_postal_code,
+        shipping_address, shipping_city, shipping_province, shipping_postal_code,
         subtotal, total_amount, tps_amount, tvq_amount,
         equipment_details, equipment_line_details,
         user_id
@@ -302,9 +537,8 @@ export async function buildContractPdfAttachment(
 
     const o = order as any;
     const clientName = `${o.client_first_name || ""} ${o.client_last_name || ""}`.trim() || "Client";
-    const clientAddress = o.client_full_address
-      || [o.shipping_address, o.shipping_city, o.shipping_postal_code].filter(Boolean).join(", ");
 
+    // Account number
     let accountNumber = "";
     if (o.user_id) {
       const { data: acct } = await supabase
@@ -315,51 +549,139 @@ export async function buildContractPdfAttachment(
       accountNumber = acct?.account_number || "";
     }
 
-    const lineDetails = Array.isArray(o.equipment_line_details) ? o.equipment_line_details : [];
-    const monthlyLines = lineDetails.filter((l: any) => l?.is_recurring || l?.recurring);
-    const oneTimeLines = lineDetails.filter((l: any) => !(l?.is_recurring || l?.recurring));
+    // Real order_items join (canonical service list)
+    const { data: orderItems } = await supabase
+      .from("order_items")
+      .select("service_type, plan_code, plan_name, description, unit_price, quantity, line_total, is_recurring")
+      .eq("order_id", orderId)
+      .order("item_number", { ascending: true });
 
-    const services = monthlyLines.length > 0
-      ? monthlyLines.map((l: any) => ({
-          type: l.type || o.service_type || "Service",
-          name: l.name || l.product_name || "Service",
-          description: l.description || "",
-          monthly_price: Number(l.price || l.unit_price || 0),
-        }))
-      : [{
-          type: o.service_type || "Service",
-          name: o.service_type || o.category || "Service Nivra",
-          description: "",
-          monthly_price: Number(o.subtotal || o.total_amount || 0),
-        }];
+    const itemsRows = Array.isArray(orderItems) ? orderItems : [];
+    const recurringRows = itemsRows.filter((r: any) => r.is_recurring === true);
+    const oneTimeRows = itemsRows.filter((r: any) => r.is_recurring === false);
 
-    const equipment = oneTimeLines
-      .filter((l: any) => (l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
-      .map((l: any) => ({
-        name: l.name || l.product_name || "Equipement",
-        quantity: Number(l.quantity || 1),
-        unit_price: Number(l.price || l.unit_price || 0),
-      }));
+    // Telecom details (phones, mobile_fulfillment, appointments, technicians)
+    const tele = await fetchOrderTelecomDetails(supabase, orderId);
 
-    const oneTimeFees = oneTimeLines
-      .filter((l: any) => !(l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
-      .map((l: any) => ({
-        label: l.name || l.product_name || l.description || "Frais",
-        amount: Number(l.price || l.unit_price || 0),
-      }));
+    let services = recurringRows.map((r: any) => ({
+      type: r.service_type || o.service_type || "Service",
+      name: r.plan_name || r.description || "Service",
+      description: r.description || "",
+      monthly_price: Number(r.unit_price || 0),
+    }));
+
+    let equipment: Array<{ name: string; quantity: number; unit_price: number }> = [];
+    let oneTimeFees: Array<{ label: string; amount: number }> = [];
+
+    if (oneTimeRows.length > 0) {
+      let phoneIdx = 0;
+      for (const r of oneTimeRows) {
+        const st = (r.service_type || "").toLowerCase();
+        const isEquipment = st === "equipment" || st === "phone";
+        if (isEquipment) {
+          let label = r.plan_name || r.description || "Equipement";
+          const phone = tele.phones[phoneIdx];
+          if (phone && (st === "phone" || phone.model)) {
+            label = buildEnrichedDescription(label, phone);
+            phoneIdx += 1;
+          }
+          equipment.push({
+            name: label,
+            quantity: Number(r.quantity || 1),
+            unit_price: Number(r.unit_price || 0),
+          });
+        } else {
+          oneTimeFees.push({
+            label: r.plan_name || r.description || "Frais",
+            amount: Number(r.line_total || r.unit_price || 0),
+          });
+        }
+      }
+    }
+
+    // Fallback to equipment_line_details snapshot if order_items is empty
+    if (services.length === 0 && equipment.length === 0 && oneTimeFees.length === 0) {
+      const lineDetails = Array.isArray(o.equipment_line_details) ? o.equipment_line_details : [];
+      const monthlyLines = lineDetails.filter((l: any) => l?.is_recurring || l?.recurring);
+      const oneTimeLines = lineDetails.filter((l: any) => !(l?.is_recurring || l?.recurring));
+      services = monthlyLines.length > 0
+        ? monthlyLines.map((l: any) => ({
+            type: l.type || o.service_type || "Service",
+            name: l.name || l.product_name || "Service",
+            description: l.description || "",
+            monthly_price: Number(l.price || l.unit_price || 0),
+          }))
+        : [{
+            type: o.service_type || "Service",
+            name: o.service_type || o.category || "Service Nivra",
+            description: "",
+            monthly_price: Number(o.subtotal || o.total_amount || 0),
+          }];
+      equipment = oneTimeLines
+        .filter((l: any) => (l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
+        .map((l: any) => ({
+          name: l.name || l.product_name || "Equipement",
+          quantity: Number(l.quantity || 1),
+          unit_price: Number(l.price || l.unit_price || 0),
+        }));
+      oneTimeFees = oneTimeLines
+        .filter((l: any) => !(l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
+        .map((l: any) => ({
+          label: l.name || l.product_name || l.description || "Frais",
+          amount: Number(l.price || l.unit_price || 0),
+        }));
+    }
 
     const subtotalMonthly = services.reduce((acc: number, s: any) => acc + s.monthly_price, 0);
-    const subtotalOneTime = oneTimeLines.reduce((acc: number, l: any) => acc + Number(l.price || l.unit_price || 0), 0);
+    const subtotalOneTime =
+      equipment.reduce((acc, e) => acc + e.unit_price * e.quantity, 0)
+      + oneTimeFees.reduce((acc, f) => acc + f.amount, 0);
+
+    // Real billing vs service address (separate)
+    const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
+    const billingAddress = joinAddress(addr.billing) || o.client_full_address || "";
+    const serviceAddress = joinAddress(addr.service)
+      || [o.shipping_address, o.shipping_city, o.shipping_postal_code].filter(Boolean).join(", ")
+      || o.client_full_address
+      || "";
+
+    // Real signature data from contracts table (if exists)
+    let signature: {
+      signature_name?: string;
+      signature_date?: string;
+      signature_ip?: string;
+      is_signed?: boolean;
+      contract_number?: string;
+    } = {};
+    {
+      const { data: contractRow } = await supabase
+        .from("contracts")
+        .select("contract_number, client_signer_name, client_signed_at, client_signed_ip, is_signed")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (contractRow) {
+        signature = {
+          signature_name: (contractRow as any).client_signer_name || undefined,
+          signature_date: (contractRow as any).client_signed_at || undefined,
+          signature_ip: (contractRow as any).client_signed_ip || undefined,
+          is_signed: !!(contractRow as any).is_signed,
+          contract_number: (contractRow as any).contract_number || undefined,
+        };
+      }
+    }
 
     const data: ContractDataV3 = {
-      contract_number: opts.contractNumber || `CTR-${o.order_number || orderId.slice(0, 8)}`,
+      contract_number:
+        opts.contractNumber || signature.contract_number || `CTR-${o.order_number || orderId.slice(0, 8)}`,
       contract_date: o.created_at,
       terms_version: "V5.0",
       client_name: clientName,
       client_email: o.client_email || "",
       client_phone: o.client_phone || "",
-      billing_address: clientAddress || "",
-      service_address: clientAddress || "",
+      billing_address: billingAddress,
+      service_address: serviceAddress,
       account_number: accountNumber || "—",
       order_number: o.order_number || orderId.slice(0, 8),
       services,
@@ -371,6 +693,17 @@ export async function buildContractPdfAttachment(
       tax_gst: Number(o.tps_amount || 0),
       tax_qst: Number(o.tvq_amount || 0),
       total_due_today: Number(o.total_amount || 0),
+      signature_name: signature.signature_name,
+      signature_date: signature.signature_date,
+      signature_ip: signature.signature_ip,
+      is_signed: signature.is_signed,
+      mobile_assigned_number: tele.mobile?.assigned_number,
+      mobile_sim_iccid: tele.mobile?.sim_iccid,
+      mobile_sim_carrier: tele.mobile?.sim_carrier,
+      mobile_sim_type: tele.mobile?.sim_type,
+      mobile_activated_at: tele.mobile?.activated_at,
+      install_date: tele.install_date,
+      technician_name: tele.technician_name,
     };
 
     const result = generateContractV3PDF(data);
@@ -409,7 +742,7 @@ export async function buildSummaryPdfAttachment(
         appointment_date,
         client_first_name, client_last_name, client_email, client_phone,
         client_full_address,
-        shipping_address, shipping_city, shipping_postal_code,
+        shipping_address, shipping_city, shipping_province, shipping_postal_code,
         equipment_line_details, equipment_details, user_id
       `)
       .eq("id", orderId)
@@ -420,9 +753,14 @@ export async function buildSummaryPdfAttachment(
       return null;
     }
 
-    const clientName = [(o as any).client_first_name, (o as any).client_last_name].filter(Boolean).join(" ").trim() || "Client";
-    const clientAddr = (o as any).client_full_address
-      || [(o as any).shipping_address, (o as any).shipping_city, (o as any).shipping_postal_code].filter(Boolean).join(", ")
+    const clientName =
+      [(o as any).client_first_name, (o as any).client_last_name].filter(Boolean).join(" ").trim() || "Client";
+
+    const addr = await resolveClientAddress(supabase, { userId: (o as any).user_id, orderId });
+    const clientAddr = joinAddress(addr.service)
+      || (o as any).client_full_address
+      || [(o as any).shipping_address, (o as any).shipping_city, (o as any).shipping_postal_code]
+        .filter(Boolean).join(", ")
       || "";
 
     let accountNumber = "";
@@ -435,41 +773,94 @@ export async function buildSummaryPdfAttachment(
       accountNumber = acct?.account_number || "";
     }
 
-    const items = Array.isArray((o as any).equipment_line_details) ? (o as any).equipment_line_details : [];
-    const monthly = items.filter((l: any) => l?.is_recurring || l?.recurring);
-    const oneTime = items.filter((l: any) => !(l?.is_recurring || l?.recurring));
+    // Telecom details (phones / mobile / appointment / technician)
+    const tele = await fetchOrderTelecomDetails(supabase, orderId);
 
-    const services = monthly.length > 0
-      ? monthly.map((l: any) => ({
-          type: l.type || (o as any).service_type || "Service",
-          name: l.name || l.product_name || "Service",
-          description: l.description || "",
-          monthly_price: Number(l.price || l.unit_price || 0),
-        }))
-      : [{
-          type: (o as any).service_type || "Service",
-          name: (o as any).service_type || (o as any).category || "Service Nivra",
-          description: "",
-          monthly_price: Number((o as any).subtotal || (o as any).total_amount || 0),
-        }];
+    // Real order_items if present
+    const { data: orderItems } = await supabase
+      .from("order_items")
+      .select("service_type, plan_name, description, unit_price, quantity, line_total, is_recurring")
+      .eq("order_id", orderId)
+      .order("item_number", { ascending: true });
 
-    const equipment = oneTime
-      .filter((l: any) => (l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
-      .map((l: any) => ({
-        name: l.name || l.product_name || "Equipement",
-        quantity: Number(l.quantity || 1),
-        unit_price: Number(l.price || l.unit_price || 0),
-      }));
+    const itemsRows = Array.isArray(orderItems) ? orderItems : [];
+    const recurringRows = itemsRows.filter((r: any) => r.is_recurring === true);
+    const oneTimeRows = itemsRows.filter((r: any) => r.is_recurring === false);
 
-    const fees = oneTime
-      .filter((l: any) => !(l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
-      .map((l: any) => ({
-        label: l.name || l.product_name || l.description || "Frais",
-        amount: Number(l.price || l.unit_price || 0),
-      }));
+    let services = recurringRows.map((r: any) => ({
+      type: r.service_type || (o as any).service_type || "Service",
+      name: r.plan_name || r.description || "Service",
+      description: r.description || "",
+      monthly_price: Number(r.unit_price || 0),
+    }));
+
+    let equipment: any[] = [];
+    let fees: Array<{ label: string; amount: number }> = [];
+
+    if (oneTimeRows.length > 0) {
+      let phoneIdx = 0;
+      for (const r of oneTimeRows) {
+        const st = (r.service_type || "").toLowerCase();
+        const isEquipment = st === "equipment" || st === "phone";
+        if (isEquipment) {
+          const phone = tele.phones[phoneIdx];
+          equipment.push({
+            name: r.plan_name || r.description || "Equipement",
+            quantity: Number(r.quantity || 1),
+            unit_price: Number(r.unit_price || 0),
+            imei: phone?.imei,
+            storage: phone?.storage,
+            color: phone?.color,
+            condition: phone?.condition,
+            warranty_days: phone?.warranty_days,
+          });
+          if (phone) phoneIdx += 1;
+        } else {
+          fees.push({
+            label: r.plan_name || r.description || "Frais",
+            amount: Number(r.line_total || r.unit_price || 0),
+          });
+        }
+      }
+    }
+
+    // Fallback on snapshot when order_items absent
+    if (services.length === 0 && equipment.length === 0 && fees.length === 0) {
+      const items = Array.isArray((o as any).equipment_line_details) ? (o as any).equipment_line_details : [];
+      const monthly = items.filter((l: any) => l?.is_recurring || l?.recurring);
+      const oneTime = items.filter((l: any) => !(l?.is_recurring || l?.recurring));
+      services = monthly.length > 0
+        ? monthly.map((l: any) => ({
+            type: l.type || (o as any).service_type || "Service",
+            name: l.name || l.product_name || "Service",
+            description: l.description || "",
+            monthly_price: Number(l.price || l.unit_price || 0),
+          }))
+        : [{
+            type: (o as any).service_type || "Service",
+            name: (o as any).service_type || (o as any).category || "Service Nivra",
+            description: "",
+            monthly_price: Number((o as any).subtotal || (o as any).total_amount || 0),
+          }];
+      equipment = oneTime
+        .filter((l: any) => (l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
+        .map((l: any) => ({
+          name: l.name || l.product_name || "Equipement",
+          quantity: Number(l.quantity || 1),
+          unit_price: Number(l.price || l.unit_price || 0),
+        }));
+      fees = oneTime
+        .filter((l: any) => !(l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
+        .map((l: any) => ({
+          label: l.name || l.product_name || l.description || "Frais",
+          amount: Number(l.price || l.unit_price || 0),
+        }));
+    }
 
     const subtotalMonthly = services.reduce((acc: number, s: any) => acc + s.monthly_price, 0);
-    const subtotalOneTime = oneTime.reduce((acc: number, l: any) => acc + Number(l.price || l.unit_price || 0), 0);
+    const subtotalOneTime =
+      equipment.reduce((acc: number, e: any) => acc + Number(e.unit_price || 0) * Number(e.quantity || 1), 0)
+      + fees.reduce((acc: number, f: any) => acc + Number(f.amount || 0), 0);
 
     const data: OrderSummaryV3Data = {
       order_number: (o as any).order_number || orderId.slice(0, 8).toUpperCase(),
@@ -488,8 +879,16 @@ export async function buildSummaryPdfAttachment(
       discount_amount: 0,
       tax_gst: Number((o as any).tps_amount || 0),
       tax_qst: Number((o as any).tvq_amount || 0),
-      total_due: Number((o as any).total_amount || (o as any).subtotal || subtotalMonthly + subtotalOneTime),
-      estimated_activation: (o as any).appointment_date || undefined,
+      total_due:
+        Number((o as any).total_amount || (o as any).subtotal || subtotalMonthly + subtotalOneTime),
+      estimated_activation: tele.install_date || (o as any).appointment_date || undefined,
+      mobile_assigned_number: tele.mobile?.assigned_number,
+      mobile_sim_iccid: tele.mobile?.sim_iccid,
+      mobile_sim_carrier: tele.mobile?.sim_carrier,
+      mobile_sim_type: tele.mobile?.sim_type,
+      mobile_activated_at: tele.mobile?.activated_at,
+      install_date: tele.install_date,
+      technician_name: tele.technician_name,
     };
 
     const result = generateOrderSummaryPDF(data);
