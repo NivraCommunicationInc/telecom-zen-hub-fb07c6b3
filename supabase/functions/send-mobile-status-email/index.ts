@@ -64,6 +64,19 @@ Deno.serve(async (req) => {
 
     const eventKey = `mobile_status_${order_id}_${status}`;
 
+    // FIX 5: attach order summary PDF for shipment / activation events (non-blocking)
+    let attachments: Array<{ filename: string; content: string; contentType: string }> | undefined;
+    if (status === "sim_shipped" || status === "sim_delivered" || status === "activated") {
+      try {
+        const { buildSummaryPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+        const prefix = status === "sim_shipped" ? "expedition" : status === "activated" ? "confirmation-activation" : "sommaire-commande";
+        const pdf = await buildSummaryPdfAttachment(order_id, prefix);
+        if (pdf) attachments = [pdf];
+      } catch (e) {
+        console.warn(`[${requestId}] Mobile summary PDF generation failed:`, e);
+      }
+    }
+
     const result = await queueRenderedEmail({
       eventKey,
       templateKey: statusConfig.templateKey,
@@ -76,9 +89,10 @@ Deno.serve(async (req) => {
         tracking_number: tracking_number || "",
         portal_path: "/portal/orders",
       },
+      attachments,
     });
 
-    console.log(`[${requestId}] Email ${result.alreadyQueued ? "already queued" : "queued"} template: ${statusConfig.templateKey}`);
+    console.log(`[${requestId}] Email ${result.alreadyQueued ? "already queued" : "queued"} template: ${statusConfig.templateKey}${attachments ? " (with summary PDF)" : ""}`);
 
     // SMS for activated
     let phoneForSms = client_phone;

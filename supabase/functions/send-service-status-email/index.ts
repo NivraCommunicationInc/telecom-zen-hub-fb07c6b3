@@ -26,6 +26,7 @@ interface ServiceStatusEmailRequest {
   new_status: string;
   old_status?: string;
   reason?: string;
+  order_id?: string; // Optional — when present, attach order summary PDF on activation
 }
 
 Deno.serve(async (req) => {
@@ -62,6 +63,18 @@ Deno.serve(async (req) => {
 
     const eventKey = `service_status_${service_instance_id}_${new_status}`;
 
+    // FIX 4: attach order summary PDF for service activation (non-blocking)
+    let attachments: Array<{ filename: string; content: string; contentType: string }> | undefined;
+    if (body.order_id && (new_status === "active" || new_status === "resumed")) {
+      try {
+        const { buildSummaryPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+        const pdf = await buildSummaryPdfAttachment(body.order_id, "confirmation-activation");
+        if (pdf) attachments = [pdf];
+      } catch (e) {
+        console.warn(`[${requestId}] Activation summary PDF generation failed:`, e);
+      }
+    }
+
     const result = await queueRenderedEmail({
       eventKey,
       templateKey: statusConfig.templateKey,
@@ -74,9 +87,10 @@ Deno.serve(async (req) => {
         reason: reason || "",
         portal_path: "/portal/services",
       },
+      attachments,
     });
 
-    console.log(`[${requestId}] Email ${result.alreadyQueued ? "already queued" : "queued"} template: ${statusConfig.templateKey}`);
+    console.log(`[${requestId}] Email ${result.alreadyQueued ? "already queued" : "queued"} template: ${statusConfig.templateKey}${attachments ? " (with summary PDF)" : ""}`);
 
     // SMS
     let phoneForSms = client_phone;
