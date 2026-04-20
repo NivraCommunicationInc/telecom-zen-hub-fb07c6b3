@@ -28,6 +28,12 @@ const corsHeaders = {
 
 const MAX_BATCH = 50;
 
+interface QueueAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+}
+
 interface QueueRow {
   id: string;
   event_key: string;
@@ -41,6 +47,7 @@ interface QueueRow {
   message_type: string | null;
   entity_type: string | null;
   entity_id: string | null;
+  attachments: QueueAttachment[] | null;
 }
 
 interface ResolvedEmail {
@@ -77,7 +84,7 @@ Deno.serve(async (req) => {
   // 1. Fetch eligible queued rows
   const { data: rows, error: fetchErr } = await supabase
     .from("email_queue")
-    .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id")
+    .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id, attachments")
     .in("status", ["queued", "failed"])
     .order("created_at", { ascending: true })
     .limit(batchSize);
@@ -141,7 +148,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Forward to canonical pgmq pipeline
+      // Forward to canonical pgmq pipeline (including PDF attachments if present)
       const enqRes = await enqueueEmail({
         to: row.to_email,
         templateKey: row.template_key,
@@ -152,6 +159,13 @@ Deno.serve(async (req) => {
         messageType: row.message_type || row.template_key,
         entityType: row.entity_type || "email_queue",
         entityId: row.entity_id || row.id,
+        attachments: Array.isArray(row.attachments) && row.attachments.length > 0
+          ? row.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.contentType || "application/pdf",
+            }))
+          : undefined,
       });
 
       if (!enqRes.success) {
