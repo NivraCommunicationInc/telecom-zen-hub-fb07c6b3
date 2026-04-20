@@ -263,11 +263,16 @@ export type Database = {
           billing_postal_code: string | null
           billing_province: string | null
           cancelled_at: string | null
+          chargeback_last_interest_at: string | null
+          chargeback_opened_at: string | null
+          chargeback_reactivation_fee_applied_at: string | null
+          chargeback_resolved_at: string | null
           client_id: string
           created_at: string
           credit_class: string | null
           credit_last_reviewed_at: string | null
           credit_last_reviewed_by_admin_id: string | null
+          has_active_chargeback: boolean
           id: string
           next_invoice_date: string | null
           number_lost_at: string | null
@@ -292,11 +297,16 @@ export type Database = {
           billing_postal_code?: string | null
           billing_province?: string | null
           cancelled_at?: string | null
+          chargeback_last_interest_at?: string | null
+          chargeback_opened_at?: string | null
+          chargeback_reactivation_fee_applied_at?: string | null
+          chargeback_resolved_at?: string | null
           client_id: string
           created_at?: string
           credit_class?: string | null
           credit_last_reviewed_at?: string | null
           credit_last_reviewed_by_admin_id?: string | null
+          has_active_chargeback?: boolean
           id?: string
           next_invoice_date?: string | null
           number_lost_at?: string | null
@@ -321,11 +331,16 @@ export type Database = {
           billing_postal_code?: string | null
           billing_province?: string | null
           cancelled_at?: string | null
+          chargeback_last_interest_at?: string | null
+          chargeback_opened_at?: string | null
+          chargeback_reactivation_fee_applied_at?: string | null
+          chargeback_resolved_at?: string | null
           client_id?: string
           created_at?: string
           credit_class?: string | null
           credit_last_reviewed_at?: string | null
           credit_last_reviewed_by_admin_id?: string | null
+          has_active_chargeback?: boolean
           id?: string
           next_invoice_date?: string | null
           number_lost_at?: string | null

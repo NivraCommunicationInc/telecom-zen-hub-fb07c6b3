@@ -117,11 +117,14 @@ const GuestCheckout = () => {
   // Identity verification (KYC) removed from public checkout — handled post-purchase if needed.
 
   // ── Payment ──
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>("paypal");
+  // Nivra n'accepte que PayPal (incluant cartes de crédit via PayPal).
+  // Le virement Interac n'est plus accepté.
+  const [paymentMethod, setPaymentMethod] = useState<"paypal">("paypal");
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
-  const [etransferRef, setEtransferRef] = useState("");
-  const [etransferSender, setEtransferSender] = useState("");
+  // Legacy etransfer state retained as no-op for back-compat with old serialized
+  // refs but no longer surfaced in the UI.
+  const etransferRef = "";
 
   // ── PayPal pre-authorized (auto-billing) recurring payment opt-in ──
   // When enabled, the order routes through billing-create-order-with-paypal-subscription
@@ -205,7 +208,7 @@ const GuestCheckout = () => {
   const isStreamingOnlyOrder = selectedServices.length > 0 && selectedServices.every(s => s.category === "Streaming" || s.category === "Streaming+");
   const requiresInstallation = installationChoice === "technician" && (hasInternetService || hasTVService);
   const needsAddress = !isStreamingOnlyOrder;
-  const isETransfer = paymentMethod === "etransfer";
+  const isETransfer = false; // Interac retiré — Nivra n'accepte que PayPal
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
   // KYC removed — always treated as not required at checkout time.
   const isKycComplete = true;
@@ -461,7 +464,7 @@ const GuestCheckout = () => {
         discount_total_combined: 0, promo_discount: 0, welcome_discount: 0, preauth_discount: 0,
       };
 
-      const paymentMethodValue = paymentMethod === "paypal" ? "paypal" : "etransfer";
+      const paymentMethodValue = "paypal";
 
       // Step 4: Submit checkout
       // ★ FIX #8 — Persist guest language preference at checkout.
@@ -665,8 +668,8 @@ const GuestCheckout = () => {
             services: selectedServices.map(s => ({ name: s.name, price: s.price, period: "mois" })),
             monthly_total_tax_in: monthlyTotalWithTax,
             one_time_total: oneTimeFees,
-            payment_reference: paypalCaptureId || etransferRef,
-            payment_method: paymentMethod === "paypal" ? "PayPal" : "Virement Interac",
+            payment_reference: paypalCaptureId,
+            payment_method: "PayPal / Carte de crédit",
           },
         });
       } catch (e) {

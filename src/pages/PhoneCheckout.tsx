@@ -60,7 +60,7 @@ type Phone = {
   available_storage: string[] | null;
 };
 
-const SHIPPING_FEE = 15; // flat CAD shipping
+const SHIPPING_FEE = 20; // flat CAD shipping (canonical Nivra rate)
 const TAX_RATE = 0.14975; // QC GST+QST combined approximation
 const CANADIAN_PROVINCES = ["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"];
 
