@@ -678,9 +678,18 @@ serve(async (req) => {
       console.log(`[billing-create-order] Created subscription ${subscription.id} (status: ${subscriptionStatus}) with invoice ${invoiceNumber} (status: ${effectiveInvoiceStatus})`);
     }
     
-    // Step 3: Queue appropriate email based on payment status
+    // Step 3: Queue appropriate email based on payment status (with PDF, non-blocking)
     const templateKey = isPayPalPaid ? 'payment_confirmed' : 'invoice_created';
-    
+    const firstInvoiceId = (results.subscriptions[0] as any)?.invoice_id;
+
+    let pdfAttachment = null;
+    if (firstInvoiceId) {
+      const { buildInvoicePdfAttachment, buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+      pdfAttachment = isPayPalPaid
+        ? await buildReceiptPdfAttachment(firstInvoiceId, "recu-paiement")
+        : await buildInvoicePdfAttachment(firstInvoiceId, "facture");
+    }
+
     await supabase.from("email_queue").insert({
       event_key: `billing_order_${results.customer_id}_${Date.now()}`,
       to_email: body.email,
@@ -703,6 +712,7 @@ serve(async (req) => {
         payment_email: 'support@nivra-telecom.ca',
         reference: body.payment_reference || null,
       },
+      attachments: pdfAttachment ? [pdfAttachment] : null,
       status: "queued",
       attempts: 0,
       max_attempts: 5

@@ -585,8 +585,11 @@ serve(async (req) => {
             reason: `PayPal recurring payment $${amount} applied to invoice ${invoice.invoice_number || invoice.id}`,
           });
 
-          // Notify customer
+          // Notify customer (with receipt PDF, non-blocking)
           if (sub.customer && !rpcResult?.already_processed) {
+            const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+            const pdfAttachment = await buildReceiptPdfAttachment(invoice.id, "recu-paiement");
+
             await supabase.from("email_queue").insert({
               event_key: `paypal_payment_${paymentId}`,
               to_email: sub.customer.email,
@@ -602,6 +605,7 @@ serve(async (req) => {
                 payment_method: "PayPal (Paiement automatique)",
                 reference: paymentId,
               },
+              attachments: pdfAttachment ? [pdfAttachment] : null,
               status: "queued",
               attempts: 0,
               max_attempts: 5,

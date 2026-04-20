@@ -262,8 +262,11 @@ serve(async (req) => {
           }
         }
         
-        // Queue reminder email
+        // Queue reminder email (with invoice PDF, non-blocking)
         if (sub.customer) {
+          const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
+          const pdfAttachment = await buildInvoicePdfAttachment(invoice.id, "facture");
+
           await supabase.from("email_queue").insert({
             event_key: `billing_renewal_${sub.id}_${newCycleStart.toISOString().split('T')[0]}`,
             to_email: sub.customer.email,
@@ -277,6 +280,7 @@ serve(async (req) => {
               due_date: dueDate,
               days_remaining: 3
             },
+            attachments: pdfAttachment ? [pdfAttachment] : null,
             status: "queued",
             attempts: 0,
             max_attempts: 5

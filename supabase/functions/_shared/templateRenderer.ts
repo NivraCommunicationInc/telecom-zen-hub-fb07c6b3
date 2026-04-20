@@ -535,6 +535,7 @@ export async function queueRenderedEmail(params: {
   toEmail: string;
   templateVars: Record<string, any>;
   fromEmail?: string;
+  attachments?: Array<{ filename: string; content: string; contentType?: string }>;
 }): Promise<EnqueueResult> {
   const rendered = renderTemplate(params.templateKey, params.templateVars);
 
@@ -551,5 +552,6 @@ export async function queueRenderedEmail(params: {
     fromEmail: params.fromEmail || "Nivra Telecom <noreply@nivra-telecom.ca>",
     eventKey: params.eventKey,
     templateVars: params.templateVars,
+    attachments: params.attachments,
   });
 }

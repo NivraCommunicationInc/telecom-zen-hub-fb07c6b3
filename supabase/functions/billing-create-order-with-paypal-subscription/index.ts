@@ -445,7 +445,14 @@ serve(async (req) => {
       results.total_amount += total;
     }
     
-    // Queue confirmation email
+    // Queue confirmation email (with invoice PDF, non-blocking)
+    const firstPpInvoiceId = (results.subscriptions[0] as any)?.invoice_id;
+    let ppPdfAttachment = null;
+    if (firstPpInvoiceId) {
+      const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
+      ppPdfAttachment = await buildInvoicePdfAttachment(firstPpInvoiceId, "facture");
+    }
+
     await supabase.from("email_queue").insert({
       event_key: `billing_paypal_${results.customer_id}_${Date.now()}`,
       to_email: body.email,
@@ -463,6 +470,7 @@ serve(async (req) => {
         auto_billing: true,
         monthly_discount: AUTO_BILLING_DISCOUNT,
       },
+      attachments: ppPdfAttachment ? [ppPdfAttachment] : null,
       status: "queued",
       attempts: 0,
       max_attempts: 5

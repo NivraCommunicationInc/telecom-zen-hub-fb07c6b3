@@ -248,6 +248,10 @@ serve(async (req) => {
           const customerName = `${v2Invoice.customer?.first_name || ""} ${v2Invoice.customer?.last_name || ""}`.trim();
 
           if (customerEmail && !paymentResult.already_processed) {
+            // Generate receipt PDF (non-blocking)
+            const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+            const pdfAttachment = await buildReceiptPdfAttachment(v2Invoice.id, "recu-paiement");
+
             await supabase.from("email_queue").insert({
               event_key: `paypal_payment_${captureId}`,
               to_email: normalizeEmail(customerEmail),
@@ -263,11 +267,12 @@ serve(async (req) => {
                 payment_method: "PayPal",
                 reference: captureId,
               },
+              attachments: pdfAttachment ? [pdfAttachment] : null,
               status: "queued",
               attempts: 0,
               max_attempts: 5,
             });
-            console.log("[PayPal Capture] ✓ Confirmation email queued to:", customerEmail);
+            console.log("[PayPal Capture] ✓ Confirmation email queued to:", customerEmail, pdfAttachment ? "(with PDF)" : "(no PDF)");
           }
 
           // ══════════════════════════════════════════════════════════════

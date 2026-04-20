@@ -4910,6 +4910,7 @@ export type Database = {
       }
       email_queue: {
         Row: {
+          attachments: Json | null
           attempts: number
           bounced_at: string | null
           clicked_at: string | null
@@ -4943,6 +4944,7 @@ export type Database = {
           to_email: string
         }
         Insert: {
+          attachments?: Json | null
           attempts?: number
           bounced_at?: string | null
           clicked_at?: string | null
@@ -4976,6 +4978,7 @@ export type Database = {
           to_email: string
         }
         Update: {
+          attachments?: Json | null
           attempts?: number
           bounced_at?: string | null
           clicked_at?: string | null
