@@ -73,10 +73,17 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Wrench, label: "Techniciens", href: "/technician" },
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
-      { icon: Smartphone, label: "Téléphones — Commandes", href: "/phones" },
-      { icon: Smartphone, label: "Téléphones — Inventaire", href: "/phones/inventory" },
       { icon: RotateCcw, label: "Retours RMA", href: "/returns" },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
+    ],
+  },
+  {
+    id: "phones",
+    label: "Téléphones",
+    icon: Smartphone,
+    items: [
+      { icon: ShoppingCart, label: "Commandes téléphones", href: "/phones" },
+      { icon: Boxes, label: "Inventaire téléphones", href: "/phones/inventory" },
     ],
   },
   {
