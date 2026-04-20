@@ -29,15 +29,64 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-// ─── Tax constants (Quebec 2026 estimates) ───────────────────────────────────
-const TAX_RATES = {
-  federal: 0.15,
-  provincial: 0.12,
-  rpc: 0.0595,
-  ae: 0.0134,
-  rqap: 0.00494,
-};
-const RPC_MAX_ANNUAL = 4055.50; // 2025 max — used as ceiling estimate
+// ─── CRA + Revenu Québec 2026 — Tables progressives officielles ──────────────
+// Périodes par année: 24 (paie bimensuelle 1-15 / 16-fin)
+const PERIODS_PER_YEAR = 24;
+
+// Tables fédérales (annuelles) — CRA 2026
+const FED_BRACKETS: Array<{ upTo: number; rate: number }> = [
+  { upTo: 57_375, rate: 0.15 },
+  { upTo: 114_750, rate: 0.205 },
+  { upTo: 158_519, rate: 0.26 },
+  { upTo: 220_000, rate: 0.29 },
+  { upTo: Infinity, rate: 0.33 },
+];
+const FED_BPA_ANNUAL = 16_129; // Montant personnel de base fédéral
+
+// Tables provinciales (annuelles) — Revenu Québec 2026
+const QC_BRACKETS: Array<{ upTo: number; rate: number }> = [
+  { upTo: 53_255, rate: 0.14 },
+  { upTo: 106_495, rate: 0.19 },
+  { upTo: 129_590, rate: 0.24 },
+  { upTo: Infinity, rate: 0.2575 },
+];
+const QC_BPA_ANNUAL = 17_183; // Montant personnel de base Québec
+
+// RPC (Régime de pensions du Canada) 2026
+const RPC_RATE = 0.0595;
+const RPC_MPE = 68_500; // Maximum gains ouvrant droit à pension
+const RPC_EXEMPTION_ANNUAL = 3_500; // Exemption de base
+const RPC_MAX_PER_PERIOD = ((RPC_MPE - RPC_EXEMPTION_ANNUAL) * RPC_RATE) / PERIODS_PER_YEAR; // ~161.49
+
+// AE (Assurance-emploi) — Taux Québec 2026
+const AE_RATE = 0.0132;
+const AE_MIE = 65_700;
+const AE_MAX_PER_PERIOD = (AE_MIE * AE_RATE) / PERIODS_PER_YEAR; // ~36.14
+
+// RQAP (Régime québécois d'assurance parentale) 2026
+const RQAP_RATE = 0.00494;
+const RQAP_MIE = 98_000;
+const RQAP_MAX_PER_PERIOD = (RQAP_MIE * RQAP_RATE) / PERIODS_PER_YEAR; // ~20.18
+
+// Cotisations employeur (affichage info — non déduites du brut employé)
+const AE_EMPLOYER_MULTIPLIER = 1.4; // Employeur = employé × 1.4
+const RQAP_EMPLOYER_RATE = 0.00692;
+
+function progressiveTax(
+  annualTaxable: number,
+  brackets: Array<{ upTo: number; rate: number }>,
+): number {
+  if (annualTaxable <= 0) return 0;
+  let tax = 0;
+  let prev = 0;
+  for (const b of brackets) {
+    const slice = Math.max(0, Math.min(annualTaxable, b.upTo) - prev);
+    tax += slice * b.rate;
+    if (annualTaxable <= b.upTo) break;
+    prev = b.upTo;
+  }
+  return tax;
+}
 
 const PERIOD_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Brouillon", variant: "secondary" },
@@ -57,14 +106,52 @@ const ENTRY_STATUS: Record<string, { label: string; variant: "default" | "second
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const fmt = (n: number) => `${(n || 0).toFixed(2)} $`;
 
+/**
+ * Calcule toutes les déductions employé pour UNE période (1/24 de l'année)
+ * selon les tables progressives CRA + Revenu Québec 2026.
+ *
+ * Retourne aussi les cotisations employeur à titre indicatif
+ * (non déduites du net employé).
+ */
 function computeDeductions(gross: number) {
-  const fed = gross * TAX_RATES.federal;
-  const prov = gross * TAX_RATES.provincial;
-  const rpc = Math.min(gross * TAX_RATES.rpc, RPC_MAX_ANNUAL / 24);
-  const ae = gross * TAX_RATES.ae;
-  const rqap = gross * TAX_RATES.rqap;
+  const annualGross = gross * PERIODS_PER_YEAR;
+
+  // Impôts: appliquer le BPA annuel avant les barèmes
+  const fedTaxable = Math.max(0, annualGross - FED_BPA_ANNUAL);
+  const qcTaxable = Math.max(0, annualGross - QC_BPA_ANNUAL);
+  const fed = progressiveTax(fedTaxable, FED_BRACKETS) / PERIODS_PER_YEAR;
+  const prov = progressiveTax(qcTaxable, QC_BRACKETS) / PERIODS_PER_YEAR;
+
+  // RPC: gross - exemption_par_periode, plafonné
+  const pensionable = Math.max(0, gross - RPC_EXEMPTION_ANNUAL / PERIODS_PER_YEAR);
+  const rpc = Math.min(pensionable * RPC_RATE, RPC_MAX_PER_PERIOD);
+
+  // AE / RQAP: plafonnés
+  const ae = Math.min(gross * AE_RATE, AE_MAX_PER_PERIOD);
+  const rqap = Math.min(gross * RQAP_RATE, RQAP_MAX_PER_PERIOD);
+
   const total = fed + prov + rpc + ae + rqap;
-  return { fed, prov, rpc, ae, rqap, total };
+
+  // Employeur (info seulement)
+  const employerRpc = rpc;
+  const employerAe = ae * AE_EMPLOYER_MULTIPLIER;
+  const employerRqap = Math.min(gross * RQAP_EMPLOYER_RATE, RQAP_MIE * RQAP_EMPLOYER_RATE / PERIODS_PER_YEAR);
+  const employerTotal = employerRpc + employerAe + employerRqap;
+
+  return {
+    fed: Math.round(fed * 100) / 100,
+    prov: Math.round(prov * 100) / 100,
+    rpc: Math.round(rpc * 100) / 100,
+    ae: Math.round(ae * 100) / 100,
+    rqap: Math.round(rqap * 100) / 100,
+    total: Math.round(total * 100) / 100,
+    employer: {
+      rpc: Math.round(employerRpc * 100) / 100,
+      ae: Math.round(employerAe * 100) / 100,
+      rqap: Math.round(employerRqap * 100) / 100,
+      total: Math.round(employerTotal * 100) / 100,
+    },
+  };
 }
 
 function getPeriodDefinition(which: "first" | "fifteenth", now = new Date()) {
