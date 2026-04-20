@@ -78,6 +78,19 @@ export default function HrPayrollPage() {
   const [adjustEntry, setAdjustEntry] = useState<any>(null);
   const [adjustForm, setAdjustForm] = useState({ type: "bonus", amount: "", reason: "", notes: "" });
 
+  // Add employee dialog state
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    user_id: "", hours: "", rate: "", commissions: "", bonus: "", deductions: "", notes: "",
+  });
+
+  // Edit entry dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    hours: "", rate: "", commissions: "", bonus: "", notes: "",
+  });
+
   // ─── Periods ──────────────────────────────────────────────────────────────
   const { data: periods = [], isLoading: loadingPeriods } = useQuery({
     queryKey: ["hr-pay-periods"],
@@ -88,9 +101,13 @@ export default function HrPayrollPage() {
         .order("start_date", { ascending: false })
         .limit(100);
       if (error) throw error;
-      // Auto-select most recent period if none chosen
+      // Auto-select the period that contains today, or fall back to most recent
       if (!selectedPeriod && data && data.length > 0) {
-        setSelectedPeriod(data[0].id);
+        const today = new Date().toISOString().split('T')[0];
+        const currentPeriod = data.find((p: any) =>
+          p.start_date <= today && p.end_date >= today
+        );
+        setSelectedPeriod(currentPeriod ? currentPeriod.id : data[0].id);
       }
       return data;
     },
@@ -182,13 +199,15 @@ export default function HrPayrollPage() {
       const m = now.getMonth();
       let start: Date, end: Date, label: string;
       if (which === "first") {
-        const prev = new Date(y, m - 1, 16);
-        const endPrev = new Date(y, m, 0);
-        start = prev; end = endPrev;
-        label = `Période 16-${endPrev.getDate()} ${format(prev, "MMMM yyyy", { locale: fr })}`;
-      } else {
-        start = new Date(y, m, 1); end = new Date(y, m, 15);
+        // 1-15 of CURRENT month
+        start = new Date(y, m, 1);
+        end = new Date(y, m, 15);
         label = `Période 1-15 ${format(start, "MMMM yyyy", { locale: fr })}`;
+      } else {
+        // 16-end of CURRENT month
+        start = new Date(y, m, 16);
+        end = new Date(y, m + 1, 0); // last day of current month
+        label = `Période 16-${format(end, "d", { locale: fr })} ${format(start, "MMMM yyyy", { locale: fr })}`;
       }
       const startISO = start.toISOString().slice(0, 10);
       const endISO = end.toISOString().slice(0, 10);
@@ -395,6 +414,158 @@ export default function HrPayrollPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
+  // ─── Active employees (for "Add employee" dialog) ────────────────────────
+  const { data: activeEmployees = [] } = useQuery({
+    queryKey: ["hr-active-employees-for-payroll"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_records")
+        .select("user_id, first_name, last_name, hourly_rate, base_salary, salary_type, job_title")
+        .eq("status", "active")
+        .not("user_id", "is", null)
+        .order("first_name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const existingEntryUserIds = useMemo(
+    () => new Set(entries.map((e: any) => e.user_id)),
+    [entries],
+  );
+  const availableEmployees = useMemo(
+    () => activeEmployees.filter((emp: any) => !existingEntryUserIds.has(emp.user_id)),
+    [activeEmployees, existingEntryUserIds],
+  );
+
+  // ─── Add employee to current period (manual) ─────────────────────────────
+  const addEmployeeMut = useMutation({
+    mutationFn: async () => {
+      if (!selectedPeriod) throw new Error("Aucune période");
+      if (!addForm.user_id) throw new Error("Sélectionnez un employé");
+      const hours = parseFloat(addForm.hours) || 0;
+      const rate = parseFloat(addForm.rate) || 0;
+      const commissions = parseFloat(addForm.commissions) || 0;
+      const bonus = parseFloat(addForm.bonus) || 0;
+      const manualDeductions = parseFloat(addForm.deductions) || 0;
+
+      const baseSalary = hours * rate;
+      const gross = baseSalary + commissions + bonus - manualDeductions;
+      const ded = computeDeductions(Math.max(gross, 0));
+      const totalDed = ded.total + manualDeductions;
+      const net = gross - ded.total;
+
+      const emp = activeEmployees.find((e: any) => e.user_id === addForm.user_id);
+      const employeeName = emp ? `${emp.first_name} ${emp.last_name}` : null;
+
+      const { error } = await supabase.from("payroll_entries").insert({
+        pay_period_id: selectedPeriod,
+        user_id: addForm.user_id,
+        employee_name: employeeName,
+        hours_worked: Math.round(hours * 100) / 100,
+        hourly_rate: Math.round(rate * 100) / 100,
+        base_salary: Math.round(baseSalary * 100) / 100,
+        commission_total: Math.round(commissions * 100) / 100,
+        bonus_total: Math.round(bonus * 100) / 100,
+        deduction_total: Math.round(manualDeductions * 100) / 100,
+        gross_pay: Math.round(gross * 100) / 100,
+        federal_tax: Math.round(ded.fed * 100) / 100,
+        provincial_tax: Math.round(ded.prov * 100) / 100,
+        cpp_contributions: Math.round(ded.rpc * 100) / 100,
+        ei_premiums: Math.round(ded.ae * 100) / 100,
+        qpip_premiums: Math.round(ded.rqap * 100) / 100,
+        deductions_total: Math.round(totalDed * 100) / 100,
+        net_pay: Math.round(net * 100) / 100,
+        notes: addForm.notes || null,
+        status: "draft",
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Fiche ajoutée");
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
+      setAddOpen(false);
+      setAddForm({ user_id: "", hours: "", rate: "", commissions: "", bonus: "", deductions: "", notes: "" });
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
+  // Pre-fill rate + commissions when employee is selected in Add dialog
+  const prefillAddFormForEmployee = async (userId: string) => {
+    const emp = activeEmployees.find((e: any) => e.user_id === userId);
+    const rate = emp?.hourly_rate ? String(emp.hourly_rate) : "";
+    let commissionsTotal = 0;
+    if (currentPeriod) {
+      const { data: comms } = await supabase
+        .from("unified_commissions" as any)
+        .select("amount")
+        .eq("employee_id", userId)
+        .in("status", ["validated", "payable", "pending"])
+        .gte("created_at", `${currentPeriod.start_date}T00:00:00Z`)
+        .lte("created_at", `${currentPeriod.end_date}T23:59:59Z`);
+      commissionsTotal = ((comms as any[]) ?? []).reduce((s, c) => s + Number(c.amount || 0), 0);
+    }
+    setAddForm(f => ({
+      ...f,
+      user_id: userId,
+      rate: f.rate || rate,
+      commissions: f.commissions || (commissionsTotal ? String(commissionsTotal.toFixed(2)) : ""),
+    }));
+  };
+
+  // ─── Edit existing entry (full edit, recompute deductions) ───────────────
+  const editEntryMut = useMutation({
+    mutationFn: async () => {
+      if (!editEntry) throw new Error("Aucune fiche");
+      const hours = parseFloat(editForm.hours) || 0;
+      const rate = parseFloat(editForm.rate) || 0;
+      const commissions = parseFloat(editForm.commissions) || 0;
+      const bonus = parseFloat(editForm.bonus) || 0;
+
+      const baseSalary = hours * rate;
+      const gross = baseSalary + commissions + bonus;
+      const ded = computeDeductions(Math.max(gross, 0));
+      const net = gross - ded.total;
+
+      const { error } = await supabase.from("payroll_entries").update({
+        hours_worked: Math.round(hours * 100) / 100,
+        hourly_rate: Math.round(rate * 100) / 100,
+        base_salary: Math.round(baseSalary * 100) / 100,
+        commission_total: Math.round(commissions * 100) / 100,
+        bonus_total: Math.round(bonus * 100) / 100,
+        gross_pay: Math.round(gross * 100) / 100,
+        federal_tax: Math.round(ded.fed * 100) / 100,
+        provincial_tax: Math.round(ded.prov * 100) / 100,
+        cpp_contributions: Math.round(ded.rpc * 100) / 100,
+        ei_premiums: Math.round(ded.ae * 100) / 100,
+        qpip_premiums: Math.round(ded.rqap * 100) / 100,
+        deductions_total: Math.round(ded.total * 100) / 100,
+        net_pay: Math.round(net * 100) / 100,
+        notes: editForm.notes || null,
+      } as any).eq("id", editEntry.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Fiche mise à jour");
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
+      setEditOpen(false);
+      setEditEntry(null);
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
+  const openEditDialog = (entry: any) => {
+    setEditEntry(entry);
+    setEditForm({
+      hours: String(entry.hours_worked ?? ""),
+      rate: String(entry.hourly_rate ?? entry._emp?.hourly_rate ?? ""),
+      commissions: String(entry.commission_total ?? ""),
+      bonus: String(entry.bonus_total ?? ""),
+      notes: entry.notes ?? "",
+    });
+    setEditOpen(true);
+  };
+
   // ─── PDF generation ──────────────────────────────────────────────────────
   const generatePayslipPDF = (entry: any) => {
     const periodName = currentPeriod?.period_name || "Période";
@@ -519,11 +690,11 @@ export default function HrPayrollPage() {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
             onClick={() => autoGenerateMut.mutate("first")} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />Générer paie 16-fin
+            <Wand2 className="h-3.5 w-3.5" />Générer paie 1-15
           </Button>
           <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
             onClick={() => autoGenerateMut.mutate("fifteenth")} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />Générer paie 1-15
+            <Wand2 className="h-3.5 w-3.5" />Générer paie 16-fin
           </Button>
         </div>
       </div>
@@ -606,6 +777,10 @@ export default function HrPayrollPage() {
                   </Select>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="default" disabled={isLocked || availableEmployees.length === 0}
+                    onClick={() => setAddOpen(true)} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />Ajouter un employé
+                  </Button>
                   <Button size="sm" variant="outline" disabled={isLocked || approveAllMut.isPending}
                     onClick={() => approveAllMut.mutate()} className="gap-1.5">
                     <CheckCircle className="h-3.5 w-3.5" />Approuver tous
@@ -677,10 +852,15 @@ export default function HrPayrollPage() {
                             <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                             <TableCell>
                               <div className="flex gap-1">
+                                <Button size="sm" variant="default" className="h-6 text-[10px] gap-1"
+                                  disabled={isLocked}
+                                  onClick={() => openEditDialog(e)}>
+                                  <Edit className="h-3 w-3" />Éditer
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
                                   disabled={isLocked}
                                   onClick={() => { setAdjustEntry(e); setAdjustOpen(true); }}>
-                                  <Edit className="h-3 w-3" />Modifier
+                                  <Plus className="h-3 w-3" />Ajustement
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
                                   onClick={() => generatePayslipPDF(e)}>
@@ -842,6 +1022,118 @@ export default function HrPayrollPage() {
             <Button size="sm" disabled={!adjustForm.amount || adjustMut.isPending}
               onClick={() => adjustMut.mutate()}>
               {adjustMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add employee dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter un employé à la période</DialogTitle>
+            <DialogDescription>{currentPeriod?.period_name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Employé</Label>
+              <Select value={addForm.user_id} onValueChange={prefillAddFormForEmployee}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectContent>
+                  {availableEmployees.length === 0 ? (
+                    <SelectItem value="none" disabled>Tous les employés actifs sont déjà dans la période</SelectItem>
+                  ) : availableEmployees.map((emp: any) => (
+                    <SelectItem key={emp.user_id} value={emp.user_id}>
+                      {emp.first_name} {emp.last_name} {emp.job_title ? `— ${emp.job_title}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heures travaillées</Label>
+                <Input type="number" step="0.01" value={addForm.hours}
+                  onChange={(e) => setAddForm(f => ({ ...f, hours: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Taux horaire ($)</Label>
+                <Input type="number" step="0.01" value={addForm.rate}
+                  onChange={(e) => setAddForm(f => ({ ...f, rate: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Commissions ($)</Label>
+                <Input type="number" step="0.01" value={addForm.commissions}
+                  onChange={(e) => setAddForm(f => ({ ...f, commissions: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bonus ($)</Label>
+                <Input type="number" step="0.01" value={addForm.bonus}
+                  onChange={(e) => setAddForm(f => ({ ...f, bonus: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <Label className="text-xs">Déductions manuelles ($)</Label>
+                <Input type="number" step="0.01" value={addForm.deductions}
+                  onChange={(e) => setAddForm(f => ({ ...f, deductions: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes (optionnel)</Label>
+              <Textarea value={addForm.notes}
+                onChange={(e) => setAddForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setAddOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={!addForm.user_id || addEmployeeMut.isPending}
+              onClick={() => addEmployeeMut.mutate()}>
+              {addEmployeeMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Ajouter la fiche"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit entry dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Éditer la fiche — {editEntry?._name}</DialogTitle>
+            <DialogDescription>Recalcule automatiquement les déductions et le net</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heures travaillées</Label>
+                <Input type="number" step="0.01" value={editForm.hours}
+                  onChange={(e) => setEditForm(f => ({ ...f, hours: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Taux horaire ($)</Label>
+                <Input type="number" step="0.01" value={editForm.rate}
+                  onChange={(e) => setEditForm(f => ({ ...f, rate: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Commissions ($)</Label>
+                <Input type="number" step="0.01" value={editForm.commissions}
+                  onChange={(e) => setEditForm(f => ({ ...f, commissions: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bonus ($)</Label>
+                <Input type="number" step="0.01" value={editForm.bonus}
+                  onChange={(e) => setEditForm(f => ({ ...f, bonus: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes (optionnel)</Label>
+              <Textarea value={editForm.notes}
+                onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={editEntryMut.isPending}
+              onClick={() => editEntryMut.mutate()}>
+              {editEntryMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>
