@@ -329,7 +329,8 @@ export default function CorePhoneInventoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form?.purchase_price_cad]);
 
-  const imeiValid = useMemo(() => (form ? luhnCheck(form.imei) : false), [form?.imei]);
+  // IMEI validation removed — accept any text/number, optional field
+  const imeiValid = true;
 
   const taxBreakdown = useMemo(() => {
     const p = Number(form?.price_cad ?? 0);
@@ -369,7 +370,7 @@ export default function CorePhoneInventoryPage() {
     if (!form.model.trim()) return "Modèle requis";
     if (!form.storage.trim()) return "Stockage requis";
     if (!form.color.trim()) return "Couleur requise";
-    if (!imeiValid) return "IMEI invalide (15 chiffres, validation Luhn)";
+    // IMEI accepté tel quel (texte ou chiffres, optionnel)
     if (Number(form.price_cad) <= 0) return "Prix de vente requis";
     if (form.warranty_days < 0) return "Garantie invalide";
     if (form.condition !== "new" && form.battery_pct !== null) {
@@ -499,30 +500,16 @@ export default function CorePhoneInventoryPage() {
                       <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="Noir, Bleu titane..." />
                     </Field>
                     <div className="col-span-2">
-                      <Field label="IMEI * (15 chiffres)">
-                        <div className="relative">
-                          <Input
-                            value={form.imei}
-                            onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, "").slice(0, 15) })}
-                            className={`font-mono pr-10 ${form.imei.length > 0 ? (imeiValid ? "border-emerald-500" : "border-rose-500") : ""}`}
-                            placeholder="123456789012347"
-                          />
-                          {form.imei.length > 0 && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                              {imeiValid
-                                ? <Check className="h-4 w-4 text-emerald-600" />
-                                : <XIcon className="h-4 w-4 text-rose-600" />}
-                            </span>
-                          )}
-                        </div>
-                        {form.imei.length > 0 && !imeiValid && (
-                          <p className="text-xs text-rose-600 mt-1">
-                            IMEI invalide — doit contenir 15 chiffres et passer la validation Luhn.
-                          </p>
-                        )}
-                        {imeiValid && (
-                          <p className="text-xs text-emerald-600 mt-1">IMEI valide ✓</p>
-                        )}
+                      <Field label="IMEI / Identifiant (optionnel)">
+                        <Input
+                          value={form.imei}
+                          onChange={(e) => setForm({ ...form, imei: e.target.value.slice(0, 50) })}
+                          className="font-mono"
+                          placeholder="Ex: 123456789012347, DEMO-IPHONE16, etc."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Texte ou chiffres acceptés. Aucune validation requise.
+                        </p>
                       </Field>
                     </div>
                   </div>
