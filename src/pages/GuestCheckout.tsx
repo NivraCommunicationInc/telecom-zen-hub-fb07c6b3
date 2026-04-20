@@ -208,7 +208,7 @@ const GuestCheckout = () => {
   const isStreamingOnlyOrder = selectedServices.length > 0 && selectedServices.every(s => s.category === "Streaming" || s.category === "Streaming+");
   const requiresInstallation = installationChoice === "technician" && (hasInternetService || hasTVService);
   const needsAddress = !isStreamingOnlyOrder;
-  const isETransfer = paymentMethod === "etransfer";
+  const isETransfer = false; // Interac retiré — Nivra n'accepte que PayPal
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
   // KYC removed — always treated as not required at checkout time.
   const isKycComplete = true;
