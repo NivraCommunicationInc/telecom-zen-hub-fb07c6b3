@@ -244,13 +244,16 @@ export default function PhoneDetail() {
                 </div>
               )}
 
-              {phone.description && (
-                <Card className="mb-6">
-                  <CardContent className="pt-6">
-                    <p className="text-sm text-foreground whitespace-pre-line">{phone.description}</p>
-                  </CardContent>
-                </Card>
-              )}
+              {(() => {
+                const cleanDesc = (phone.description || "").split("---NIVRA_META---")[0].trim();
+                return cleanDesc ? (
+                  <Card className="mb-6">
+                    <CardContent className="pt-6">
+                      <p className="text-sm text-foreground whitespace-pre-line">{cleanDesc}</p>
+                    </CardContent>
+                  </Card>
+                ) : null;
+              })()}
 
               {isAvailable ? (
                 <Button asChild size="lg" className="w-full">
