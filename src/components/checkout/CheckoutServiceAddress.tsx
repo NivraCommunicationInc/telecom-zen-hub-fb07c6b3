@@ -21,11 +21,11 @@ interface CheckoutServiceAddressProps {
 
 // Canonical validators live in src/lib/validation/checkoutFields.ts.
 // Re-exported here so existing imports (`from "@/components/checkout/CheckoutServiceAddress"`) keep working.
-export {
+import {
   validateCanadianPostalCode,
   formatPostalCode,
 } from "@/lib/validation/checkoutFields";
-import { validateCanadianPostalCode } from "@/lib/validation/checkoutFields";
+export { validateCanadianPostalCode, formatPostalCode };
 
 export const isAddressComplete = (address: ServiceAddress): boolean => {
   return !!(
