@@ -16,9 +16,11 @@ import {
   generateInvoicePDF,
   generateReceiptPDF,
   generateContractPDF,
+  generateSummaryPDF,
   type InvoiceData,
   type ReceiptData,
   type ContractData,
+  type SummaryData,
 } from "./pdfGenerator.ts";
 
 export interface QueuedAttachment {
@@ -290,6 +292,97 @@ export async function buildContractPdfAttachment(
     };
   } catch (err) {
     console.error("[pdfFromDb] buildContractPdfAttachment error:", err);
+    return null;
+  }
+}
+
+/**
+ * Build an Order Summary PDF attachment from an orders row id.
+ * Used by service-activation, shipment, and order-modified emails.
+ * Returns null on any error; caller should still send the email.
+ */
+export async function buildSummaryPdfAttachment(
+  orderId: string,
+  filenamePrefix: string = "sommaire-commande",
+): Promise<QueuedAttachment | null> {
+  try {
+    const supabase = getServiceClient();
+
+    const { data: o, error } = await supabase
+      .from("orders")
+      .select(`
+        id, order_number, created_at, status, service_type,
+        plan_name, plan_price, equipment_total,
+        subtotal, tps_amount, tvq_amount, total_amount,
+        installation_date,
+        client_first_name, client_last_name, client_email, client_phone,
+        service_address, service_city, service_postal_code,
+        billing_address, billing_city, billing_postal_code,
+        items
+      `)
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (error || !o) {
+      console.warn("[pdfFromDb] buildSummaryPdfAttachment: order not found", orderId, error?.message);
+      return null;
+    }
+
+    const clientName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ").trim() || "Client";
+    const addrParts = [
+      o.service_address || o.billing_address,
+      o.service_city || o.billing_city,
+      o.service_postal_code || o.billing_postal_code,
+    ].filter(Boolean);
+
+    // Build services list — prefer items[] when present, otherwise fallback to plan + equipment
+    const services: SummaryData["services"] = [];
+    const items = Array.isArray((o as any).items) ? (o as any).items : [];
+    if (items.length > 0) {
+      for (const it of items) {
+        services.push({
+          name: it.name || it.product_name || it.description || "Article",
+          price: Number(it.price || it.unit_price || it.total || 0),
+          is_recurring: !!(it.is_recurring || it.recurring || it.type === "subscription"),
+        });
+      }
+    } else {
+      if (o.plan_name && Number(o.plan_price || 0) > 0) {
+        services.push({ name: o.plan_name, price: Number(o.plan_price), is_recurring: true });
+      }
+      if (Number(o.equipment_total || 0) > 0) {
+        services.push({ name: "Équipement", price: Number(o.equipment_total), is_recurring: false });
+      }
+    }
+
+    const subtotalRecurring = services.filter((s) => s.is_recurring).reduce((acc, s) => acc + s.price, 0);
+    const subtotalOneTime = services.filter((s) => !s.is_recurring).reduce((acc, s) => acc + s.price, 0);
+
+    const data: SummaryData = {
+      order_number: o.order_number || orderId.slice(0, 8).toUpperCase(),
+      order_date: o.created_at,
+      status: o.status || "En cours",
+      client_name: clientName,
+      client_email: o.client_email || undefined,
+      client_phone: o.client_phone || undefined,
+      client_address: addrParts.join(", ") || undefined,
+      services,
+      subtotal_recurring: subtotalRecurring,
+      subtotal_one_time: subtotalOneTime,
+      tps: Number(o.tps_amount || 0),
+      tvq: Number(o.tvq_amount || 0),
+      total: Number(o.total_amount || o.subtotal || subtotalRecurring + subtotalOneTime),
+      installation_date: o.installation_date || undefined,
+    };
+
+    const base64 = generateSummaryPDF(data);
+    return {
+      filename: `${filenamePrefix}-${o.order_number || orderId.slice(0, 8)}.pdf`,
+      content: base64,
+      contentType: "application/pdf",
+    };
+  } catch (err) {
+    console.error("[pdfFromDb] buildSummaryPdfAttachment error:", err);
     return null;
   }
 }
