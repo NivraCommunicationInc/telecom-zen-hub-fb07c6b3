@@ -2,7 +2,7 @@
  * HrPayrollPage — Professional payroll administration
  * Sections: Header period nav | Employee payroll table | Bulk actions | Adjustments | History
  */
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +67,27 @@ function computeDeductions(gross: number) {
   return { fed, prov, rpc, ae, rqap, total };
 }
 
+function getPeriodDefinition(which: "first" | "fifteenth", now = new Date()) {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const start = which === "first"
+    ? new Date(year, month, 1)
+    : new Date(year, month, 16);
+  const end = which === "first"
+    ? new Date(year, month, 15)
+    : new Date(year, month + 1, 0);
+
+  return {
+    start,
+    end,
+    startISO: start.toISOString().slice(0, 10),
+    endISO: end.toISOString().slice(0, 10),
+    label: which === "first"
+      ? `Période 1-15 ${format(start, "MMMM yyyy", { locale: fr })}`
+      : `Période 16-${format(end, "d", { locale: fr })} ${format(start, "MMMM yyyy", { locale: fr })}`,
+  };
+}
+
 export default function HrPayrollPage() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState("payroll");
@@ -101,37 +122,34 @@ export default function HrPayrollPage() {
         .order("start_date", { ascending: false })
         .limit(100);
       if (error) throw error;
-      // Auto-select the period that contains today, or fall back to most recent
-      if (!selectedPeriod && data && data.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        const currentPeriod = data.find((p: any) =>
-          p.start_date <= today && p.end_date >= today
-        );
-        setSelectedPeriod(currentPeriod ? currentPeriod.id : data[0].id);
-      }
       return data;
     },
   });
 
-  const currentPeriod = periods.find((p: any) => p.id === selectedPeriod) || null;
-  const periodIndex = periods.findIndex((p: any) => p.id === selectedPeriod);
-  const isLocked = currentPeriod?.status === "closed";
-
   // ─── Detect expected current period (based on today's date) ──────────────
   const today = new Date();
   const expectedHalf: "first" | "fifteenth" = today.getDate() <= 15 ? "first" : "fifteenth";
-  const expectedStart = new Date(today.getFullYear(), today.getMonth(), expectedHalf === "first" ? 1 : 16);
-  const expectedEnd = expectedHalf === "first"
-    ? new Date(today.getFullYear(), today.getMonth(), 15)
-    : new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  const expectedStartISO = expectedStart.toISOString().slice(0, 10);
-  const expectedEndISO = expectedEnd.toISOString().slice(0, 10);
-  const expectedLabel = expectedHalf === "first"
-    ? `Période 1-15 ${format(expectedStart, "MMMM yyyy", { locale: fr })}`
-    : `Période 16-${format(expectedEnd, "d", { locale: fr })} ${format(expectedStart, "MMMM yyyy", { locale: fr })}`;
-  const currentPeriodExists = periods.some((p: any) =>
-    p.start_date === expectedStartISO && p.end_date === expectedEndISO
-  );
+  const expectedPeriodDef = getPeriodDefinition(expectedHalf, today);
+  const expectedLabel = expectedPeriodDef.label;
+  const expectedPeriod = periods.find((p: any) =>
+    p.start_date === expectedPeriodDef.startISO && p.end_date === expectedPeriodDef.endISO
+  ) || null;
+
+  useEffect(() => {
+    if (periods.length === 0) {
+      if (selectedPeriod !== null) setSelectedPeriod(null);
+      return;
+    }
+    const selectedStillExists = selectedPeriod && periods.some((p: any) => p.id === selectedPeriod);
+    if (selectedStillExists) return;
+    setSelectedPeriod(expectedPeriod?.id ?? periods[0].id);
+  }, [periods, expectedPeriod?.id, selectedPeriod]);
+
+  const currentPeriod = periods.find((p: any) => p.id === selectedPeriod) || null;
+  const periodIndex = periods.findIndex((p: any) => p.id === selectedPeriod);
+  const isLocked = currentPeriod?.status === "closed";
+  const showMissingCurrentPeriodState = !expectedPeriod;
+  const showMissingEntriesState = !!expectedPeriod && currentPeriod?.id === expectedPeriod.id && !loadingEntries && entries.length === 0;
 
   // ─── Entries for selected period ──────────────────────────────────────────
   const { data: entries = [], isLoading: loadingEntries } = useQuery({
@@ -210,87 +228,125 @@ export default function HrPayrollPage() {
   // ─── Mutations ───────────────────────────────────────────────────────────
   const autoGenerateMut = useMutation({
     mutationFn: async (which: "first" | "fifteenth") => {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = now.getMonth();
-      let start: Date, end: Date, label: string;
-      if (which === "first") {
-        // 1-15 of CURRENT month
-        start = new Date(y, m, 1);
-        end = new Date(y, m, 15);
-        label = `Période 1-15 ${format(start, "MMMM yyyy", { locale: fr })}`;
-      } else {
-        // 16-end of CURRENT month
-        start = new Date(y, m, 16);
-        end = new Date(y, m + 1, 0); // last day of current month
-        label = `Période 16-${format(end, "d", { locale: fr })} ${format(start, "MMMM yyyy", { locale: fr })}`;
+      const periodDef = getPeriodDefinition(which);
+
+      const { data: existingPeriod, error: existingPeriodErr } = await supabase
+        .from("pay_periods")
+        .select("id, period_name, start_date, end_date")
+        .eq("start_date", periodDef.startISO)
+        .eq("end_date", periodDef.endISO)
+        .maybeSingle();
+      if (existingPeriodErr) throw existingPeriodErr;
+
+      let periodId = existingPeriod?.id;
+      if (!periodId) {
+        const { data: createdPeriod, error: createPeriodErr } = await supabase
+          .from("pay_periods")
+          .insert({
+            period_name: periodDef.label,
+            start_date: periodDef.startISO,
+            end_date: periodDef.endISO,
+            status: "draft",
+          })
+          .select("id")
+          .single();
+        if (createPeriodErr) throw createPeriodErr;
+        periodId = createdPeriod.id;
       }
-      const startISO = start.toISOString().slice(0, 10);
-      const endISO = end.toISOString().slice(0, 10);
 
-      const { data: existing } = await supabase.from("pay_periods")
-        .select("id").eq("start_date", startISO).eq("end_date", endISO).maybeSingle();
-      if (existing) throw new Error("Cette période existe déjà");
-
-      const { data: period, error: pErr } = await supabase.from("pay_periods").insert({
-        period_name: label, start_date: startISO, end_date: endISO, status: "draft",
-      }).select("id").single();
-      if (pErr) throw pErr;
-
-      const { data: emps } = await supabase
+      const { data: emps, error: empErr } = await supabase
         .from("employee_records")
         .select("user_id, base_salary, hourly_rate, salary_type")
         .eq("status", "active")
         .not("user_id", "is", null);
+      if (empErr) throw empErr;
 
-      let created = 0;
-      for (const emp of emps ?? []) {
-        if (!emp.user_id) continue;
-        const { data: hrs } = await supabase
+      const activeEmployees = (emps ?? []).filter((emp: any) => !!emp.user_id);
+      if (activeEmployees.length === 0) return { periodId, created: 0 };
+
+      const activeUserIds = activeEmployees.map((emp: any) => emp.user_id);
+      const { data: existingEntries, error: existingEntriesErr } = await supabase
+        .from("payroll_entries")
+        .select("user_id")
+        .eq("pay_period_id", periodId)
+        .in("user_id", activeUserIds);
+      if (existingEntriesErr) throw existingEntriesErr;
+
+      const existingUserIds = new Set((existingEntries ?? []).map((entry: any) => entry.user_id));
+      const employeesToInsert = activeEmployees.filter((emp: any) => !existingUserIds.has(emp.user_id));
+      if (employeesToInsert.length === 0) return { periodId, created: 0 };
+
+      const userIds = employeesToInsert.map((emp: any) => emp.user_id);
+      const [hoursRes, commsRes] = await Promise.all([
+        supabase
           .from("time_entries")
-          .select("total_hours")
-          .eq("user_id", emp.user_id)
-          .gte("punch_in", `${startISO}T00:00:00Z`)
-          .lte("punch_in", `${endISO}T23:59:59Z`)
-          .not("total_hours", "is", null);
-        const totalHours = (hrs ?? []).reduce((s: number, e: any) => s + (Number(e.total_hours) || 0), 0);
-
-        const { data: comms } = await supabase
+          .select("user_id, total_hours")
+          .in("user_id", userIds)
+          .gte("punch_in", `${periodDef.startISO}T00:00:00Z`)
+          .lte("punch_in", `${periodDef.endISO}T23:59:59Z`)
+          .not("total_hours", "is", null),
+        supabase
           .from("unified_commissions" as any)
-          .select("amount")
-          .eq("employee_id", emp.user_id)
+          .select("employee_id, amount")
+          .in("employee_id", userIds)
           .in("status", ["validated", "payable", "pending"])
-          .gte("created_at", `${startISO}T00:00:00Z`)
-          .lte("created_at", `${endISO}T23:59:59Z`);
-        const commTotal = ((comms as any[]) ?? []).reduce((s, c) => s + Number(c.amount || 0), 0);
+          .gte("created_at", `${periodDef.startISO}T00:00:00Z`)
+          .lte("created_at", `${periodDef.endISO}T23:59:59Z`),
+      ]);
 
-        const baseHalf = emp.salary_type === "hourly"
+      if (hoursRes.error) throw hoursRes.error;
+      if (commsRes.error) throw commsRes.error;
+
+      const hoursByUser = new Map<string, number>();
+      for (const row of hoursRes.data ?? []) {
+        hoursByUser.set(row.user_id, (hoursByUser.get(row.user_id) ?? 0) + Number(row.total_hours || 0));
+      }
+
+      const commissionsByUser = new Map<string, number>();
+      for (const row of (commsRes.data as any[]) ?? []) {
+        const employeeId = row.employee_id as string;
+        commissionsByUser.set(employeeId, (commissionsByUser.get(employeeId) ?? 0) + Number(row.amount || 0));
+      }
+
+      const rows = employeesToInsert.map((emp: any) => {
+        const totalHours = hoursByUser.get(emp.user_id) ?? 0;
+        const commissionTotal = commissionsByUser.get(emp.user_id) ?? 0;
+        const baseSalary = emp.salary_type === "hourly"
           ? totalHours * Number(emp.hourly_rate || 0)
           : Number(emp.base_salary || 0) / 24;
-        const gross = baseHalf + commTotal;
-        const ded = computeDeductions(gross);
+        const gross = baseSalary + commissionTotal;
+        const deductions = computeDeductions(gross);
 
-        const { error: eErr } = await supabase.from("payroll_entries").insert({
-          pay_period_id: period.id,
+        return {
+          pay_period_id: periodId,
           user_id: emp.user_id,
-          base_salary: Math.round(baseHalf * 100) / 100,
-          commission_total: Math.round(commTotal * 100) / 100,
+          base_salary: Math.round(baseSalary * 100) / 100,
+          commission_total: Math.round(commissionTotal * 100) / 100,
           bonus_total: 0,
           hours_worked: Math.round(totalHours * 100) / 100,
           overtime_hours: 0,
           gross_pay: Math.round(gross * 100) / 100,
-          deductions_total: Math.round(ded.total * 100) / 100,
-          net_pay: Math.round((gross - ded.total) * 100) / 100,
+          deductions_total: Math.round(deductions.total * 100) / 100,
+          net_pay: Math.round((gross - deductions.total) * 100) / 100,
           status: "draft",
-        });
-        if (!eErr) created++;
-      }
-      return { periodId: period.id, created };
+        };
+      });
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from("payroll_entries")
+        .insert(rows)
+        .select("id");
+      if (insertErr) throw insertErr;
+
+      return { periodId, created: inserted?.length ?? rows.length };
     },
     onSuccess: (r) => {
-      toast.success(`Période créée — ${r.created} fiche(s) générée(s)`);
+      toast.success(r.created > 0
+        ? `Période prête — ${r.created} fiche(s) générée(s)`
+        : "Période déjà prête — aucune fiche manquante");
       qc.invalidateQueries({ queryKey: ["hr-pay-periods"] });
       qc.invalidateQueries({ queryKey: ["hr-payroll-history"] });
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
       setSelectedPeriod(r.periodId);
     },
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
