@@ -127,6 +127,9 @@ const CoreTVSurMesurePage = lazy(() => import("@/core-app/pages/CoreTVSurMesureP
 const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
 const CoreStreamingPage = lazy(() => import("@/core-app/pages/CoreStreamingPage"));
 const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"));
+// Operations — Returns & Cancellations
+const CoreReturnsPage = lazy(() => import("@/core-app/pages/CoreReturnsPage"));
+const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
 // Marketing
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
@@ -863,6 +866,9 @@ const AppRoutes = () => {
           <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
           <Route path="phones" element={<Suspense fallback={null}><CorePhoneOrdersPage /></Suspense>} />
           <Route path="phones/inventory" element={<Suspense fallback={null}><CorePhoneInventoryPage /></Suspense>} />
+          {/* Returns (RMA) & Cancellations */}
+          <Route path="returns" element={<Suspense fallback={null}><CoreReturnsPage /></Suspense>} />
+          <Route path="cancellations" element={<Suspense fallback={null}><CoreCancellationsPage /></Suspense>} />
           {/* Supplier Accounts (admin-only — RLS enforced server-side) */}
           <Route path="supplier-accounts" element={<Suspense fallback={null}><SupplierAccountsPage /></Suspense>} />
           <Route path="supplier-accounts/new" element={<Suspense fallback={null}><SupplierAccountNewPage /></Suspense>} />
