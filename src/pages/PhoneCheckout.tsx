@@ -179,22 +179,30 @@ export default function PhoneCheckout() {
   // DOB only required when buying a phone + mobile plan AND (guest OR no DOB on profile yet)
   const dobRequired = mode === "phone_plus_plan" && (!user || !dob);
 
+  // Strict field-level validation (Option A — same rules as GuestCheckout)
+  const phoneValid = validateCanadianPhone(phoneNumber);
+  const postalValid = validateCanadianPostalCode(postalCode);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const dobCheck = dobRequired
+    ? validateDob(dob, { required: true })
+    : { isValid: true as const };
+
   const formValid = useMemo(() => {
     return (
-      !!firstName.trim() &&
-      !!lastName.trim() &&
-      !!email.trim() &&
-      !!phoneNumber.trim() &&
-      (!dobRequired || !!dob) &&
+      firstName.trim().length >= 2 &&
+      lastName.trim().length >= 2 &&
+      emailValid &&
+      phoneValid &&
+      (!dobRequired || dobCheck.isValid) &&
       !!address.trim() &&
       !!city.trim() &&
       !!province &&
-      !!postalCode.trim() &&
+      postalValid &&
       !provinceError &&
       !planError &&
       acceptKyc
     );
-  }, [firstName, lastName, email, phoneNumber, dob, dobRequired, address, city, province, postalCode, provinceError, planError, acceptKyc]);
+  }, [firstName, lastName, emailValid, phoneValid, dobRequired, dobCheck.isValid, address, city, province, postalValid, provinceError, planError, acceptKyc]);
 
   // -------- Payment success --------
   const handlePaymentSuccess = async (captureId: string, payerAddress?: PayPalPayerAddress | null) => {
@@ -487,7 +495,7 @@ export default function PhoneCheckout() {
               <div><Label htmlFor="fn">{isFr ? "Prénom" : "First name"} *</Label><Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
               <div><Label htmlFor="ln">{isFr ? "Nom" : "Last name"} *</Label><Input id="ln" value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
               <div><Label htmlFor="em">{isFr ? "Courriel" : "Email"} *</Label><Input id="em" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!user} /></div>
-              <div><Label htmlFor="ph">{isFr ? "Téléphone" : "Phone"} *</Label><Input id="ph" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} /></div>
+              <div><Label htmlFor="ph">{isFr ? "Téléphone" : "Phone"} *</Label><Input id="ph" type="tel" placeholder="(514) 555-1234" value={phoneNumber} onChange={(e) => setPhoneNumber(formatCanadianPhone(e.target.value))} maxLength={14} /></div>
               {dobRequired && (
                 <div className="md:col-span-2">
                   <Label htmlFor="dob">{isFr ? "Date de naissance" : "Date of birth"} *</Label>
@@ -519,7 +527,7 @@ export default function PhoneCheckout() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label htmlFor="pc">{isFr ? "Code postal" : "Postal code"} *</Label><Input id="pc" value={postalCode} onChange={(e) => setPostalCode(e.target.value.toUpperCase())} placeholder="H2X 1Y4" /></div>
+              <div><Label htmlFor="pc">{isFr ? "Code postal" : "Postal code"} *</Label><Input id="pc" value={postalCode} onChange={(e) => setPostalCode(formatPostalCode(e.target.value))} placeholder="H2X 1Y4" maxLength={7} /></div>
               <div className="md:col-span-2 text-xs text-muted-foreground">{isFr ? "Pays : Canada" : "Country: Canada"}</div>
               <Alert className="md:col-span-2 border-primary/30 bg-primary/5">
                 <ShieldCheck className="h-4 w-4 text-primary" />
