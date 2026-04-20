@@ -37,6 +37,13 @@ import { PayPalButton, type PayPalPayerAddress } from "@/components/payment/PayP
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMobilePlans } from "@/hooks/usePublicServices";
+import {
+  formatCanadianPhone,
+  validateCanadianPhone,
+  formatPostalCode,
+  validateCanadianPostalCode,
+} from "@/lib/validation/checkoutFields";
+import { validateDob } from "@/lib/validation/dob";
 
 type Phone = {
   id: string;
