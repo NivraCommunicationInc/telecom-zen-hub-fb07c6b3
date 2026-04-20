@@ -78,6 +78,19 @@ export default function HrPayrollPage() {
   const [adjustEntry, setAdjustEntry] = useState<any>(null);
   const [adjustForm, setAdjustForm] = useState({ type: "bonus", amount: "", reason: "", notes: "" });
 
+  // Add employee dialog state
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    user_id: "", hours: "", rate: "", commissions: "", bonus: "", deductions: "", notes: "",
+  });
+
+  // Edit entry dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    hours: "", rate: "", commissions: "", bonus: "", notes: "",
+  });
+
   // ─── Periods ──────────────────────────────────────────────────────────────
   const { data: periods = [], isLoading: loadingPeriods } = useQuery({
     queryKey: ["hr-pay-periods"],
@@ -88,9 +101,13 @@ export default function HrPayrollPage() {
         .order("start_date", { ascending: false })
         .limit(100);
       if (error) throw error;
-      // Auto-select most recent period if none chosen
+      // Auto-select the period that contains today, or fall back to most recent
       if (!selectedPeriod && data && data.length > 0) {
-        setSelectedPeriod(data[0].id);
+        const today = new Date().toISOString().split('T')[0];
+        const currentPeriod = data.find((p: any) =>
+          p.start_date <= today && p.end_date >= today
+        );
+        setSelectedPeriod(currentPeriod ? currentPeriod.id : data[0].id);
       }
       return data;
     },
@@ -182,13 +199,15 @@ export default function HrPayrollPage() {
       const m = now.getMonth();
       let start: Date, end: Date, label: string;
       if (which === "first") {
-        const prev = new Date(y, m - 1, 16);
-        const endPrev = new Date(y, m, 0);
-        start = prev; end = endPrev;
-        label = `Période 16-${endPrev.getDate()} ${format(prev, "MMMM yyyy", { locale: fr })}`;
-      } else {
-        start = new Date(y, m, 1); end = new Date(y, m, 15);
+        // 1-15 of CURRENT month
+        start = new Date(y, m, 1);
+        end = new Date(y, m, 15);
         label = `Période 1-15 ${format(start, "MMMM yyyy", { locale: fr })}`;
+      } else {
+        // 16-end of CURRENT month
+        start = new Date(y, m, 16);
+        end = new Date(y, m + 1, 0); // last day of current month
+        label = `Période 16-${format(end, "d", { locale: fr })} ${format(start, "MMMM yyyy", { locale: fr })}`;
       }
       const startISO = start.toISOString().slice(0, 10);
       const endISO = end.toISOString().slice(0, 10);
