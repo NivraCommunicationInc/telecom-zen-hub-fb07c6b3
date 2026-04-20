@@ -311,6 +311,26 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
     doc.text(`Votre tarif mensuel recurrent sera de ${fmt(data.subtotal_monthly)} (avant taxes) a compter du prochain cycle.`, 15, y);
+    y += 6;
+
+    // Activation / installation details (mobile / internet / TV)
+    const hasActivation = data.mobile_assigned_number || data.mobile_sim_iccid || data.install_date || data.technician_name;
+    if (hasActivation) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(30, 64, 120);
+      doc.text("Details d'activation / installation", 15, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(40, 40, 40);
+      if (data.mobile_assigned_number) { doc.text(`Numero attribue : ${data.mobile_assigned_number}`, 17, y); y += 4; }
+      if (data.mobile_sim_iccid) { doc.text(`SIM ICCID : ${data.mobile_sim_iccid}` + (data.mobile_sim_type ? ` (${data.mobile_sim_type})` : ""), 17, y); y += 4; }
+      if (data.mobile_sim_carrier) { doc.text(`Reseau : ${data.mobile_sim_carrier}`, 17, y); y += 4; }
+      if (data.mobile_activated_at) { doc.text(`Activation mobile : ${fmtDate(data.mobile_activated_at)}`, 17, y); y += 4; }
+      if (data.install_date) { doc.text(`Date d'installation : ${fmtDate(data.install_date)}`, 17, y); y += 4; }
+      if (data.technician_name) { doc.text(`Technicien : ${data.technician_name}`, 17, y); y += 4; }
+    }
 
     drawFooter(doc, 1, totalPages);
 
