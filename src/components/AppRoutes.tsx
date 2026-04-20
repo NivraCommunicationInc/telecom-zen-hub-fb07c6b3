@@ -127,6 +127,9 @@ const CoreTVSurMesurePage = lazy(() => import("@/core-app/pages/CoreTVSurMesureP
 const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
 const CoreStreamingPage = lazy(() => import("@/core-app/pages/CoreStreamingPage"));
 const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"));
+// Operations — Returns & Cancellations
+const CoreReturnsPage = lazy(() => import("@/core-app/pages/CoreReturnsPage"));
+const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
 // Marketing
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
