@@ -19,19 +19,13 @@ interface CheckoutServiceAddressProps {
   errors?: Partial<Record<keyof ServiceAddress, string>>;
 }
 
-// Canadian postal code format validation: A1A 1A1
-export const validateCanadianPostalCode = (postalCode: string): boolean => {
-  const cleanedCode = postalCode.replace(/\s/g, "").toUpperCase();
-  const postalCodeRegex = /^[A-Z]\d[A-Z]\d[A-Z]\d$/;
-  return postalCodeRegex.test(cleanedCode);
-};
-
-// Format postal code as A1A 1A1
-export const formatPostalCode = (value: string): string => {
-  const cleaned = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6);
-  if (cleaned.length <= 3) return cleaned;
-  return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-};
+// Canonical validators live in src/lib/validation/checkoutFields.ts.
+// Re-exported here so existing imports (`from "@/components/checkout/CheckoutServiceAddress"`) keep working.
+import {
+  validateCanadianPostalCode,
+  formatPostalCode,
+} from "@/lib/validation/checkoutFields";
+export { validateCanadianPostalCode, formatPostalCode };
 
 export const isAddressComplete = (address: ServiceAddress): boolean => {
   return !!(
