@@ -986,3 +986,121 @@ function ColorTagInput({
     </div>
   );
 }
+
+// ─────────────────────────── Photo Uploader ───────────────────────────
+function PhotoUploader({
+  photos,
+  onChange,
+}: {
+  photos: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    const uploaded: string[] = [];
+    try {
+      for (const file of Array.from(files)) {
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} dépasse 10 Mo`);
+          continue;
+        }
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("phone-photos")
+          .upload(path, file, { cacheControl: "3600", upsert: false });
+        if (error) {
+          toast.error(`Échec ${file.name}: ${error.message}`);
+          continue;
+        }
+        const { data } = supabase.storage.from("phone-photos").getPublicUrl(path);
+        uploaded.push(data.publicUrl);
+      }
+      if (uploaded.length > 0) {
+        onChange([...photos, ...uploaded]);
+        toast.success(`${uploaded.length} photo(s) ajoutée(s)`);
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removePhoto(url: string) {
+    onChange(photos.filter((p) => p !== url));
+    const match = url.match(/\/phone-photos\/(.+)$/);
+    if (match) {
+      supabase.storage.from("phone-photos").remove([match[1]]).catch(() => {});
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <label
+        className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+          uploading ? "bg-muted/40 opacity-60" : "bg-muted/20 hover:bg-muted/40 hover:border-primary"
+        }`}
+      >
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          multiple
+          disabled={uploading}
+          onChange={(e) => handleFiles(e.target.files)}
+          className="hidden"
+        />
+        {uploading ? (
+          <>
+            <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
+            <p className="text-sm text-foreground font-medium">Téléversement en cours…</p>
+          </>
+        ) : (
+          <>
+            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-foreground font-medium">Cliquez ou glissez des photos ici</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              JPG, PNG, WEBP ou HEIC · max 10 Mo par image · plusieurs fichiers acceptés
+            </p>
+          </>
+        )}
+      </label>
+
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+          {photos.map((url, i) => (
+            <div
+              key={url}
+              className="relative aspect-square rounded-md overflow-hidden border bg-muted group"
+            >
+              <img
+                src={url}
+                alt={`Photo ${i + 1}`}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {i === 0 && (
+                <span className="absolute top-1 left-1 text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                  Principale
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => removePhoto(url)}
+                className="absolute top-1 right-1 p-1 rounded bg-background/90 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                aria-label="Supprimer la photo"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground">
+        La 1<sup>re</sup> photo sera l'image principale affichée au client.
+      </p>
+    </div>
+  );
+}
