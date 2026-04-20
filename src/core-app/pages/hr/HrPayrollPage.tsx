@@ -330,6 +330,24 @@ export default function HrPayrollPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
+  const markAllPaidMut = useMutation({
+    mutationFn: async () => {
+      const ids = entries.filter((e: any) => e.status === "approved").map((e: any) => e.id);
+      if (ids.length === 0) throw new Error("Aucune fiche approuvée à marquer payée");
+      const { error } = await supabase
+        .from("payroll_entries")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} fiche(s) marquée(s) payée(s)`);
+      qc.invalidateQueries({ queryKey: ["hr-payroll-entries"] });
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
   const finalizePeriodMut = useMutation({
     mutationFn: async () => {
       if (!selectedPeriod) throw new Error("Aucune période");
