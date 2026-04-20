@@ -1324,6 +1324,9 @@ serve(async (req) => {
     // STEP 6: Cleanup — void overdue invoices past J+10 (safety net)
     await cleanupOverdueInvoices(supabase, stats);
 
+    // STEP 7: Chargeback fees engine (5%/month interest + $15 reactivation fee)
+    await processChargebackFees(supabase, stats);
+
     const summary = [
       `Expired: ${stats.subscriptions_expired}`,
       `Voided: ${stats.invoices_voided}`,
