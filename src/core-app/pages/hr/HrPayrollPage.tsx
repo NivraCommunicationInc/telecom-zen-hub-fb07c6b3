@@ -538,11 +538,11 @@ export default function HrPayrollPage() {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
             onClick={() => autoGenerateMut.mutate("first")} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />Générer paie 16-fin
+            <Wand2 className="h-3.5 w-3.5" />Générer paie 1-15
           </Button>
           <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
             onClick={() => autoGenerateMut.mutate("fifteenth")} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />Générer paie 1-15
+            <Wand2 className="h-3.5 w-3.5" />Générer paie 16-fin
           </Button>
         </div>
       </div>
