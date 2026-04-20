@@ -190,8 +190,11 @@ serve(async (req) => {
             .eq("id", body.invoice_id);
         }
 
-        // Queue confirmation email
+        // Queue confirmation email (with receipt PDF, non-blocking)
         if (subscription.customer) {
+          const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+          const pdfAttachment = await buildReceiptPdfAttachment(body.invoice_id, "recu-paiement");
+
           await supabase.from("email_queue").insert({
             event_key: `paypal_auto_${captureId}`,
             to_email: subscription.customer.email,
@@ -207,6 +210,7 @@ serve(async (req) => {
               payment_method: "PayPal (Prélèvement automatique)",
               reference: captureId,
             },
+            attachments: pdfAttachment ? [pdfAttachment] : null,
             status: "queued",
             attempts: 0,
             max_attempts: 5,

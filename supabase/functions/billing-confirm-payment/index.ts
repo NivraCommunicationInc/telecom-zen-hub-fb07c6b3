@@ -104,11 +104,14 @@ serve(async (req) => {
     
     const paidAt = updatedInvoice?.paid_at || new Date().toISOString();
 
-    // Queue confirmation email
+    // Queue confirmation email (with receipt PDF, non-blocking)
     if (invoice.customer && rpcResult?.is_fully_paid) {
       const cycleStart = updatedInvoice?.cycle_start_date || new Date().toISOString().split('T')[0];
       const cycleEnd = updatedInvoice?.cycle_end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
+
+      const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+      const pdfAttachment = await buildReceiptPdfAttachment(body.invoice_id, "recu-paiement");
+
       await supabase.from("email_queue").insert({
         event_key: `interac_confirmed_${body.invoice_id}`,
         to_email: invoice.customer.email,
@@ -123,6 +126,7 @@ serve(async (req) => {
           cycleStart,
           cycleEnd,
         },
+        attachments: pdfAttachment ? [pdfAttachment] : null,
         priority: "high"
       });
     }
