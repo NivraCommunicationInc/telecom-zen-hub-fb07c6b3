@@ -1,6 +1,9 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Phone } from "lucide-react";
+// Re-export validators from the canonical location so existing imports keep working.
+import { formatCanadianPhone, validateCanadianPhone } from "@/lib/validation/checkoutFields";
+export { formatCanadianPhone, validateCanadianPhone };
 
 interface CheckoutPhoneFieldProps {
   isFrench: boolean;
@@ -8,23 +11,6 @@ interface CheckoutPhoneFieldProps {
   onChange: (phone: string) => void;
   error?: string;
 }
-
-// Canadian phone format: (XXX) XXX-XXXX
-export const formatCanadianPhone = (value: string): string => {
-  const digits = value.replace(/\D/g, "").slice(0, 10);
-  if (digits.length === 0) return "";
-  if (digits.length <= 3) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-};
-
-export const validateCanadianPhone = (phone: string): boolean => {
-  const digits = phone.replace(/\D/g, "");
-  // Must be exactly 10 digits and not start with 0 or 1
-  if (digits.length !== 10) return false;
-  if (digits[0] === "0" || digits[0] === "1") return false;
-  return true;
-};
 
 export const CheckoutPhoneField = ({
   isFrench,
