@@ -149,7 +149,6 @@ export default function HrPayrollPage() {
   const periodIndex = periods.findIndex((p: any) => p.id === selectedPeriod);
   const isLocked = currentPeriod?.status === "closed";
   const showMissingCurrentPeriodState = !expectedPeriod;
-  const showMissingEntriesState = !!expectedPeriod && currentPeriod?.id === expectedPeriod.id && !loadingEntries && entries.length === 0;
 
   // ─── Entries for selected period ──────────────────────────────────────────
   const { data: entries = [], isLoading: loadingEntries } = useQuery({
@@ -179,6 +178,8 @@ export default function HrPayrollPage() {
       return data;
     },
   });
+
+  const showMissingEntriesState = !!expectedPeriod && currentPeriod?.id === expectedPeriod.id && !loadingEntries && entries.length === 0;
 
   // ─── Adjustments for current period ──────────────────────────────────────
   const { data: adjustments = [] } = useQuery({
