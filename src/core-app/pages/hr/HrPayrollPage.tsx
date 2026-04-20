@@ -845,6 +845,12 @@ export default function HrPayrollPage() {
                     onClick={() => approveAllMut.mutate()} className="gap-1.5">
                     <CheckCircle className="h-3.5 w-3.5" />Approuver tous
                   </Button>
+                  <Button size="sm" variant="default" disabled={isLocked || markAllPaidMut.isPending}
+                    onClick={() => {
+                      if (confirm("Marquer toutes les fiches approuvées comme payées ?")) markAllPaidMut.mutate();
+                    }} className="gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />Marquer tous payés
+                  </Button>
                   <Button size="sm" variant="outline" onClick={generateAllPDFs} className="gap-1.5">
                     <FileText className="h-3.5 w-3.5" />Générer toutes les fiches
                   </Button>
