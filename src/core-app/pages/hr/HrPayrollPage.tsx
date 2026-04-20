@@ -902,8 +902,17 @@ export default function HrPayrollPage() {
                         return (
                           <TableRow key={e.id}>
                             <TableCell className="text-xs">
-                              <div className="font-medium">{e._name}</div>
-                              <div className="text-[10px] text-muted-foreground">{e._emp?.job_title || "—"}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold shrink-0">
+                                  {(e._emp?.first_name?.[0] || e._name?.[0] || "?").toUpperCase()}{(e._emp?.last_name?.[0] || "").toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{e._name}</div>
+                                  {e._emp?.job_title && (
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 mt-0.5">{e._emp.job_title}</Badge>
+                                  )}
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell className="text-xs">{e.hours_worked}h</TableCell>
                             <TableCell className="text-xs">{e._emp?.hourly_rate ? `${e._emp.hourly_rate}$/h` : "—"}</TableCell>
