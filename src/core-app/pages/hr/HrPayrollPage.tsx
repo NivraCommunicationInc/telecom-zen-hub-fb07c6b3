@@ -793,7 +793,7 @@ export default function HrPayrollPage() {
       {/* SECTION 1 — Period header with prev/next nav */}
       {loadingPeriods ? (
         <Card><CardContent className="p-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
-      ) : !currentPeriodExists ? (
+      ) : showMissingCurrentPeriodState ? (
         // Hero CTA — current half not yet generated
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-8 text-center space-y-4">
@@ -878,6 +878,28 @@ export default function HrPayrollPage() {
 
           {/* TAB 1 — Payroll table + bulk actions */}
           <TabsContent value="payroll" className="space-y-3">
+            {showMissingEntriesState && (
+              <Card className="border-primary/40 bg-primary/5">
+                <CardContent className="p-6 text-center space-y-3">
+                  <h3 className="text-lg font-semibold text-foreground">La période existe, mais aucune fiche n’a été générée</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Cliquez pour créer automatiquement une fiche de paie pour chaque employé actif manquant dans cette période.
+                  </p>
+                  <div>
+                    <Button
+                      size="lg"
+                      disabled={autoGenerateMut.isPending}
+                      onClick={() => autoGenerateMut.mutate(expectedHalf)}
+                      className="gap-2"
+                    >
+                      {autoGenerateMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                      Générer maintenant
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* SECTION 3 — Bulk actions */}
             <Card>
               <CardContent className="p-3 flex flex-wrap gap-2 items-center justify-between">
