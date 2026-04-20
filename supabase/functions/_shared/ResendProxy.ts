@@ -323,6 +323,7 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       entity_id: params.entityId,
       from_email: params.fromEmail,
       subject,
+      attachments: params.attachments ?? null,
       status: "sent", // Mark as sent since it's now in pgmq
       attempts: 1,
       max_attempts: params.maxAttempts || 5,
