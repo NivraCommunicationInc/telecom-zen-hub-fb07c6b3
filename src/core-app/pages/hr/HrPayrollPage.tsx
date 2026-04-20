@@ -736,9 +736,35 @@ export default function HrPayrollPage() {
       {/* SECTION 1 — Period header with prev/next nav */}
       {loadingPeriods ? (
         <Card><CardContent className="p-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
-      ) : periods.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-xs text-muted-foreground">Aucune période. Cliquez "Générer paie" pour démarrer.</CardContent></Card>
-      ) : currentPeriod && (
+      ) : !currentPeriodExists ? (
+        // Hero CTA — current half not yet generated
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Calendar className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">{expectedLabel} non générée</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Aucune fiche de paie n'existe pour la période en cours. Cliquez ci-dessous pour la créer et générer automatiquement les fiches de tous les employés actifs.
+              </p>
+            </div>
+            <Button size="lg" disabled={autoGenerateMut.isPending}
+              onClick={() => autoGenerateMut.mutate(expectedHalf)} className="gap-2">
+              {autoGenerateMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              Générer maintenant
+            </Button>
+            {periods.length > 0 && currentPeriod && (
+              <p className="text-[11px] text-muted-foreground">
+                Vous pouvez consulter la période précédente ci-dessous : <button className="underline text-primary" onClick={() => { /* keep selectedPeriod */ }}>{currentPeriod.period_name}</button>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Period header (shown when a period is selected) */}
+      {!loadingPeriods && currentPeriod && (
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-4">
