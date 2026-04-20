@@ -18,11 +18,15 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { pdfBase64, recipient, filename } = await req.json();
+    const body = await req.json();
+    const { pdfBase64, recipient, filename } = body;
+    let attachments = body.attachments;
 
-    if (!pdfBase64 || !recipient) {
-      throw new Error("pdfBase64 et recipient sont requis");
+    if (!recipient) throw new Error("recipient requis");
+    if (!attachments && pdfBase64) {
+      attachments = [{ filename: filename || "document.pdf", content: pdfBase64 }];
     }
+    if (!attachments?.length) throw new Error("attachments ou pdfBase64 requis");
 
     const dateStr = new Date().toLocaleDateString("fr-CA", {
       year: "numeric", month: "long", day: "numeric", timeZone: "America/Montreal",
