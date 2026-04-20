@@ -241,10 +241,11 @@ export async function buildContractPdfAttachment(
     const { data: order, error: orderErr } = await supabase
       .from("orders")
       .select(`
-        id, order_number, created_at, service_type,
+        id, order_number, created_at, service_type, category,
         client_email, client_first_name, client_last_name, client_phone,
-        service_address, service_city, service_postal_code,
-        plan_name, plan_price, total_amount, equipment_total,
+        client_full_address,
+        shipping_address, shipping_city, shipping_postal_code,
+        subtotal, total_amount, equipment_details, equipment_line_details,
         user_id
       `)
       .eq("id", orderId)
@@ -257,19 +258,27 @@ export async function buildContractPdfAttachment(
 
     const o = order as any;
     const clientName = `${o.client_first_name || ""} ${o.client_last_name || ""}`.trim() || "Client";
-    const clientAddress = [o.service_address, o.service_city, o.service_postal_code]
-      .filter(Boolean)
-      .join(", ");
+    const clientAddress = o.client_full_address
+      || [o.shipping_address, o.shipping_city, o.shipping_postal_code].filter(Boolean).join(", ");
 
-    const services = o.plan_name
-      ? [
-          {
-            name: o.plan_name,
-            description: o.service_type || "",
-            monthly_price: Number(o.plan_price || 0),
-          },
-        ]
-      : [];
+    // Derive services from equipment_line_details (array) when present
+    const lineDetails = Array.isArray(o.equipment_line_details) ? o.equipment_line_details : [];
+    const monthlyLines = lineDetails.filter((l: any) => l?.is_recurring || l?.recurring);
+    const oneTimeLines = lineDetails.filter((l: any) => !(l?.is_recurring || l?.recurring));
+    const totalMonthly = monthlyLines.reduce((acc: number, l: any) => acc + Number(l.price || l.unit_price || 0), 0);
+    const totalOneTime = oneTimeLines.reduce((acc: number, l: any) => acc + Number(l.price || l.unit_price || 0), 0);
+
+    const services = lineDetails.length > 0
+      ? lineDetails.map((l: any) => ({
+          name: l.name || l.product_name || "Article",
+          description: l.description || o.service_type || "",
+          monthly_price: Number(l.price || l.unit_price || 0),
+        }))
+      : [{
+          name: o.service_type || o.category || "Service Nivra",
+          description: "",
+          monthly_price: Number(o.subtotal || o.total_amount || 0),
+        }];
 
     const data: ContractData = {
       contract_number: opts.contractNumber || `CTR-${o.order_number || orderId.slice(0, 8)}`,
@@ -279,8 +288,8 @@ export async function buildContractPdfAttachment(
       client_phone: o.client_phone,
       client_address: clientAddress,
       services,
-      total_monthly: Number(o.plan_price || 0),
-      total_one_time: Number(o.equipment_total || 0),
+      total_monthly: totalMonthly || Number(o.subtotal || 0),
+      total_one_time: totalOneTime,
     };
 
     const base64 = generateContractPDF(data);
@@ -311,14 +320,13 @@ export async function buildSummaryPdfAttachment(
     const { data: o, error } = await supabase
       .from("orders")
       .select(`
-        id, order_number, created_at, status, service_type,
-        plan_name, plan_price, equipment_total,
+        id, order_number, created_at, status, service_type, category,
         subtotal, tps_amount, tvq_amount, total_amount,
-        installation_date,
+        appointment_date,
         client_first_name, client_last_name, client_email, client_phone,
-        service_address, service_city, service_postal_code,
-        billing_address, billing_city, billing_postal_code,
-        items
+        client_full_address,
+        shipping_address, shipping_city, shipping_postal_code,
+        equipment_line_details, equipment_details
       `)
       .eq("id", orderId)
       .maybeSingle();
@@ -329,15 +337,13 @@ export async function buildSummaryPdfAttachment(
     }
 
     const clientName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ").trim() || "Client";
-    const addrParts = [
-      o.service_address || o.billing_address,
-      o.service_city || o.billing_city,
-      o.service_postal_code || o.billing_postal_code,
-    ].filter(Boolean);
+    const clientAddr = (o as any).client_full_address
+      || [o.shipping_address, o.shipping_city, o.shipping_postal_code].filter(Boolean).join(", ")
+      || undefined;
 
-    // Build services list — prefer items[] when present, otherwise fallback to plan + equipment
+    // Build services list from equipment_line_details (array of line items)
     const services: SummaryData["services"] = [];
-    const items = Array.isArray((o as any).items) ? (o as any).items : [];
+    const items = Array.isArray((o as any).equipment_line_details) ? (o as any).equipment_line_details : [];
     if (items.length > 0) {
       for (const it of items) {
         services.push({
@@ -347,12 +353,12 @@ export async function buildSummaryPdfAttachment(
         });
       }
     } else {
-      if (o.plan_name && Number(o.plan_price || 0) > 0) {
-        services.push({ name: o.plan_name, price: Number(o.plan_price), is_recurring: true });
-      }
-      if (Number(o.equipment_total || 0) > 0) {
-        services.push({ name: "Équipement", price: Number(o.equipment_total), is_recurring: false });
-      }
+      // Fallback: single line from order subtotal
+      services.push({
+        name: o.service_type || o.category || "Service Nivra",
+        price: Number(o.subtotal || o.total_amount || 0),
+        is_recurring: true,
+      });
     }
 
     const subtotalRecurring = services.filter((s) => s.is_recurring).reduce((acc, s) => acc + s.price, 0);
@@ -365,14 +371,14 @@ export async function buildSummaryPdfAttachment(
       client_name: clientName,
       client_email: o.client_email || undefined,
       client_phone: o.client_phone || undefined,
-      client_address: addrParts.join(", ") || undefined,
+      client_address: clientAddr,
       services,
       subtotal_recurring: subtotalRecurring,
       subtotal_one_time: subtotalOneTime,
       tps: Number(o.tps_amount || 0),
       tvq: Number(o.tvq_amount || 0),
       total: Number(o.total_amount || o.subtotal || subtotalRecurring + subtotalOneTime),
-      installation_date: o.installation_date || undefined,
+      installation_date: (o as any).appointment_date || undefined,
     };
 
     const base64 = generateSummaryPDF(data);
