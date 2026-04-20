@@ -777,6 +777,10 @@ export default function HrPayrollPage() {
                   </Select>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="default" disabled={isLocked || availableEmployees.length === 0}
+                    onClick={() => setAddOpen(true)} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />Ajouter un employé
+                  </Button>
                   <Button size="sm" variant="outline" disabled={isLocked || approveAllMut.isPending}
                     onClick={() => approveAllMut.mutate()} className="gap-1.5">
                     <CheckCircle className="h-3.5 w-3.5" />Approuver tous
@@ -848,10 +852,15 @@ export default function HrPayrollPage() {
                             <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                             <TableCell>
                               <div className="flex gap-1">
+                                <Button size="sm" variant="default" className="h-6 text-[10px] gap-1"
+                                  disabled={isLocked}
+                                  onClick={() => openEditDialog(e)}>
+                                  <Edit className="h-3 w-3" />Éditer
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
                                   disabled={isLocked}
                                   onClick={() => { setAdjustEntry(e); setAdjustOpen(true); }}>
-                                  <Edit className="h-3 w-3" />Modifier
+                                  <Plus className="h-3 w-3" />Ajustement
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
                                   onClick={() => generatePayslipPDF(e)}>
