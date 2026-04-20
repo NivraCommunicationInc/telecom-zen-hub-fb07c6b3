@@ -254,7 +254,6 @@ export default function PhoneDetail() {
                   </Card>
                 ) : null;
               })()}
-              )}
 
               {isAvailable ? (
                 <Button asChild size="lg" className="w-full">
