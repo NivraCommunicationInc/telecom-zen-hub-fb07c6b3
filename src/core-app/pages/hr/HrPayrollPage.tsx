@@ -117,6 +117,22 @@ export default function HrPayrollPage() {
   const periodIndex = periods.findIndex((p: any) => p.id === selectedPeriod);
   const isLocked = currentPeriod?.status === "closed";
 
+  // ─── Detect expected current period (based on today's date) ──────────────
+  const today = new Date();
+  const expectedHalf: "first" | "fifteenth" = today.getDate() <= 15 ? "first" : "fifteenth";
+  const expectedStart = new Date(today.getFullYear(), today.getMonth(), expectedHalf === "first" ? 1 : 16);
+  const expectedEnd = expectedHalf === "first"
+    ? new Date(today.getFullYear(), today.getMonth(), 15)
+    : new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const expectedStartISO = expectedStart.toISOString().slice(0, 10);
+  const expectedEndISO = expectedEnd.toISOString().slice(0, 10);
+  const expectedLabel = expectedHalf === "first"
+    ? `Période 1-15 ${format(expectedStart, "MMMM yyyy", { locale: fr })}`
+    : `Période 16-${format(expectedEnd, "d", { locale: fr })} ${format(expectedStart, "MMMM yyyy", { locale: fr })}`;
+  const currentPeriodExists = periods.some((p: any) =>
+    p.start_date === expectedStartISO && p.end_date === expectedEndISO
+  );
+
   // ─── Entries for selected period ──────────────────────────────────────────
   const { data: entries = [], isLoading: loadingEntries } = useQuery({
     queryKey: ["hr-payroll-entries", selectedPeriod],
