@@ -56,6 +56,14 @@ export interface ReceiptData {
   discount_label?: string;
   tps_amount?: number;
   tvq_amount?: number;
+
+  // Detailed line items (with qty / unit_price)
+  detailed_items?: Array<{
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }>;
 }
 
 // ============================================================================
@@ -73,6 +81,18 @@ const fmtDate = (dateStr: string | undefined | null): string => {
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
   return "—";
+};
+
+const fmtDateTime = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  const day = d.getDate();
+  const month = d.toLocaleString("fr-CA", { month: "long" });
+  const year = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${day} ${month} ${year} a ${hh}h${mm}`;
 };
 
 const fmtMethod = (m: string): string => {
