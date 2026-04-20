@@ -1026,6 +1026,118 @@ export default function HrPayrollPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add employee dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter un employé à la période</DialogTitle>
+            <DialogDescription>{currentPeriod?.period_name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Employé</Label>
+              <Select value={addForm.user_id} onValueChange={prefillAddFormForEmployee}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectContent>
+                  {availableEmployees.length === 0 ? (
+                    <SelectItem value="none" disabled>Tous les employés actifs sont déjà dans la période</SelectItem>
+                  ) : availableEmployees.map((emp: any) => (
+                    <SelectItem key={emp.user_id} value={emp.user_id}>
+                      {emp.first_name} {emp.last_name} {emp.job_title ? `— ${emp.job_title}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heures travaillées</Label>
+                <Input type="number" step="0.01" value={addForm.hours}
+                  onChange={(e) => setAddForm(f => ({ ...f, hours: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Taux horaire ($)</Label>
+                <Input type="number" step="0.01" value={addForm.rate}
+                  onChange={(e) => setAddForm(f => ({ ...f, rate: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Commissions ($)</Label>
+                <Input type="number" step="0.01" value={addForm.commissions}
+                  onChange={(e) => setAddForm(f => ({ ...f, commissions: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bonus ($)</Label>
+                <Input type="number" step="0.01" value={addForm.bonus}
+                  onChange={(e) => setAddForm(f => ({ ...f, bonus: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <Label className="text-xs">Déductions manuelles ($)</Label>
+                <Input type="number" step="0.01" value={addForm.deductions}
+                  onChange={(e) => setAddForm(f => ({ ...f, deductions: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes (optionnel)</Label>
+              <Textarea value={addForm.notes}
+                onChange={(e) => setAddForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setAddOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={!addForm.user_id || addEmployeeMut.isPending}
+              onClick={() => addEmployeeMut.mutate()}>
+              {addEmployeeMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Ajouter la fiche"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit entry dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Éditer la fiche — {editEntry?._name}</DialogTitle>
+            <DialogDescription>Recalcule automatiquement les déductions et le net</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heures travaillées</Label>
+                <Input type="number" step="0.01" value={editForm.hours}
+                  onChange={(e) => setEditForm(f => ({ ...f, hours: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Taux horaire ($)</Label>
+                <Input type="number" step="0.01" value={editForm.rate}
+                  onChange={(e) => setEditForm(f => ({ ...f, rate: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Commissions ($)</Label>
+                <Input type="number" step="0.01" value={editForm.commissions}
+                  onChange={(e) => setEditForm(f => ({ ...f, commissions: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bonus ($)</Label>
+                <Input type="number" step="0.01" value={editForm.bonus}
+                  onChange={(e) => setEditForm(f => ({ ...f, bonus: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes (optionnel)</Label>
+              <Textarea value={editForm.notes}
+                onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={editEntryMut.isPending}
+              onClick={() => editEntryMut.mutate()}>
+              {editEntryMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
