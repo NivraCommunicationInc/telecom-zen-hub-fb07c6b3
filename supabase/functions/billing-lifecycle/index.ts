@@ -1028,6 +1028,247 @@ async function advanceReferralCycles(
 }
 
 // ========================================
+// STEP 7 — Chargeback fees engine
+// CANONICAL RULE:
+//   - Active chargeback (accounts.has_active_chargeback = true):
+//       Apply 5% MONTHLY interest on outstanding balance_due,
+//       added as a billing_invoice_lines row (line_type = 'fee')
+//       on the most recent open invoice. Idempotent per calendar month
+//       via accounts.chargeback_last_interest_at.
+//   - Resolved chargeback (chargeback_resolved_at set, fee not yet applied):
+//       Apply $15 reactivation fee + TPS/TVQ as billing_invoice_lines.
+//       Idempotent via accounts.chargeback_reactivation_fee_applied_at.
+// ========================================
+async function processChargebackFees(
+  supabase: ReturnType<typeof createClient>,
+  stats: RunStats,
+) {
+  const today = new Date();
+  const todayIso = today.toISOString();
+  const monthKey = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  // ─── Part A: Monthly 5% interest on active chargebacks ──────────────────
+  const { data: activeAccounts, error: cbErr } = await supabase
+    .from("accounts")
+    .select("id, account_number, client_id, has_active_chargeback, chargeback_opened_at, chargeback_last_interest_at")
+    .eq("has_active_chargeback", true);
+
+  if (cbErr) {
+    stats.errors.push(`Chargeback fetch error: ${cbErr.message}`);
+    stats.errors_count++;
+  }
+
+  for (const acct of activeAccounts || []) {
+    try {
+      const lastApplied = acct.chargeback_last_interest_at
+        ? new Date(acct.chargeback_last_interest_at as string)
+        : null;
+      const lastKey = lastApplied
+        ? `${lastApplied.getUTCFullYear()}-${String(lastApplied.getUTCMonth() + 1).padStart(2, "0")}`
+        : null;
+      if (lastKey === monthKey) continue;
+
+      const { data: bcust } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", acct.client_id as string)
+        .maybeSingle();
+      if (!bcust?.id) continue;
+
+      const { data: openInvoice } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, balance_due, total, subtotal")
+        .eq("customer_id", bcust.id)
+        .in("status", ["pending", "overdue"])
+        .order("due_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!openInvoice) continue;
+
+      const balanceDue = Number(openInvoice.balance_due ?? openInvoice.total ?? 0);
+      if (balanceDue <= 0) continue;
+
+      const interest = Math.round(balanceDue * 0.05 * 100) / 100;
+      if (interest <= 0) continue;
+
+      const { error: lineErr } = await supabase
+        .from("billing_invoice_lines")
+        .insert({
+          invoice_id: openInvoice.id,
+          line_type: "fee",
+          description: "Intérêt contestation bancaire (5%/mois)",
+          quantity: 1,
+          unit_price: interest,
+          line_total: interest,
+          metadata: {
+            source: "billing_lifecycle.chargeback_interest",
+            month: monthKey,
+            base_amount: balanceDue,
+            account_id: acct.id,
+          },
+        });
+      if (lineErr) {
+        stats.errors.push(`Chargeback interest line error (acct ${acct.account_number}): ${lineErr.message}`);
+        stats.errors_count++;
+        continue;
+      }
+
+      const newSubtotal = Number(openInvoice.subtotal ?? 0) + interest;
+      const newTotal = Number(openInvoice.total ?? 0) + interest;
+      const newBalance = Number(openInvoice.balance_due ?? 0) + interest;
+      await supabase
+        .from("billing_invoices")
+        .update({
+          subtotal: Math.round(newSubtotal * 100) / 100,
+          total: Math.round(newTotal * 100) / 100,
+          balance_due: Math.round(newBalance * 100) / 100,
+        })
+        .eq("id", openInvoice.id);
+
+      await supabase
+        .from("accounts")
+        .update({
+          chargeback_last_interest_at: todayIso,
+          updated_at: todayIso,
+        })
+        .eq("id", acct.id);
+
+      stats.processed_items.push({
+        action: "chargeback_interest_applied",
+        account_id: acct.id,
+        account_number: acct.account_number,
+        invoice_id: openInvoice.id,
+        invoice_number: openInvoice.invoice_number,
+        month: monthKey,
+        base_amount: balanceDue,
+        interest,
+      });
+
+      console.log(
+        `[lifecycle] Chargeback interest +${interest}$ applied to ${openInvoice.invoice_number} (acct ${acct.account_number}, ${monthKey})`,
+      );
+    } catch (err: unknown) {
+      stats.errors.push(`Chargeback interest error: ${err instanceof Error ? err.message : String(err)}`);
+      stats.errors_count++;
+    }
+  }
+
+  // ─── Part B: $15 reactivation fee on resolved chargebacks ───────────────
+  const { data: resolvedAccounts, error: resErr } = await supabase
+    .from("accounts")
+    .select("id, account_number, client_id, chargeback_resolved_at, chargeback_reactivation_fee_applied_at")
+    .eq("has_active_chargeback", false)
+    .not("chargeback_resolved_at", "is", null)
+    .is("chargeback_reactivation_fee_applied_at", null);
+
+  if (resErr) {
+    stats.errors.push(`Chargeback resolved fetch error: ${resErr.message}`);
+    stats.errors_count++;
+  }
+
+  const TPS_RATE = 0.05;
+  const TVQ_RATE = 0.09975;
+  const REACT_FEE = 15;
+  const reactTps = Math.round(REACT_FEE * TPS_RATE * 100) / 100;
+  const reactTvq = Math.round(REACT_FEE * TVQ_RATE * 100) / 100;
+  const reactTotal = Math.round((REACT_FEE + reactTps + reactTvq) * 100) / 100;
+
+  for (const acct of resolvedAccounts || []) {
+    try {
+      const { data: bcust } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", acct.client_id as string)
+        .maybeSingle();
+      if (!bcust?.id) continue;
+
+      const { data: targetInvoice } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, balance_due, status")
+        .eq("customer_id", bcust.id)
+        .in("status", ["pending", "overdue", "paid"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!targetInvoice) {
+        console.log(`[lifecycle] No invoice to attach reactivation fee for ${acct.account_number}`);
+        continue;
+      }
+
+      const { error: lineErr } = await supabase
+        .from("billing_invoice_lines")
+        .insert({
+          invoice_id: targetInvoice.id,
+          line_type: "fee",
+          description: "Frais de réactivation — Résolution contestation bancaire",
+          quantity: 1,
+          unit_price: REACT_FEE,
+          line_total: REACT_FEE,
+          metadata: {
+            source: "billing_lifecycle.chargeback_reactivation",
+            account_id: acct.id,
+            tps: reactTps,
+            tvq: reactTvq,
+            total_with_tax: reactTotal,
+          },
+        });
+      if (lineErr) {
+        stats.errors.push(`Chargeback reactivation line error: ${lineErr.message}`);
+        stats.errors_count++;
+        continue;
+      }
+
+      if (targetInvoice.status !== "paid") {
+        const newSubtotal = Number(targetInvoice.subtotal ?? 0) + REACT_FEE;
+        const newTps = Number(targetInvoice.tps_amount ?? 0) + reactTps;
+        const newTvq = Number(targetInvoice.tvq_amount ?? 0) + reactTvq;
+        const newTotal = Number(targetInvoice.total ?? 0) + reactTotal;
+        const newBalance = Number(targetInvoice.balance_due ?? 0) + reactTotal;
+        await supabase
+          .from("billing_invoices")
+          .update({
+            subtotal: Math.round(newSubtotal * 100) / 100,
+            tps_amount: Math.round(newTps * 100) / 100,
+            tvq_amount: Math.round(newTvq * 100) / 100,
+            total: Math.round(newTotal * 100) / 100,
+            balance_due: Math.round(newBalance * 100) / 100,
+          })
+          .eq("id", targetInvoice.id);
+      }
+
+      await supabase
+        .from("accounts")
+        .update({
+          chargeback_reactivation_fee_applied_at: todayIso,
+          updated_at: todayIso,
+        })
+        .eq("id", acct.id);
+
+      stats.processed_items.push({
+        action: "chargeback_reactivation_fee_applied",
+        account_id: acct.id,
+        account_number: acct.account_number,
+        invoice_id: targetInvoice.id,
+        invoice_number: targetInvoice.invoice_number,
+        fee: REACT_FEE,
+        tps: reactTps,
+        tvq: reactTvq,
+        total: reactTotal,
+      });
+
+      console.log(
+        `[lifecycle] Chargeback reactivation fee ${reactTotal}$ applied to ${targetInvoice.invoice_number} (acct ${acct.account_number})`,
+      );
+    } catch (err: unknown) {
+      stats.errors.push(`Chargeback reactivation error: ${err instanceof Error ? err.message : String(err)}`);
+      stats.errors_count++;
+    }
+  }
+}
+
+// ========================================
 // Main handler
 // ========================================
 serve(async (req) => {
@@ -1082,6 +1323,9 @@ serve(async (req) => {
 
     // STEP 6: Cleanup — void overdue invoices past J+10 (safety net)
     await cleanupOverdueInvoices(supabase, stats);
+
+    // STEP 7: Chargeback fees engine (5%/month interest + $15 reactivation fee)
+    await processChargebackFees(supabase, stats);
 
     const summary = [
       `Expired: ${stats.subscriptions_expired}`,
