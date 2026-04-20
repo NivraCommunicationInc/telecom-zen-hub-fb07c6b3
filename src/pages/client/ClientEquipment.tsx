@@ -6,7 +6,8 @@
  * Read-only. RLS allows clients to SELECT equipment_inventory rows where
  * account_id IN their own accounts.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ClientEquipmentReturnDialog } from "@/components/client/ClientEquipmentReturnDialog";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
@@ -200,6 +201,19 @@ function EquipmentRow({ equipment, muted = false }: { equipment: any; muted?: bo
     cls: "bg-slate-100 text-slate-700",
     icon: Package,
   };
+  const [returnOpen, setReturnOpen] = useState(false);
+
+  // Eligible for return: deployed within last 30 days, currently active.
+  const deployedAt = equipment.deployed_at ? new Date(equipment.deployed_at) : null;
+  const daysSinceDeploy = deployedAt
+    ? Math.floor((Date.now() - deployedAt.getTime()) / 86400000)
+    : null;
+  const canReturn =
+    !muted &&
+    (equipment.status === "deployed" || equipment.status === "assigned") &&
+    daysSinceDeploy !== null &&
+    daysSinceDeploy >= 0 &&
+    daysSinceDeploy < 30;
 
   return (
     <div
@@ -250,6 +264,27 @@ function EquipmentRow({ equipment, muted = false }: { equipment: any; muted?: bo
           </p>
         )}
       </div>
+
+      {canReturn && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setReturnOpen(true)}
+          className="border-red-300 text-red-700 hover:bg-red-50"
+        >
+          Retourner cet équipement
+        </Button>
+      )}
+
+      <ClientEquipmentReturnDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        equipment={{
+          id: equipment.id,
+          catalog_name: equipment.catalog_name,
+          account_id: equipment.account_id,
+        }}
+      />
     </div>
   );
 }

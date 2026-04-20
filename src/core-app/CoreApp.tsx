@@ -29,6 +29,7 @@ const AppointmentsPage = lazy(() => import("./pages/AppointmentsPage"));
 const CoreAppointmentSlotsPage = lazy(() => import("./pages/CoreAppointmentSlotsPage"));
 const CoreRequestsPage = lazy(() => import("./pages/CoreRequestsPage"));
 const CoreWifiRequestsPage = lazy(() => import("./pages/CoreActivationRequestsPage"));
+const CoreReturnsPage = lazy(() => import("./pages/CoreReturnsPage"));
 
 // Clients
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
@@ -166,6 +167,7 @@ const CoreApp = () => {
                 <Route path="requests" element={<S><CoreRequestsPage /></S>} />
                 <Route path="wifi-requests" element={<S><CoreWifiRequestsPage /></S>} />
                 <Route path="activations" element={<Navigate to="wifi-requests" replace />} />
+                <Route path="returns" element={<S><CoreReturnsPage /></S>} />
                 {/* Clients */}
                 <Route path="clients" element={<S><ClientsPage /></S>} />
                 <Route path="clients/:clientId" element={<S><CoreClientProfile /></S>} />

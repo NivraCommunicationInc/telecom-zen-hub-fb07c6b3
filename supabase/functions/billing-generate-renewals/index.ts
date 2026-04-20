@@ -120,7 +120,8 @@ serve(async (req) => {
         }
         
         // ═══ AUTOPAY DISCOUNT CHECK ═══
-        // If customer has autopay enabled, apply $5 monthly discount
+        // If customer has autopay enabled (Stripe OR PayPal recurring), apply $5 monthly discount.
+        // PayPal pre-authorized subs are detected via sub.paypal_subscription_id.
         let autopayDiscount = 0;
         let autopayNote = "";
         
@@ -130,15 +131,19 @@ serve(async (req) => {
           .eq("id", sub.customer_id)
           .single();
         
-        const isAutopayEligible = customerData?.autopay_enabled && 
-                                   customerData?.autopay_discount_active &&
-                                   customerData?.stripe_customer_id &&
-                                   customerData?.default_payment_method_id;
+        const hasStripeAutopay = !!(customerData?.stripe_customer_id && customerData?.default_payment_method_id);
+        const hasPayPalAutopay = !!sub.paypal_subscription_id;
+        
+        const isAutopayEligible = !!customerData?.autopay_enabled &&
+                                   !!customerData?.autopay_discount_active &&
+                                   (hasStripeAutopay || hasPayPalAutopay);
         
         if (isAutopayEligible) {
           autopayDiscount = 5;
-          autopayNote = " (Rabais prélèvement automatique -5$)";
-          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id}`);
+          autopayNote = hasPayPalAutopay
+            ? " (Rabais paiement pré-autorisé PayPal -5$)"
+            : " (Rabais prélèvement automatique -5$)";
+          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id} (provider: ${hasPayPalAutopay ? 'paypal' : 'stripe'})`);
         }
         
         // Calculate amounts via canonical tax module

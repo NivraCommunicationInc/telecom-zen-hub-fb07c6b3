@@ -6422,6 +6422,100 @@ export type Database = {
           },
         ]
       }
+      equipment_return_requests: {
+        Row: {
+          account_id: string | null
+          agent_notes: string | null
+          approved_at: string | null
+          carrier: string | null
+          client_user_id: string
+          completed_at: string | null
+          created_at: string
+          equipment_condition: string | null
+          equipment_inventory_id: string | null
+          id: string
+          order_id: string | null
+          reason: string
+          reason_detail: string | null
+          received_at: string | null
+          refund_amount: number | null
+          refund_processed_at: string | null
+          requested_at: string
+          return_label_url: string | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          agent_notes?: string | null
+          approved_at?: string | null
+          carrier?: string | null
+          client_user_id: string
+          completed_at?: string | null
+          created_at?: string
+          equipment_condition?: string | null
+          equipment_inventory_id?: string | null
+          id?: string
+          order_id?: string | null
+          reason: string
+          reason_detail?: string | null
+          received_at?: string | null
+          refund_amount?: number | null
+          refund_processed_at?: string | null
+          requested_at?: string
+          return_label_url?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          agent_notes?: string | null
+          approved_at?: string | null
+          carrier?: string | null
+          client_user_id?: string
+          completed_at?: string | null
+          created_at?: string
+          equipment_condition?: string | null
+          equipment_inventory_id?: string | null
+          id?: string
+          order_id?: string | null
+          reason?: string
+          reason_detail?: string | null
+          received_at?: string | null
+          refund_amount?: number | null
+          refund_processed_at?: string | null
+          requested_at?: string
+          return_label_url?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_return_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_return_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "equipment_return_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_agent_discounts: {
         Row: {
           agent_id: string

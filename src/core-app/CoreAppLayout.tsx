@@ -15,7 +15,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -75,6 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
       { icon: Smartphone, label: "Téléphones — Commandes", href: "/phones" },
       { icon: Smartphone, label: "Téléphones — Inventaire", href: "/phones/inventory" },
+      { icon: RotateCcw, label: "Retours RMA", href: "/returns" },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
   },
