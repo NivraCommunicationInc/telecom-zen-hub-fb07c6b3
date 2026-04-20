@@ -375,6 +375,18 @@ async function processRenewals(
 
       if (customer?.email) {
         const idempotencyKey = `billing_renewal_${acct.id}_${res.cycle_start}`;
+
+        // Generate invoice PDF (non-blocking)
+        let pdfAttachment = null;
+        try {
+          if ((res as any).invoice_id) {
+            const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
+            pdfAttachment = await buildInvoicePdfAttachment((res as any).invoice_id, "facture");
+          }
+        } catch (e) {
+          console.warn(`[lifecycle] PDF gen failed for renewal ${res.invoice_number}:`, e);
+        }
+
         await supabase.from("email_queue").insert({
           event_key: idempotencyKey,
           idempotency_key: idempotencyKey,
@@ -391,6 +403,7 @@ async function processRenewals(
             cycle_start: res.cycle_start,
             cycle_end: res.cycle_end,
           },
+          attachments: pdfAttachment ? [pdfAttachment] : null,
           status: "queued",
           attempts: 0,
           max_attempts: 3,

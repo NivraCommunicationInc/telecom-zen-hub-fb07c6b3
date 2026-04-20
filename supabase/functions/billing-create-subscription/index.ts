@@ -150,6 +150,10 @@ serve(async (req) => {
       .single();
     
     if (customer) {
+      // Generate invoice PDF (non-blocking)
+      const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
+      const pdfAttachment = await buildInvoicePdfAttachment(invoiceId, "facture");
+
       await supabase.from("email_queue").insert({
         event_key: `billing_sub_${subscription.id}_${invoiceNumber}`,
         to_email: customer.email,
@@ -167,6 +171,7 @@ serve(async (req) => {
           cycle_start: cycleStartDate.toISOString().split('T')[0],
           cycle_end: cycleEndDate.toISOString().split('T')[0]
         },
+        attachments: pdfAttachment ? [pdfAttachment] : null,
         status: "queued",
         attempts: 0,
         max_attempts: 5
