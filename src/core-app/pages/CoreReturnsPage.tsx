@@ -70,7 +70,7 @@ const CoreReturnsPage = () => {
 
   const [selected, setSelected] = useState<ReturnRow | null>(null);
   const [action, setAction] = useState<ActionKind>(null);
-  const [submitting, setSubmitting] = useState(false);
+  // submitting is derived from mutations below
 
   // form fields
   const [labelUrl, setLabelUrl] = useState("");
