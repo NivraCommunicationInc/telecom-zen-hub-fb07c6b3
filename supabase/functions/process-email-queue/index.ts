@@ -262,7 +262,6 @@ Deno.serve(async (req) => {
             attachments: (payload.attachments as Array<Record<string, unknown>>).map((a) => ({
               filename: a.filename,
               content: a.content,
-              content_type: a.contentType || a.content_type || 'application/pdf',
             })),
           };
           if (payload.text) resendBody.text = payload.text;
