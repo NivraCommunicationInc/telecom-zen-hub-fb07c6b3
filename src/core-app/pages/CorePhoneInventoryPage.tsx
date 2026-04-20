@@ -59,6 +59,9 @@ import {
   DollarSign,
   Tag,
   Eye,
+  Upload,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 // ─────────────────────────── Types ───────────────────────────
@@ -78,6 +81,7 @@ interface PhoneRow {
   order_id: string | null;
   available_colors: string[] | null;
   available_storage: string[] | null;
+  photos: string[] | null;
 }
 
 type ConditionT = PhoneRow["condition"];
@@ -111,6 +115,7 @@ interface FormState {
   cosmetic: CosmeticT;
   available_colors: string[];
   available_storage: string[];
+  photos: string[];
 }
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -239,6 +244,7 @@ function emptyForm(): FormState {
     cosmetic: "perfect",
     available_colors: [],
     available_storage: ["256GB"],
+    photos: [],
   };
 }
 
@@ -265,6 +271,7 @@ function fromRow(row: PhoneRow): FormState {
     cosmetic: meta.cosmetic ?? "perfect",
     available_colors: row.available_colors ?? [],
     available_storage: (row.available_storage && row.available_storage.length > 0) ? row.available_storage : [row.storage],
+    photos: row.photos ?? [],
   };
 }
 
@@ -393,6 +400,7 @@ export default function CorePhoneInventoryPage() {
       description: packDescription(form),
       available_colors: colorsList,
       available_storage: storageList,
+      photos: form.photos,
     };
     try {
       if (form.id) {
