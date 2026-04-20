@@ -748,13 +748,12 @@ export default function CorePhoneInventoryPage() {
                   </div>
                 </FormSection>
 
-                {/* SECTION 5 — Photos placeholder */}
+                {/* SECTION 5 — Photos */}
                 <FormSection icon={<Camera className="h-4 w-4" />} title="5. Photos">
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center bg-muted/20">
-                    <Camera className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Photos — disponible prochainement</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'espace est réservé pour le téléversement futur</p>
-                  </div>
+                  <PhotoUploader
+                    photos={form.photos}
+                    onChange={(next) => setForm({ ...form, photos: next })}
+                  />
                 </FormSection>
               </div>
             )}
