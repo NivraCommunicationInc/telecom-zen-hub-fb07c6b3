@@ -12,7 +12,7 @@
  * single canonical refund surface).
  */
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ const CoreReturnsPage = () => {
 
   const [selected, setSelected] = useState<ReturnRow | null>(null);
   const [action, setAction] = useState<ActionKind>(null);
-  const [submitting, setSubmitting] = useState(false);
+  // submitting is derived from mutations below
 
   // form fields
   const [labelUrl, setLabelUrl] = useState("");
@@ -121,81 +121,112 @@ const CoreReturnsPage = () => {
     setAction(null);
   };
 
-  const submit = async () => {
-    if (!selected || !action) return;
-    setSubmitting(true);
+  // ---- Mutations (one per lifecycle transition) ----
+  const logActivity = async (id: string, from: string, to: string, action: string, patch: Record<string, any>) => {
     try {
-      const patch: Partial<ReturnRow> & { updated_at?: string } = {};
-      let newStatus = selected.status;
-
-      if (action === "approve") {
-        newStatus = "approved";
-        patch.approved_at = new Date().toISOString();
-      } else if (action === "label_sent") {
-        if (!labelUrl.trim()) { toast.error("URL de l'étiquette requise"); setSubmitting(false); return; }
-        newStatus = "label_sent";
-        patch.return_label_url = labelUrl.trim();
-        patch.tracking_number = tracking.trim() || null;
-        patch.carrier = carrier.trim() || null;
-      } else if (action === "received") {
-        newStatus = "received";
-        patch.received_at = new Date().toISOString();
-        patch.equipment_condition = condition.trim() || null;
-        patch.agent_notes = agentNotes.trim() || null;
-        // Mark equipment as returned (best effort)
-        if (selected.equipment_inventory_id) {
-          try {
-            await supabase
-              .from("equipment_inventory")
-              .update({ status: "returned" })
-              .eq("id", selected.equipment_inventory_id);
-          } catch (e) {
-            console.warn("[CoreReturns] inventory update failed", e);
-          }
-        }
-      } else if (action === "complete") {
-        newStatus = "completed";
-        patch.completed_at = new Date().toISOString();
-        if (refundAmount && Number(refundAmount) > 0) {
-          patch.refund_amount = Number(refundAmount);
-        }
-      } else if (action === "reject") {
-        if (!rejectReason.trim()) { toast.error("Motif de rejet requis"); setSubmitting(false); return; }
-        newStatus = "rejected";
-        patch.agent_notes = [selected.agent_notes, `Rejet: ${rejectReason.trim()}`].filter(Boolean).join("\n");
-      }
-
-      patch.status = newStatus;
-
-      const { error: updErr } = await supabase
-        .from("equipment_return_requests")
-        .update(patch)
-        .eq("id", selected.id);
-      if (updErr) throw updErr;
-
-      // Activity log + email notification (best effort)
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("activity_logs").insert({
-          action: `equipment_return_${action}`,
-          entity_type: "equipment_return_request",
-          entity_id: selected.id,
-          user_id: user?.id ?? "00000000-0000-0000-0000-000000000000",
-          actor_email: user?.email ?? null,
-          details: { from: selected.status, to: newStatus, ...patch },
-        });
-      } catch (e) {
-        console.warn("[CoreReturns] activity log failed", e);
-      }
-
-      toast.success("Retour mis à jour");
-      qc.invalidateQueries({ queryKey: ["core-returns"] });
-      closeAction();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erreur");
-    } finally {
-      setSubmitting(false);
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("activity_logs").insert({
+        action: `equipment_return_${action}`,
+        entity_type: "equipment_return_request",
+        entity_id: id,
+        user_id: user?.id ?? "00000000-0000-0000-0000-000000000000",
+        actor_email: user?.email ?? null,
+        details: { from, to, ...patch },
+      });
+    } catch (e) {
+      console.warn("[CoreReturns] activity log failed", e);
     }
+  };
+
+  const approveMut = useMutation({
+    mutationFn: async (row: ReturnRow) => {
+      const patch = { status: "approved", approved_at: new Date().toISOString() };
+      const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
+      if (error) throw error;
+      await logActivity(row.id, row.status, "approved", "approve", patch);
+    },
+    onSuccess: () => { toast.success("Demande approuvée"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
+
+  const labelSentMut = useMutation({
+    mutationFn: async (row: ReturnRow) => {
+      if (!labelUrl.trim()) throw new Error("URL de l'étiquette requise");
+      const patch = {
+        status: "label_sent",
+        return_label_url: labelUrl.trim(),
+        tracking_number: tracking.trim() || null,
+        carrier: carrier.trim() || null,
+      };
+      const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
+      if (error) throw error;
+      await logActivity(row.id, row.status, "label_sent", "label_sent", patch);
+    },
+    onSuccess: () => { toast.success("Étiquette enregistrée"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
+
+  const receivedMut = useMutation({
+    mutationFn: async (row: ReturnRow) => {
+      const patch = {
+        status: "received",
+        received_at: new Date().toISOString(),
+        equipment_condition: condition.trim() || null,
+        agent_notes: agentNotes.trim() || null,
+      };
+      const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
+      if (error) throw error;
+      if (row.equipment_inventory_id) {
+        try {
+          await supabase.from("equipment_inventory").update({ status: "returned" }).eq("id", row.equipment_inventory_id);
+        } catch (e) {
+          console.warn("[CoreReturns] inventory update failed", e);
+        }
+      }
+      await logActivity(row.id, row.status, "received", "received", patch);
+    },
+    onSuccess: () => { toast.success("Retour marqué reçu"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
+
+  const completeMut = useMutation({
+    mutationFn: async (row: ReturnRow) => {
+      const patch: Record<string, any> = { status: "completed", completed_at: new Date().toISOString() };
+      if (refundAmount && Number(refundAmount) > 0) patch.refund_amount = Number(refundAmount);
+      const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
+      if (error) throw error;
+      await logActivity(row.id, row.status, "completed", "complete", patch);
+    },
+    onSuccess: () => { toast.success("Retour complété"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: async (row: ReturnRow) => {
+      if (!rejectReason.trim()) throw new Error("Motif de rejet requis");
+      const patch = {
+        status: "rejected",
+        agent_notes: [row.agent_notes, `Rejet: ${rejectReason.trim()}`].filter(Boolean).join("\n"),
+      };
+      const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
+      if (error) throw error;
+      await logActivity(row.id, row.status, "rejected", "reject", patch);
+    },
+    onSuccess: () => { toast.success("Demande rejetée"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
+
+  const submitting =
+    approveMut.isPending || labelSentMut.isPending || receivedMut.isPending ||
+    completeMut.isPending || rejectMut.isPending;
+
+  const submit = () => {
+    if (!selected || !action) return;
+    if (action === "approve") approveMut.mutate(selected);
+    else if (action === "label_sent") labelSentMut.mutate(selected);
+    else if (action === "received") receivedMut.mutate(selected);
+    else if (action === "complete") completeMut.mutate(selected);
+    else if (action === "reject") rejectMut.mutate(selected);
   };
 
   return (
