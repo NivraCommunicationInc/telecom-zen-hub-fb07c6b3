@@ -68,6 +68,15 @@ export interface ContractDataV3 {
   admin_signature_date?: string;
 
   discount_label?: string;
+
+  // Optional activation/install details (telecom)
+  mobile_assigned_number?: string;
+  mobile_sim_iccid?: string;
+  mobile_sim_carrier?: string;
+  mobile_sim_type?: string;
+  mobile_activated_at?: string;
+  install_date?: string;
+  technician_name?: string;
 }
 
 // ============================================================================
