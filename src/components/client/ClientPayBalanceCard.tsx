@@ -73,7 +73,7 @@ export const ClientPayBalanceCard = () => {
   const capturePayment = async (paypalOrderId: string) => {
     setPaying(true);
     try {
-      const { data: result, error: invokeErr } = await supabase.functions.invoke(
+      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
         "paypal-balance-pay-capture",
         { body: { paypal_order_id: paypalOrderId } }
       );
