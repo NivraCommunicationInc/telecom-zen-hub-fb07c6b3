@@ -581,9 +581,19 @@ export default function PhoneCheckout() {
             <CardHeader><CardTitle>{isFr ? "Paiement" : "Payment"}</CardTitle></CardHeader>
             <CardContent>
               {!formValid && (
-                <p className="text-sm text-muted-foreground mb-3">
-                  {isFr ? "Complétez tous les champs requis pour continuer." : "Fill all required fields to continue."}
-                </p>
+                <Alert variant="destructive" className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-medium mb-2">
+                      {isFr ? "Complétez ou corrigez ces champs pour continuer :" : "Complete or fix these fields to continue:"}
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {validationIssues.map((issue, i) => (
+                        <li key={i}>{issue}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
               )}
               {submitting ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Création de la commande..." : "Creating order..."}</div>
