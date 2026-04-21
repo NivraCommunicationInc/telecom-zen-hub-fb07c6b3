@@ -19,6 +19,7 @@ import { EquipmentActionMenu } from "@/core-app/components/account-actions/Equip
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/CorePayPalManualChargeDialog";
+import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
@@ -367,6 +368,28 @@ export const ContractsSection = ({ data }: any) => (
     )}
   </Panel>
 );
+
+/* ── Financial Documents (Lot 1) ── */
+export const FinancialDocsSection = ({ data, acct, prof, clientName }: any) => {
+  const client = {
+    client_name: clientName,
+    client_email: prof?.email || "",
+    client_phone: prof?.phone || undefined,
+    client_address: acct?.primary_service_address || acct?.billing_address || undefined,
+    client_city: acct?.primary_service_city || acct?.billing_city || undefined,
+    client_province: acct?.primary_service_province || acct?.billing_province || undefined,
+    client_postal: acct?.primary_service_postal_code || acct?.billing_postal_code || undefined,
+    account_number: acct?.account_number || "",
+  };
+  return (
+    <FinancialDocumentsPanel
+      accountId={acct?.id}
+      client={client}
+      invoices={data.invoices || []}
+      payments={data.payments || []}
+    />
+  );
+};
 
 /* ── Timeline ── */
 export const TimelineSection = ({ data }: any) => (

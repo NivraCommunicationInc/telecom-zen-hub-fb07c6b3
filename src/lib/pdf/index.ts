@@ -33,6 +33,15 @@ export { generateCanonicalReceiptPDF, generateCanonicalOrderSummaryPDF } from ".
 export { type OrderSummaryV3Data } from "./orderSummaryTemplate";
 
 // ============================================================================
+// LOT 1 — FINANCIAL DOCUMENTS (Approved 2026-04-21)
+// ============================================================================
+export { generateCreditNotePDF, type CreditNoteData } from "./creditNoteTemplate";
+export { generateRefundNoticePDF, type RefundNoticeData } from "./refundNoticeTemplate";
+export { generateLateNoticePDF, type LateNoticeData, type LateNoticeStage } from "./lateNoticeTemplate";
+export { generateAccountStatementPDF, type AccountStatementData, type StatementTransaction } from "./accountStatementTemplate";
+export { generateAnnualTaxSummaryPDF, type AnnualTaxSummaryData, type MonthlyTaxBreakdown } from "./annualTaxSummaryTemplate";
+
+// ============================================================================
 // DOCUMENT BUILDER — Order→PDF Pipeline (generates all 4+1 documents)
 // ============================================================================
 export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractData, buildOrderSummaryData, buildContractSummaryData, buildReceiptData, fetchOrderDocumentData } from "./documentBuilder";

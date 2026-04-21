@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAccountProfile } from "@/core-app/hooks/useAccountProfile";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare, Calendar, Shield, Activity, Briefcase } from "lucide-react";
+import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare, Calendar, Shield, Activity, Briefcase, Receipt } from "lucide-react";
 
 import { Account360Header } from "@/core-app/components/account-360/Account360Header";
 import { Account360KPIStrip } from "@/core-app/components/account-360/Account360KPIStrip";
@@ -17,10 +17,11 @@ import {
   ProfileSection, BillingSection, SubscriptionsSection, OrdersSection,
   InvoicesSection, PaymentsSection, EquipmentSection, TicketsSection,
   AppointmentsSection, KycSection, ContractsSection, TimelineSection,
+  FinancialDocsSection,
 } from "@/core-app/components/account-360/Account360Sections";
 
 /* ── Section definitions ── */
-type SectionId = "profile" | "billing" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "tickets" | "timeline";
+type SectionId = "profile" | "billing" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "tickets" | "timeline";
 
 const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "profile", label: "Profil", icon: User },
@@ -33,6 +34,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "equipment", label: "Équipements", icon: Package },
   { id: "appointments", label: "RDV / Technicien", icon: Calendar },
   { id: "contracts", label: "Contrats & Documents", icon: Briefcase },
+  { id: "financial_docs", label: "Documents financiers", icon: Receipt },
   { id: "tickets", label: "Support / Tickets", icon: MessageSquare },
   { id: "timeline", label: "Chronologie", icon: Activity },
 ];
@@ -143,6 +145,7 @@ const CoreAccountDetail = () => {
       case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;
       case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
       case "contracts": return <ContractsSection data={data} />;
+      case "financial_docs": return <FinancialDocsSection data={data} acct={acct} prof={prof} clientName={clientName} />;
       case "tickets": return <TicketsSection data={data} {...actionProps} />;
       case "timeline": return <TimelineSection data={data} />;
       default: return null;
