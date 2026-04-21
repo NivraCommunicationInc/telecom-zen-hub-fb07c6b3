@@ -29,20 +29,12 @@ export const LocalBusinessSchema = () => {
         "Nivra Telecom est une entreprise de télécommunications prépayées au Québec. Services mobiles, Internet, télévision et solutions connectées. Sans engagement, sans vérification de crédit. Meilleur prix garanti.",
       // Phone removed - support via chat/tickets only
       email: COMPANY_CONTACT.supportEmail,
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "1799 Av. Pierre-Péladeau",
-        addressLocality: "Laval",
-        addressRegion: "QC",
-        postalCode: "H7T 2Y5",
+      // Physical address intentionally omitted from public schema
+      areaServed: {
+        "@type": "AdministrativeArea",
+        name: "Province of Quebec",
         addressCountry: "CA",
       },
-      geo: {
-        "@type": "GeoCoordinates",
-        latitude: 45.5579,
-        longitude: -73.7492,
-      },
-      areaServed: {
         "@type": "AdministrativeArea",
         name: "Province of Quebec",
         addressCountry: "CA",

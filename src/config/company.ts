@@ -21,10 +21,10 @@ export const COMPANY_CONTACT = {
   companyName: "Nivra Telecom",
   legalName: "Nivra Communications Inc.",
   
-  // Address
-  address: "Montréal, Québec, Canada",
-  fullAddress: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
-  city: "Laval",
+  // Address — physical address removed from public-facing site (kept blank intentionally)
+  address: "",
+  fullAddress: "",
+  city: "",
   province: "QC",
   country: "Canada",
   

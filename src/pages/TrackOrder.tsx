@@ -722,12 +722,6 @@ const TrackOrder = () => {
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 print:hidden">
                       <Button variant="outline" size="sm" asChild className="gap-2">
-                        <a href="tel:438-544-2233">
-                          <Phone className="w-4 h-4" />
-                          438-544-2233
-                        </a>
-                      </Button>
-                      <Button variant="outline" size="sm" asChild className="gap-2">
                         <a href="mailto:support@nivra-telecom.ca">
                           <Mail className="w-4 h-4" />
                           support@nivra-telecom.ca
