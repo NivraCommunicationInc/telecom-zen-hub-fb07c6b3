@@ -20,7 +20,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const STORAGE_BUCKET = "client-documents";
 const MAX_JOBS_PER_RUN = 5; // process up to 5 jobs per cron tick
-const WORKER_ID = "server-cron";
+const WORKER_ID: string | null = null; // RPC expects UUID or null; cron has no UUID identity
 
 interface JobRow {
   id: string;
