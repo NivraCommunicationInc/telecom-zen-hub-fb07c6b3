@@ -108,6 +108,11 @@ export default function PhoneCheckout() {
 
   const [acceptKyc, setAcceptKyc] = useState(false);
 
+  // Draft order created BEFORE opening PayPal so paypal-create-order
+  // receives a valid order_id (rejected otherwise — see hardening 2026-04-17).
+  const [draftOrderId, setDraftOrderId] = useState<string | null>(null);
+  const [creatingDraft, setCreatingDraft] = useState(false);
+
   // -------- Load phone + user + plans --------
   useEffect(() => {
     if (!id) return;
