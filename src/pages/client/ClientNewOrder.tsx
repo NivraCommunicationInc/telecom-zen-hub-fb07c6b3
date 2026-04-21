@@ -1842,7 +1842,7 @@ const ClientNewOrder = () => {
   // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
-      const shouldBypassIdentityKyc = isStreamingOnlyOrder;
+      const shouldBypassIdentityKyc = isStreamingOnlyOrder || !FEATURES.KYC_ENABLED;
       const linkedSessionId = shouldBypassIdentityKyc ? null : verificationSessionId;
       console.log("[ClientNewOrder] Starting order creation...", {
         userId: user?.id,
