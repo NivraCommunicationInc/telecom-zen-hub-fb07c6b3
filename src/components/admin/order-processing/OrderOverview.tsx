@@ -9,6 +9,7 @@ import { Loader2, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { OrderShippingActivationPanel } from "@/components/orders/OrderShippingActivationPanel";
+import { OrderLifecycleAdminPanel } from "@/components/admin/order-processing/OrderLifecycleAdminPanel";
 
 interface Props {
   orderId: string;
@@ -141,6 +142,9 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
           </table>
         </div>
       )}
+
+      {/* Phase 3 — Lifecycle timeline + boutons de transition rapide (admin) */}
+      <OrderLifecycleAdminPanel orderId={order.id} installationType={order.installation_type} />
 
       {/* Phase 2 — Shipping address, activation preference, installation details */}
       <OrderShippingActivationPanel order={order} variant="admin" />
