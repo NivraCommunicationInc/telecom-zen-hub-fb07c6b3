@@ -406,6 +406,13 @@ export type Database = {
             referencedRelation: "activation_requests"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "activation_request_history_activation_request_id_fkey"
+            columns: ["activation_request_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["activation_request_id"]
+          },
         ]
       }
       activation_requests: {
@@ -1207,6 +1214,13 @@ export type Database = {
             foreignKeyName: "appointments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "appointments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -1507,6 +1521,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "billing_order_id_fkey"
             columns: ["order_id"]
@@ -1822,6 +1843,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "billing_invoices_order_id_fkey"
@@ -2223,6 +2251,13 @@ export type Database = {
             foreignKeyName: "billing_subscriptions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -2489,6 +2524,13 @@ export type Database = {
             foreignKeyName: "channel_selections_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "channel_selections_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -2613,6 +2655,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "checkout_consent_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "checkout_consent_records_order_id_fkey"
             columns: ["order_id"]
@@ -3356,6 +3405,13 @@ export type Database = {
             foreignKeyName: "client_referrals_referred_order_id_fkey"
             columns: ["referred_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "client_referrals_referred_order_id_fkey"
+            columns: ["referred_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -3859,6 +3915,13 @@ export type Database = {
             foreignKeyName: "contest_entries_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "contest_entries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -4043,6 +4106,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "employee_financial_summary"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "contracts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "contracts_order_id_fkey"
@@ -4244,6 +4314,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crypto_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "crypto_payments_order_id_fkey"
@@ -6418,6 +6495,13 @@ export type Database = {
             foreignKeyName: "equipment_inventory_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -6480,6 +6564,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inventory_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "equipment_order_lines_order_id_fkey"
@@ -6574,6 +6665,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_return_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "equipment_return_requests_order_id_fkey"
@@ -7479,6 +7577,13 @@ export type Database = {
             foreignKeyName: "field_sales_orders_converted_order_id_fkey"
             columns: ["converted_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "field_sales_orders_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -7809,6 +7914,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "fulfillment_snapshots_order_id_fkey"
@@ -8308,6 +8420,13 @@ export type Database = {
             foreignKeyName: "identity_verification_sessions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "identity_verification_sessions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -8764,6 +8883,13 @@ export type Database = {
             foreignKeyName: "installation_jobs_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -8863,6 +8989,13 @@ export type Database = {
           zone?: Database["public"]["Enums"]["installation_zone"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "installations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "installations_order_id_fkey"
             columns: ["order_id"]
@@ -9097,6 +9230,13 @@ export type Database = {
             foreignKeyName: "inventory_assignments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "inventory_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -9113,6 +9253,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "order_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_assignments_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["shipment_id"]
           },
           {
             foreignKeyName: "inventory_assignments_shipment_id_fkey"
@@ -9546,6 +9693,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "kyc_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "kyc_requests_order_id_fkey"
             columns: ["order_id"]
@@ -10064,6 +10218,13 @@ export type Database = {
             foreignKeyName: "messages_related_order_id_fkey"
             columns: ["related_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "messages_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -10160,6 +10321,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mobile_fulfillment_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "mobile_fulfillment_order_id_fkey"
             columns: ["order_id"]
@@ -10458,6 +10626,13 @@ export type Database = {
             foreignKeyName: "order_automation_log_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_automation_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -10528,6 +10703,13 @@ export type Database = {
             foreignKeyName: "order_documents_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -10589,6 +10771,13 @@ export type Database = {
             foreignKeyName: "order_identity_data_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_identity_data_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -10633,6 +10822,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_internal_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "order_internal_notes_order_id_fkey"
             columns: ["order_id"]
@@ -10750,6 +10946,13 @@ export type Database = {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -10773,6 +10976,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_instances"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["shipment_id"]
           },
           {
             foreignKeyName: "order_items_shipment_id_fkey"
@@ -10849,11 +11059,82 @@ export type Database = {
             foreignKeyName: "order_snapshots_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "order_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          actor_name: string | null
+          actor_role: string | null
+          actor_user_id: string | null
+          change_reason: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_status: string
+          old_status: string | null
+          order_id: string
+          status_domain: string
+        }
+        Insert: {
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string | null
+          change_reason?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          old_status?: string | null
+          order_id: string
+          status_domain: string
+        }
+        Update: {
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string | null
+          change_reason?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          old_status?: string | null
+          order_id?: string
+          status_domain?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
@@ -11827,6 +12108,13 @@ export type Database = {
             foreignKeyName: "payments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -12355,6 +12643,13 @@ export type Database = {
             foreignKeyName: "phone_inventory_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "phone_inventory_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -12460,6 +12755,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "identity_verification_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "phone_orders_order_id_fkey"
@@ -13183,6 +13485,13 @@ export type Database = {
             foreignKeyName: "provisioning_jobs_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "provisioning_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -13560,6 +13869,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "quotes_converted_order_id_fkey"
@@ -14125,6 +14441,13 @@ export type Database = {
             foreignKeyName: "replacement_orders_original_order_id_fkey"
             columns: ["original_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "replacement_orders_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -14372,6 +14695,13 @@ export type Database = {
             foreignKeyName: "replacement_tickets_linked_order_id_fkey"
             columns: ["linked_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "replacement_tickets_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -14538,6 +14868,13 @@ export type Database = {
           validated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_commissions_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "sales_commissions_converted_order_id_fkey"
             columns: ["converted_order_id"]
@@ -15105,6 +15442,13 @@ export type Database = {
             foreignKeyName: "service_instances_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "service_instances_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -15338,6 +15682,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "shipments_order_id_fkey"
             columns: ["order_id"]
@@ -15980,6 +16331,13 @@ export type Database = {
             foreignKeyName: "streaming_activation_tokens_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "streaming_activation_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -16274,6 +16632,13 @@ export type Database = {
             foreignKeyName: "subscriptions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -16470,6 +16835,13 @@ export type Database = {
             foreignKeyName: "support_tickets_related_order_id_fkey"
             columns: ["related_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -16658,6 +17030,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "installations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_slot_bookings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "technician_slot_bookings_order_id_fkey"
@@ -17856,6 +18235,13 @@ export type Database = {
             foreignKeyName: "work_orders_linked_order_id_fkey"
             columns: ["linked_order_id"]
             isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "work_orders_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
@@ -17918,6 +18304,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "payments_order_id_fkey"
@@ -18012,6 +18405,42 @@ export type Database = {
           is_valid?: never
         }
         Relationships: []
+      }
+      order_lifecycle: {
+        Row: {
+          activated_at: string | null
+          activation_completed_at: string | null
+          activation_request_id: string | null
+          activation_status: string | null
+          actual_delivery_date: string | null
+          actual_ship_date: string | null
+          appointment_date: string | null
+          carrier: string | null
+          current_step: number | null
+          installation_type: string | null
+          is_self_install: boolean | null
+          order_created_at: string | null
+          order_id: string | null
+          order_number: string | null
+          order_status: string | null
+          payment_status: string | null
+          progress_percent: number | null
+          shipment_id: string | null
+          shipment_status: string | null
+          shipped_at: string | null
+          tracking_number: string | null
+          tracking_url: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       order_next_actions: {
         Row: {
@@ -18473,6 +18902,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "authorized_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "support_tickets_related_order_id_fkey"
@@ -19168,6 +19604,10 @@ export type Database = {
         Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean
       }
+      is_self_install_order: {
+        Args: { p_installation_type: string }
+        Returns: boolean
+      }
       is_staff_member: { Args: { _user_id: string }; Returns: boolean }
       is_staff_user: { Args: { _user_id: string }; Returns: boolean }
       lift_client_suspension: {
@@ -19440,6 +19880,16 @@ export type Database = {
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
+      }
+      transition_order_status: {
+        Args: {
+          p_domain: string
+          p_metadata?: Json
+          p_new_status: string
+          p_order_id: string
+          p_reason?: string
+        }
+        Returns: Json
       }
       update_supplier_account: {
         Args: {

@@ -21,6 +21,10 @@ import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrde
 import OrderStatusTimeline from "@/components/client/OrderStatusTimeline";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 import { OrderShippingActivationPanel } from "@/components/orders/OrderShippingActivationPanel";
+import { OrderLifecycleTimeline } from "@/components/orders/OrderLifecycleTimeline";
+
+// Phase 3 — règle: pro = jamais de bloc livraison côté client
+const isProInstall = (order: any) => order?.installation_type === "technician";
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
@@ -43,6 +47,29 @@ const ClientOrders = () => {
       return data || [];
     },
     enabled: !!user?.id,
+  });
+
+  // Phase 3 — Données lifecycle agrégées (timeline self/pro, shipment, activation)
+  const { data: lifecycleRows } = useQuery({
+    queryKey: ["client-order-lifecycle", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await portalSupabase
+        .from("order_lifecycle" as any)
+        .select("*")
+        .eq("user_id", user.id);
+      if (error) {
+        console.warn("[ClientOrders] order_lifecycle fetch failed", error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const lifecycleByOrderId: Record<string, any> = {};
+  (lifecycleRows || []).forEach((r: any) => {
+    if (r?.order_id) lifecycleByOrderId[r.order_id] = r;
   });
 
   // REALTIME: Subscribe to order changes for automatic status updates
@@ -209,7 +236,8 @@ const ClientOrders = () => {
                                 </span>
                               </div>
                             )}
-                            {order.tracking_number && (
+                            {/* Phase 3 — tracking number masqué pour installation pro */}
+                            {order.tracking_number && !isProInstall(order) && (
                               <div>
                                 <span className="text-slate-500">Suivi: </span>
                                 <span className="text-teal-700 font-mono text-sm">
@@ -226,9 +254,17 @@ const ClientOrders = () => {
                               </div>
                             )}
                           </div>
-                          {/* Status Timeline */}
+                          {/* Phase 3 — Lifecycle Timeline (self/pro adaptive) */}
                           <div className="mt-4 pt-4 border-t border-slate-100">
-                            <OrderStatusTimeline currentStatus={order.status} />
+                            {lifecycleByOrderId[order.id] ? (
+                              <OrderLifecycleTimeline
+                                data={lifecycleByOrderId[order.id]}
+                                variant="client"
+                                installationTypeOverride={order.installation_type}
+                              />
+                            ) : (
+                              <OrderStatusTimeline currentStatus={order.status} />
+                            )}
                           </div>
                         </div>
                         <Button
@@ -425,8 +461,8 @@ const ClientOrders = () => {
                 </div>
               )}
 
-              {/* Tracking Info */}
-              {selectedOrder.tracking_number && (
+              {/* Phase 3 — Tracking masqué pour installation pro */}
+              {selectedOrder.tracking_number && !isProInstall(selectedOrder) && (
                 <div className="pt-4 border-t border-border">
                   <h4 className="font-medium text-foreground mb-3">Suivi d'expédition</h4>
                   <div className="flex items-center justify-between bg-cyan-500/10 p-3 rounded-lg">
@@ -445,9 +481,13 @@ const ClientOrders = () => {
                 </div>
               )}
 
-              {/* Phase 2 — Livraison & activation (compatible commandes historiques) */}
+              {/* Phase 2 + 3 — Livraison & activation (hideShipping si installation pro) */}
               <div className="pt-4 border-t border-border">
-                <OrderShippingActivationPanel order={selectedOrder} variant="client" />
+                <OrderShippingActivationPanel
+                  order={selectedOrder}
+                  variant="client"
+                  hideShipping={isProInstall(selectedOrder)}
+                />
               </div>
 
               {selectedOrder.notes && (
