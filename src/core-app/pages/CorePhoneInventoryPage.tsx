@@ -763,6 +763,29 @@ export default function CorePhoneInventoryPage() {
                     onChange={(next) => setForm({ ...form, photos: next })}
                   />
                 </FormSection>
+
+                {/* SECTION 6 — Visibility on public site */}
+                <FormSection
+                  icon={form.is_visible_on_site ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  title="6. Affichage sur le site public"
+                >
+                  <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/20 p-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">
+                        {form.is_visible_on_site ? "Visible sur le site" : "Caché du site"}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Désactivez pour retirer ce téléphone du catalogue public sans le supprimer.
+                        Réactivez à tout moment pour le remettre en vente. Le statut interne (Disponible,
+                        Réservé, Vendu…) n'est pas affecté.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.is_visible_on_site}
+                      onCheckedChange={(v) => setForm({ ...form, is_visible_on_site: v })}
+                    />
+                  </div>
+                </FormSection>
               </div>
             )}
 
