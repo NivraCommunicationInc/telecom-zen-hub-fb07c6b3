@@ -115,8 +115,9 @@ export default function PhoneCheckout() {
       const [{ data: phoneData }, { data: { user: u } }] = await Promise.all([
         supabase
           .from("phone_inventory")
-          .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, status, available_colors, available_storage")
+          .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, status, available_colors, available_storage, is_visible_on_site")
           .eq("id", id)
+          .eq("is_visible_on_site", true)
           .maybeSingle(),
         supabase.auth.getUser(),
       ]);

@@ -68,7 +68,7 @@ import {
   Gift
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { format, addDays, addMonths, isValid, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";

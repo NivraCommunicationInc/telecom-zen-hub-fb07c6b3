@@ -69,8 +69,9 @@ export default function PhoneDetail() {
     (async () => {
       const { data, error } = await supabase
         .from("phone_inventory")
-        .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, description, status, available_colors, available_storage")
+        .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, description, status, available_colors, available_storage, is_visible_on_site")
         .eq("id", id)
+        .eq("is_visible_on_site", true)
         .maybeSingle();
       if (error) console.error("[phone-detail]", error);
       const p = data as Phone | null;
