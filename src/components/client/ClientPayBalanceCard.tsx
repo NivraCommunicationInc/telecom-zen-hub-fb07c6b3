@@ -29,14 +29,32 @@ export const ClientPayBalanceCard = () => {
         .select("id")
         .eq("user_id", user!.id)
         .maybeSingle();
-      if (!customer) return { totalBalance: 0, invoiceCount: 0, invoices: [] };
+      if (!customer) return { totalBalance: 0, invoiceCount: 0 };
 
-      const { data: invoices } = await supabase.rpc("get_customer_unpaid_invoices" as any, {
-        p_customer_id: customer.id,
-      });
-      const list = (invoices as any[]) || [];
-      const total = list.reduce((s, i) => s + Number(i.balance_due || 0), 0);
-      return { totalBalance: total, invoiceCount: list.length, invoices: list };
+      // Compute account balance using SAME formula as ledger:
+      // balance = sum(non-cancelled invoice totals) - sum(confirmed payments)
+      const { data: invoices } = await supabase
+        .from("billing_invoices")
+        .select("total, balance_due, status")
+        .eq("customer_id", customer.id)
+        .not("status", "in", '("cancelled","refunded","void")');
+
+      const { data: payments } = await supabase
+        .from("billing_payments")
+        .select("amount")
+        .eq("customer_id", customer.id)
+        .eq("status", "confirmed");
+
+      const debits = (invoices || []).reduce((s, i: any) => s + (Number(i.total) || 0), 0);
+      const credits = (payments || []).reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+      const total = Math.round((debits - credits) * 100) / 100;
+
+      const CLOSED = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
+      const unpaidCount = (invoices || []).filter(
+        (i: any) => !CLOSED.includes(i.status) && (Number(i.balance_due) || 0) > 0
+      ).length;
+
+      return { totalBalance: total, invoiceCount: unpaidCount };
     },
   });
 
