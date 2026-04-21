@@ -1,7 +1,7 @@
 /**
  * Formal Demand (Mise en demeure) — Document juridique formel avant transfert au recouvrement.
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, RED } from "./_baseTemplate";
 

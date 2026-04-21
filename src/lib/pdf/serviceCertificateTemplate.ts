@@ -1,7 +1,7 @@
 /**
  * Service Certificate — Attestation de service actif (souvent demandée pour preuves d'adresse).
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, fmtCAD, NAVY } from "./_baseTemplate";
 

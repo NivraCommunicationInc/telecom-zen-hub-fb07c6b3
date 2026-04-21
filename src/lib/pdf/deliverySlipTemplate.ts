@@ -1,7 +1,7 @@
 /**
  * Delivery Slip — Bon de livraison d'equipement.
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, NAVY, GREY_BG, GREY_BORDER } from "./_baseTemplate";
 
