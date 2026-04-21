@@ -579,6 +579,9 @@ ${firstMonthBanner}
 ${equipmentSection}
 ${installationSection}
 
+<!-- PHASE 2 — Alternative shipping + scheduled activation + installation details -->
+${phaseTwoSection}
+
 <!-- INFO CARDS -->
 <div style="padding:0 32px 24px">
   <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Ce que vous devez savoir</div>
@@ -701,6 +704,10 @@ Deno.serve(async (req) => {
     payment_reference,
     payment_method,
     promo_code,
+    alternative_shipping: providedAltShipping,
+    activation_preference: providedActivationPref,
+    requested_activation_date: providedActivationDate,
+    installation_details: providedInstallDetails,
     force = false,
     } = body;
 
@@ -719,7 +726,7 @@ Deno.serve(async (req) => {
 
     const { data: orderData, error: checkError } = await supabase
       .from("orders")
-      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code")
+      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
       .eq("id", order_id)
       .single();
 
