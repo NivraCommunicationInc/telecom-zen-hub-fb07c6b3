@@ -13,6 +13,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
+import { ClientPayBalanceCard } from "@/components/client/ClientPayBalanceCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -194,6 +195,7 @@ const ClientBillingHub = () => {
   return (
     <ClientLayout>
       <div className="space-y-6">
+        <ClientPayBalanceCard />
         {/* Header */}
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">

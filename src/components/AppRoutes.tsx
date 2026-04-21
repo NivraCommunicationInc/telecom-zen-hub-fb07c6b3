@@ -363,6 +363,7 @@ const ClientActivation = lazy(() => import("@/pages/client/ClientActivation"));
 const ClientProfile = lazy(() => import("@/pages/client/ClientProfile"));
 const ClientPayments = lazy(() => import("@/pages/client/ClientPayments"));
 const ClientBillingHub = lazy(() => import("@/pages/client/ClientBillingHub"));
+const ClientBalancePaymentSuccess = lazy(() => import("@/pages/client/ClientBalancePaymentSuccess"));
 const ClientOrders = lazy(() => import("@/pages/client/ClientOrders"));
 const ClientContracts = lazy(() => import("@/pages/client/ClientContracts"));
 const ClientNewOrder = lazy(() => import("@/pages/client/ClientNewOrder"));
@@ -618,6 +619,7 @@ const AppRoutes = () => {
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/billing" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientBillingHub /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/balance-payment-success" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientBalancePaymentSuccess /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/documents" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDocuments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />

@@ -1094,6 +1094,48 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // OVERDUE — Daily reminder (one email per unpaid invoice per day)
+    // ===================================================================
+    case "overdue_invoice_daily_reminder": {
+      const invoiceNumber = esc(v.invoice_number || "—");
+      const invoiceBalance = money(v.invoice_balance ?? 0);
+      const totalAccountBalance = money(v.total_account_balance ?? 0);
+      const daysOverdue = Number(v.days_overdue ?? 0);
+      const dueDate = fmtDate(v.due_date);
+      const payUrl = String(v.pay_balance_url || `${portalUrl}/billing`);
+      const firstName = esc(v.customer_first_name || "");
+      const customGreeting = firstName ? `Bonjour ${firstName},` : greeting;
+
+      const overdueLabel = daysOverdue <= 0
+        ? "Paiement dû aujourd'hui"
+        : daysOverdue === 1
+          ? "1 jour de retard"
+          : `${daysOverdue} jours de retard`;
+
+      return {
+        subject: `Rappel — Facture ${invoiceNumber} en attente de paiement`,
+        html: shell({
+          preheader: `Facture ${invoiceNumber} — solde ${invoiceBalance}`,
+          badge: "RAPPEL DE PAIEMENT",
+          heroTitle: "Facture en attente de paiement",
+          icon: "alert",
+          greeting: customGreeting,
+          bodyText: `Votre facture <strong>${invoiceNumber}</strong> est en attente de paiement (${overdueLabel}). Si vous avez plusieurs factures impayées, vous pouvez régler la totalité de votre solde en un seul paiement PayPal.`,
+          cardTitle: "Détails de la facture",
+          cardRows: [
+            ["Facture", invoiceNumber],
+            ["Solde de cette facture", invoiceBalance],
+            ["Échéance", dueDate],
+            ["Statut", overdueLabel],
+            ["Solde total du compte", totalAccountBalance],
+          ],
+          ctaPrimaryUrl: payUrl,
+          ctaPrimaryLabel: "Payer la balance complète",
+        }),
+      };
+    }
+
+    // ===================================================================
     // PHONE SALES (hardware orders)
     // ===================================================================
     case "phone_order_confirmed": {
