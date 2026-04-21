@@ -41,6 +41,8 @@ import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
 import { AddAccountCredit } from "@/components/client/AddAccountCredit";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
