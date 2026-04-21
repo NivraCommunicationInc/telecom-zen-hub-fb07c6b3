@@ -837,30 +837,46 @@ export default function CorePhoneInventoryPage() {
                   <TableHead>Appareil</TableHead>
                   <TableHead>État</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>Site</TableHead>
                   <TableHead className="text-right">Achat</TableHead>
                   <TableHead className="text-right">Vente</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(data ?? []).map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.imei}</TableCell>
-                    <TableCell>{row.brand} {row.model} <span className="text-muted-foreground text-xs">{row.storage} · {row.color}</span></TableCell>
-                    <TableCell><Badge variant="secondary">{CONDITION_LABEL[row.condition]}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={STATUS_COLOR[row.status]}>{STATUS_LABEL[row.status]}</Badge></TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{row.purchase_price_cad?.toFixed(2) ?? "—"}</TableCell>
-                    <TableCell className="text-right font-medium">{row.price_cad.toFixed(2)} $</TableCell>
-                    <TableCell className="space-x-1">
-                      <Button size="sm" variant="ghost" onClick={() => startEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      {row.status !== "defective" && (
-                        <Button size="sm" variant="ghost" onClick={() => markDefective(row)} className="text-rose-600 hover:text-rose-700">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(data ?? []).map((row) => {
+                  const visible = row.is_visible_on_site ?? true;
+                  return (
+                    <TableRow key={row.id} className={!visible ? "opacity-60" : undefined}>
+                      <TableCell className="font-mono text-xs">{row.imei}</TableCell>
+                      <TableCell>{row.brand} {row.model} <span className="text-muted-foreground text-xs">{row.storage} · {row.color}</span></TableCell>
+                      <TableCell><Badge variant="secondary">{CONDITION_LABEL[row.condition]}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className={STATUS_COLOR[row.status]}>{STATUS_LABEL[row.status]}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={visible}
+                            onCheckedChange={() => toggleSiteVisibility(row)}
+                            aria-label={visible ? "Cacher du site" : "Afficher sur le site"}
+                          />
+                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                            {visible ? <><Eye className="h-3 w-3" /> Visible</> : <><EyeOff className="h-3 w-3" /> Caché</>}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">{row.purchase_price_cad?.toFixed(2) ?? "—"}</TableCell>
+                      <TableCell className="text-right font-medium">{row.price_cad.toFixed(2)} $</TableCell>
+                      <TableCell className="space-x-1">
+                        <Button size="sm" variant="ghost" onClick={() => startEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        {row.status !== "defective" && (
+                          <Button size="sm" variant="ghost" onClick={() => markDefective(row)} className="text-rose-600 hover:text-rose-700">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
