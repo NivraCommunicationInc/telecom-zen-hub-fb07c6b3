@@ -65,7 +65,8 @@ import {
   ChevronDown,
   ChevronUp,
   MapPin,
-  Gift
+  Gift,
+  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
