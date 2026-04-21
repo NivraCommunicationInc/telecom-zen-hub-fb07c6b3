@@ -2797,6 +2797,63 @@ export type Database = {
         }
         Relationships: []
       }
+      client_auto_documents: {
+        Row: {
+          account_id: string | null
+          client_id: string
+          created_at: string
+          doc_number: string | null
+          doc_type: string
+          email_message_id: string | null
+          email_sent: boolean
+          email_sent_at: string | null
+          event_type: string
+          file_size_bytes: number | null
+          id: string
+          idempotency_key: string
+          metadata: Json | null
+          recipient_email: string | null
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_id: string
+          created_at?: string
+          doc_number?: string | null
+          doc_type: string
+          email_message_id?: string | null
+          email_sent?: boolean
+          email_sent_at?: string | null
+          event_type: string
+          file_size_bytes?: number | null
+          id?: string
+          idempotency_key: string
+          metadata?: Json | null
+          recipient_email?: string | null
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          client_id?: string
+          created_at?: string
+          doc_number?: string | null
+          doc_type?: string
+          email_message_id?: string | null
+          email_sent?: boolean
+          email_sent_at?: string | null
+          event_type?: string
+          file_size_bytes?: number | null
+          id?: string
+          idempotency_key?: string
+          metadata?: Json | null
+          recipient_email?: string | null
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_billing_preferences: {
         Row: {
           created_at: string
