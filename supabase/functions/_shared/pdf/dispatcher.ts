@@ -377,13 +377,28 @@ function normalizePayload(
         equipment_installed: p.equipment_installed || [],
       };
 
-    case "activation_confirmation":
+    case "activation_confirmation": {
+      // Infer service type from plan name when not provided
+      const sName = String(p.service_name || p.plan_name || "").toLowerCase();
+      const inferredType: "mobile" | "internet" | "tv" | "other" =
+        sName.includes("mobile") || sName.includes("forfait") ? "mobile" :
+        sName.includes("tv") ? "tv" :
+        sName.includes("internet") || sName.includes("fibre") || sName.includes("giga") ? "internet" : "other";
       return {
         ...base,
         confirmation_number: p.confirmation_number || `ACT-${Date.now()}`,
         activation_date: p.activation_date || nowIso(),
-        service_name: p.service_name || "Service Nivra",
+        service_name: p.service_name || p.plan_name || "Service Nivra",
+        service_type: p.service_type || inferredType,
+        monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? 0),
+        first_billing_cycle: p.first_billing_cycle || undefined,
+        phone_number: p.phone_number,
+        sim_iccid: p.sim_iccid,
+        internet_speed: p.internet_speed,
+        static_ip: p.static_ip,
+        notes: p.notes,
       };
+    }
 
     case "formal_demand":
       return {
