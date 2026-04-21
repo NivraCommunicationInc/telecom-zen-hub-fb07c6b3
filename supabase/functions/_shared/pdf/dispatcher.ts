@@ -296,13 +296,23 @@ function normalizePayload(
         effective_date: p.effective_date || nowIso(),
       };
 
-    case "service_certificate":
+    case "service_certificate": {
+      const addr2 = pickAddress(p);
       return {
         ...base,
         certificate_number: p.certificate_number || `CRT-${Date.now()}`,
-        service_name: p.service_name || "Service Nivra",
+        service_name: p.service_name || p.plan_name || "Service Nivra",
+        service_address: p.service_address && typeof p.service_address === "string" ? p.service_address : (addr2.street || base.client_address || "—"),
+        service_city: p.service_city || addr2.city || base.client_city || "",
+        service_province: p.service_province || addr2.province || base.client_province || "QC",
+        service_postal: p.service_postal || addr2.postal_code || base.client_postal || "",
+        activation_date: p.activation_date || p.active_since || nowIso(),
         active_since: p.active_since || p.activation_date || nowIso(),
+        status: p.status || (p.account_status === "active" ? "Actif" : (p.account_status || "Actif")),
+        monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? 0),
+        purpose: p.purpose,
       };
+    }
 
     case "suspension_notice":
       return {
