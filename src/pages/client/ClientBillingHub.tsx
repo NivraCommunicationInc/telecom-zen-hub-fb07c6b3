@@ -166,6 +166,18 @@ const ClientBillingHub = () => {
     setPayDialogOpen(true);
   };
 
+  const handlePrimaryPayNow = () => {
+    if (unpaidInvoices?.length) {
+      if (activeTab !== "pay-invoice") {
+        handleTabChange("pay-invoice");
+      }
+      handlePayInvoice(unpaidInvoices[0]);
+      return;
+    }
+
+    handleTabChange("pay-invoice");
+  };
+
   const handlePaymentSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["billing-hub-unpaid"] });
     queryClient.invalidateQueries({ queryKey: ["billing-hub-all-invoices"] });
@@ -221,7 +233,7 @@ const ClientBillingHub = () => {
               <div className="flex gap-3">
                 {balance > 0 && (
                   <Button
-                    onClick={writeGuard(() => handleTabChange("pay-invoice"))}
+                    onClick={writeGuard(handlePrimaryPayNow)}
                     disabled={writeGuard.isReadOnly}
                     title={writeGuard.disabledReason}
                     className="bg-primary hover:bg-primary/90"
