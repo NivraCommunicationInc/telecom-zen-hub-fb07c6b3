@@ -112,6 +112,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
+  const { badges: sectionBadges } = usePortalSectionBadges();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
