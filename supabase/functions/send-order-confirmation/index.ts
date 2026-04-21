@@ -292,7 +292,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
             <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
           </td>
           <td style="padding:16px;text-align:right;white-space:nowrap">
-            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(Math.round((serviceSubtotal + equipTotal + serviceTps + equipTps + serviceTvq + equipTvq) * 100) / 100)} $</span>
+            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(canonicalTotal)} $</span>
           </td>
         </tr>
       </table>`;
