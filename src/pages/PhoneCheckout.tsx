@@ -628,11 +628,30 @@ export default function PhoneCheckout() {
                 </Alert>
               )}
               {submitting ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Création de la commande..." : "Creating order..."}</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Finalisation de la commande..." : "Finalizing order..."}</div>
+              ) : !draftOrderId ? (
+                <Button
+                  className="w-full h-12 text-base font-semibold"
+                  size="lg"
+                  disabled={!formValid || creatingDraft}
+                  onClick={ensureDraftOrder}
+                >
+                  {creatingDraft ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {isFr ? "Préparation..." : "Preparing..."}</>
+                  ) : (
+                    isFr ? "Continuer vers le paiement" : "Continue to payment"
+                  )}
+                </Button>
               ) : (
-                <div className={formValid ? "" : "pointer-events-none opacity-50"}>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {isFr
+                      ? "Commande préparée. Cliquez sur PayPal ci-dessous pour payer."
+                      : "Order prepared. Click PayPal below to pay."}
+                  </p>
                   <PayPalButton
                     amount={total}
+                    orderId={draftOrderId}
                     description={`${phone.brand} ${phone.model} – ${phone.storage}`}
                     customer={{
                       first_name: firstName.trim(),
