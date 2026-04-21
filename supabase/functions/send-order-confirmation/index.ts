@@ -153,6 +153,11 @@ interface EmailTemplateParams {
   portalLink: string;
   supportEmail: string;
   promoCode?: string;
+  // Phase 2 — checkout enhancements (optional, displayed only when present)
+  alternativeShipping?: AlternativeShipping;
+  activationPreference?: "ASAP" | "SCHEDULED";
+  requestedActivationDate?: string;
+  installationDetails?: InstallationDetailsForEmail;
 }
 
 // --- Premium typography helpers ---
