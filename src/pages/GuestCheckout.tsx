@@ -124,6 +124,12 @@ const GuestCheckout = () => {
   const [autoApplyAttempted, setAutoApplyAttempted] = useState(false);
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
+  // ── Phase 2: Shipping override + activation date + installation details ──
+  const [shippingData, setShippingData] = useState<ShippingAddressData>(DEFAULT_SHIPPING);
+  const [activationData, setActivationData] = useState<ActivationData>(DEFAULT_ACTIVATION);
+  const [installationDetailsData, setInstallationDetailsData] =
+    useState<InstallationDetailsData>(DEFAULT_INSTALLATION_DETAILS);
+
   // ── KYC / Identity ──
   // Identity verification (KYC) removed from public checkout — handled post-purchase if needed.
 
