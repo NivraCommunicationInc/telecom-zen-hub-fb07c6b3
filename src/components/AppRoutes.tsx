@@ -631,8 +631,8 @@ const AppRoutes = () => {
       <Route path="/portal/reschedule" element={<MaintenanceGuard><ClientAuthProvider><ClientRescheduleAppointment /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
-      {/* PayPal subscription approval return URLs — MUST exist so PayPal redirect doesn't fall through to the catch-all (which would expose the staff /hub). */}
-      <Route path="/portal/subscription-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
+      {/* PayPal subscription approval return URLs — MUST resolve to the recurring PayPal return handler, never the one-time payment capture screen. */}
+      <Route path="/portal/subscription-success" element={<MaintenanceGuard><PayPalSubscriptionReturn /></MaintenanceGuard>} />
       <Route path="/portal/subscription-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* Legacy URL redirects for email links */}

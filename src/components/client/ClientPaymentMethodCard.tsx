@@ -137,7 +137,7 @@ export const ClientPaymentMethodCard = () => {
               et bénéficier d'un rabais de 5$/mois.
             </p>
             <Button asChild variant="default" size="sm" className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1">
-              <a href="/portal/dashboard">
+              <a href="/portal/payments">
                 Activer le paiement pré-autorisé
                 <ExternalLink className="w-3 h-3" />
               </a>
