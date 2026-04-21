@@ -1,44 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { createNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface CreateSubscriptionRequest {
-  plan_name: string;
-  plan_price: number;
-  customer_email: string;
-  customer_name: string;
-  customer_id?: string;
   billing_subscription_id?: string;
-}
-
-async function getPayPalAccessToken(): Promise<string> {
-  const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
-  const clientSecret = Deno.env.get("PAYPAL_SECRET");
-  
-  if (!clientId || !clientSecret) {
-    throw new Error("PayPal credentials not configured");
-  }
-
-  const auth = btoa(`${clientId}:${clientSecret}`);
-  const response = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to get PayPal access token");
-  }
-
-  const data = await response.json();
-  return data.access_token;
+  customer_email?: string;
+  customer_name?: string;
 }
 
 serve(async (req) => {
@@ -49,164 +21,157 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authHeader = req.headers.get("Authorization");
 
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Authentification requise" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ error: "Session invalide" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
     const body: CreateSubscriptionRequest = await req.json();
-    console.log("[PayPal] Creating subscription plan for:", body.plan_name);
+    const billingSubscriptionId = body.billing_subscription_id?.trim();
 
-    if (!body.plan_price || body.plan_price <= 0) {
-      throw new Error("Invalid plan price");
+    if (!billingSubscriptionId) {
+      return new Response(
+        JSON.stringify({ error: "billing_subscription_id requis" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const accessToken = await getPayPalAccessToken();
+    const { data: subscription, error: subscriptionError } = await adminSupabase
+      .from("billing_subscriptions")
+      .select(`
+        id,
+        customer_id,
+        order_id,
+        last_invoice_id,
+        plan_code,
+        plan_name,
+        plan_price,
+        status,
+        paypal_subscription_id,
+        recurring_setup_status,
+        customer:billing_customers(id, email, first_name, last_name, phone, user_id)
+      `)
+      .eq("id", billingSubscriptionId)
+      .maybeSingle();
 
-    // Step 1: Create or get Product
-    const productId = `NIVRA_${body.plan_name.toUpperCase().replace(/\s+/g, "_")}`;
-    
-    // Try to create product (will fail silently if exists)
-    try {
-      await fetch("https://api-m.paypal.com/v1/catalogs/products", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: productId,
-          name: body.plan_name,
-          description: `Abonnement mensuel Nivra Telecom - ${body.plan_name}`,
-          type: "SERVICE",
-          category: "TELECOM_SERVICES",
+    if (subscriptionError || !subscription) {
+      throw new Error("Abonnement introuvable");
+    }
+
+    const customer = Array.isArray(subscription.customer) ? subscription.customer[0] : subscription.customer;
+
+    if (!customer || customer.user_id !== userId) {
+      return new Response(
+        JSON.stringify({ error: "Accès refusé à cet abonnement" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (subscription.paypal_subscription_id) {
+      return new Response(
+        JSON.stringify({
+          error: "Un paiement pré-autorisé PayPal existe déjà pour cet abonnement",
+          paypal_subscription_id: subscription.paypal_subscription_id,
         }),
-      });
-    } catch (e) {
-      console.log("[PayPal] Product may already exist");
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Step 2: Create Billing Plan
-    const planPayload = {
-      product_id: productId,
-      name: `${body.plan_name} - Mensuel`,
-      description: `Abonnement mensuel automatique pour ${body.plan_name}`,
-      billing_cycles: [
-        {
-          frequency: {
-            interval_unit: "MONTH",
-            interval_count: 1,
-          },
-          tenure_type: "REGULAR",
-          sequence: 1,
-          total_cycles: 0, // Unlimited
-          pricing_scheme: {
-            fixed_price: {
-              value: body.plan_price.toFixed(2),
-              currency_code: "CAD",
-            },
-          },
-        },
-      ],
-      payment_preferences: {
-        auto_bill_outstanding: true,
-        setup_fee_failure_action: "CONTINUE",
-        payment_failure_threshold: 3,
-      },
-      taxes: {
-        percentage: "14.975", // TPS + TVQ
-        inclusive: false,
-      },
-    };
-
-    const planResponse = await fetch("https://api-m.paypal.com/v1/billing/plans", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        "PayPal-Request-Id": `plan_${Date.now()}`,
-      },
-      body: JSON.stringify(planPayload),
-    });
-
-    if (!planResponse.ok) {
-      const error = await planResponse.text();
-      console.error("[PayPal] Plan creation error:", error);
-      throw new Error(`Failed to create billing plan: ${error}`);
+    if (!subscription.order_id) {
+      throw new Error("Aucune commande liée à cet abonnement");
     }
 
-    const planData = await planResponse.json();
-    console.log("[PayPal] Plan created:", planData.id);
+    const { data: order, error: orderError } = await adminSupabase
+      .from("orders")
+      .select("id, order_number, account_id")
+      .eq("id", subscription.order_id)
+      .maybeSingle();
 
-    // Step 3: Create Subscription
-    const subscriptionPayload = {
-      plan_id: planData.id,
-      subscriber: {
-        name: {
-          given_name: body.customer_name.split(" ")[0] || body.customer_name,
-          surname: body.customer_name.split(" ").slice(1).join(" ") || "",
-        },
-        email_address: body.customer_email,
-      },
-      application_context: {
-        brand_name: "Nivra Telecom",
-        locale: "fr-CA",
-        shipping_preference: "NO_SHIPPING",
-        user_action: "SUBSCRIBE_NOW",
-        return_url: `${baseUrl}/portal/subscription-success`,
-        cancel_url: `${baseUrl}/portal/subscription-cancelled`,
-      },
-      custom_id: body.billing_subscription_id || `sub_${Date.now()}`,
-    };
-
-    const subscriptionResponse = await fetch("https://api-m.paypal.com/v1/billing/subscriptions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        "PayPal-Request-Id": `sub_${Date.now()}`,
-      },
-      body: JSON.stringify(subscriptionPayload),
-    });
-
-    if (!subscriptionResponse.ok) {
-      const error = await subscriptionResponse.text();
-      console.error("[PayPal] Subscription creation error:", error);
-      throw new Error(`Failed to create subscription: ${error}`);
+    if (orderError || !order) {
+      throw new Error("Commande introuvable pour cet abonnement");
     }
 
-    const subscriptionData = await subscriptionResponse.json();
-    console.log("[PayPal] Subscription created:", subscriptionData.id);
+    if (!order.account_id) {
+      throw new Error("Compte client introuvable pour cet abonnement");
+    }
 
-    // Find approval link
-    const approvalLink = subscriptionData.links?.find(
-      (link: { rel: string; href: string }) => link.rel === "approve"
-    )?.href;
+    let invoiceId = subscription.last_invoice_id as string | null;
 
-    // Log the subscription creation
-    await supabase.from("activity_logs").insert({
-      user_id: "00000000-0000-0000-0000-000000000000",
-      entity_type: "paypal_subscription",
-      entity_id: subscriptionData.id,
-      action: "created",
-      details: {
-        plan_id: planData.id,
-        plan_name: body.plan_name,
-        plan_price: body.plan_price,
-        customer_email: body.customer_email,
-        billing_subscription_id: body.billing_subscription_id,
-      },
+    if (!invoiceId) {
+      const { data: invoice } = await adminSupabase
+        .from("billing_invoices")
+        .select("id")
+        .eq("order_id", subscription.order_id)
+        .eq("customer_id", subscription.customer_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      invoiceId = invoice?.id ?? null;
+    }
+
+    if (!invoiceId) {
+      throw new Error("Aucune facture liée n'a été trouvée pour activer le pré-autorisé");
+    }
+
+    const fallbackName = (body.customer_name || "Client Nivra").trim();
+    const [fallbackFirstName, ...fallbackLastNameParts] = fallbackName.split(/\s+/).filter(Boolean);
+    const customerFirstName = customer.first_name?.trim() || fallbackFirstName || "Client";
+    const customerLastName = customer.last_name?.trim() || fallbackLastNameParts.join(" ") || "Nivra";
+    const customerEmail = customer.email?.trim() || body.customer_email?.trim() || String(claimsData.claims.email || "").trim();
+
+    if (!customerEmail) {
+      throw new Error("Adresse courriel client introuvable");
+    }
+
+    const result = await createNivraPayPalSubscription({
+      supabase: adminSupabase,
+      customer_id: subscription.customer_id,
+      customer_email: customerEmail,
+      customer_first_name: customerFirstName,
+      customer_last_name: customerLastName,
+      customer_phone: customer.phone?.trim() || "",
+      order_id: subscription.order_id,
+      order_number: String(order.order_number || subscription.id),
+      account_id: order.account_id,
+      invoice_id: invoiceId,
+      recurring_monthly_total: Number(subscription.plan_price),
+      plan_label: subscription.plan_name,
+      plan_code: subscription.plan_code,
+      nivra_subscription_id: subscription.id,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        paypal_subscription_id: subscriptionData.id,
-        paypal_plan_id: planData.id,
-        status: subscriptionData.status,
-        approval_url: approvalLink,
+        paypal_subscription_id: result.paypal_subscription_id,
+        paypal_plan_id: result.paypal_plan_id,
+        approval_url: result.approval_url,
+        recurring_setup_status: result.recurring_setup_status,
+        plan_reused: result.plan_reused,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: unknown) {
     console.error("[PayPal] Error:", error);
     return new Response(
