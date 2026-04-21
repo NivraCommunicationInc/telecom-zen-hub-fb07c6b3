@@ -1,7 +1,7 @@
 /**
  * Cancellation Confirmation — Confirmation d'annulation de service.
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY, GREEN } from "./_baseTemplate";
 

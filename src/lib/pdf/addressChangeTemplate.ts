@@ -1,7 +1,7 @@
 /**
  * Address Change Notice — Confirmation de changement d'adresse de service.
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, GREY_BG, NAVY } from "./_baseTemplate";
 

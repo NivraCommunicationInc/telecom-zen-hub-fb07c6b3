@@ -1,7 +1,7 @@
 /**
  * Payment Method Change — Confirmation de changement de mode de paiement.
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, NAVY, GREEN } from "./_baseTemplate";
 

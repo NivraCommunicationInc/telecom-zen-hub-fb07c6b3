@@ -1,7 +1,7 @@
 /**
  * Complaint Acknowledgment — Accuse de reception d'une plainte client (CCTS-compliant).
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, NAVY, GREEN } from "./_baseTemplate";
 

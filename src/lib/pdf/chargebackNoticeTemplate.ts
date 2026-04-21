@@ -1,7 +1,7 @@
 /**
  * Chargeback Notice — Avis de retrofacturation (chargeback).
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, RED, ORANGE } from "./_baseTemplate";
 

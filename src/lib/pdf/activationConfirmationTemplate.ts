@@ -1,7 +1,7 @@
 /**
  * Activation Confirmation — Confirmation d'activation de service (mobile/internet/tv).
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, fmtCAD, GREEN, NAVY } from "./_baseTemplate";
 

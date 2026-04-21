@@ -1,7 +1,7 @@
 /**
  * Welcome Letter — Lettre de bienvenue (envoyée après activation du service).
  */
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY, TEAL } from "./_baseTemplate";
 
