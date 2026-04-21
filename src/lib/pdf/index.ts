@@ -42,6 +42,31 @@ export { generateAccountStatementPDF, type AccountStatementData, type StatementT
 export { generateAnnualTaxSummaryPDF, type AnnualTaxSummaryData, type MonthlyTaxBreakdown } from "./annualTaxSummaryTemplate";
 
 // ============================================================================
+// LOTS 2-5 — ADMINISTRATIVE DOCUMENTS (Approved 2026-04-21) — 17 templates
+// ============================================================================
+// Lot 2 — Account
+export { generateWelcomeLetterPDF, type WelcomeLetterData } from "./welcomeLetterTemplate";
+export { generateAddressChangePDF, type AddressChangeData } from "./addressChangeTemplate";
+export { generatePaymentMethodChangePDF, type PaymentMethodChangeData } from "./paymentMethodChangeTemplate";
+export { generateServiceCertificatePDF, type ServiceCertificateData } from "./serviceCertificateTemplate";
+// Lot 3 — Suspension / Cancellation
+export { generateSuspensionNoticePDF, type SuspensionNoticeData } from "./suspensionNoticeTemplate";
+export { generateCancellationConfirmationPDF, type CancellationConfirmationData } from "./cancellationConfirmationTemplate";
+export { generateChargebackNoticePDF, type ChargebackNoticeData } from "./chargebackNoticeTemplate";
+export { generateFinalRefundReceiptPDF, type FinalRefundReceiptData } from "./finalRefundReceiptTemplate";
+// Lot 4 — Logistics
+export { generateDeliverySlipPDF, type DeliverySlipData } from "./deliverySlipTemplate";
+export { generateReturnInstructionsPDF, type ReturnInstructionsData } from "./returnInstructionsTemplate";
+export { generateInstallationReportPDF, type InstallationReportData } from "./installationReportTemplate";
+export { generateActivationConfirmationPDF, type ActivationConfirmationData } from "./activationConfirmationTemplate";
+// Lot 5 — Legal
+export { generateContractAmendmentPDF, type ContractAmendmentData } from "./contractAmendmentTemplate";
+export { generateFormalDemandPDF, type FormalDemandData } from "./formalDemandTemplate";
+export { generateCollectionsTransferPDF, type CollectionsTransferData } from "./collectionsTransferTemplate";
+export { generateComplaintAcknowledgmentPDF, type ComplaintAcknowledgmentData } from "./complaintAcknowledgmentTemplate";
+export { generatePreauthorizationConfirmationPDF, type PreauthorizationConfirmationData } from "./preauthorizationConfirmationTemplate";
+
+// ============================================================================
 // DOCUMENT BUILDER — Order→PDF Pipeline (generates all 4+1 documents)
 // ============================================================================
 export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractData, buildOrderSummaryData, buildContractSummaryData, buildReceiptData, fetchOrderDocumentData } from "./documentBuilder";
