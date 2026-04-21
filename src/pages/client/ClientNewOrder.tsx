@@ -3780,6 +3780,26 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
             {/* Left Column: Service Selection */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+              {/* Phone CTA — always visible, links to public phone catalog */}
+              <Link to="/telephones" className="block group">
+                <Card className="border-2 border-teal-500/30 bg-gradient-to-r from-teal-50 to-cyan-50 hover:border-teal-500 hover:shadow-md transition-all">
+                  <CardContent className="p-5 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
+                      <Smartphone className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                        Commander un téléphone
+                      </h3>
+                      <p className="text-sm text-slate-600">
+                        Découvrez nos appareils neufs, remis à neuf et usagés — avec ou sans forfait mobile.
+                      </p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-teal-700 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+
               {isLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
