@@ -1250,8 +1250,18 @@ const GuestCheckout = () => {
                   </Button>
                   <Button
                     className="flex-1"
-                    disabled={requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)}
-                    onClick={() => setStep(5)}
+                    disabled={
+                      (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)) ||
+                      !!validateShipping(shippingData) ||
+                      !!validateActivation(activationData)
+                    }
+                    onClick={() => {
+                      const shipErr = validateShipping(shippingData);
+                      if (shipErr) { toast.error(shipErr); return; }
+                      const actErr = validateActivation(activationData);
+                      if (actErr) { toast.error(actErr); return; }
+                      setStep(5);
+                    }}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
