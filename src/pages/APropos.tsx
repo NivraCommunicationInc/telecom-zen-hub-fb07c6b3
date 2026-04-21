@@ -292,7 +292,7 @@ const APropos = () => {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="bg-card border border-border rounded-2xl p-8">
             <h2 className="text-center mb-8">Nous joindre</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
                   <MessageSquare className="w-6 h-6 text-accent" />
@@ -306,13 +306,6 @@ const APropos = () => {
                 </div>
                 <p className="text-sm text-muted-foreground mb-1">Courriel</p>
                 <p className="font-medium text-foreground">{COMPANY_CONTACT.supportEmailDisplay}</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
-                  <MapPin className="w-6 h-6 text-accent" />
-                </div>
-                <p className="text-sm text-muted-foreground mb-1">Adresse</p>
-                <p className="font-medium text-foreground text-sm">{COMPANY_CONTACT.fullAddress}</p>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">

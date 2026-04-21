@@ -28,7 +28,7 @@ const TermsAndConditions = () => {
                     <strong>Date d'entrée en vigueur :</strong> 2025-01-07
                   </p>
                   <p>
-                    <strong>Entreprise :</strong> Nivra Telecom – 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
+                    <strong>Entreprise :</strong> Nivra Telecom
                   </p>
                 </section>
 
@@ -119,7 +119,7 @@ const TermsAndConditions = () => {
                     <strong>Effective Date:</strong> 2025-01-07
                   </p>
                   <p>
-                    <strong>Company:</strong> Nivra Telecom – 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
+                    <strong>Company:</strong> Nivra Telecom
                   </p>
                 </section>
 
