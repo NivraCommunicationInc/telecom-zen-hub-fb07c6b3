@@ -20,6 +20,7 @@ import { AccountActionMenu } from "@/core-app/components/account-actions/Account
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/CorePayPalManualChargeDialog";
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
+import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
@@ -387,6 +388,27 @@ export const FinancialDocsSection = ({ data, acct, prof, clientName }: any) => {
       client={client}
       invoices={data.invoices || []}
       payments={data.payments || []}
+    />
+  );
+};
+
+/* ── Admin Documents (Lots 2-5 — 17 templates) ── */
+export const AdminDocsSection = ({ data, acct, prof, clientName }: any) => {
+  const client = {
+    client_name: clientName,
+    client_email: prof?.email || "",
+    client_phone: prof?.phone || undefined,
+    client_address: acct?.primary_service_address || acct?.billing_address || undefined,
+    client_city: acct?.primary_service_city || acct?.billing_city || undefined,
+    client_province: acct?.primary_service_province || acct?.billing_province || undefined,
+    client_postal: acct?.primary_service_postal_code || acct?.billing_postal_code || undefined,
+    account_number: acct?.account_number || "",
+  };
+  return (
+    <AdminDocumentsPanel
+      client={client}
+      invoices={data.invoices || []}
+      subscriptions={data.subscriptions || []}
     />
   );
 };
