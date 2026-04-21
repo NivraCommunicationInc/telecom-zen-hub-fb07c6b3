@@ -1,98 +1,15 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { CreditCard, Wrench, RefreshCw, ExternalLink, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { useClientAutoPayEnrollment } from "@/hooks/useClientAutoPayEnrollment";
 
 const AutoPayEnrollment = () => {
-  const { user } = useClientAuth();
   const queryClient = useQueryClient();
-  const [enrolling, setEnrolling] = useState(false);
-
-  // Fetch profile
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("full_name, email, phone")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch active billing subscriptions for this user
-  const { data: subscriptions, isLoading } = useQuery({
-    queryKey: ["client-billing-subscriptions", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // Get billing_customer for this user
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-
-      const { data, error } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("*")
-        .eq("customer_id", customer.id)
-        .in("status", ["active", "pending", "suspended"])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const handleEnrollPayPal = async (subscription: any) => {
-    try {
-      setEnrolling(true);
-
-      const response = await portalSupabase.functions.invoke("paypal-create-subscription", {
-        body: {
-          plan_name: subscription.plan_name,
-          plan_price: subscription.plan_price,
-          customer_email: profile?.email || user?.email || "",
-          customer_name: profile?.full_name || "Client",
-          billing_subscription_id: subscription.id,
-        },
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      const data = response.data;
-
-      if (!data?.success || !data?.approval_url) {
-        throw new Error(data?.error || "Erreur lors de la création de l'abonnement PayPal");
-      }
-
-      // Update subscription with PayPal IDs
-      await portalSupabase
-        .from("billing_subscriptions")
-        .update({
-          paypal_subscription_id: data.paypal_subscription_id,
-          paypal_plan_id: data.paypal_plan_id,
-        })
-        .eq("id", subscription.id);
-
-      // Redirect to PayPal approval
-      window.location.href = data.approval_url;
-    } catch (error: any) {
-      console.error("[AutoPay] Error:", error);
-      toast.error(error.message || "Erreur lors de l'inscription au paiement automatique");
-    } finally {
-      setEnrolling(false);
-    }
-  };
+  const { subscriptions, isLoading, enrollInPayPal, enrollingSubscriptionId } = useClientAutoPayEnrollment();
 
   const handleDisableAutoPay = async (subscription: any) => {
     try {
@@ -179,10 +96,10 @@ const AutoPayEnrollment = () => {
                   {/* PayPal auto-pay */}
                   <Button
                     className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white gap-2"
-                    onClick={() => handleEnrollPayPal(sub)}
-                    disabled={enrolling}
+                     onClick={() => void enrollInPayPal(sub)}
+                     disabled={!!enrollingSubscriptionId}
                   >
-                    {enrolling ? (
+                     {enrollingSubscriptionId === sub.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">

@@ -22,12 +22,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useClientAutoPayEnrollment } from "@/hooks/useClientAutoPayEnrollment";
 
 export const ClientPaymentMethodCard = () => {
   const { user } = useClientAuth();
   const qc = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const {
+    subscriptions,
+    enrollInPayPal,
+    enrollingSubscriptionId,
+  } = useClientAutoPayEnrollment();
 
   const { data: paypalSub, isLoading } = useQuery({
     queryKey: ["client-paypal-preauth", user?.id],
@@ -53,6 +59,7 @@ export const ClientPaymentMethodCard = () => {
   });
 
   const isPreAuth = !!paypalSub;
+  const eligibleSubscription = subscriptions.find((subscription) => !subscription.paypal_subscription_id) ?? null;
 
   const handleCancel = async () => {
     if (!paypalSub) return;
@@ -136,11 +143,19 @@ export const ClientPaymentMethodCard = () => {
               Activez le paiement pré-autorisé PayPal pour ne jamais oublier une facture
               et bénéficier d'un rabais de 5$/mois.
             </p>
-            <Button asChild variant="default" size="sm" className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1">
-              <a href="/portal/payments">
-                Activer le paiement pré-autorisé
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
+              onClick={() => eligibleSubscription && void enrollInPayPal(eligibleSubscription)}
+              disabled={!eligibleSubscription || !!enrollingSubscriptionId}
+            >
+              {enrollingSubscriptionId === eligibleSubscription?.id ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
                 <ExternalLink className="w-3 h-3" />
-              </a>
+              )}
+              Activer le paiement pré-autorisé
             </Button>
           </>
         )}
