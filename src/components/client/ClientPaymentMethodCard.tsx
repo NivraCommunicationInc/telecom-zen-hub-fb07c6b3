@@ -59,15 +59,19 @@ export const ClientPaymentMethodCard = () => {
   });
 
   const isPreAuth = !!paypalSub;
-  // Éligible = abonnement actif qui n'a pas encore une entente PayPal active confirmée.
-  // (un abonnement "active" sans paypal_subscription_id, OU un abonnement actif dont
-  // l'ancienne entente PayPal a été annulée/expirée doit pouvoir être ré-enrôlé)
+  const eligibleStatuses = new Set(["active", "pending", "suspended"]);
   const eligibleSubscription =
     subscriptions.find(
-      (s) =>
-        s.status === "active" &&
-        (!s.paypal_subscription_id || (paypalSub && s.id !== paypalSub.id ? false : !paypalSub))
-    ) ?? subscriptions.find((s) => s.status === "active") ?? null;
+      (subscription) =>
+        eligibleStatuses.has(subscription.status) &&
+        subscription.id !== paypalSub?.id &&
+        !subscription.paypal_subscription_id
+    ) ??
+    subscriptions.find(
+      (subscription) =>
+        eligibleStatuses.has(subscription.status) && subscription.id !== paypalSub?.id
+    ) ??
+    null;
 
   const handleCancel = async () => {
     if (!paypalSub) return;
@@ -169,8 +173,8 @@ export const ClientPaymentMethodCard = () => {
               </Button>
             ) : (
               <p className="text-xs text-muted-foreground italic">
-                Aucun forfait actif éligible. Contactez le support pour activer le
-                paiement pré-autorisé sur votre compte.
+                Aucun abonnement admissible trouvé pour l'instant. Si votre forfait est
+                actif dans Nivra Core, rechargez la page puis réessayez.
               </p>
             )}
           </>
