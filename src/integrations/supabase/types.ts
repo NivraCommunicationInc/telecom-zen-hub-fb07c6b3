@@ -10865,6 +10865,7 @@ export type Database = {
         Row: {
           account_id: string
           activation_fee: number | null
+          activation_preference: string
           agreement_version: number | null
           amount_paid: number | null
           appointment_date: string | null
@@ -10910,6 +10911,7 @@ export type Database = {
           identity_verification_session_id: string | null
           imei_number: string | null
           installation_credit: number | null
+          installation_details: Json | null
           installation_fee: number | null
           installation_type: string | null
           internal_notes: string | null
@@ -10938,6 +10940,7 @@ export type Database = {
           provider_payment_id: string | null
           related_contract_id: string | null
           related_ticket_id: string | null
+          requested_activation_date: string | null
           require_fresh_kyc: boolean
           risk_flags: Json | null
           router_fee: number | null
@@ -10946,9 +10949,15 @@ export type Database = {
           serial_number: string | null
           service_location_id: string | null
           service_type: string
+          ship_to_different_address: boolean
           shipped_at: string | null
           shipping_address: string | null
+          shipping_address_line: string | null
+          shipping_apartment: string | null
           shipping_city: string | null
+          shipping_first_name: string | null
+          shipping_instructions: string | null
+          shipping_last_name: string | null
           shipping_postal_code: string | null
           shipping_province: string | null
           sim_number: string | null
@@ -10974,6 +10983,7 @@ export type Database = {
         Insert: {
           account_id: string
           activation_fee?: number | null
+          activation_preference?: string
           agreement_version?: number | null
           amount_paid?: number | null
           appointment_date?: string | null
@@ -11019,6 +11029,7 @@ export type Database = {
           identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
+          installation_details?: Json | null
           installation_fee?: number | null
           installation_type?: string | null
           internal_notes?: string | null
@@ -11047,6 +11058,7 @@ export type Database = {
           provider_payment_id?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
+          requested_activation_date?: string | null
           require_fresh_kyc?: boolean
           risk_flags?: Json | null
           router_fee?: number | null
@@ -11055,9 +11067,15 @@ export type Database = {
           serial_number?: string | null
           service_location_id?: string | null
           service_type: string
+          ship_to_different_address?: boolean
           shipped_at?: string | null
           shipping_address?: string | null
+          shipping_address_line?: string | null
+          shipping_apartment?: string | null
           shipping_city?: string | null
+          shipping_first_name?: string | null
+          shipping_instructions?: string | null
+          shipping_last_name?: string | null
           shipping_postal_code?: string | null
           shipping_province?: string | null
           sim_number?: string | null
@@ -11083,6 +11101,7 @@ export type Database = {
         Update: {
           account_id?: string
           activation_fee?: number | null
+          activation_preference?: string
           agreement_version?: number | null
           amount_paid?: number | null
           appointment_date?: string | null
@@ -11128,6 +11147,7 @@ export type Database = {
           identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
+          installation_details?: Json | null
           installation_fee?: number | null
           installation_type?: string | null
           internal_notes?: string | null
@@ -11156,6 +11176,7 @@ export type Database = {
           provider_payment_id?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
+          requested_activation_date?: string | null
           require_fresh_kyc?: boolean
           risk_flags?: Json | null
           router_fee?: number | null
@@ -11164,9 +11185,15 @@ export type Database = {
           serial_number?: string | null
           service_location_id?: string | null
           service_type?: string
+          ship_to_different_address?: boolean
           shipped_at?: string | null
           shipping_address?: string | null
+          shipping_address_line?: string | null
+          shipping_apartment?: string | null
           shipping_city?: string | null
+          shipping_first_name?: string | null
+          shipping_instructions?: string | null
+          shipping_last_name?: string | null
           shipping_postal_code?: string | null
           shipping_province?: string | null
           sim_number?: string | null
