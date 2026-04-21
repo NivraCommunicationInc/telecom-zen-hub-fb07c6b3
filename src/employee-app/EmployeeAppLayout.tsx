@@ -9,13 +9,11 @@ import EmployeeOmniSearch from "./components/EmployeeOmniSearch";
 import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
-import { useDocumentJobWorker } from "@/hooks/useDocumentJobWorker";
 
 export default function EmployeeAppLayout() {
   const { theme, themeClass, toggleTheme } = useInternalTheme();
-  // Background worker: claims pending document jobs, generates PDFs in browser,
-  // uploads to Storage, then triggers send-client-document. (Strategy C)
-  useDocumentJobWorker();
+  // Document generation is now 100% server-side autonomous via the
+  // process-document-jobs edge function (cron every 60s). No browser worker needed.
 
   return (
     <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
