@@ -10,8 +10,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import ServiceCountdown from "@/components/client/ServiceCountdown";
-import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
-import { AlertTriangle, Info, X, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
+import { AlertTriangle, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
@@ -19,7 +18,6 @@ import ReferralPopup from "@/components/client/ReferralPopup";
 const ClientDashboard = () => {
   const { user } = useClientAuth();
   const navigate = useNavigate();
-  const [dismissedBanners, setDismissedBanners] = useState<string[]>([]);
   const [showWelcome, setShowWelcome] = useState(() => {
     return !localStorage.getItem("nivra_welcomed");
   });
@@ -107,8 +105,6 @@ const ClientDashboard = () => {
     toast.success("Copié dans le presse-papiers");
   };
 
-  const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
-
   const accountNumber = accountIdentity?.accountNumber || "Non attribué";
 
   // Status badge helper
@@ -167,25 +163,6 @@ const ClientDashboard = () => {
         </h1>
 
         {/* Alert banners - Rogers style with left colored border */}
-        {!dismissedBanners.includes("promo") && (
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-              <p className="text-sm text-slate-700">
-                Profitez d'un rabais sur les paiements automatiques sur chaque ligne admissible en vous inscrivant aux paiements automatiques.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0 ml-4">
-              <Link to="/portal/invoices" className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                S'inscrire <ChevronRight className="w-4 h-4" />
-              </Link>
-              <button onClick={() => dismiss("promo")} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Account Number + Balance Section - Rogers style */}
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           {/* Account header with left accent */}
@@ -242,9 +219,6 @@ const ClientDashboard = () => {
 
             {/* Quick links */}
             <div className="mt-4 flex flex-wrap gap-4">
-              <Link to="/portal/invoices" className="text-sm text-teal-700 hover:text-teal-800 font-medium flex items-center gap-1">
-                Configurer les paiements automatiques <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
               <Link to="/portal/payments" className="text-sm text-teal-700 hover:text-teal-800 font-medium flex items-center gap-1">
                 Historique des paiements <ChevronRight className="w-3.5 h-3.5" />
               </Link>
@@ -254,9 +228,6 @@ const ClientDashboard = () => {
 
         {/* Service Countdown */}
         {user?.id && <ServiceCountdown userId={user.id} />}
-
-        {/* Paiement pré-autorisé PayPal (carte unifiée) */}
-        <ClientPaymentMethodCard />
 
         {/* Mobile Services - Rogers style section */}
         {mobileServices.length > 0 && (
