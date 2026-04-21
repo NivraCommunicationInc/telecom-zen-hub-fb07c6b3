@@ -35,10 +35,6 @@ export const LocalBusinessSchema = () => {
         name: "Province of Quebec",
         addressCountry: "CA",
       },
-        "@type": "AdministrativeArea",
-        name: "Province of Quebec",
-        addressCountry: "CA",
-      },
       slogan: "Meilleur prix garanti",
       openingHoursSpecification: [
         {
