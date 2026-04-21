@@ -233,17 +233,24 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     </table>`;
   };
 
+  // === Itemized service rows (one per service) ===
+  const serviceRowsHtml = (services || [])
+    .map((s) => finRowHtml(escapeHtml(s.name || 'Forfait'), `${fmtPrice(Number(s.price) || 0)} $`))
+    .join('');
+
   let financialBlock = '';
   if (hasFirstMonthFree) {
     financialBlock = `
-      ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
-      ${finRowHtml('Premier mois offert', `-${fmtPrice(servicePrice)} $`, { green: true, greenBg: true })}
+      ${serviceRowsHtml}
+      ${finRowHtml('Sous-total services', `${fmtPrice(serviceSubtotal)} $`)}
+      ${finRowHtml('Premier mois offert', `-${fmtPrice(serviceSubtotal)} $`, { green: true, greenBg: true })}
       ${finRowHtml('Service ce mois-ci', '0,00 $', { bold: true, thickBorder: true })}
       ${equipTotal > 0 ? `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #eee">
           <tr><td style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase">Équipement (frais uniques)</td></tr>
         </table>
-        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
+        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(Number(f.amount) || 0)} $`)).join('')}
+        ${finRowHtml('Sous-total équipement', `${fmtPrice(equipTotal)} $`)}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
           <tr>
@@ -259,25 +266,28 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
             <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Équipement uniquement — service gratuit ce mois</div>
           </td>
           <td style="padding:16px;text-align:right;white-space:nowrap">
-            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(equipGrandTotal)} $</span>
+            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(canonicalTotal)} $</span>
           </td>
         </tr>
       </table>`;
   } else {
     financialBlock = `
-      ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
+      ${serviceRowsHtml}
+      ${finRowHtml('Sous-total services', `${fmtPrice(serviceSubtotal)} $`)}
       ${finRowHtml('TPS (5%)', `${fmtPrice(serviceTps)} $`)}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #eee">
         <tr>
           <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
           <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(serviceTvq)} $</td>
         </tr>
       </table>
+      ${finRowHtml('Total mensuel récurrent', `${fmtPrice(serviceTotalWithTax)} $`, { bold: true, thickBorder: true })}
       ${equipTotal > 0 ? `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #eee">
           <tr><td style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase">Équipement (frais uniques)</td></tr>
         </table>
-        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
+        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(Number(f.amount) || 0)} $`)).join('')}
+        ${finRowHtml('Sous-total équipement', `${fmtPrice(equipTotal)} $`)}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
           <tr>
