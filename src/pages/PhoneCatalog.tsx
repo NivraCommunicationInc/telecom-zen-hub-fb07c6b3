@@ -6,8 +6,9 @@
  *
  * Route: /telephones
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -49,31 +50,44 @@ export default function PhoneCatalog() {
   const { language } = useLanguage();
   const isFr = language === "fr";
   const [params, setParams] = useSearchParams();
-  const [phones, setPhones] = useState<Phone[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
   const brand = params.get("brand") ?? "all";
   const condition = params.get("condition") ?? "all";
   const maxPrice = params.get("maxPrice") ?? "";
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
+  const { data: phones = [], isLoading: loading } = useQuery({
+    queryKey: ["public-phone-catalog"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("phone_inventory")
         .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, description")
         .eq("status", "available")
         .eq("is_visible_on_site", true)
         .order("price_cad", { ascending: true });
-      if (!cancelled) {
-        if (error) console.error("[phones]", error);
-        setPhones((data as Phone[]) ?? []);
-        setLoading(false);
+      if (error) {
+        console.error("[phones]", error);
+        throw error;
       }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+      return (data as Phone[]) ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  // Realtime: refresh catalog instantly when admin toggles visibility / status
+  useEffect(() => {
+    const channel = supabase
+      .channel("phone-catalog-public")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "phone_inventory" },
+        () => qc.invalidateQueries({ queryKey: ["public-phone-catalog"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const brands = useMemo(
     () => Array.from(new Set(phones.map((p) => p.brand))).sort(),

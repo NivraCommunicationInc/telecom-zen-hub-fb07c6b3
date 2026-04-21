@@ -301,6 +301,25 @@ export default function CorePhoneInventoryPage() {
     },
   });
 
+  // Realtime: invalidate cache whenever phone_inventory changes (any admin / source)
+  useEffect(() => {
+    const channel = supabase
+      .channel("phone-inventory-core")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "phone_inventory" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["core-phone-inventory"] });
+          qc.invalidateQueries({ queryKey: ["public-phone-catalog"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
+
   function startCreate() {
     setForm(emptyForm());
     setShowPreview(false);
