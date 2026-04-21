@@ -28,6 +28,7 @@ import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
+import { ActiveServicesBanner } from "@/components/client/ActiveServicesBanner";
 import { 
   ShoppingCart, 
   Smartphone, 
