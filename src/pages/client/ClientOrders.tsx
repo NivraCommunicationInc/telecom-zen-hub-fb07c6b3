@@ -445,6 +445,11 @@ const ClientOrders = () => {
                 </div>
               )}
 
+              {/* Phase 2 — Livraison & activation (compatible commandes historiques) */}
+              <div className="pt-4 border-t border-border">
+                <OrderShippingActivationPanel order={selectedOrder} variant="client" />
+              </div>
+
               {selectedOrder.notes && (
                 <div className="pt-4 border-t border-border">
                   <h4 className="font-medium text-foreground mb-2">Notes</h4>
