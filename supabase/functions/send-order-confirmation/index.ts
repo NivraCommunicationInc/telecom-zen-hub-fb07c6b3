@@ -878,6 +878,34 @@ Deno.serve(async (req) => {
       ? canonicalOneTimeFees.reduce((s, f) => s + f.amount, 0)
       : canonicalOneTime;
 
+    // Hydrate Phase 2 fields: prefer payload, fall back to DB row
+    const od: any = orderData || {};
+    const finalAltShipping: AlternativeShipping | undefined = providedAltShipping ?? (
+      od.ship_to_different_address && od.shipping_address_line
+        ? {
+            recipient_name: [od.shipping_first_name, od.shipping_last_name].filter(Boolean).join(" ").trim() || undefined,
+            address_line: od.shipping_address_line,
+            apartment: od.shipping_apartment || undefined,
+            city: od.shipping_city || "",
+            province: od.shipping_province || "QC",
+            postal_code: od.shipping_postal_code || "",
+            instructions: od.shipping_instructions || undefined,
+          }
+        : undefined
+    );
+    const finalActivationPref: "ASAP" | "SCHEDULED" =
+      providedActivationPref ?? (od.activation_preference === "SCHEDULED" ? "SCHEDULED" : "ASAP");
+    const finalRequestedDate: string | undefined =
+      providedActivationDate ?? (od.requested_activation_date || undefined);
+    const finalInstallDetails: InstallationDetailsForEmail | undefined =
+      providedInstallDetails ?? (od.installation_details && typeof od.installation_details === "object"
+        ? {
+            coax_available: od.installation_details.coax_available || od.installation_details.coaxAvailable,
+            occupancy_status: od.installation_details.occupancy_status || od.installation_details.occupancyStatus,
+            access_notes: od.installation_details.access_notes || od.installation_details.accessNotes,
+          }
+        : undefined);
+
     // Generate full HTML email
     const htmlBody = generateOrderConfirmationHtml({
       clientFirstName: client_first_name || "Client",
@@ -898,6 +926,10 @@ Deno.serve(async (req) => {
       portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
       supportEmail: "support@nivra-telecom.ca",
       promoCode: effectivePromoCode || undefined,
+      alternativeShipping: finalAltShipping,
+      activationPreference: finalActivationPref,
+      requestedActivationDate: finalRequestedDate,
+      installationDetails: finalInstallDetails,
     });
 
     // Enqueue main email via pgmq (actually delivered by process-email-queue)
