@@ -704,6 +704,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     let latestPayment: { provider_payment_id?: string | null; reference?: string | null; method?: string | null; amount?: number | null } | null = null;
+    let canonicalInvoiceLines: Array<{ description: string; unit_price: number; quantity: number; line_total: number; line_type: string }> = [];
     if (latestInvoice?.id) {
       const { data } = await supabase
         .from("billing_payments")
@@ -713,6 +714,14 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       latestPayment = data;
+
+      // CANONICAL: Always read real invoice lines from DB. Never fabricate fees/equipment.
+      const { data: lines } = await supabase
+        .from("billing_invoice_lines")
+        .select("description, unit_price, quantity, line_total, line_type")
+        .eq("invoice_id", latestInvoice.id)
+        .order("created_at", { ascending: true });
+      canonicalInvoiceLines = (lines || []) as any[];
     }
 
 
