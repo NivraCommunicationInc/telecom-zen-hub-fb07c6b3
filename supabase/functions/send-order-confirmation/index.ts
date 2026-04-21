@@ -579,6 +579,9 @@ ${firstMonthBanner}
 ${equipmentSection}
 ${installationSection}
 
+<!-- PHASE 2 — Alternative shipping + scheduled activation + installation details -->
+${phaseTwoSection}
+
 <!-- INFO CARDS -->
 <div style="padding:0 32px 24px">
   <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Ce que vous devez savoir</div>
@@ -701,6 +704,10 @@ Deno.serve(async (req) => {
     payment_reference,
     payment_method,
     promo_code,
+    alternative_shipping: providedAltShipping,
+    activation_preference: providedActivationPref,
+    requested_activation_date: providedActivationDate,
+    installation_details: providedInstallDetails,
     force = false,
     } = body;
 
@@ -719,7 +726,7 @@ Deno.serve(async (req) => {
 
     const { data: orderData, error: checkError } = await supabase
       .from("orders")
-      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code")
+      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
       .eq("id", order_id)
       .single();
 
@@ -871,6 +878,34 @@ Deno.serve(async (req) => {
       ? canonicalOneTimeFees.reduce((s, f) => s + f.amount, 0)
       : canonicalOneTime;
 
+    // Hydrate Phase 2 fields: prefer payload, fall back to DB row
+    const od: any = orderData || {};
+    const finalAltShipping: AlternativeShipping | undefined = providedAltShipping ?? (
+      od.ship_to_different_address && od.shipping_address_line
+        ? {
+            recipient_name: [od.shipping_first_name, od.shipping_last_name].filter(Boolean).join(" ").trim() || undefined,
+            address_line: od.shipping_address_line,
+            apartment: od.shipping_apartment || undefined,
+            city: od.shipping_city || "",
+            province: od.shipping_province || "QC",
+            postal_code: od.shipping_postal_code || "",
+            instructions: od.shipping_instructions || undefined,
+          }
+        : undefined
+    );
+    const finalActivationPref: "ASAP" | "SCHEDULED" =
+      providedActivationPref ?? (od.activation_preference === "SCHEDULED" ? "SCHEDULED" : "ASAP");
+    const finalRequestedDate: string | undefined =
+      providedActivationDate ?? (od.requested_activation_date || undefined);
+    const finalInstallDetails: InstallationDetailsForEmail | undefined =
+      providedInstallDetails ?? (od.installation_details && typeof od.installation_details === "object"
+        ? {
+            coax_available: od.installation_details.coax_available || od.installation_details.coaxAvailable,
+            occupancy_status: od.installation_details.occupancy_status || od.installation_details.occupancyStatus,
+            access_notes: od.installation_details.access_notes || od.installation_details.accessNotes,
+          }
+        : undefined);
+
     // Generate full HTML email
     const htmlBody = generateOrderConfirmationHtml({
       clientFirstName: client_first_name || "Client",
@@ -891,6 +926,10 @@ Deno.serve(async (req) => {
       portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
       supportEmail: "support@nivra-telecom.ca",
       promoCode: effectivePromoCode || undefined,
+      alternativeShipping: finalAltShipping,
+      activationPreference: finalActivationPref,
+      requestedActivationDate: finalRequestedDate,
+      installationDetails: finalInstallDetails,
     });
 
     // Enqueue main email via pgmq (actually delivered by process-email-queue)
