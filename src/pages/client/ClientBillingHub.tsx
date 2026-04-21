@@ -178,7 +178,7 @@ const ClientBillingHub = () => {
     }
     setPayingBalance(true);
     try {
-      const { data: result, error: invokeErr } = await supabase.functions.invoke(
+      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
         "paypal-balance-pay-create"
       );
       if (invokeErr || result?.error) {
