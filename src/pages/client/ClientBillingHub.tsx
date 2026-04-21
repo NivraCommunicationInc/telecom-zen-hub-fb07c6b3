@@ -250,12 +250,12 @@ const ClientBillingHub = () => {
                 {balance > 0 && (
                   <Button
                     onClick={writeGuard(handlePrimaryPayNow)}
-                    disabled={writeGuard.isReadOnly}
+                    disabled={writeGuard.isReadOnly || payingBalance}
                     title={writeGuard.disabledReason}
                     className="bg-primary hover:bg-primary/90"
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
-                    Payer maintenant
+                    {payingBalance ? "Redirection vers PayPal…" : `Payer le solde (${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})`}
                   </Button>
                 )}
                 <Button
