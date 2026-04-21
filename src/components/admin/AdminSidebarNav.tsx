@@ -17,6 +17,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useDisputeCounts } from "@/hooks/useDisputeCounts";
+import { useAdminSectionBadges } from "@/hooks/admin/useAdminSectionBadges";
+import { SectionBadge } from "@/components/ui/section-badge";
 
 interface NavItem {
   icon: LucideIcon;
@@ -161,6 +163,7 @@ interface AdminSidebarNavProps {
 const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
   const location = useLocation();
   const { data: disputeCounts } = useDisputeCounts();
+  const { badges: sectionBadges } = useAdminSectionBadges();
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
@@ -253,6 +256,13 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
                   <div className="flex items-center gap-2">
                     <group.icon className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{group.label}</span>
+                    {sectionBadges[group.id]?.show && (
+                      <SectionBadge
+                        show
+                        variant={sectionBadges[group.id]?.urgent ? "dot-pulse" : "dot"}
+                        ariaLabel={`${group.label} nécessite votre attention`}
+                      />
+                    )}
                     {group.id === "billing" && disputeCounts && disputeCounts.total > 0 && (
                       <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px] font-semibold rounded-full">
                         {disputeCounts.total}
