@@ -12268,6 +12268,7 @@ export type Database = {
           description: string | null
           id: string
           imei: string
+          is_visible_on_site: boolean
           model: string
           order_id: string | null
           photos: string[]
@@ -12289,6 +12290,7 @@ export type Database = {
           description?: string | null
           id?: string
           imei: string
+          is_visible_on_site?: boolean
           model: string
           order_id?: string | null
           photos?: string[]
@@ -12310,6 +12312,7 @@ export type Database = {
           description?: string | null
           id?: string
           imei?: string
+          is_visible_on_site?: boolean
           model?: string
           order_id?: string | null
           photos?: string[]
