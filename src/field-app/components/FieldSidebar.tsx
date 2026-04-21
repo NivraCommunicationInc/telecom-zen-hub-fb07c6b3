@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "lucide-react";
+import { SectionBadge } from "@/components/ui/section-badge";
 
 const FIELD_BASE = "/field";
 
@@ -64,9 +65,13 @@ function NavSection({ title, items, isActive, badges }: { title: string; items: 
               isActive(item.href) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}>
             <span className="flex items-center gap-2.5"><item.icon className="h-4 w-4 shrink-0" />{item.label}</span>
-            {badge > 0 && (
-              <span className="text-[10px] font-bold bg-primary text-primary-foreground rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">{badge}</span>
-            )}
+            {badge > 0 ? (
+              <SectionBadge
+                show
+                variant={item.badgeKey === "leads" ? "dot-pulse" : "dot"}
+                ariaLabel={`${item.label}: ${badge} en attente`}
+              />
+            ) : null}
           </Link>
         );
       })}
