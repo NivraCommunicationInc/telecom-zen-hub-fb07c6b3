@@ -47,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import {
   Plus,
   Pencil,
@@ -59,6 +60,7 @@ import {
   DollarSign,
   Tag,
   Eye,
+  EyeOff,
   Upload,
   Trash2,
   Loader2,
