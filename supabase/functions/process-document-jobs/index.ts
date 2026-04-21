@@ -34,7 +34,7 @@ interface JobRow {
 async function processOne(admin: any, job: JobRow): Promise<{ ok: boolean; error?: string }> {
   try {
     // 1. Generate PDF server-side
-    const dispatched = dispatchAutoDocument(
+    const dispatched = await dispatchAutoDocument(
       job.doc_type as AutoDocType,
       job.event_payload || {},
     );
