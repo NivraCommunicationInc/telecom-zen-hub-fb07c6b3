@@ -157,6 +157,10 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     orderDate,
     paymentMethod,
     services,
+    subtotal: canonicalSubtotal,
+    tpsAmount: canonicalTps,
+    tvqAmount: canonicalTvq,
+    totalWithTax: canonicalTotal,
     oneTimeFees,
     oneTimeTotal,
     deliveryAddress,
@@ -168,17 +172,23 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
 
   const hasFirstMonthFree = isFirstMonthFreePromo(promoCode);
 
-  // === Calculate service pricing ===
-  const serviceSubtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
-  const serviceTps = Math.round(serviceSubtotal * 0.05 * 100) / 100;
-  const serviceTvq = Math.round(serviceSubtotal * 0.09975 * 100) / 100;
-  const serviceTotalWithTax = Math.round((serviceSubtotal + serviceTps + serviceTvq) * 100) / 100;
+  // ============================================================
+  // CANONICAL MATH — use values from pricing_snapshot/invoice
+  // (passed in by the caller). NEVER recompute here.
+  // ============================================================
+  const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
-  // === Calculate equipment pricing ===
-  const equipTotal = oneTimeTotal || (oneTimeFees || []).reduce((sum, f) => sum + f.amount, 0);
-  const equipTps = Math.round(equipTotal * 0.05 * 100) / 100;
-  const equipTvq = Math.round(equipTotal * 0.09975 * 100) / 100;
-  const equipGrandTotal = Math.round((equipTotal + equipTps + equipTvq) * 100) / 100;
+  // Service subtotal/taxes — pulled directly from canonical breakdown
+  const equipTotal = round2(oneTimeTotal || (oneTimeFees || []).reduce((sum, f) => sum + (Number(f.amount) || 0), 0));
+  const serviceSubtotal = round2(Math.max(0, canonicalSubtotal - equipTotal));
+  // Split canonical tax proportionally between service vs equipment
+  const baseForSplit = (serviceSubtotal + equipTotal) || 1;
+  const serviceTps = round2((canonicalTps * serviceSubtotal) / baseForSplit);
+  const serviceTvq = round2((canonicalTvq * serviceSubtotal) / baseForSplit);
+  const equipTps = round2(canonicalTps - serviceTps);
+  const equipTvq = round2(canonicalTvq - serviceTvq);
+  const serviceTotalWithTax = round2(serviceSubtotal + serviceTps + serviceTvq);
+  const equipGrandTotal = round2(equipTotal + equipTps + equipTvq);
 
   const serviceName = services.length > 0 ? services[0].name : 'Internet';
   const servicePrice = services.length > 0 ? services[0].price : 0;
