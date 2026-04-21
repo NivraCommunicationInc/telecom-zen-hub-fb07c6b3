@@ -461,8 +461,8 @@ const ClientOrders = () => {
                 </div>
               )}
 
-              {/* Tracking Info */}
-              {selectedOrder.tracking_number && (
+              {/* Phase 3 — Tracking masqué pour installation pro */}
+              {selectedOrder.tracking_number && !isProInstall(selectedOrder) && (
                 <div className="pt-4 border-t border-border">
                   <h4 className="font-medium text-foreground mb-3">Suivi d'expédition</h4>
                   <div className="flex items-center justify-between bg-cyan-500/10 p-3 rounded-lg">
@@ -481,9 +481,13 @@ const ClientOrders = () => {
                 </div>
               )}
 
-              {/* Phase 2 — Livraison & activation (compatible commandes historiques) */}
+              {/* Phase 2 + 3 — Livraison & activation (hideShipping si installation pro) */}
               <div className="pt-4 border-t border-border">
-                <OrderShippingActivationPanel order={selectedOrder} variant="client" />
+                <OrderShippingActivationPanel
+                  order={selectedOrder}
+                  variant="client"
+                  hideShipping={isProInstall(selectedOrder)}
+                />
               </div>
 
               {selectedOrder.notes && (
