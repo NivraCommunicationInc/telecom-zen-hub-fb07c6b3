@@ -17,11 +17,11 @@ import {
   ProfileSection, BillingSection, SubscriptionsSection, OrdersSection,
   InvoicesSection, PaymentsSection, EquipmentSection, TicketsSection,
   AppointmentsSection, KycSection, ContractsSection, TimelineSection,
-  FinancialDocsSection,
+  FinancialDocsSection, AdminDocsSection,
 } from "@/core-app/components/account-360/Account360Sections";
 
 /* ── Section definitions ── */
-type SectionId = "profile" | "billing" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "tickets" | "timeline";
+type SectionId = "profile" | "billing" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "admin_docs" | "tickets" | "timeline";
 
 const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "profile", label: "Profil", icon: User },
@@ -35,6 +35,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "appointments", label: "RDV / Technicien", icon: Calendar },
   { id: "contracts", label: "Contrats & Documents", icon: Briefcase },
   { id: "financial_docs", label: "Documents financiers", icon: Receipt },
+  { id: "admin_docs", label: "Documents administratifs", icon: FileText },
   { id: "tickets", label: "Support / Tickets", icon: MessageSquare },
   { id: "timeline", label: "Chronologie", icon: Activity },
 ];
@@ -146,6 +147,7 @@ const CoreAccountDetail = () => {
       case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
       case "contracts": return <ContractsSection data={data} />;
       case "financial_docs": return <FinancialDocsSection data={data} acct={acct} prof={prof} clientName={clientName} />;
+      case "admin_docs": return <AdminDocsSection data={data} acct={acct} prof={prof} clientName={clientName} />;
       case "tickets": return <TicketsSection data={data} {...actionProps} />;
       case "timeline": return <TimelineSection data={data} />;
       default: return null;
