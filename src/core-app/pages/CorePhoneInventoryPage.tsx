@@ -47,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import {
   Plus,
   Pencil,
@@ -59,6 +60,7 @@ import {
   DollarSign,
   Tag,
   Eye,
+  EyeOff,
   Upload,
   Trash2,
   Loader2,
@@ -82,6 +84,7 @@ interface PhoneRow {
   available_colors: string[] | null;
   available_storage: string[] | null;
   photos: string[] | null;
+  is_visible_on_site: boolean;
 }
 
 type ConditionT = PhoneRow["condition"];
@@ -116,6 +119,7 @@ interface FormState {
   available_colors: string[];
   available_storage: string[];
   photos: string[];
+  is_visible_on_site: boolean;
 }
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -245,6 +249,7 @@ function emptyForm(): FormState {
     available_colors: [],
     available_storage: ["256GB"],
     photos: [],
+    is_visible_on_site: true,
   };
 }
 
@@ -272,6 +277,7 @@ function fromRow(row: PhoneRow): FormState {
     available_colors: row.available_colors ?? [],
     available_storage: (row.available_storage && row.available_storage.length > 0) ? row.available_storage : [row.storage],
     photos: row.photos ?? [],
+    is_visible_on_site: row.is_visible_on_site ?? true,
   };
 }
 
@@ -402,6 +408,7 @@ export default function CorePhoneInventoryPage() {
       available_colors: colorsList,
       available_storage: storageList,
       photos: form.photos,
+      is_visible_on_site: form.is_visible_on_site,
     };
     try {
       if (form.id) {
@@ -430,6 +437,20 @@ export default function CorePhoneInventoryPage() {
       return;
     }
     toast.success("Marqué défectueux");
+    qc.invalidateQueries({ queryKey: ["core-phone-inventory"] });
+  }
+
+  async function toggleSiteVisibility(row: PhoneRow) {
+    const next = !(row.is_visible_on_site ?? true);
+    const { error } = await supabase
+      .from("phone_inventory")
+      .update({ is_visible_on_site: next })
+      .eq("id", row.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(next ? "Affiché sur le site" : "Caché du site");
     qc.invalidateQueries({ queryKey: ["core-phone-inventory"] });
   }
 
@@ -742,6 +763,29 @@ export default function CorePhoneInventoryPage() {
                     onChange={(next) => setForm({ ...form, photos: next })}
                   />
                 </FormSection>
+
+                {/* SECTION 6 — Visibility on public site */}
+                <FormSection
+                  icon={form.is_visible_on_site ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  title="6. Affichage sur le site public"
+                >
+                  <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/20 p-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">
+                        {form.is_visible_on_site ? "Visible sur le site" : "Caché du site"}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Désactivez pour retirer ce téléphone du catalogue public sans le supprimer.
+                        Réactivez à tout moment pour le remettre en vente. Le statut interne (Disponible,
+                        Réservé, Vendu…) n'est pas affecté.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.is_visible_on_site}
+                      onCheckedChange={(v) => setForm({ ...form, is_visible_on_site: v })}
+                    />
+                  </div>
+                </FormSection>
               </div>
             )}
 
@@ -793,30 +837,46 @@ export default function CorePhoneInventoryPage() {
                   <TableHead>Appareil</TableHead>
                   <TableHead>État</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>Site</TableHead>
                   <TableHead className="text-right">Achat</TableHead>
                   <TableHead className="text-right">Vente</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(data ?? []).map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.imei}</TableCell>
-                    <TableCell>{row.brand} {row.model} <span className="text-muted-foreground text-xs">{row.storage} · {row.color}</span></TableCell>
-                    <TableCell><Badge variant="secondary">{CONDITION_LABEL[row.condition]}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={STATUS_COLOR[row.status]}>{STATUS_LABEL[row.status]}</Badge></TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{row.purchase_price_cad?.toFixed(2) ?? "—"}</TableCell>
-                    <TableCell className="text-right font-medium">{row.price_cad.toFixed(2)} $</TableCell>
-                    <TableCell className="space-x-1">
-                      <Button size="sm" variant="ghost" onClick={() => startEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      {row.status !== "defective" && (
-                        <Button size="sm" variant="ghost" onClick={() => markDefective(row)} className="text-rose-600 hover:text-rose-700">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(data ?? []).map((row) => {
+                  const visible = row.is_visible_on_site ?? true;
+                  return (
+                    <TableRow key={row.id} className={!visible ? "opacity-60" : undefined}>
+                      <TableCell className="font-mono text-xs">{row.imei}</TableCell>
+                      <TableCell>{row.brand} {row.model} <span className="text-muted-foreground text-xs">{row.storage} · {row.color}</span></TableCell>
+                      <TableCell><Badge variant="secondary">{CONDITION_LABEL[row.condition]}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className={STATUS_COLOR[row.status]}>{STATUS_LABEL[row.status]}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={visible}
+                            onCheckedChange={() => toggleSiteVisibility(row)}
+                            aria-label={visible ? "Cacher du site" : "Afficher sur le site"}
+                          />
+                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                            {visible ? <><Eye className="h-3 w-3" /> Visible</> : <><EyeOff className="h-3 w-3" /> Caché</>}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">{row.purchase_price_cad?.toFixed(2) ?? "—"}</TableCell>
+                      <TableCell className="text-right font-medium">{row.price_cad.toFixed(2)} $</TableCell>
+                      <TableCell className="space-x-1">
+                        <Button size="sm" variant="ghost" onClick={() => startEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        {row.status !== "defective" && (
+                          <Button size="sm" variant="ghost" onClick={() => markDefective(row)} className="text-rose-600 hover:text-rose-700">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
