@@ -84,12 +84,12 @@ function shipmentSubBadge(shipmentStatus?: string | null): { label: string; tone
   if (!shipmentStatus) return null;
   const map: Record<string, { label: string; tone: string }> = {
     pending: { label: "En préparation", tone: "bg-muted text-muted-foreground" },
-    ready: { label: "Prête à expédier", tone: "bg-blue-100 text-blue-800" },
-    shipped: { label: "Expédiée", tone: "bg-blue-100 text-blue-800" },
-    in_transit: { label: "En transit", tone: "bg-blue-100 text-blue-800" },
-    out_for_delivery: { label: "En livraison", tone: "bg-amber-100 text-amber-800" },
-    delivered: { label: "Livrée", tone: "bg-emerald-100 text-emerald-800" },
-    failed: { label: "Échec", tone: "bg-red-100 text-red-800" },
+    ready: { label: "Prête à expédier", tone: "status-pill-info" },
+    shipped: { label: "Expédiée", tone: "status-pill-info" },
+    in_transit: { label: "En transit", tone: "status-pill-info" },
+    out_for_delivery: { label: "En livraison", tone: "status-pill-warning" },
+    delivered: { label: "Livrée", tone: "status-pill-success" },
+    failed: { label: "Échec", tone: "bg-destructive/15 text-destructive" },
   };
   return map[shipmentStatus] ?? { label: shipmentStatus, tone: "bg-muted text-muted-foreground" };
 }
@@ -131,7 +131,7 @@ export function OrderLifecycleTimeline({ data, variant = "client", installationT
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-              selfInstall ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800",
+              selfInstall ? "status-pill-info" : "bg-primary/10 text-primary",
             )}
           >
             {selfInstall ? <Wrench className="h-3 w-3" /> : <CalendarCheck className="h-3 w-3" />}
@@ -226,7 +226,7 @@ export function OrderLifecycleTimeline({ data, variant = "client", installationT
 
       {/* Côté admin uniquement : si pro mais shipment existe → mention discrète */}
       {isAdmin && !selfInstall && data.shipment_status && (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">
+        <div className="mt-4 rounded-md border border-warning/30 bg-warning/10 p-2 text-[11px] text-foreground">
           <strong>Audit interne :</strong> shipment "{data.shipment_status}" enregistré (logistique
           technicien). Non exposé au client.
         </div>
