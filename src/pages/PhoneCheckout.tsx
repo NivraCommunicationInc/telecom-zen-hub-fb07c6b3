@@ -108,6 +108,11 @@ export default function PhoneCheckout() {
 
   const [acceptKyc, setAcceptKyc] = useState(false);
 
+  // Draft order created BEFORE opening PayPal so paypal-create-order
+  // receives a valid order_id (rejected otherwise — see hardening 2026-04-17).
+  const [draftOrderId, setDraftOrderId] = useState<string | null>(null);
+  const [creatingDraft, setCreatingDraft] = useState(false);
+
   // -------- Load phone + user + plans --------
   useEffect(() => {
     if (!id) return;
@@ -208,36 +213,23 @@ export default function PhoneCheckout() {
 
   const formValid = validationIssues.length === 0;
 
-  // -------- Payment success --------
-  const handlePaymentSuccess = async (captureId: string, payerAddress?: PayPalPayerAddress | null) => {
-    if (!phone) return;
-    setSubmitting(true);
+  // -------- Create draft order BEFORE PayPal opens --------
+  // Required: paypal-create-order rejects payloads without order_id (hardening 2026-04-17).
+  const ensureDraftOrder = async (): Promise<string | null> => {
+    if (draftOrderId) return draftOrderId;
+    if (!phone || !formValid) return null;
+    setCreatingDraft(true);
     try {
-      let userId = user?.id;
-      if (!userId) {
-        userId = crypto.randomUUID();
-      }
-
-      const shippingAddress = {
-        address: address.trim(),
-        city: city.trim(),
-        province,
-        postal_code: postalCode.trim(),
-        country: "CA",
-      };
-
-      // 2. Create order row (service_type='phone')
-      const { data: order, error: orderErr } = await supabase
+      const userId = user?.id ?? crypto.randomUUID();
+      const { data: order, error } = await supabase
         .from("orders")
         .insert({
           user_id: userId,
           account_id: userId,
           service_type: "phone",
-          status: "confirmed",
-          payment_status: "paid",
+          status: "pending_payment",
+          payment_status: "pending",
           payment_method: "paypal",
-          payment_reference: captureId,
-          payment_confirmed_at: new Date().toISOString(),
           client_first_name: firstName.trim(),
           client_last_name: lastName.trim(),
           client_email: email.trim(),
@@ -256,10 +248,50 @@ export default function PhoneCheckout() {
           kyc_policy: "required",
           notes: mode === "phone_plus_plan" ? `Mobile plan: ${selectedPlanId}` : "Phone only",
         })
+        .select("id")
+        .single();
+
+      if (error || !order) {
+        console.error("[phone-checkout] draft order failed", error);
+        toast.error(isFr ? "Impossible de préparer la commande." : "Could not prepare order.");
+        return null;
+      }
+      setDraftOrderId(order.id);
+      return order.id;
+    } finally {
+      setCreatingDraft(false);
+    }
+  };
+
+  // -------- Payment success --------
+  const handlePaymentSuccess = async (captureId: string, payerAddress?: PayPalPayerAddress | null) => {
+    if (!phone || !draftOrderId) return;
+    setSubmitting(true);
+    try {
+      const userId = user?.id ?? crypto.randomUUID();
+
+      const shippingAddress = {
+        address: address.trim(),
+        city: city.trim(),
+        province,
+        postal_code: postalCode.trim(),
+        country: "CA",
+      };
+
+      // 2. Finalize the existing draft order (set as paid + confirmed)
+      const { data: order, error: orderErr } = await supabase
+        .from("orders")
+        .update({
+          status: "confirmed",
+          payment_status: "paid",
+          payment_reference: captureId,
+          payment_confirmed_at: new Date().toISOString(),
+        })
+        .eq("id", draftOrderId)
         .select("id, order_number")
         .single();
 
-      if (orderErr || !order) throw orderErr ?? new Error("order insert failed");
+      if (orderErr || !order) throw orderErr ?? new Error("order finalize failed");
 
       // 3. Reserve the phone
       await supabase
@@ -596,11 +628,30 @@ export default function PhoneCheckout() {
                 </Alert>
               )}
               {submitting ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Création de la commande..." : "Creating order..."}</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Finalisation de la commande..." : "Finalizing order..."}</div>
+              ) : !draftOrderId ? (
+                <Button
+                  className="w-full h-12 text-base font-semibold"
+                  size="lg"
+                  disabled={!formValid || creatingDraft}
+                  onClick={ensureDraftOrder}
+                >
+                  {creatingDraft ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {isFr ? "Préparation..." : "Preparing..."}</>
+                  ) : (
+                    isFr ? "Continuer vers le paiement" : "Continue to payment"
+                  )}
+                </Button>
               ) : (
-                <div className={formValid ? "" : "pointer-events-none opacity-50"}>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {isFr
+                      ? "Commande préparée. Cliquez sur PayPal ci-dessous pour payer."
+                      : "Order prepared. Click PayPal below to pay."}
+                  </p>
                   <PayPalButton
                     amount={total}
+                    orderId={draftOrderId}
                     description={`${phone.brand} ${phone.model} – ${phone.storage}`}
                     customer={{
                       first_name: firstName.trim(),
