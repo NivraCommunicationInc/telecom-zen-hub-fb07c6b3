@@ -1182,6 +1182,17 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
+                {/* ── Phase 2: Shipping override + activation date + installation details ── */}
+                <CheckoutShippingAndActivation
+                  shipping={shippingData}
+                  onShippingChange={setShippingData}
+                  activation={activationData}
+                  onActivationChange={setActivationData}
+                  installationDetails={installationDetailsData}
+                  onInstallationDetailsChange={setInstallationDetailsData}
+                  showInstallationDetails={hasInternetService || hasTVService}
+                />
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
