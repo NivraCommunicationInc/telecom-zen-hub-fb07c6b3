@@ -20,6 +20,17 @@ import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
+import {
+  CheckoutShippingAndActivation,
+  DEFAULT_SHIPPING,
+  DEFAULT_ACTIVATION,
+  DEFAULT_INSTALLATION_DETAILS,
+  validateShipping,
+  validateActivation,
+  type ShippingAddressData,
+  type ActivationData,
+  type InstallationDetailsData,
+} from "@/components/checkout/CheckoutShippingAndActivation";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
 
 import { PayPalButton } from "@/components/payment/PayPalButton";
@@ -112,6 +123,12 @@ const GuestCheckout = () => {
   const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
   const [autoApplyAttempted, setAutoApplyAttempted] = useState(false);
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
+
+  // ── Phase 2: Shipping override + activation date + installation details ──
+  const [shippingData, setShippingData] = useState<ShippingAddressData>(DEFAULT_SHIPPING);
+  const [activationData, setActivationData] = useState<ActivationData>(DEFAULT_ACTIVATION);
+  const [installationDetailsData, setInstallationDetailsData] =
+    useState<InstallationDetailsData>(DEFAULT_INSTALLATION_DETAILS);
 
   // ── KYC / Identity ──
   // Identity verification (KYC) removed from public checkout — handled post-purchase if needed.
@@ -579,6 +596,41 @@ const GuestCheckout = () => {
           .eq("id", response.order_id);
       } catch (e) {
         console.error("[GuestCheckout] Failed to set kyc_status:", e);
+      }
+
+      // Step 4c (Phase 2): Persist shipping override + activation date + installation details on order.
+      // Stored on the order so orchestrate_order can resolve shipping address and pass the activation note.
+      try {
+        const orderPatch: Record<string, unknown> = {
+          ship_to_different_address: shippingData.shipToDifferentAddress,
+          activation_preference: activationData.activationPreference,
+          requested_activation_date: activationData.requestedActivationDate
+            ? activationData.requestedActivationDate.toISOString().slice(0, 10)
+            : null,
+          installation_details: {
+            coax_available: installationDetailsData.coaxAvailable || null,
+            occupancy_status: installationDetailsData.occupancyStatus || null,
+            access_notes: installationDetailsData.accessNotes || null,
+          },
+        };
+        if (shippingData.shipToDifferentAddress) {
+          Object.assign(orderPatch, {
+            shipping_first_name: shippingData.shippingFirstName.trim() || null,
+            shipping_last_name: shippingData.shippingLastName.trim() || null,
+            shipping_address_line: shippingData.shippingAddressLine.trim() || null,
+            shipping_apartment: shippingData.shippingApartment.trim() || null,
+            shipping_city: shippingData.shippingCity.trim() || null,
+            shipping_province: shippingData.shippingProvince || "QC",
+            shipping_postal_code: shippingData.shippingPostalCode.trim() || null,
+            shipping_instructions: shippingData.shippingInstructions.trim() || null,
+          });
+        }
+        await supabase
+          .from("orders")
+          .update(orderPatch as any)
+          .eq("id", response.order_id);
+      } catch (e) {
+        console.error("[GuestCheckout] Failed to persist shipping/activation/install details:", e);
       }
 
       // Step 5: Canonical sync (idempotent — safe to call again if already called in fallback path)
@@ -1165,6 +1217,17 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
+                {/* ── Phase 2: Shipping override + activation date + installation details ── */}
+                <CheckoutShippingAndActivation
+                  shipping={shippingData}
+                  onShippingChange={setShippingData}
+                  activation={activationData}
+                  onActivationChange={setActivationData}
+                  installationDetails={installationDetailsData}
+                  onInstallationDetailsChange={setInstallationDetailsData}
+                  showInstallationDetails={hasInternetService || hasTVService}
+                />
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
@@ -1222,8 +1285,18 @@ const GuestCheckout = () => {
                   </Button>
                   <Button
                     className="flex-1"
-                    disabled={requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)}
-                    onClick={() => setStep(5)}
+                    disabled={
+                      (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)) ||
+                      !!validateShipping(shippingData) ||
+                      !!validateActivation(activationData)
+                    }
+                    onClick={() => {
+                      const shipErr = validateShipping(shippingData);
+                      if (shipErr) { toast.error(shipErr); return; }
+                      const actErr = validateActivation(activationData);
+                      if (actErr) { toast.error(actErr); return; }
+                      setStep(5);
+                    }}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
