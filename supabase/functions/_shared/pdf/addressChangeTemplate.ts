@@ -1,9 +1,9 @@
 /**
  * Address Change Notice — Confirmation de changement d'adresse de service.
  */
-import { jsPDF } from "jspdf";
-import type { PDFGenerationResult } from "./types";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, GREY_BG, NAVY } from "./_baseTemplate";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import type { PDFGenerationResult } from "./types.ts";
+import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, GREY_BG, NAVY } from "./_baseTemplate.ts";
 
 export interface AddressChangeData {
   notice_number: string;

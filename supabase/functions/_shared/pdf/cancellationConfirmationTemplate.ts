@@ -1,9 +1,9 @@
 /**
  * Cancellation Confirmation — Confirmation d'annulation de service.
  */
-import { jsPDF } from "jspdf";
-import type { PDFGenerationResult } from "./types";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY, GREEN } from "./_baseTemplate";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import type { PDFGenerationResult } from "./types.ts";
+import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY, GREEN } from "./_baseTemplate.ts";
 
 export interface CancellationConfirmationData {
   confirmation_number: string;

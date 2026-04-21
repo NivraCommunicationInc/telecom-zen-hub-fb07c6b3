@@ -1,9 +1,9 @@
 /**
  * Welcome Letter — Lettre de bienvenue (envoyée après activation du service).
  */
-import { jsPDF } from "jspdf";
-import type { PDFGenerationResult } from "./types";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY, TEAL } from "./_baseTemplate";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import type { PDFGenerationResult } from "./types.ts";
+import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY, TEAL } from "./_baseTemplate.ts";
 
 export interface WelcomeLetterData {
   letter_number: string;          // ex: BVN-2026-0001

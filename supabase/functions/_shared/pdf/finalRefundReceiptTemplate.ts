@@ -1,9 +1,9 @@
 /**
  * Final Refund Receipt — Recu de remboursement final (apres annulation/cloture).
  */
-import { jsPDF } from "jspdf";
-import type { PDFGenerationResult } from "./types";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, fmtCAD, GREEN, NAVY } from "./_baseTemplate";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import type { PDFGenerationResult } from "./types.ts";
+import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, fmtCAD, GREEN, NAVY } from "./_baseTemplate.ts";
 
 export interface FinalRefundReceiptData {
   receipt_number: string;

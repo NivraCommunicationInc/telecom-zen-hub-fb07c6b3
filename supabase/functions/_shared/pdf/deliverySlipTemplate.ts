@@ -1,9 +1,9 @@
 /**
  * Delivery Slip — Bon de livraison d'equipement.
  */
-import { jsPDF } from "jspdf";
-import type { PDFGenerationResult } from "./types";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, NAVY, GREY_BG, GREY_BORDER } from "./_baseTemplate";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import type { PDFGenerationResult } from "./types.ts";
+import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, NAVY, GREY_BG, GREY_BORDER } from "./_baseTemplate.ts";
 
 export interface DeliverySlipData {
   slip_number: string;

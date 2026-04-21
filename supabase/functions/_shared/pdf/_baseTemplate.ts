@@ -2,8 +2,8 @@
  * Base helpers V3 — shared header/footer/utility for all secondary documents.
  * Matches creditNoteTemplate / refundNoticeTemplate visual standard.
  */
-import { jsPDF } from "jspdf";
-import { NIVRA } from "./companyInfo";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import { NIVRA } from "./companyInfo.ts";
 
 export const NAVY: [number, number, number] = [30, 64, 120];
 export const TEAL: [number, number, number] = [20, 184, 166];
