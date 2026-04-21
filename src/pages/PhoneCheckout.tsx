@@ -272,159 +272,21 @@ export default function PhoneCheckout() {
     if (!phone || !draftOrderId || !preparedOrder) return;
     setSubmitting(true);
     try {
-      const userId = preparedOrder.user_id;
-
-      const shippingAddress = {
-        address: address.trim(),
-        city: city.trim(),
-        province,
-        postal_code: postalCode.trim(),
-        country: "CA",
-      };
-
-      // 2. Finalize the existing draft order (set as paid + confirmed)
-      const { data: order, error: orderErr } = await supabase
-        .from("orders")
-        .update({
-          status: "confirmed",
-          payment_status: "paid",
-          payment_reference: captureId,
-          payment_confirmed_at: new Date().toISOString(),
-        })
-        .eq("id", draftOrderId)
-        .select("id, order_number")
-        .single();
-
-      if (orderErr || !order) throw orderErr ?? new Error("order finalize failed");
-
-      // 3. Reserve the phone
-      await supabase
-        .from("phone_inventory")
-        .update({ status: "reserved", order_id: order.id, assigned_at: new Date().toISOString() })
-        .eq("id", phone.id)
-        .eq("status", "available");
-
-      // 4. Calculate fraud score
-      const { data: fraud } = await supabase.functions.invoke("calculate-phone-fraud-score", {
+      const { data, error } = await supabase.functions.invoke("phone-checkout-finalize", {
         body: {
-          user_id: userId,
-          order_amount: total,
-          shipping_address: shippingAddress,
-          account_id: preparedOrder.account_id,
+          order_id: draftOrderId,
+          phone_id: phone.id,
+          capture_id: captureId,
+          selected_color: selectedColor,
+          selected_storage: selectedStorage,
+          payer_address: payerAddress ?? null,
         },
       });
 
-      let score = fraud?.score ?? 0;
-      let level: "low" | "medium" | "high" = fraud?.level ?? "low";
-      const factors: Record<string, number> = { ...(fraud?.factors ?? {}) };
-
-      // 4b. Anti-fraud: compare site shipping address with PayPal payer billing address
-      let phoneOrderStatus: "pending_kyc" | "risk_review" = "pending_kyc";
-      if (payerAddress) {
-        const norm = (s: string | undefined) => (s ?? "").trim().toUpperCase().replace(/\s+/g, "");
-        const sitePostalPrefix = norm(postalCode).slice(0, 3);
-        const paypalPostalPrefix = norm(payerAddress.postal_code).slice(0, 3);
-        const siteProv = norm(province);
-        const paypalProv = norm(payerAddress.admin_area_1);
-
-        const provMismatch = !!paypalProv && siteProv !== paypalProv;
-        const postalMismatch = !!paypalPostalPrefix && sitePostalPrefix !== paypalPostalPrefix;
-
-        if (provMismatch || postalMismatch) {
-          factors.address_paypal_mismatch = 40;
-          score += 40;
-          if (score > 60) {
-            level = "high";
-            phoneOrderStatus = "risk_review";
-          } else if (score > 30) {
-            level = "medium";
-          }
-
-          // Activity log
-          try {
-            await supabase.from("activity_logs").insert({
-              user_id: userId,
-              entity_type: "phone_order",
-              entity_id: order.id,
-              action: "fraud_address_mismatch_detected",
-              details: {
-                site_address: shippingAddress,
-                paypal_address: payerAddress,
-                score_added: 40,
-                new_total_score: score,
-                province_mismatch: provMismatch,
-                postal_mismatch: postalMismatch,
-              },
-            });
-          } catch (e) {
-            console.warn("[phone-checkout] activity_log failed", e);
-          }
-
-          // Internal alert when high
-          if (score > 60) {
-            try {
-              await supabase.functions.invoke("notify-admin", {
-                body: {
-                  event_type: "new_order",
-                  event_id: order.id,
-                  event_number: order.order_number ?? undefined,
-                  client_name: `${firstName.trim()} ${lastName.trim()}`,
-                  client_email: email.trim(),
-                  client_phone: phoneNumber.trim(),
-                  summary: `⚠️ Phone order flagged: PayPal billing address ≠ site shipping address (score ${score})`,
-                  priority: "urgent",
-                  details: {
-                    site_address: shippingAddress,
-                    paypal_address: payerAddress,
-                    fraud_score: score,
-                    fraud_factors: factors,
-                  },
-                },
-              });
-            } catch (e) {
-              console.warn("[phone-checkout] notify-admin failed", e);
-            }
-          }
-        }
-      }
-
-      // 5. Insert phone_orders row
-      await supabase.from("phone_orders").insert({
-        order_id: order.id,
-        phone_inventory_id: phone.id,
-        user_id: userId,
-        account_id: preparedOrder.account_id,
-        status: phoneOrderStatus,
-        fraud_score: score,
-        fraud_level: level,
-        fraud_factors: factors,
-        shipping_address: shippingAddress,
-        selected_color: selectedColor,
-        selected_storage: selectedStorage,
-      });
-
-      // 6. Send KYC request email (best-effort — never block checkout)
-      try {
-        await supabase.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "phone_order_confirmed",
-            recipientEmail: email.trim(),
-            idempotencyKey: `phone-confirm-${order.id}`,
-            templateData: {
-              order_number: order.order_number ?? order.id.slice(0, 8),
-              brand: phone.brand,
-              model: phone.model,
-              amount: total.toFixed(2),
-              kyc_url: `${window.location.origin}/verify-identity?order=${order.id}`,
-            },
-          },
-        });
-      } catch (e) {
-        console.warn("[phone-checkout] KYC email failed", e);
-      }
+      if (error || !data?.success) throw error ?? new Error(data?.error || "order finalize failed");
 
       toast.success(isFr ? "Commande confirmée!" : "Order confirmed!");
-      navigate(`/track-order?id=${order.id}`);
+      navigate(`/track-order?id=${draftOrderId}`);
     } catch (e: any) {
       console.error("[phone-checkout]", e);
       toast.error(isFr ? "Erreur lors de la création de la commande." : "Order creation failed.");
