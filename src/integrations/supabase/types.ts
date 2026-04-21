@@ -12076,6 +12076,78 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_document_jobs: {
+        Row: {
+          account_id: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          client_auto_document_id: string | null
+          client_id: string
+          created_at: string
+          doc_type: string
+          event_payload: Json
+          event_type: string
+          generated_at: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          recipient_email: string | null
+          sent_at: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          client_auto_document_id?: string | null
+          client_id: string
+          created_at?: string
+          doc_type: string
+          event_payload?: Json
+          event_type: string
+          generated_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          recipient_email?: string | null
+          sent_at?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          client_auto_document_id?: string | null
+          client_id?: string
+          created_at?: string
+          doc_type?: string
+          event_payload?: Json
+          event_type?: string
+          generated_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          recipient_email?: string | null
+          sent_at?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       phone_inventory: {
         Row: {
           assigned_at: string | null
@@ -18475,6 +18547,38 @@ export type Database = {
         Args: { _portal: string; _user_id: string }
         Returns: boolean
       }
+      claim_pending_document_job: {
+        Args: { p_worker_id?: string }
+        Returns: {
+          account_id: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          client_auto_document_id: string | null
+          client_id: string
+          created_at: string
+          doc_type: string
+          event_payload: Json
+          event_type: string
+          generated_at: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          recipient_email: string | null
+          sent_at: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pending_document_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_expired_kyc_documents: { Args: never; Returns: Json }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
@@ -18638,6 +18742,18 @@ export type Database = {
       }
       encrypt_wifi_password: { Args: { p_password: string }; Returns: string }
       end_impersonation: { Args: { _token: string }; Returns: boolean }
+      enqueue_document_job: {
+        Args: {
+          p_account_id: string
+          p_client_id: string
+          p_doc_type: string
+          p_event_type: string
+          p_idempotency_key: string
+          p_payload?: Json
+          p_recipient_email?: string
+        }
+        Returns: string
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -18923,6 +19039,75 @@ export type Database = {
           p_payment_reference?: string
         }
         Returns: boolean
+      }
+      mark_document_job_failed: {
+        Args: { p_error: string; p_job_id: string }
+        Returns: {
+          account_id: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          client_auto_document_id: string | null
+          client_id: string
+          created_at: string
+          doc_type: string
+          event_payload: Json
+          event_type: string
+          generated_at: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          recipient_email: string | null
+          sent_at: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pending_document_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mark_document_job_generated: {
+        Args: {
+          p_doc_number?: string
+          p_file_size_bytes?: number
+          p_job_id: string
+          p_storage_path: string
+        }
+        Returns: {
+          account_id: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          client_auto_document_id: string | null
+          client_id: string
+          created_at: string
+          doc_type: string
+          event_payload: Json
+          event_type: string
+          generated_at: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          recipient_email: string | null
+          sent_at: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pending_document_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       mark_payment_error_captured: {
         Args: {
