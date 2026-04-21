@@ -19610,6 +19610,10 @@ export type Database = {
       }
       is_staff_member: { Args: { _user_id: string }; Returns: boolean }
       is_staff_user: { Args: { _user_id: string }; Returns: boolean }
+      is_valid_status_transition: {
+        Args: { p_domain: string; p_new_status: string; p_old_status: string }
+        Returns: boolean
+      }
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
