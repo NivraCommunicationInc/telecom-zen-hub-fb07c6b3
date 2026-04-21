@@ -19,9 +19,11 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  FolderOpen
+  FolderOpen,
+  FileCheck2
 } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { AutoDocumentsTab } from "@/components/client/AutoDocumentsTab";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { format } from "date-fns";
@@ -45,7 +47,7 @@ const STATIC_TERMS_PDF = "/documents/Nivra_Telecom_Modalites_de_service_v2026-02
 const ClientDocuments = () => {
   const { user } = useClientAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("terms");
+  const [activeTab, setActiveTab] = useState("official");
 
   // Fetch client profile
   const { data: profile } = useQuery({
@@ -141,7 +143,11 @@ const ClientDocuments = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="official" className="gap-2">
+              <FileCheck2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Officiels</span>
+            </TabsTrigger>
             <TabsTrigger value="terms" className="gap-2">
               <ScrollText className="w-4 h-4" />
               <span className="hidden sm:inline">Modalités</span>
@@ -155,6 +161,11 @@ const ClientDocuments = () => {
               <span className="hidden sm:inline">Factures</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Official Auto-Generated Documents Tab */}
+          <TabsContent value="official" className="mt-6">
+            <AutoDocumentsTab userId={user?.id} />
+          </TabsContent>
 
           {/* Terms Tab */}
           <TabsContent value="terms" className="mt-6">
