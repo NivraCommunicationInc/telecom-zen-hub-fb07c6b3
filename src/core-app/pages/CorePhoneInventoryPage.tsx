@@ -84,6 +84,7 @@ interface PhoneRow {
   available_colors: string[] | null;
   available_storage: string[] | null;
   photos: string[] | null;
+  is_visible_on_site: boolean;
 }
 
 type ConditionT = PhoneRow["condition"];
