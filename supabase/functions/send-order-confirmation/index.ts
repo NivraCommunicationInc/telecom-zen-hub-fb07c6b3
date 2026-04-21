@@ -44,6 +44,22 @@ interface InstallationInfo {
   notes?: string;
 }
 
+interface AlternativeShipping {
+  recipient_name?: string;
+  address_line: string;
+  apartment?: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  instructions?: string;
+}
+
+interface InstallationDetailsForEmail {
+  coax_available?: string;
+  occupancy_status?: string;
+  access_notes?: string;
+}
+
 interface OrderConfirmationRequest {
   order_id: string;
   client_email: string;
@@ -65,6 +81,11 @@ interface OrderConfirmationRequest {
   payment_reference?: string;
   payment_method?: string;
   promo_code?: string;
+  // Phase 2 — checkout enhancements (auto-hydrated from order if omitted)
+  alternative_shipping?: AlternativeShipping;
+  activation_preference?: "ASAP" | "SCHEDULED";
+  requested_activation_date?: string;
+  installation_details?: InstallationDetailsForEmail;
   force?: boolean;
 }
 
