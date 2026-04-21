@@ -789,6 +789,23 @@ Deno.serve(async (req) => {
       ? `Bienvenue chez Nivra Telecom (commande #${order_number})`
       : `Votre commande est confirmée (#${order_number})`;
 
+    // CANONICAL: Build services + one_time_fees STRICTLY from billing_invoice_lines.
+    // Never trust caller-provided arrays — they may be stale or fabricated.
+    const canonicalServices = canonicalInvoiceLines
+      .filter(l => l.line_type === 'service')
+      .map(l => ({ name: l.description, price: Number(l.line_total) || 0, period: 'mois' }));
+
+    const canonicalOneTimeFees = canonicalInvoiceLines
+      .filter(l => l.line_type === 'equipment' || l.line_type === 'fee')
+      .map(l => ({ label: l.description, amount: Number(l.line_total) || 0 }));
+
+    // Fallback to caller-provided values ONLY if DB has no lines (legacy orders)
+    const finalServices = canonicalServices.length > 0 ? canonicalServices : (services || []);
+    const finalOneTimeFees = canonicalOneTimeFees.length > 0 ? canonicalOneTimeFees : (one_time_fees || []);
+    const finalOneTimeTotal = canonicalOneTimeFees.length > 0
+      ? canonicalOneTimeFees.reduce((s, f) => s + f.amount, 0)
+      : canonicalOneTime;
+
     // Generate full HTML email
     const htmlBody = generateOrderConfirmationHtml({
       clientFirstName: client_first_name || "Client",
@@ -796,13 +813,13 @@ Deno.serve(async (req) => {
       orderDate,
       paymentReference: effectivePaymentRef || undefined,
       paymentMethod: effectivePaymentMethod || undefined,
-      services: services || [],
+      services: finalServices,
       subtotal: canonicalSubtotal,
       tpsAmount: canonicalTps,
       tvqAmount: canonicalTvq,
       totalWithTax: canonicalTotalPayable,
-      oneTimeFees: one_time_fees,
-      oneTimeTotal: canonicalOneTime,
+      oneTimeFees: finalOneTimeFees,
+      oneTimeTotal: finalOneTimeTotal,
       deliveryMethod: delivery_method ? getDeliveryMethodLabel(delivery_method) : undefined,
       deliveryAddress: delivery_address,
       installation: installation,
