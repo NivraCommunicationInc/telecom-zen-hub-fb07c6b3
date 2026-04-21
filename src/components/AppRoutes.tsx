@@ -631,6 +631,9 @@ const AppRoutes = () => {
       <Route path="/portal/reschedule" element={<MaintenanceGuard><ClientAuthProvider><ClientRescheduleAppointment /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
+      {/* PayPal subscription approval return URLs — MUST exist so PayPal redirect doesn't fall through to the catch-all (which would expose the staff /hub). */}
+      <Route path="/portal/subscription-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/subscription-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* Legacy URL redirects for email links */}
       <Route path="/verify" element={<Navigate to="/portal/verify" replace />} />
@@ -969,8 +972,10 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
-      {/* Catch-all redirect (no visible 404 page) */}
-      <Route path="*" element={<Navigate to="/hub" replace />} />
+      {/* Catch-all redirect — MUST go to the public homepage, NEVER to /hub.
+          The /hub route is the confidential internal staff entry point and must
+          never be exposed to clients via fallback redirects (security policy). */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
   );
