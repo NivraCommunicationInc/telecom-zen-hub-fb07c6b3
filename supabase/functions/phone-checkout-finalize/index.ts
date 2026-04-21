@@ -85,8 +85,8 @@ serve(async (req) => {
         .from("phone_inventory")
         .update({
           status: "reserved",
-          reserved_for_order_id: order.id,
-          reserved_at: new Date().toISOString(),
+          order_id: order.id,
+          assigned_at: new Date().toISOString(),
         })
         .eq("id", body.phone_id)
         .eq("status", "available");
@@ -98,14 +98,17 @@ serve(async (req) => {
     try {
       await supabase.from("phone_orders").insert({
         order_id: order.id,
-        phone_id: body.phone_id,
+        phone_inventory_id: body.phone_id,
         user_id: order.user_id,
         status: "pending_kyc",
+        fraud_score: 0,
+        fraud_factors: [],
+        fraud_level: "pending",
         selected_color: body.selected_color ?? null,
         selected_storage: body.selected_storage ?? null,
       });
     } catch (e) {
-      console.warn("[phone-checkout-finalize] phone_orders insert (table may not exist)", e);
+      console.warn("[phone-checkout-finalize] phone_orders insert", e);
     }
 
     // 5) Fire-and-forget: fraud score
