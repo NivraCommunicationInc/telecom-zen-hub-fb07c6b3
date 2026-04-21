@@ -51,13 +51,35 @@ serve(async (req) => {
       });
     }
 
-    // Compute total balance from unpaid invoices
-    const { data: unpaid } = await supabase.rpc("get_customer_unpaid_invoices", { p_customer_id: customer.id });
-    const invoices = (unpaid || []) as Array<{ invoice_id: string; invoice_number: string; balance_due: number }>;
-    const totalBalance = invoices.reduce((sum, inv) => sum + Number(inv.balance_due || 0), 0);
+    // Compute account balance EXACTLY like the client portal ledger:
+    // balance = sum(non-cancelled invoice totals) - sum(confirmed payments)
+    const { data: invoicesData } = await supabase
+      .from("billing_invoices")
+      .select("id, invoice_number, total, balance_due, status")
+      .eq("customer_id", customer.id)
+      .not("status", "in", '("cancelled","refunded","void")');
+
+    const { data: paymentsData } = await supabase
+      .from("billing_payments")
+      .select("amount, status")
+      .eq("customer_id", customer.id)
+      .eq("status", "confirmed");
+
+    const totalDebits = (invoicesData || []).reduce((s, inv: any) => s + (Number(inv.total) || 0), 0);
+    const totalCredits = (paymentsData || []).reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+    const totalBalance = Math.round((totalDebits - totalCredits) * 100) / 100;
+
+    const CLOSED_STATUSES = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
+    const invoices = (invoicesData || []).filter((inv: any) =>
+      !CLOSED_STATUSES.includes(inv.status) && (Number(inv.balance_due) || 0) > 0
+    ).map((inv: any) => ({
+      invoice_id: inv.id,
+      invoice_number: inv.invoice_number,
+      balance_due: Number(inv.balance_due) || 0,
+    }));
 
     if (totalBalance <= 0) {
-      return new Response(JSON.stringify({ error: "Aucune facture impayée", total_balance: 0 }), {
+      return new Response(JSON.stringify({ error: "Aucun solde à payer", total_balance: 0 }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }

@@ -53,11 +53,24 @@ serve(async (req) => {
     let queued = 0;
     let skipped = 0;
 
-    // Pre-compute per-customer total balances
+    // Pre-compute per-customer total ACCOUNT balances (same formula as ledger)
+    // balance = sum(non-cancelled invoice totals) - sum(confirmed payments)
     const customerBalances = new Map<string, number>();
-    for (const inv of list as any[]) {
-      const bal = Number(inv.balance_due ?? (inv.total - (inv.amount_paid || 0)));
-      customerBalances.set(inv.customer_id, (customerBalances.get(inv.customer_id) || 0) + bal);
+    const uniqueCustomerIds = Array.from(new Set(list.map((inv: any) => inv.customer_id)));
+    for (const cid of uniqueCustomerIds) {
+      const { data: allInv } = await supabase
+        .from("billing_invoices")
+        .select("total")
+        .eq("customer_id", cid)
+        .not("status", "in", '("cancelled","refunded","void")');
+      const { data: allPay } = await supabase
+        .from("billing_payments")
+        .select("amount")
+        .eq("customer_id", cid)
+        .eq("status", "confirmed");
+      const debits = (allInv || []).reduce((s, i: any) => s + (Number(i.total) || 0), 0);
+      const credits = (allPay || []).reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+      customerBalances.set(cid, Math.round((debits - credits) * 100) / 100);
     }
 
     for (const inv of list as any[]) {

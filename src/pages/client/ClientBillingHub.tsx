@@ -41,6 +41,8 @@ import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
 import { AddAccountCredit } from "@/components/client/AddAccountCredit";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -166,16 +168,29 @@ const ClientBillingHub = () => {
     setPayDialogOpen(true);
   };
 
-  const handlePrimaryPayNow = () => {
-    if (unpaidInvoices?.length) {
-      if (activeTab !== "pay-invoice") {
-        handleTabChange("pay-invoice");
-      }
-      handlePayInvoice(unpaidInvoices[0]);
+  const [payingBalance, setPayingBalance] = useState(false);
+
+  const handlePrimaryPayNow = async () => {
+    // Pay the FULL ACCOUNT BALANCE via PayPal (not a single invoice)
+    if (!unpaidInvoices?.length) {
+      handleTabChange("pay-invoice");
       return;
     }
-
-    handleTabChange("pay-invoice");
+    setPayingBalance(true);
+    try {
+      const { data: result, error: invokeErr } = await supabase.functions.invoke(
+        "paypal-balance-pay-create"
+      );
+      if (invokeErr || result?.error) {
+        throw new Error(result?.error || invokeErr?.message || "Erreur PayPal");
+      }
+      const approveLink = result?.links?.find((l: any) => l.rel === "approve")?.href;
+      if (!approveLink) throw new Error("Lien PayPal introuvable");
+      window.location.href = approveLink;
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de la création du paiement PayPal");
+      setPayingBalance(false);
+    }
   };
 
   const handlePaymentSuccess = () => {
@@ -235,12 +250,12 @@ const ClientBillingHub = () => {
                 {balance > 0 && (
                   <Button
                     onClick={writeGuard(handlePrimaryPayNow)}
-                    disabled={writeGuard.isReadOnly}
+                    disabled={writeGuard.isReadOnly || payingBalance}
                     title={writeGuard.disabledReason}
                     className="bg-primary hover:bg-primary/90"
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
-                    Payer maintenant
+                    {payingBalance ? "Redirection vers PayPal…" : `Payer le solde (${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})`}
                   </Button>
                 )}
                 <Button
