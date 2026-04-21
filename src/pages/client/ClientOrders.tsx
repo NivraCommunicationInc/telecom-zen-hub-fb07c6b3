@@ -49,6 +49,29 @@ const ClientOrders = () => {
     enabled: !!user?.id,
   });
 
+  // Phase 3 — Données lifecycle agrégées (timeline self/pro, shipment, activation)
+  const { data: lifecycleRows } = useQuery({
+    queryKey: ["client-order-lifecycle", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await portalSupabase
+        .from("order_lifecycle" as any)
+        .select("*")
+        .eq("user_id", user.id);
+      if (error) {
+        console.warn("[ClientOrders] order_lifecycle fetch failed", error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const lifecycleByOrderId: Record<string, any> = {};
+  (lifecycleRows || []).forEach((r: any) => {
+    if (r?.order_id) lifecycleByOrderId[r.order_id] = r;
+  });
+
   // REALTIME: Subscribe to order changes for automatic status updates
   useEffect(() => {
     if (!user?.id) return;
