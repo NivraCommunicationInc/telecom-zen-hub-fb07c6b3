@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useEmployeeSectionBadges } from "@/hooks/useEmployeeSectionBadges";
+import { SectionBadge } from "@/components/ui/section-badge";
 
 const EMP_BASE = "/employee";
 
@@ -66,6 +68,7 @@ export default function EmployeeSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const { badges: sectionBadges } = useEmployeeSectionBadges();
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(href + "/");
@@ -112,10 +115,26 @@ export default function EmployeeSidebar() {
           {navGroups.map((group) => (
             <div key={group.label} className="mb-1">
               {!collapsed && (
-                <div className="px-2 pt-3 pb-1">
+                <div className="px-2 pt-3 pb-1 flex items-center justify-between">
                   <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-[0.15em]">
                     {group.label}
                   </span>
+                  {sectionBadges[group.label]?.show && (
+                    <SectionBadge
+                      show
+                      variant={sectionBadges[group.label]?.urgent ? "dot-pulse" : "dot"}
+                      ariaLabel={`${group.label} nécessite votre attention`}
+                    />
+                  )}
+                </div>
+              )}
+              {collapsed && sectionBadges[group.label]?.show && (
+                <div className="flex justify-center pt-2">
+                  <SectionBadge
+                    show
+                    variant={sectionBadges[group.label]?.urgent ? "dot-pulse" : "dot"}
+                    ariaLabel={`${group.label} nécessite votre attention`}
+                  />
                 </div>
               )}
               <div className="space-y-0.5">

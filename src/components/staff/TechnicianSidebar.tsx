@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTechnicianSectionBadges } from "@/hooks/useTechnicianSectionBadges";
+import { SectionBadge } from "@/components/ui/section-badge";
 
 interface NavItem {
   label: string;
@@ -36,6 +38,7 @@ interface TechnicianSidebarProps {
 export function TechnicianSidebar({ onSignOut, userEmail, userName }: TechnicianSidebarProps) {
   const location = useLocation();
   const isActive = (href: string) => location.pathname === href;
+  const { badges: sectionBadges } = useTechnicianSectionBadges();
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-sidebar border-r border-sidebar-border">
@@ -50,19 +53,31 @@ export function TechnicianSidebar({ onSignOut, userEmail, userName }: Technician
 
       <ScrollArea className="flex-1 py-4">
         <nav className="px-3 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive(item.href) ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const badge = sectionBadges[item.href];
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive(item.href) ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                <span className="flex items-center gap-3">
+                  {item.icon}
+                  {item.label}
+                </span>
+                {badge?.show && (
+                  <SectionBadge
+                    show
+                    variant={badge.urgent ? "dot-pulse" : "dot"}
+                    ariaLabel={`${item.label} nécessite votre attention`}
+                  />
+                )}
+              </Link>
+            );
+          })}
         </nav>
       </ScrollArea>
 

@@ -21,6 +21,8 @@ import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
 import PrepaidUrgentBanner from "@/components/client/PrepaidUrgentBanner";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { useOverdueCount } from "@/hooks/useOverdueCount";
+import { usePortalSectionBadges, PortalSectionKey } from "@/hooks/usePortalSectionBadges";
+import { SectionBadge } from "@/components/ui/section-badge";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
 import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
@@ -35,8 +37,13 @@ interface ClientLayoutProps {
   children: ReactNode;
 }
 
-// Navigation structure
-const navGroups = [
+// Navigation structure (with optional badgeKey mapping to usePortalSectionBadges)
+const navGroups: Array<{
+  label: string;
+  path: string | null;
+  badgeKey?: PortalSectionKey;
+  children: Array<{ path: string; label: string; badgeKey?: PortalSectionKey }>;
+}> = [
   {
     label: "Survol",
     path: "/portal",
@@ -45,10 +52,11 @@ const navGroups = [
   {
     label: "Facturation et paiement",
     path: null,
+    badgeKey: "billing",
     children: [
-      { path: "/portal/billing", label: "Faire un paiement" },
+      { path: "/portal/billing", label: "Faire un paiement", badgeKey: "billing" },
       { path: "/portal/billing?tab=add-credit", label: "Ajouter un crédit" },
-      { path: "/portal/invoices", label: "Mes factures" },
+      { path: "/portal/invoices", label: "Mes factures", badgeKey: "billing" },
       { path: "/portal/payments", label: "Moyens de paiement" },
       { path: "/portal/monthly-invoices", label: "Historique des paiements" },
     ],
@@ -56,16 +64,17 @@ const navGroups = [
   {
     label: "Utilisation et services",
     path: null,
+    badgeKey: "services",
     children: [
-      { path: "/portal/services", label: "Mes services" },
+      { path: "/portal/services", label: "Mes services", badgeKey: "services" },
       { path: "/portal/equipment", label: "Mon équipement" },
       { path: "/portal/activation", label: "📶 Activation WiFi" },
       { path: "/portal/service-addresses", label: "Mes adresses" },
-      { path: "/portal/orders", label: "Mes commandes" },
-      { path: "/portal/identity-verification", label: "Vérification d'identité" },
+      { path: "/portal/orders", label: "Mes commandes", badgeKey: "orders" },
+      { path: "/portal/identity-verification", label: "Vérification d'identité", badgeKey: "identity" },
       { path: "/portal/channels", label: "Chaînes TV" },
       { path: "/portal/appointments", label: "Rendez-vous" },
-      { path: "/portal/contracts", label: "Contrats" },
+      { path: "/portal/contracts", label: "Contrats", badgeKey: "contracts" },
       { path: "/portal/replacement", label: "Demande de remplacement" },
     ],
   },
@@ -82,11 +91,12 @@ const navGroups = [
   {
     label: "Paramètres",
     path: null,
+    badgeKey: "support",
     children: [
       { path: "/portal/profile", label: "Mon profil" },
-      { path: "/portal/tickets", label: "Support" },
+      { path: "/portal/tickets", label: "Support", badgeKey: "support" },
       { path: "/portal/web-forms", label: "Formulaires" },
-      { path: "/portal/documents", label: "Documents" },
+      { path: "/portal/documents", label: "Documents", badgeKey: "support" },
       { path: "/portal/guides", label: "📥 Guides & Documents" },
     ],
   },
@@ -102,6 +112,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
+  const { badges: sectionBadges } = usePortalSectionBadges();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -234,7 +245,18 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                         style={active ? { background: PURPLE } : undefined}
                         onClick={() => setOpenDropdown(openDropdown === idx ? null : idx)}
                       >
-                        {group.label}
+                        <span className="relative inline-flex items-center">
+                          {group.label}
+                          {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
+                            <span className="ml-1.5 inline-flex">
+                              <SectionBadge
+                                show
+                                variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                                ariaLabel={`${group.label} nécessite votre attention`}
+                              />
+                            </span>
+                          )}
+                        </span>
                         <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", openDropdown === idx && "rotate-180")} />
                         {group.label === "Facturation et paiement" && overdueCount && overdueCount > 0 && (
                           <Badge className="bg-red-500 text-white text-[10px] px-1.5 py-0 ml-1 min-w-[18px]">
@@ -256,21 +278,28 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                     )}
 
                     {hasChildren && openDropdown === idx && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
                         {group.children.map((child) => (
                           <Link
                             key={child.path}
                             to={child.path}
                             onClick={() => setOpenDropdown(null)}
                             className={cn(
-                              "block px-4 py-2.5 text-sm transition-colors",
+                              "flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors",
                               isActive(child.path)
                                 ? "font-medium"
                                 : "text-slate-700 hover:text-[#6b21e8]"
                             )}
                             style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                           >
-                            {child.label}
+                            <span>{child.label}</span>
+                            {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
+                              <SectionBadge
+                                show
+                                variant={sectionBadges[child.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                                ariaLabel={`${child.label} nécessite votre attention`}
+                              />
+                            )}
                           </Link>
                         ))}
                       </div>
@@ -332,17 +361,31 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       to={group.path}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "flex items-center px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
+                        "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
                         isActive(group.path) ? "text-white" : "text-slate-700 hover:bg-slate-50 active:bg-slate-100"
                       )}
                       style={isActive(group.path) ? { background: PURPLE, color: 'white' } : undefined}
                     >
-                      {group.label}
+                      <span>{group.label}</span>
+                      {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
+                        <SectionBadge
+                          show
+                          variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                          ariaLabel={`${group.label} nécessite votre attention`}
+                        />
+                      )}
                     </Link>
                   ) : (
                     <>
-                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        {group.label}
+                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>{group.label}</span>
+                        {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
+                          <SectionBadge
+                            show
+                            variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                            ariaLabel={`${group.label} nécessite votre attention`}
+                          />
+                        )}
                       </p>
                       {group.children.map((child) => (
                         <Link
@@ -350,12 +393,19 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                           to={child.path}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
-                            "flex items-center px-4 py-3 rounded-xl text-sm min-h-[44px]",
+                            "flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm min-h-[44px]",
                             isActive(child.path) ? "font-medium" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
                           )}
                           style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                         >
-                          {child.label}
+                          <span>{child.label}</span>
+                          {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
+                            <SectionBadge
+                              show
+                              variant={sectionBadges[child.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                              ariaLabel={`${child.label} nécessite votre attention`}
+                            />
+                          )}
                         </Link>
                       ))}
                     </>
