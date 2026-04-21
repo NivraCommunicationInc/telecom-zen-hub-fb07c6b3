@@ -53,10 +53,10 @@ export function SectionBadge({
     >
       {/* Halo pulse (urgent) */}
       {isPulse && (
-        <span className="absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-500 opacity-60 animate-ping" />
+        <span className="absolute inline-flex h-2.5 w-2.5 rounded-full bg-destructive opacity-60 animate-ping" />
       )}
       {/* Point rouge solide */}
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
     </span>
   );
 }
