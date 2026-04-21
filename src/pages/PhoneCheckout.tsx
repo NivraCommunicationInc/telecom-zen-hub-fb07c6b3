@@ -112,6 +112,12 @@ export default function PhoneCheckout() {
   // receives a valid order_id (rejected otherwise — see hardening 2026-04-17).
   const [draftOrderId, setDraftOrderId] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [preparedOrder, setPreparedOrder] = useState<{
+    order_id: string;
+    user_id: string;
+    account_id: string;
+    amount: number;
+  } | null>(null);
 
   // -------- Load phone + user + plans --------
   useEffect(() => {
@@ -220,44 +226,42 @@ export default function PhoneCheckout() {
     if (!phone || !formValid) return null;
     setCreatingDraft(true);
     try {
-      const userId = user?.id ?? crypto.randomUUID();
-      const { data: order, error } = await supabase
-        .from("orders")
-        .insert({
-          user_id: userId,
-          account_id: userId,
-          service_type: "phone",
-          status: "pending_payment",
-          payment_status: "pending",
-          payment_method: "paypal",
-          client_first_name: firstName.trim(),
-          client_last_name: lastName.trim(),
-          client_email: email.trim(),
-          client_phone: phoneNumber.trim(),
-          client_dob: dob || null,
-          shipping_address: address.trim(),
-          shipping_city: city.trim(),
-          shipping_province: province,
-          shipping_postal_code: postalCode.trim(),
-          subtotal,
-          tps_amount: +(subtotal * 0.05).toFixed(2),
-          tvq_amount: +(subtotal * 0.09975).toFixed(2),
-          total_amount: total,
-          delivery_fee: SHIPPING_FEE,
-          kyc_status: "pending",
-          kyc_policy: "required",
-          notes: mode === "phone_plus_plan" ? `Mobile plan: ${selectedPlanId}` : "Phone only",
-        })
-        .select("id")
-        .single();
+      const { data, error } = await supabase.functions.invoke("phone-checkout-prepare", {
+        body: {
+          phone_id: phone.id,
+          mode,
+          selected_plan_id: selectedPlanId || null,
+          selected_color: selectedColor,
+          selected_storage: selectedStorage,
+          customer: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            email: email.trim(),
+            phone: phoneNumber.trim(),
+            dob: dob || null,
+          },
+          shipping: {
+            address: address.trim(),
+            city: city.trim(),
+            province,
+            postal_code: postalCode.trim(),
+          },
+        },
+      });
 
-      if (error || !order) {
-        console.error("[phone-checkout] draft order failed", error);
+      if (error || !data?.success || !data?.order_id) {
+        console.error("[phone-checkout] draft order failed", error || data);
         toast.error(isFr ? "Impossible de préparer la commande." : "Could not prepare order.");
         return null;
       }
-      setDraftOrderId(order.id);
-      return order.id;
+      setPreparedOrder({
+        order_id: data.order_id,
+        user_id: data.user_id,
+        account_id: data.account_id,
+        amount: Number(data.amount),
+      });
+      setDraftOrderId(data.order_id);
+      return data.order_id;
     } finally {
       setCreatingDraft(false);
     }
