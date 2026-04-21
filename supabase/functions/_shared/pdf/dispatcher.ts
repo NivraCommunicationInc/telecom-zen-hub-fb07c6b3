@@ -472,7 +472,8 @@ export async function dispatchAutoDocument(
   docType: AutoDocType,
   payload: Record<string, any>,
 ): Promise<DispatchResult> {
-  const p = normalizePayload(docType, payload || {});
+  const enriched = await enrichFromDb(docType, payload || {});
+  const p = normalizePayload(docType, enriched);
   switch (docType) {
     case "welcome_letter":
       return toResult(generateWelcomeLetterPDF(p as any), `Lettre_Bienvenue_${p.letter_number}.pdf`, p.letter_number);
