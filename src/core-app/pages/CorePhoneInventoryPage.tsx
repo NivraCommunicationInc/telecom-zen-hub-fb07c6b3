@@ -408,6 +408,7 @@ export default function CorePhoneInventoryPage() {
       available_colors: colorsList,
       available_storage: storageList,
       photos: form.photos,
+      is_visible_on_site: form.is_visible_on_site,
     };
     try {
       if (form.id) {
