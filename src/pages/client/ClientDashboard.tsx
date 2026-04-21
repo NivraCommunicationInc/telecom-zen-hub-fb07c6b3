@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import ServiceCountdown from "@/components/client/ServiceCountdown";
-import { AlertTriangle, Info, X, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
+import { AlertTriangle, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
@@ -18,7 +18,6 @@ import ReferralPopup from "@/components/client/ReferralPopup";
 const ClientDashboard = () => {
   const { user } = useClientAuth();
   const navigate = useNavigate();
-  const [dismissedBanners, setDismissedBanners] = useState<string[]>([]);
   const [showWelcome, setShowWelcome] = useState(() => {
     return !localStorage.getItem("nivra_welcomed");
   });
@@ -105,8 +104,6 @@ const ClientDashboard = () => {
     navigator.clipboard.writeText(text);
     toast.success("Copié dans le presse-papiers");
   };
-
-  const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
 
   const accountNumber = accountIdentity?.accountNumber || "Non attribué";
 
