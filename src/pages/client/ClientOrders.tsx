@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrderDetails";
 import OrderStatusTimeline from "@/components/client/OrderStatusTimeline";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
+import { OrderShippingActivationPanel } from "@/components/orders/OrderShippingActivationPanel";
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
@@ -443,6 +444,11 @@ const ClientOrders = () => {
                   </div>
                 </div>
               )}
+
+              {/* Phase 2 — Livraison & activation (compatible commandes historiques) */}
+              <div className="pt-4 border-t border-border">
+                <OrderShippingActivationPanel order={selectedOrder} variant="client" />
+              </div>
 
               {selectedOrder.notes && (
                 <div className="pt-4 border-t border-border">

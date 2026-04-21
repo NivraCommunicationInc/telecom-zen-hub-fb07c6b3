@@ -44,6 +44,22 @@ interface InstallationInfo {
   notes?: string;
 }
 
+interface AlternativeShipping {
+  recipient_name?: string;
+  address_line: string;
+  apartment?: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  instructions?: string;
+}
+
+interface InstallationDetailsForEmail {
+  coax_available?: string;
+  occupancy_status?: string;
+  access_notes?: string;
+}
+
 interface OrderConfirmationRequest {
   order_id: string;
   client_email: string;
@@ -65,6 +81,11 @@ interface OrderConfirmationRequest {
   payment_reference?: string;
   payment_method?: string;
   promo_code?: string;
+  // Phase 2 — checkout enhancements (auto-hydrated from order if omitted)
+  alternative_shipping?: AlternativeShipping;
+  activation_preference?: "ASAP" | "SCHEDULED";
+  requested_activation_date?: string;
+  installation_details?: InstallationDetailsForEmail;
   force?: boolean;
 }
 
@@ -132,6 +153,11 @@ interface EmailTemplateParams {
   portalLink: string;
   supportEmail: string;
   promoCode?: string;
+  // Phase 2 — checkout enhancements (optional, displayed only when present)
+  alternativeShipping?: AlternativeShipping;
+  activationPreference?: "ASAP" | "SCHEDULED";
+  requestedActivationDate?: string;
+  installationDetails?: InstallationDetailsForEmail;
 }
 
 // --- Premium typography helpers ---
@@ -168,6 +194,10 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     portalLink,
     supportEmail,
     promoCode,
+    alternativeShipping,
+    activationPreference,
+    requestedActivationDate,
+    installationDetails,
   } = params;
 
   const hasFirstMonthFree = isFirstMonthFreePromo(promoCode);
@@ -421,7 +451,42 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
       </div>
     </div>` : '';
 
-  // === Build full HTML ===
+  // === Phase 2 — Alternative shipping + activation preference + installation details ===
+  const COAX_LBL: Record<string, string> = { yes: "Oui, déjà installé", no: "Non", unknown: "Le client ne sait pas" };
+  const OCC_LBL: Record<string, string> = { occupied: "Logement occupé", vacant: "Logement vacant" };
+  const hasAltShip = !!(alternativeShipping && alternativeShipping.address_line);
+  const hasScheduled = activationPreference === "SCHEDULED" && !!requestedActivationDate;
+  const hasInstallDetails = !!(installationDetails && (installationDetails.coax_available || installationDetails.occupancy_status || installationDetails.access_notes));
+  const phaseTwoSection = (hasAltShip || hasScheduled || hasInstallDetails) ? `
+    <div style="padding:0 32px 24px">
+      <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Vos préférences de livraison & activation</div>
+      <div style="background:#fafafa;border-radius:8px;padding:16px;border:1px solid #eee">
+        ${hasAltShip ? `
+          <div style="margin-bottom:14px">
+            <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">📦 Adresse de livraison alternative</div>
+            ${alternativeShipping!.recipient_name ? `<div style="font-size:13px;font-weight:600;color:#0d1f3c">${escapeHtml(alternativeShipping!.recipient_name)}</div>` : ''}
+            <div style="font-size:13px;color:#444;line-height:1.5">${escapeHtml([alternativeShipping!.address_line, alternativeShipping!.apartment, alternativeShipping!.city, alternativeShipping!.province, alternativeShipping!.postal_code].filter(Boolean).join(', '))}</div>
+            ${alternativeShipping!.instructions ? `<div style="font-size:12px;color:#666;margin-top:6px;font-style:italic">📝 ${escapeHtml(alternativeShipping!.instructions)}</div>` : ''}
+          </div>
+        ` : ''}
+        ${hasScheduled ? `
+          <div style="margin-bottom:14px;padding-top:${hasAltShip ? '12px;border-top:1px solid #eee' : '0'}">
+            <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">📅 Date d'activation demandée</div>
+            <div style="font-size:14px;font-weight:600;color:#0057B8">${escapeHtml(formatDate(requestedActivationDate!))}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">L'activation effective dépend de la réception et de l'installation de l'équipement.</div>
+          </div>
+        ` : ''}
+        ${hasInstallDetails ? `
+          <div style="padding-top:${(hasAltShip || hasScheduled) ? '12px;border-top:1px solid #eee' : '0'}">
+            <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">🔧 Informations d'installation</div>
+            ${installationDetails!.coax_available ? `<div style="font-size:13px;color:#444;margin-bottom:3px"><strong>Câble coaxial :</strong> ${escapeHtml(COAX_LBL[installationDetails!.coax_available] || installationDetails!.coax_available)}</div>` : ''}
+            ${installationDetails!.occupancy_status ? `<div style="font-size:13px;color:#444;margin-bottom:3px"><strong>Logement :</strong> ${escapeHtml(OCC_LBL[installationDetails!.occupancy_status] || installationDetails!.occupancy_status)}</div>` : ''}
+            ${installationDetails!.access_notes ? `<div style="font-size:12px;color:#666;margin-top:6px;font-style:italic">📝 ${escapeHtml(installationDetails!.access_notes)}</div>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    </div>` : '';
+
   return `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
