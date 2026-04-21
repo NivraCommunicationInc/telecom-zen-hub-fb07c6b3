@@ -154,6 +154,19 @@ const PayPalSubscriptionReturn = () => {
                 </div>
               )}
 
+              {nextBillingTime && (
+                <div className="inline-block px-4 py-2 ml-2 bg-white rounded-lg border border-emerald-200">
+                  <span className="text-xs text-muted-foreground">Prochain prélèvement&nbsp;</span>
+                  <span className="font-semibold text-foreground">
+                    {new Date(nextBillingTime).toLocaleDateString("fr-CA", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              )}
+
               <div className="bg-white rounded-xl p-4 border border-emerald-200 text-left text-sm space-y-2">
                 <div className="flex items-center gap-2 text-emerald-700 font-semibold">
                   <CreditCard className="w-4 h-4" /> Prochaines étapes
