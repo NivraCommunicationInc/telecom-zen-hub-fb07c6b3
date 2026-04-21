@@ -105,9 +105,11 @@ const PayPalSubscriptionReturn = () => {
         if (storedOrder.order_number) setOrderNumber(storedOrder.order_number);
 
         localStorage.removeItem(STORAGE_KEY);
+        clearPayPalFlowActive();
         setStatus("success");
       } catch (err: any) {
         console.error("[PayPalReturn] Error:", err);
+        clearPayPalFlowActive();
         setErrorMsg(err?.message || "Une erreur est survenue lors de la confirmation.");
         setStatus("error");
       }
