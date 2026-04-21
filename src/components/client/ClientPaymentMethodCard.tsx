@@ -1,13 +1,15 @@
 /**
  * ClientPaymentMethodCard
  * Shows whether the client has an active PayPal pre-authorized payment.
- * Includes a "Retirer le pré-autorisé" action wired to paypal-cancel-subscription.
+ * - Eligibility decided server-side via check_autopay_eligibility RPC.
+ * - "Activer" launches PayPal flow with full traceability.
+ * - On failure, shows detailed error dialog with retry.
  */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, Wallet, ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, Wallet, ShieldCheck, ExternalLink, RefreshCw, FileText } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
@@ -22,17 +24,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import { useClientAutoPayEnrollment } from "@/hooks/useClientAutoPayEnrollment";
+import { PayPalAutoPayErrorDialog } from "@/components/client/PayPalAutoPayErrorDialog";
 
 export const ClientPaymentMethodCard = () => {
   const { user } = useClientAuth();
   const qc = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [errorOpen, setErrorOpen] = useState(false);
   const {
-    subscriptions,
     enrollInPayPal,
     enrollingSubscriptionId,
+    eligibility,
+    eligibilityLoading,
+    lastError,
+    clearLastError,
   } = useClientAutoPayEnrollment();
 
   const { data: paypalSub, isLoading } = useQuery({
@@ -59,38 +67,37 @@ export const ClientPaymentMethodCard = () => {
   });
 
   const isPreAuth = !!paypalSub;
-  const eligibleStatuses = new Set(["active", "pending", "suspended"]);
-  const eligibleSubscription =
-    subscriptions.find(
-      (subscription) =>
-        eligibleStatuses.has(subscription.status) &&
-        subscription.id !== paypalSub?.id &&
-        !subscription.paypal_subscription_id
-    ) ??
-    subscriptions.find(
-      (subscription) =>
-        eligibleStatuses.has(subscription.status) && subscription.id !== paypalSub?.id
-    ) ??
-    null;
+
+  const handleEnroll = async (attemptId?: string) => {
+    const ok = await enrollInPayPal(null, attemptId);
+    if (!ok) {
+      setErrorOpen(true);
+    }
+    // If ok=true, the page redirects to PayPal so nothing to do.
+  };
+
+  const handleRetry = async () => {
+    const attemptId = lastError?.attempt_id || undefined;
+    setErrorOpen(false);
+    await handleEnroll(attemptId);
+  };
 
   const handleCancel = async () => {
     if (!paypalSub) return;
     try {
       setCancelling(true);
-      const { data, error } = await portalSupabase.functions.invoke(
-        "paypal-cancel-subscription",
-        {
-          body: {
-            subscription_id: paypalSub.id,
-            reason: "Client requested removal of auto-pay",
-          },
-        }
-      );
+      const { data, error } = await portalSupabase.functions.invoke("paypal-cancel-subscription", {
+        body: {
+          subscription_id: paypalSub.id,
+          reason: "Client requested removal of auto-pay",
+        },
+      });
       if (error) throw new Error(error.message || "Erreur");
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Paiement pré-autorisé retiré");
       qc.invalidateQueries({ queryKey: ["client-paypal-preauth"] });
       qc.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
+      qc.invalidateQueries({ queryKey: ["client-autopay-eligibility"] });
       setConfirmOpen(false);
     } catch (e: any) {
       toast.error(e?.message ?? "Échec de l'annulation");
@@ -99,7 +106,7 @@ export const ClientPaymentMethodCard = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || eligibilityLoading) {
     return (
       <Card>
         <CardContent className="p-6 flex items-center justify-center">
@@ -110,99 +117,155 @@ export const ClientPaymentMethodCard = () => {
   }
 
   return (
-    <Card className={isPreAuth ? "border-emerald-300 bg-emerald-50/40" : "border-border"}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Wallet className="w-4 h-4" />
-          Mode de paiement
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isPreAuth ? (
-          <>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                Paiement pré-autorisé PayPal ✓
-              </Badge>
-            </div>
-            <div className="space-y-1 text-sm">
-              <p className="flex items-center gap-1.5 text-emerald-700">
-                <ShieldCheck className="w-4 h-4" />
-                Votre compte bénéficie d'un rabais de 5$/mois
+    <>
+      <Card className={isPreAuth ? "border-emerald-300 bg-emerald-50/40" : "border-border"}>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Wallet className="w-4 h-4" />
+            Mode de paiement
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isPreAuth ? (
+            <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Paiement pré-autorisé PayPal ✓
+                </Badge>
+              </div>
+              <div className="space-y-1 text-sm">
+                <p className="flex items-center gap-1.5 text-emerald-700">
+                  <ShieldCheck className="w-4 h-4" />
+                  Votre compte bénéficie d'un rabais de 5$/mois
+                </p>
+                <p className="text-muted-foreground">
+                  Vos factures sont payées automatiquement à la date d'échéance.
+                </p>
+                <p className="text-xs text-muted-foreground font-mono pt-1">
+                  Référence: …{String(paypalSub.paypal_subscription_id).slice(-8)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={cancelling}
+                >
+                  Retirer le pré-autorisé
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/portal/autopay-log">
+                    <FileText className="w-3 h-3 mr-1" />
+                    Journal
+                  </Link>
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Badge variant="secondary">Paiement manuel</Badge>
+              <p className="text-sm text-muted-foreground">
+                Activez le paiement pré-autorisé PayPal pour ne jamais oublier une facture et bénéficier d'un rabais de
+                5$/mois. Vous pourrez utiliser une carte de crédit, Visa Débit ou Mastercard Débit via PayPal — aucun
+                compte PayPal requis.
               </p>
-              <p className="text-muted-foreground">
-                Vos factures sont payées automatiquement à la date d'échéance.
-              </p>
-              <p className="text-xs text-muted-foreground font-mono pt-1">
-                Référence: …{String(paypalSub.paypal_subscription_id).slice(-8)}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-              onClick={() => setConfirmOpen(true)}
-              disabled={cancelling}
-            >
-              Retirer le pré-autorisé
-            </Button>
-          </>
-        ) : (
-          <>
-            <Badge variant="secondary">Paiement manuel</Badge>
-            <p className="text-sm text-muted-foreground">
-              Activez le paiement pré-autorisé PayPal pour ne jamais oublier une facture
-              et bénéficier d'un rabais de 5$/mois. Vous pourrez utiliser une carte de
-              crédit, Visa Débit ou Mastercard Débit via PayPal — aucun compte PayPal requis.
-            </p>
-            {eligibleSubscription ? (
-              <Button
-                variant="default"
-                size="sm"
-                className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
-                onClick={() => void enrollInPayPal(eligibleSubscription)}
-                disabled={!!enrollingSubscriptionId}
-              >
-                {enrollingSubscriptionId === eligibleSubscription.id ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-3 h-3" />
-                )}
-                Activer le paiement pré-autorisé
-              </Button>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">
-                Aucun abonnement admissible trouvé pour l'instant. Si votre forfait est
-                actif dans Nivra Core, rechargez la page puis réessayez.
-              </p>
-            )}
-          </>
-        )}
-      </CardContent>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Retirer le paiement pré-autorisé ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Vos prochaines factures devront être payées manuellement.
-              Le rabais de 5$/mois sera également retiré.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleCancel(); }}
-              disabled={cancelling}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {cancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Confirmer le retrait
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
+              {eligibility?.eligible ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
+                    onClick={() => void handleEnroll()}
+                    disabled={!!enrollingSubscriptionId}
+                  >
+                    {enrollingSubscriptionId ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-3 h-3" />
+                    )}
+                    Activer le paiement pré-autorisé
+                  </Button>
+                  {lastError && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setErrorOpen(true)}
+                      className="text-destructive border-destructive/50"
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Voir l'erreur précédente
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/portal/autopay-log">
+                      <FileText className="w-3 h-3 mr-1" />
+                      Journal
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground italic">
+                    {eligibility?.reason === "active_chargeback"
+                      ? "Une rétrofacturation est en cours sur votre compte. Le pré-autorisé sera réactivé une fois la situation résolue."
+                      : eligibility?.reason === "no_eligible_subscription"
+                      ? "Aucun abonnement éligible trouvé. Si votre forfait est actif, contactez le support."
+                      : eligibility?.reason === "no_billing_customer"
+                      ? "Profil de facturation introuvable. Contactez le support."
+                      : "Votre compte n'est pas encore éligible au paiement pré-autorisé."}
+                  </p>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/portal/autopay-log">
+                      <FileText className="w-3 h-3 mr-1" />
+                      Voir le journal des tentatives
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Retirer le paiement pré-autorisé ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Vos prochaines factures devront être payées manuellement. Le rabais de 5$/mois sera également retiré.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancelling}>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleCancel();
+                }}
+                disabled={cancelling}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {cancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Confirmer le retrait
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </Card>
+
+      <PayPalAutoPayErrorDialog
+        error={lastError}
+        open={errorOpen}
+        onClose={() => {
+          setErrorOpen(false);
+          clearLastError();
+        }}
+        onRetry={handleRetry}
+        retrying={!!enrollingSubscriptionId}
+      />
+    </>
   );
 };
