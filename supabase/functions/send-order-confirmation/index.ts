@@ -194,6 +194,10 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     portalLink,
     supportEmail,
     promoCode,
+    alternativeShipping,
+    activationPreference,
+    requestedActivationDate,
+    installationDetails,
   } = params;
 
   const hasFirstMonthFree = isFirstMonthFreePromo(promoCode);
