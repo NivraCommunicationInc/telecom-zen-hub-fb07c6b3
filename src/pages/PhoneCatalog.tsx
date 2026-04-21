@@ -64,6 +64,7 @@ export default function PhoneCatalog() {
         .from("phone_inventory")
         .select("id, brand, model, storage, color, condition, price_cad, photos, warranty_days, description")
         .eq("status", "available")
+        .eq("is_visible_on_site", true)
         .order("price_cad", { ascending: true });
       if (!cancelled) {
         if (error) console.error("[phones]", error);

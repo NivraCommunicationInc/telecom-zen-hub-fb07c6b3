@@ -80,8 +80,11 @@ const navGroups: Array<{
   },
   {
     label: "Mes offres",
-    path: "/portal/new-order",
-    children: [],
+    path: null,
+    children: [
+      { path: "/portal/new-order", label: "Forfaits & services" },
+      { path: "/telephones", label: "📱 Téléphones" },
+    ],
   },
   {
     label: "Parrainage",

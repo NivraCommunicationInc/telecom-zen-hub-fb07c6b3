@@ -339,11 +339,18 @@ const ClientDashboard = () => {
             </div>
             <div className="px-6 py-8 text-center">
               <p className="text-slate-500 mb-4">Vous n'avez aucun service actif pour le moment.</p>
-              <Link to="/portal/new-order">
-                <Button className="bg-teal-600 hover:bg-teal-700 text-white">
-                  Découvrir nos offres <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <Link to="/portal/new-order">
+                  <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+                    Découvrir nos forfaits <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
+                <Link to="/telephones">
+                  <Button variant="outline" className="border-teal-600 text-teal-700 hover:bg-teal-50">
+                    📱 Commander un téléphone <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}
