@@ -114,44 +114,56 @@ export function OrderShippingActivationPanel({ order, variant = "admin", hideShi
   return (
     <div className="space-y-4">
       {/* ── Service & shipping addresses ───────────────────────── */}
+      {/* Phase 3 : si hideShipping (= installation pro côté client),
+          on n'affiche QUE l'adresse de service, sans bloc "Livraison". */}
       <div className={cardClass}>
         <h3 className={titleClass}>
           <span className="inline-flex items-center gap-1.5">
-            <Truck className="w-3.5 h-3.5" /> Livraison
+            {hideShipping ? <MapPin className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
+            {hideShipping ? "Adresse de service" : "Livraison"}
           </span>
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Service address */}
+        <div className={hideShipping ? "" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+          {/* Service address — toujours visible */}
           <div className="space-y-1">
-            <p className={`${labelClass} flex items-center gap-1.5`}>
-              <MapPin className="w-3 h-3" /> Adresse de service
-            </p>
+            {!hideShipping && (
+              <p className={`${labelClass} flex items-center gap-1.5`}>
+                <MapPin className="w-3 h-3" /> Adresse de service
+              </p>
+            )}
             <p className={valueClass}>{serviceAddress || "—"}</p>
-          </div>
-
-          {/* Shipping address */}
-          <div className="space-y-1">
-            <p className={`${labelClass} flex items-center gap-1.5`}>
-              <Truck className="w-3 h-3" /> Adresse de livraison
-            </p>
-            {hasAltShipping ? (
-              <>
-                {recipient && <p className={`${valueClass} font-medium`}>{recipient}</p>}
-                <p className={valueClass}>{shippingAddress}</p>
-                <span className="inline-block text-[10px] uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-0.5 rounded mt-1">
-                  Adresse alternative
-                </span>
-              </>
-            ) : (
-              <p className={`text-sm ${isAdmin ? "text-gray-500" : "text-slate-500"} italic`}>
-                Identique à l'adresse de service
+            {hideShipping && (
+              <p className={`text-xs ${isAdmin ? "text-gray-500" : "text-slate-500"} italic mt-1`}>
+                Installation par technicien — aucune livraison d'équipement au client.
               </p>
             )}
           </div>
+
+          {/* Shipping address — masqué si installation pro */}
+          {!hideShipping && (
+            <div className="space-y-1">
+              <p className={`${labelClass} flex items-center gap-1.5`}>
+                <Truck className="w-3 h-3" /> Adresse de livraison
+              </p>
+              {hasAltShipping ? (
+                <>
+                  {recipient && <p className={`${valueClass} font-medium`}>{recipient}</p>}
+                  <p className={valueClass}>{shippingAddress}</p>
+                  <span className="inline-block text-[10px] uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-0.5 rounded mt-1">
+                    Adresse alternative
+                  </span>
+                </>
+              ) : (
+                <p className={`text-sm ${isAdmin ? "text-gray-500" : "text-slate-500"} italic`}>
+                  Identique à l'adresse de service
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        {hasAltShipping && order.shipping_instructions && (
+        {!hideShipping && hasAltShipping && order.shipping_instructions && (
           <div className="mt-3 pt-3 border-t border-gray-100">
             <p className={`${labelClass} flex items-center gap-1.5 mb-1`}>
               <Info className="w-3 h-3" /> Instructions de livraison
