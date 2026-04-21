@@ -235,6 +235,8 @@ const ComparePlans = lazy(() => import("@/pages/ComparePlans"));
 const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
 const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 const PayPalSubscriptionReturn = lazy(() => import("@/pages/PayPalSubscriptionReturn"));
+const ClientAutoPayLog = lazy(() => import("@/pages/client/ClientAutoPayLog"));
+const ClientAutoPayStatus = lazy(() => import("@/pages/client/ClientAutoPayStatus"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 const QuoteCheckoutPage = lazy(() => import("@/pages/QuoteCheckout"));
 const PolitiqueConfidentialite = lazy(() => import("@/pages/PolitiqueConfidentialite"));
@@ -623,6 +625,8 @@ const AppRoutes = () => {
       <Route path="/portal/identity-verification" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientIdentityVerification /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/service-addresses" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientServiceAddresses /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/referrals" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientReferrals /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/autopay-log" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientAutoPayLog /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/autopay-status" element={<MaintenanceGuard><ClientAuthProvider><ClientAutoPayStatus /></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* New client action routes from email links */}
       <Route path="/portal/upload" element={<MaintenanceGuard><ClientAuthProvider><ClientDocumentUpload /></ClientAuthProvider></MaintenanceGuard>} />

@@ -11773,6 +11773,75 @@ export type Database = {
           },
         ]
       }
+      paypal_autopay_attempts: {
+        Row: {
+          approval_url: string | null
+          billing_subscription_id: string | null
+          completed_at: string | null
+          created_at: string
+          current_step: string
+          customer_id: string | null
+          error_message: string | null
+          http_status: number | null
+          id: string
+          ip_address: string | null
+          paypal_debug_id: string | null
+          paypal_plan_id: string | null
+          paypal_response: Json | null
+          paypal_subscription_id: string | null
+          started_at: string
+          status: string
+          steps: Json
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          approval_url?: string | null
+          billing_subscription_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: string
+          customer_id?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          ip_address?: string | null
+          paypal_debug_id?: string | null
+          paypal_plan_id?: string | null
+          paypal_response?: Json | null
+          paypal_subscription_id?: string | null
+          started_at?: string
+          status?: string
+          steps?: Json
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          approval_url?: string | null
+          billing_subscription_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: string
+          customer_id?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          ip_address?: string | null
+          paypal_debug_id?: string | null
+          paypal_plan_id?: string | null
+          paypal_response?: Json | null
+          paypal_subscription_id?: string | null
+          started_at?: string
+          status?: string
+          steps?: Json
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       paypal_plan_cache: {
         Row: {
           amount_cad: number
@@ -18545,6 +18614,10 @@ export type Database = {
         Returns: boolean
       }
       check_and_queue_payment_reminders: { Args: never; Returns: undefined }
+      check_autopay_eligibility: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
       check_lockdown_status: { Args: never; Returns: Json }
       check_overdue_invoices: { Args: never; Returns: undefined }
       check_portal_access: {

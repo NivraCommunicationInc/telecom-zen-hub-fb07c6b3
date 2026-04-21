@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { clearPayPalFlowActive } from "@/hooks/useClientAutoPayEnrollment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertCircle, CreditCard, Mail } from "lucide-react";
@@ -104,9 +105,11 @@ const PayPalSubscriptionReturn = () => {
         if (storedOrder.order_number) setOrderNumber(storedOrder.order_number);
 
         localStorage.removeItem(STORAGE_KEY);
+        clearPayPalFlowActive();
         setStatus("success");
       } catch (err: any) {
         console.error("[PayPalReturn] Error:", err);
+        clearPayPalFlowActive();
         setErrorMsg(err?.message || "Une erreur est survenue lors de la confirmation.");
         setStatus("error");
       }
