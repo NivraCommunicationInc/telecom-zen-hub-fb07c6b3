@@ -52,6 +52,8 @@ interface Props {
   order: AnyOrder;
   /** "admin" gives a denser, white-card look; "client" uses softer slate styling. */
   variant?: "admin" | "client";
+  /** Phase 3 : masquer toute la sous-section "Adresse de livraison" (cas installation pro côté client). */
+  hideShipping?: boolean;
 }
 
 const COAX_LABELS: Record<string, string> = {
@@ -83,7 +85,7 @@ function shippingRecipient(o: AnyOrder): string | null {
   return name || null;
 }
 
-export function OrderShippingActivationPanel({ order, variant = "admin" }: Props) {
+export function OrderShippingActivationPanel({ order, variant = "admin", hideShipping = false }: Props) {
   const serviceAddress = buildServiceAddress(order);
   const shippingAddress = buildShippingAddress(order);
   const recipient = shippingRecipient(order);
