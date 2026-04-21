@@ -59,7 +59,15 @@ export const ClientPaymentMethodCard = () => {
   });
 
   const isPreAuth = !!paypalSub;
-  const eligibleSubscription = subscriptions.find((subscription) => !subscription.paypal_subscription_id) ?? null;
+  // Éligible = abonnement actif qui n'a pas encore une entente PayPal active confirmée.
+  // (un abonnement "active" sans paypal_subscription_id, OU un abonnement actif dont
+  // l'ancienne entente PayPal a été annulée/expirée doit pouvoir être ré-enrôlé)
+  const eligibleSubscription =
+    subscriptions.find(
+      (s) =>
+        s.status === "active" &&
+        (!s.paypal_subscription_id || (paypalSub && s.id !== paypalSub.id ? false : !paypalSub))
+    ) ?? subscriptions.find((s) => s.status === "active") ?? null;
 
   const handleCancel = async () => {
     if (!paypalSub) return;
