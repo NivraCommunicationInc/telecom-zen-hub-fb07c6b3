@@ -157,6 +157,10 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     orderDate,
     paymentMethod,
     services,
+    subtotal: canonicalSubtotal,
+    tpsAmount: canonicalTps,
+    tvqAmount: canonicalTvq,
+    totalWithTax: canonicalTotal,
     oneTimeFees,
     oneTimeTotal,
     deliveryAddress,
@@ -168,17 +172,23 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
 
   const hasFirstMonthFree = isFirstMonthFreePromo(promoCode);
 
-  // === Calculate service pricing ===
-  const serviceSubtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
-  const serviceTps = Math.round(serviceSubtotal * 0.05 * 100) / 100;
-  const serviceTvq = Math.round(serviceSubtotal * 0.09975 * 100) / 100;
-  const serviceTotalWithTax = Math.round((serviceSubtotal + serviceTps + serviceTvq) * 100) / 100;
+  // ============================================================
+  // CANONICAL MATH — use values from pricing_snapshot/invoice
+  // (passed in by the caller). NEVER recompute here.
+  // ============================================================
+  const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
-  // === Calculate equipment pricing ===
-  const equipTotal = oneTimeTotal || (oneTimeFees || []).reduce((sum, f) => sum + f.amount, 0);
-  const equipTps = Math.round(equipTotal * 0.05 * 100) / 100;
-  const equipTvq = Math.round(equipTotal * 0.09975 * 100) / 100;
-  const equipGrandTotal = Math.round((equipTotal + equipTps + equipTvq) * 100) / 100;
+  // Service subtotal/taxes — pulled directly from canonical breakdown
+  const equipTotal = round2(oneTimeTotal || (oneTimeFees || []).reduce((sum, f) => sum + (Number(f.amount) || 0), 0));
+  const serviceSubtotal = round2(Math.max(0, canonicalSubtotal - equipTotal));
+  // Split canonical tax proportionally between service vs equipment
+  const baseForSplit = (serviceSubtotal + equipTotal) || 1;
+  const serviceTps = round2((canonicalTps * serviceSubtotal) / baseForSplit);
+  const serviceTvq = round2((canonicalTvq * serviceSubtotal) / baseForSplit);
+  const equipTps = round2(canonicalTps - serviceTps);
+  const equipTvq = round2(canonicalTvq - serviceTvq);
+  const serviceTotalWithTax = round2(serviceSubtotal + serviceTps + serviceTvq);
+  const equipGrandTotal = round2(equipTotal + equipTps + equipTvq);
 
   const serviceName = services.length > 0 ? services[0].name : 'Internet';
   const servicePrice = services.length > 0 ? services[0].price : 0;
@@ -223,17 +233,24 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     </table>`;
   };
 
+  // === Itemized service rows (one per service) ===
+  const serviceRowsHtml = (services || [])
+    .map((s) => finRowHtml(escapeHtml(s.name || 'Forfait'), `${fmtPrice(Number(s.price) || 0)} $`))
+    .join('');
+
   let financialBlock = '';
   if (hasFirstMonthFree) {
     financialBlock = `
-      ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
-      ${finRowHtml('Premier mois offert', `-${fmtPrice(servicePrice)} $`, { green: true, greenBg: true })}
+      ${serviceRowsHtml}
+      ${finRowHtml('Sous-total services', `${fmtPrice(serviceSubtotal)} $`)}
+      ${finRowHtml('Premier mois offert', `-${fmtPrice(serviceSubtotal)} $`, { green: true, greenBg: true })}
       ${finRowHtml('Service ce mois-ci', '0,00 $', { bold: true, thickBorder: true })}
       ${equipTotal > 0 ? `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #eee">
           <tr><td style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase">Équipement (frais uniques)</td></tr>
         </table>
-        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
+        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(Number(f.amount) || 0)} $`)).join('')}
+        ${finRowHtml('Sous-total équipement', `${fmtPrice(equipTotal)} $`)}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
           <tr>
@@ -249,25 +266,28 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
             <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Équipement uniquement — service gratuit ce mois</div>
           </td>
           <td style="padding:16px;text-align:right;white-space:nowrap">
-            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(equipGrandTotal)} $</span>
+            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(canonicalTotal)} $</span>
           </td>
         </tr>
       </table>`;
   } else {
     financialBlock = `
-      ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
+      ${serviceRowsHtml}
+      ${finRowHtml('Sous-total services', `${fmtPrice(serviceSubtotal)} $`)}
       ${finRowHtml('TPS (5%)', `${fmtPrice(serviceTps)} $`)}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #eee">
         <tr>
           <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
           <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(serviceTvq)} $</td>
         </tr>
       </table>
+      ${finRowHtml('Total mensuel récurrent', `${fmtPrice(serviceTotalWithTax)} $`, { bold: true, thickBorder: true })}
       ${equipTotal > 0 ? `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #eee">
           <tr><td style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase">Équipement (frais uniques)</td></tr>
         </table>
-        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
+        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(Number(f.amount) || 0)} $`)).join('')}
+        ${finRowHtml('Sous-total équipement', `${fmtPrice(equipTotal)} $`)}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
           <tr>
@@ -282,7 +302,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
             <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
           </td>
           <td style="padding:16px;text-align:right;white-space:nowrap">
-            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(Math.round((serviceSubtotal + equipTotal + serviceTps + equipTps + serviceTvq + equipTvq) * 100) / 100)} $</span>
+            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(canonicalTotal)} $</span>
           </td>
         </tr>
       </table>`;
