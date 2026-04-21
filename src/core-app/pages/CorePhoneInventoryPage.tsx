@@ -440,6 +440,20 @@ export default function CorePhoneInventoryPage() {
     qc.invalidateQueries({ queryKey: ["core-phone-inventory"] });
   }
 
+  async function toggleSiteVisibility(row: PhoneRow) {
+    const next = !(row.is_visible_on_site ?? true);
+    const { error } = await supabase
+      .from("phone_inventory")
+      .update({ is_visible_on_site: next })
+      .eq("id", row.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(next ? "Affiché sur le site" : "Caché du site");
+    qc.invalidateQueries({ queryKey: ["core-phone-inventory"] });
+  }
+
   const modelSuggestions = form ? (MODEL_SUGGESTIONS[form.brand] ?? []) : [];
 
   return (
