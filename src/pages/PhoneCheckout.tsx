@@ -269,10 +269,10 @@ export default function PhoneCheckout() {
 
   // -------- Payment success --------
   const handlePaymentSuccess = async (captureId: string, payerAddress?: PayPalPayerAddress | null) => {
-    if (!phone || !draftOrderId) return;
+    if (!phone || !draftOrderId || !preparedOrder) return;
     setSubmitting(true);
     try {
-      const userId = user?.id ?? crypto.randomUUID();
+      const userId = preparedOrder.user_id;
 
       const shippingAddress = {
         address: address.trim(),
@@ -310,7 +310,7 @@ export default function PhoneCheckout() {
           user_id: userId,
           order_amount: total,
           shipping_address: shippingAddress,
-          account_id: userId,
+          account_id: preparedOrder.account_id,
         },
       });
 
@@ -393,6 +393,7 @@ export default function PhoneCheckout() {
         order_id: order.id,
         phone_inventory_id: phone.id,
         user_id: userId,
+        account_id: preparedOrder.account_id,
         status: phoneOrderStatus,
         fraud_score: score,
         fraud_level: level,
