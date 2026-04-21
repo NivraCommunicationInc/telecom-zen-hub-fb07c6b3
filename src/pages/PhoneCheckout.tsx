@@ -188,22 +188,25 @@ export default function PhoneCheckout() {
     ? validateDob(dob, { required: true })
     : { isValid: true as const };
 
-  const formValid = useMemo(() => {
-    return (
-      firstName.trim().length >= 2 &&
-      lastName.trim().length >= 2 &&
-      emailValid &&
-      phoneValid &&
-      (!dobRequired || dobCheck.isValid) &&
-      !!address.trim() &&
-      !!city.trim() &&
-      !!province &&
-      postalValid &&
-      !provinceError &&
-      !planError &&
-      acceptKyc
-    );
-  }, [firstName, lastName, emailValid, phoneValid, dobRequired, dobCheck.isValid, address, city, province, postalValid, provinceError, planError, acceptKyc]);
+  // Granular validation issues — shown to the user so they know exactly what to fix.
+  const validationIssues = useMemo(() => {
+    const issues: string[] = [];
+    if (firstName.trim().length < 2) issues.push(isFr ? "Prénom (au moins 2 caractères)" : "First name (min 2 chars)");
+    if (lastName.trim().length < 2) issues.push(isFr ? "Nom (au moins 2 caractères)" : "Last name (min 2 chars)");
+    if (!emailValid) issues.push(isFr ? "Courriel valide (ex: nom@domaine.com)" : "Valid email (e.g. name@domain.com)");
+    if (!phoneValid) issues.push(isFr ? "Téléphone canadien à 10 chiffres" : "10-digit Canadian phone");
+    if (dobRequired && !dobCheck.isValid) issues.push(isFr ? "Date de naissance valide" : "Valid date of birth");
+    if (!address.trim()) issues.push(isFr ? "Adresse (rue)" : "Street address");
+    if (!city.trim()) issues.push(isFr ? "Ville" : "City");
+    if (!province) issues.push(isFr ? "Province" : "Province");
+    if (!postalValid) issues.push(isFr ? "Code postal canadien (ex: H2X 1Y4)" : "Canadian postal code (e.g. H2X 1Y4)");
+    if (provinceError) issues.push(provinceError);
+    if (planError) issues.push(planError);
+    if (!acceptKyc) issues.push(isFr ? "Acceptation de la vérification d'identité" : "Accept identity verification");
+    return issues;
+  }, [firstName, lastName, emailValid, phoneValid, dobRequired, dobCheck.isValid, address, city, province, postalValid, provinceError, planError, acceptKyc, isFr]);
+
+  const formValid = validationIssues.length === 0;
 
   // -------- Payment success --------
   const handlePaymentSuccess = async (captureId: string, payerAddress?: PayPalPayerAddress | null) => {
@@ -578,9 +581,19 @@ export default function PhoneCheckout() {
             <CardHeader><CardTitle>{isFr ? "Paiement" : "Payment"}</CardTitle></CardHeader>
             <CardContent>
               {!formValid && (
-                <p className="text-sm text-muted-foreground mb-3">
-                  {isFr ? "Complétez tous les champs requis pour continuer." : "Fill all required fields to continue."}
-                </p>
+                <Alert variant="destructive" className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-medium mb-2">
+                      {isFr ? "Complétez ou corrigez ces champs pour continuer :" : "Complete or fix these fields to continue:"}
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {validationIssues.map((issue, i) => (
+                        <li key={i}>{issue}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
               )}
               {submitting ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Création de la commande..." : "Creating order..."}</div>
