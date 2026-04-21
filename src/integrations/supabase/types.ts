@@ -11241,6 +11241,45 @@ export type Database = {
           },
         ]
       }
+      overdue_reminder_log: {
+        Row: {
+          created_at: string
+          customer_id: string
+          days_overdue: number
+          email_queue_id: string | null
+          id: string
+          invoice_balance: number
+          invoice_id: string
+          recipient_email: string
+          reminder_date: string
+          total_account_balance: number
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          days_overdue?: number
+          email_queue_id?: string | null
+          id?: string
+          invoice_balance?: number
+          invoice_id: string
+          recipient_email: string
+          reminder_date: string
+          total_account_balance?: number
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          days_overdue?: number
+          email_queue_id?: string | null
+          id?: string
+          invoice_balance?: number
+          invoice_id?: string
+          recipient_email?: string
+          reminder_date?: string
+          total_account_balance?: number
+        }
+        Relationships: []
+      }
       partner_program_terms: {
         Row: {
           content: string
@@ -18570,6 +18609,20 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_balance_payment: {
+        Args: {
+          p_amount: number
+          p_created_by_name?: string
+          p_created_by_role?: string
+          p_customer_id: string
+          p_method?: string
+          p_provider?: string
+          p_provider_order_id?: string
+          p_provider_payment_id?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       apply_payment_to_invoice: {
         Args: {
           p_amount: number
@@ -18959,6 +19012,18 @@ export type Database = {
         }[]
       }
       get_contract_for_signing: { Args: { p_token: string }; Returns: Json }
+      get_customer_unpaid_invoices: {
+        Args: { p_customer_id: string }
+        Returns: {
+          amount_paid: number
+          balance_due: number
+          due_date: string
+          invoice_id: string
+          invoice_number: string
+          status: string
+          total: number
+        }[]
+      }
       get_entries_allocation_counts: {
         Args: { p_entry_ids: string[] }
         Returns: {
