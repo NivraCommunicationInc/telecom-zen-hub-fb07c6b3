@@ -236,7 +236,8 @@ const ClientOrders = () => {
                                 </span>
                               </div>
                             )}
-                            {order.tracking_number && (
+                            {/* Phase 3 — tracking number masqué pour installation pro */}
+                            {order.tracking_number && !isProInstall(order) && (
                               <div>
                                 <span className="text-slate-500">Suivi: </span>
                                 <span className="text-teal-700 font-mono text-sm">
@@ -253,9 +254,17 @@ const ClientOrders = () => {
                               </div>
                             )}
                           </div>
-                          {/* Status Timeline */}
+                          {/* Phase 3 — Lifecycle Timeline (self/pro adaptive) */}
                           <div className="mt-4 pt-4 border-t border-slate-100">
-                            <OrderStatusTimeline currentStatus={order.status} />
+                            {lifecycleByOrderId[order.id] ? (
+                              <OrderLifecycleTimeline
+                                data={lifecycleByOrderId[order.id]}
+                                variant="client"
+                                installationTypeOverride={order.installation_type}
+                              />
+                            ) : (
+                              <OrderStatusTimeline currentStatus={order.status} />
+                            )}
                           </div>
                         </div>
                         <Button
