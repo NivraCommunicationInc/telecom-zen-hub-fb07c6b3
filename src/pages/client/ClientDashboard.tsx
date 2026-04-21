@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import ServiceCountdown from "@/components/client/ServiceCountdown";
+import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
 import { AlertTriangle, Info, X, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -253,6 +254,9 @@ const ClientDashboard = () => {
 
         {/* Service Countdown */}
         {user?.id && <ServiceCountdown userId={user.id} />}
+
+        {/* Paiement pré-autorisé PayPal (carte unifiée) */}
+        <ClientPaymentMethodCard />
 
         {/* Mobile Services - Rogers style section */}
         {mobileServices.length > 0 && (

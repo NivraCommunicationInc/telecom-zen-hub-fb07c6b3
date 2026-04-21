@@ -141,22 +141,30 @@ export const ClientPaymentMethodCard = () => {
             <Badge variant="secondary">Paiement manuel</Badge>
             <p className="text-sm text-muted-foreground">
               Activez le paiement pré-autorisé PayPal pour ne jamais oublier une facture
-              et bénéficier d'un rabais de 5$/mois.
+              et bénéficier d'un rabais de 5$/mois. Vous pourrez utiliser une carte de
+              crédit, Visa Débit ou Mastercard Débit via PayPal — aucun compte PayPal requis.
             </p>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
-              onClick={() => eligibleSubscription && void enrollInPayPal(eligibleSubscription)}
-              disabled={!eligibleSubscription || !!enrollingSubscriptionId}
-            >
-              {enrollingSubscriptionId === eligibleSubscription?.id ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <ExternalLink className="w-3 h-3" />
-              )}
-              Activer le paiement pré-autorisé
-            </Button>
+            {eligibleSubscription ? (
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
+                onClick={() => void enrollInPayPal(eligibleSubscription)}
+                disabled={!!enrollingSubscriptionId}
+              >
+                {enrollingSubscriptionId === eligibleSubscription.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-3 h-3" />
+                )}
+                Activer le paiement pré-autorisé
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                Aucun forfait actif éligible. Contactez le support pour activer le
+                paiement pré-autorisé sur votre compte.
+              </p>
+            )}
           </>
         )}
       </CardContent>
