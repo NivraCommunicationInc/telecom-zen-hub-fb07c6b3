@@ -3781,6 +3781,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
             {/* Left Column: Service Selection */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+              {/* Active services status banner */}
+              <ActiveServicesBanner userId={user?.id} />
+
               {/* Phone CTA — always visible, links to public phone catalog */}
               <Link to="/telephones" className="block group">
                 <Card className="border-2 border-teal-500/30 bg-gradient-to-r from-teal-50 to-cyan-50 hover:border-teal-500 hover:shadow-md transition-all">
