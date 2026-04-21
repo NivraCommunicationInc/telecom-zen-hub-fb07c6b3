@@ -249,6 +249,7 @@ function emptyForm(): FormState {
     available_colors: [],
     available_storage: ["256GB"],
     photos: [],
+    is_visible_on_site: true,
   };
 }
 
