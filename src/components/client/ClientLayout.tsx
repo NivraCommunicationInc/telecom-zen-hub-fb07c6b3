@@ -245,7 +245,18 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                         style={active ? { background: PURPLE } : undefined}
                         onClick={() => setOpenDropdown(openDropdown === idx ? null : idx)}
                       >
-                        {group.label}
+                        <span className="relative inline-flex items-center">
+                          {group.label}
+                          {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
+                            <span className="ml-1.5 inline-flex">
+                              <SectionBadge
+                                show
+                                variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                                ariaLabel={`${group.label} nécessite votre attention`}
+                              />
+                            </span>
+                          )}
+                        </span>
                         <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", openDropdown === idx && "rotate-180")} />
                         {group.label === "Facturation et paiement" && overdueCount && overdueCount > 0 && (
                           <Badge className="bg-red-500 text-white text-[10px] px-1.5 py-0 ml-1 min-w-[18px]">
@@ -267,21 +278,28 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                     )}
 
                     {hasChildren && openDropdown === idx && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
                         {group.children.map((child) => (
                           <Link
                             key={child.path}
                             to={child.path}
                             onClick={() => setOpenDropdown(null)}
                             className={cn(
-                              "block px-4 py-2.5 text-sm transition-colors",
+                              "flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors",
                               isActive(child.path)
                                 ? "font-medium"
                                 : "text-slate-700 hover:text-[#6b21e8]"
                             )}
                             style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                           >
-                            {child.label}
+                            <span>{child.label}</span>
+                            {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
+                              <SectionBadge
+                                show
+                                variant={sectionBadges[child.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                                ariaLabel={`${child.label} nécessite votre attention`}
+                              />
+                            )}
                           </Link>
                         ))}
                       </div>
