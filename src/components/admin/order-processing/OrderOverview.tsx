@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { OrderShippingActivationPanel } from "@/components/orders/OrderShippingActivationPanel";
 
 interface Props {
   orderId: string;
@@ -140,6 +141,9 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
           </table>
         </div>
       )}
+
+      {/* Phase 2 — Shipping address, activation preference, installation details */}
+      <OrderShippingActivationPanel order={order} variant="admin" />
 
       {/* Notes */}
       {order.internal_notes && (
