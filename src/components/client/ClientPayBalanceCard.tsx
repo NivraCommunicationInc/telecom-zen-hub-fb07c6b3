@@ -11,12 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { CreditCard, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const ClientPayBalanceCard = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,10 +99,10 @@ export const ClientPayBalanceCard = () => {
   }
 
   return (
-    <Card className="border-amber-500/30 bg-amber-500/5">
+    <Card className="border-warning/30 bg-warning/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-amber-500" />
+          <AlertCircle className="w-5 h-5 text-warning" />
           Solde total à payer
         </CardTitle>
       </CardHeader>
@@ -111,7 +111,7 @@ export const ClientPayBalanceCard = () => {
           <p className="text-sm text-muted-foreground mb-1">
             {data.invoiceCount} facture{data.invoiceCount > 1 ? "s" : ""} impayée{data.invoiceCount > 1 ? "s" : ""}
           </p>
-          <p className="text-3xl font-bold text-amber-600">
+          <p className="text-3xl font-bold text-warning">
             {data.totalBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
           </p>
         </div>
@@ -125,7 +125,7 @@ export const ClientPayBalanceCard = () => {
         <Button
           onClick={handlePayBalance}
           disabled={paying}
-          className="w-full bg-[#0070ba] hover:bg-[#005a96] text-white"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           size="lg"
         >
           {paying ? (
