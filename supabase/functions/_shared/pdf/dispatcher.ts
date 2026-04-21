@@ -6,6 +6,7 @@
  * Also normalizes/enriches the raw event payload coming from DB triggers
  * so each template receives the exact shape it expects (defensive defaults).
  */
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { generateWelcomeLetterPDF } from "./welcomeLetterTemplate.ts";
 import { generateAddressChangePDF } from "./addressChangeTemplate.ts";
 import { generatePaymentMethodChangePDF } from "./paymentMethodChangeTemplate.ts";
@@ -56,6 +57,117 @@ export interface DispatchResult {
 
 const nowIso = () => new Date().toISOString();
 
+// Lazily-initialized admin client used only to enrich payloads when the
+// trigger payload is incomplete (e.g. missing monthly amount, activation date,
+// service address). Strict fail-soft: if enrichment fails we fall back to the
+// raw payload — generation never throws because of enrichment.
+let _admin: any = null;
+function getAdmin() {
+  if (_admin) return _admin;
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  _admin = createClient(url, key);
+  return _admin;
+}
+
+/**
+ * Pull authoritative client/account/subscription data from the database when
+ * the trigger payload is missing key fields. Best-effort — never throws.
+ */
+async function enrichFromDb(
+  docType: AutoDocType,
+  p: Record<string, any>,
+): Promise<Record<string, any>> {
+  const admin = getAdmin();
+  if (!admin) return p;
+  const out: Record<string, any> = { ...p };
+
+  try {
+    // Resolve account by id, account_number, or client/customer
+    let account: any = null;
+    if (out.account_id) {
+      const { data } = await admin.from("accounts").select("*").eq("id", out.account_id).maybeSingle();
+      account = data;
+    }
+    if (!account && out.account_number) {
+      const { data } = await admin.from("accounts").select("*").eq("account_number", out.account_number).maybeSingle();
+      account = data;
+    }
+    if (!account && out.client_id) {
+      const { data } = await admin.from("accounts").select("*").eq("client_id", out.client_id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      account = data;
+    }
+    if (!account && (out.client_email || out.email)) {
+      const email = out.client_email || out.email;
+      const { data: cust } = await admin.from("billing_customers").select("user_id, first_name, last_name, email, phone").eq("email", email).maybeSingle();
+      if (cust) {
+        out.client_email = out.client_email || cust.email;
+        out.client_phone = out.client_phone || cust.phone;
+        out.first_name = out.first_name || cust.first_name;
+        out.last_name = out.last_name || cust.last_name;
+        if (cust.user_id) {
+          const { data: acc } = await admin.from("accounts").select("*").eq("client_id", cust.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+          account = acc;
+        }
+      }
+    }
+
+    if (account) {
+      out.account_id = out.account_id || account.id;
+      out.account_number = out.account_number || account.account_number;
+      out.client_id = out.client_id || account.client_id;
+      out.client_address = out.client_address || account.primary_service_address || account.billing_address || "";
+      out.client_city = out.client_city || account.primary_service_city || account.billing_city || "";
+      out.client_province = out.client_province || account.primary_service_province || account.billing_province || "QC";
+      out.client_postal = out.client_postal || account.primary_service_postal_code || account.billing_postal_code || "";
+      out.service_address = out.service_address || account.primary_service_address || account.billing_address || "";
+      out.service_city = out.service_city || account.primary_service_city || account.billing_city || "";
+      out.service_province = out.service_province || account.primary_service_province || account.billing_province || "QC";
+      out.service_postal = out.service_postal || account.primary_service_postal_code || account.billing_postal_code || "";
+      out.account_status = out.account_status || account.status || "active";
+    }
+
+    // Fetch most recent active subscription for service info
+    const needsSub = ["service_certificate", "activation_confirmation", "welcome_letter", "suspension_notice", "cancellation_confirmation", "contract_amendment"].includes(docType);
+    if (needsSub && (out.client_id || out.client_email || out.email)) {
+      let customerId = out.customer_id;
+      if (!customerId) {
+        const email = out.client_email || out.email;
+        if (email) {
+          const { data: cust } = await admin.from("billing_customers").select("id").eq("email", email).maybeSingle();
+          customerId = cust?.id;
+        }
+      }
+      if (customerId) {
+        const { data: sub } = await admin
+          .from("billing_subscriptions")
+          .select("id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor")
+          .eq("customer_id", customerId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (sub) {
+          out.subscription_id = out.subscription_id || sub.id;
+          out.service_name = out.service_name || sub.plan_name;
+          out.plan_name = out.plan_name || sub.plan_name;
+          out.monthly_amount = out.monthly_amount ?? Number(sub.plan_price ?? 0);
+          out.activation_date = out.activation_date || sub.cycle_start_date || sub.created_at;
+          out.active_since = out.active_since || sub.cycle_start_date || sub.created_at;
+          out.next_billing_date = out.next_billing_date || sub.next_renewal_at;
+          out.account_status = out.account_status || sub.status;
+          if (!out.first_billing_cycle && sub.cycle_start_date && sub.cycle_end_date) {
+            out.first_billing_cycle = `${sub.cycle_start_date} — ${sub.cycle_end_date}`;
+          }
+        }
+      }
+    }
+  } catch (e: any) {
+    console.warn("[dispatcher] enrichFromDb soft-fail:", e?.message);
+  }
+  return out;
+}
+
 function pickClientName(p: Record<string, any>): string {
   const candidates = [
     p.client_name,
@@ -71,12 +183,12 @@ function pickClientName(p: Record<string, any>): string {
 }
 
 function pickAddress(p: Record<string, any>) {
-  const a = p.service_address || p.billing_address || p.address || {};
+  const a = (typeof p.service_address === "object" && p.service_address) || (typeof p.billing_address === "object" && p.billing_address) || {};
   return {
-    street: a.street || p.address_line1 || "",
-    city: a.city || p.city || "",
-    province: a.province || p.province || "QC",
-    postal_code: a.postal_code || p.postal_code || "",
+    street: a.street || (typeof p.service_address === "string" ? p.service_address : "") || (typeof p.billing_address === "string" ? p.billing_address : "") || p.address_line1 || "",
+    city: a.city || p.service_city || p.city || "",
+    province: a.province || p.service_province || p.province || "QC",
+    postal_code: a.postal_code || p.service_postal || p.postal_code || "",
   };
 }
 
@@ -184,13 +296,23 @@ function normalizePayload(
         effective_date: p.effective_date || nowIso(),
       };
 
-    case "service_certificate":
+    case "service_certificate": {
+      const addr2 = pickAddress(p);
       return {
         ...base,
         certificate_number: p.certificate_number || `CRT-${Date.now()}`,
-        service_name: p.service_name || "Service Nivra",
+        service_name: p.service_name || p.plan_name || "Service Nivra",
+        service_address: p.service_address && typeof p.service_address === "string" ? p.service_address : (addr2.street || base.client_address || "—"),
+        service_city: p.service_city || addr2.city || base.client_city || "",
+        service_province: p.service_province || addr2.province || base.client_province || "QC",
+        service_postal: p.service_postal || addr2.postal_code || base.client_postal || "",
+        activation_date: p.activation_date || p.active_since || nowIso(),
         active_since: p.active_since || p.activation_date || nowIso(),
+        status: p.status || (p.account_status === "active" ? "Actif" : (p.account_status || "Actif")),
+        monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? 0),
+        purpose: p.purpose,
       };
+    }
 
     case "suspension_notice":
       return {
@@ -255,13 +377,28 @@ function normalizePayload(
         equipment_installed: p.equipment_installed || [],
       };
 
-    case "activation_confirmation":
+    case "activation_confirmation": {
+      // Infer service type from plan name when not provided
+      const sName = String(p.service_name || p.plan_name || "").toLowerCase();
+      const inferredType: "mobile" | "internet" | "tv" | "other" =
+        sName.includes("mobile") || sName.includes("forfait") ? "mobile" :
+        sName.includes("tv") ? "tv" :
+        sName.includes("internet") || sName.includes("fibre") || sName.includes("giga") ? "internet" : "other";
       return {
         ...base,
         confirmation_number: p.confirmation_number || `ACT-${Date.now()}`,
         activation_date: p.activation_date || nowIso(),
-        service_name: p.service_name || "Service Nivra",
+        service_name: p.service_name || p.plan_name || "Service Nivra",
+        service_type: p.service_type || inferredType,
+        monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? 0),
+        first_billing_cycle: p.first_billing_cycle || undefined,
+        phone_number: p.phone_number,
+        sim_iccid: p.sim_iccid,
+        internet_speed: p.internet_speed,
+        static_ip: p.static_ip,
+        notes: p.notes,
       };
+    }
 
     case "formal_demand":
       return {
@@ -335,7 +472,8 @@ export async function dispatchAutoDocument(
   docType: AutoDocType,
   payload: Record<string, any>,
 ): Promise<DispatchResult> {
-  const p = normalizePayload(docType, payload || {});
+  const enriched = await enrichFromDb(docType, payload || {});
+  const p = normalizePayload(docType, enriched);
   switch (docType) {
     case "welcome_letter":
       return toResult(generateWelcomeLetterPDF(p as any), `Lettre_Bienvenue_${p.letter_number}.pdf`, p.letter_number);
