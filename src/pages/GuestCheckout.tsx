@@ -20,6 +20,17 @@ import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
+import {
+  CheckoutShippingAndActivation,
+  DEFAULT_SHIPPING,
+  DEFAULT_ACTIVATION,
+  DEFAULT_INSTALLATION_DETAILS,
+  validateShipping,
+  validateActivation,
+  type ShippingAddressData,
+  type ActivationData,
+  type InstallationDetailsData,
+} from "@/components/checkout/CheckoutShippingAndActivation";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
 
 import { PayPalButton } from "@/components/payment/PayPalButton";
