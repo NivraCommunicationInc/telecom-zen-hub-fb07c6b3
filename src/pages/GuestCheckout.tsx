@@ -598,6 +598,41 @@ const GuestCheckout = () => {
         console.error("[GuestCheckout] Failed to set kyc_status:", e);
       }
 
+      // Step 4c (Phase 2): Persist shipping override + activation date + installation details on order.
+      // Stored on the order so orchestrate_order can resolve shipping address and pass the activation note.
+      try {
+        const orderPatch: Record<string, unknown> = {
+          ship_to_different_address: shippingData.shipToDifferentAddress,
+          activation_preference: activationData.activationPreference,
+          requested_activation_date: activationData.requestedActivationDate
+            ? activationData.requestedActivationDate.toISOString().slice(0, 10)
+            : null,
+          installation_details: {
+            coax_available: installationDetailsData.coaxAvailable || null,
+            occupancy_status: installationDetailsData.occupancyStatus || null,
+            access_notes: installationDetailsData.accessNotes || null,
+          },
+        };
+        if (shippingData.shipToDifferentAddress) {
+          Object.assign(orderPatch, {
+            shipping_first_name: shippingData.shippingFirstName.trim() || null,
+            shipping_last_name: shippingData.shippingLastName.trim() || null,
+            shipping_address_line: shippingData.shippingAddressLine.trim() || null,
+            shipping_apartment: shippingData.shippingApartment.trim() || null,
+            shipping_city: shippingData.shippingCity.trim() || null,
+            shipping_province: shippingData.shippingProvince || "QC",
+            shipping_postal_code: shippingData.shippingPostalCode.trim() || null,
+            shipping_instructions: shippingData.shippingInstructions.trim() || null,
+          });
+        }
+        await supabase
+          .from("orders")
+          .update(orderPatch as any)
+          .eq("id", response.order_id);
+      } catch (e) {
+        console.error("[GuestCheckout] Failed to persist shipping/activation/install details:", e);
+      }
+
       // Step 5: Canonical sync (idempotent — safe to call again if already called in fallback path)
       try {
         await supabase.functions.invoke("checkout-canonical-sync", {
