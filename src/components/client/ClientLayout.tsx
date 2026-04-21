@@ -37,8 +37,13 @@ interface ClientLayoutProps {
   children: ReactNode;
 }
 
-// Navigation structure
-const navGroups = [
+// Navigation structure (with optional badgeKey mapping to usePortalSectionBadges)
+const navGroups: Array<{
+  label: string;
+  path: string | null;
+  badgeKey?: PortalSectionKey;
+  children: Array<{ path: string; label: string; badgeKey?: PortalSectionKey }>;
+}> = [
   {
     label: "Survol",
     path: "/portal",
@@ -47,10 +52,11 @@ const navGroups = [
   {
     label: "Facturation et paiement",
     path: null,
+    badgeKey: "billing",
     children: [
-      { path: "/portal/billing", label: "Faire un paiement" },
+      { path: "/portal/billing", label: "Faire un paiement", badgeKey: "billing" },
       { path: "/portal/billing?tab=add-credit", label: "Ajouter un crédit" },
-      { path: "/portal/invoices", label: "Mes factures" },
+      { path: "/portal/invoices", label: "Mes factures", badgeKey: "billing" },
       { path: "/portal/payments", label: "Moyens de paiement" },
       { path: "/portal/monthly-invoices", label: "Historique des paiements" },
     ],
@@ -58,16 +64,17 @@ const navGroups = [
   {
     label: "Utilisation et services",
     path: null,
+    badgeKey: "services",
     children: [
-      { path: "/portal/services", label: "Mes services" },
+      { path: "/portal/services", label: "Mes services", badgeKey: "services" },
       { path: "/portal/equipment", label: "Mon équipement" },
       { path: "/portal/activation", label: "📶 Activation WiFi" },
       { path: "/portal/service-addresses", label: "Mes adresses" },
-      { path: "/portal/orders", label: "Mes commandes" },
-      { path: "/portal/identity-verification", label: "Vérification d'identité" },
+      { path: "/portal/orders", label: "Mes commandes", badgeKey: "orders" },
+      { path: "/portal/identity-verification", label: "Vérification d'identité", badgeKey: "identity" },
       { path: "/portal/channels", label: "Chaînes TV" },
       { path: "/portal/appointments", label: "Rendez-vous" },
-      { path: "/portal/contracts", label: "Contrats" },
+      { path: "/portal/contracts", label: "Contrats", badgeKey: "contracts" },
       { path: "/portal/replacement", label: "Demande de remplacement" },
     ],
   },
@@ -84,11 +91,12 @@ const navGroups = [
   {
     label: "Paramètres",
     path: null,
+    badgeKey: "support",
     children: [
       { path: "/portal/profile", label: "Mon profil" },
-      { path: "/portal/tickets", label: "Support" },
+      { path: "/portal/tickets", label: "Support", badgeKey: "support" },
       { path: "/portal/web-forms", label: "Formulaires" },
-      { path: "/portal/documents", label: "Documents" },
+      { path: "/portal/documents", label: "Documents", badgeKey: "support" },
       { path: "/portal/guides", label: "📥 Guides & Documents" },
     ],
   },
