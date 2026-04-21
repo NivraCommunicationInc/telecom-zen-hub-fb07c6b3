@@ -172,3 +172,174 @@ describe("Phase 3 — Lifecycle progress mapping invariants", () => {
   it("clamps step below 1", () => expect(computeProgress(0)).toBe(17));
   it("clamps step above 6", () => expect(computeProgress(99)).toBe(100));
 });
+
+// =====================================================================
+// Phase 3 HARDENING — State machine validation (mirror of is_valid_status_transition)
+// =====================================================================
+type Domain = "order" | "shipment" | "activation";
+
+function isValidTransition(domain: Domain, oldStatus: string | null, newStatus: string): boolean {
+  if (oldStatus === newStatus) return true;
+  const o = oldStatus ?? "";
+
+  if (domain === "order") {
+    if (newStatus === "cancelled") return !["activated", "completed", "cancelled"].includes(o);
+    if (["activated", "completed", "cancelled"].includes(o)) return false;
+    const allowed: Array<[string, string]> = [
+      ["pending", "confirmed"], ["pending", "processing"],
+      ["confirmed", "processing"], ["confirmed", "preparing"],
+      ["processing", "preparing"], ["processing", "ready_to_ship"],
+      ["preparing", "ready_to_ship"], ["preparing", "shipped"],
+      ["ready_to_ship", "shipped"],
+      ["shipped", "in_transit"], ["shipped", "delivered"],
+      ["in_transit", "delivered"],
+      ["delivered", "activated"], ["delivered", "completed"],
+      ["activated", "completed"],
+    ];
+    return allowed.some(([a, b]) => a === o && b === newStatus);
+  }
+
+  if (domain === "shipment") {
+    if (["delivered", "cancelled", "returned"].includes(o)) {
+      return newStatus === "returned" && o === "delivered";
+    }
+    if (newStatus === "cancelled") return !["delivered", "returned"].includes(o);
+    const allowed: Array<[string, string]> = [
+      ["pending", "label_created"], ["pending", "shipped"],
+      ["label_created", "shipped"],
+      ["shipped", "in_transit"], ["shipped", "out_for_delivery"], ["shipped", "delivered"],
+      ["in_transit", "out_for_delivery"], ["in_transit", "delivered"],
+      ["out_for_delivery", "delivered"],
+    ];
+    return allowed.some(([a, b]) => a === o && b === newStatus);
+  }
+
+  if (domain === "activation") {
+    if (["completed", "cancelled", "rejected"].includes(o)) return false;
+    if (["cancelled", "rejected"].includes(newStatus)) return true;
+    const allowed: Array<[string, string]> = [
+      ["pending", "in_progress"], ["pending", "started"], ["pending", "assigned"],
+      ["assigned", "in_progress"], ["assigned", "started"],
+      ["started", "in_progress"],
+      ["in_progress", "completed"], ["started", "completed"],
+    ];
+    return allowed.some(([a, b]) => a === o && b === newStatus);
+  }
+
+  return true;
+}
+
+describe("Phase 3 HARDENING — Order state machine", () => {
+  it("allows pending → confirmed", () => {
+    expect(isValidTransition("order", "pending", "confirmed")).toBe(true);
+  });
+
+  it("BLOCKS preparation → activated (skip steps)", () => {
+    expect(isValidTransition("order", "preparing", "activated")).toBe(false);
+  });
+
+  it("BLOCKS shipped → activated (must go through delivered)", () => {
+    expect(isValidTransition("order", "shipped", "activated")).toBe(false);
+  });
+
+  it("allows delivered → activated", () => {
+    expect(isValidTransition("order", "delivered", "activated")).toBe(true);
+  });
+
+  it("BLOCKS exiting terminal state (activated → preparing)", () => {
+    expect(isValidTransition("order", "activated", "preparing")).toBe(false);
+  });
+
+  it("allows cancellation from non-terminal", () => {
+    expect(isValidTransition("order", "preparing", "cancelled")).toBe(true);
+    expect(isValidTransition("order", "pending", "cancelled")).toBe(true);
+  });
+
+  it("BLOCKS cancellation of activated order", () => {
+    expect(isValidTransition("order", "activated", "cancelled")).toBe(false);
+  });
+});
+
+describe("Phase 3 HARDENING — Shipment state machine", () => {
+  it("allows pending → shipped", () => {
+    expect(isValidTransition("shipment", "pending", "shipped")).toBe(true);
+  });
+
+  it("allows shipped → in_transit → delivered", () => {
+    expect(isValidTransition("shipment", "shipped", "in_transit")).toBe(true);
+    expect(isValidTransition("shipment", "in_transit", "delivered")).toBe(true);
+  });
+
+  it("BLOCKS pending → delivered (skip)", () => {
+    expect(isValidTransition("shipment", "pending", "delivered")).toBe(false);
+  });
+
+  it("BLOCKS reverting from delivered", () => {
+    expect(isValidTransition("shipment", "delivered", "shipped")).toBe(false);
+  });
+});
+
+describe("Phase 3 HARDENING — Activation state machine", () => {
+  it("allows pending → in_progress → completed", () => {
+    expect(isValidTransition("activation", "pending", "in_progress")).toBe(true);
+    expect(isValidTransition("activation", "in_progress", "completed")).toBe(true);
+  });
+
+  it("BLOCKS pending → completed (skip in_progress)", () => {
+    expect(isValidTransition("activation", "pending", "completed")).toBe(false);
+  });
+
+  it("BLOCKS reverting from completed", () => {
+    expect(isValidTransition("activation", "completed", "in_progress")).toBe(false);
+  });
+});
+
+// =====================================================================
+// Phase 3 HARDENING — Cross-domain consistency guards
+// =====================================================================
+function canShip(paymentStatus: string): boolean {
+  return paymentStatus === "paid" || paymentStatus === "captured";
+}
+
+function canCompleteActivation(
+  paymentStatus: string,
+  installationType: string | null,
+  shipmentStatus: string | null,
+): boolean {
+  if (!canShip(paymentStatus)) return false;
+  if (isSelfInstall(installationType)) {
+    return shipmentStatus === "delivered";
+  }
+  return true; // pro install: no shipment requirement
+}
+
+describe("Phase 3 HARDENING — Cross-domain guards", () => {
+  it("BLOCKS shipment 'shipped' if payment is pending", () => {
+    expect(canShip("pending")).toBe(false);
+    expect(canShip("failed")).toBe(false);
+  });
+
+  it("ALLOWS shipment when payment is paid/captured", () => {
+    expect(canShip("paid")).toBe(true);
+    expect(canShip("captured")).toBe(true);
+  });
+
+  it("BLOCKS self-install activation completion if shipment not delivered", () => {
+    expect(canCompleteActivation("paid", "auto", "shipped")).toBe(false);
+    expect(canCompleteActivation("paid", "ship_to_home", null)).toBe(false);
+  });
+
+  it("ALLOWS self-install activation completion when shipment delivered", () => {
+    expect(canCompleteActivation("paid", "auto", "delivered")).toBe(true);
+  });
+
+  it("ALLOWS pro-install activation completion without shipment delivery", () => {
+    expect(canCompleteActivation("paid", "technician", null)).toBe(true);
+    expect(canCompleteActivation("captured", "technician", "pending")).toBe(true);
+  });
+
+  it("BLOCKS any activation completion when payment unpaid", () => {
+    expect(canCompleteActivation("pending", "technician", null)).toBe(false);
+    expect(canCompleteActivation("pending", "auto", "delivered")).toBe(false);
+  });
+});
