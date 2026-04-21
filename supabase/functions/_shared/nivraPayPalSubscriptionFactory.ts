@@ -345,14 +345,9 @@ export async function createNivraPayPalSubscription(
       return_url: `${returnUrl}?order=${params.order_id}`,
       cancel_url: cancelUrl,
     },
-    custom_id: JSON.stringify({
-      order_id: params.order_id,
-      order_number: params.order_number,
-      account_id: params.account_id,
-      customer_id: params.customer_id,
-      invoice_id: params.invoice_id,
-      plan_code: params.plan_code,
-    }),
+    // PayPal limits custom_id to 127 chars — keep ONLY order_id (UUID = 36 char).
+    // Full context is preserved in billing_subscription_trace_audit + paypal_autopay_attempts.
+    custom_id: params.order_id,
   };
 
   const subscriptionResponse = await fetch("https://api-m.paypal.com/v1/billing/subscriptions", {
