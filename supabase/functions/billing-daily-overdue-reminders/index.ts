@@ -40,7 +40,7 @@ serve(async (req) => {
         id, invoice_number, total, balance_due, amount_paid, due_date, status, customer_id,
         customer:billing_customers(id, email, first_name, last_name, user_id)
       `)
-      .in("status", ["overdue", "pending", "issued", "partially_paid"])
+      .in("status", ["overdue", "pending", "partially_paid"])
       .lte("due_date", today);
 
     if (error) throw error;
@@ -134,7 +134,7 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : JSON.stringify(err);
     console.error("[reminders] error:", msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
