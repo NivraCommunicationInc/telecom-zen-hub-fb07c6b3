@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { CreditCard, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -72,7 +73,7 @@ export const ClientPayBalanceCard = () => {
   const capturePayment = async (paypalOrderId: string) => {
     setPaying(true);
     try {
-      const { data: result, error: invokeErr } = await supabase.functions.invoke(
+      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
         "paypal-balance-pay-capture",
         { body: { paypal_order_id: paypalOrderId } }
       );
@@ -93,7 +94,7 @@ export const ClientPayBalanceCard = () => {
     setError(null);
     setPaying(true);
     try {
-      const { data: result, error: invokeErr } = await supabase.functions.invoke(
+      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
         "paypal-balance-pay-create"
       );
       if (invokeErr || result?.error) throw new Error(result?.error || invokeErr?.message);
