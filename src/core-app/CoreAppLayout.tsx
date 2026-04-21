@@ -24,7 +24,6 @@ import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 
 import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
-import { useDocumentJobWorker } from "@/hooks/useDocumentJobWorker";
 
 interface NavItem {
   icon: LucideIcon;
@@ -211,9 +210,8 @@ const CoreAppLayout = () => {
   const navigate = useNavigate();
   const { theme, themeClass, toggleTheme } = useInternalTheme();
   const { isAdmin, isLoading: isAdminLoading } = useIsCoreAdmin();
-  // Background worker: claims pending document jobs, generates PDFs in browser,
-  // uploads to Storage, then triggers send-client-document. (Strategy C)
-  useDocumentJobWorker();
+  // Document generation is now 100% server-side autonomous via the
+  // process-document-jobs edge function (cron every 60s). No browser worker needed.
   const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

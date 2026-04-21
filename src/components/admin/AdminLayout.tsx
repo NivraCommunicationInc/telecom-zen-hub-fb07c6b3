@@ -17,7 +17,6 @@ import { usePresence } from "@/hooks/usePresence";
 import AdminSidebarNav from "./AdminSidebarNav";
 import AdminMobileNav from "./AdminMobileNav";
 import { cn } from "@/lib/utils";
-import { useDocumentJobWorker } from "@/hooks/useDocumentJobWorker";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -32,9 +31,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { updateCurrentPage } = usePresence();
 
-  // Background worker: claims pending document jobs, generates PDFs in
-  // browser, uploads to Storage, triggers send-client-document. Strategy C.
-  useDocumentJobWorker({ enabled: !!user });
+  // Document generation is now 100% server-side autonomous via the
+  // process-document-jobs edge function (cron every 60s). No browser worker needed.
 
   useEffect(() => {
     updateCurrentPage(location.pathname);
