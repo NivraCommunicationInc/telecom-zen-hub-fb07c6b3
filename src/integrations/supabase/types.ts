@@ -18463,6 +18463,10 @@ export type Database = {
       }
     }
     Functions: {
+      _build_doc_client_payload: {
+        Args: { p_account_id?: string; p_client_id: string }
+        Returns: Json
+      }
       _invoke_edge_function: {
         Args: { p_function_name: string; p_payload: Json }
         Returns: undefined
