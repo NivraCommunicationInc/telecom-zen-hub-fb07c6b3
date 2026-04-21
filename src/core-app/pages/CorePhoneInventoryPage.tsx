@@ -119,6 +119,7 @@ interface FormState {
   available_colors: string[];
   available_storage: string[];
   photos: string[];
+  is_visible_on_site: boolean;
 }
 
 // ─────────────────────────── Constants ───────────────────────────
