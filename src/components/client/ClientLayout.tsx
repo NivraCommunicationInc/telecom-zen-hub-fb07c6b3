@@ -361,17 +361,31 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       to={group.path}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "flex items-center px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
+                        "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
                         isActive(group.path) ? "text-white" : "text-slate-700 hover:bg-slate-50 active:bg-slate-100"
                       )}
                       style={isActive(group.path) ? { background: PURPLE, color: 'white' } : undefined}
                     >
-                      {group.label}
+                      <span>{group.label}</span>
+                      {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
+                        <SectionBadge
+                          show
+                          variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                          ariaLabel={`${group.label} nécessite votre attention`}
+                        />
+                      )}
                     </Link>
                   ) : (
                     <>
-                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        {group.label}
+                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>{group.label}</span>
+                        {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
+                          <SectionBadge
+                            show
+                            variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                            ariaLabel={`${group.label} nécessite votre attention`}
+                          />
+                        )}
                       </p>
                       {group.children.map((child) => (
                         <Link
@@ -379,12 +393,19 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                           to={child.path}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
-                            "flex items-center px-4 py-3 rounded-xl text-sm min-h-[44px]",
+                            "flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm min-h-[44px]",
                             isActive(child.path) ? "font-medium" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
                           )}
                           style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                         >
-                          {child.label}
+                          <span>{child.label}</span>
+                          {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
+                            <SectionBadge
+                              show
+                              variant={sectionBadges[child.badgeKey]?.urgent ? "dot-pulse" : "dot"}
+                              ariaLabel={`${child.label} nécessite votre attention`}
+                            />
+                          )}
                         </Link>
                       ))}
                     </>
