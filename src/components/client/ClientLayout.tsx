@@ -21,6 +21,8 @@ import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
 import PrepaidUrgentBanner from "@/components/client/PrepaidUrgentBanner";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { useOverdueCount } from "@/hooks/useOverdueCount";
+import { usePortalSectionBadges, PortalSectionKey } from "@/hooks/usePortalSectionBadges";
+import { SectionBadge } from "@/components/ui/section-badge";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
 import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
