@@ -28,6 +28,7 @@ const PayPalSubscriptionReturn = () => {
   const [status, setStatus] = useState<Status>("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [orderNumber, setOrderNumber] = useState<string>("");
+  const [nextBillingTime, setNextBillingTime] = useState<string | null>(null);
 
   useEffect(() => {
     const subscriptionId = searchParams.get("subscription_id");
@@ -53,21 +54,33 @@ const PayPalSubscriptionReturn = () => {
 
     (async () => {
       try {
-        // Update billing_subscriptions to mark approved + flag the order as recurring
-        const { error: subErr } = await supabase
-          .from("billing_subscriptions")
-          .update({
-            status: "active",
-            recurring_setup_status: "active",
-            auto_billing_enabled: true,
-          } as any)
-          .eq("paypal_subscription_id", subscriptionId);
+        // ── Étape 1: Vérifier côté Nivra Core que l'entente est bien ACTIVE chez PayPal
+        // (au lieu de simplement faire confiance au query param)
+        const { data: verifyData, error: verifyErr } = await supabase.functions.invoke(
+          "paypal-verify-subscription",
+          { body: { paypal_subscription_id: subscriptionId } }
+        );
 
-        if (subErr) {
-          console.warn("[PayPalReturn] Subscription update warning:", subErr);
+        if (verifyErr) {
+          throw new Error(verifyErr.message || "Vérification PayPal impossible");
         }
 
-        // Mark the order as recurring-accepted (best effort — webhook is the source of truth)
+        if (!verifyData?.success) {
+          throw new Error(verifyData?.error || "L'entente n'a pas pu être confirmée");
+        }
+
+        if (!verifyData.is_active) {
+          throw new Error(
+            `L'entente PayPal n'est pas encore active (statut: ${verifyData.paypal_status}). ` +
+            `Veuillez patienter quelques minutes ou réessayer. Si le problème persiste, contactez le support.`
+          );
+        }
+
+        if (verifyData.next_billing_time) {
+          setNextBillingTime(verifyData.next_billing_time);
+        }
+
+        // ── Étape 2: Marquer la commande comme récurrente (best-effort, le webhook reste source de vérité)
         if (orderId) {
           try {
             await supabase
@@ -78,7 +91,6 @@ const PayPalSubscriptionReturn = () => {
             console.warn("[PayPalReturn] Order flag update failed:", e);
           }
 
-          // Mirror flag on consent record
           try {
             await supabase
               .from("checkout_consent_records" as any)
@@ -91,9 +103,7 @@ const PayPalSubscriptionReturn = () => {
 
         if (storedOrder.order_number) setOrderNumber(storedOrder.order_number);
 
-        // Clear the pending marker
         localStorage.removeItem(STORAGE_KEY);
-
         setStatus("success");
       } catch (err: any) {
         console.error("[PayPalReturn] Error:", err);
@@ -141,6 +151,19 @@ const PayPalSubscriptionReturn = () => {
                 <div className="inline-block px-4 py-2 bg-white rounded-lg border border-emerald-200">
                   <span className="text-xs text-muted-foreground">Commande&nbsp;</span>
                   <span className="font-mono font-bold text-foreground">#{orderNumber}</span>
+                </div>
+              )}
+
+              {nextBillingTime && (
+                <div className="inline-block px-4 py-2 ml-2 bg-white rounded-lg border border-emerald-200">
+                  <span className="text-xs text-muted-foreground">Prochain prélèvement&nbsp;</span>
+                  <span className="font-semibold text-foreground">
+                    {new Date(nextBillingTime).toLocaleDateString("fr-CA", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
                 </div>
               )}
 
