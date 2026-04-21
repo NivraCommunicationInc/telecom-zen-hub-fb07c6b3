@@ -9,7 +9,7 @@ import { portalClient as portalSupabase } from "@/integrations/backend";
 import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
-import AutoPayEnrollment from "@/components/client/AutoPayEnrollment";
+import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
 
 const ClientPayments = () => {
@@ -115,8 +115,8 @@ const ClientPayments = () => {
           </CardContent>
         </Card>
 
-        {/* Pre-authorized Payments / Auto-Pay */}
-        <AutoPayEnrollment />
+        {/* Paiement pré-autorisé PayPal — composant unifié */}
+        <ClientPaymentMethodCard />
 
         {/* Payment History - V2 canonical source */}
         {user?.id && <PaymentHistoryV2 userId={user.id} />}
