@@ -207,6 +207,12 @@ serve(async (req) => {
     }
     if (!invoiceId) throw new Error("Aucune facture liée n'a été trouvée pour activer le pré-autorisé");
 
+    const nextBillingAnchor =
+      subscription.next_renewal_at ||
+      (subscription.cycle_end_date
+        ? new Date(`${subscription.cycle_end_date}T00:00:00.000Z`).toISOString()
+        : null);
+
     await adminSupabase
       .from("paypal_autopay_attempts")
       .update({
@@ -237,6 +243,7 @@ serve(async (req) => {
       order_number: String(order.order_number || subscription.id),
       account_id: order.account_id,
       invoice_id: invoiceId,
+      subscription_start_time: nextBillingAnchor || undefined,
       recurring_monthly_total: Number(subscription.plan_price),
       plan_label: subscription.plan_name,
       plan_code: subscription.plan_code,

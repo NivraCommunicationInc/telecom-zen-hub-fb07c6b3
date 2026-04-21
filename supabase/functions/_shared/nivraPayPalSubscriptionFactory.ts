@@ -62,6 +62,7 @@ export interface PayPalSubscriptionParams {
   return_url_override?: string;
   cancel_url_override?: string;
   metadata_extra?: Record<string, string>;
+  subscription_start_time?: string;
 }
 
 export interface PayPalSubscriptionResult {
@@ -330,6 +331,7 @@ export async function createNivraPayPalSubscription(
 
   const subscriptionPayload = {
     plan_id: plan.paypal_plan_id,
+    ...(params.subscription_start_time ? { start_time: params.subscription_start_time } : {}),
     subscriber: {
       name: {
         given_name: params.customer_first_name,
@@ -457,6 +459,7 @@ export async function createNivraPayPalSubscription(
       plan_code: params.plan_code,
       plan_label: params.plan_label,
       approval_url: approvalUrl,
+      subscription_start_time: params.subscription_start_time || null,
       customer_email: params.customer_email,
       customer_phone: params.customer_phone,
       service_address: params.service_address || null,
