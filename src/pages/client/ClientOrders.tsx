@@ -21,6 +21,10 @@ import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrde
 import OrderStatusTimeline from "@/components/client/OrderStatusTimeline";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 import { OrderShippingActivationPanel } from "@/components/orders/OrderShippingActivationPanel";
+import { OrderLifecycleTimeline } from "@/components/orders/OrderLifecycleTimeline";
+
+// Phase 3 — règle: pro = jamais de bloc livraison côté client
+const isProInstall = (order: any) => order?.installation_type === "technician";
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
