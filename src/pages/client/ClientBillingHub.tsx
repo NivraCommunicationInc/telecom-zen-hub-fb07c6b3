@@ -168,16 +168,29 @@ const ClientBillingHub = () => {
     setPayDialogOpen(true);
   };
 
-  const handlePrimaryPayNow = () => {
-    if (unpaidInvoices?.length) {
-      if (activeTab !== "pay-invoice") {
-        handleTabChange("pay-invoice");
-      }
-      handlePayInvoice(unpaidInvoices[0]);
+  const [payingBalance, setPayingBalance] = useState(false);
+
+  const handlePrimaryPayNow = async () => {
+    // Pay the FULL ACCOUNT BALANCE via PayPal (not a single invoice)
+    if (!unpaidInvoices?.length) {
+      handleTabChange("pay-invoice");
       return;
     }
-
-    handleTabChange("pay-invoice");
+    setPayingBalance(true);
+    try {
+      const { data: result, error: invokeErr } = await supabase.functions.invoke(
+        "paypal-balance-pay-create"
+      );
+      if (invokeErr || result?.error) {
+        throw new Error(result?.error || invokeErr?.message || "Erreur PayPal");
+      }
+      const approveLink = result?.links?.find((l: any) => l.rel === "approve")?.href;
+      if (!approveLink) throw new Error("Lien PayPal introuvable");
+      window.location.href = approveLink;
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de la création du paiement PayPal");
+      setPayingBalance(false);
+    }
   };
 
   const handlePaymentSuccess = () => {
