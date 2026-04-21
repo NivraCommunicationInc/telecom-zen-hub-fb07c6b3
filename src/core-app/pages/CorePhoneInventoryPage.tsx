@@ -277,6 +277,7 @@ function fromRow(row: PhoneRow): FormState {
     available_colors: row.available_colors ?? [],
     available_storage: (row.available_storage && row.available_storage.length > 0) ? row.available_storage : [row.storage],
     photos: row.photos ?? [],
+    is_visible_on_site: row.is_visible_on_site ?? true,
   };
 }
 
