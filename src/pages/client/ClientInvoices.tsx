@@ -90,25 +90,70 @@ const ClientInvoices = () => {
     enabled: !!user?.id,
   });
 
-  // ── Fetch V2 invoice IDs, then get breakdowns from RPC ──
+  // ── Fetch V2 invoice IDs (with order_id fallback), then get breakdowns from RPC ──
   const { data: breakdowns, isLoading } = useQuery({
     queryKey: ["client-invoice-breakdowns", user?.id],
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data: customer } = await portalSupabase
+      // Resolve canonical billing customer (by user_id, then by profile email fallback)
+      let customerId: string | null = null;
+      const { data: customerByUser } = await portalSupabase
         .from("billing_customers")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (!customer) return [];
+      customerId = customerByUser?.id ?? null;
 
-      const { data: invoices } = await portalSupabase
-        .from("billing_invoices")
-        .select("id, invoice_number, total, status, balance_due")
-        .eq("customer_id", customer.id)
-        .order("created_at", { ascending: false });
-      if (!invoices || invoices.length === 0) return [];
+      if (!customerId) {
+        const { data: profileRow } = await portalSupabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (profileRow?.email) {
+          const { data: customerByEmail } = await portalSupabase
+            .from("billing_customers")
+            .select("id")
+            .ilike("email", profileRow.email.trim())
+            .maybeSingle();
+          customerId = customerByEmail?.id ?? null;
+        }
+      }
+
+      // Always also try to merge invoices linked through order_id, even when no
+      // billing_customer is yet linked — guarantees clients always see their docs.
+      const { data: ordersRows } = await portalSupabase
+        .from("orders")
+        .select("id")
+        .eq("user_id", user.id);
+      const orderIds = (ordersRows || []).map((o: any) => o.id).filter(Boolean);
+
+      const [byCustomer, byOrders] = await Promise.all([
+        customerId
+          ? portalSupabase
+              .from("billing_invoices")
+              .select("id, invoice_number, total, status, balance_due")
+              .eq("customer_id", customerId)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+        orderIds.length > 0
+          ? portalSupabase
+              .from("billing_invoices")
+              .select("id, invoice_number, total, status, balance_due")
+              .in("order_id", orderIds)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      const merged = new Map<string, any>();
+      for (const row of [...(byCustomer.data || []), ...(byOrders.data || [])]) {
+        if (row?.id) merged.set(row.id, row);
+      }
+      const invoices = Array.from(merged.values());
+      if (invoices.length === 0) return [];
 
       const ids = invoices.map((i) => i.id);
       const bdMap = await fetchInvoiceBreakdowns(ids, portalSupabase);

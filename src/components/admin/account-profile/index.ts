@@ -10,3 +10,4 @@ export { AccountDocumentsTab } from "./AccountDocumentsTab";
 export { AccountCreditTab } from "./AccountCreditTab";
 export { AccountStreamingTab } from "./AccountStreamingTab";
 export { useAccountProfile } from "./useAccountProfile";
+export { AccountIdentifiersBanner } from "./AccountIdentifiersBanner";
