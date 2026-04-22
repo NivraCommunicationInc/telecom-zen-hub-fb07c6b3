@@ -179,14 +179,14 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
     const channel = portalClient
       .channel(`portal-global-sync-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contracts", filter: `owner_user_id=eq.${user.id}` }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "client_auto_documents", filter: `client_id=eq.${user.id}` }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_auto_documents" }, invalidatePortalData)
       .on("postgres_changes", { event: "*", schema: "public", table: "billing_customers" }, invalidatePortalData)
       .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, invalidatePortalData)
       .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, invalidatePortalData)
       .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscriptions" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_lifecycle", filter: `user_id=eq.${user.id}` }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_lifecycle" }, invalidatePortalData)
       .subscribe();
 
     return () => {

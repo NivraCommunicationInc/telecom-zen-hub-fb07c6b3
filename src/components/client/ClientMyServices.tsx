@@ -53,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { ServicesByAddress } from "./ServicesByAddress";
 
 // CANONICAL: Plans are now loaded from the database via usePublicServices hook.
@@ -98,6 +99,7 @@ const ClientMyServices = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = usePortalActivityLog();
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
 
   // CANONICAL: Load all plans from the database catalog
   const { data: catalogServices = [] } = usePublicServices({ surface: "portal" });
@@ -153,45 +155,9 @@ const ClientMyServices = () => {
   const [simType, setSimType] = useState<"sim" | "esim">("sim");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
-  // CANONICAL: V2 billing subscriptions + services ONLY (no legacy fallback)
-  const { data: billingSubscriptions, isLoading: loadingSubs } = useQuery({
-    queryKey: ["client-billing-subscriptions-canonical", user?.id],
-    queryFn: async () => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (!customer) return [];
-      
-      const { data, error } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("*, billing_subscription_services(*), service_addresses(id, label, address_line, city)")
-        .eq("customer_id", customer.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Orders query kept only for ticket context (not for service display)
-  const { data: orders } = useQuery({
-    queryKey: ["client-services-orders", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("orders")
-        .select("id, order_number, status, service_type, created_at")
-        .eq("user_id", user.id)
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const billingSubscriptions = canonicalData?.subscriptions || [];
+  const orders = (canonicalData?.orders || []).filter((order: any) => order?.status !== "cancelled");
+  const loadingSubs = canonicalLoading;
 
 
   // Fetch tickets for message updates
@@ -212,76 +178,21 @@ const ClientMyServices = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch profile for province info only (credit/balance comes from V2 ledger)
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile-province", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("service_province, service_city")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const profile = canonicalData?.profile;
 
   // V2 Ledger Balance - Single source of truth for credit/balance (with portal auth)
   const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
 
-  // Fetch billing/invoices — CANONICAL: billing_invoices via billing_customers
-  const { data: billingRecords } = useQuery({
-    queryKey: ["client-billing-info", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-      const { data, error } = await portalSupabase
-        .from("billing_invoices")
-        .select("id, invoice_number, total, amount_paid, balance_due, status, due_date, paid_at, created_at, order_id")
-        .eq("customer_id", customer.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch payments for last payment reference
-  const { data: payments } = useQuery({
-    queryKey: ["client-payments-info", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // Resolve billing_customer first, then fetch canonical billing_payments
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-      const { data, error } = await portalSupabase
-        .from("billing_payments")
-        .select("id, payment_number, amount, method, status, reference, created_at")
-        .eq("customer_id", customer.id)
-        .in("status", ["confirmed", "pending"])
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return (data || []).map((p: any) => ({
-        ...p,
-        payment_reference: p.payment_number,
-        reference_number: p.reference,
-        payment_method: p.method,
-      }));
-    },
-    enabled: !!user?.id,
-  });
+  const billingRecords = canonicalData?.invoices || [];
+  const payments = (canonicalData?.payments || [])
+    .filter((p: any) => ["confirmed", "pending"].includes(String(p?.status || "").toLowerCase()))
+    .slice(0, 5)
+    .map((p: any) => ({
+      ...p,
+      payment_reference: p.payment_number,
+      reference_number: p.reference,
+      payment_method: p.method,
+    }));
 
   // Fetch client documents
   const { data: documents } = useQuery({

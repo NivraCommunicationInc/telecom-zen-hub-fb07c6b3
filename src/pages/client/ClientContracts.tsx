@@ -25,6 +25,7 @@ import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { TypedSignatureInput } from "@/components/client/TypedSignatureInput";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 /**
  * ClientContracts — CANONICAL DOCUMENT ARCHITECTURE
@@ -49,37 +50,11 @@ const ClientContracts = () => {
   const [typedSignature, setTypedSignature] = useState("");
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const pdfViewer = usePDFViewer();
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
 
-  // Fetch contracts for current user
-  const { data: contracts, isLoading } = useQuery({
-    queryKey: ["client-contracts", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("contracts")
-        .select("*")
-        .eq("owner_user_id", user?.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch profile for signing display only (NOT for document generation)
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const contracts = canonicalData?.contracts || [];
+  const profile = canonicalData?.profile;
+  const isLoading = canonicalLoading;
 
   // Sign contract mutation
   const signContractMutation = useMutation({
