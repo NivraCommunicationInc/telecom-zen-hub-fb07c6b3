@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBillingCycleDescription, BILLING_CONSTANTS } from "@/lib/billingCycleUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PayPalButton } from "@/components/payment/PayPalButton";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 // StripeInlinePayment removed — Stripe disabled
 import { ETRANSFER_CONFIG } from "@/config/company";
 
@@ -39,6 +40,7 @@ const ClientMonthlyInvoices = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -50,25 +52,9 @@ const ClientMonthlyInvoices = () => {
     queryKey: ["client-monthly-invoices", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Resolve billing_customer first
-      const { data: customer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-
-      const { data, error } = await supabase
-        .from("billing_invoices")
-        .select("*")
-        .eq("customer_id", customer.id)
-        .not("order_id", "is", null)
-        .not("status", "in", "(\"void\",\"failed\")")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      // Map canonical fields to the shape used by the template
-      return (data || []).map((inv: any) => ({
+      return (canonicalData?.invoices || [])
+        .filter((inv: any) => inv?.order_id && !["void", "failed"].includes(String(inv?.status || "").toLowerCase()))
+        .map((inv: any) => ({
         ...inv,
         period_start: inv.cycle_start_date,
         period_end: inv.cycle_end_date,
@@ -86,20 +72,9 @@ const ClientMonthlyInvoices = () => {
     queryKey: ["client-subscriptions-billing", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Resolve billing_customer first
-      const { data: customer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-      const { data, error } = await supabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category")
-        .eq("customer_id", customer.id)
-        .in("status", ["active", "pending", "suspended"]);
-      if (error) throw error;
-      return data || [];
+      return (canonicalData?.subscriptions || []).filter((subscription: any) =>
+        ["active", "pending", "suspended"].includes(String(subscription?.status || "").toLowerCase())
+      );
     },
     enabled: !!user?.id,
     staleTime: 0,
@@ -112,14 +87,15 @@ const ClientMonthlyInvoices = () => {
     queryKey: ["client-account-billing", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, account_number, billing_cycle_day, next_invoice_date, status")
-        .eq("client_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
+      return canonicalData?.account
+        ? {
+            id: canonicalData.account.id,
+            account_number: canonicalData.account.account_number,
+            billing_cycle_day: canonicalData.account.billing_cycle_day,
+            next_invoice_date: canonicalData.account.next_invoice_date,
+            status: canonicalData.account.status,
+          }
+        : null;
     },
     enabled: !!user?.id,
     staleTime: 0,
