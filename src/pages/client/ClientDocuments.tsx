@@ -24,8 +24,7 @@ import {
 } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { AutoDocumentsTab } from "@/components/client/AutoDocumentsTab";
-import { useQuery } from "@tanstack/react-query";
-import { portalClient as supabase } from "@/integrations/backend/portalClient";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -49,65 +48,11 @@ const ClientDocuments = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("official");
 
-  // Fetch client profile
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("full_name, email, client_number")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch client account
-  const { data: account } = useQuery({
-    queryKey: ["client-account", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, account_number")
-        .eq("client_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch orders for terms documents
-  const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ["client-orders-for-docs", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, order_number, created_at, status, service_type")
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch contracts
-  const { data: contracts, isLoading: contractsLoading } = useQuery({
-    queryKey: ["client-contracts-for-docs", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contracts")
-        .select("id, contract_number, contract_name, created_at, is_signed, signed_at")
-        .eq("owner_user_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
+  const profile = canonicalData?.profile;
+  const account = canonicalData?.account;
+  const orders = canonicalData?.orders || [];
+  const contracts = canonicalData?.contracts || [];
 
   const handleDownloadTerms = (order: { id: string; order_number: string; created_at: string }) => {
     try {
@@ -124,8 +69,6 @@ const ClientDocuments = () => {
       toast.error("Erreur lors du téléchargement");
     }
   };
-
-  const isLoading = ordersLoading || contractsLoading;
 
   return (
     <ClientLayout>

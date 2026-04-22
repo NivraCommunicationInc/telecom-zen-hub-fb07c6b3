@@ -8,6 +8,7 @@ export const CLIENT_REALTIME_QUERY_KEYS = [
   "client-orders-count",
   "client-orders-for-docs",
   "client-orders-in-progress",
+  "client-orders-in-progress-appointments",
   "client-profile",
   "client-profile-dashboard",
   "client-account",
@@ -28,6 +29,8 @@ export const CLIENT_REALTIME_QUERY_KEYS = [
   "client-contracts",
   "client-contracts-for-docs",
   "client-auto-documents",
+  "billing-hub-unpaid",
+  "billing-hub-all-invoices",
   "client-subscriptions-count",
   "ledger-history-v2",
   "ledger-balance",
@@ -52,6 +55,8 @@ export const OPERATIONAL_REALTIME_QUERY_KEYS = [
   "account-profile-subscriptions",
   "billing-invoices",
   "billing-payments",
+  "account-profile-billing-customer",
+  "account-docs-contracts",
   "admin-activity-logs",
 ] as const;
 
