@@ -43,10 +43,13 @@ export const useClientAccountIdentity = (userId?: string) => {
 
       const profileClientNumber = cleanValue(profile?.client_number);
 
-      const maps = await buildCanonicalAccountMaps(portalClient, { userIds: [userId] });
+      const maps = await buildCanonicalAccountMaps(portalClient, {
+        userIds: [userId],
+        accountIds: [userId],
+      });
       const accountNumber = cleanValue(
         resolveCanonicalAccountNumber(maps, { userId }),
-      );
+      ) ?? cleanValue((await portalClient.from("accounts").select("account_number").eq("client_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.account_number);
 
       if (accountNumber) {
         return {
