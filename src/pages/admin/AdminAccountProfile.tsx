@@ -19,6 +19,7 @@ import {
   AccountDocumentsTab,
   AccountCreditTab,
   AccountStreamingTab,
+  AccountIdentifiersBanner,
   useAccountProfile,
 } from "@/components/admin/account-profile";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
@@ -55,6 +56,18 @@ export default function AdminAccountProfile() {
   return (
     <AdminLayout>
       <div className="space-y-4 pb-8">
+        {/* Identifier verification banner — confirms canonical links */}
+        <AccountIdentifiersBanner
+          accountId={data.account?.id}
+          clientId={data.clientId}
+          customerId={data.customerId}
+          profileEmail={data.profile?.email}
+          ordersCount={data.orders.length}
+          invoicesCount={data.invoices.length}
+          paymentsCount={data.payments.length}
+          contractsCount={0}
+        />
+
         {/* Account Header */}
         <AccountProfileHeader
           account={data.account}
