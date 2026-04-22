@@ -28,31 +28,42 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
   const [pdfFilename, setPdfFilename] = useState("");
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  // Contracts from order_snapshots
+  // Contracts from canonical contracts table, fallback to order snapshots
   const { data: contracts, isLoading: contractsLoading } = useQuery({
     queryKey: ["account-docs-contracts", accountId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("order_snapshots")
-        .select("id, order_id, created_at, contract_summary_snapshot")
-        .eq("account_id", accountId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error || !data?.length) {
-        // Fallback: get orders for account and find snapshots
-        const { data: orders } = await supabase.from("orders").select("id").eq("account_id", accountId);
-        if (orders?.length) {
-          const { data: fallback } = await supabase
-            .from("order_snapshots")
-            .select("id, order_id, created_at, contract_summary_snapshot")
-            .in("order_id", orders.map(o => o.id))
-            .order("created_at", { ascending: false })
-            .limit(20);
-          return fallback || [];
-        }
-        return [];
+      const { data: orders, error: ordersError } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("account_id", accountId);
+
+      if (ordersError) throw ordersError;
+
+      const orderIds = (orders || []).map((order) => order.id).filter(Boolean);
+
+      if (orderIds.length > 0) {
+        const { data: canonicalContracts, error: contractsError } = await supabase
+          .from("contracts")
+          .select("id, order_id, created_at, contract_name, contract_number, is_signed, signed_at, client_signed_at")
+          .in("order_id", orderIds)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (contractsError) throw contractsError;
+        if (canonicalContracts?.length) return canonicalContracts;
+
+        const { data: snapshots, error: snapshotsError } = await supabase
+          .from("order_snapshots")
+          .select("id, order_id, created_at, contract_summary_snapshot")
+          .in("order_id", orderIds)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (snapshotsError) throw snapshotsError;
+        return snapshots || [];
       }
-      return data || [];
+
+      return [];
     },
     enabled: !!accountId,
   });
@@ -180,12 +191,20 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
               <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleViewOrder(c.order_id)}>
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium hover:underline">Contrat — {c.order_id?.slice(0, 8)}</p>
+                  <p className="text-sm font-medium hover:underline">
+                    {c.contract_name || c.contract_number || `Contrat — ${c.order_id?.slice(0, 8)}`}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {c.created_at && format(new Date(c.created_at), "d MMM yyyy", { locale: fr })}
                   </p>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                {typeof c.is_signed === "boolean" && (
+                  <Badge variant={c.is_signed || c.client_signed_at || c.signed_at ? "default" : "outline"} className="text-[10px]">
+                    {c.is_signed || c.client_signed_at || c.signed_at ? "Signé" : "En attente"}
+                  </Badge>
+                )}
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleViewContract(c)} title="Voir">
                   <Eye className="h-3.5 w-3.5" />
@@ -196,6 +215,7 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSendContract(c)} title="Envoyer au client">
                   <Send className="h-3.5 w-3.5" />
                 </Button>
+              </div>
               </div>
             </div>
           ))

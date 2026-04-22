@@ -14,7 +14,10 @@ interface AccountOrdersTabProps {
 
 const orderStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "En attente", variant: "outline" },
+  confirmed: { label: "Confirmée", variant: "secondary" },
   processing: { label: "En traitement", variant: "secondary" },
+  shipped: { label: "Expédiée", variant: "secondary" },
+  out_for_delivery: { label: "En livraison", variant: "secondary" },
   completed: { label: "Terminée", variant: "default" },
   cancelled: { label: "Annulée", variant: "destructive" },
   delivered: { label: "Livrée", variant: "default" },
@@ -52,8 +55,10 @@ export function AccountOrdersTab({ orders }: AccountOrdersTabProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {order.total_price != null && (
-                    <span className="text-sm font-medium">{order.total_price.toFixed(2)} $</span>
+                  {(order.total_amount != null || order.pricing_snapshot?.grand_total != null) && (
+                    <span className="text-sm font-medium">
+                      {Number(order.pricing_snapshot?.grand_total ?? order.total_amount).toFixed(2)} $
+                    </span>
                   )}
                   <Badge variant={st.variant} className="text-[10px]">{st.label}</Badge>
                   <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
