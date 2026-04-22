@@ -13041,7 +13041,7 @@ export type Database = {
           blocked_by: string | null
           blocked_by_role: string | null
           blocked_reason: string | null
-          client_number: string | null
+          client_number: string
           client_pin: string | null
           client_pin_hash: string | null
           client_type: string | null
@@ -13113,7 +13113,7 @@ export type Database = {
           blocked_by?: string | null
           blocked_by_role?: string | null
           blocked_reason?: string | null
-          client_number?: string | null
+          client_number: string
           client_pin?: string | null
           client_pin_hash?: string | null
           client_type?: string | null
@@ -13185,7 +13185,7 @@ export type Database = {
           blocked_by?: string | null
           blocked_by_role?: string | null
           blocked_reason?: string | null
-          client_number?: string | null
+          client_number?: string
           client_pin?: string | null
           client_pin_hash?: string | null
           client_type?: string | null
@@ -19464,6 +19464,7 @@ export type Database = {
         }[]
       }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
+      get_client_history_snapshot: { Args: { _user_id: string }; Returns: Json }
       get_client_ledger_balance: {
         Args: { p_client_id: string }
         Returns: {
@@ -19947,6 +19948,23 @@ export type Database = {
           error_message: string
           is_valid: boolean
           role: string
+        }[]
+      }
+      verify_client_identity_links: {
+        Args: { _user_id: string }
+        Returns: {
+          account_id: string
+          auto_document_count: number
+          billing_customer_ids: string[]
+          client_number: string
+          contract_count: number
+          invoice_count: number
+          is_consistent: boolean
+          order_ids: string[]
+          payment_count: number
+          profile_email: string
+          used_email_fallback: boolean
+          user_id: string
         }[]
       }
       verify_pin: {
