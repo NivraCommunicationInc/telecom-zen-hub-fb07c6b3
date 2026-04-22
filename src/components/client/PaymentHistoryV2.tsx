@@ -3,8 +3,6 @@
  * Uses V2 billing tables as source of truth
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { portalClient } from "@/integrations/backend/portalClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +17,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getPaymentStatusInfo, getPaymentMethodLabel } from "@/lib/paymentStatusUtils";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 interface PaymentHistoryV2Props {
   userId: string;
@@ -36,76 +35,28 @@ interface LedgerEntry {
 }
 
 export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
-  const { data: entries, isLoading } = useQuery({
-    queryKey: ["ledger-history-v2", userId],
-    queryFn: async () => {
-      // Get customer_id first
-      const { data: customer } = await portalClient
-        .from('billing_customers')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!customer) return [];
-
-      // Fetch invoices (debits) from canonical source only
-      const { data: invoices } = await portalClient
-        .from('billing_invoices')
-        .select('id, invoice_number, created_at, total, status')
-        .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      // Fetch payments (credits) from canonical source only
-      const { data: payments } = await portalClient
-        .from('billing_payments')
-        .select('id, payment_number, reference, created_at, amount, status, method')
-        .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      const ledgerEntries: LedgerEntry[] = [];
-
-      // Add invoices as debits (no fallback identifiers)
-      for (const inv of invoices || []) {
-        if (!inv.invoice_number) {
-          throw new Error(`CANONICAL_INVARIANT_VIOLATION: invoice_number missing for invoice ${inv.id}`);
-        }
-
-        ledgerEntries.push({
-          id: inv.id,
-          type: 'debit',
-          date: inv.created_at,
-          description: `Facture ${inv.invoice_number}`,
-          amount: Number(inv.total) || 0,
-          reference: inv.invoice_number,
-          status: inv.status,
-        });
-      }
-
-      // Add payments as credits (keep exact canonical reference field)
-      for (const pay of payments || []) {
-        ledgerEntries.push({
-          id: pay.id,
-          type: 'credit',
-          date: pay.created_at,
-          description: `Paiement ${pay.payment_number}`,
-          amount: Number(pay.amount) || 0,
-          reference: pay.reference,
-          status: pay.status,
-          method: pay.method,
-        });
-      }
-
-      // Sort by date descending
-      ledgerEntries.sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-
-      return ledgerEntries;
-    },
-    enabled: !!userId,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
+  const entries: LedgerEntry[] = [
+    ...((canonicalData?.invoices || []).map((inv: any) => ({
+      id: inv.id,
+      type: 'debit' as const,
+      date: inv.created_at,
+      description: `Facture ${inv.invoice_number || inv.id}`,
+      amount: Number(inv.total) || 0,
+      reference: inv.invoice_number || null,
+      status: String(inv.status || ''),
+    }))),
+    ...((canonicalData?.payments || []).map((pay: any) => ({
+      id: pay.id,
+      type: 'credit' as const,
+      date: pay.created_at,
+      description: `Paiement ${pay.payment_number || pay.id}`,
+      amount: Number(pay.amount) || 0,
+      reference: pay.reference,
+      status: String(pay.status || ''),
+      method: pay.method || undefined,
+    }))),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const credits = entries?.filter(e => e.type === 'credit') || [];
   const debits = entries?.filter(e => e.type === 'debit') || [];
