@@ -174,6 +174,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
     const invalidatePortalData = () => {
       const keys = [
+        "canonical-client-data",
         "client-orders",
         "client-orders-all",
         "client-order-lifecycle",
@@ -188,6 +189,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         "client-accounts",
         "client-service-locations",
         "client-invoice-breakdowns",
+        "client-invoices",
+        "client-payments",
         "client-billing-subscriptions",
         "client-billing-subscriptions-canonical",
         "client-subscriptions",
@@ -197,7 +200,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         "client-contracts-for-docs",
         "client-auto-documents",
         "ledger-history-v2",
+        "ledger-balance",
         "portal-section-badges",
+        "overdue-count-unified",
       ];
 
       keys.forEach((key) => {
