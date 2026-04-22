@@ -6,6 +6,7 @@ import { ReactNode, useCallback, useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LogOut,
   Menu,
@@ -110,6 +111,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useClientAuth();
+  const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -166,6 +168,49 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     }
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const invalidatePortalData = () => {
+      const keys = [
+        "client-orders",
+        "client-orders-all",
+        "client-orders-in-progress",
+        "client-profile-dashboard",
+        "client-invoice-breakdowns",
+        "client-billing-subscriptions",
+        "client-billing-subscriptions-canonical",
+        "client-subscriptions",
+        "client-subscriptions-billing",
+        "client-monthly-invoices",
+        "client-contracts",
+        "client-auto-documents",
+        "ledger-history-v2",
+        "portal-section-badges",
+      ];
+
+      keys.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      });
+    };
+
+    const channel = portalClient
+      .channel(`portal-global-sync-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contracts", filter: `owner_user_id=eq.${user.id}` }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_auto_documents", filter: `client_id=eq.${user.id}` }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_customers" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscriptions" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_lifecycle", filter: `user_id=eq.${user.id}` }, invalidatePortalData)
+      .subscribe();
+
+    return () => {
+      portalClient.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
 
   return (
     <ImpersonationProvider>
