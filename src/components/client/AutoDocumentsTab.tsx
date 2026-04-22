@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { DOC_TYPE_LABELS, type AutoDocType } from "@/lib/pdf/autoDocumentDispatcher";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 interface AutoDocumentsTabProps {
   userId: string | undefined;
@@ -21,17 +22,10 @@ interface AutoDocumentsTabProps {
 const STORAGE_BUCKET = "client-documents";
 
 export function AutoDocumentsTab({ userId }: AutoDocumentsTabProps) {
+  const { data: canonicalData } = useCanonicalClientData(userId);
   const { data: docs, isLoading } = useQuery({
     queryKey: ["client-auto-documents", userId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("client_auto_documents")
-        .select("id, doc_type, doc_number, event_type, storage_path, file_size_bytes, email_sent, email_sent_at, created_at")
-        .eq("client_id", userId!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: async () => canonicalData?.autoDocuments || [],
     enabled: !!userId,
   });
 

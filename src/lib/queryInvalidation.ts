@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 export const CLIENT_REALTIME_QUERY_KEYS = [
   "canonical-client-data",
+  "client-balance-summary",
   "client-orders",
   "client-orders-all",
   "client-order-lifecycle",
@@ -11,6 +12,7 @@ export const CLIENT_REALTIME_QUERY_KEYS = [
   "client-orders-in-progress-appointments",
   "client-services-orders",
   "client-profile",
+  "client-profile-province",
   "client-profile-dashboard",
   "client-account",
   "client-account-billing",

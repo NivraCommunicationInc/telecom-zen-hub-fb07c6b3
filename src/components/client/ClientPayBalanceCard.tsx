@@ -10,14 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { CreditCard, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const ClientPayBalanceCard = () => {
   const { user } = useClientAuth();
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,29 +26,13 @@ export const ClientPayBalanceCard = () => {
     queryKey: ["client-balance-summary", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data: customer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return { totalBalance: 0, invoiceCount: 0 };
-
-      // Compute account balance using SAME formula as ledger:
-      // balance = sum(non-cancelled invoice totals) - sum(confirmed payments)
-      const { data: invoices } = await supabase
-        .from("billing_invoices")
-        .select("total, balance_due, status")
-        .eq("customer_id", customer.id)
-        .not("status", "in", '("cancelled","refunded","void")');
-
-      const { data: payments } = await supabase
-        .from("billing_payments")
-        .select("amount")
-        .eq("customer_id", customer.id)
-        .eq("status", "confirmed");
+      const invoices = canonicalData?.invoices || [];
+      const payments = canonicalData?.payments || [];
 
       const debits = (invoices || []).reduce((s, i: any) => s + (Number(i.total) || 0), 0);
-      const credits = (payments || []).reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+      const credits = (payments || [])
+        .filter((p: any) => String(p.status || "").toLowerCase() === "confirmed")
+        .reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
       const total = Math.round((debits - credits) * 100) / 100;
 
       const CLOSED = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
@@ -57,6 +42,7 @@ export const ClientPayBalanceCard = () => {
 
       return { totalBalance: total, invoiceCount: unpaidCount };
     },
+    staleTime: 30_000,
   });
 
   // Handle return from PayPal
