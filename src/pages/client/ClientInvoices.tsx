@@ -18,6 +18,7 @@ import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
 import { generateCanonicalInvoicePDF, generateCanonicalOrderSummaryPDF, generateCanonicalReceiptPDF } from "@/lib/pdf";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 /**
  * ClientInvoices — CANONICAL DOCUMENT ARCHITECTURE
@@ -75,6 +76,7 @@ const ClientInvoices = () => {
   // Pay dialog state
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payingInvoice, setPayingInvoice] = useState<InvoiceBreakdown | null>(null);
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
 
   // ── Profile (for pay dialog only, NOT for document generation) ──
   const { data: profile } = useQuery({
@@ -97,62 +99,7 @@ const ClientInvoices = () => {
     refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!user?.id) return [];
-
-      // Resolve canonical billing customer (by user_id, then by profile email fallback)
-      let customerId: string | null = null;
-      const { data: customerByUser } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      customerId = customerByUser?.id ?? null;
-
-      if (!customerId) {
-        const { data: profileRow } = await portalSupabase
-          .from("profiles")
-          .select("email")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (profileRow?.email) {
-          const { data: customerByEmail } = await portalSupabase
-            .from("billing_customers")
-            .select("id")
-            .ilike("email", profileRow.email.trim())
-            .maybeSingle();
-          customerId = customerByEmail?.id ?? null;
-        }
-      }
-
-      // Always also try to merge invoices linked through order_id, even when no
-      // billing_customer is yet linked — guarantees clients always see their docs.
-      const { data: ordersRows } = await portalSupabase
-        .from("orders")
-        .select("id")
-        .eq("user_id", user.id);
-      const orderIds = (ordersRows || []).map((o: any) => o.id).filter(Boolean);
-
-      const [byCustomer, byOrders] = await Promise.all([
-        customerId
-          ? portalSupabase
-              .from("billing_invoices")
-              .select("id, invoice_number, total, status, balance_due")
-              .eq("customer_id", customerId)
-              .order("created_at", { ascending: false })
-          : Promise.resolve({ data: [], error: null } as any),
-        orderIds.length > 0
-          ? portalSupabase
-              .from("billing_invoices")
-              .select("id, invoice_number, total, status, balance_due")
-              .in("order_id", orderIds)
-              .order("created_at", { ascending: false })
-          : Promise.resolve({ data: [], error: null } as any),
-      ]);
-
-      const merged = new Map<string, any>();
-      for (const row of [...(byCustomer.data || []), ...(byOrders.data || [])]) {
-        if (row?.id) merged.set(row.id, row);
-      }
-      const invoices = Array.from(merged.values());
+      const invoices = canonicalData?.invoices || [];
       if (invoices.length === 0) return [];
 
       const ids = invoices.map((i) => i.id);
