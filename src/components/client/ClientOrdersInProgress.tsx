@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 type OrderRow = {
   id: string;
@@ -130,23 +131,11 @@ function OrderTimeline({ status }: { status: string }) {
 
 export default function ClientOrdersInProgress() {
   const { user } = useClientAuth();
-
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["client-orders-in-progress", user?.id],
-    enabled: !!user?.id,
-    refetchInterval: 30_000, // live tracking
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("orders")
-        .select("id, order_number, status, service_type, total_amount, payment_status, created_at")
-        .eq("user_id", user!.id)
-        .not("status", "in", '("cancelled","refunded","completed")')
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return (data || []) as OrderRow[];
-    },
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
+  const orders = ((canonicalData?.orders || []) as OrderRow[])
+    .filter((order) => !["cancelled", "refunded", "completed"].includes(String(order.status || "").toLowerCase()))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
 
   const orderIds = orders.map((o) => o.id);
 
