@@ -92,18 +92,30 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!accountId || !!clientId,
   });
 
-  // Billing invoices (from billing_invoices via billing_customers)
+  // Billing invoices (from billing_invoices via billing_customers).
+  // Resolves customer first by user_id, then by profile email as fallback,
+  // so admin always sees the client's invoices/payments even if the link is partial.
   const billingCustomer = useQuery({
-    queryKey: ["account-profile-billing-customer", clientId],
+    queryKey: ["account-profile-billing-customer", clientId, profile.data?.email],
     queryFn: async () => {
       if (!clientId) return null;
-      const { data, error } = await supabase
+      const { data: byUser, error: byUserErr } = await supabase
         .from("billing_customers")
         .select("*")
         .eq("user_id", clientId)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (byUserErr) throw byUserErr;
+      if (byUser) return byUser;
+
+      const email = (profile.data as any)?.email;
+      if (!email) return null;
+      const { data: byEmail, error: byEmailErr } = await supabase
+        .from("billing_customers")
+        .select("*")
+        .ilike("email", String(email).trim())
+        .maybeSingle();
+      if (byEmailErr) throw byEmailErr;
+      return byEmail || null;
     },
     enabled: !!clientId,
   });
