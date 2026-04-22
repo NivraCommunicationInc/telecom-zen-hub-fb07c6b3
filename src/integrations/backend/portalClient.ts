@@ -17,4 +17,36 @@ export const portalClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
     persistSession: true,
     autoRefreshToken: true,
   },
+  global: {
+    fetch: async (input, init) => {
+      const headers = new Headers(init?.headers || {});
+
+      try {
+        const raw = sessionStorage.getItem("nivra_impersonation_v1");
+        if (raw) {
+          const parsed = JSON.parse(raw) as { expiresAt?: string };
+          const stillValid = parsed?.expiresAt ? new Date(parsed.expiresAt).getTime() > Date.now() : true;
+
+          if (stillValid) {
+            const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+            const adminStorageKey = `sb-${projectId}-staff-auth-token`;
+            const adminRaw = localStorage.getItem(adminStorageKey);
+            const adminSession = adminRaw ? JSON.parse(adminRaw) : null;
+            const adminAccessToken = adminSession?.access_token;
+
+            if (adminAccessToken && !headers.has("Authorization")) {
+              headers.set("Authorization", `Bearer ${adminAccessToken}`);
+            }
+          }
+        }
+      } catch {
+        // Ignore impersonation header fallback errors and continue with default auth.
+      }
+
+      return fetch(input, {
+        ...init,
+        headers,
+      });
+    },
+  },
 });

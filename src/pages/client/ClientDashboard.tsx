@@ -40,6 +40,7 @@ const ClientDashboard = () => {
   // Fetch from billing_subscriptions (V2 source of truth) — ALL non-cancelled
   const { data: subscriptions } = useQuery({
     queryKey: ["client-billing-subscriptions", user?.id],
+    refetchInterval: 30_000,
     queryFn: async () => {
       if (!user?.id) return [];
       const { data: customer } = await portalSupabase
@@ -87,6 +88,7 @@ const ClientDashboard = () => {
 
   const { data: orders } = useQuery({
     queryKey: ["client-orders", user?.id],
+    refetchInterval: 30_000,
     queryFn: async () => {
       if (!user?.id) return [];
       const { data } = await portalSupabase
