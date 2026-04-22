@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
-import { useQuery } from "@tanstack/react-query";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -23,84 +23,22 @@ const ClientDashboard = () => {
   });
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
 
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile-dashboard", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await portalSupabase
-        .from("profiles")
-        .select("full_name, client_number, account_status, phone")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch from billing_subscriptions (V2 source of truth) — ALL non-cancelled
-  const { data: subscriptions } = useQuery({
-    queryKey: ["client-billing-subscriptions", user?.id],
-    refetchInterval: 30_000,
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) {
-        console.warn("[ClientDashboard] Aucun billing_customer trouvé — le client n'a pas encore de profil de facturation V2.");
-        return [];
-      }
-      const { data: subs } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("*, services:billing_subscription_services(*)")
-        .eq("customer_id", customer.id)
-        .not("status", "in", '("cancelled","expired")');
-      return (subs || []).map((s: any) => ({
-        id: s.id,
-        plan_name: s.plan_name,
-        amount: s.plan_price,
-        billing_cycle: "monthly",
-        service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
-        status: s.status,
-        cycle_start_date: s.cycle_start_date,
-        cycle_end_date: s.cycle_end_date,
-      }));
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch account for billing_cycle_day + next_invoice_date
-  const { data: account } = useQuery({
-    queryKey: ["client-account-billing", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await portalSupabase
-        .from("accounts")
-        .select("billing_cycle_day, next_invoice_date, status")
-        .eq("client_id", user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: orders } = useQuery({
-    queryKey: ["client-orders", user?.id],
-    refetchInterval: 30_000,
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await portalSupabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
+  const profile = canonicalData?.profile;
+  const account = canonicalData?.account;
+  const orders = canonicalData?.orders?.slice(0, 3) || [];
+  const subscriptions = (canonicalData?.subscriptions || [])
+    .filter((s: any) => !["cancelled", "expired"].includes(String(s?.status || "").toLowerCase()))
+    .map((s: any) => ({
+      id: s.id,
+      plan_name: s.plan_name,
+      amount: s.plan_price,
+      billing_cycle: "monthly",
+      service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
+      status: s.status,
+      cycle_start_date: s.cycle_start_date,
+      cycle_end_date: s.cycle_end_date,
+    }));
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

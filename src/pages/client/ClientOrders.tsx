@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard, FileText, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -28,72 +27,13 @@ const isProInstall = (order: any) => order?.installation_type === "technician";
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
-  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ["client-orders-all", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await portalSupabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Phase 3 — Données lifecycle agrégées (timeline self/pro, shipment, activation)
-  const { data: lifecycleRows } = useQuery({
-    queryKey: ["client-order-lifecycle", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("order_lifecycle" as any)
-        .select("*")
-        .eq("user_id", user.id);
-      if (error) {
-        console.warn("[ClientOrders] order_lifecycle fetch failed", error);
-        return [];
-      }
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const lifecycleByOrderId: Record<string, any> = {};
-  (lifecycleRows || []).forEach((r: any) => {
-    if (r?.order_id) lifecycleByOrderId[r.order_id] = r;
-  });
-
-  // REALTIME: Subscribe to order changes for automatic status updates
-  useEffect(() => {
-    if (!user?.id) return;
-    
-    const channel = portalSupabase
-      .channel("client-orders-realtime")
-      .on("postgres_changes", { 
-        event: "*", 
-        schema: "public", 
-        table: "orders",
-        filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        console.log("[ClientOrders] Realtime update received:", payload);
-        // Invalidate to refetch - RLS will filter appropriately
-        queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
-      })
-      .subscribe();
-
-    return () => {
-      portalSupabase.removeChannel(channel);
-    };
-  }, [queryClient, user?.id]);
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
+  const orders = canonicalData?.orders || [];
+  const lifecycleByOrderId = canonicalData?.orderLifecycle || {};
 
   const statusColors: Record<string, string> = {
     pending: "bg-amber-100 text-amber-700",
