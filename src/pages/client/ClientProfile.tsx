@@ -39,6 +39,7 @@ import ClientPinConfirmDialog from "@/components/client/ClientPinConfirmDialog";
 import ClientMFASetup from "@/components/client/ClientMFASetup";
 import ClientEmailChange from "@/components/client/ClientEmailChange";
 import { useWriteGuard } from "@/hooks/useWriteGuard";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import ClientNotificationPreferences from "@/components/client/ClientNotificationPreferences";
 import ClientLanguagePreference from "@/components/client/ClientLanguagePreference";
 import ClientAccountDeletion from "@/components/client/ClientAccountDeletion";
@@ -49,6 +50,7 @@ const ClientProfile = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -683,11 +685,11 @@ const ClientProfile = () => {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                   <span className="text-muted-foreground">Abonnements actifs</span>
-                  <span className="font-bold text-foreground">{subscriptions?.length || 0}</span>
+                  <span className="font-bold text-foreground">{canonicalData?.subscriptions?.length || subscriptions?.length || 0}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                   <span className="text-muted-foreground">Total commandes</span>
-                  <span className="font-bold text-foreground">{orders?.length || 0}</span>
+                  <span className="font-bold text-foreground">{canonicalData?.orders?.length || orders?.length || 0}</span>
                 </div>
                 {profile?.employer_discount && (
                   <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">

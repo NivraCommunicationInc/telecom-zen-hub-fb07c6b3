@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
 import { Badge } from "@/components/ui/badge";
 import { ImpersonationProvider } from "@/components/client/ImpersonationBanner";
+import { invalidateClientRealtimeQueries } from "@/lib/queryInvalidation";
 
 const PURPLE = "#6b21e8";
 const PURPLE_LIGHT = "#ede9fe";
@@ -173,41 +174,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     if (!user?.id) return;
 
     const invalidatePortalData = () => {
-      const keys = [
-        "canonical-client-data",
-        "client-orders",
-        "client-orders-all",
-        "client-order-lifecycle",
-        "client-orders-count",
-        "client-orders-for-docs",
-        "client-orders-in-progress",
-        "client-profile",
-        "client-profile-dashboard",
-        "client-account",
-        "client-account-billing",
-        "client-account-identity",
-        "client-accounts",
-        "client-service-locations",
-        "client-invoice-breakdowns",
-        "client-invoices",
-        "client-payments",
-        "client-billing-subscriptions",
-        "client-billing-subscriptions-canonical",
-        "client-subscriptions",
-        "client-subscriptions-billing",
-        "client-monthly-invoices",
-        "client-contracts",
-        "client-contracts-for-docs",
-        "client-auto-documents",
-        "ledger-history-v2",
-        "ledger-balance",
-        "portal-section-badges",
-        "overdue-count-unified",
-      ];
-
-      keys.forEach((key) => {
-        queryClient.invalidateQueries({ queryKey: [key] });
-      });
+      invalidateClientRealtimeQueries(queryClient);
     };
 
     const channel = portalClient

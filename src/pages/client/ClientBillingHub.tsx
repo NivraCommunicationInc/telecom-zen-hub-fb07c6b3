@@ -43,6 +43,7 @@ import { AddAccountCredit } from "@/components/client/AddAccountCredit";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -66,6 +67,7 @@ const ClientBillingHub = () => {
   const { user } = useClientAuth();
   const queryClient = useQueryClient();
   const writeGuard = useWriteGuard();
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "pay-invoice";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -87,14 +89,7 @@ const ClientBillingHub = () => {
   // Profile for payment dialog
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data } = await portalSupabase
-        .from("profiles")
-        .select("full_name, email, phone")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      return data;
-    },
+    queryFn: async () => canonicalData?.profile ?? null,
     enabled: !!user?.id,
   });
 
@@ -103,19 +98,9 @@ const ClientBillingHub = () => {
     queryKey: ["billing-hub-unpaid", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-
-      const { data: invoices } = await portalSupabase
-        .from("billing_invoices")
-        .select("id, invoice_number, total, status, balance_due, due_date, created_at, type")
-        .eq("customer_id", customer.id)
-        .not("status", "in", '("paid","cancelled","refunded","void","paid_by_promo")')
-        .order("due_date", { ascending: true });
+      const invoices = (canonicalData?.invoices || [])
+        .filter((invoice: any) => !["paid", "cancelled", "refunded", "void", "paid_by_promo"].includes(String(invoice?.status || "").toLowerCase()))
+        .sort((a: any, b: any) => new Date(a?.due_date || a?.created_at || 0).getTime() - new Date(b?.due_date || b?.created_at || 0).getTime());
 
       if (!invoices || invoices.length === 0) return [];
 
@@ -140,21 +125,9 @@ const ClientBillingHub = () => {
     queryKey: ["billing-hub-all-invoices", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-
-      const { data } = await portalSupabase
-        .from("billing_invoices")
-        .select("id, invoice_number, total, status, balance_due, due_date, created_at, type, amount_paid, paid_at")
-        .eq("customer_id", customer.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      return data || [];
+      return [...(canonicalData?.invoices || [])]
+        .sort((a: any, b: any) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())
+        .slice(0, 50);
     },
     enabled: !!user?.id,
   });
