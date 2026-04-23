@@ -59,6 +59,7 @@ const navGroups: Array<{
       { path: "/portal/billing", label: "Faire un paiement", badgeKey: "billing" },
       { path: "/portal/billing?tab=add-credit", label: "Ajouter un crédit" },
       { path: "/portal/invoices", label: "Mes factures", badgeKey: "billing" },
+      { path: "/portal/paiement", label: "Mode de paiement" },
       { path: "/portal/payments", label: "Moyens de paiement" },
       { path: "/portal/monthly-invoices", label: "Historique des paiements" },
     ],
