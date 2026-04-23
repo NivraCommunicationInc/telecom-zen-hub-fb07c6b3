@@ -134,7 +134,7 @@ serve(async (req) => {
         .from("paypal_autopay_attempts")
         .insert({
           user_id: userId,
-          billing_subscription_id: billingSubscriptionId,
+          billing_subscription_id: billingSubscriptionId || null,
           status: "started",
           current_step: "click",
           ip_address: ipAddress,
@@ -213,6 +213,27 @@ serve(async (req) => {
         subscription = createdSubscription;
         billingSubscriptionId = createdSubscription.id;
       }
+    }
+
+    if (customer && !subscription) {
+      const { data: createdSubscription, error: createSubscriptionError } = await adminSupabase
+        .from("billing_subscriptions")
+        .insert({
+          customer_id: customer.id,
+          plan_code: "PAYPAL_PREAUTH",
+          plan_name: "Paiement pré-autorisé",
+          plan_price: 0,
+          status: "pending",
+          auto_billing_enabled: false,
+        })
+        .select(
+          "id, customer_id, order_id, last_invoice_id, plan_code, plan_name, plan_price, paypal_subscription_id, recurring_setup_status, next_renewal_at, cycle_end_date",
+        )
+        .single();
+
+      if (createSubscriptionError) throw createSubscriptionError;
+      subscription = createdSubscription;
+      billingSubscriptionId = createdSubscription.id;
     }
 
     const effectiveCustomer = customer ?? {
