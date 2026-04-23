@@ -11228,6 +11228,9 @@ export type Database = {
           savings_estimated: number | null
           selected_channels: Json | null
           serial_number: string | null
+          service_activated_at: string | null
+          service_activated_by: string | null
+          service_activation_source: string | null
           service_location_id: string | null
           service_type: string
           ship_to_different_address: boolean
@@ -11346,6 +11349,9 @@ export type Database = {
           savings_estimated?: number | null
           selected_channels?: Json | null
           serial_number?: string | null
+          service_activated_at?: string | null
+          service_activated_by?: string | null
+          service_activation_source?: string | null
           service_location_id?: string | null
           service_type: string
           ship_to_different_address?: boolean
@@ -11464,6 +11470,9 @@ export type Database = {
           savings_estimated?: number | null
           selected_channels?: Json | null
           serial_number?: string | null
+          service_activated_at?: string | null
+          service_activated_by?: string | null
+          service_activation_source?: string | null
           service_location_id?: string | null
           service_type?: string
           ship_to_different_address?: boolean
@@ -19837,6 +19846,136 @@ export type Database = {
           source: string
           source_id: string
         }[]
+      }
+      set_order_service_activated: {
+        Args: { _activated_at: string; _order_id: string; _source?: string }
+        Returns: {
+          account_id: string
+          activation_fee: number | null
+          activation_preference: string
+          agreement_version: number | null
+          amount_paid: number | null
+          appointment_date: string | null
+          appointment_notes: string | null
+          audit_timeline: Json | null
+          carrier: string | null
+          category: string | null
+          channel_assigned_by: string | null
+          channel_selection_locked: boolean | null
+          client_dob: string | null
+          client_email: string | null
+          client_first_name: string | null
+          client_full_address: string | null
+          client_last_name: string | null
+          client_phone: string | null
+          client_request_id: string
+          confirmation_email_sent_at: string | null
+          confirmation_number: string | null
+          created_at: string
+          created_by: string | null
+          credits_applied: number | null
+          delivery_fee: number | null
+          delivery_method: string | null
+          discount_amount: number | null
+          discount_code: string | null
+          environment: string
+          equipment_details: Json | null
+          equipment_id: string | null
+          equipment_line_details: Json | null
+          equipment_refund_date: string | null
+          equipment_refunded: boolean | null
+          etransfer_status: string | null
+          failure_reason: string | null
+          fulfillment_assigned_at: string | null
+          fulfillment_notes: string | null
+          fulfillment_type: string | null
+          id: string
+          id_verification_notes: string | null
+          id_verification_status: string | null
+          id_verified_at: string | null
+          id_verified_by: string | null
+          identity_snapshot: Json | null
+          identity_verification_session_id: string | null
+          imei_number: string | null
+          installation_credit: number | null
+          installation_details: Json | null
+          installation_fee: number | null
+          installation_type: string | null
+          internal_notes: string | null
+          kyc_policy: string
+          kyc_request_id: string | null
+          kyc_status: string
+          late_fee_amount: number | null
+          late_fee_applied: boolean | null
+          notes: string | null
+          order_number: string | null
+          order_type: string | null
+          payment_authorization_status: string | null
+          payment_confirmed_at: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          port_request: Json | null
+          preauth_card_id: string | null
+          preauth_discount: number | null
+          pricing_snapshot: Json | null
+          processed_at: string | null
+          processed_by: string | null
+          promo_code: string | null
+          promo_details: Json | null
+          promo_discount_amount: number | null
+          provider_payment_id: string | null
+          related_contract_id: string | null
+          related_ticket_id: string | null
+          requested_activation_date: string | null
+          require_fresh_kyc: boolean
+          risk_flags: Json | null
+          router_fee: number | null
+          savings_estimated: number | null
+          selected_channels: Json | null
+          serial_number: string | null
+          service_activated_at: string | null
+          service_activated_by: string | null
+          service_activation_source: string | null
+          service_location_id: string | null
+          service_type: string
+          ship_to_different_address: boolean
+          shipped_at: string | null
+          shipping_address: string | null
+          shipping_address_line: string | null
+          shipping_apartment: string | null
+          shipping_city: string | null
+          shipping_first_name: string | null
+          shipping_instructions: string | null
+          shipping_last_name: string | null
+          shipping_postal_code: string | null
+          shipping_province: string | null
+          sim_number: string | null
+          sim_type: string | null
+          sla_deadline: string | null
+          sla_status: string | null
+          snapshot_total: number | null
+          status: string
+          subtotal: number | null
+          technician_id: string | null
+          terminal_count: number | null
+          terminal_fee: number | null
+          total_amount: number | null
+          tps_amount: number | null
+          tps_rate: number | null
+          tracking_number: string | null
+          tracking_url: string | null
+          tvq_amount: number | null
+          tvq_rate: number | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       split_full_name: {
         Args: { full_name_val: string }
