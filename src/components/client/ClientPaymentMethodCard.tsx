@@ -26,10 +26,12 @@ import {
 import { toast } from "sonner";
 import { useClientAutoPayEnrollment } from "@/hooks/useClientAutoPayEnrollment";
 import { PayPalAutoPayErrorDialog } from "@/components/client/PayPalAutoPayErrorDialog";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 
 export const ClientPaymentMethodCard = () => {
   const { user } = useClientAuth();
   const qc = useQueryClient();
+  const writeGuard = useWriteGuard();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [errorOpen, setErrorOpen] = useState(false);
@@ -67,15 +69,11 @@ export const ClientPaymentMethodCard = () => {
   const isPreAuth = !!paypalSub;
 
   const handleEnroll = async (attemptId?: string) => {
-    // Always allow activation: pick any existing subscription as the binding target
-    // (active, pending, or suspended). The hook falls back to eligibility.subscription_id
-    // only if no explicit subscription is passed.
     const target = subscriptions?.[0] ?? null;
     const ok = await enrollInPayPal(target, attemptId);
     if (!ok) {
       setErrorOpen(true);
     }
-    // If ok=true, the page redirects to PayPal so nothing to do.
   };
 
   const handleRetry = async () => {
@@ -154,7 +152,8 @@ export const ClientPaymentMethodCard = () => {
                   size="sm"
                   className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
                   onClick={() => setConfirmOpen(true)}
-                  disabled={cancelling}
+                  disabled={cancelling || writeGuard.isReadOnly}
+                  title={writeGuard.disabledReason}
                 >
                   Retirer le pré-autorisé
                 </Button>
@@ -174,8 +173,9 @@ export const ClientPaymentMethodCard = () => {
                   variant="default"
                   size="sm"
                   className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
-                  onClick={() => void handleEnroll()}
-                  disabled={!!enrollingSubscriptionId}
+                  onClick={writeGuard(() => void handleEnroll())}
+                  disabled={!!enrollingSubscriptionId || writeGuard.isReadOnly}
+                  title={writeGuard.disabledReason}
                 >
                   {enrollingSubscriptionId ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -188,8 +188,10 @@ export const ClientPaymentMethodCard = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setErrorOpen(true)}
+                    onClick={writeGuard(() => setErrorOpen(true))}
                     className="text-destructive border-destructive/50"
+                    disabled={writeGuard.isReadOnly}
+                    title={writeGuard.disabledReason}
                   >
                     <RefreshCw className="w-3 h-3 mr-1" />
                     Réessayer
@@ -211,11 +213,12 @@ export const ClientPaymentMethodCard = () => {
             <AlertDialogFooter>
               <AlertDialogCancel disabled={cancelling}>Annuler</AlertDialogCancel>
               <AlertDialogAction
-                onClick={(e) => {
+                onClick={writeGuard((e: Event) => {
                   e.preventDefault();
-                  handleCancel();
-                }}
-                disabled={cancelling}
+                  void handleCancel();
+                })}
+                disabled={cancelling || writeGuard.isReadOnly}
+                title={writeGuard.disabledReason}
                 className="bg-red-600 hover:bg-red-700"
               >
                 {cancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
@@ -233,7 +236,7 @@ export const ClientPaymentMethodCard = () => {
           setErrorOpen(false);
           clearLastError();
         }}
-        onRetry={handleRetry}
+        onRetry={writeGuard(handleRetry)}
         retrying={!!enrollingSubscriptionId}
       />
     </>
