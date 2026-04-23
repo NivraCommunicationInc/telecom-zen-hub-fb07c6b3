@@ -143,7 +143,10 @@ export default function FieldCommissions() {
           </p>
         </div>
         <button
-          onClick={() => setShowWithdrawForm(true)}
+          onClick={() => {
+            setActiveTab("withdrawals");
+            setShowWithdrawForm(true);
+          }}
           className="flex items-center gap-2 px-4 py-2 rounded-xl field-gradient-accent text-white text-sm font-semibold field-glow disabled:opacity-40"
         >
           <ArrowDownToLine className="h-4 w-4" /> Demander un retrait
@@ -447,7 +450,7 @@ export default function FieldCommissions() {
                   <button
                     onClick={() => submitDispute.mutate()}
                     disabled={!disputeReason.trim() || submitDispute.isPending}
-                    className="flex-1 py-2.5 rounded-xl bg-[hsl(var(--field-warning))] text-black text-sm font-semibold disabled:opacity-40"
+                    className="flex-1 py-2.5 rounded-xl bg-[hsl(var(--field-warning))] text-white text-sm font-semibold disabled:opacity-40"
                   >
                     {submitDispute.isPending ? "..." : "Soumettre"}
                   </button>
