@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 
 // ----- Types -----
 interface ServiceItem {
@@ -176,12 +177,21 @@ function ServiceRow({ service, onAction }: { service: ServiceItem; onAction?: (a
           <span className="font-medium text-foreground">
             {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{service.billing_cycle === "monthly" ? "mois" : "an"}
           </span>
-          {service.cycle_start_date && (
-            <span>
-              {format(new Date(service.cycle_start_date), "d MMM yyyy", { locale: fr })}
-              {service.cycle_end_date && ` — ${format(new Date(service.cycle_end_date), "d MMM yyyy", { locale: fr })}`}
-            </span>
-          )}
+          {(() => {
+            const cycle = getCycleDisplay(service);
+            if (cycle.isActive && cycle.cycleStart && cycle.cycleEnd) {
+              return (
+                <span>
+                  {format(new Date(cycle.cycleStart), "d MMM yyyy", { locale: fr })}
+                  {` — ${format(new Date(cycle.cycleEnd), "d MMM yyyy", { locale: fr })}`}
+                </span>
+              );
+            }
+            if (!cycle.isActive) {
+              return <span className="text-amber-700">En attente d'activation</span>;
+            }
+            return null;
+          })()}
         </div>
       </div>
       {onAction && (
