@@ -37,8 +37,7 @@ export const ClientPaymentMethodCard = () => {
   const {
     enrollInPayPal,
     enrollingSubscriptionId,
-    eligibility,
-    eligibilityLoading,
+    subscriptions,
     lastError,
     clearLastError,
   } = useClientAutoPayEnrollment();
