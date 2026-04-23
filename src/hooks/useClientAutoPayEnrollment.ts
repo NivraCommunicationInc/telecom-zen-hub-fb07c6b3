@@ -128,15 +128,6 @@ export const useClientAutoPayEnrollment = () => {
     attemptId?: string,
   ): Promise<boolean> => {
     const subId = subscription?.id || eligibility?.subscription_id;
-    if (!subId) {
-      const err: AutoPayEnrollError = {
-        message: "Aucun abonnement éligible. Contactez le support.",
-        code: "NO_ELIGIBLE_SUBSCRIPTION",
-      };
-      setLastError(err);
-      toast.error(err.message);
-      return false;
-    }
 
     try {
       setLastError(null);
@@ -144,7 +135,7 @@ export const useClientAutoPayEnrollment = () => {
 
       const response = await portalSupabase.functions.invoke("paypal-create-subscription", {
         body: {
-          billing_subscription_id: subId,
+          billing_subscription_id: subId || undefined,
           customer_email: profile?.email || user?.email || "",
           customer_name: profile?.full_name || "Client",
           attempt_id: attemptId,
