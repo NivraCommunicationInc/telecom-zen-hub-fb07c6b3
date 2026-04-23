@@ -1055,6 +1055,117 @@ export type Database = {
           },
         ]
       }
+      agent_discount_assignments: {
+        Row: {
+          agent_id: string | null
+          applies_to_all: boolean
+          assigned_at: string
+          assigned_by: string | null
+          discount_id: string
+          id: string
+          role: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          applies_to_all?: boolean
+          assigned_at?: string
+          assigned_by?: string | null
+          discount_id: string
+          id?: string
+          role?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          applies_to_all?: boolean
+          assigned_at?: string
+          assigned_by?: string | null
+          discount_id?: string
+          id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_discount_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_discount_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_discount_assignments_discount_id_fkey"
+            columns: ["discount_id"]
+            isOneToOne: false
+            referencedRelation: "agent_discounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_discounts: {
+        Row: {
+          applies_to: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          max_uses_per_agent: number | null
+          name: string
+          type: string
+          updated_at: string
+          uses_count: number
+          value: number
+        }
+        Insert: {
+          applies_to?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          max_uses_per_agent?: number | null
+          name: string
+          type: string
+          updated_at?: string
+          uses_count?: number
+          value: number
+        }
+        Update: {
+          applies_to?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          max_uses_per_agent?: number | null
+          name?: string
+          type?: string
+          updated_at?: string
+          uses_count?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_discounts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       appointment_blocked_dates: {
         Row: {
           blocked_date: string
@@ -19443,6 +19554,19 @@ export type Database = {
       }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
+      get_agent_available_discounts: {
+        Args: { p_agent_id?: string }
+        Returns: {
+          applies_to: string
+          description: string
+          expires_at: string
+          id: string
+          name: string
+          type: string
+          uses_remaining: number
+          value: number
+        }[]
+      }
       get_appointment_slot_availability: {
         Args: { p_date: string }
         Returns: {
