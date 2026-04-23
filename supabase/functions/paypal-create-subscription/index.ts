@@ -89,52 +89,29 @@ serve(async (req) => {
     const userAgent = req.headers.get("user-agent") || null;
 
     // ─────────────────────────────────────────────────────────────────────
-    // FIX 5 — Resolve target subscription. Pick best candidate if not given.
-    // No external eligibility RPC blocking here.
+    // Resolve the customer's existing subscription if present.
+    // Never block enrollment because a subscription/order/invoice is missing.
     // ─────────────────────────────────────────────────────────────────────
     let billingSubscriptionId = body.billing_subscription_id?.trim() || "";
 
-    if (!billingSubscriptionId) {
-      // Find the user's billing customer first.
-      const { data: customer } = await adminSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+    const { data: customer } = await adminSupabase
+      .from("billing_customers")
+      .select("id, email, first_name, last_name, phone")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-      if (!customer) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "Activez d'abord un forfait Nivra pour bénéficier du paiement automatique.",
-            code: "NOT_ELIGIBLE",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      // Pick the most recent active/pending/suspended subscription with no PayPal yet.
+    if (!billingSubscriptionId && customer) {
       const { data: candidate } = await adminSupabase
         .from("billing_subscriptions")
-        .select("id, paypal_subscription_id, status, created_at")
+        .select("id, created_at")
         .eq("customer_id", customer.id)
-        .in("status", ["active", "pending", "suspended"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!candidate) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "Activez d'abord un forfait Nivra pour bénéficier du paiement automatique.",
-            code: "NOT_ELIGIBLE",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+      if (candidate?.id) {
+        billingSubscriptionId = candidate.id;
       }
-
-      billingSubscriptionId = candidate.id;
     }
 
     // ═══ Create or reuse attempt log ═══
@@ -169,47 +146,87 @@ serve(async (req) => {
       if (created) attemptId = created.id;
     }
 
-    // ═══ Load subscription + customer ═══
+    // ═══ Load customer's latest subscription if available; otherwise use placeholder context ═══
     await appendStep(adminSupabase, attemptId!, "load_subscription", "info");
 
-    const { data: subscription, error: subscriptionError } = await adminSupabase
-      .from("billing_subscriptions")
-      .select(
-        `id, customer_id, order_id, last_invoice_id, plan_code, plan_name, plan_price, status,
-         paypal_subscription_id, recurring_setup_status, next_renewal_at, cycle_end_date,
-         customer:billing_customers(id, email, first_name, last_name, phone, user_id)`,
-      )
-      .eq("id", billingSubscriptionId)
-      .maybeSingle();
-
-    if (subscriptionError || !subscription) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Abonnement introuvable",
-          code: "SUBSCRIPTION_NOT_FOUND",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    let subscription: any = null;
+    if (billingSubscriptionId) {
+      const { data } = await adminSupabase
+        .from("billing_subscriptions")
+        .select(
+          `id, customer_id, order_id, last_invoice_id, plan_code, plan_name, plan_price,
+           paypal_subscription_id, recurring_setup_status, next_renewal_at, cycle_end_date`,
+        )
+        .eq("id", billingSubscriptionId)
+        .maybeSingle();
+      subscription = data ?? null;
     }
 
-    const customer = Array.isArray(subscription.customer) ? subscription.customer[0] : subscription.customer;
+    if (!customer) {
+      const fallbackName = (body.customer_name || String(claimsData.claims.email || "Client")).trim();
+      const [firstName, ...lastNameParts] = fallbackName.split(/\s+/).filter(Boolean);
+      const customerEmail = body.customer_email?.trim() || String(claimsData.claims.email || "").trim();
 
-    if (!customer || customer.user_id !== userId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Accès refusé à cet abonnement",
-          code: "FORBIDDEN",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      if (!customerEmail) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Adresse courriel introuvable sur votre compte.",
+            code: "MISSING_EMAIL",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const { data: createdCustomer, error: createCustomerError } = await adminSupabase
+        .from("billing_customers")
+        .insert({
+          user_id: userId,
+          email: customerEmail,
+          first_name: firstName || "Client",
+          last_name: lastNameParts.join(" ") || "Nivra",
+          phone: "",
+          status: "active",
+        })
+        .select("id, email, first_name, last_name, phone")
+        .single();
+
+      if (createCustomerError) throw createCustomerError;
+
+      if (!subscription) {
+        const { data: createdSubscription, error: createSubscriptionError } = await adminSupabase
+          .from("billing_subscriptions")
+          .insert({
+            customer_id: createdCustomer.id,
+            plan_code: "PAYPAL_PREAUTH",
+            plan_name: "Paiement pré-autorisé",
+            plan_price: 0,
+            status: "pending",
+            auto_billing_enabled: false,
+          })
+          .select(
+            "id, customer_id, order_id, last_invoice_id, plan_code, plan_name, plan_price, paypal_subscription_id, recurring_setup_status, next_renewal_at, cycle_end_date",
+          )
+          .single();
+
+        if (createSubscriptionError) throw createSubscriptionError;
+        subscription = createdSubscription;
+        billingSubscriptionId = createdSubscription.id;
+      }
     }
+
+    const effectiveCustomer = customer ?? {
+      id: subscription?.customer_id,
+      email: body.customer_email?.trim() || String(claimsData.claims.email || "").trim(),
+      first_name: "Client",
+      last_name: "Nivra",
+      phone: "",
+    };
 
     // ─────────────────────────────────────────────────────────────────────
     // FIX 5 — Double-enrollment guard. Returns 200 + ALREADY_ENROLLED.
     // ─────────────────────────────────────────────────────────────────────
-    if (subscription.paypal_subscription_id) {
+    if (subscription?.paypal_subscription_id) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -224,8 +241,8 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────────────────
     // FIX 4 — Order/invoice are best-effort. We DO NOT block if missing.
     // ─────────────────────────────────────────────────────────────────────
-    let orderId: string | null = subscription.order_id ?? null;
-    let orderNumber: string = subscription.id;
+    let orderId: string | null = subscription?.order_id ?? null;
+    let orderNumber: string = subscription?.id || billingSubscriptionId || crypto.randomUUID();
     let accountId: string | null = null;
 
     if (orderId) {
@@ -252,21 +269,12 @@ serve(async (req) => {
       accountId = account?.id ?? null;
     }
 
-    // If still no account, we cannot anchor the PayPal subscription cleanly.
-    // Return a friendly NOT_ELIGIBLE rather than 500.
     if (!accountId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Activez d'abord un forfait Nivra pour bénéficier du paiement automatique.",
-          code: "NOT_ELIGIBLE",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      accountId = subscription?.id || billingSubscriptionId || userId;
     }
 
     // Best-effort invoice lookup — do not block if missing.
-    let invoiceId: string | null = subscription.last_invoice_id as string | null;
+    let invoiceId: string | null = (subscription?.last_invoice_id as string | null) ?? null;
     if (!invoiceId && orderId) {
       const { data: invoice } = await adminSupabase
         .from("billing_invoices")
@@ -291,8 +299,8 @@ serve(async (req) => {
     }
 
     const nextBillingAnchor =
-      (subscription as any).next_renewal_at ||
-      ((subscription as any).cycle_end_date
+      (subscription as any)?.next_renewal_at ||
+      ((subscription as any)?.cycle_end_date
         ? new Date(`${(subscription as any).cycle_end_date}T00:00:00.000Z`).toISOString()
         : null);
 
@@ -306,10 +314,10 @@ serve(async (req) => {
 
     const fallbackName = (body.customer_name || "Client Nivra").trim();
     const [fallbackFirstName, ...fallbackLastNameParts] = fallbackName.split(/\s+/).filter(Boolean);
-    const customerFirstName = customer.first_name?.trim() || fallbackFirstName || "Client";
-    const customerLastName = customer.last_name?.trim() || fallbackLastNameParts.join(" ") || "Nivra";
+    const customerFirstName = effectiveCustomer.first_name?.trim() || fallbackFirstName || "Client";
+    const customerLastName = effectiveCustomer.last_name?.trim() || fallbackLastNameParts.join(" ") || "Nivra";
     const customerEmail =
-      customer.email?.trim() || body.customer_email?.trim() || String(claimsData.claims.email || "").trim();
+      effectiveCustomer.email?.trim() || body.customer_email?.trim() || String(claimsData.claims.email || "").trim();
 
     if (!customerEmail) {
       return new Response(
@@ -326,7 +334,7 @@ serve(async (req) => {
     // FIX 2 — Plan price fallback. If 0/unknown, use $1.00 placeholder.
     // The actual charge is determined by the invoice generated each cycle.
     // ─────────────────────────────────────────────────────────────────────
-    const rawPrice = Number(subscription.plan_price || 0);
+    const rawPrice = Number(subscription?.plan_price || 0);
     const recurringAmount = rawPrice > 0 ? rawPrice : MIN_RECURRING_AMOUNT;
 
     await appendStep(adminSupabase, attemptId!, "create_paypal_subscription", "info", {
@@ -340,12 +348,10 @@ serve(async (req) => {
       customer_email: customerEmail,
       customer_first_name: customerFirstName,
       customer_last_name: customerLastName,
-      customer_phone: customer.phone?.trim() || "",
-      // order_id is required by the factory — fall back to subscription id when absent.
+      customer_phone: effectiveCustomer.phone?.trim() || "",
       order_id: orderId || subscription.id,
       order_number: orderNumber,
       account_id: accountId,
-      // invoice_id is required by the factory — fall back to subscription id when absent.
       invoice_id: invoiceId || subscription.id,
       subscription_start_time: nextBillingAnchor || undefined,
       recurring_monthly_total: recurringAmount,
