@@ -16,37 +16,37 @@ interface Props {
 
 const STATUS_COLORS: Record<string, string> = {
   // Payment
-  confirmed: "text-[#16A34A]",
-  paid: "text-[#16A34A]",
-  pending: "text-[#D97706]",
-  failed: "text-[#DC2626]",
-  cancelled: "text-[#6B7280]",
+  confirmed: "text-[hsl(var(--field-success))]",
+  paid: "text-[hsl(var(--field-success))]",
+  pending: "text-[hsl(var(--field-warning))]",
+  failed: "text-[hsl(var(--field-danger))]",
+  cancelled: "text-[hsl(var(--field-text-muted))]",
   // Sync
-  synced: "text-[#16A34A]",
-  error: "text-[#DC2626]",
+  synced: "text-[hsl(var(--field-success))]",
+  error: "text-[hsl(var(--field-danger))]",
   // Installation
-  installed: "text-[#16A34A]",
-  delivered: "text-[#2563EB]",
-  shipped: "text-[#2563EB]",
-  processing: "text-[#D97706]",
+  installed: "text-[hsl(var(--field-success))]",
+  delivered: "text-[hsl(var(--field-accent-glow))]",
+  shipped: "text-[hsl(var(--field-accent-glow))]",
+  processing: "text-[hsl(var(--field-warning))]",
   // Service
-  active: "text-[#16A34A]",
-  activated: "text-[#16A34A]",
-  suspended: "text-[#DC2626]",
+  active: "text-[hsl(var(--field-success))]",
+  activated: "text-[hsl(var(--field-success))]",
+  suspended: "text-[hsl(var(--field-danger))]",
   // Commission
-  approved: "text-[#16A34A]",
+  approved: "text-[hsl(var(--field-success))]",
   // Generic
-  completed: "text-[#16A34A]",
+  completed: "text-[hsl(var(--field-success))]",
 };
 
 function StatusCell({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
-  const color = STATUS_COLORS[value] || "text-[#6B7280]";
+  const color = STATUS_COLORS[value] || "text-[hsl(var(--field-text-muted))]";
   return (
-    <div className="p-2.5 rounded-lg bg-[#F9FAFB] border border-[#F3F4F6]">
-      <p className="text-[10px] text-[#9CA3AF] font-medium uppercase tracking-wider">{label}</p>
+    <div className="p-2.5 rounded-lg bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))]">
+      <p className="text-[10px] text-[hsl(var(--field-text-dim))] font-medium uppercase tracking-wider">{label}</p>
       <p className={cn("text-xs font-bold mt-0.5 capitalize", color)}>
         {value || "—"}
-        {suffix && <span className="text-[10px] font-normal text-[#6B7280] ml-1">{suffix}</span>}
+        {suffix && <span className="text-[10px] font-normal text-[hsl(var(--field-text-muted))] ml-1">{suffix}</span>}
       </p>
     </div>
   );
