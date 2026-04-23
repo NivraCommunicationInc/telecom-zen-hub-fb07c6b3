@@ -2111,8 +2111,8 @@ export type Database = {
           billing_cycle_anchor: string | null
           created_at: string | null
           customer_id: string
-          cycle_end_date: string
-          cycle_start_date: string
+          cycle_end_date: string | null
+          cycle_start_date: string | null
           environment: string
           id: string
           last_invoice_id: string | null
@@ -2151,8 +2151,8 @@ export type Database = {
           billing_cycle_anchor?: string | null
           created_at?: string | null
           customer_id: string
-          cycle_end_date: string
-          cycle_start_date: string
+          cycle_end_date?: string | null
+          cycle_start_date?: string | null
           environment?: string
           id?: string
           last_invoice_id?: string | null
@@ -2191,8 +2191,8 @@ export type Database = {
           billing_cycle_anchor?: string | null
           created_at?: string | null
           customer_id?: string
-          cycle_end_date?: string
-          cycle_start_date?: string
+          cycle_end_date?: string | null
+          cycle_start_date?: string | null
           environment?: string
           id?: string
           last_invoice_id?: string | null
