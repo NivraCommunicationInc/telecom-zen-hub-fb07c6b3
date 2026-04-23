@@ -45,7 +45,11 @@ const ClientDashboard = () => {
     toast.success("Copié dans le presse-papiers");
   };
 
-  const accountNumber = accountIdentity?.accountNumber || "Non attribué";
+  // Canonical priority: snapshot account (Nivra Core) → identity hook → fallback label
+  const accountNumber =
+    account?.account_number ||
+    accountIdentity?.accountNumber ||
+    "Non attribué";
 
   // Status badge helper
   const statusBadge = (status: string) => {
