@@ -24,13 +24,31 @@ import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 
 import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
+import {
+  useCoreSectionBadges,
+  markSectionAsRead,
+  SECTION_TO_TYPES,
+  type CoreBadgeKey,
+} from "@/core-app/hooks/useCoreSectionBadges";
 
 interface NavItem {
   icon: LucideIcon;
   label: string;
   href: string;
   adminOnly?: boolean;
+  badgeKey?: CoreBadgeKey;
 }
+
+/** Maps sidebar item hrefs to their badge counter source. */
+const HREF_TO_BADGE: Record<string, CoreBadgeKey> = {
+  "/orders": "orders",
+  "/invoices": "invoices",
+  "/payments": "payments",
+  "/subscriptions": "subscriptions",
+  "/support": "support",
+  "/wifi-requests": "activations",
+  "/notifications": "notifications",
+};
 
 interface NavGroup {
   id: string;
