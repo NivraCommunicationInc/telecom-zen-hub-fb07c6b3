@@ -263,10 +263,6 @@ const CoreAppLayout = () => {
     }
   }, [location.pathname]);
 
-  const isDarkTheme = themeClass === "theme-dark";
-  const [collapsed, setCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
   // Filter out admin-only items for non-admins.
   // While the role query is loading, show admin-only items optimistically
   // (server-side RLS still enforces access) so they don't flash hidden.
