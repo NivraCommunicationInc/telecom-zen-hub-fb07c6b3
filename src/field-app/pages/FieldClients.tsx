@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
+import { fetchOrderList } from "@/field-app/lib/fieldServices";
 
 const STATUS_BADGE: Record<string, { label: string; classes: string }> = {
   confirmed: {
@@ -34,15 +35,8 @@ export default function FieldClients() {
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("field_sales_orders")
-        .select("id,customer_name,customer_email,customer_phone,services,total_amount,payment_status,updated_at,created_at")
-        .eq("salesperson_id", user!.id)
-        .order("updated_at", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data ?? [];
+      const result = await fetchOrderList({ mine: true });
+      return result?.orders ?? [];
     },
   });
 
@@ -56,8 +50,8 @@ export default function FieldClients() {
         {
           event: "*",
           schema: "public",
-          table: "field_sales_orders",
-          filter: `salesperson_id=eq.${user.id}`,
+           table: "field_sales_orders",
+           filter: `salesperson_id=eq.${user.id}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["field-clients-orders", user.id] });
@@ -118,7 +112,7 @@ export default function FieldClients() {
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Mes clients</h1>
         <p className="text-sm text-[hsl(var(--field-text-muted))] mt-0.5">
-          Synchronisé en direct à partir de vos ventes terrain
+          Synchronisé en direct avec vos commandes terrain
         </p>
       </div>
 

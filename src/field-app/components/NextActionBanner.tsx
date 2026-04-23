@@ -27,40 +27,40 @@ function resolveNextAction(props: Props): ActionConfig {
   const { paymentStatus, syncStatus, convertedOrderId, canonicalOrderStatus, hasAppointment, subscriptionStatus } = props;
 
   if (paymentStatus === "cancelled") {
-    return { message: "Commande annulée — aucune action requise", icon: XCircle, classes: "bg-[#F3F4F6] border-[#E5E7EB] text-[#6B7280]" };
+    return { message: "Commande annulée — aucune action requise", icon: XCircle, classes: "bg-[hsl(var(--field-card))] border-[hsl(var(--field-border-subtle))] text-[hsl(var(--field-text-muted))]" };
   }
 
   if (paymentStatus === "failed") {
-    return { message: "Paiement échoué — contacter le client pour nouveau paiement", icon: AlertCircle, classes: "bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]" };
+    return { message: "Paiement échoué — contacter le client pour nouveau paiement", icon: AlertCircle, classes: "bg-[hsl(var(--field-danger)/0.12)] border-[hsl(var(--field-danger)/0.3)] text-[hsl(var(--field-danger))]" };
   }
 
   if (paymentStatus === "pending" || paymentStatus !== "confirmed") {
-    return { message: "Envoyer le lien de paiement au client", icon: CreditCard, classes: "bg-[#FFFBEB] border-[#FDE68A] text-[#D97706]" };
+    return { message: "Envoyer le lien de paiement au client", icon: CreditCard, classes: "bg-[hsl(var(--field-warning)/0.12)] border-[hsl(var(--field-warning)/0.3)] text-[hsl(var(--field-warning))]" };
   }
 
   // Paid but not synced
   if (!convertedOrderId && syncStatus === "error") {
-    return { message: "Relancer la synchronisation vers Core", icon: RefreshCw, classes: "bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]" };
+    return { message: "Relancer la synchronisation vers Core", icon: RefreshCw, classes: "bg-[hsl(var(--field-danger)/0.12)] border-[hsl(var(--field-danger)/0.3)] text-[hsl(var(--field-danger))]" };
   }
 
   if (!convertedOrderId) {
-    return { message: "En attente de synchronisation Core", icon: Clock, classes: "bg-[#FFFBEB] border-[#FDE68A] text-[#D97706]" };
+    return { message: "En attente de synchronisation Core", icon: Clock, classes: "bg-[hsl(var(--field-warning)/0.12)] border-[hsl(var(--field-warning)/0.3)] text-[hsl(var(--field-warning))]" };
   }
 
   // Synced — check operational state
   if (canonicalOrderStatus === "completed" || canonicalOrderStatus === "activated") {
-    return { message: "Commande complétée — service actif", icon: CheckCircle2, classes: "bg-[#F0FDF4] border-[#BBF7D0] text-[#16A34A]" };
+    return { message: "Commande complétée — service actif", icon: CheckCircle2, classes: "bg-[hsl(var(--field-success)/0.12)] border-[hsl(var(--field-success)/0.3)] text-[hsl(var(--field-success))]" };
   }
 
   if (subscriptionStatus === "active") {
-    return { message: "Service activé — aucune action requise", icon: Zap, classes: "bg-[#F0FDF4] border-[#BBF7D0] text-[#16A34A]" };
+    return { message: "Service activé — aucune action requise", icon: Zap, classes: "bg-[hsl(var(--field-success)/0.12)] border-[hsl(var(--field-success)/0.3)] text-[hsl(var(--field-success))]" };
   }
 
   if (!hasAppointment && ["processing", "received", "confirmed"].includes(canonicalOrderStatus || "")) {
-    return { message: "Planification du rendez-vous requise", icon: Calendar, classes: "bg-[#EFF6FF] border-[#BFDBFE] text-[#2563EB]" };
+    return { message: "Planification du rendez-vous requise", icon: Calendar, classes: "bg-[hsl(var(--field-accent)/0.12)] border-[hsl(var(--field-accent)/0.3)] text-[hsl(var(--field-accent-glow))]" };
   }
 
-  return { message: "Pris en charge par les opérations", icon: CheckCircle2, classes: "bg-[#F0FDF4] border-[#BBF7D0] text-[#16A34A]" };
+  return { message: "Pris en charge par les opérations", icon: CheckCircle2, classes: "bg-[hsl(var(--field-success)/0.12)] border-[hsl(var(--field-success)/0.3)] text-[hsl(var(--field-success))]" };
 }
 
 export function NextActionBanner(props: Props) {
