@@ -14,6 +14,7 @@ import { AlertTriangle, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, Fi
 import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
+import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
@@ -155,40 +156,23 @@ const ClientDashboard = () => {
                 fn_activate_sub_on_order_activation trigger). Until then we
                 explicitly tell the client the cycle starts at activation. */}
             {(() => {
+              // Canonical billing cycle display — never fabricate dates for pending subs
               const activeSub = subscriptions.find((s: any) => String(s.status).toLowerCase() === "active");
+              const cycle = getCycleDisplay(activeSub);
               const hasPendingOnly = !activeSub && subscriptions.length > 0;
 
-              if (activeSub) {
-                const anchor = activeSub.cycle_start_date ? new Date(activeSub.cycle_start_date) : null;
-                const next = activeSub.cycle_end_date ? new Date(activeSub.cycle_end_date) : null;
-                const cycleDay = anchor ? anchor.getDate() : account?.billing_cycle_day;
-                return (
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600">
-                    <span><strong>Mode de paiement :</strong> Paiements manuels</span>
-                    {cycleDay && (
-                      <span><strong>Cycle :</strong> {cycleDay} du mois</span>
-                    )}
-                    {next && (
-                      <span><strong>Prochaine facture :</strong> {format(next, "d MMM yyyy", { locale: fr })}</span>
-                    )}
-                  </div>
-                );
-              }
-
-              if (hasPendingOnly) {
-                return (
-                  <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600">
-                    <span><strong>Mode de paiement :</strong> Paiements manuels</span>
-                    <span className="ml-6 text-amber-700">
-                      Le cycle de facturation débutera à la date d'activation de votre service.
-                    </span>
-                  </div>
-                );
-              }
-
               return (
-                <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600">
+                <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600">
                   <span><strong>Mode de paiement :</strong> Paiements manuels</span>
+                  {cycle.isActive && cycle.cycleDayLabel && (
+                    <span><strong>Cycle :</strong> {cycle.cycleDayLabel}</span>
+                  )}
+                  {cycle.isActive && cycle.cycleEnd && (
+                    <span><strong>Prochaine facture :</strong> {format(new Date(cycle.cycleEnd), "d MMM yyyy", { locale: fr })}</span>
+                  )}
+                  {!cycle.isActive && hasPendingOnly && (
+                    <span className="text-amber-700">{cycle.pendingMessage}</span>
+                  )}
                 </div>
               );
             })()}
@@ -215,7 +199,9 @@ const ClientDashboard = () => {
               </h2>
             </div>
             <div className="divide-y divide-slate-100">
-              {mobileServices.map((sub: any) => (
+              {mobileServices.map((sub: any) => {
+                const cycle = getCycleDisplay(sub);
+                return (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Smartphone className="w-5 h-5 text-slate-400" />
@@ -226,7 +212,12 @@ const ClientDashboard = () => {
                       </p>
                       <p className="text-sm text-slate-500">
                         {profile?.phone || "—"}
-                        {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
+                        {cycle.isActive && cycle.nextRenewal && (
+                          <span className="ml-2">· Prochain renouvellement: {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</span>
+                        )}
+                        {!cycle.isActive && (
+                          <span className="ml-2 text-amber-700">· Cycle débutera à l'activation</span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -236,7 +227,8 @@ const ClientDashboard = () => {
                     </span>
                   </Link>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -252,7 +244,7 @@ const ClientDashboard = () => {
             </div>
             <div className="divide-y divide-slate-100">
               {internetServices.map((sub: any) => {
-                const isActive = String(sub.status).toLowerCase() === "active";
+                const cycle = getCycleDisplay(sub);
                 return (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
@@ -262,10 +254,10 @@ const ClientDashboard = () => {
                     </p>
                     <p className="text-sm text-slate-500">
                       {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
-                      {isActive && sub.cycle_end_date && (
-                        <span className="ml-2">· Prochain renouvellement: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>
+                      {cycle.isActive && cycle.nextRenewal && (
+                        <span className="ml-2">· Prochain renouvellement: {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</span>
                       )}
-                      {!isActive && (
+                      {!cycle.isActive && (
                         <span className="ml-2 text-amber-700">· Cycle débutera à l'activation</span>
                       )}
                     </p>
@@ -292,7 +284,9 @@ const ClientDashboard = () => {
               </h2>
             </div>
             <div className="divide-y divide-slate-100">
-              {tvServices.map((sub: any) => (
+              {tvServices.map((sub: any) => {
+                const cycle = getCycleDisplay(sub);
+                return (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
                     <p className="font-medium text-slate-900 flex items-center">
@@ -301,7 +295,12 @@ const ClientDashboard = () => {
                     </p>
                     <p className="text-sm text-slate-500">
                       {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
-                      {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
+                      {cycle.isActive && cycle.nextRenewal && (
+                        <span className="ml-2">· Prochain renouvellement: {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</span>
+                      )}
+                      {!cycle.isActive && (
+                        <span className="ml-2 text-amber-700">· Cycle débutera à l'activation</span>
+                      )}
                     </p>
                   </div>
                   <Link to="/portal/services">
@@ -310,7 +309,8 @@ const ClientDashboard = () => {
                     </span>
                   </Link>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
