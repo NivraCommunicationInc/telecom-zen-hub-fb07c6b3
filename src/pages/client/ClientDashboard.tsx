@@ -251,7 +251,9 @@ const ClientDashboard = () => {
               </h2>
             </div>
             <div className="divide-y divide-slate-100">
-              {internetServices.map((sub: any) => (
+              {internetServices.map((sub: any) => {
+                const isActive = String(sub.status).toLowerCase() === "active";
+                return (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
                     <p className="font-medium text-slate-900 flex items-center">
@@ -260,7 +262,12 @@ const ClientDashboard = () => {
                     </p>
                     <p className="text-sm text-slate-500">
                       {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
-                      {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
+                      {isActive && sub.cycle_end_date && (
+                        <span className="ml-2">· Prochain renouvellement: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>
+                      )}
+                      {!isActive && (
+                        <span className="ml-2 text-amber-700">· Cycle débutera à l'activation</span>
+                      )}
                     </p>
                   </div>
                   <Link to="/portal/services">
