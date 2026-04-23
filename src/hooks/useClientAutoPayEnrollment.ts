@@ -151,11 +151,29 @@ export const useClientAutoPayEnrollment = () => {
         },
       });
 
+      // Friendly French message map — never expose technical errors to clients.
+      const friendlyMessage = (code?: string): string => {
+        switch (code) {
+          case "ALREADY_ENROLLED":
+            return "Le paiement automatique est déjà actif sur votre compte.";
+          case "PAYPAL_CREATE_FAILED":
+            return "Impossible de créer l'autorisation PayPal. Veuillez réessayer ou contacter le support.";
+          case "NOT_ELIGIBLE":
+            return "Activez d'abord un forfait Nivra pour bénéficier du paiement automatique.";
+          case "AUTH_REQUIRED":
+          case "INVALID_SESSION":
+            return "Votre session a expiré. Veuillez vous reconnecter.";
+          default:
+            return "Une erreur est survenue. Veuillez réessayer.";
+        }
+      };
+
+      // The edge function always returns HTTP 200 with `success: false` on logical errors.
+      // A response.error here means a true transport/network failure.
       if (response.error) {
         const err: AutoPayEnrollError = {
-          message: response.error.message || "Erreur réseau",
-          code: "NETWORK_ERROR",
-          http_status: (response.error as any)?.status,
+          message: "Une erreur est survenue. Veuillez réessayer.",
+          code: "PAYPAL_CREATE_FAILED",
         };
         setLastError(err);
         return false;
@@ -163,20 +181,26 @@ export const useClientAutoPayEnrollment = () => {
 
       const data = response.data as any;
       if (!data?.success) {
+        const code = data?.code as string | undefined;
         const err: AutoPayEnrollError = {
-          message: data?.error || "Erreur lors de la création de l'abonnement PayPal",
-          code: data?.code,
+          message: friendlyMessage(code),
+          code,
           debug_id: data?.debug_id ?? null,
           attempt_id: data?.attempt_id ?? null,
         };
         setLastError(err);
+        // Refresh local view if PayPal is already enrolled.
+        if (code === "ALREADY_ENROLLED") {
+          await queryClient.invalidateQueries({ queryKey: ["client-paypal-preauth"] });
+          await queryClient.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
+        }
         return false;
       }
 
       if (!data.approval_url) {
         const err: AutoPayEnrollError = {
-          message: "URL d'approbation PayPal manquante",
-          code: "MISSING_APPROVAL_URL",
+          message: "Une erreur est survenue. Veuillez réessayer.",
+          code: "PAYPAL_CREATE_FAILED",
           attempt_id: data?.attempt_id ?? null,
         };
         setLastError(err);
@@ -193,8 +217,8 @@ export const useClientAutoPayEnrollment = () => {
     } catch (error: any) {
       console.error("[AutoPay] Error:", error);
       const err: AutoPayEnrollError = {
-        message: error?.message || "Erreur lors de l'inscription au paiement automatique",
-        code: "EXCEPTION",
+        message: "Une erreur est survenue. Veuillez réessayer.",
+        code: "PAYPAL_CREATE_FAILED",
       };
       setLastError(err);
       return false;
