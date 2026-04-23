@@ -195,7 +195,7 @@ export default function FieldNewSale() {
         toast.success("Lien PayPal prêt — montrez le QR au client.");
       }
 
-      setCompletedSteps((prev) => [...new Set([...prev, "recap"])]);
+      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep])]);
     } catch (err: any) {
       logger.warn("Field sale submission failed", err);
       toast.error(err?.message || "Erreur lors de la soumission");
