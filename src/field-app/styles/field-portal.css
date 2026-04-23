@@ -1,0 +1,148 @@
+/**
+ * Field Portal — Dark Navy + Purple design system
+ * Scoped to [data-field-portal] so it never leaks outside the /field routes.
+ *
+ * Palette
+ *   Background  Navy  #1e1b4b  →  hsl(244 51% 20%)
+ *   Surface     Indigo900 #1f1d54 → hsl(244 48% 23%)
+ *   Card        Indigo800 #2a2370 → hsl(247 53% 29%)
+ *   Border      Purple/20         → hsl(258 90% 66% / 0.2)
+ *   Accent      Purple #7c3aed   →  hsl(258 90% 58%)
+ *   Accent glow                  →  hsl(258 90% 70%)
+ *   Text        White  #ffffff   →  hsl(0 0% 100%)
+ *   Muted       Slate300         →  hsl(215 20% 75%)
+ */
+
+[data-field-portal] {
+  --field-bg: 244 51% 12%;
+  --field-bg-elevated: 244 48% 16%;
+  --field-card: 247 35% 20%;
+  --field-card-hover: 247 35% 24%;
+  --field-border: 258 90% 66%;
+  --field-border-subtle: 247 25% 30%;
+  --field-accent: 258 90% 58%;
+  --field-accent-glow: 258 90% 70%;
+  --field-accent-soft: 258 90% 58%;
+  --field-text: 0 0% 100%;
+  --field-text-muted: 215 20% 78%;
+  --field-text-dim: 215 15% 60%;
+  --field-success: 142 71% 50%;
+  --field-warning: 38 92% 56%;
+  --field-danger: 0 84% 60%;
+  --field-info: 199 89% 60%;
+
+  background: hsl(var(--field-bg));
+  color: hsl(var(--field-text));
+  color-scheme: dark;
+}
+
+/* Premium gradient panels */
+[data-field-portal] .field-gradient-card {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--field-card)) 0%,
+    hsl(var(--field-bg-elevated)) 100%
+  );
+}
+
+[data-field-portal] .field-gradient-purple {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--field-accent) / 0.18) 0%,
+    hsl(var(--field-accent) / 0.04) 100%
+  );
+}
+
+[data-field-portal] .field-gradient-accent {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--field-accent)) 0%,
+    hsl(var(--field-accent-glow)) 100%
+  );
+}
+
+/* Subtle glow on hover for primary actions */
+[data-field-portal] .field-glow {
+  box-shadow:
+    0 0 0 1px hsl(var(--field-accent) / 0.3),
+    0 8px 24px -8px hsl(var(--field-accent) / 0.5);
+}
+
+[data-field-portal] .field-glow-strong {
+  box-shadow:
+    0 0 0 1px hsl(var(--field-accent) / 0.5),
+    0 12px 40px -8px hsl(var(--field-accent) / 0.7);
+}
+
+/* Live pulse dot */
+@keyframes field-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+[data-field-portal] .field-pulse {
+  animation: field-pulse 2s ease-in-out infinite;
+}
+
+/* Page enter animation */
+@keyframes field-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+[data-field-portal] .field-page-enter {
+  animation: field-page-enter 0.35s ease-out;
+}
+
+/* Card hover lift */
+[data-field-portal] .field-card-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+[data-field-portal] .field-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: hsl(var(--field-accent) / 0.4);
+  box-shadow: 0 12px 32px -12px hsl(var(--field-accent) / 0.4);
+}
+
+/* Scrollbar */
+[data-field-portal] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+[data-field-portal] ::-webkit-scrollbar-track {
+  background: hsl(var(--field-bg));
+}
+[data-field-portal] ::-webkit-scrollbar-thumb {
+  background: hsl(var(--field-accent) / 0.3);
+  border-radius: 4px;
+}
+[data-field-portal] ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--field-accent) / 0.5);
+}
+
+/* Step indicator dots */
+@keyframes field-step-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+[data-field-portal] .field-step-pop {
+  animation: field-step-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Inputs in dark mode */
+[data-field-portal] input,
+[data-field-portal] textarea,
+[data-field-portal] select {
+  background: hsl(var(--field-bg-elevated));
+  border-color: hsl(var(--field-border-subtle));
+  color: hsl(var(--field-text));
+}
+[data-field-portal] input::placeholder,
+[data-field-portal] textarea::placeholder {
+  color: hsl(var(--field-text-dim));
+}
+[data-field-portal] input:focus,
+[data-field-portal] textarea:focus,
+[data-field-portal] select:focus {
+  border-color: hsl(var(--field-accent));
+  box-shadow: 0 0 0 3px hsl(var(--field-accent) / 0.2);
+  outline: none;
+}
