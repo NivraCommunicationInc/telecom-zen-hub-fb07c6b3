@@ -150,16 +150,48 @@ const ClientDashboard = () => {
               </div>
             </div>
 
-            {/* Billing info row */}
-            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600">
-              <span><strong>Mode de paiement :</strong> Paiements manuels</span>
-              {account?.billing_cycle_day && (
-                <span><strong>Cycle :</strong> {account.billing_cycle_day} du mois</span>
-              )}
-              {account?.next_invoice_date && (
-                <span><strong>Prochaine facture :</strong> {format(new Date(account.next_invoice_date), "d MMM yyyy", { locale: fr })}</span>
-              )}
-            </div>
+            {/* Billing info row — only shown once a service is actually ACTIVE.
+                Cycle is anchored on the real activation date (set by the
+                fn_activate_sub_on_order_activation trigger). Until then we
+                explicitly tell the client the cycle starts at activation. */}
+            {(() => {
+              const activeSub = subscriptions.find((s: any) => String(s.status).toLowerCase() === "active");
+              const hasPendingOnly = !activeSub && subscriptions.length > 0;
+
+              if (activeSub) {
+                const anchor = activeSub.cycle_start_date ? new Date(activeSub.cycle_start_date) : null;
+                const next = activeSub.cycle_end_date ? new Date(activeSub.cycle_end_date) : null;
+                const cycleDay = anchor ? anchor.getDate() : account?.billing_cycle_day;
+                return (
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600">
+                    <span><strong>Mode de paiement :</strong> Paiements manuels</span>
+                    {cycleDay && (
+                      <span><strong>Cycle :</strong> {cycleDay} du mois</span>
+                    )}
+                    {next && (
+                      <span><strong>Prochaine facture :</strong> {format(next, "d MMM yyyy", { locale: fr })}</span>
+                    )}
+                  </div>
+                );
+              }
+
+              if (hasPendingOnly) {
+                return (
+                  <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600">
+                    <span><strong>Mode de paiement :</strong> Paiements manuels</span>
+                    <span className="ml-6 text-amber-700">
+                      Le cycle de facturation débutera à la date d'activation de votre service.
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600">
+                  <span><strong>Mode de paiement :</strong> Paiements manuels</span>
+                </div>
+              );
+            })()}
 
             {/* Quick links */}
             <div className="mt-4 flex flex-wrap gap-4">
