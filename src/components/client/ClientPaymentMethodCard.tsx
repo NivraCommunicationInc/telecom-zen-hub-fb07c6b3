@@ -68,7 +68,11 @@ export const ClientPaymentMethodCard = () => {
   const isPreAuth = !!paypalSub;
 
   const handleEnroll = async (attemptId?: string) => {
-    const ok = await enrollInPayPal(null, attemptId);
+    // Always allow activation: pick any existing subscription as the binding target
+    // (active, pending, or suspended). The hook falls back to eligibility.subscription_id
+    // only if no explicit subscription is passed.
+    const target = subscriptions?.[0] ?? null;
+    const ok = await enrollInPayPal(target, attemptId);
     if (!ok) {
       setErrorOpen(true);
     }
