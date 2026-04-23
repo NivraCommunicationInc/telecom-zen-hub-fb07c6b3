@@ -1,8 +1,3 @@
-/**
- * Step 3 — Rabais (Discounts)
- * Source: agent_discount_assignments → agent_discounts (Part 1).
- * Agent picks ONE discount maximum.
- */
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Loader2, Tag, Percent, DollarSign, Check, AlertCircle, Sparkles } from "lucide-react";
@@ -39,7 +34,6 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
     queryKey: ["field-agent-discounts", user?.id],
     enabled: !!user?.id,
     queryFn: async (): Promise<RawDiscount[]> => {
-      // Read assignments + join discounts (RLS will filter properly)
       const { data: assignments, error: aerr } = await supabase
         .from("agent_discount_assignments")
         .select("discount_id, applies_to_all, agent_id, role")
@@ -66,37 +60,38 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
     staleTime: 30_000,
   });
 
-  const serviceCategories = new Set(services.map((s) => s.category));
+  const serviceCategories = new Set(services.map((service) => service.category));
 
-  const isApplicable = (d: RawDiscount): boolean => {
-    if (d.applies_to === "all") return true;
+  const isApplicable = (discount: RawDiscount): boolean => {
+    if (discount.applies_to === "all") return true;
     if (services.length === 0) return false;
-    return serviceCategories.has(d.applies_to);
+    return serviceCategories.has(discount.applies_to);
   };
 
-  const select = (d: RawDiscount) => {
-    if (selected?.id === d.id) {
+  const select = (discount: RawDiscount) => {
+    if (selected?.id === discount.id) {
       onChange(null);
       return;
     }
-    if (!isApplicable(d)) {
-      setError(`Ce rabais s'applique uniquement à : ${d.applies_to}. Aucun forfait ${d.applies_to} sélectionné.`);
+
+    if (!isApplicable(discount)) {
+      setError(`Ce rabais s'applique uniquement à : ${discount.applies_to}. Aucun forfait ${discount.applies_to} sélectionné.`);
       return;
     }
+
     setError(null);
     onChange({
-      id: d.id,
-      name: d.name,
-      type: d.type as FieldSaleDiscount["type"],
-      value: d.value,
-      applies_to: d.applies_to as FieldSaleDiscount["applies_to"],
-      description: d.description,
+      id: discount.id,
+      name: discount.name,
+      type: discount.type as FieldSaleDiscount["type"],
+      value: discount.value,
+      applies_to: discount.applies_to as FieldSaleDiscount["applies_to"],
+      description: discount.description,
     });
   };
 
   useEffect(() => {
-    // Clear selection if no longer applicable
-    if (selected && !discounts.some((d) => d.id === selected.id)) {
+    if (selected && !discounts.some((discount) => discount.id === selected.id)) {
       onChange(null);
     }
   }, [discounts, selected, onChange]);
@@ -106,7 +101,7 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
       <div>
         <h2 className="text-2xl font-bold text-white">Rabais agent</h2>
         <p className="text-sm text-[hsl(var(--field-text-muted))] mt-1">
-          Sélectionnez un (1) rabais maximum à appliquer à cette vente.
+          Sélectionnez un rabais assigné par Nivra Core.
         </p>
       </div>
 
@@ -124,31 +119,30 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
       ) : discounts.length === 0 ? (
         <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-8 text-center">
           <Sparkles className="h-10 w-10 text-[hsl(var(--field-text-dim))] mx-auto mb-3" />
-          <p className="text-[hsl(var(--field-text-muted))] font-medium">Aucun rabais disponible</p>
-          <p className="text-xs text-[hsl(var(--field-text-dim))] mt-1">
-            Demandez à Nivra Core de vous attribuer un rabais.
+          <p className="text-[hsl(var(--field-text-muted))] font-medium">
+            Aucun rabais disponible. Les rabais sont assignés par Nivra Core.
           </p>
         </div>
       ) : (
         <div className="grid gap-3">
-          {discounts.map((d) => {
-            const active = selected?.id === d.id;
-            const usable = isApplicable(d);
-            const Icon = d.type === "percentage" ? Percent : DollarSign;
+          {discounts.map((discount) => {
+            const active = selected?.id === discount.id;
+            const usable = isApplicable(discount);
+            const Icon = discount.type === "percentage" ? Percent : DollarSign;
 
             return (
               <button
-                key={d.id}
+                key={discount.id}
                 type="button"
-                onClick={() => select(d)}
+                onClick={() => select(discount)}
                 disabled={!usable && !active}
                 className={cn(
                   "field-card-interactive text-left rounded-2xl p-4 border transition-all relative overflow-hidden",
                   active
                     ? "border-[hsl(var(--field-accent))] bg-[hsl(var(--field-accent)/0.12)] field-glow"
                     : usable
-                    ? "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] hover:border-[hsl(var(--field-accent)/0.4)]"
-                    : "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] opacity-50 cursor-not-allowed"
+                      ? "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] hover:border-[hsl(var(--field-accent)/0.4)]"
+                      : "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] opacity-50 cursor-not-allowed"
                 )}
               >
                 <div className="flex items-start gap-3">
@@ -164,23 +158,23 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-white truncate">{d.name}</h3>
+                      <h3 className="font-semibold text-white truncate">{discount.name}</h3>
                       <span className="text-base font-bold text-[hsl(var(--field-accent-glow))] flex-shrink-0">
-                        {d.type === "percentage" ? `${d.value}%` : `${d.value.toFixed(2)} $`}
+                        {discount.type === "percentage" ? `${discount.value}%` : `${discount.value.toFixed(2)} $`}
                       </span>
                     </div>
-                    {d.description && (
+                    {discount.description && (
                       <p className="text-xs text-[hsl(var(--field-text-muted))] mt-1 line-clamp-2">
-                        {d.description}
+                        {discount.description}
                       </p>
                     )}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--field-bg-elevated))] text-[hsl(var(--field-text-dim))] border border-[hsl(var(--field-border-subtle))]">
-                        {d.applies_to === "all" ? "Tous services" : d.applies_to}
+                        {discount.applies_to === "all" ? "Tous services" : discount.applies_to}
                       </span>
-                      {d.max_uses != null && (
+                      {discount.max_uses != null && (
                         <span className="text-[10px] text-[hsl(var(--field-text-dim))]">
-                          {d.uses_count}/{d.max_uses} utilisations
+                          {discount.uses_count}/{discount.max_uses} utilisations
                         </span>
                       )}
                       {!usable && (
@@ -188,9 +182,7 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
                       )}
                     </div>
                   </div>
-                  {active && (
-                    <Check className="h-5 w-5 text-[hsl(var(--field-accent-glow))] flex-shrink-0" />
-                  )}
+                  {active && <Check className="h-5 w-5 text-[hsl(var(--field-accent-glow))] flex-shrink-0" />}
                 </div>
               </button>
             );

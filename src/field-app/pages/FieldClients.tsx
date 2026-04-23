@@ -1,57 +1,124 @@
-/**
- * FieldClients — Real clients linked to the agent's orders (mine: true).
- * Dark theme: Navy bg + white text + purple accents.
- */
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Users, Loader2, Search, Phone, ChevronRight } from "lucide-react";
+import { Users, Loader2, Search, Phone, ChevronRight, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
-import { fetchOrderList } from "@/field-app/lib/fieldServices";
+import { supabase } from "@/integrations/supabase/client";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 
 const STATUS_BADGE: Record<string, { label: string; classes: string }> = {
-  confirmed: { label: "Payé", classes: "bg-[hsl(var(--field-success)/0.15)] text-[hsl(var(--field-success))] border border-[hsl(var(--field-success)/0.3)]" },
-  pending: { label: "En attente", classes: "bg-[hsl(var(--field-warning)/0.15)] text-[hsl(var(--field-warning))] border border-[hsl(var(--field-warning)/0.3)]" },
-  cancelled: { label: "Annulé", classes: "bg-[hsl(var(--field-danger)/0.15)] text-[hsl(var(--field-danger))] border border-[hsl(var(--field-danger)/0.3)]" },
+  confirmed: {
+    label: "Payé",
+    classes: "bg-[hsl(var(--field-success)/0.15)] text-[hsl(var(--field-success))] border border-[hsl(var(--field-success)/0.3)]",
+  },
+  pending: {
+    label: "En attente",
+    classes: "bg-[hsl(var(--field-warning)/0.15)] text-[hsl(var(--field-warning))] border border-[hsl(var(--field-warning)/0.3)]",
+  },
+  cancelled: {
+    label: "Annulé",
+    classes: "bg-[hsl(var(--field-danger)/0.15)] text-[hsl(var(--field-danger))] border border-[hsl(var(--field-danger)/0.3)]",
+  },
 };
 
 export default function FieldClients() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useStaffUser();
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["field-clients-orders"],
-    queryFn: () => fetchOrderList({ mine: true }),
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ["field-clients-orders", user?.id],
+    enabled: !!user?.id,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("field_sales_orders")
+        .select("id,customer_name,customer_email,customer_phone,services,total_amount,payment_status,updated_at,created_at")
+        .eq("salesperson_id", user!.id)
+        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 
-  const orders = data?.orders || [];
+  useEffect(() => {
+    if (!user?.id) return;
 
-  // Deduplicate by customer name+phone
-  const seen = new Map<string, any>();
-  for (const order of orders) {
-    const key = `${order.customer_name}|${order.customer_phone}`;
-    if (!seen.has(key)) {
+    const channel = supabase
+      .channel(`field-clients-live-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "field_sales_orders",
+          filter: `salesperson_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["field-clients-orders", user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
+
+  const clients = useMemo(() => {
+    const seen = new Map<string, any>();
+
+    for (const order of orders) {
+      const key = [order.customer_email || "", order.customer_phone || "", order.customer_name || ""]
+        .join("|")
+        .toLowerCase();
+
+      if (!key.replace(/\|/g, "").trim()) continue;
+      if (seen.has(key)) continue;
+
       const services = Array.isArray(order.services) ? order.services : [];
-      const planNames = services.map((s: any) => s.name).filter(Boolean).join(", ");
-      seen.set(key, { ...order, activePlan: planNames || "—", orderId: order.id });
-    }
-  }
-  const clients = Array.from(seen.values());
+      const activePlan = services
+        .map((service: any) => service?.name)
+        .filter(Boolean)
+        .join(", ");
 
-  const filtered = search.trim()
-    ? clients.filter((c: any) =>
-        c.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-        c.customer_phone?.includes(search) ||
-        c.customer_email?.toLowerCase().includes(search.toLowerCase()))
-    : clients;
+      seen.set(key, {
+        orderId: order.id,
+        customer_name: order.customer_name || "Client sans nom",
+        customer_email: order.customer_email || null,
+        customer_phone: order.customer_phone || null,
+        payment_status: order.payment_status || "pending",
+        total_amount: Number(order.total_amount ?? 0),
+        activePlan: activePlan || "—",
+        updated_at: order.updated_at || order.created_at,
+      });
+    }
+
+    return Array.from(seen.values());
+  }, [orders]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return clients;
+
+    return clients.filter((client) =>
+      client.customer_name?.toLowerCase().includes(q) ||
+      client.customer_phone?.includes(search.trim()) ||
+      client.customer_email?.toLowerCase().includes(q)
+    );
+  }, [clients, search]);
 
   return (
     <div className="space-y-5 field-page-enter">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Mes clients</h1>
         <p className="text-sm text-[hsl(var(--field-text-muted))] mt-0.5">
-          {clients.length} client{clients.length !== 1 ? "s" : ""}
+          Synchronisé en direct à partir de vos ventes terrain
         </p>
       </div>
 
@@ -68,16 +135,24 @@ export default function FieldClients() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Total", value: clients.length, color: "text-white" },
-          { label: "Payés", value: clients.filter((c: any) => c.payment_status === "confirmed").length, color: "text-[hsl(var(--field-success))]" },
-          { label: "En attente", value: clients.filter((c: any) => c.payment_status === "pending").length, color: "text-[hsl(var(--field-warning))]" },
-        ].map((s) => (
+          {
+            label: "Payés",
+            value: clients.filter((client) => client.payment_status === "confirmed").length,
+            color: "text-[hsl(var(--field-success))]",
+          },
+          {
+            label: "En attente",
+            value: clients.filter((client) => client.payment_status === "pending").length,
+            color: "text-[hsl(var(--field-warning))]",
+          },
+        ].map((item) => (
           <div
-            key={s.label}
+            key={item.label}
             className="bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))] rounded-xl p-4 text-center"
           >
-            <p className={cn("text-2xl font-bold", s.color)}>{s.value}</p>
+            <p className={cn("text-2xl font-bold", item.color)}>{item.value}</p>
             <p className="text-[10px] text-[hsl(var(--field-text-dim))] font-medium uppercase tracking-wider">
-              {s.label}
+              {item.label}
             </p>
           </div>
         ))}
@@ -94,8 +169,9 @@ export default function FieldClients() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((client: any) => {
+          {filtered.map((client) => {
             const payBadge = STATUS_BADGE[client.payment_status] || STATUS_BADGE.pending;
+
             return (
               <button
                 key={client.orderId}
@@ -111,14 +187,22 @@ export default function FieldClients() {
                       </span>
                     </div>
                     <p className="text-xs text-[hsl(var(--field-text-muted))] mt-0.5">
-                      {client.activePlan} • {Number(client.total_amount ?? 0).toFixed(2)} $
+                      {client.activePlan} • {client.total_amount.toFixed(2)} $
                     </p>
-                    {client.customer_phone && (
-                      <span className="text-[10px] text-[hsl(var(--field-text-dim))] flex items-center gap-1 mt-0.5">
-                        <Phone className="h-2.5 w-2.5" />
-                        {client.customer_phone}
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3 mt-1">
+                      {client.customer_phone && (
+                        <span className="text-[10px] text-[hsl(var(--field-text-dim))] flex items-center gap-1">
+                          <Phone className="h-2.5 w-2.5" />
+                          {client.customer_phone}
+                        </span>
+                      )}
+                      {client.customer_email && (
+                        <span className="text-[10px] text-[hsl(var(--field-text-dim))] flex items-center gap-1">
+                          <Mail className="h-2.5 w-2.5" />
+                          {client.customer_email}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <ChevronRight className="h-4 w-4 text-[hsl(var(--field-text-dim))]" />
                 </div>
