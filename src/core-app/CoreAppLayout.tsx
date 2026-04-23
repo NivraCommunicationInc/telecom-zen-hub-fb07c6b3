@@ -228,8 +228,41 @@ const CoreAppLayout = () => {
   const navigate = useNavigate();
   const { theme, themeClass, toggleTheme } = useInternalTheme();
   const { isAdmin, isLoading: isAdminLoading } = useIsCoreAdmin();
+  const { badges } = useCoreSectionBadges();
   // Document generation is now 100% server-side autonomous via the
   // process-document-jobs edge function (cron every 60s). No browser worker needed.
+  const isDarkTheme = themeClass === "theme-dark";
+  const [collapsed, setCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Aggregate group-level badge: sum of all child item badges
+  const groupBadge = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const g of NAV_GROUPS) {
+      let count = 0;
+      for (const it of g.items) {
+        const key = HREF_TO_BADGE[it.href];
+        if (key) count += badges[key] ?? 0;
+      }
+      map[g.id] = count;
+    }
+    return map;
+  }, [badges]);
+
+  // Mark related notifications as read when entering a section
+  useEffect(() => {
+    const key = HREF_TO_BADGE[
+      Object.keys(HREF_TO_BADGE).find((h) =>
+        isCorePathActive(location.pathname, h),
+      ) ?? ""
+    ];
+    if (!key) return;
+    const types = SECTION_TO_TYPES[key];
+    if (types.length > 0) {
+      void markSectionAsRead(types);
+    }
+  }, [location.pathname]);
+
   const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
