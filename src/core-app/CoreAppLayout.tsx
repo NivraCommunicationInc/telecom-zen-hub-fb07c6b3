@@ -385,24 +385,30 @@ const CoreAppLayout = () => {
         <nav className="flex-1 overflow-y-auto py-1 px-1.5 space-y-0.5 core-scrollbar">
           {collapsed ? (
             /* Collapsed: show only group icons */
-            visibleGroups.map((group) => (
-              <button
-                key={group.id}
-                onClick={() => {
-                  setCollapsed(false);
-                  setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
-                }}
-                title={group.label}
-                className={cn(
-                  "w-full flex items-center justify-center py-2 rounded-md transition-colors",
-                  isGroupActive(group)
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <group.icon className="h-4 w-4" />
-              </button>
-            ))
+            visibleGroups.map((group) => {
+              const gCount = groupBadge[group.id] ?? 0;
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => {
+                    setCollapsed(false);
+                    setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
+                  }}
+                  title={`${group.label}${gCount > 0 ? ` (${gCount})` : ""}`}
+                  className={cn(
+                    "relative w-full flex items-center justify-center py-2 rounded-md transition-colors",
+                    isGroupActive(group)
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  <group.icon className="h-4 w-4" />
+                  {gCount > 0 && (
+                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive ring-2 ring-sidebar" />
+                  )}
+                </button>
+              );
+            })
           ) : (
             filteredGroups.length === 0 ? (
               <div className="text-center py-6 text-[hsl(var(--core-text-label))] text-xs">
@@ -412,6 +418,7 @@ const CoreAppLayout = () => {
               filteredGroups.map((group) => {
                 const isOpen = openGroups[group.id] ?? false;
                 const hasActive = isGroupActive(group);
+                const gCount = groupBadge[group.id] ?? 0;
                 return (
                   <div key={group.id}>
                     <button
@@ -426,6 +433,9 @@ const CoreAppLayout = () => {
                       <div className="flex items-center gap-2">
                         <group.icon className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">{group.label}</span>
+                        {!isOpen && gCount > 0 && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                        )}
                       </div>
                       <ChevronDown
                         className={cn(
@@ -438,19 +448,30 @@ const CoreAppLayout = () => {
                       <div className="ml-3.5 pl-2.5 border-l border-border space-y-0.5 py-0.5">
                         {group.items.map((item) => {
                           const active = isActive(item.href);
+                          const itemBadge =
+                            HREF_TO_BADGE[item.href]
+                              ? badges[HREF_TO_BADGE[item.href]] ?? 0
+                              : 0;
                           return (
                             <Link
                               key={item.href}
                               to={corePath(item.href)}
                               className={cn(
-                                "flex items-center gap-2 px-2.5 py-[5px] rounded-md text-[12px] transition-colors",
+                                "flex items-center justify-between gap-2 px-2.5 py-[5px] rounded-md text-[12px] transition-colors",
                                 active
                                   ? "bg-primary/15 text-primary font-medium"
                                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                               )}
                             >
-                              <item.icon className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate">{item.label}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <item.icon className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate">{item.label}</span>
+                              </div>
+                              {itemBadge > 0 && (
+                                <span className="shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none">
+                                  {itemBadge > 99 ? "99+" : itemBadge}
+                                </span>
+                              )}
                             </Link>
                           );
                         })}
