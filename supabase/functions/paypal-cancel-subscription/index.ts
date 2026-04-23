@@ -174,17 +174,33 @@ serve(async (req) => {
       console.warn("[PayPal Cancel] Activity log insert failed:", e);
     }
 
-    // Send email to client (queue)
+    // Send email to client (queue) — Violet Bold "autopay_cancelled" template
     try {
       if (subscription.customer?.email) {
         const fullName = `${subscription.customer.first_name ?? ""} ${subscription.customer.last_name ?? ""}`.trim() || "Client";
+
+        // Best-effort lookup of account_number for the client
+        let accountNumber: string | null = null;
+        if (subscription.customer.user_id) {
+          const { data: acct } = await supabase
+            .from("accounts")
+            .select("account_number")
+            .eq("client_id", subscription.customer.user_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          accountNumber = acct?.account_number ?? null;
+        }
+
         await supabase.from("email_queue").insert({
-          event_key: `paypal_cancel_${body.subscription_id}_${Date.now()}`,
+          event_key: `autopay_cancelled_${body.subscription_id}_${Date.now()}`,
           to_email: subscription.customer.email,
-          template_key: "paypal_autopay_cancelled",
+          template_key: "autopay_cancelled",
           template_vars: {
             client_name: fullName,
+            first_name: subscription.customer.first_name ?? null,
             plan_name: subscription.plan_name,
+            account_number: accountNumber ?? "—",
             cancelled_at: new Date().toISOString(),
           },
           status: "queued",
