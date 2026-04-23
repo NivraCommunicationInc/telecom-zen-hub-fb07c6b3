@@ -18,9 +18,7 @@
  *   - Only create a new PayPal plan when no reusable plan exists
  *   - Plan labels are informational only, not part of the cache key
  *
- * ANTI-DUPLICATION: order_id-based pre-check prevents double subscriptions.
- * HARD VALIDATION: Missing required fields → throws immediately.
- * NO FALLBACK. NO PARTIAL. NO BYPASS.
+ * HARD VALIDATION: Missing required identity or pricing fields → throws immediately.
  */
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
@@ -88,8 +86,6 @@ function validateRequired(params: PayPalSubscriptionParams): void {
   if (!params.customer_last_name) errors.push("customer_last_name is required");
   if (!params.order_id) errors.push("order_id is required");
   if (!params.order_number) errors.push("order_number is required");
-  if (!params.account_id) errors.push("account_id is required");
-  if (!params.invoice_id) errors.push("invoice_id is required");
   if (!params.plan_code) errors.push("plan_code is required");
   if (!params.plan_label) errors.push("plan_label is required");
   if (!params.recurring_monthly_total || params.recurring_monthly_total <= 0) {
@@ -300,23 +296,10 @@ export async function createNivraPayPalSubscription(
   // ═══ STEP 1: HARD VALIDATION ═══
   validateRequired(params);
 
-  // ═══ STEP 2: ANTI-DUPLICATION — check existing PayPal subscription for this order ═══
-  const { data: existingSub } = await supabase
-    .from("billing_subscriptions")
-    .select("id, paypal_subscription_id, recurring_setup_status")
-    .eq("order_id", params.order_id)
-    .not("paypal_subscription_id", "is", null)
-    .maybeSingle();
-
-  if (existingSub?.paypal_subscription_id) {
-    log(`PayPal subscription already exists for order ${params.order_id}: ${existingSub.paypal_subscription_id} — anti-duplication gate`);
-    throw new Error(`[PayPalSub] BLOCKED — Subscription already exists: ${existingSub.paypal_subscription_id}`);
-  }
-
-  // ═══ STEP 3: GET PAYPAL ACCESS TOKEN ═══
+  // ═══ STEP 2: GET PAYPAL ACCESS TOKEN ═══
   const accessToken = await getPayPalAccessToken();
 
-  // ═══ STEP 4: GET OR CREATE PAYPAL PLAN (with reuse) ═══
+  // ═══ STEP 3: GET OR CREATE PAYPAL PLAN (with reuse) ═══
   const plan = await getOrCreatePayPalPlan(
     supabase,
     accessToken,
@@ -324,7 +307,7 @@ export async function createNivraPayPalSubscription(
     params.plan_label,
   );
 
-  // ═══ STEP 5: CREATE PAYPAL SUBSCRIPTION ═══
+  // ═══ STEP 4: CREATE PAYPAL SUBSCRIPTION ═══
   const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca";
   const returnUrl = params.return_url_override || `${baseUrl}/portal/subscription-success`;
   const cancelUrl = params.cancel_url_override || `${baseUrl}/portal/subscription-cancelled`;
