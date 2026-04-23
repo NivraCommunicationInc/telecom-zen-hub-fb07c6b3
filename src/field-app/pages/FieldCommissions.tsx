@@ -28,7 +28,7 @@ export default function FieldCommissions() {
   const [activeTab, setActiveTab] = useState<TabView>("commissions");
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [withdrawMethod, setWithdrawMethod] = useState("etransfer");
+  const [withdrawMethod, setWithdrawMethod] = useState("paypal");
   const [withdrawDestination, setWithdrawDestination] = useState("");
   const [withdrawNotes, setWithdrawNotes] = useState("");
   const [disputeCommissionId, setDisputeCommissionId] = useState<string | null>(null);
@@ -76,9 +76,10 @@ export default function FieldCommissions() {
               <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-foreground">Demande de retrait</h3><button onClick={() => setShowWithdrawForm(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="text-xs font-medium text-muted-foreground mb-1 block">Montant (max {summary.effectiveAvailable.toFixed(2)} $)</label><input type="number" min="1" max={summary.effectiveAvailable} step="0.01" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm" placeholder="0.00" /></div>
-                <div><label className="text-xs font-medium text-muted-foreground mb-1 block">Méthode</label><select value={withdrawMethod} onChange={(e) => setWithdrawMethod(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm"><option value="etransfer">Virement Interac</option><option value="bank_transfer">Virement bancaire</option><option value="cheque">Chèque</option></select></div>
+              <div><label className="text-xs font-medium text-muted-foreground mb-1 block">Méthode</label><select value={withdrawMethod} onChange={(e) => setWithdrawMethod(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm"><option value="paypal">PayPal</option></select></div>
               </div>
-              <div><label className="text-xs font-medium text-muted-foreground mb-1 block">Destination *</label><input value={withdrawDestination} onChange={(e) => setWithdrawDestination(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm" placeholder="ex: moncourriel@email.com" /></div>
+              <div><label className="text-xs font-medium text-muted-foreground mb-1 block">Courriel PayPal *</label><input type="email" value={withdrawDestination} onChange={(e) => setWithdrawDestination(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm" placeholder="paypal@email.com" /></div>
+              <div><label className="text-xs font-medium text-muted-foreground mb-1 block">Note (optionnel)</label><textarea value={withdrawNotes} onChange={(e) => setWithdrawNotes(e.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm" placeholder="Information additionnelle..." /></div>
               <button onClick={() => submitWithdrawal.mutate()} disabled={submitWithdrawal.isPending || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || !withdrawDestination.trim()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">{submitWithdrawal.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Soumettre</button>
             </div>
           )}
