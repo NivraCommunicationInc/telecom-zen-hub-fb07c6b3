@@ -217,8 +217,8 @@ export const useClientAutoPayEnrollment = () => {
     } catch (error: any) {
       console.error("[AutoPay] Error:", error);
       const err: AutoPayEnrollError = {
-        message: error?.message || "Erreur lors de l'inscription au paiement automatique",
-        code: "EXCEPTION",
+        message: "Une erreur est survenue. Veuillez réessayer.",
+        code: "PAYPAL_CREATE_FAILED",
       };
       setLastError(err);
       return false;
