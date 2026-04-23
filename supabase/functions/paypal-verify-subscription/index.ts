@@ -208,6 +208,46 @@ serve(async (req) => {
       if (updateCustErr) {
         console.warn("[PayPalVerify] Customer update warning:", updateCustErr);
       }
+
+      // ── Email de confirmation au client (Violet Bold template) ───────────
+      try {
+        const { data: custFull } = await supabase
+          .from("billing_customers")
+          .select("email, first_name, last_name")
+          .eq("id", customer.id)
+          .maybeSingle();
+
+        const { data: acct } = await supabase
+          .from("accounts")
+          .select("account_number")
+          .eq("client_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const recipientEmail = custFull?.email || customer.email;
+        if (recipientEmail) {
+          const fullName = `${custFull?.first_name ?? ""} ${custFull?.last_name ?? ""}`.trim() || "Client";
+          await supabase.from("email_queue").insert({
+            event_key: `autopay_activated_${localSub.id}_${Date.now()}`,
+            to_email: recipientEmail,
+            template_key: "autopay_activated",
+            template_vars: {
+              client_name: fullName,
+              first_name: custFull?.first_name ?? null,
+              account_number: acct?.account_number ?? "—",
+              paypal_subscription_id: paypalSubscriptionId,
+              activated_at: new Date().toISOString(),
+              plan_name: localSub.plan_name,
+            },
+            status: "queued",
+            attempts: 0,
+            max_attempts: 5,
+          });
+        }
+      } catch (e) {
+        console.warn("[PayPalVerify] Activation email enqueue failed:", e);
+      }
     }
 
     // ── Audit ──────────────────────────────────────────────────────────────
