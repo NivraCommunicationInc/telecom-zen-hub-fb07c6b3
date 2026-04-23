@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 
 /**
  * ============================================================================
@@ -80,6 +81,13 @@ interface CreateOrderRequest {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const rl = await enforceBillingRateLimit(req, "billing-create-order", corsHeaders);
+  if (rl) return rl;
+
+  if (false) {
     return new Response(null, { headers: corsHeaders });
   }
 

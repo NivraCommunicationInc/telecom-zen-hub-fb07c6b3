@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
+import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 // STRIPE DISABLED — import removed: createNivraPaymentIntent
 
 const corsHeaders = {
@@ -17,6 +18,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const rl = await enforceBillingRateLimit(req, "billing-generate-renewals", corsHeaders);
+  if (rl) return rl;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
