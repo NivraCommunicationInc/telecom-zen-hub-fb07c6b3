@@ -408,8 +408,17 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error("[PayPal] Error:", errMsg);
+    const errMsg =
+      error instanceof Error
+        ? error.message
+        : (() => {
+            try {
+              return JSON.stringify(error);
+            } catch {
+              return String(error);
+            }
+          })();
+    console.error("[PayPal] Error:", error);
 
     // Try to extract PayPal debug_id from error message
     let debugId: string | null = null;

@@ -20,6 +20,13 @@ export const portalClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
   global: {
     fetch: async (input, init) => {
       const headers = new Headers(init?.headers || {});
+      const requestUrl =
+        typeof input === "string"
+          ? input
+          : input instanceof Request
+            ? input.url
+            : String(input);
+      const isEdgeFunctionRequest = requestUrl.includes("/functions/v1/");
 
       try {
         const raw = sessionStorage.getItem("nivra_impersonation_v1");
@@ -27,7 +34,7 @@ export const portalClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
           const parsed = JSON.parse(raw) as { expiresAt?: string };
           const stillValid = parsed?.expiresAt ? new Date(parsed.expiresAt).getTime() > Date.now() : true;
 
-          if (stillValid) {
+          if (stillValid && !isEdgeFunctionRequest) {
             const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
             const adminStorageKey = `sb-${projectId}-staff-auth-token`;
             const adminRaw = localStorage.getItem(adminStorageKey);
