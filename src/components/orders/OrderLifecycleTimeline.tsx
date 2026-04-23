@@ -26,6 +26,7 @@ import {
   CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { carrierLabel, resolveTrackingLink } from "@/lib/carrierTracking";
 
 export type LifecycleVariant = "admin" | "client";
 
@@ -206,23 +207,31 @@ export function OrderLifecycleTimeline({ data, variant = "client", installationT
       </div>
 
       {/* Détails tracking (admin OU client+self) */}
-      {showShipmentForClient && data.tracking_number && (
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs">
-          <span className="text-muted-foreground">Suivi&nbsp;:</span>
-          {data.carrier && <span className="font-medium text-foreground">{data.carrier}</span>}
-          <span className="font-mono text-foreground">{data.tracking_number}</span>
-          {data.tracking_url && (
-            <a
-              href={data.tracking_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary hover:underline"
-            >
-              Suivre le colis →
-            </a>
-          )}
-        </div>
-      )}
+      {showShipmentForClient && data.tracking_number && (() => {
+        const carrierName = carrierLabel(data.carrier);
+        const trackingHref = resolveTrackingLink(data.carrier, data.tracking_number, data.tracking_url);
+        return (
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs">
+            <span className="text-muted-foreground">Suivi&nbsp;:</span>
+            <span className={cn("font-medium", data.carrier ? "text-foreground" : "text-muted-foreground italic")}>
+              {carrierName}
+            </span>
+            {trackingHref ? (
+              <a
+                href={trackingHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono font-medium text-primary hover:underline"
+                title={`Suivre ${data.tracking_number} sur le site du transporteur`}
+              >
+                {data.tracking_number} ↗
+              </a>
+            ) : (
+              <span className="font-mono text-foreground">{data.tracking_number}</span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Côté admin uniquement : si pro mais shipment existe → mention discrète */}
       {isAdmin && !selfInstall && data.shipment_status && (
