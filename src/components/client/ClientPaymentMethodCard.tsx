@@ -9,7 +9,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, Wallet, ShieldCheck, ExternalLink, RefreshCw, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, Wallet, ShieldCheck, ExternalLink, RefreshCw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
@@ -24,7 +24,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 import { useClientAutoPayEnrollment } from "@/hooks/useClientAutoPayEnrollment";
 import { PayPalAutoPayErrorDialog } from "@/components/client/PayPalAutoPayErrorDialog";
 
@@ -159,12 +158,6 @@ export const ClientPaymentMethodCard = () => {
                 >
                   Retirer le pré-autorisé
                 </Button>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/portal/autopay-log">
-                    <FileText className="w-3 h-3 mr-1" />
-                    Journal
-                  </Link>
-                </Button>
               </div>
             </>
           ) : (
@@ -199,15 +192,9 @@ export const ClientPaymentMethodCard = () => {
                     className="text-destructive border-destructive/50"
                   >
                     <RefreshCw className="w-3 h-3 mr-1" />
-                    Voir l'erreur précédente
+                    Réessayer
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/portal/autopay-log">
-                    <FileText className="w-3 h-3 mr-1" />
-                    Journal
-                  </Link>
-                </Button>
               </div>
             </>
           )}

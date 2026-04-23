@@ -3,10 +3,9 @@
  * Detailed error screen for failed pre-authorized PayPal enrollments.
  * Shows status, debug_id, message, and links to the autopay log.
  */
-import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw, Mail, FileText, Copy } from "lucide-react";
+import { AlertTriangle, RefreshCw, Mail, Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { AutoPayEnrollError } from "@/hooks/useClientAutoPayEnrollment";
 
@@ -94,13 +93,6 @@ export const PayPalAutoPayErrorDialog = ({ error, open, onClose, onRetry, retryi
             )}
           </div>
 
-          <Link
-            to="/portal/autopay-log"
-            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-          >
-            <FileText className="w-3 h-3" />
-            Voir le journal complet de mes tentatives
-          </Link>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2 flex-col-reverse sm:flex-row">

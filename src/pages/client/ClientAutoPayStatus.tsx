@@ -9,10 +9,10 @@
  * Used as a guard target by `<PayPalFlowGuard>`.
  */
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShieldCheck, AlertCircle, FileText } from "lucide-react";
+import { Loader2, ShieldCheck, AlertCircle } from "lucide-react";
 import { clearPayPalFlowActive, isPayPalFlowActive } from "@/hooks/useClientAutoPayEnrollment";
 
 const ClientAutoPayStatus = () => {
@@ -54,12 +54,6 @@ const ClientAutoPayStatus = () => {
                 Paiement sécurisé via PayPal
               </div>
               <div className="pt-3 border-t flex flex-col gap-2">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/portal/autopay-log">
-                    <FileText className="w-3 h-3 mr-1" />
-                    Voir le journal des tentatives
-                  </Link>
-                </Button>
                 <Button variant="outline" size="sm" onClick={handleAbort}>
                   Annuler et retourner au portail
                 </Button>
