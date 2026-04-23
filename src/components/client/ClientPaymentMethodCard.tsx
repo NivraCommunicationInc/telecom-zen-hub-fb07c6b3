@@ -42,110 +42,7 @@ export const ClientPaymentMethodCard = () => {
     lastError,
     clearLastError,
   } = useClientAutoPayEnrollment();
-
-  const { data: paypalSub, isLoading } = useQuery({
-    queryKey: ["client-paypal-preauth", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return null;
-      const { data } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, paypal_subscription_id")
-        .eq("customer_id", customer.id)
-        .eq("status", "active")
-        .not("paypal_subscription_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data ?? null;
-    },
-  });
-
-  const isPreAuth = !!paypalSub;
-
-  const handleEnroll = async (attemptId?: string) => {
-    const target = subscriptions?.[0] ?? null;
-    const ok = await enrollInPayPal(target, attemptId);
-    if (!ok) {
-      setErrorOpen(true);
-    }
-  };
-
-  const handleRetry = async () => {
-    const attemptId = lastError?.attempt_id || undefined;
-    setErrorOpen(false);
-    await handleEnroll(attemptId);
-  };
-
-  const handleCancel = async () => {
-    if (!paypalSub) return;
-    try {
-      setCancelling(true);
-      const { data, error } = await portalSupabase.functions.invoke("paypal-cancel-subscription", {
-        body: {
-          subscription_id: paypalSub.id,
-          reason: "Client requested removal of auto-pay",
-        },
-      });
-      if (error) throw new Error(error.message || "Erreur");
-      if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Paiement pré-autorisé retiré");
-      qc.invalidateQueries({ queryKey: ["client-paypal-preauth"] });
-      qc.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
-      qc.invalidateQueries({ queryKey: ["client-autopay-eligibility"] });
-      setConfirmOpen(false);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Échec de l'annulation");
-    } finally {
-      setCancelling(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <>
-      <Card className={isPreAuth ? "border-emerald-300 bg-emerald-50/40" : "border-border"}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Wallet className="w-4 h-4" />
-            Mode de paiement
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isPreAuth ? (
-            <>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Paiement pré-autorisé PayPal ✓
-                </Badge>
-              </div>
-              <div className="space-y-1 text-sm">
-                <p className="flex items-center gap-1.5 text-emerald-700">
-                  <ShieldCheck className="w-4 h-4" />
-                  Votre compte bénéficie d'un rabais de 5$/mois
-                </p>
-                <p className="text-muted-foreground">
-                  Vos factures sont payées automatiquement à la date d'échéance.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono pt-1">
-                  Référence: …{String(paypalSub.paypal_subscription_id).slice(-8)}
-                </p>
-              </div>
+...
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
@@ -173,9 +70,8 @@ export const ClientPaymentMethodCard = () => {
                   variant="default"
                   size="sm"
                   className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
-                  onClick={writeGuard(() => void handleEnroll())}
-                  disabled={!!enrollingSubscriptionId || writeGuard.isReadOnly}
-                  title={writeGuard.disabledReason}
+                  onClick={() => void handleEnroll()}
+                  disabled={!!enrollingSubscriptionId}
                 >
                   {enrollingSubscriptionId ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -188,10 +84,8 @@ export const ClientPaymentMethodCard = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={writeGuard(() => setErrorOpen(true))}
+                    onClick={() => setErrorOpen(true)}
                     className="text-destructive border-destructive/50"
-                    disabled={writeGuard.isReadOnly}
-                    title={writeGuard.disabledReason}
                   >
                     <RefreshCw className="w-3 h-3 mr-1" />
                     Réessayer
@@ -236,7 +130,7 @@ export const ClientPaymentMethodCard = () => {
           setErrorOpen(false);
           clearLastError();
         }}
-        onRetry={writeGuard(handleRetry)}
+        onRetry={handleRetry}
         retrying={!!enrollingSubscriptionId}
       />
     </>
