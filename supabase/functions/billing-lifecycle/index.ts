@@ -1277,6 +1277,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const rl = await enforceBillingRateLimit(req, "billing-lifecycle", corsHeaders);
+  if (rl) return rl;
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
