@@ -87,10 +87,6 @@ serve(async (req) => {
   const rl = await enforceBillingRateLimit(req, "billing-create-order", corsHeaders);
   if (rl) return rl;
 
-  if (false) {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
