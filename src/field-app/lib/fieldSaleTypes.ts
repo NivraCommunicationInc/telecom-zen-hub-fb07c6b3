@@ -1,7 +1,7 @@
 /**
- * Types for the Field Sales guided workflow.
+ * Types for the Field Sales 5-step guided workflow (rebuild v2).
+ * Flow: Client → Forfaits → Rabais → Récap → Paiement
  */
-import type { FieldSalePromo } from "@/field-app/components/sale/StepPromo";
 
 export interface FieldSaleCustomer {
   first_name: string;
@@ -34,33 +34,43 @@ export interface FieldSaleEquipment {
   quantity: number;
 }
 
-export interface FieldSaleInstallation {
-  type: "technician" | "self_install";
-  scheduledDate: string | null;
-  timeWindow: string | null;
+/**
+ * Agent discount applied to a sale.
+ * Sourced from the agent_discounts catalogue (Part 1).
+ */
+export interface FieldSaleDiscount {
+  id: string;
+  name: string;
+  type: "fixed" | "percentage";
+  value: number;
+  applies_to: "internet" | "tv" | "mobile" | "all";
+  description?: string | null;
 }
 
-export interface FieldSaleBilling {
-  preauthorizedPayment: boolean;
-  billingCycleDay: number;
-}
+/**
+ * PayPal-only payment options.
+ *  - paypal_onsite : Generate a PayPal link/QR — client pays on agent's device.
+ *  - paypal_email  : Send a PayPal payment link to the client by email.
+ */
+export type FieldPaymentMethod = "paypal_onsite" | "paypal_email";
 
 export interface FieldSalePayment {
-  method: "paypal" | "interac" | "send_link" | "card_present";
+  method: FieldPaymentMethod;
   status: "pending" | "sent" | "completed";
   linkSentTo: string | null;
-  interacReference?: string;
+  paypalApprovalUrl?: string | null;
+  paypalOrderId?: string | null;
 }
 
-export type FieldSaleStep = 
+/**
+ * 5 canonical steps in the rebuilt flow.
+ */
+export type FieldSaleStep =
   | "customer"
   | "services"
-  | "promo"
-  | "equipment"
-  | "installation"
-  | "billing"
+  | "discounts"
+  | "recap"
   | "payment"
-  | "review"
   | "submitted";
 
 export interface FieldSaleDraft {
@@ -68,10 +78,8 @@ export interface FieldSaleDraft {
   step: FieldSaleStep;
   customer: FieldSaleCustomer;
   services: FieldSaleService[];
-  promos: FieldSalePromo[];
   equipment: FieldSaleEquipment[];
-  installation: FieldSaleInstallation;
-  billing: FieldSaleBilling;
+  discount: FieldSaleDiscount | null;
   payment: FieldSalePayment;
   agentId: string;
   createdAt: string;
@@ -93,43 +101,30 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     serviceability_status: "unknown",
   },
   services: [],
-  promos: [],
   equipment: [],
-  installation: {
-    type: "self_install",
-    scheduledDate: null,
-    timeWindow: null,
-  },
-  billing: {
-    preauthorizedPayment: false,
-    billingCycleDay: new Date().getDate(),
-  },
+  discount: null,
   payment: {
-    method: "paypal",
+    method: "paypal_onsite",
     status: "pending",
     linkSentTo: null,
+    paypalApprovalUrl: null,
+    paypalOrderId: null,
   },
 };
 
 export const STEP_ORDER: FieldSaleStep[] = [
   "customer",
   "services",
-  "promo",
-  "equipment",
-  "installation",
-  "billing",
+  "discounts",
+  "recap",
   "payment",
-  "review",
 ];
 
 export const STEP_LABELS: Record<FieldSaleStep, string> = {
   customer: "Client",
-  services: "Services",
-  promo: "Promos",
-  equipment: "Équipement",
-  installation: "Installation",
-  billing: "Facturation",
+  services: "Forfaits",
+  discounts: "Rabais",
+  recap: "Récap",
   payment: "Paiement",
-  review: "Confirmation",
   submitted: "Soumis",
 };
