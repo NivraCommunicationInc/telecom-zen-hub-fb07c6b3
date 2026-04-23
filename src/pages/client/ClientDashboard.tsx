@@ -276,7 +276,8 @@ const ClientDashboard = () => {
                     </span>
                   </Link>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
