@@ -109,8 +109,8 @@ export const ClientPaymentMethodCard = () => {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="p-6 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        <CardContent className="flex items-center justify-center p-6">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     );
@@ -121,32 +121,32 @@ export const ClientPaymentMethodCard = () => {
       <Card className={isPreAuth ? "border-emerald-300 bg-emerald-50/40" : "border-border"}>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Wallet className="w-4 h-4" />
+            <Wallet className="h-4 w-4" />
             Mode de paiement
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {isPreAuth ? (
             <>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600">
+                  <CheckCircle2 className="h-3 w-3" />
                   Paiement pré-autorisé PayPal ✓
                 </Badge>
               </div>
               <div className="space-y-1 text-sm">
                 <p className="flex items-center gap-1.5 text-emerald-700">
-                  <ShieldCheck className="w-4 h-4" />
+                  <ShieldCheck className="h-4 w-4" />
                   Votre compte bénéficie d'un rabais de 5$/mois
                 </p>
                 <p className="text-muted-foreground">
                   Vos factures sont payées automatiquement à la date d'échéance.
                 </p>
-                <p className="text-xs text-muted-foreground font-mono pt-1">
+                <p className="pt-1 font-mono text-xs text-muted-foreground">
                   Référence: …{String(paypalSub.paypal_subscription_id).slice(-8)}
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -168,19 +168,18 @@ export const ClientPaymentMethodCard = () => {
                 compte PayPal requis.
               </p>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="default"
                   size="sm"
-                  className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
-                  onClick={writeGuard(() => void handleEnroll())}
-                  disabled={!!enrollingSubscriptionId || writeGuard.isReadOnly}
-                  title={writeGuard.disabledReason}
+                  className="gap-1 bg-[#0070ba] text-white hover:bg-[#005ea6]"
+                  onClick={() => void handleEnroll()}
+                  disabled={!!enrollingSubscriptionId}
                 >
                   {enrollingSubscriptionId ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <ExternalLink className="w-3 h-3" />
+                    <ExternalLink className="h-3 w-3" />
                   )}
                   Activer le paiement pré-autorisé
                 </Button>
@@ -188,12 +187,10 @@ export const ClientPaymentMethodCard = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={writeGuard(() => setErrorOpen(true))}
-                    className="text-destructive border-destructive/50"
-                    disabled={writeGuard.isReadOnly}
-                    title={writeGuard.disabledReason}
+                    onClick={() => setErrorOpen(true)}
+                    className="border-destructive/50 text-destructive"
                   >
-                    <RefreshCw className="w-3 h-3 mr-1" />
+                    <RefreshCw className="mr-1 h-3 w-3" />
                     Réessayer
                   </Button>
                 )}
@@ -221,7 +218,7 @@ export const ClientPaymentMethodCard = () => {
                 title={writeGuard.disabledReason}
                 className="bg-red-600 hover:bg-red-700"
               >
-                {cancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {cancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Confirmer le retrait
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -236,7 +233,7 @@ export const ClientPaymentMethodCard = () => {
           setErrorOpen(false);
           clearLastError();
         }}
-        onRetry={writeGuard(handleRetry)}
+        onRetry={handleRetry}
         retrying={!!enrollingSubscriptionId}
       />
     </>
