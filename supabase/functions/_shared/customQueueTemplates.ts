@@ -1056,6 +1056,82 @@ export function renderQueueTemplate(
       };
     }
 
+    // -------------------------------------------------------------------
+    // AUTOPAY — Activation confirmation (sent after PayPal subscription is verified ACTIVE)
+    // -------------------------------------------------------------------
+    case "autopay_activated": {
+      const subId = String(v.paypal_subscription_id || v.subscription_id || "");
+      const subRef = subId ? subId.slice(-8).toUpperCase() : "—";
+      const activatedAt = fmtDate(v.activated_at || new Date().toISOString());
+      const manageUrl = String(v.manage_url || `${portalUrl}/paiement`);
+      const detailsBody =
+        `<strong style="color:#1a1a2e;">Votre paiement pré-autorisé est maintenant actif.</strong><br/><br/>` +
+        `Vos factures mensuelles seront prélevées automatiquement sur votre mode de paiement PayPal.<br/><br/>` +
+        `<strong style="color:#7c3aed;">Vous bénéficiez d'un rabais de 5,00 $/mois</strong> tant que ` +
+        `votre paiement automatique est actif. Ce rabais est appliqué automatiquement sur chaque facture mensuelle.<br/><br/>` +
+        `<strong style="color:#1a1a2e;">Comment ça fonctionne :</strong> chaque mois, votre facture est générée ` +
+        `5 jours avant votre date de cycle. Le paiement est prélevé automatiquement avant votre date d'échéance. ` +
+        `Vous recevrez un reçu de paiement par courriel après chaque prélèvement.<br/><br/>` +
+        `<strong style="color:#1a1a2e;">Comment désactiver :</strong> rendez-vous dans votre portail client à la ` +
+        `section <em>Mode de paiement</em>. Le rabais de 5 $/mois sera retiré automatiquement au prochain cycle de facturation.`;
+      return {
+        subject: `Paiement automatique activé — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre paiement pré-autorisé Nivra est actif. Rabais de 5 $/mois appliqué.`,
+          badge: "PAIEMENT AUTOMATIQUE ACTIVÉ",
+          heroTitle: "Paiement automatique activé ✓",
+          heroSub: "Vos prochaines factures seront prélevées automatiquement.",
+          icon: "check",
+          greeting,
+          bodyText: detailsBody,
+          cardTitle: "Détails de votre abonnement",
+          cardRows: [
+            ["Date d'activation", activatedAt],
+            ["Référence PayPal", subRef],
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Rabais mensuel", "5,00 $"],
+          ],
+          ctaPrimaryUrl: manageUrl,
+          ctaPrimaryLabel: "Voir mon mode de paiement",
+        }),
+      };
+    }
+
+    // -------------------------------------------------------------------
+    // AUTOPAY — Cancellation confirmation
+    // -------------------------------------------------------------------
+    case "autopay_cancelled":
+    case "paypal_autopay_cancelled": {
+      const cancelledAt = fmtDate(v.cancelled_at || new Date().toISOString());
+      const billingUrl = String(v.billing_url || `${portalUrl}/facturation`);
+      const cancelBody =
+        `<strong style="color:#1a1a2e;">Votre paiement automatique a été désactivé.</strong><br/><br/>` +
+        `Le rabais de 5,00 $/mois sera retiré à compter de votre prochain cycle de facturation.<br/><br/>` +
+        `Vos prochaines factures devront être payées manuellement via votre portail client. ` +
+        `Vous pouvez réactiver le paiement automatique à tout moment depuis la section ` +
+        `<em>Mode de paiement</em> de votre portail.`;
+      return {
+        subject: `Paiement automatique désactivé — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre paiement automatique Nivra a été désactivé.`,
+          badge: "PAIEMENT AUTOMATIQUE DÉSACTIVÉ",
+          heroTitle: "Paiement automatique désactivé",
+          heroSub: "Vos prochaines factures devront être payées manuellement.",
+          icon: "alert",
+          greeting,
+          bodyText: cancelBody,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Date de désactivation", cancelledAt],
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Rabais mensuel", "Retiré au prochain cycle"],
+          ],
+          ctaPrimaryUrl: billingUrl,
+          ctaPrimaryLabel: "Payer ma prochaine facture",
+        }),
+      };
+    }
+
     // ===================================================================
     // ADMIN ALERTS (internal notifications)
     // ===================================================================
