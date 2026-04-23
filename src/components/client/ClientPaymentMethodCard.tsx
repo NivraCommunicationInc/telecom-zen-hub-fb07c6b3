@@ -37,8 +37,7 @@ export const ClientPaymentMethodCard = () => {
   const {
     enrollInPayPal,
     enrollingSubscriptionId,
-    eligibility,
-    eligibilityLoading,
+    subscriptions,
     lastError,
     clearLastError,
   } = useClientAutoPayEnrollment();
@@ -69,7 +68,11 @@ export const ClientPaymentMethodCard = () => {
   const isPreAuth = !!paypalSub;
 
   const handleEnroll = async (attemptId?: string) => {
-    const ok = await enrollInPayPal(null, attemptId);
+    // Always allow activation: pick any existing subscription as the binding target
+    // (active, pending, or suspended). The hook falls back to eligibility.subscription_id
+    // only if no explicit subscription is passed.
+    const target = subscriptions?.[0] ?? null;
+    const ok = await enrollInPayPal(target, attemptId);
     if (!ok) {
       setErrorOpen(true);
     }
@@ -106,7 +109,7 @@ export const ClientPaymentMethodCard = () => {
     }
   };
 
-  if (isLoading || eligibilityLoading) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="p-6 flex items-center justify-center">
@@ -173,59 +176,39 @@ export const ClientPaymentMethodCard = () => {
                 compte PayPal requis.
               </p>
 
-              {eligibility?.eligible ? (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
-                    onClick={() => void handleEnroll()}
-                    disabled={!!enrollingSubscriptionId}
-                  >
-                    {enrollingSubscriptionId ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <ExternalLink className="w-3 h-3" />
-                    )}
-                    Activer le paiement pré-autorisé
-                  </Button>
-                  {lastError && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setErrorOpen(true)}
-                      className="text-destructive border-destructive/50"
-                    >
-                      <RefreshCw className="w-3 h-3 mr-1" />
-                      Voir l'erreur précédente
-                    </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-[#0070ba] hover:bg-[#005ea6] text-white gap-1"
+                  onClick={() => void handleEnroll()}
+                  disabled={!!enrollingSubscriptionId}
+                >
+                  {enrollingSubscriptionId ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-3 h-3" />
                   )}
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/portal/autopay-log">
-                      <FileText className="w-3 h-3 mr-1" />
-                      Journal
-                    </Link>
+                  Activer le paiement pré-autorisé
+                </Button>
+                {lastError && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setErrorOpen(true)}
+                    className="text-destructive border-destructive/50"
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Voir l'erreur précédente
                   </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground italic">
-                    {eligibility?.reason === "active_chargeback"
-                      ? "Une rétrofacturation est en cours sur votre compte. Le pré-autorisé sera réactivé une fois la situation résolue."
-                      : eligibility?.reason === "no_eligible_subscription"
-                      ? "Aucun abonnement éligible trouvé. Si votre forfait est actif, contactez le support."
-                      : eligibility?.reason === "no_billing_customer"
-                      ? "Profil de facturation introuvable. Contactez le support."
-                      : "Votre compte n'est pas encore éligible au paiement pré-autorisé."}
-                  </p>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/portal/autopay-log">
-                      <FileText className="w-3 h-3 mr-1" />
-                      Voir le journal des tentatives
-                    </Link>
-                  </Button>
-                </div>
-              )}
+                )}
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/portal/autopay-log">
+                    <FileText className="w-3 h-3 mr-1" />
+                    Journal
+                  </Link>
+                </Button>
+              </div>
             </>
           )}
         </CardContent>
