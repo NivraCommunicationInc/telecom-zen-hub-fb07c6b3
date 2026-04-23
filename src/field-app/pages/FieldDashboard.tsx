@@ -1,43 +1,258 @@
 /**
- * FieldDashboard — Uses backend dashboard-summary + dashboard-activity endpoints.
- * No direct DB queries.
+ * FieldDashboard — Premium dark navy + purple dashboard.
+ * Real-time KPIs, commission grid, quick actions, recent activity.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { fetchDashboardSummary, fetchDashboardActivity } from "@/field-app/lib/fieldServices";
+import { useEffect } from "react";
 import {
-  TrendingUp, DollarSign, UserPlus, Plus, BarChart3, Clock,
+  fetchDashboardSummary,
+  fetchDashboardActivity,
+} from "@/field-app/lib/fieldServices";
+import { supabase } from "@/integrations/supabase/client";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  TrendingUp, DollarSign, UserPlus, Plus, Clock,
   CheckCircle2, AlertCircle, Loader2, Target,
-  Zap, Trophy, ChevronRight, MapPin, Calendar,
-  ShoppingCart, Star, ArrowRight, RefreshCw, Search,
+  Trophy, ChevronRight, MapPin, Calendar,
+  ShoppingCart, ArrowRight, Zap, Tag, Sparkles,
+  Activity, Wifi, BarChart3,
 } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+/* ─────────────────────────────────────────────────────────────
+   Reusable atoms — all dark theme
+   ───────────────────────────────────────────────────────────── */
+
+function StatusDot({ live = true }: { live?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className={cn("h-2 w-2 rounded-full field-pulse")}
+        style={{
+          background: live ? "hsl(var(--field-success))" : "hsl(var(--field-danger))",
+          boxShadow: `0 0 8px hsl(var(--field-${live ? "success" : "danger"}) / 0.6)`,
+        }}
+      />
+      <span className="text-[10px] font-semibold uppercase tracking-wider"
+            style={{ color: live ? "hsl(var(--field-success))" : "hsl(var(--field-danger))" }}>
+        {live ? "En ligne" : "Hors ligne"}
+      </span>
+    </span>
+  );
+}
+
+function Card({
+  children,
+  className,
+  interactive = false,
+  gradient = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  interactive?: boolean;
+  gradient?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl p-5",
+        gradient ? "field-gradient-card" : "",
+        interactive && "field-card-interactive cursor-pointer",
+        className,
+      )}
+      style={{
+        background: gradient ? undefined : "hsl(var(--field-card))",
+        border: "1px solid hsl(var(--field-border) / 0.15)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function KpiCard({
+  label, value, hint, icon: Icon, accent = "purple",
+  progress, progressColor,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  icon: any;
+  accent?: "purple" | "success" | "warning" | "danger" | "info";
+  progress?: number;
+  progressColor?: string;
+}) {
+  const accentMap = {
+    purple: "hsl(var(--field-accent))",
+    success: "hsl(var(--field-success))",
+    warning: "hsl(var(--field-warning))",
+    danger: "hsl(var(--field-danger))",
+    info: "hsl(var(--field-info))",
+  };
+  const c = accentMap[accent];
+  return (
+    <div
+      className="rounded-2xl p-4 sm:p-5 field-card-interactive"
+      style={{
+        background: "hsl(var(--field-card))",
+        border: `1px solid ${c} / 0.2`,
+        borderColor: `hsl(var(--field-border) / 0.15)`,
+      }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div
+          className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: `${c.replace(")", " / 0.15)")}` }}
+        >
+          <Icon className="h-5 w-5" style={{ color: c }} />
+        </div>
+      </div>
+      <p className="text-2xl font-bold tracking-tight text-white">{value}</p>
+      <p className="text-[11px] font-semibold mt-1"
+         style={{ color: "hsl(var(--field-text-muted))" }}>{label}</p>
+      {hint && (
+        <p className="text-[10px] mt-1"
+           style={{ color: "hsl(var(--field-text-dim))" }}>{hint}</p>
+      )}
+      {typeof progress === "number" && (
+        <div
+          className="h-1.5 rounded-full mt-3 overflow-hidden"
+          style={{ background: "hsl(var(--field-bg))" }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${Math.min(100, progress)}%`,
+              background: progressColor || c,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuickAction({
+  label, sub, icon: Icon, onClick, primary = false,
+}: {
+  label: string; sub?: string; icon: any; onClick: () => void; primary?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group flex flex-col items-start gap-2 p-4 rounded-2xl transition-all text-left field-card-interactive w-full",
+        primary && "field-glow",
+      )}
+      style={{
+        background: primary
+          ? "linear-gradient(135deg, hsl(var(--field-accent)) 0%, hsl(var(--field-accent-glow)) 100%)"
+          : "hsl(var(--field-card))",
+        border: primary ? "none" : "1px solid hsl(var(--field-border) / 0.15)",
+      }}
+    >
+      <div
+        className="h-10 w-10 rounded-xl flex items-center justify-center"
+        style={{
+          background: primary ? "rgba(255,255,255,0.2)" : "hsl(var(--field-accent) / 0.15)",
+        }}
+      >
+        <Icon className="h-5 w-5" style={{ color: primary ? "white" : "hsl(var(--field-accent-glow))" }} />
+      </div>
+      <div>
+        <p className={cn("text-sm font-bold", primary ? "text-white" : "text-white")}>{label}</p>
+        {sub && (
+          <p
+            className="text-[10px] mt-0.5"
+            style={{ color: primary ? "rgba(255,255,255,0.85)" : "hsl(var(--field-text-dim))" }}
+          >
+            {sub}
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Commission rules hook — reads commission_rules table directly
+   (filtered by current agent or their role)
+   ───────────────────────────────────────────────────────────── */
+
+function useCommissionRules(userId?: string) {
+  return useQuery({
+    queryKey: ["field-commission-rules", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_rules")
+        .select("*")
+        .eq("is_active", true)
+        .or(`employee_id.eq.${userId},role.eq.field_sales`)
+        .order("applies_to");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+function useMonthlyTarget(userId?: string) {
+  return useQuery({
+    queryKey: ["field-monthly-target", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const now = new Date();
+      const { data } = await supabase
+        .from("sales_targets")
+        .select("*")
+        .or(`employee_id.eq.${userId},role.eq.field_sales`)
+        .eq("period_month", now.getMonth() + 1)
+        .eq("period_year", now.getFullYear())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 120_000,
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Main dashboard
+   ───────────────────────────────────────────────────────────── */
+
 const SYNC_ICON: Record<string, { icon: typeof CheckCircle2; color: string }> = {
-  synced: { icon: CheckCircle2, color: "text-[#16A34A]" },
-  pending: { icon: Clock, color: "text-[#D97706]" },
-  error: { icon: AlertCircle, color: "text-[#DC2626]" },
+  synced: { icon: CheckCircle2, color: "hsl(var(--field-success))" },
+  pending: { icon: Clock, color: "hsl(var(--field-warning))" },
+  error: { icon: AlertCircle, color: "hsl(var(--field-danger))" },
 };
+
 const PAYMENT_LABEL: Record<string, { label: string; color: string }> = {
-  confirmed: { label: "Payé", color: "text-[#16A34A]" },
-  pending: { label: "En attente", color: "text-[#D97706]" },
-  failed: { label: "Échoué", color: "text-[#DC2626]" },
-  cancelled: { label: "Annulé", color: "text-[#6B7280]" },
+  confirmed: { label: "Payé", color: "hsl(var(--field-success))" },
+  pending: { label: "En attente", color: "hsl(var(--field-warning))" },
+  failed: { label: "Échoué", color: "hsl(var(--field-danger))" },
+  cancelled: { label: "Annulé", color: "hsl(var(--field-text-dim))" },
 };
-const LEAD_STATUS: Record<string, { label: string; classes: string }> = {
-  new: { label: "Nouveau", classes: "bg-[#FEF3C7] text-[#D97706]" },
-  contacted: { label: "Contacté", classes: "bg-[#E0E7FF] text-[#4338CA]" },
-  qualified: { label: "Qualifié", classes: "bg-[#FEF3C7] text-[#D97706]" },
-  submitted: { label: "Soumis", classes: "bg-[#DBEAFE] text-[#1D4ED8]" },
-  won: { label: "Gagné", classes: "bg-[#DCFCE7] text-[#16A34A]" },
-  lost: { label: "Perdu", classes: "bg-[#FEE2E2] text-[#DC2626]" },
+
+const LEAD_STATUS: Record<string, { label: string; bg: string; color: string }> = {
+  new: { label: "Nouveau", bg: "hsl(var(--field-warning) / 0.15)", color: "hsl(var(--field-warning))" },
+  contacted: { label: "Contacté", bg: "hsl(var(--field-info) / 0.15)", color: "hsl(var(--field-info))" },
+  qualified: { label: "Qualifié", bg: "hsl(var(--field-accent) / 0.15)", color: "hsl(var(--field-accent-glow))" },
+  submitted: { label: "Soumis", bg: "hsl(var(--field-info) / 0.15)", color: "hsl(var(--field-info))" },
+  won: { label: "Gagné", bg: "hsl(var(--field-success) / 0.15)", color: "hsl(var(--field-success))" },
+  lost: { label: "Perdu", bg: "hsl(var(--field-danger) / 0.15)", color: "hsl(var(--field-danger))" },
 };
 
 export default function FieldDashboard() {
   const navigate = useNavigate();
+  const { user } = useStaffUser();
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-dashboard-summary"],
@@ -52,6 +267,32 @@ export default function FieldDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
+  const { data: commissionRules } = useCommissionRules(user?.id);
+  const { data: monthlyTarget } = useMonthlyTarget(user?.id);
+
+  /* Real-time subscriptions */
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`field-dashboard-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "commission_rules" },
+        () => queryClient.invalidateQueries({ queryKey: ["field-commission-rules"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_targets" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["field-monthly-target"] });
+          queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] });
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_commissions", filter: `agent_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `created_by_agent_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] });
+          queryClient.invalidateQueries({ queryKey: ["field-dashboard-activity"] });
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
+
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return "Bonjour";
@@ -59,218 +300,416 @@ export default function FieldDashboard() {
     return "Bonsoir";
   };
 
+  const initials = (data?.userName ?? "Agent")
+    .split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase();
+
   if (isLoading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#22C55E]" /></div>;
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: "hsl(var(--field-accent-glow))" }} />
+      </div>
+    );
   }
 
-  const goalMet = (data?.salesToday ?? 0) >= (data?.dailyGoal ?? 3);
+  const salesToday = data?.salesToday ?? 0;
+  const dailyGoal = data?.dailyGoal ?? 3;
+  const goalProgress = dailyGoal > 0 ? Math.round((salesToday / dailyGoal) * 100) : 0;
+  const goalColor = goalProgress >= 80
+    ? "hsl(var(--field-success))"
+    : goalProgress >= 50
+      ? "hsl(var(--field-warning))"
+      : "hsl(var(--field-danger))";
+
+  const monthRevenue = data?.monthRevenue ?? 0;
+  const monthlyTargetAmount = monthlyTarget?.target_amount ?? 0;
+  const monthRevenueProgress = monthlyTargetAmount > 0
+    ? Math.round((monthRevenue / Number(monthlyTargetAmount)) * 100)
+    : 0;
+
+  const totalEarned = data?.totalEarned ?? 0;
+  const conversionRate = data?.conversionRate ?? 0;
+  const openLeads = data?.openLeads ?? 0;
+
+  /* Bonus preview from monthlyTarget */
+  const bonus100 = Number(monthlyTarget?.bonus_amount ?? 0);
+  const bonus120 = bonus100 * 2;
 
   return (
     <div className="space-y-6">
       {/* HEADER */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-[#000000] tracking-tight">
-            {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""} 👋
-          </h1>
-          <p className="text-sm text-[#6B7280] mt-0.5">{format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} · {data?.jobTitle}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate(fieldPath("/address-lookup"))} className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#374151] text-sm font-semibold hover:bg-[#F9FAFB] transition-all">
-            <Search className="h-4 w-4" /> Rechercher
-          </button>
-          <button onClick={() => navigate(fieldPath("/sale/new"))} className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] transition-all shadow-md hover:shadow-lg">
-            <Plus className="h-4 w-4" /> Nouvelle vente
-          </button>
-        </div>
-      </div>
-
-      {/* DAILY GOAL */}
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", goalMet ? "bg-[#DCFCE7]" : "bg-[#FEF3C7]")}>
-              {goalMet ? <Trophy className="h-4 w-4 text-[#16A34A]" /> : <Target className="h-4 w-4 text-[#D97706]" />}
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#000000]">Objectif du jour</p>
-              <p className="text-xs text-[#6B7280]">{data?.salesToday ?? 0} / {data?.dailyGoal ?? 3} ventes</p>
+        <div className="flex items-center gap-3">
+          <div
+            className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 field-glow"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--field-accent)) 0%, hsl(var(--field-accent-glow)) 100%)",
+            }}
+          >
+            <span className="text-base font-bold text-white">{initials}</span>
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""}
+            </h1>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-xs" style={{ color: "hsl(var(--field-text-muted))" }}>
+                {format(new Date(), "EEEE d MMMM", { locale: fr })}
+              </span>
+              <span style={{ color: "hsl(var(--field-text-dim))" }}>·</span>
+              <StatusDot live />
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-[#000000]">{data?.goalProgress ?? 0}%</p>
-            {goalMet && <span className="text-[10px] font-bold text-[#16A34A]">🎉 Objectif atteint!</span>}
-          </div>
         </div>
-        <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
-          <div className={cn("h-full rounded-full transition-all duration-700", goalMet ? "bg-[#22C55E]" : "bg-[#F59E0B]")} style={{ width: `${data?.goalProgress ?? 0}%` }} />
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-[10px] text-[#9CA3AF]">Revenu aujourd'hui</span>
-          <span className="text-xs font-bold text-[#000000]">{(data?.todayRevenue ?? 0).toFixed(2)} $</span>
-        </div>
+        <button
+          onClick={() => navigate(fieldPath("/sale/new"))}
+          className="hidden sm:flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white field-glow transition-all hover:scale-105"
+          style={{
+            background: "linear-gradient(135deg, hsl(var(--field-accent)) 0%, hsl(var(--field-accent-glow)) 100%)",
+          }}
+        >
+          <Plus className="h-4 w-4" /> Nouvelle vente
+        </button>
       </div>
 
-      {/* KPI GRID */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {[
-          { label: "Ventes aujourd'hui", value: data?.salesToday ?? 0, icon: Zap, iconColor: "text-[#22C55E]", iconBg: "bg-[#DCFCE7]", trend: data?.salesToday && data.salesToday > 0 ? `+${data.salesToday}` : undefined },
-          { label: "Cette semaine", value: data?.salesWeek ?? 0, icon: BarChart3, iconColor: "text-[#3B82F6]", iconBg: "bg-[#DBEAFE]" },
-          { label: "Ce mois", value: data?.salesMonth ?? 0, icon: TrendingUp, iconColor: "text-[#8B5CF6]", iconBg: "bg-[#EDE9FE]", subtitle: `${(data?.monthRevenue ?? 0).toFixed(0)} $ rev.` },
-          { label: "Commissions gagnées", value: `${(data?.totalEarned ?? 0).toFixed(2)} $`, icon: DollarSign, iconColor: "text-[#F59E0B]", iconBg: "bg-[#FEF3C7]", subtitle: `${(data?.pendingCommissions ?? 0).toFixed(2)} $ en attente` },
-          { label: "Taux de conversion", value: `${data?.conversionRate ?? 0}%`, icon: Target, iconColor: "text-[#EC4899]", iconBg: "bg-[#FCE7F3]", subtitle: `${data?.wonLeads ?? 0} gagnés / ${data?.lostLeads ?? 0} perdus` },
-          { label: "Leads ouverts", value: data?.openLeads ?? 0, icon: UserPlus, iconColor: "text-[#06B6D4]", iconBg: "bg-[#CFFAFE]" },
-        ].map((w) => (
-          <div key={w.label} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 hover:border-[#D1D5DB] transition-colors">
-            <div className="flex items-center justify-between mb-3">
-              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", w.iconBg)}>
-                <w.icon className={cn("h-5 w-5", w.iconColor)} />
+      {/* KPI ROW 1 — Goal + Revenue + Commissions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <KpiCard
+          label="Ventes aujourd'hui"
+          value={`${salesToday} / ${dailyGoal}`}
+          hint={goalProgress >= 100 ? "🎉 Objectif atteint!" : `${goalProgress}% de l'objectif`}
+          icon={Trophy}
+          accent={goalProgress >= 80 ? "success" : goalProgress >= 50 ? "warning" : "danger"}
+          progress={goalProgress}
+          progressColor={goalColor}
+        />
+        <KpiCard
+          label="Revenus ce mois"
+          value={`${monthRevenue.toFixed(0)} $`}
+          hint={monthlyTargetAmount > 0
+            ? `${monthRevenueProgress}% de ${Number(monthlyTargetAmount).toFixed(0)} $`
+            : "Objectif non défini"}
+          icon={TrendingUp}
+          accent="purple"
+          progress={monthRevenueProgress}
+        />
+        <KpiCard
+          label="Commissions ce mois"
+          value={`${totalEarned.toFixed(2)} $`}
+          hint={`${(data?.pendingCommissions ?? 0).toFixed(2)} $ en attente`}
+          icon={DollarSign}
+          accent="success"
+        />
+      </div>
+
+      {/* KPI ROW 2 — Conversion + Leads + Bonus */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <KpiCard
+          label="Taux de conversion"
+          value={`${conversionRate}%`}
+          hint={`${data?.wonLeads ?? 0} gagnés / ${data?.lostLeads ?? 0} perdus`}
+          icon={Target}
+          accent="info"
+        />
+        <KpiCard
+          label="Leads actifs"
+          value={openLeads}
+          hint="Ce mois"
+          icon={UserPlus}
+          accent="warning"
+        />
+        <Card gradient className="flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4" style={{ color: "hsl(var(--field-accent-glow))" }} />
+            <span className="text-[11px] font-bold uppercase tracking-wider"
+                  style={{ color: "hsl(var(--field-accent-glow))" }}>
+              Bonus preview
+            </span>
+          </div>
+          {bonus100 > 0 ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: "hsl(var(--field-text-muted))" }}>À 100%</span>
+                <span className="text-sm font-bold text-white">+{bonus100.toFixed(0)} $</span>
               </div>
-              {w.trend && <span className="text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-1.5 py-0.5 rounded-md">{w.trend}</span>}
-            </div>
-            <p className="text-2xl font-bold text-[#000000] tracking-tight">{w.value}</p>
-            <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">{w.label}</p>
-            {w.subtitle && <p className="text-[10px] text-[#9CA3AF] mt-0.5">{w.subtitle}</p>}
-          </div>
-        ))}
-      </div>
-
-      {/* ALERTS */}
-      {((data?.syncErrors ?? 0) > 0 || (data?.pendingPayment ?? 0) > 0 || (data?.pendingSync ?? 0) > 0) && (
-        <div className="flex gap-2 flex-wrap">
-          {(data?.syncErrors ?? 0) > 0 && (
-            <button onClick={() => navigate(fieldPath("/tracking"))} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-xs font-semibold hover:bg-[#FEE2E2] transition-colors">
-              <AlertCircle className="h-3.5 w-3.5" /> {data?.syncErrors} erreur{(data?.syncErrors ?? 0) > 1 ? "s" : ""} sync
-            </button>
-          )}
-          {(data?.pendingPayment ?? 0) > 0 && (
-            <button onClick={() => navigate(fieldPath("/submissions"))} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] text-[#92400E] text-xs font-semibold hover:bg-[#FEF3C7] transition-colors">
-              <Clock className="h-3.5 w-3.5" /> {data?.pendingPayment} paiement{(data?.pendingPayment ?? 0) > 1 ? "s" : ""} en attente
-            </button>
-          )}
-          {(data?.pendingSync ?? 0) > 0 && (
-            <button onClick={() => navigate(fieldPath("/tracking"))} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-xs font-semibold hover:bg-[#DBEAFE] transition-colors">
-              <RefreshCw className="h-3.5 w-3.5" /> {data?.pendingSync} sync en cours
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* QUICK ACTIONS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Nouvelle vente", sub: "Placer une commande", icon: ShoppingCart, path: "/sale/new", primary: true, iconBg: "bg-[#DCFCE7]", iconColor: "text-[#16A34A]" },
-          { label: "Nouveau lead", sub: "Ajouter un prospect", icon: UserPlus, path: "/leads/new", iconBg: "bg-[#FCE7F3]", iconColor: "text-[#EC4899]" },
-          { label: "Mes commandes", sub: `${data?.pendingPayment ?? 0} en attente`, icon: ArrowRight, path: "/submissions", iconBg: "bg-[#DBEAFE]", iconColor: "text-[#3B82F6]" },
-          { label: "Territoire", sub: "Marquer rue faite", icon: MapPin, path: "/territory", iconBg: "bg-[#E0F2FE]", iconColor: "text-[#0EA5E9]" },
-          { label: "Catalogue", sub: "Voir les offres", icon: Star, path: "/offers", iconBg: "bg-[#FEF3C7]", iconColor: "text-[#D97706]" },
-          { label: "Commissions", sub: `${(data?.totalEarned ?? 0).toFixed(0)} $ gagnés`, icon: DollarSign, path: "/commissions", iconBg: "bg-[#FEF3C7]", iconColor: "text-[#F59E0B]" },
-          { label: "Objectifs", sub: "Voir mes cibles", icon: Target, path: "/objectives", iconBg: "bg-[#FCE7F3]", iconColor: "text-[#EC4899]" },
-          { label: "Rapport du jour", sub: "Générer", icon: Calendar, path: "/daily-report", iconBg: "bg-[#EDE9FE]", iconColor: "text-[#8B5CF6]" },
-        ].map((a) => (
-          <button key={a.label} onClick={() => navigate(fieldPath(a.path))} className={cn("flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all hover:shadow-sm", a.primary ? "bg-[#F0FDF4] border-[#BBF7D0] hover:bg-[#DCFCE7]" : "bg-white border-[#E5E7EB] hover:bg-[#F9FAFB] hover:border-[#D1D5DB]")}>
-            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", a.iconBg)}>
-              <a.icon className={cn("h-5 w-5", a.iconColor)} />
-            </div>
-            <div>
-              <p className="text-[13px] font-bold text-[#000000]">{a.label}</p>
-              <p className="text-[10px] text-[#9CA3AF]">{a.sub}</p>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* RECENT ORDERS + LEADS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
-            <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Dernières commandes</h3>
-            <button onClick={() => navigate(fieldPath("/submissions"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-semibold flex items-center gap-1">Tout voir <ChevronRight className="h-3 w-3" /></button>
-          </div>
-          {(activity?.recentOrders?.length ?? 0) === 0 ? (
-            <div className="p-6 text-center">
-              <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" />
-              <p className="text-sm text-[#9CA3AF]">Aucune commande</p>
-              <button onClick={() => navigate(fieldPath("/sale/new"))} className="text-xs text-[#22C55E] hover:underline mt-1 font-medium">Créer une vente</button>
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: "hsl(var(--field-text-muted))" }}>À 120%</span>
+                <span className="text-sm font-bold" style={{ color: "hsl(var(--field-accent-glow))" }}>
+                  +{bonus120.toFixed(0)} $
+                </span>
+              </div>
             </div>
           ) : (
-            <div className="divide-y divide-[#F3F4F6]">
-              {activity!.recentOrders.slice(0, 5).map((order: any) => {
+            <p className="text-xs" style={{ color: "hsl(var(--field-text-dim))" }}>
+              Aucun bonus configuré ce mois
+            </p>
+          )}
+        </Card>
+      </div>
+
+      {/* COMMISSION GRID */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4" style={{ color: "hsl(var(--field-accent-glow))" }} />
+            <h3 className="text-sm font-bold text-white">Mes taux de commission</h3>
+          </div>
+          <span className="text-[10px] font-semibold flex items-center gap-1"
+                style={{ color: "hsl(var(--field-success))" }}>
+            <Wifi className="h-3 w-3 field-pulse" /> En direct
+          </span>
+        </div>
+        {!commissionRules || commissionRules.length === 0 ? (
+          <p className="text-xs py-4 text-center" style={{ color: "hsl(var(--field-text-dim))" }}>
+            Aucun taux configuré. Contactez votre superviseur.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {commissionRules.map((r: any) => {
+              const exampleBase = 60;
+              const exampleCommission = (exampleBase * Number(r.percentage)) / 100;
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between p-3 rounded-xl"
+                  style={{
+                    background: "hsl(var(--field-bg-elevated))",
+                    border: "1px solid hsl(var(--field-border) / 0.1)",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-8 w-8 rounded-lg flex items-center justify-center"
+                      style={{ background: "hsl(var(--field-accent) / 0.15)" }}
+                    >
+                      <Tag className="h-3.5 w-3.5" style={{ color: "hsl(var(--field-accent-glow))" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white capitalize">
+                        {r.applies_to === "all" ? "Tous les services" : r.applies_to}
+                      </p>
+                      <p className="text-[10px]" style={{ color: "hsl(var(--field-text-dim))" }}>
+                        Sur 60$ /mois → {exampleCommission.toFixed(2)} $
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className="text-base font-bold px-3 py-1 rounded-lg"
+                    style={{
+                      background: "hsl(var(--field-accent) / 0.2)",
+                      color: "hsl(var(--field-accent-glow))",
+                    }}
+                  >
+                    {Number(r.percentage).toFixed(1)}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* QUICK ACTIONS */}
+      <div>
+        <h3 className="text-xs font-bold uppercase tracking-wider mb-3 px-1"
+            style={{ color: "hsl(var(--field-text-dim))" }}>
+          Actions rapides
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <QuickAction
+            label="Nouvelle vente"
+            sub="Placer une commande"
+            icon={ShoppingCart}
+            onClick={() => navigate(fieldPath("/sale/new"))}
+            primary
+          />
+          <QuickAction
+            label="Nouveau lead"
+            sub="Ajouter un prospect"
+            icon={UserPlus}
+            onClick={() => navigate(fieldPath("/leads/new"))}
+          />
+          <QuickAction
+            label="Mon territoire"
+            sub="Marquer rue faite"
+            icon={MapPin}
+            onClick={() => navigate(fieldPath("/territory"))}
+          />
+          <QuickAction
+            label="Mes rabais"
+            sub="Voir disponibles"
+            icon={Tag}
+            onClick={() => navigate(fieldPath("/offers"))}
+          />
+          <QuickAction
+            label="Rapport du jour"
+            sub="Générer"
+            icon={Calendar}
+            onClick={() => navigate(fieldPath("/daily-report"))}
+          />
+        </div>
+      </div>
+
+      {/* RECENT ACTIVITY */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Orders */}
+        <Card className="!p-0 overflow-hidden">
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: "1px solid hsl(var(--field-border) / 0.12)" }}
+          >
+            <h3 className="text-xs font-bold uppercase tracking-wider"
+                style={{ color: "hsl(var(--field-text-muted))" }}>
+              Dernières commandes
+            </h3>
+            <button
+              onClick={() => navigate(fieldPath("/submissions"))}
+              className="text-[11px] font-semibold flex items-center gap-1 transition-colors"
+              style={{ color: "hsl(var(--field-accent-glow))" }}
+            >
+              Tout voir <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+          {(activity?.recentOrders?.length ?? 0) === 0 ? (
+            <div className="p-8 text-center">
+              <ShoppingCart className="h-10 w-10 mx-auto mb-3"
+                            style={{ color: "hsl(var(--field-text-dim))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--field-text-muted))" }}>
+                Aucune commande récente
+              </p>
+              <button
+                onClick={() => navigate(fieldPath("/sale/new"))}
+                className="text-xs font-semibold mt-2 hover:underline"
+                style={{ color: "hsl(var(--field-accent-glow))" }}
+              >
+                Créer une vente
+              </button>
+            </div>
+          ) : (
+            <div>
+              {activity!.recentOrders.slice(0, 5).map((order: any, idx: number) => {
                 const syncCfg = SYNC_ICON[order.sync_status] || SYNC_ICON.pending;
                 const SIcon = syncCfg.icon;
                 const payCfg = PAYMENT_LABEL[order.payment_status] || PAYMENT_LABEL.pending;
                 return (
-                  <button key={order.id} onClick={() => navigate(fieldPath(`/orders/${order.id}`))} className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left">
+                  <button
+                    key={order.id}
+                    onClick={() => navigate(fieldPath(`/orders/${order.id}`))}
+                    className="w-full flex items-center justify-between px-4 py-3 transition-colors text-left"
+                    style={{
+                      borderTop: idx === 0 ? "none" : "1px solid hsl(var(--field-border) / 0.08)",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "hsl(var(--field-card-hover))"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-[#000000] font-semibold truncate">{order.customer_name}</span>
-                        <SIcon className={cn("h-3.5 w-3.5 shrink-0", syncCfg.color)} />
+                        <span className="text-sm font-semibold text-white truncate">
+                          {order.customer_name}
+                        </span>
+                        <SIcon className="h-3.5 w-3.5 shrink-0" style={{ color: syncCfg.color }} />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={cn("text-[10px] font-semibold", payCfg.color)}>{payCfg.label}</span>
-                        <span className="text-[10px] text-[#9CA3AF]">•</span>
-                        <span className="text-[10px] font-bold text-[#000000]">{order.total_amount?.toFixed(2)} $</span>
+                        <span className="text-[10px] font-semibold" style={{ color: payCfg.color }}>
+                          {payCfg.label}
+                        </span>
+                        <span style={{ color: "hsl(var(--field-text-dim))" }}>·</span>
+                        <span className="text-[10px] font-bold text-white">
+                          {order.total_amount?.toFixed(2)} $
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-[#9CA3AF]">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: fr })}</span>
-                      <ChevronRight className="h-3.5 w-3.5 text-[#D1D5DB]" />
+                      <span className="text-[10px]" style={{ color: "hsl(var(--field-text-dim))" }}>
+                        {formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: fr })}
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5" style={{ color: "hsl(var(--field-text-dim))" }} />
                     </div>
                   </button>
                 );
               })}
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
-            <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Derniers leads</h3>
-            <button onClick={() => navigate(fieldPath("/leads"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-semibold flex items-center gap-1">Tout voir <ChevronRight className="h-3 w-3" /></button>
+        {/* Leads */}
+        <Card className="!p-0 overflow-hidden">
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: "1px solid hsl(var(--field-border) / 0.12)" }}
+          >
+            <h3 className="text-xs font-bold uppercase tracking-wider"
+                style={{ color: "hsl(var(--field-text-muted))" }}>
+              Derniers leads
+            </h3>
+            <button
+              onClick={() => navigate(fieldPath("/leads"))}
+              className="text-[11px] font-semibold flex items-center gap-1"
+              style={{ color: "hsl(var(--field-accent-glow))" }}
+            >
+              Tout voir <ChevronRight className="h-3 w-3" />
+            </button>
           </div>
           {(activity?.recentLeads?.length ?? 0) === 0 ? (
-            <div className="p-6 text-center">
-              <UserPlus className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" />
-              <p className="text-sm text-[#9CA3AF]">Aucun lead</p>
+            <div className="p-8 text-center">
+              <UserPlus className="h-10 w-10 mx-auto mb-3"
+                        style={{ color: "hsl(var(--field-text-dim))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--field-text-muted))" }}>
+                Aucun lead récent
+              </p>
             </div>
           ) : (
-            <div className="divide-y divide-[#F3F4F6]">
-              {activity!.recentLeads.map((lead: any) => {
+            <div>
+              {activity!.recentLeads.slice(0, 3).map((lead: any, idx: number) => {
                 const sc = LEAD_STATUS[lead.status] || LEAD_STATUS.new;
                 return (
-                  <button key={lead.id} onClick={() => navigate(fieldPath(`/leads/${lead.id}`))} className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left">
+                  <button
+                    key={lead.id}
+                    onClick={() => navigate(fieldPath(`/leads/${lead.id}`))}
+                    className="w-full flex items-center justify-between px-4 py-3 transition-colors text-left"
+                    style={{
+                      borderTop: idx === 0 ? "none" : "1px solid hsl(var(--field-border) / 0.08)",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "hsl(var(--field-card-hover))"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-[#000000] font-semibold truncate">{lead.first_name} {lead.last_name}</span>
-                        <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", sc.classes)}>{sc.label}</span>
+                        <span className="text-sm font-semibold text-white truncate">
+                          {lead.first_name} {lead.last_name}
+                        </span>
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: sc.bg, color: sc.color }}
+                        >
+                          {sc.label}
+                        </span>
                       </div>
-                      <p className="text-[10px] text-[#6B7280] mt-0.5">{lead.service_need || lead.phone || "—"}</p>
+                      <p className="text-[10px] mt-0.5"
+                         style={{ color: "hsl(var(--field-text-muted))" }}>
+                        {lead.service_need || lead.phone || "—"}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-[#9CA3AF]">{formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}</span>
-                      <ChevronRight className="h-3.5 w-3.5 text-[#D1D5DB]" />
-                    </div>
+                    <ChevronRight className="h-3.5 w-3.5"
+                                  style={{ color: "hsl(var(--field-text-dim))" }} />
                   </button>
                 );
               })}
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
-      {/* PERFORMANCE */}
-      <div className="bg-gradient-to-r from-[#F0FDF4] to-[#ECFDF5] border border-[#BBF7D0] rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Trophy className="h-5 w-5 text-[#16A34A]" />
-          <h3 className="text-sm font-bold text-[#16A34A]">Performance globale</h3>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div><p className="text-2xl font-bold text-[#000000]">{data?.totalOrders ?? 0}</p><p className="text-[10px] text-[#6B7280]">Ventes totales</p></div>
-          <div><p className="text-2xl font-bold text-[#000000]">{(data?.monthRevenue ?? 0).toFixed(0)} $</p><p className="text-[10px] text-[#6B7280]">Revenu ce mois</p></div>
-          <div><p className="text-2xl font-bold text-[#16A34A]">{(data?.paidCommissions ?? 0).toFixed(2)} $</p><p className="text-[10px] text-[#6B7280]">Commissions payées</p></div>
-          <div><p className="text-2xl font-bold text-[#000000]">{data?.conversionRate ?? 0}%</p><p className="text-[10px] text-[#6B7280]">Taux conversion</p></div>
-        </div>
-      </div>
+      {/* MOBILE SALE BUTTON (sticky on mobile) */}
+      <button
+        onClick={() => navigate(fieldPath("/sale/new"))}
+        className="sm:hidden fixed bottom-24 right-4 h-14 w-14 rounded-full flex items-center justify-center field-glow-strong z-40 transition-transform active:scale-95"
+        style={{
+          background: "linear-gradient(135deg, hsl(var(--field-accent)) 0%, hsl(var(--field-accent-glow)) 100%)",
+        }}
+        aria-label="Nouvelle vente"
+      >
+        <Plus className="h-6 w-6 text-white" />
+      </button>
     </div>
   );
 }
