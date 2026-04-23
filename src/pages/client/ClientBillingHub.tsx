@@ -14,6 +14,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { ClientPayBalanceCard } from "@/components/client/ClientPayBalanceCard";
+import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -184,6 +185,10 @@ const ClientBillingHub = () => {
     <ClientLayout>
       <div className="space-y-6">
         <ClientPayBalanceCard />
+
+        {/* Auto-pay status / activation — sits above the invoice list */}
+        <ClientPaymentMethodCard />
+
         {/* Header */}
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">

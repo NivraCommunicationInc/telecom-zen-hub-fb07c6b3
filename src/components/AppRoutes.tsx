@@ -362,6 +362,7 @@ const ClientServices = lazy(() => import("@/pages/client/ClientServices"));
 const ClientActivation = lazy(() => import("@/pages/client/ClientActivation"));
 const ClientProfile = lazy(() => import("@/pages/client/ClientProfile"));
 const ClientPayments = lazy(() => import("@/pages/client/ClientPayments"));
+const ClientPaymentMethod = lazy(() => import("@/pages/client/ClientPaymentMethod"));
 const ClientBillingHub = lazy(() => import("@/pages/client/ClientBillingHub"));
 const ClientBalancePaymentSuccess = lazy(() => import("@/pages/client/ClientBalancePaymentSuccess"));
 const ClientOrders = lazy(() => import("@/pages/client/ClientOrders"));
@@ -618,6 +619,7 @@ const AppRoutes = () => {
       <Route path="/portal/cancellations" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientCancellations /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/paiement" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPaymentMethod /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/billing" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientBillingHub /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/balance-payment-success" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientBalancePaymentSuccess /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
