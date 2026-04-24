@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import InternalPortalGate from "@/components/shared/InternalPortalGate";
+import StaffAssistanceBanner from "@/components/StaffAssistanceBanner";
 
 export default function EmployeeAppLayout() {
   const { theme, themeClass, toggleTheme } = useInternalTheme();
@@ -18,6 +19,7 @@ export default function EmployeeAppLayout() {
 
   return (
     <InternalPortalGate>
+      <StaffAssistanceBanner />
       <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
         <EmployeeSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
