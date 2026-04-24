@@ -529,13 +529,28 @@ export default function HrPayrollPage() {
 
   const markAllPaidMut = useMutation({
     mutationFn: async () => {
-      const ids = entries.filter((e: any) => e.status === "approved").map((e: any) => e.id);
+      const eligible = entries.filter((e: any) => e.status === "approved");
+      const ids = eligible.map((e: any) => e.id);
       if (ids.length === 0) throw new Error("Aucune fiche approuvée à marquer payée");
       const { error } = await supabase
         .from("payroll_entries")
         .update({ status: "paid", paid_at: new Date().toISOString() })
         .in("id", ids);
       if (error) throw error;
+      for (const e of eligible as any[]) {
+        await notifyEmployee({
+          employeeId: e.user_id,
+          templateKey: "hr_payroll_paid",
+          eventKey: `hr_payroll_paid_${e.id}`,
+          entityType: "payroll_entry",
+          entityId: e.id,
+          vars: {
+            net_amount: e.net_pay,
+            period_label: currentPeriod?.period_name,
+            paid_at: new Date().toISOString(),
+          },
+        });
+      }
       return ids.length;
     },
     onSuccess: (n) => {
