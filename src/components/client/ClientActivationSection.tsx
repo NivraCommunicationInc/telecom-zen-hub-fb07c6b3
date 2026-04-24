@@ -233,16 +233,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   }, [authLoading, clientId, queryClient]);
 
   const validateChecklist = (): string | null => {
-    if (!selectedOrderId) return "Veuillez sélectionner une commande";
-    if (!checks.coaxial || !checks.power) {
-      return "Veuillez compléter toutes les vérifications obligatoires avant de soumettre.";
-    }
-    if (!lightColor) {
-      return "Veuillez indiquer la couleur du voyant lumineux de la borne.";
-    }
-    if (lightColor !== LIGHT_OK) {
-      return "La lumière doit être blanche fixe pour activer votre service.";
-    }
+    // Order selection is OPTIONAL — clients can submit without an associated order.
+    // Pre-flight checklist is also optional; we only flag inconsistent terminal state.
     if (checks.hasTerminal && (!checks.hdmi || !checks.terminalPower)) {
       return "Veuillez confirmer le branchement du Terminal TV ou décocher l'option.";
     }
@@ -250,12 +242,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   };
 
   const lightOk = lightColor === LIGHT_OK;
-  const canSubmit =
-    !!selectedOrderId &&
-    checks.coaxial &&
-    checks.power &&
-    lightOk &&
-    (!checks.hasTerminal || (checks.hdmi && checks.terminalPower));
+  // Submit is always enabled (apart from in-flight submission). Order is optional.
+  const canSubmit = true;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +268,9 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         throw new Error("Session portail introuvable. Rechargez la page puis réessayez.");
       }
 
-      const resolvedLightColor = lightColor === LIGHT_OK ? "blanc_fixe" : lightColor;
+      const resolvedLightColor = lightColor
+        ? (lightColor === LIGHT_OK ? "blanc_fixe" : lightColor)
+        : null;
       const terminalConnected = checks.hasTerminal ? checks.hdmi && checks.terminalPower : null;
 
       const { data, error } = await portalSupabase.rpc("submit_activation_request", {
@@ -288,7 +278,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         p_wifi_password: parsed.data.wifi_password,
         p_contact_phone: parsed.data.contact_phone,
         p_client_notes: parsed.data.client_notes || null,
-        p_order_id: selectedOrderId,
+        p_order_id: selectedOrderId ?? null,
         p_light_color: resolvedLightColor,
         p_has_terminal: checks.hasTerminal,
         p_terminal_connected: terminalConnected,
@@ -299,8 +289,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         body: { activation_request_id: data },
       }).catch((err) => console.warn("[notify-activation] failed:", err));
 
-      toast.success("Demande soumise! Notre équipe va l'activer sous peu.");
-      setSuccessMessage("✅ Demande envoyée! Notre équipe traite maintenant votre activation WiFi.");
+      toast.success("Votre demande d'activation a été envoyée. Notre équipe vous contactera sous 24-48h.");
+      setSuccessMessage("Votre demande d'activation a été envoyée. Notre équipe vous contactera sous 24-48h.");
       setForm({
         wifi_network_name: "",
         wifi_password: "",
@@ -492,28 +482,22 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         <Card>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Order selection */}
+              {/* Order selection — OPTIONAL */}
               <div>
                 <Label className="text-base font-semibold flex items-center gap-2">
-                  <Package className="w-4 h-4" /> Pour quelle commande demandez-vous l'activation? *
+                  <Package className="w-4 h-4" /> Associer cette demande à une commande (optionnel)
                 </Label>
+                <p className="text-xs text-slate-500 mt-1">
+                  Vous pouvez soumettre votre demande sans sélectionner de commande.
+                </p>
                 <div className="mt-3 space-y-2">
-                  {eligibleOrders.length === 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
-                      Aucune commande Internet ou TV en attente d'activation. Contactez le support
-                      si vous pensez qu'il s'agit d'une erreur.{" "}
-                      <a href="mailto:support@nivra-telecom.ca" className="underline font-medium">
-                        support@nivra-telecom.ca
-                      </a>
-                    </div>
-                  )}
                   {eligibleOrders.map((order: any) => {
                     const active = selectedOrderId === order.id;
                     return (
                       <button
                         type="button"
                         key={order.id}
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => setSelectedOrderId(active ? null : order.id)}
                         className={`w-full text-left rounded-xl px-4 py-3 flex items-center gap-3 transition-colors ${
                           active
                             ? "border-2 border-violet-500 bg-violet-50"
@@ -745,8 +729,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
 
               <Button
                 type="submit"
-                disabled={submitting || eligibleOrders.length === 0 || !canSubmit}
-                title={!lightOk ? "La lumière doit être blanche fixe pour continuer" : undefined}
+                disabled={submitting}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
