@@ -1869,9 +1869,14 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
 
     await ensureOperationalState("activated");
+    // CANONICAL: service_activated_at must be set so the
+    // fn_activate_sub_on_order_activation trigger starts the billing cycle.
     await updateOrder.mutateAsync({
       processed_at: new Date().toISOString(),
       processed_by: user?.id,
+      service_activated_at: new Date().toISOString(),
+      service_activated_by: user?.id,
+      service_activation_source: "core_admin",
     });
 
     // Step 4: Log activity
