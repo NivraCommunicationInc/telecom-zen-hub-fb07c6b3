@@ -28,23 +28,39 @@ export function CoreCardManualPanel({ orderId, orderReference }: Props) {
   const { data: intent, isLoading, refetch } = useQuery({
     queryKey: ["core-card-intent", orderId, orderReference],
     queryFn: async () => {
-      // Lookup by order_reference (quote id) — most common path.
-      // Fall back to scanning by order id if needed.
-      const refs = [orderReference, orderId].filter(Boolean) as string[];
-      if (refs.length === 0) return null;
-      const { data, error } = await supabase
-        .from("card_payment_intents")
-        .select("id, card_last4, card_brand, card_expiry, card_name, amount, currency, status, expires_at, customer_email")
-        .in("order_reference", refs)
-        .in("status", ["pending_processing", "processing"])
+      // 1) Try to resolve via field_payment_intents.converted_order_id → its id
+      //    is referenced by card_payment_intents.field_payment_intent_id.
+      const { data: fpi } = await supabase
+        .from("field_payment_intents")
+        .select("id, quote_id")
+        .eq("converted_order_id", orderId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      const candidates = new Set<string>();
+      if (fpi?.id) candidates.add(fpi.id);
+
+      // 2) Fall back to order_reference (quote id) lookup for non-converted orders.
+      const refs = [orderReference, fpi?.quote_id].filter(Boolean) as string[];
+
+      let q = supabase
+        .from("card_payment_intents")
+        .select("id, card_last4, card_brand, card_expiry, card_name, amount, currency, status, expires_at, customer_email, field_payment_intent_id, order_reference")
+        .in("status", ["pending_processing", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      const { data, error } = await q;
       if (error) {
         console.warn("[CoreCardManualPanel] query error", error);
         return null;
       }
-      return data;
+      const match = (data || []).find((row: any) =>
+        (row.field_payment_intent_id && candidates.has(row.field_payment_intent_id)) ||
+        (row.order_reference && refs.includes(row.order_reference)),
+      );
+      return match || null;
     },
     refetchInterval: 30000,
   });
