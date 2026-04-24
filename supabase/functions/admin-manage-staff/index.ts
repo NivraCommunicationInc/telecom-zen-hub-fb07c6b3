@@ -1,7 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+
+// Loose Supabase client type — the generated Database type isn't available
+// in edge-function context, so we use `any` for schema generics. Without this,
+// `ReturnType<typeof createClient>` collapses to `never` for table rows.
+type AdminSupabaseClient = SupabaseClient<any, "public", any>;
 
 const SENDER_DOMAIN = "notify.nivra-telecom.ca";
 const FROM_ADDRESS = "Nivra Telecom <noreply@nivra-telecom.ca>";
@@ -15,7 +20,7 @@ function isValidEmail(email: string): boolean {
  * Ensure an unsubscribe token exists for the given email (required by Lovable Email API).
  */
 async function ensureUnsubscribeToken(
-  client: ReturnType<typeof createClient>,
+  client: AdminSupabaseClient,
   email: string
 ): Promise<string> {
   const normalizedEmail = email.trim().toLowerCase();
@@ -26,12 +31,13 @@ async function ensureUnsubscribeToken(
     .eq("email", normalizedEmail)
     .maybeSingle();
 
-  if (existing?.token) return existing.token;
+  const existingRow = existing as { token?: string } | null;
+  if (existingRow?.token) return existingRow.token;
 
   const generatedToken = crypto.randomUUID();
   const { error: insertError } = await client
     .from("email_unsubscribe_tokens")
-    .insert({ email: normalizedEmail, token: generatedToken });
+    .insert({ email: normalizedEmail, token: generatedToken } as any);
 
   if (!insertError) return generatedToken;
 
@@ -42,7 +48,8 @@ async function ensureUnsubscribeToken(
     .eq("email", normalizedEmail)
     .maybeSingle();
 
-  if (raced?.token) return raced.token;
+  const racedRow = raced as { token?: string } | null;
+  if (racedRow?.token) return racedRow.token;
   throw new Error("Failed to generate unsubscribe token");
 }
 
@@ -51,7 +58,7 @@ async function ensureUnsubscribeToken(
  * Now includes unsubscribe_token required by Lovable Email API.
  */
 async function sendStaffEmail(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: AdminSupabaseClient,
   params: { to: string; subject: string; html: string; replyTo?: string; idempotencyKey?: string }
 ): Promise<void> {
   const normalizedTo = params.to.trim().toLowerCase();
@@ -75,7 +82,7 @@ async function sendStaffEmail(
     unsubscribe_token: unsubscribeToken,
   };
 
-  const { error } = await adminClient.rpc("enqueue_email", {
+  const { error } = await (adminClient.rpc as any)("enqueue_email", {
     queue_name: "transactional_emails",
     payload,
   });
@@ -2365,7 +2372,7 @@ serve(async (req: Request) => {
         const currentRole = roleData.role as StaffRole;
         const oldPermissions = roleData.permissions || {};
 
-        const DEFAULT_PERMISSIONS: Record<StaffRole, PermissionSet> = {
+        const DEFAULT_PERMISSIONS: Partial<Record<StaffRole, PermissionSet>> = {
           admin: {
             view_clients: true, manage_clients: true, view_orders: true, manage_orders: true,
             view_billing: true, manage_billing: true, view_appointments: true, manage_appointments: true,
@@ -2386,7 +2393,7 @@ serve(async (req: Request) => {
           },
         };
 
-        const newPermissions = DEFAULT_PERMISSIONS[currentRole];
+        const newPermissions = DEFAULT_PERMISSIONS[currentRole] ?? DEFAULT_PERMISSIONS.employee!;
 
         const { error: updateError } = await adminClient
           .from("user_roles")
@@ -3940,9 +3947,9 @@ serve(async (req: Request) => {
             rule_type: commission_type,
             is_active: true,
           };
-          if (commission_type === "percentage" || commission_type === "base_percentage") {
+          if (commission_type === "base_percentage") {
             rulePayload.bonus_percentage = numericValue;
-          } else if (commission_type === "flat_bonus" || commission_type === "flat") {
+          } else if (commission_type === "flat_bonus") {
             rulePayload.bonus_amount = numericValue;
           } else if (commission_type === "tiered") {
             rulePayload.bonus_percentage = numericValue;
