@@ -354,6 +354,7 @@ export default function FieldNewSale() {
               totalAmount={total}
               onChange={(payment) => setDraft((d) => ({ ...d, payment }))}
               onSubmit={handleSubmit}
+              onSubmitCard={handleCardSubmit}
               onBack={() => goBack("payment")}
               isSubmitting={isSubmitting}
               submitMessage={submitMessage}
