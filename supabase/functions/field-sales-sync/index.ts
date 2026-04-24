@@ -300,14 +300,32 @@ Deno.serve(async (req) => {
         }
 
         // Base fees model aligned to orders schema
-        const subtotal = monthlyTotal;
-        const activationFee = oneTimeFeesTotal;
+        let subtotal = monthlyTotal;
+        let activationFee = oneTimeFeesTotal;
         const deliveryFee = 0;
         const installationFee = 0;
 
         // Taxes (Quebec) — canonical tax module
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
-        const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
+        let { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
+
+        // ═══ AUTHORITATIVE TOTAL — sale.total_amount is the agent-displayed total ═══
+        // The field portal computes the total client-side (including discounts the
+        // agent applied at the door). We MUST honour that value so the PayPal link,
+        // the invoice and the visible order all stay aligned to the cent.
+        const agentTotal = Number(sale.total_amount || 0);
+        if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.01) {
+          console.log(`[field-sales-sync] Reconciling totals: sale.total_amount=${agentTotal} vs computed=${totalAmount}. Honouring agent total.`);
+          // Re-derive subtotal pre-tax from the authoritative total
+          const TAX_RATE = 0.14975; // TPS+TVQ combined
+          const newBase = Number((agentTotal / (1 + TAX_RATE)).toFixed(2));
+          const recomputed = computeTaxes(newBase);
+          tpsAmount = recomputed.tps;
+          tvqAmount = recomputed.tvq;
+          totalAmount = recomputed.total;
+          // Adjust subtotal to absorb any discount (keep activation fee unchanged)
+          subtotal = Math.max(0, newBase - activationFee - deliveryFee - installationFee);
+        }
 
         // ═══ RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) ═══
         let accountId: string | null = null;
