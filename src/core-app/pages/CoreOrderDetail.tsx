@@ -23,6 +23,7 @@ import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreAct
 import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
 import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
+import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import {
   ArrowLeft, Loader2, ShoppingCart,
