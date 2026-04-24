@@ -793,6 +793,7 @@ const AppRoutes = () => {
           <Route path="quotes" element={<Suspense fallback={null}><CoreQuotesPage /></Suspense>} />
           <Route path="quotes/new" element={<Suspense fallback={null}><CoreCreateQuote /></Suspense>} />
           <Route path="quotes/:quoteId" element={<Suspense fallback={null}><CoreQuoteDetail /></Suspense>} />
+          <Route path="agent-discounts" element={<Suspense fallback={null}><CoreAgentDiscounts /></Suspense>} />
           {/* Clients */}
           <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
           <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
