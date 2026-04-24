@@ -114,6 +114,7 @@ function buildEmploymentLetterPDF(d: LetterData, letterNumber: string): ArrayBuf
   const titleMap: Record<string, string> = {
     confirmation: "Confirmation d\u2019emploi",
     offer: "Offre d\u2019emploi",
+    contract: "Contrat d\u2019emploi",
     termination: "Fin d\u2019emploi",
     reference: "Lettre de r\u00e9f\u00e9rence",
   };
