@@ -85,7 +85,7 @@ async function ingestWorkItems(supabase: any) {
       const { data: profiles } = userIds.length
         ? await supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds)
         : { data: [] };
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
+      const profileMap = new Map<string, any>((profiles ?? []).map((p: any) => [p.user_id, p]));
 
       for (const order of orders) {
         const profile = profileMap.get(order.user_id);
