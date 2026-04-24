@@ -109,6 +109,7 @@ const normalizeStaffNotificationType = (type: string) => {
 
 export default function CoreFieldAgentsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<TabView>("agents");
   const [search, setSearch] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<AgentRow | null>(null);
