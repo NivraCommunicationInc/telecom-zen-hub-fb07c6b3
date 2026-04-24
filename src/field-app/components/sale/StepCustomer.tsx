@@ -175,15 +175,24 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
         <div className="flex gap-2">
           <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()} className={inputClass}
-            placeholder="Nom, courriel, téléphone…" autoFocus />
-          <button type="button" onClick={handleSearch} disabled={searching || !searchQuery.trim()}
+            placeholder="Nom, courriel, téléphone, # compte…" autoFocus />
+          <button type="button" onClick={() => handleSearch()} disabled={searching || searchQuery.trim().length < 2}
             className="px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-colors shrink-0">
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </button>
         </div>
-        {searchDone && searchResults.length === 0 && (
+        {searchQuery.trim().length > 0 && searchQuery.trim().length < 2 && (
+          <p className="text-xs text-muted-foreground">Tapez au moins 2 caractères…</p>
+        )}
+        {searchError && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div><p className="font-medium">Erreur de recherche</p><p className="text-xs mt-0.5">{searchError}</p></div>
+          </div>
+        )}
+        {searchDone && !searchError && searchResults.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">Aucun client trouvé</p>
+            <p className="text-sm text-muted-foreground">Aucun client trouvé pour « {searchQuery.trim()} »</p>
             <button type="button" onClick={() => { setMode("form"); setIsExisting(false); }} className="mt-3 text-sm font-medium text-primary hover:opacity-80">+ Créer un nouveau client</button>
           </div>
         )}
