@@ -3,7 +3,7 @@
  * Generates formal employment confirmation letters with Nivra branding.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import jsPDFModule from "npm:jspdf@2";
+import jsPDFModule from "npm:jspdf@2.5.2";
 const jsPDF = (jsPDFModule as any).default || jsPDFModule;
 
 const corsHeaders = {

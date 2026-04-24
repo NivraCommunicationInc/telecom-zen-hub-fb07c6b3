@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     // Helper function to sync a single field sale to the orders table
     async function syncSaleToOrders(
       sale: any
-    ): Promise<{ success: boolean; orderId?: string; order_number?: string; error?: string }> {
+    ): Promise<{ success: boolean; orderId?: string; order_number?: string; invoice_id?: string; payment_id?: string; error?: string }> {
       console.log(`[field-sales-sync] Syncing sale ${sale.id} to orders table`);
 
       try {
@@ -762,8 +762,8 @@ Deno.serve(async (req) => {
           success: true, 
           orderId: canonicalOrder.id, 
           order_number: canonicalOrder.order_number || undefined,
-          invoice_id: invoiceId,
-          payment_id: paymentId,
+          invoice_id: invoiceId ?? undefined,
+          payment_id: paymentId ?? undefined,
         };
 
       } catch (error: any) {

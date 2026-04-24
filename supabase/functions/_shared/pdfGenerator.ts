@@ -5,7 +5,7 @@
  * Used by email sending functions to attach PDFs to emails.
  */
 
-import { jsPDF } from "npm:jspdf@2";
+import { jsPDF } from "npm:jspdf@2.5.2";
 
 // Company information — MUST match client-side companyInfo.ts
 export const COMPANY = {

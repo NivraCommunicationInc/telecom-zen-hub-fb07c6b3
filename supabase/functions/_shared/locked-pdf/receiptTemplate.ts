@@ -17,8 +17,9 @@
  * └─────────────────────────────────────────────┘
  */
 
-import jsPDFModule from "npm:jspdf@2";
+import jsPDFModule from "npm:jspdf@2.5.2";
 const jsPDF = (jsPDFModule as any).default || jsPDFModule;
+type jsPDF = any;
 import type { PDFGenerationResult } from "./types.ts";
 import { NIVRA } from "./companyInfo.ts";
 
