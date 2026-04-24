@@ -13386,8 +13386,15 @@ export type Database = {
         Row: {
           account_number: string | null
           account_status: string | null
+          address_city: string | null
+          address_postal: string | null
+          address_province: string | null
+          address_street: string | null
           avatar_url: string | null
           balance: number | null
+          bank_account: string | null
+          bank_institution: string | null
+          bank_transit: string | null
           base_salary: number | null
           blocked_at: string | null
           blocked_by: string | null
@@ -13404,6 +13411,7 @@ export type Database = {
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
           employee_number: string | null
           employer_discount: string | null
           employer_sector: string | null
@@ -13419,6 +13427,7 @@ export type Database = {
           id_type: string | null
           identity_verified: boolean
           identity_verified_at: string | null
+          interac_email: string | null
           internal_notes: string | null
           job_title: string | null
           last_auth_check_at: string | null
@@ -13452,14 +13461,23 @@ export type Database = {
           service_postal_code: string | null
           service_province: string | null
           store_credit: number | null
+          terms_accepted_at: string | null
+          terms_accepted_version: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           account_number?: string | null
           account_status?: string | null
+          address_city?: string | null
+          address_postal?: string | null
+          address_province?: string | null
+          address_street?: string | null
           avatar_url?: string | null
           balance?: number | null
+          bank_account?: string | null
+          bank_institution?: string | null
+          bank_transit?: string | null
           base_salary?: number | null
           blocked_at?: string | null
           blocked_by?: string | null
@@ -13476,6 +13494,7 @@ export type Database = {
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           employee_number?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
@@ -13491,6 +13510,7 @@ export type Database = {
           id_type?: string | null
           identity_verified?: boolean
           identity_verified_at?: string | null
+          interac_email?: string | null
           internal_notes?: string | null
           job_title?: string | null
           last_auth_check_at?: string | null
@@ -13524,14 +13544,23 @@ export type Database = {
           service_postal_code?: string | null
           service_province?: string | null
           store_credit?: number | null
+          terms_accepted_at?: string | null
+          terms_accepted_version?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           account_number?: string | null
           account_status?: string | null
+          address_city?: string | null
+          address_postal?: string | null
+          address_province?: string | null
+          address_street?: string | null
           avatar_url?: string | null
           balance?: number | null
+          bank_account?: string | null
+          bank_institution?: string | null
+          bank_transit?: string | null
           base_salary?: number | null
           blocked_at?: string | null
           blocked_by?: string | null
@@ -13548,6 +13577,7 @@ export type Database = {
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           employee_number?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
@@ -13563,6 +13593,7 @@ export type Database = {
           id_type?: string | null
           identity_verified?: boolean
           identity_verified_at?: string | null
+          interac_email?: string | null
           internal_notes?: string | null
           job_title?: string | null
           last_auth_check_at?: string | null
@@ -13596,6 +13627,8 @@ export type Database = {
           service_postal_code?: string | null
           service_province?: string | null
           store_credit?: number | null
+          terms_accepted_at?: string | null
+          terms_accepted_version?: string | null
           updated_at?: string
           user_id?: string
         }

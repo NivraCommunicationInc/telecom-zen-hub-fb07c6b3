@@ -24,10 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import FilterBar, { defaultFilters, applyFilters, type FilterConfig } from "@/core-app/components/field-agents/FilterBar";
 import { downloadCSV, COMMISSION_COLUMNS, PAYROLL_COLUMNS, TIME_COLUMNS, WITHDRAWAL_COLUMNS } from "@/core-app/components/field-agents/ExportUtils";
 import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfirmDialog";
 import PayrollDetailDialog from "@/core-app/components/field-agents/PayrollDetailDialog";
+import AgentDetailTabs from "@/core-app/components/field-agents/AgentDetailTabs";
 import WithdrawalTimeline from "@/core-app/components/field-agents/WithdrawalTimeline";
 import LettersTab from "@/core-app/components/field-agents/LettersTab";
 
@@ -177,6 +180,22 @@ export default function CoreFieldAgentsPage() {
     schedule_days: ["1", "2", "3", "4", "5"] as string[],
     schedule_start: "09:00",
     schedule_end: "17:00",
+    // Personal info
+    address_street: "",
+    address_city: "",
+    address_province: "QC",
+    address_postal: "",
+    date_of_birth: "",
+    // Emergency contact
+    emergency_contact_name: "",
+    emergency_contact_relation: "",
+    emergency_contact_phone: "",
+    // Payment method
+    payment_method: "direct_deposit" as "direct_deposit" | "interac",
+    bank_institution: "",
+    bank_transit: "",
+    bank_account: "",
+    interac_email: "",
   };
   const [repForm, setRepForm] = useState(initialRepForm);
 
@@ -417,11 +436,30 @@ export default function CoreFieldAgentsPage() {
       const newUserId: string | undefined = r?.user?.id;
       if (!newUserId) throw new Error("user_id manquant dans la réponse");
 
-      // 2. Update profile with territory + start date (best-effort)
+      // 2. Update profile with extended onboarding info (best-effort)
       const profileUpdate: Record<string, any> = {};
       if (repForm.territory) profileUpdate.sector_tags = [repForm.territory];
+      if (repForm.start_date) profileUpdate.hire_date = repForm.start_date;
+      if (repForm.address_street) profileUpdate.address_street = repForm.address_street.trim();
+      if (repForm.address_city) profileUpdate.address_city = repForm.address_city.trim();
+      if (repForm.address_province) profileUpdate.address_province = repForm.address_province.trim();
+      if (repForm.address_postal) profileUpdate.address_postal = repForm.address_postal.trim().toUpperCase();
+      if (repForm.date_of_birth) profileUpdate.date_of_birth = repForm.date_of_birth;
+      if (repForm.emergency_contact_name) profileUpdate.emergency_contact_name = repForm.emergency_contact_name.trim();
+      if (repForm.emergency_contact_relation) profileUpdate.emergency_contact_relation = repForm.emergency_contact_relation.trim();
+      if (repForm.emergency_contact_phone) profileUpdate.emergency_contact_phone = repForm.emergency_contact_phone.trim();
+      if (repForm.payment_method) {
+        profileUpdate.payment_method = repForm.payment_method;
+        if (repForm.payment_method === "direct_deposit") {
+          if (repForm.bank_institution) profileUpdate.bank_institution = repForm.bank_institution.trim();
+          if (repForm.bank_transit) profileUpdate.bank_transit = repForm.bank_transit.trim();
+          if (repForm.bank_account) profileUpdate.bank_account = repForm.bank_account.trim();
+        } else if (repForm.payment_method === "interac") {
+          if (repForm.interac_email) profileUpdate.interac_email = repForm.interac_email.trim().toLowerCase();
+        }
+      }
       if (Object.keys(profileUpdate).length > 0) {
-        await supabase.from("profiles").update(profileUpdate).eq("user_id", newUserId);
+        await supabase.from("profiles").update(profileUpdate as any).eq("user_id", newUserId);
       }
 
       // 3. Provision sales_targets for each service type
@@ -1043,35 +1081,14 @@ export default function CoreFieldAgentsPage() {
             ))}
           </div>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-sm font-bold text-foreground mb-2">Grilles assignées</h3>
-          {assignments.filter((as: any) => as.user_id === a.user_id && as.is_active).length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4 text-center">Aucune grille assignée</p>
-          ) : assignments.filter((as: any) => as.user_id === a.user_id && as.is_active).map((as: any) => {
-            const rule = rules.find((r: any) => r.id === as.rule_id);
-            return (
-              <div key={as.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
-                <div><p className="text-sm font-medium text-foreground">{rule?.rule_name || "—"}</p><p className="text-[10px] text-muted-foreground">{RULE_TYPES[rule?.rule_type] || rule?.rule_type} · {rule?.bonus_amount > 0 ? `${rule.bonus_amount}$` : `${rule?.bonus_percentage}%`}</p></div>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "assignment", id: as.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-              </div>
-            );
-          })}
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-sm font-bold text-foreground mb-2">Historique commissions</h3>
-          {ac.length === 0 ? <p className="text-xs text-muted-foreground py-4 text-center">Aucune</p> : ac.slice(0, 30).map((c: any) => {
-            const b = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
-            return (
-              <div key={c.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
-                <div><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span> <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span><p className="text-[10px] text-muted-foreground">{fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate) * 100).toFixed(0)}%</p></div>
-                <div className="flex items-center gap-1">
-                  {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => markCommissionPaid.mutate(c.id)}>Payer</Button>}
-                  <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yy")}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AgentDetailTabs
+          userId={a.user_id}
+          assignments={assignments.filter((as: any) => as.user_id === a.user_id && as.is_active)}
+          rules={rules}
+          commissions={ac}
+          onDeleteAssignment={(id: string) => setDeleteConfirm({ type: "assignment", id })}
+          onMarkPaid={(id: string) => markCommissionPaid.mutate(id)}
+        />
       </div>
     );
   }
@@ -1744,6 +1761,82 @@ export default function CoreFieldAgentsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Adresse + DOB */}
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Informations personnelles</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label className="text-xs">Rue (adresse civique)</Label><Input value={repForm.address_street} onChange={(e) => setRepForm({ ...repForm, address_street: e.target.value })} placeholder="123 rue Exemple" /></div>
+                <div><Label className="text-xs">Ville</Label><Input value={repForm.address_city} onChange={(e) => setRepForm({ ...repForm, address_city: e.target.value })} placeholder="Montréal" /></div>
+                <div>
+                  <Label className="text-xs">Province</Label>
+                  <Select value={repForm.address_province} onValueChange={(v) => setRepForm({ ...repForm, address_province: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="QC">QC</SelectItem>
+                      <SelectItem value="ON">ON</SelectItem>
+                      <SelectItem value="NB">NB</SelectItem>
+                      <SelectItem value="NS">NS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label className="text-xs">Code postal</Label><Input value={repForm.address_postal} onChange={(e) => setRepForm({ ...repForm, address_postal: e.target.value.toUpperCase() })} placeholder="H1A 1A1" maxLength={7} /></div>
+                <div><Label className="text-xs">Date de naissance</Label><Input type="date" value={repForm.date_of_birth} onChange={(e) => setRepForm({ ...repForm, date_of_birth: e.target.value })} /></div>
+              </div>
+            </div>
+
+            {/* Contact d'urgence */}
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Contact d'urgence</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-xs">Nom complet</Label><Input value={repForm.emergency_contact_name} onChange={(e) => setRepForm({ ...repForm, emergency_contact_name: e.target.value })} /></div>
+                <div>
+                  <Label className="text-xs">Lien</Label>
+                  <Select value={repForm.emergency_contact_relation} onValueChange={(v) => setRepForm({ ...repForm, emergency_contact_relation: v })}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conjoint">Conjoint(e)</SelectItem>
+                      <SelectItem value="parent">Parent</SelectItem>
+                      <SelectItem value="enfant">Enfant</SelectItem>
+                      <SelectItem value="frere_soeur">Frère / Sœur</SelectItem>
+                      <SelectItem value="ami">Ami(e)</SelectItem>
+                      <SelectItem value="autre">Autre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2"><Label className="text-xs">Téléphone</Label><Input type="tel" value={repForm.emergency_contact_phone} onChange={(e) => setRepForm({ ...repForm, emergency_contact_phone: e.target.value })} /></div>
+              </div>
+            </div>
+
+            {/* Méthode de paiement */}
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Informations de paiement</h4>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Méthode préférée</Label>
+                  <Select value={repForm.payment_method} onValueChange={(v) => setRepForm({ ...repForm, payment_method: v as "direct_deposit" | "interac" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="direct_deposit">Dépôt direct</SelectItem>
+                      <SelectItem value="interac">Virement Interac</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {repForm.payment_method === "direct_deposit" ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><Label className="text-xs">Institution (3 chiffres)</Label><Input inputMode="numeric" maxLength={3} value={repForm.bank_institution} onChange={(e) => setRepForm({ ...repForm, bank_institution: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="001" /></div>
+                    <div><Label className="text-xs">Transit (5 chiffres)</Label><Input inputMode="numeric" maxLength={5} value={repForm.bank_transit} onChange={(e) => setRepForm({ ...repForm, bank_transit: e.target.value.replace(/\D/g, "").slice(0, 5) })} placeholder="12345" /></div>
+                    <div><Label className="text-xs">No. compte</Label><Input inputMode="numeric" value={repForm.bank_account} onChange={(e) => setRepForm({ ...repForm, bank_account: e.target.value.replace(/\D/g, "") })} placeholder="1234567" /></div>
+                    <p className="col-span-3 text-[10px] text-muted-foreground">Ces données sont stockées de façon sécurisée et affichées masquées dans l'interface.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs">Courriel ou téléphone Interac</Label>
+                    <Input value={repForm.interac_email} onChange={(e) => setRepForm({ ...repForm, interac_email: e.target.value })} placeholder="paiement@exemple.ca" />
+                  </div>
+                )}
               </div>
             </div>
 

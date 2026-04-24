@@ -1075,67 +1075,24 @@ serve(async (req: Request) => {
               const staffLoginLink = `${appBaseUrl}/staff`;
               const firstName = (resolvedFullName || email).split(" ")[0];
 
-              // Field Sales — branded "Violet Bold" invitation
+              // Field Sales — branded "Violet Bold" invitation via canonical template
               if (role === "field_sales") {
-                await sendStaffEmail(adminClient, {
-                  to: email,
-                  subject: "Invitation — Portail Nivra Field & RH",
-                  idempotencyKey: `staff_invite_${userId}_${Date.now()}`,
-                  html: `
-                    <div style="font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-                      <div style="background: linear-gradient(135deg, #7c3aed, #5b21b6); padding: 36px 30px; text-align: center;">
-                        <span style="display: inline-block; background: rgba(255,255,255,0.15); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; padding: 6px 14px; border-radius: 999px; text-transform: uppercase;">
-                          Bienvenue chez Nivra Telecom
-                        </span>
-                        <h1 style="color: #ffffff; margin: 18px 0 0; font-size: 26px; font-weight: 800; line-height: 1.2;">
-                          Vous êtes invité à rejoindre l'équipe terrain
-                        </h1>
-                      </div>
-                      <div style="padding: 32px 30px; background: #ffffff;">
-                        <p style="color: #18181b; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
-                          Bonjour <strong>${firstName}</strong>, vous avez été ajouté comme représentant terrain chez Nivra Telecom. Créez votre compte pour accéder au portail Field et au portail RH.
-                        </p>
-
-                        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 18px 22px; margin: 24px 0;">
-                          <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                              <td style="padding: 8px 0; font-size: 13px; color: #6b21a8; font-weight: 600; width: 45%;">Rôle</td>
-                              <td style="padding: 8px 0; font-size: 14px; color: #18181b; text-align: right;">Représentant terrain — Field Sales</td>
-                            </tr>
-                            <tr style="border-top: 1px solid #e9d5ff;">
-                              <td style="padding: 8px 0; font-size: 13px; color: #6b21a8; font-weight: 600;">Portails accessibles</td>
-                              <td style="padding: 8px 0; font-size: 14px; color: #18181b; text-align: right;">Nivra Field + Portail RH</td>
-                            </tr>
-                            <tr style="border-top: 1px solid #e9d5ff;">
-                              <td style="padding: 8px 0; font-size: 13px; color: #6b21a8; font-weight: 600;">Lien valide</td>
-                              <td style="padding: 8px 0; font-size: 14px; color: #18181b; text-align: right;">72 heures</td>
-                            </tr>
-                          </table>
-                        </div>
-
-                        <p style="margin: 28px 0; text-align: center;">
-                          <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);">
-                            Créer mon compte
-                          </a>
-                        </p>
-
-                        <p style="font-size: 12px; color: #71717a; text-align: center; margin: 0;">
-                          Si le bouton ne fonctionne pas, copiez ce lien :<br>
-                          <a href="${setupLink}" style="color: #7c3aed; word-break: break-all;">${setupLink}</a>
-                        </p>
-                      </div>
-                      <div style="padding: 22px 30px; background: #18181b; text-align: center;">
-                        <p style="margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #ffffff;">Nivra Telecom</p>
-                        <p style="margin: 0 0 6px; font-size: 12px; color: #a1a1aa;">1799 Av. Pierre-Péladeau, Laval, QC</p>
-                        <p style="margin: 0; font-size: 12px; color: #a1a1aa;">
-                          <a href="mailto:support@nivra-telecom.ca" style="color: #c4b5fd; text-decoration: none;">support@nivra-telecom.ca</a> ·
-                          <a href="tel:4385442233" style="color: #c4b5fd; text-decoration: none; white-space: nowrap;">438-544-2233</a>
-                        </p>
-                        <p style="margin: 10px 0 0; font-size: 11px; color: #71717a;">© ${new Date().getFullYear()} Nivra Telecom. Tous droits réservés.</p>
-                      </div>
-                    </div>
-                  `,
-                });
+                const { error: queueErr } = await adminClient.from("email_queue").insert({
+                  event_key: `staff_invite_field_sales_${userId}`,
+                  to_email: email,
+                  template_key: "staff_invitation_field_sales",
+                  template_vars: {
+                    first_name: firstName,
+                    invite_url: setupLink,
+                    role: "field_sales",
+                  },
+                  status: "queued",
+                } as any);
+                if (queueErr) {
+                  console.error("[admin-manage-staff] field_sales email_queue insert error:", queueErr);
+                  throw new Error(`Email queue insert failed: ${queueErr.message}`);
+                }
+                console.log(`[admin-manage-staff] Field Sales invitation queued: to=${email} user=${userId}`);
               } else {
                 await sendStaffEmail(adminClient, {
                   to: email,
