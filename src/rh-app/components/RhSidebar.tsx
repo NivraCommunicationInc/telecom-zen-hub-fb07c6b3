@@ -84,10 +84,10 @@ export default function RhSidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Tablet & desktop sidebar (collapsible on tablet) */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
+          "hidden md:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
           collapsed ? "w-14" : "w-56"
         )}
       >
