@@ -49,7 +49,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
     const body: CancelSubscriptionRequest = await req.json();
     console.log("[PayPal Cancel] Request:", body);
@@ -64,7 +64,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       try {
-        const supaAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        const supaAuth = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
           global: { headers: { Authorization: authHeader } },
         });
         const { data: { user } } = await supaAuth.auth.getUser();
