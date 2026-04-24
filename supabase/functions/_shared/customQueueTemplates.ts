@@ -1358,6 +1358,34 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // STAFF — Field Sales invitation (Violet Bold)
+    // ===================================================================
+    case "staff_invitation_field_sales": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || "");
+      const inviteUrl = String(v.invite_url || v.INVITE_URL || v.setup_link || "#");
+      return {
+        subject: "Invitation — Portail Nivra Field & RH",
+        html: shell({
+          preheader: "Vous avez été invité à rejoindre l'équipe terrain Nivra Telecom.",
+          badge: "INVITATION — REPRÉSENTANT TERRAIN",
+          heroTitle: "Bienvenue chez Nivra Telecom",
+          heroSub: "Vous avez été ajouté comme représentant terrain.",
+          icon: "star",
+          greeting: `Bonjour ${firstName || ""},`,
+          bodyText: `Vous avez été invité à rejoindre l'équipe terrain de Nivra Telecom à titre de représentant Field Sales.<br/><br/>Créez votre compte pour accéder au <strong>Portail Nivra Field</strong> et au <strong>Portail RH</strong> avec les mêmes identifiants.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 72 heures.</strong>`,
+          cardTitle: "Détails de votre accès",
+          cardRows: [
+            ["Rôle", "Représentant terrain — Field Sales"],
+            ["Portails", "Nivra Field + Portail RH"],
+            ["Lien valide", "72 heures"],
+          ],
+          ctaPrimaryUrl: inviteUrl,
+          ctaPrimaryLabel: "Créer mon compte",
+        }),
+      };
+    }
+
+    // ===================================================================
     // GENERIC FALLBACK
     // ===================================================================
     case "order_update":
