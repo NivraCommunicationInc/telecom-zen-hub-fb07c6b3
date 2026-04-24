@@ -386,6 +386,8 @@ Deno.serve(async (req) => {
             .eq("user_id", clientUserId!);
         }
 
+        const agentName = repProfile?.full_name || "Agent terrain";
+
         if (!canonicalOrder) {
           // Generate order number from DB sequence — Core is sole source of truth
           const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
@@ -399,6 +401,11 @@ Deno.serve(async (req) => {
               account_id: accountId,
               order_number: orderNumber,
               created_by: 'field_sales',
+
+              // ═══ AGENT IDENTITY — required for commissions + reporting ═══
+              source: 'field_sales',
+              created_by_agent_id: sale.salesperson_id,
+              agent_name: agentName,
 
               client_email: customerEmail,
               client_phone: sale.customer_phone || null,
@@ -433,8 +440,8 @@ Deno.serve(async (req) => {
               selected_channels: sale.selected_channels || [],
               equipment_details: wrapLineItemsForOrder(lineItems),
 
-              notes: `Vente terrain (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
-              internal_notes: `[VENTE TERRAIN]\nPar: ${repProfile?.full_name || 'Vendeur'} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
+              notes: `Vente terrain — Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
+              internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
             })
             .select('id, order_number')
             .single();
@@ -445,7 +452,17 @@ Deno.serve(async (req) => {
           }
 
           canonicalOrder = newOrder;
-          console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id}`);
+          console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id} by agent ${agentName}`);
+        } else {
+          // Backfill agent identity if order already exists but missing tags
+          await supabaseAdmin
+            .from('orders')
+            .update({
+              source: 'field_sales',
+              created_by_agent_id: sale.salesperson_id,
+              agent_name: agentName,
+            })
+            .eq('id', canonicalOrder.id);
         }
 
         const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status);
