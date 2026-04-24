@@ -383,6 +383,112 @@ export default function CoreFieldAgentsPage() {
     onError: (e) => toast.error(`Échec sauvegarde profil: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
+  // Create Field Rep — onboards rep with role=field_sales, sends invitation email,
+  // and provisions sales_targets, commission grid assignment, and weekly schedule.
+  const createFieldRep = useMutation({
+    mutationFn: async () => {
+      const firstName = repForm.first_name.trim();
+      const lastName = repForm.last_name.trim();
+      const email = repForm.email.trim().toLowerCase();
+      if (!firstName || !lastName) throw new Error("Prénom et nom requis");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) throw new Error("Courriel invalide");
+
+      // 1. Create staff via admin-manage-staff (creates auth user + profile + role + invite)
+      const { data: createData, error: createErr } = await supabase.functions.invoke("admin-manage-staff", {
+        body: {
+          action: "create",
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          full_name: `${firstName} ${lastName}`,
+          phone: repForm.phone.trim() || undefined,
+          role: "field_sales",
+          send_invitation: true,
+          require_password_change: true,
+          is_active: true,
+          can_access_field: true,
+          can_access_employee: true,
+          mfa_required: true,
+        },
+      });
+      if (createErr) throw createErr;
+      const r = typeof createData === "string" ? JSON.parse(createData) : createData;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec création");
+      const newUserId: string | undefined = r?.user?.id;
+      if (!newUserId) throw new Error("user_id manquant dans la réponse");
+
+      // 2. Update profile with territory + start date (best-effort)
+      const profileUpdate: Record<string, any> = {};
+      if (repForm.territory) profileUpdate.sector_tags = [repForm.territory];
+      if (Object.keys(profileUpdate).length > 0) {
+        await supabase.from("profiles").update(profileUpdate).eq("user_id", newUserId);
+      }
+
+      // 3. Provision sales_targets for each service type
+      const now = new Date();
+      const period_year = now.getFullYear();
+      const period_month = now.getMonth() + 1;
+      const targetRows = [
+        { service_type: "internet", target_count: parseInt(repForm.target_internet) || 0 },
+        { service_type: "tv", target_count: parseInt(repForm.target_tv) || 0 },
+        { service_type: "mobile", target_count: parseInt(repForm.target_mobile) || 0 },
+        { service_type: "total_sales", target_count: parseInt(repForm.target_total_sales) || 0 },
+        { service_type: "revenue", target_count: 0, target_amount: parseFloat(repForm.target_revenue) || 0 },
+      ]
+        .filter((t) => (t.target_count > 0) || ((t as any).target_amount > 0))
+        .map((t) => ({
+          employee_id: newUserId,
+          role: "field_sales",
+          service_type: t.service_type,
+          target_count: t.target_count,
+          target_amount: (t as any).target_amount ?? 0,
+          period_month,
+          period_year,
+        }));
+      if (targetRows.length > 0) {
+        const { error: targetErr } = await supabase.from("sales_targets").insert(targetRows as any);
+        if (targetErr) console.warn("[createFieldRep] sales_targets insert warning:", targetErr);
+      }
+
+      // 4. Assign commission grid (if selected)
+      if (repForm.rule_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: assignErr } = await supabase.from("commission_grid_assignments").insert({
+          user_id: newUserId,
+          rule_id: repForm.rule_id,
+          assigned_by: user?.id,
+          notes: "Assignée à la création",
+          is_active: true,
+        });
+        if (assignErr) console.warn("[createFieldRep] commission assign warning:", assignErr);
+      }
+
+      // 5. Provision base schedule
+      if (repForm.schedule_days.length > 0 && repForm.schedule_start && repForm.schedule_end) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const scheduleRows = repForm.schedule_days.map((d) => ({
+          user_id: newUserId,
+          day_of_week: parseInt(d, 10),
+          start_time: repForm.schedule_start,
+          end_time: repForm.schedule_end,
+          is_active: true,
+          effective_from: repForm.start_date || todayISO,
+          created_by: user?.id,
+        }));
+        const { error: schedErr } = await supabase.from("staff_schedules").insert(scheduleRows as any);
+        if (schedErr) console.warn("[createFieldRep] staff_schedules insert warning:", schedErr);
+      }
+
+      return { invitation_sent: !!r?.invitation_sent };
+    },
+    onSuccess: (res) => {
+      invalidateAll();
+      setCreateRepDialog(false);
+      setRepForm(initialRepForm);
+      toast.success(res?.invitation_sent ? "Vendeur créé. Invitation envoyée." : "Vendeur créé. (Invitation à renvoyer)");
+    },
+    onError: (e) => toast.error(`Échec création vendeur: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
   // Commission Grid CRUD + EDIT
   const saveGrid = useMutation({
     mutationFn: async () => {
