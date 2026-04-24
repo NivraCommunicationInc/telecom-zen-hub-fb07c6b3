@@ -158,6 +158,28 @@ export default function CoreFieldAgentsPage() {
   const [editAssignId, setEditAssignId] = useState<string | null>(null);
   const [editAssignForm, setEditAssignForm] = useState({ notes: "", is_active: true });
 
+  // Create Field Rep dialog
+  const [createRepDialog, setCreateRepDialog] = useState(false);
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const initialRepForm = {
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    territory: "",
+    start_date: todayISO,
+    rule_id: "",
+    target_internet: "0",
+    target_tv: "0",
+    target_mobile: "0",
+    target_total_sales: "0",
+    target_revenue: "0",
+    schedule_days: ["1", "2", "3", "4", "5"] as string[],
+    schedule_start: "09:00",
+    schedule_end: "17:00",
+  };
+  const [repForm, setRepForm] = useState(initialRepForm);
+
   const invalidateAll = () => { qc.invalidateQueries({ queryKey: ["core-field"] }); };
   const { data: agents = [], isLoading: loadingAgents } = useQuery({
     queryKey: ["core-field", "agents"],
