@@ -24,6 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import FilterBar, { defaultFilters, applyFilters, type FilterConfig } from "@/core-app/components/field-agents/FilterBar";
 import { downloadCSV, COMMISSION_COLUMNS, PAYROLL_COLUMNS, TIME_COLUMNS, WITHDRAWAL_COLUMNS } from "@/core-app/components/field-agents/ExportUtils";
 import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfirmDialog";
