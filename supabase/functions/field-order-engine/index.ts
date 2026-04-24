@@ -10,6 +10,7 @@ Deno.serve(async (req) => {
   if (cors) return cors;
 
   const origin = req.headers.get("origin");
+  const authHeader = req.headers.get("Authorization") || "";
   const headers = { ...getCorsHeaders(origin), "Content-Type": "application/json" };
 
   try {
@@ -429,11 +430,20 @@ Deno.serve(async (req) => {
         attempt_count: 0,
       } as any);
 
-      const { data: syncData, error: syncError } = await admin.functions.invoke("field-sales-sync", {
-        body: { action: "sync_single", field_order_id: fieldOrder.id },
+      const syncResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+          "apikey": Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+        },
+        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id }),
       });
 
-      if (syncError) throw syncError;
+      const syncData = await syncResponse.json().catch(() => null);
+      if (!syncResponse.ok) {
+        throw new Error(syncData?.error || `La synchronisation de la vente a échoué (${syncResponse.status})`);
+      }
       if (!syncData?.success || !syncData?.invoice_id) {
         throw new Error(syncData?.error || "La synchronisation de la vente a échoué");
       }
@@ -521,7 +531,17 @@ Deno.serve(async (req) => {
       await admin.from("field_sales_orders").update({ sync_status: "pending", sync_error: null }).eq("id", orderId);
       await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "sync", old_status: "error", new_status: "pending", changed_by_user_id: userId, change_reason: `Resync #${newCount}` });
 
-      try { await admin.functions.invoke("field-sales-sync", { body: { orderId } }); } catch {}
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": authHeader,
+            "apikey": Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+          },
+          body: JSON.stringify({ action: "sync_single", field_order_id: orderId }),
+        });
+      } catch {}
 
       return new Response(JSON.stringify({ success: true, message: "Sync relancée", attempt_count: newCount }), { headers });
     }
