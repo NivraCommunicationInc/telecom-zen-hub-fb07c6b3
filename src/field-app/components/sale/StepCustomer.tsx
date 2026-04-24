@@ -3,7 +3,7 @@
  * Uses backend serviceability engine + duplicate detection + customer search.
  * NO direct DB queries.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle, AlertCircle } from "lucide-react";
 import { searchCustomers, checkServiceability, checkDuplicates, type ServiceabilityResult, type DuplicateCheckResult } from "@/field-app/lib/fieldServices";
 import type { FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
