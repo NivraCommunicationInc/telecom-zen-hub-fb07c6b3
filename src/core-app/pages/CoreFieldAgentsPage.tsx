@@ -1711,6 +1711,91 @@ export default function CoreFieldAgentsPage() {
           <DialogFooter><Button variant="destructive" onClick={() => { if (rejectCommDialog && rejectCommReason.trim()) { rejectCommission.mutate({ id: rejectCommDialog, reason: rejectCommReason }); setRejectCommDialog(null); } }} disabled={!rejectCommReason.trim() || rejectCommission.isPending}>{rejectCommission.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rejeter"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ═══ CREATE FIELD REP DIALOG ═══ */}
+      <Dialog open={createRepDialog} onOpenChange={(o) => { if (!o) { setCreateRepDialog(false); setRepForm(initialRepForm); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Créer un représentant terrain</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Prénom *</Label><Input value={repForm.first_name} onChange={(e) => setRepForm({ ...repForm, first_name: e.target.value })} /></div>
+              <div><Label>Nom *</Label><Input value={repForm.last_name} onChange={(e) => setRepForm({ ...repForm, last_name: e.target.value })} /></div>
+              <div><Label>Courriel professionnel *</Label><Input type="email" value={repForm.email} onChange={(e) => setRepForm({ ...repForm, email: e.target.value })} /></div>
+              <div><Label>Téléphone</Label><Input type="tel" value={repForm.phone} onChange={(e) => setRepForm({ ...repForm, phone: e.target.value })} /></div>
+              <div>
+                <Label>Territoire assigné</Label>
+                <Select value={repForm.territory} onValueChange={(v) => setRepForm({ ...repForm, territory: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                  <SelectContent>
+                    {territories.length === 0 ? <SelectItem value="__none__" disabled>Aucun territoire</SelectItem> : territories.map((t: any) => (
+                      <SelectItem key={t.id} value={t.territory_code || t.id}>{t.name}{t.city ? ` — ${t.city}` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Date de début</Label><Input type="date" value={repForm.start_date} onChange={(e) => setRepForm({ ...repForm, start_date: e.target.value })} /></div>
+              <div className="col-span-2">
+                <Label>Grille de commission</Label>
+                <Select value={repForm.rule_id} onValueChange={(v) => setRepForm({ ...repForm, rule_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner une grille…" /></SelectTrigger>
+                  <SelectContent>
+                    {rules.length === 0 ? <SelectItem value="__none__" disabled>Aucune grille</SelectItem> : rules.filter((r: any) => r.is_active !== false).map((r: any) => (
+                      <SelectItem key={r.id} value={r.id}>{r.rule_name} — {RULE_TYPES[r.rule_type] || r.rule_type}{r.service_type ? ` (${r.service_type})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Objectifs mensuels</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label className="text-xs">Internet</Label><Input type="number" min="0" value={repForm.target_internet} onChange={(e) => setRepForm({ ...repForm, target_internet: e.target.value })} /></div>
+                <div><Label className="text-xs">TV</Label><Input type="number" min="0" value={repForm.target_tv} onChange={(e) => setRepForm({ ...repForm, target_tv: e.target.value })} /></div>
+                <div><Label className="text-xs">Mobile</Label><Input type="number" min="0" value={repForm.target_mobile} onChange={(e) => setRepForm({ ...repForm, target_mobile: e.target.value })} /></div>
+                <div><Label className="text-xs">Total ventes</Label><Input type="number" min="0" value={repForm.target_total_sales} onChange={(e) => setRepForm({ ...repForm, target_total_sales: e.target.value })} /></div>
+                <div className="col-span-2"><Label className="text-xs">Revenu cible ($)</Label><Input type="number" min="0" step="0.01" value={repForm.target_revenue} onChange={(e) => setRepForm({ ...repForm, target_revenue: e.target.value })} /></div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Horaire de base</h4>
+              <div className="space-y-2">
+                <Label className="text-xs">Jours travaillés</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.map((d, idx) => {
+                    const k = String(idx);
+                    const sel = repForm.schedule_days.includes(k);
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setRepForm({ ...repForm, schedule_days: sel ? repForm.schedule_days.filter((x) => x !== k) : [...repForm.schedule_days, k] })}
+                        className={cn("px-3 py-1 rounded-md border text-xs", sel ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border")}
+                      >{d}</button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">Heure début</Label><Input type="time" value={repForm.schedule_start} onChange={(e) => setRepForm({ ...repForm, schedule_start: e.target.value })} /></div>
+                  <div><Label className="text-xs">Heure fin</Label><Input type="time" value={repForm.schedule_end} onChange={(e) => setRepForm({ ...repForm, schedule_end: e.target.value })} /></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+              <strong>Note :</strong> Une invitation par courriel sera envoyée automatiquement avec un lien de création de compte valide 72 heures. Les mêmes identifiants donnent accès aux portails Field et RH.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setCreateRepDialog(false); setRepForm(initialRepForm); }}>Annuler</Button>
+            <Button onClick={() => createFieldRep.mutate()} disabled={createFieldRep.isPending || !repForm.first_name.trim() || !repForm.last_name.trim() || !repForm.email.trim()}>
+              {createFieldRep.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+              Créer et envoyer invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
