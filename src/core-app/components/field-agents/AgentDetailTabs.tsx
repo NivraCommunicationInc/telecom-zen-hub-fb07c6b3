@@ -1,10 +1,17 @@
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, AlertTriangle, CheckCircle2, ShieldCheck, Mail, Phone, MapPin, CreditCard, Download, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Trash2, FileText, AlertTriangle, CheckCircle2, ShieldCheck, Mail, Phone, MapPin,
+  CreditCard, Download, Loader2, Edit3, Save, X as XIcon, Calendar, Plus,
+} from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -24,16 +31,19 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
 };
 
 const RELATION_LABELS: Record<string, string> = {
-  conjoint: "Conjoint(e)",
-  parent: "Parent",
-  enfant: "Enfant",
-  frere_soeur: "Frère / Sœur",
-  ami: "Ami(e)",
-  autre: "Autre",
+  conjoint: "Conjoint(e)", parent: "Parent", enfant: "Enfant", frere_soeur: "Frère / Sœur", ami: "Ami(e)", autre: "Autre",
 };
 
-const fmtMoney = (n: number) => `${(n || 0).toFixed(2)} $`;
+const DAYS_FR = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const DAYS_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const SERVICES: Array<{ key: string; label: string }> = [
+  { key: "internet", label: "Internet" },
+  { key: "tv", label: "TV" },
+  { key: "mobile", label: "Mobile" },
+  { key: "all", label: "Tous services" },
+];
 
+const fmtMoney = (n: number) => `${(n || 0).toFixed(2)} $`;
 const maskAccount = (v?: string | null, keep: number = 3) => {
   if (!v) return "—";
   const s = String(v);
@@ -56,7 +66,7 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version, mfa_method, mfa_configured_at" as any)
+        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version, mfa_method, mfa_configured_at, sector_tags" as any)
         .eq("user_id", userId as any)
         .maybeSingle();
       if (error) throw error;
@@ -65,14 +75,13 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
   });
 
   const ac = commissions;
-  const p = (profile || {}) as any;
-  const fullAddress = [p.address_street, p.address_city, p.address_province, p.address_postal].filter(Boolean).join(", ");
 
   return (
     <Tabs defaultValue="grids" className="w-full">
       <TabsList className="w-full justify-start flex-wrap h-auto">
         <TabsTrigger value="grids">Grilles & Commissions</TabsTrigger>
         <TabsTrigger value="profile">Profil complet</TabsTrigger>
+        <TabsTrigger value="schedule">Horaire</TabsTrigger>
         <TabsTrigger value="documents">Documents RH</TabsTrigger>
       </TabsList>
 
@@ -97,6 +106,9 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
             );
           })}
         </div>
+
+        <CustomRatesSection userId={userId} />
+
         <div className="bg-card border border-border rounded-xl p-4">
           <h3 className="text-sm font-bold text-foreground mb-2">Historique commissions</h3>
           {ac.length === 0 ? <p className="text-xs text-muted-foreground py-4 text-center">Aucune</p> : ac.slice(0, 30).map((c: any) => {
@@ -118,28 +130,214 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
         </div>
       </TabsContent>
 
-      {/* === Profil complet === */}
+      {/* === Profil complet (editable) === */}
       <TabsContent value="profile" className="space-y-4 mt-4">
+        <EditableProfileSection userId={userId} profile={profile} />
+      </TabsContent>
+
+      {/* === Horaire === */}
+      <TabsContent value="schedule" className="space-y-4 mt-4">
+        <ScheduleSection userId={userId} />
+      </TabsContent>
+
+      {/* === Documents RH === */}
+      <TabsContent value="documents" className="space-y-4 mt-4">
+        <EmploymentDocsSection userId={userId} agentName={profile?.full_name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "agent"} />
+
+        <div className="bg-card border border-border rounded-xl p-4">
+          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Conditions d'utilisation</h3>
+          {profile?.terms_accepted_at ? (
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-foreground">
+                Acceptées le <strong>{format(new Date(profile.terms_accepted_at), "dd MMM yyyy")}</strong>
+                {profile.terms_accepted_version ? <> — version <strong>{profile.terms_accepted_version}</strong></> : null}
+              </span>
+            </div>
+          ) : (
+            <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Non acceptées</Badge>
+          )}
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-4">
+          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Authentification multi-facteurs (MFA)</h3>
+          {profile?.mfa_configured_at && profile?.mfa_method ? (
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-foreground">
+                MFA actif — <strong>{profile.mfa_method === "email" ? "Email" : "Application TOTP"}</strong> ✓
+                {" — configuré le "}<strong>{format(new Date(profile.mfa_configured_at), "dd MMM yyyy")}</strong>
+              </span>
+            </div>
+          ) : (
+            <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> ⚠️ MFA non configuré</Badge>
+          )}
+        </div>
+
+        <TaxDocumentsSection userId={userId} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EDITABLE PROFILE SECTION
+   ════════════════════════════════════════════════════════════════ */
+function EditableProfileSection({ userId, profile }: { userId: string; profile: any }) {
+  const qc = useQueryClient();
+  const [edit, setEdit] = useState(false);
+  const [form, setForm] = useState<any>({});
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  const { data: targets = [] } = useQuery({
+    queryKey: ["agent-targets", userId, currentYear, currentMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_targets")
+        .select("id, service_type, target_count, target_amount")
+        .eq("employee_id", userId)
+        .eq("period_year", currentYear)
+        .eq("period_month", currentMonth);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (!profile) return;
+    const tMap = (svc: string) => targets.find((t: any) => t.service_type === svc);
+    setForm({
+      first_name: profile.first_name || "",
+      last_name: profile.last_name || "",
+      email: profile.email || "",
+      phone: profile.phone || "",
+      address_street: profile.address_street || "",
+      address_city: profile.address_city || "",
+      address_province: profile.address_province || "QC",
+      address_postal: profile.address_postal || "",
+      date_of_birth: profile.date_of_birth || "",
+      hire_date: profile.hire_date || "",
+      emergency_contact_name: profile.emergency_contact_name || "",
+      emergency_contact_relation: profile.emergency_contact_relation || "",
+      emergency_contact_phone: profile.emergency_contact_phone || "",
+      payment_method: profile.payment_method || "direct_deposit",
+      bank_institution: profile.bank_institution || "",
+      bank_transit: profile.bank_transit || "",
+      bank_account: profile.bank_account || "",
+      interac_email: profile.interac_email || "",
+      territory: (Array.isArray(profile.sector_tags) && profile.sector_tags[0]) || "",
+      target_internet: String(tMap("internet")?.target_count ?? 0),
+      target_tv: String(tMap("tv")?.target_count ?? 0),
+      target_mobile: String(tMap("mobile")?.target_count ?? 0),
+      target_total_sales: String(tMap("total_sales")?.target_count ?? 0),
+      target_revenue: String(tMap("revenue")?.target_amount ?? 0),
+    });
+  }, [profile, targets]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      // 1) admin-manage-staff for full_name/email/phone (handles auth.email rotation)
+      const fullName = `${form.first_name.trim()} ${form.last_name.trim()}`.trim();
+      const { data: r1, error: e1 } = await supabase.functions.invoke("admin-manage-staff", {
+        body: {
+          action: "update_profile",
+          user_id: userId,
+          full_name: fullName || undefined,
+          email: form.email.trim() || undefined,
+          phone: form.phone.trim() || undefined,
+        },
+      });
+      if (e1) throw e1;
+      const r1p = typeof r1 === "string" ? JSON.parse(r1) : r1;
+      if (!r1p?.ok && !r1p?.success) throw new Error(r1p?.error?.message || r1p?.message || "Échec mise à jour profil");
+
+      // 2) profiles direct update for extended fields
+      const profileUpdate: Record<string, any> = {
+        first_name: form.first_name.trim() || null,
+        last_name: form.last_name.trim() || null,
+        address_street: form.address_street.trim() || null,
+        address_city: form.address_city.trim() || null,
+        address_province: form.address_province.trim() || null,
+        address_postal: form.address_postal.trim().toUpperCase() || null,
+        date_of_birth: form.date_of_birth || null,
+        hire_date: form.hire_date || null,
+        emergency_contact_name: form.emergency_contact_name.trim() || null,
+        emergency_contact_relation: form.emergency_contact_relation.trim() || null,
+        emergency_contact_phone: form.emergency_contact_phone.trim() || null,
+        payment_method: form.payment_method,
+        sector_tags: form.territory ? [form.territory.trim()] : [],
+      };
+      if (form.payment_method === "direct_deposit") {
+        profileUpdate.bank_institution = form.bank_institution.trim() || null;
+        profileUpdate.bank_transit = form.bank_transit.trim() || null;
+        profileUpdate.bank_account = form.bank_account.trim() || null;
+        profileUpdate.interac_email = null;
+      } else if (form.payment_method === "interac") {
+        profileUpdate.interac_email = form.interac_email.trim().toLowerCase() || null;
+        profileUpdate.bank_institution = null;
+        profileUpdate.bank_transit = null;
+        profileUpdate.bank_account = null;
+      }
+      const { error: e2 } = await supabase.from("profiles").update(profileUpdate as any).eq("user_id", userId as any);
+      if (e2) throw e2;
+
+      // 3) sales_targets upsert per service for current month
+      const targetsRows = [
+        { service_type: "internet", target_count: parseInt(form.target_internet) || 0, target_amount: 0 },
+        { service_type: "tv", target_count: parseInt(form.target_tv) || 0, target_amount: 0 },
+        { service_type: "mobile", target_count: parseInt(form.target_mobile) || 0, target_amount: 0 },
+        { service_type: "total_sales", target_count: parseInt(form.target_total_sales) || 0, target_amount: 0 },
+        { service_type: "revenue", target_count: 0, target_amount: parseFloat(form.target_revenue) || 0 },
+      ];
+      for (const t of targetsRows) {
+        const existing = targets.find((x: any) => x.service_type === t.service_type);
+        if (existing) {
+          await supabase.from("sales_targets").update({ target_count: t.target_count, target_amount: t.target_amount } as any).eq("id", existing.id);
+        } else if (t.target_count > 0 || t.target_amount > 0) {
+          await supabase.from("sales_targets").insert({
+            employee_id: userId, role: "field_sales", service_type: t.service_type,
+            target_count: t.target_count, target_amount: t.target_amount,
+            period_month: currentMonth, period_year: currentYear,
+          } as any);
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success("Profil mis à jour");
+      qc.invalidateQueries({ queryKey: ["core-field"] });
+      qc.invalidateQueries({ queryKey: ["agent-targets", userId] });
+      setEdit(false);
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur sauvegarde profil"),
+  });
+
+  const fullAddress = [profile?.address_street, profile?.address_city, profile?.address_province, profile?.address_postal].filter(Boolean).join(", ");
+  const p = profile || {};
+
+  if (!edit) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setEdit(true)}><Edit3 className="h-3 w-3 mr-1" /> Modifier</Button>
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Informations personnelles */}
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Mail className="h-4 w-4" /> Informations personnelles</h3>
             <dl className="space-y-1.5 text-xs">
-              <Row label="Nom complet" value={p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim()} />
+              <Row label="Prénom" value={p.first_name} />
+              <Row label="Nom" value={p.last_name} />
               <Row label="Courriel" value={p.email} />
               <Row label="Téléphone" value={p.phone} />
               <Row label="Date d'embauche" value={p.hire_date} />
               <Row label="Date de naissance" value={p.date_of_birth} />
+              <Row label="Territoire" value={Array.isArray(p.sector_tags) ? p.sector_tags[0] : null} />
             </dl>
           </div>
-
-          {/* Adresse */}
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><MapPin className="h-4 w-4" /> Adresse</h3>
             {fullAddress ? <p className="text-xs text-foreground">{fullAddress}</p> : <p className="text-xs text-muted-foreground">Aucune adresse renseignée</p>}
           </div>
-
-          {/* Contact d'urgence */}
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Phone className="h-4 w-4" /> Contact d'urgence</h3>
             <dl className="space-y-1.5 text-xs">
@@ -148,8 +346,6 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
               <Row label="Téléphone" value={p.emergency_contact_phone} />
             </dl>
           </div>
-
-          {/* Méthode de paiement */}
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><CreditCard className="h-4 w-4" /> Méthode de paiement</h3>
             {p.payment_method === "direct_deposit" ? (
@@ -164,63 +360,477 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
                 <Row label="Méthode" value="Virement Interac" />
                 <Row label="Destinataire" value={p.interac_email} />
               </dl>
-            ) : (
-              <p className="text-xs text-muted-foreground">Aucune méthode configurée</p>
-            )}
+            ) : <p className="text-xs text-muted-foreground">Aucune méthode configurée</p>}
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 md:col-span-2">
+            <h3 className="text-sm font-bold text-foreground mb-3">Objectifs ({currentMonth}/{currentYear})</h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+              {[
+                { l: "Internet", v: targets.find((t: any) => t.service_type === "internet")?.target_count ?? 0 },
+                { l: "TV", v: targets.find((t: any) => t.service_type === "tv")?.target_count ?? 0 },
+                { l: "Mobile", v: targets.find((t: any) => t.service_type === "mobile")?.target_count ?? 0 },
+                { l: "Total", v: targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0 },
+                { l: "Revenu ($)", v: Number(targets.find((t: any) => t.service_type === "revenue")?.target_amount ?? 0).toFixed(2) },
+              ].map((k) => (
+                <div key={k.l} className="text-center"><p className="text-muted-foreground">{k.l}</p><p className="font-bold text-foreground mt-0.5">{k.v}</p></div>
+              ))}
+            </div>
           </div>
         </div>
-      </TabsContent>
+      </div>
+    );
+  }
 
-      {/* === Documents RH === */}
-      <TabsContent value="documents" className="space-y-4 mt-4">
-        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" /> Documents d'emploi</h3>
-          <DocRow title="Offre d'emploi" subtitle="Document signé à la création" actionLabel="Téléverser" disabled />
-          <DocRow title="Contrat d'emploi" subtitle="Contrat de travail officiel" actionLabel="Téléverser" disabled />
-          <DocRow title="Lettre d'emploi" subtitle="Génération à la demande" actionLabel="Générer (bientôt)" disabled />
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={() => setEdit(false)}><XIcon className="h-3 w-3 mr-1" /> Annuler</Button>
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />} Sauvegarder
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2"><Mail className="h-4 w-4" /> Identité</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-xs">Prénom</Label><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></div>
+            <div><Label className="text-xs">Nom</Label><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
+          </div>
+          <div><Label className="text-xs">Courriel</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+          <div><Label className="text-xs">Téléphone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-xs">Date d'embauche</Label><Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} /></div>
+            <div><Label className="text-xs">Date de naissance</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
+          </div>
+          <div><Label className="text-xs">Territoire</Label><Input value={form.territory} onChange={(e) => setForm({ ...form, territory: e.target.value })} placeholder="Ex: Montréal Nord" /></div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Conditions d'utilisation</h3>
-          {p.terms_accepted_at ? (
-            <div className="flex items-center gap-2 text-xs">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span className="text-foreground">
-                Acceptées le <strong>{format(new Date(p.terms_accepted_at), "dd MMM yyyy")}</strong>
-                {p.terms_accepted_version ? <> — version <strong>{p.terms_accepted_version}</strong></> : null}
-              </span>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2"><MapPin className="h-4 w-4" /> Adresse</h3>
+          <div><Label className="text-xs">Rue</Label><Input value={form.address_street} onChange={(e) => setForm({ ...form, address_street: e.target.value })} placeholder="123 rue Exemple" /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-xs">Ville</Label><Input value={form.address_city} onChange={(e) => setForm({ ...form, address_city: e.target.value })} /></div>
+            <div>
+              <Label className="text-xs">Province</Label>
+              <Select value={form.address_province} onValueChange={(v) => setForm({ ...form, address_province: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["QC", "ON", "NB", "NS", "PE", "NL", "MB", "SK", "AB", "BC", "YT", "NT", "NU"].map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label className="text-xs">Code postal</Label><Input value={form.address_postal} onChange={(e) => setForm({ ...form, address_postal: e.target.value.toUpperCase() })} maxLength={7} placeholder="H1A 1A1" /></div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2"><Phone className="h-4 w-4" /> Contact d'urgence</h3>
+          <div><Label className="text-xs">Nom complet</Label><Input value={form.emergency_contact_name} onChange={(e) => setForm({ ...form, emergency_contact_name: e.target.value })} /></div>
+          <div>
+            <Label className="text-xs">Lien</Label>
+            <Select value={form.emergency_contact_relation} onValueChange={(v) => setForm({ ...form, emergency_contact_relation: v })}>
+              <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(RELATION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label className="text-xs">Téléphone</Label><Input type="tel" value={form.emergency_contact_phone} onChange={(e) => setForm({ ...form, emergency_contact_phone: e.target.value })} /></div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2"><CreditCard className="h-4 w-4" /> Méthode de paiement</h3>
+          <div>
+            <Label className="text-xs">Méthode</Label>
+            <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="direct_deposit">Dépôt direct</SelectItem>
+                <SelectItem value="interac">Virement Interac</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {form.payment_method === "direct_deposit" ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label className="text-xs">Institution (3)</Label><Input inputMode="numeric" maxLength={3} value={form.bank_institution} onChange={(e) => setForm({ ...form, bank_institution: e.target.value.replace(/\D/g, "").slice(0, 3) })} /></div>
+              <div><Label className="text-xs">Transit (5)</Label><Input inputMode="numeric" maxLength={5} value={form.bank_transit} onChange={(e) => setForm({ ...form, bank_transit: e.target.value.replace(/\D/g, "").slice(0, 5) })} /></div>
+              <div><Label className="text-xs">Compte</Label><Input inputMode="numeric" value={form.bank_account} onChange={(e) => setForm({ ...form, bank_account: e.target.value.replace(/\D/g, "") })} /></div>
             </div>
           ) : (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" /> Non acceptées
-            </Badge>
+            <div><Label className="text-xs">Courriel Interac</Label><Input value={form.interac_email} onChange={(e) => setForm({ ...form, interac_email: e.target.value })} /></div>
           )}
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Authentification multi-facteurs (MFA)</h3>
-          {p.mfa_configured_at && p.mfa_method ? (
-            <div className="flex items-center gap-2 text-xs">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span className="text-foreground">
-                MFA actif — <strong>{p.mfa_method === "email" ? "Email" : "Application TOTP"}</strong> ✓
-                {" — configuré le "}
-                <strong>{format(new Date(p.mfa_configured_at), "dd MMM yyyy")}</strong>
-              </span>
-            </div>
-          ) : (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" /> ⚠️ MFA non configuré
-            </Badge>
-          )}
+        <div className="bg-card border border-border rounded-xl p-4 md:col-span-2">
+          <h3 className="text-sm font-bold text-foreground mb-2">Objectifs ({currentMonth}/{currentYear})</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div><Label className="text-xs">Internet</Label><Input type="number" min="0" value={form.target_internet} onChange={(e) => setForm({ ...form, target_internet: e.target.value })} /></div>
+            <div><Label className="text-xs">TV</Label><Input type="number" min="0" value={form.target_tv} onChange={(e) => setForm({ ...form, target_tv: e.target.value })} /></div>
+            <div><Label className="text-xs">Mobile</Label><Input type="number" min="0" value={form.target_mobile} onChange={(e) => setForm({ ...form, target_mobile: e.target.value })} /></div>
+            <div><Label className="text-xs">Total ventes</Label><Input type="number" min="0" value={form.target_total_sales} onChange={(e) => setForm({ ...form, target_total_sales: e.target.value })} /></div>
+            <div><Label className="text-xs">Revenu ($)</Label><Input type="number" min="0" step="0.01" value={form.target_revenue} onChange={(e) => setForm({ ...form, target_revenue: e.target.value })} /></div>
+          </div>
         </div>
-
-        <TaxDocumentsSection userId={userId} />
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
   );
 }
 
+/* ════════════════════════════════════════════════════════════════
+   SCHEDULE SECTION (7-day grid + per-day editor)
+   ════════════════════════════════════════════════════════════════ */
+function ScheduleSection({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const [edit, setEdit] = useState(false);
+  const [draft, setDraft] = useState<Record<number, { active: boolean; start: string; end: string; id?: string }>>({});
+
+  const { data: schedules = [] } = useQuery({
+    queryKey: ["agent-schedules", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff_schedules")
+        .select("id, day_of_week, start_time, end_time, is_active")
+        .eq("user_id", userId)
+        .eq("is_active", true);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const byDay = useMemo(() => {
+    const m: Record<number, any> = {};
+    schedules.forEach((s: any) => { m[s.day_of_week] = s; });
+    return m;
+  }, [schedules]);
+
+  useEffect(() => {
+    if (!edit) return;
+    const d: Record<number, { active: boolean; start: string; end: string; id?: string }> = {};
+    for (let i = 0; i < 7; i++) {
+      const s = byDay[i];
+      d[i] = s
+        ? { active: true, start: (s.start_time || "09:00").slice(0, 5), end: (s.end_time || "17:00").slice(0, 5), id: s.id }
+        : { active: false, start: "09:00", end: "17:00" };
+    }
+    setDraft(d);
+  }, [edit, byDay]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      for (let i = 0; i < 7; i++) {
+        const slot = draft[i];
+        const existing = byDay[i];
+        if (slot.active) {
+          if (existing) {
+            const { error } = await supabase.from("staff_schedules")
+              .update({ start_time: slot.start, end_time: slot.end, is_active: true } as any)
+              .eq("id", existing.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase.from("staff_schedules").insert({
+              user_id: userId, day_of_week: i, start_time: slot.start, end_time: slot.end,
+              is_active: true, effective_from: new Date().toISOString().slice(0, 10),
+              created_by: user?.id,
+            } as any);
+            if (error) throw error;
+          }
+        } else if (existing) {
+          const { error } = await supabase.from("staff_schedules")
+            .update({ is_active: false } as any).eq("id", existing.id);
+          if (error) throw error;
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success("Horaire mis à jour");
+      qc.invalidateQueries({ queryKey: ["agent-schedules", userId] });
+      setEdit(false);
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur sauvegarde horaire"),
+  });
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Calendar className="h-4 w-4" /> Horaire hebdomadaire</h3>
+        {!edit ? (
+          <Button size="sm" onClick={() => setEdit(true)}><Edit3 className="h-3 w-3 mr-1" /> Modifier l'horaire</Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEdit(false)}><XIcon className="h-3 w-3 mr-1" /> Annuler</Button>
+            <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />} Sauvegarder
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {!edit ? (
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          {[1, 2, 3, 4, 5, 6, 0].map((i) => {
+            const s = byDay[i];
+            return (
+              <div key={i} className={cn("rounded-lg border p-2 text-center", s ? "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-900/20" : "border-border bg-muted/30")}>
+                <p className="text-[11px] font-bold text-foreground">{DAYS_FR[i]}</p>
+                {s ? (
+                  <p className="text-[10px] text-muted-foreground mt-1">{(s.start_time || "").slice(0, 5)}–{(s.end_time || "").slice(0, 5)}</p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground mt-1">Repos</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5, 6, 0].map((i) => {
+            const slot = draft[i] || { active: false, start: "09:00", end: "17:00" };
+            return (
+              <div key={i} className="flex items-center gap-3 p-2 rounded border border-border">
+                <span className="w-20 text-xs font-medium text-foreground">{DAYS_FULL[i]}</span>
+                <div className="flex items-center gap-2">
+                  <Switch checked={slot.active} onCheckedChange={(v) => setDraft({ ...draft, [i]: { ...slot, active: v } })} />
+                  <span className="text-[10px] text-muted-foreground w-12">{slot.active ? "Travail" : "Repos"}</span>
+                </div>
+                <Input type="time" value={slot.start} disabled={!slot.active} onChange={(e) => setDraft({ ...draft, [i]: { ...slot, start: e.target.value } })} className="h-8 w-28" />
+                <span className="text-xs text-muted-foreground">à</span>
+                <Input type="time" value={slot.end} disabled={!slot.active} onChange={(e) => setDraft({ ...draft, [i]: { ...slot, end: e.target.value } })} className="h-8 w-28" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYMENT DOCS (Offre / Contrat / Lettre confirmation)
+   Wires to existing employment_letters + generate-employment-letter-pdf
+   ════════════════════════════════════════════════════════════════ */
+const DOC_TYPES: Array<{ key: string; label: string; subtitle: string }> = [
+  { key: "offer", label: "Offre d'emploi", subtitle: "Lettre d'offre formelle" },
+  { key: "contract", label: "Contrat d'emploi", subtitle: "Contrat de travail officiel" },
+  { key: "confirmation", label: "Lettre d'emploi", subtitle: "Confirmation d'emploi actuel" },
+];
+
+function EmploymentDocsSection({ userId, agentName }: { userId: string; agentName: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const { data: docs = [] } = useQuery({
+    queryKey: ["employment-letters", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employment_letters")
+        .select("id, letter_type, status, pdf_url, generated_at, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const findLatest = (type: string) => docs.find((d: any) => d.letter_type === type);
+
+  const generate = async (type: string) => {
+    setBusy(type);
+    try {
+      let letterId = findLatest(type)?.id;
+      if (!letterId) {
+        const { data: created, error } = await supabase
+          .from("employment_letters")
+          .insert({ user_id: userId, letter_type: type, status: "draft" } as any)
+          .select("id").single();
+        if (error) throw error;
+        letterId = (created as any).id;
+      }
+      const { error: genErr } = await supabase.functions.invoke("generate-employment-letter-pdf", {
+        body: { employment_letter_id: letterId },
+      });
+      if (genErr) throw genErr;
+      toast.success("Document généré");
+      qc.invalidateQueries({ queryKey: ["employment-letters", userId] });
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur génération");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const download = async (pdfUrl: string) => {
+    const { data, error } = await supabase.storage.from("hr-documents").createSignedUrl(pdfUrl, 300);
+    if (error || !data?.signedUrl) {
+      toast.error("Lien indisponible");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" /> Documents d'emploi</h3>
+      {DOC_TYPES.map((d) => {
+        const doc = findLatest(d.key);
+        const isBusy = busy === d.key;
+        return (
+          <div key={d.key} className="flex items-center justify-between p-2 rounded border border-border">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">{d.label}</p>
+              <p className="text-[10px] text-muted-foreground">{d.subtitle}</p>
+              {doc?.generated_at && (
+                <Badge variant="outline" className="text-[9px] mt-1">
+                  Généré le {format(new Date(doc.generated_at), "dd MMM yyyy")}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {doc?.pdf_url && (
+                <Button size="sm" variant="outline" onClick={() => download(doc.pdf_url)}>
+                  <Download className="h-3 w-3 mr-1" /> Télécharger
+                </Button>
+              )}
+              <Button size="sm" variant={doc ? "ghost" : "default"} onClick={() => generate(d.key)} disabled={isBusy}>
+                {isBusy ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
+                {doc?.pdf_url ? "Régénérer" : "Générer"}
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CUSTOM RATES per agent (commission_rules table)
+   ════════════════════════════════════════════════════════════════ */
+function CustomRatesSection({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [pct, setPct] = useState<string>("0");
+  const [minM, setMinM] = useState<string>("0");
+
+  const { data: rows = [] } = useQuery({
+    queryKey: ["agent-custom-rates", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_rules")
+        .select("id, applies_to, percentage, min_monthly, is_active")
+        .eq("employee_id", userId)
+        .eq("is_active", true);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const findRow = (svc: string) => rows.find((r: any) => r.applies_to === svc);
+
+  const save = useMutation({
+    mutationFn: async (svc: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const existing = findRow(svc);
+      const payload: any = {
+        applies_to: svc,
+        percentage: parseFloat(pct) || 0,
+        min_monthly: parseFloat(minM) || 0,
+      };
+      if (existing) {
+        const { error } = await supabase.from("commission_rules").update(payload).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("commission_rules").insert({
+          ...payload, employee_id: userId, role: "field_sales", is_active: true,
+          effective_from: new Date().toISOString().slice(0, 10), created_by: user?.id,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Taux mis à jour");
+      qc.invalidateQueries({ queryKey: ["agent-custom-rates", userId] });
+      setEditKey(null);
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur sauvegarde"),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("commission_rules").update({ is_active: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Taux supprimé");
+      qc.invalidateQueries({ queryKey: ["agent-custom-rates", userId] });
+    },
+  });
+
+  const startEdit = (svc: string) => {
+    const row = findRow(svc);
+    setPct(String(row?.percentage ?? 0));
+    setMinM(String(row?.min_monthly ?? 0));
+    setEditKey(svc);
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4">
+      <h3 className="text-sm font-bold text-foreground mb-2">Taux personnalisés par service</h3>
+      <p className="text-[10px] text-muted-foreground mb-3">Ces taux remplacent les grilles assignées pour cet agent.</p>
+      <div className="space-y-1">
+        {SERVICES.map((s) => {
+          const row = findRow(s.key);
+          const isEdit = editKey === s.key;
+          return (
+            <div key={s.key} className="flex items-center justify-between p-2 rounded border border-border">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">{s.label}</p>
+                {!isEdit && row && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {Number(row.percentage).toFixed(2)}% · min ${Number(row.min_monthly).toFixed(2)}/mois
+                  </p>
+                )}
+                {!isEdit && !row && <p className="text-[10px] text-muted-foreground">Aucun taux personnalisé</p>}
+              </div>
+              {isEdit ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <Input className="h-8 w-20" type="number" step="0.01" min="0" value={pct} onChange={(e) => setPct(e.target.value)} />
+                    <span className="text-xs text-muted-foreground">%</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">$</span>
+                    <Input className="h-8 w-20" type="number" step="0.01" min="0" value={minM} onChange={(e) => setMinM(e.target.value)} />
+                  </div>
+                  <Button size="sm" onClick={() => save.mutate(s.key)} disabled={save.isPending}>
+                    {save.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditKey(null)}><XIcon className="h-3 w-3" /></Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="outline" onClick={() => startEdit(s.key)}>
+                    <Edit3 className="h-3 w-3 mr-1" /> {row ? "Modifier" : "Définir"}
+                  </Button>
+                  {row && (
+                    <Button size="sm" variant="ghost" onClick={() => remove.mutate(row.id)}>
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAX DOCUMENTS (T4 / RL-1)
+   ════════════════════════════════════════════════════════════════ */
 function TaxDocumentsSection({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const currentYear = new Date().getFullYear();
@@ -254,19 +864,15 @@ function TaxDocumentsSection({ userId }: { userId: string }) {
     const key = `${docType}-${year}`;
     setGenLoading(key);
     try {
-      // Create draft row first
       const { data: created, error: insertErr } = await supabase
         .from("tax_documents")
         .insert({ user_id: userId, document_type: docType, tax_year: year, status: "draft" })
-        .select("id")
-        .single();
+        .select("id").single();
       if (insertErr) throw insertErr;
-
       const { error: genErr } = await supabase.functions.invoke("generate-tax-document-pdf", {
         body: { tax_document_id: created.id },
       });
       if (genErr) throw genErr;
-
       toast.success(`${docType.toUpperCase()} ${year} généré`);
       qc.invalidateQueries({ queryKey: ["agent-tax-docs", userId] });
     } catch (e: any) {
@@ -276,15 +882,12 @@ function TaxDocumentsSection({ userId }: { userId: string }) {
     }
   };
 
-  const findDoc = (type: string, year: number) =>
-    docs.find((d: any) => d.document_type === type && d.tax_year === year);
+  const findDoc = (type: string, year: number) => docs.find((d: any) => d.document_type === type && d.tax_year === year);
 
   const renderRow = (type: "t4" | "rl1", year: number) => {
     const doc = findDoc(type, year);
     const label = type === "t4" ? "T4" : "RL-1";
-    const subtitle = type === "t4"
-      ? `Sommaire fédéral interne — ${year}`
-      : `Sommaire provincial interne — ${year}`;
+    const subtitle = type === "t4" ? `Sommaire fédéral interne — ${year}` : `Sommaire provincial interne — ${year}`;
     const key = `${type}-${year}`;
     const isGenerating = genLoading === key;
     return (
@@ -305,12 +908,7 @@ function TaxDocumentsSection({ userId }: { userId: string }) {
               <Download className="h-3 w-3 mr-1" /> PDF
             </Button>
           )}
-          <Button
-            size="sm"
-            variant={doc ? "ghost" : "default"}
-            onClick={() => handleGenerate(type, year)}
-            disabled={isGenerating}
-          >
+          <Button size="sm" variant={doc ? "ghost" : "default"} onClick={() => handleGenerate(type, year)} disabled={isGenerating}>
             {isGenerating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
             {doc ? "Régénérer" : `Générer ${label}`}
           </Button>
@@ -344,18 +942,6 @@ function Row({ label, value }: { label: string; value?: string | null }) {
     <div className="flex justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-foreground text-right">{value || "—"}</dd>
-    </div>
-  );
-}
-
-function DocRow({ title, subtitle, actionLabel, disabled }: { title: string; subtitle: string; actionLabel: string; disabled?: boolean }) {
-  return (
-    <div className="flex items-center justify-between p-2 rounded border border-border">
-      <div>
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-[10px] text-muted-foreground">{subtitle}</p>
-      </div>
-      <Button size="sm" variant="outline" disabled={disabled}>{actionLabel}</Button>
     </div>
   );
 }
