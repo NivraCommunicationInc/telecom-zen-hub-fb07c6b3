@@ -11,8 +11,9 @@ import {
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
   Package, Settings, UserCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
 import { useEmployeeSectionBadges } from "@/hooks/useEmployeeSectionBadges";
 import { SectionBadge } from "@/components/ui/section-badge";
 
@@ -67,8 +68,16 @@ const bottomItems = [
 export default function EmployeeSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const { isTablet, isDesktop } = usePortalBreakpoint();
+  const [collapsed, setCollapsed] = useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < 1280
+  );
   const { badges: sectionBadges } = useEmployeeSectionBadges();
+
+  useEffect(() => {
+    if (isTablet) setCollapsed(true);
+    else if (isDesktop) setCollapsed(false);
+  }, [isTablet, isDesktop]);
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(href + "/");
@@ -81,7 +90,7 @@ export default function EmployeeSidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
+        "hidden md:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
         collapsed ? "w-14" : "w-56"
       )}
     >

@@ -10,8 +10,9 @@ import {
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
   Briefcase, Target, Inbox, Upload,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
 
 const RH_BASE = "/rh";
 
@@ -62,7 +63,16 @@ const navGroups = [
 export default function RhSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const { isTablet, isDesktop } = usePortalBreakpoint();
+  const [collapsed, setCollapsed] = useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < 1280
+  );
+
+  // Auto-adjust on viewport changes (rotation, resize)
+  useEffect(() => {
+    if (isTablet) setCollapsed(true);
+    else if (isDesktop) setCollapsed(false);
+  }, [isTablet, isDesktop]);
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(href + "/");
@@ -74,10 +84,10 @@ export default function RhSidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Tablet & desktop sidebar (collapsible on tablet) */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
+          "hidden md:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
           collapsed ? "w-14" : "w-56"
         )}
       >
@@ -152,7 +162,7 @@ export default function RhSidebar() {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card px-1 py-1 safe-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card px-1 py-1 safe-bottom">
         <div className="flex items-center justify-around">
           {[
             { href: `${RH_BASE}/dashboard`, icon: LayoutDashboard, label: "Accueil" },

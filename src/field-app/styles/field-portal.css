@@ -146,3 +146,45 @@
   box-shadow: 0 0 0 3px hsl(var(--field-accent) / 0.2);
   outline: none;
 }
+
+/* ── Field portal: iPad & tablet hardening ─────────────────── */
+@media (min-width: 768px) and (max-width: 1279px) {
+  [data-field-portal] {
+    /* Ensure inputs don't trigger iOS zoom */
+    font-size: 15px;
+  }
+  [data-field-portal] input,
+  [data-field-portal] textarea,
+  [data-field-portal] select {
+    font-size: 16px;
+    min-height: 48px;
+  }
+  [data-field-portal] button,
+  [data-field-portal] [role="button"],
+  [data-field-portal] a[role="button"] {
+    min-height: 48px;
+  }
+  /* CTA buttons full width on tablet portrait */
+  [data-field-portal] .field-cta-primary {
+    min-height: 52px;
+  }
+}
+
+/* Phone-only */
+@media (max-width: 767px) {
+  [data-field-portal] input,
+  [data-field-portal] textarea,
+  [data-field-portal] select {
+    font-size: 16px;
+  }
+  [data-field-portal] button,
+  [data-field-portal] [role="button"],
+  [data-field-portal] a[role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* Prevent horizontal overflow inside any portal content */
+[data-field-portal] main {
+  overflow-x: hidden;
+}
