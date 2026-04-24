@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       "unknown";
 
-    const rl = await checkRateLimit("client-password-reset-send", ipAddr, RATE_LIMITS.password_reset);
+    const rl = await checkRateLimit({
+      key: `client-password-reset-send:${ipAddr}`,
+      ...RATE_LIMITS.PASSWORD_RESET,
+    });
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
     const body: ClientPasswordResetSendRequest = await req.json();
