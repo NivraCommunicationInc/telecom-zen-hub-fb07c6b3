@@ -83,16 +83,23 @@ export default function FieldNewSale() {
     [draft.equipment]
   );
 
-  const monthlyDiscountAmount = useMemo(() => {
-    if (!draft.discount) return 0;
-    if (draft.discount.type === "percentage") {
-      return (monthlyBeforeDiscount * draft.discount.value) / 100;
-    }
-    return Math.min(draft.discount.value, monthlyBeforeDiscount);
-  }, [draft.discount, monthlyBeforeDiscount]);
+  // Centralized discount math (handles fixed_monthly, remove_fee, first_month_free, etc.).
+  const discountBreakdown = useMemo(
+    () => computeDiscountBreakdown(draft.discount, draft.services, activationFee),
+    [draft.discount, draft.services, activationFee],
+  );
+
+  const monthlyDiscountAmount = discountBreakdown.monthlyDiscountAmount;
+  const installationDiscountAmount = discountBreakdown.installationDiscountAmount;
+  const firstMonthCredit = discountBreakdown.firstMonthCredit;
 
   const monthlyAfterDiscount = Math.max(0, monthlyBeforeDiscount - monthlyDiscountAmount);
-  const subtotal = monthlyAfterDiscount + equipmentTotal + activationFee;
+  const effectiveActivation = Math.max(0, activationFee - installationDiscountAmount);
+  // First-month credit is a one-time credit on the first invoice only.
+  const subtotal = Math.max(
+    0,
+    monthlyAfterDiscount + equipmentTotal + effectiveActivation - firstMonthCredit,
+  );
   const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
   const total = Math.round((subtotal + tps + tvq) * 100) / 100;
