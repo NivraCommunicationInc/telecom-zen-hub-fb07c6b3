@@ -49,7 +49,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization required");
@@ -73,7 +73,7 @@ serve(async (req) => {
     if (!payment_intent_id) throw new Error("payment_intent_id is required");
     if (!action) throw new Error("action is required");
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey!, { apiVersion: "2025-08-27.basil" });
     const adminId = userData.user.id;
     const adminLabel = admin_name || userData.user.email || "admin";
 

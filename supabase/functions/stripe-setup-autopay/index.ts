@@ -57,7 +57,7 @@ serve(async (req) => {
 
     if (!action) throw new Error("action is required");
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey!, { apiVersion: "2025-08-27.basil" });
 
     // ─── CREATE SETUP INTENT ───
     if (action === "create_setup") {
