@@ -309,7 +309,6 @@ export default function HrCommissionsPage() {
   const bulkUpdateMut = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      // Apply to sales_commissions (the main commissionable source)
       const updates: Record<string, any> = { status };
       if (status === "validated") {
         updates.validated_at = new Date().toISOString();
@@ -319,10 +318,32 @@ export default function HrCommissionsPage() {
         updates.paid_at = new Date().toISOString();
         updates.paid_by = user?.id;
       }
+      // Snapshot recipients before update so we can email them
+      const { data: snapshot } = await supabase
+        .from("unified_commissions" as any)
+        .select("id, employee_id, amount")
+        .in("id", ids);
       for (const id of ids) {
-        // Try both tables since unified view spans both
         await supabase.from("sales_commissions").update(updates).eq("id", id);
         await supabase.from("field_commissions").update(updates).eq("id", id);
+      }
+      // Notify each employee — Violet Bold shell
+      const { notifyEmployee } = await import("@/lib/hr/notifyEmployee");
+      const tplKey =
+        status === "paid" ? "hr_commission_paid" :
+        status === "validated" ? "hr_commission_validated" : null;
+      if (tplKey) {
+        for (const row of (snapshot as any[]) ?? []) {
+          if (!row.employee_id) continue;
+          await notifyEmployee({
+            employeeId: row.employee_id,
+            templateKey: tplKey,
+            eventKey: `${tplKey}_${row.id}`,
+            entityType: "commission",
+            entityId: row.id,
+            vars: { amount: row.amount, paid_at: new Date().toISOString() },
+          });
+        }
       }
     },
     onSuccess: (_, vars) => {
