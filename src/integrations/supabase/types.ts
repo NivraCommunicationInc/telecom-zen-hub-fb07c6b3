@@ -1113,11 +1113,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          duration_months: number | null
           expires_at: string | null
           id: string
           is_active: boolean
           max_uses: number | null
           max_uses_per_agent: number | null
+          min_plan_price: number | null
           name: string
           type: string
           updated_at: string
@@ -1129,11 +1131,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          duration_months?: number | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
           max_uses?: number | null
           max_uses_per_agent?: number | null
+          min_plan_price?: number | null
           name: string
           type: string
           updated_at?: string
@@ -1145,11 +1149,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          duration_months?: number | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
           max_uses?: number | null
           max_uses_per_agent?: number | null
+          min_plan_price?: number | null
           name?: string
           type?: string
           updated_at?: string
@@ -7408,6 +7414,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      field_quotes: {
+        Row: {
+          activation_fee: number
+          agent_id: string
+          agent_name: string | null
+          client_info: Json
+          converted_order_id: string | null
+          created_at: string
+          discount: Json | null
+          email_sent_at: string | null
+          equipment: Json
+          id: string
+          services: Json
+          status: string
+          subtotal: number
+          total: number
+          tps: number
+          tvq: number
+          updated_at: string
+          valid_until: string
+        }
+        Insert: {
+          activation_fee?: number
+          agent_id: string
+          agent_name?: string | null
+          client_info?: Json
+          converted_order_id?: string | null
+          created_at?: string
+          discount?: Json | null
+          email_sent_at?: string | null
+          equipment?: Json
+          id?: string
+          services?: Json
+          status?: string
+          subtotal?: number
+          total?: number
+          tps?: number
+          tvq?: number
+          updated_at?: string
+          valid_until?: string
+        }
+        Update: {
+          activation_fee?: number
+          agent_id?: string
+          agent_name?: string | null
+          client_info?: Json
+          converted_order_id?: string | null
+          created_at?: string
+          discount?: Json | null
+          email_sent_at?: string | null
+          equipment?: Json
+          id?: string
+          services?: Json
+          status?: string
+          subtotal?: number
+          total?: number
+          tps?: number
+          tvq?: number
+          updated_at?: string
+          valid_until?: string
+        }
+        Relationships: []
       }
       field_resources: {
         Row: {

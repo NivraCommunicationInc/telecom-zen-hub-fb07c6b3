@@ -36,15 +36,35 @@ export interface FieldSaleEquipment {
 
 /**
  * Agent discount applied to a sale.
- * Sourced from the agent_discounts catalogue (Part 1).
+ * Sourced from the agent_discounts catalogue.
  */
+export type FieldDiscountType =
+  | "fixed"
+  | "percentage"
+  | "fixed_monthly"
+  | "remove_fee"
+  | "first_month_free";
+
+export type FieldDiscountAppliesTo =
+  | "internet"
+  | "tv"
+  | "mobile"
+  | "bundle"
+  | "all"
+  | "installation"
+  | "plans_80_plus"
+  | "plans_90_plus"
+  | "plan_only";
+
 export interface FieldSaleDiscount {
   id: string;
   name: string;
-  type: "fixed" | "percentage";
+  type: FieldDiscountType;
   value: number;
-  applies_to: "internet" | "tv" | "mobile" | "all";
+  applies_to: FieldDiscountAppliesTo;
   description?: string | null;
+  duration_months?: number | null;
+  min_plan_price?: number | null;
 }
 
 /**
