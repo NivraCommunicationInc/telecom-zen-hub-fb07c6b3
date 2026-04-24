@@ -372,7 +372,7 @@ export default function FieldDashboard() {
       </div>
 
       {/* KPI ROW 1 — Goal + Revenue + Commissions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
         <KpiCard
           label="Ventes aujourd'hui"
           value={`${salesToday} / ${dailyGoal}`}
@@ -402,7 +402,7 @@ export default function FieldDashboard() {
       </div>
 
       {/* KPI ROW 2 — Conversion + Leads + Bonus */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
         <KpiCard
           label="Taux de conversion"
           value={`${conversionRate}%`}
@@ -514,7 +514,7 @@ export default function FieldDashboard() {
             style={{ color: "hsl(var(--field-text-dim))" }}>
           Actions rapides
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           <QuickAction
             label="Nouvelle vente"
             sub="Placer une commande"
@@ -550,7 +550,7 @@ export default function FieldDashboard() {
       </div>
 
       {/* RECENT ACTIVITY */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         {/* Orders */}
         <Card className="!p-0 overflow-hidden">
           <div
