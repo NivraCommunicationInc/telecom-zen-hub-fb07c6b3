@@ -512,20 +512,113 @@ const CoreClientProfile = () => {
       }>
         {equipment.length > 0 ? (
           <div className="space-y-2">
-            {equipment.map((e: any) => (
-              <div key={e.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
-                <Package className="h-4 w-4 text-cyan-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-white truncate">{e.catalog_name}</p>
-                  <p className="text-[10px] text-[#A1A1AA]">S/N: {e.serial_number || "—"}</p>
+            {equipment.map((e: any) => {
+              const assignedDate = e.assigned_at ? new Date(e.assigned_at) : null;
+              const warrantyEnd = assignedDate ? new Date(assignedDate.getTime() + 365 * 24 * 60 * 60 * 1000) : null;
+              const underWarranty = warrantyEnd ? warrantyEnd > new Date() : false;
+              return (
+                <div key={e.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                  <Package className="h-4 w-4 text-cyan-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-white truncate">{e.catalog_name}</p>
+                    <p className="text-[10px] text-[#A1A1AA]">
+                      S/N: {e.serial_number || "—"}
+                      {assignedDate && <> · Attribué le {format(assignedDate, "d MMM yyyy", { locale: fr })}</>}
+                    </p>
+                  </div>
+                  {underWarranty ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Sous garantie</Badge>
+                  ) : warrantyEnd ? (
+                    <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Garantie expirée</Badge>
+                  ) : null}
+                  <span className="text-[10px] text-emerald-400 font-medium">{Number(e.price_client).toFixed(2)} $</span>
+                  <StatusBadge label={e.status} variant={statusToVariant(e.status === "assigned" ? "active" : e.status)} size="sm" />
                 </div>
-                <span className="text-[10px] text-emerald-400 font-medium">{Number(e.price_client).toFixed(2)} $</span>
-                <StatusBadge label={e.status} variant={statusToVariant(e.status === "assigned" ? "active" : e.status)} size="sm" />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun équipement attribué</p>
+        )}
+      </Section>
+
+      {/* ═══ CONTRACTS (FIX 2 — Section A) ═══ */}
+      <Section title="Contrats" icon={FileSignature}>
+        {contracts.length > 0 ? (
+          <div className="space-y-2">
+            {contracts.map((c: any) => {
+              const isSigned = c.status === "signed" || c.client_signed_at;
+              const isCancelled = c.status === "cancelled";
+              const awaitingSig = !isSigned && !isCancelled;
+              return (
+                <div key={c.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                  <FileSignature className="h-4 w-4 text-purple-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-white truncate font-mono">{c.contract_number || c.id.slice(0, 8)}</p>
+                    <p className="text-[10px] text-[#A1A1AA]">
+                      Créé le {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
+                      {c.client_signed_at && <> · Signé le {format(new Date(c.client_signed_at), "d MMM yyyy", { locale: fr })}</>}
+                    </p>
+                  </div>
+                  {isSigned && <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Signé</Badge>}
+                  {awaitingSig && <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[9px]">En attente signature</Badge>}
+                  {isCancelled && <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[9px]">Annulé</Badge>}
+                  {c.contract_pdf_url ? (
+                    <a href={c.contract_pdf_url} target="_blank" rel="noreferrer">
+                      <button className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1">
+                        <Download className="h-3 w-3" /> Télécharger
+                      </button>
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-[hsl(220,10%,40%)] italic">PDF non disponible</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun contrat</p>
+        )}
+      </Section>
+
+      {/* ═══ AUTO-DOCUMENTS (FIX 2 — Section A) ═══ */}
+      <Section title="Documents générés" icon={FileText}>
+        {autoDocs.length > 0 ? (
+          <div className="space-y-2">
+            {autoDocs.map((d: any) => (
+              <div key={d.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                <FileText className="h-4 w-4 text-blue-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-white truncate">
+                    <span className="font-mono">{d.doc_number || d.id.slice(0, 8)}</span>
+                    <span className="text-[#A1A1AA]"> · {d.doc_type}</span>
+                  </p>
+                  <p className="text-[10px] text-[#A1A1AA]">
+                    {d.event_type} · {d.created_at ? format(new Date(d.created_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
+                  </p>
+                </div>
+                {d.storage_path && (
+                  <button
+                    onClick={async () => {
+                      const { data, error } = await supabase.storage
+                        .from("client-documents")
+                        .createSignedUrl(d.storage_path, 60);
+                      if (error || !data?.signedUrl) {
+                        toast.error("Impossible d'ouvrir le document");
+                        return;
+                      }
+                      window.open(data.signedUrl, "_blank");
+                    }}
+                    className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+                  >
+                    <Download className="h-3 w-3" /> Ouvrir
+                  </button>
+                )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun équipement attribué</p>
+          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun document</p>
         )}
       </Section>
 
