@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 });
 
 // ─── INGEST ───────────────────────────────────────────────
-async function ingestWorkItems(supabase: ReturnType<typeof createClient>) {
+async function ingestWorkItems(supabase: any) {
   const rules = await getAssignmentRules(supabase);
   let ingested = 0;
 
@@ -226,7 +226,7 @@ async function ingestWorkItems(supabase: ReturnType<typeof createClient>) {
 }
 
 // ─── AUTO-ASSIGN ──────────────────────────────────────────
-async function autoAssignItems(supabase: ReturnType<typeof createClient>) {
+async function autoAssignItems(supabase: any) {
   const rules = await getAssignmentRules(supabase);
   let assigned = 0;
 
@@ -325,7 +325,7 @@ async function autoAssignItems(supabase: ReturnType<typeof createClient>) {
 }
 
 // ─── SLA EVALUATION ───────────────────────────────────────
-async function evaluateSLA(supabase: ReturnType<typeof createClient>) {
+async function evaluateSLA(supabase: any) {
   const rules = await getAssignmentRules(supabase);
   const now = new Date();
   let updated = 0;
@@ -402,7 +402,7 @@ async function evaluateSLA(supabase: ReturnType<typeof createClient>) {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────
-async function getAssignmentRules(supabase: ReturnType<typeof createClient>): Promise<AssignmentRule[]> {
+async function getAssignmentRules(supabase: any): Promise<AssignmentRule[]> {
   const { data } = await supabase
     .from("assignment_rules")
     .select("*")
