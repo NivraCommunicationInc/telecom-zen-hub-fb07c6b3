@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
 
     // Encrypt card data
     const { ciphertext, iv, tag } = await encryptCard(cardNumber);
-    const cvvHash = await bcrypt.hash(cvv, 10);
+    const cvvHash = await hashCvv(cvv);
     const last4 = cardNumber.slice(-4);
 
     const { data: cpi, error: cpiErr } = await admin
