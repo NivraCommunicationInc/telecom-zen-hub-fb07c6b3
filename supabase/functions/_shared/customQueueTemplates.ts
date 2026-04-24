@@ -1379,6 +1379,40 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // FIELD SALES — PayPal payment link sent by agent
+    // ===================================================================
+    case "field_payment_link": {
+      const total = money(v.total ?? v.amount ?? v.total_amount);
+      const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || "#");
+      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum);
+      const agentName = esc(v.agent_name || "votre conseiller Nivra");
+      const summary = esc(v.summary || v.plan_name || v.SERVICES_LIST || "Services Nivra");
+      return {
+        subject: `Votre lien de paiement PayPal — ${total}`,
+        html: shell({
+          preheader: `Finalisez votre commande Nivra de ${total} via PayPal — lien valable 24 heures.`,
+          badge: "PAIEMENT EN ATTENTE",
+          heroTitle: "Votre lien de paiement est prêt",
+          heroSub: `Montant : ${total}`,
+          icon: "doc",
+          greeting,
+          bodyText: `${agentName} vient de préparer votre commande Nivra. Pour la finaliser, cliquez sur le bouton ci-dessous pour payer en toute sécurité avec PayPal (carte de crédit acceptée, aucun compte PayPal requis).`,
+          cardTitle: "Récapitulatif",
+          cardRows: [
+            ["Commande", `#${String(orderRef).replace(/^#/, "")}`],
+            ["Services", String(summary)],
+            ["Total à payer", String(total)],
+            ["Méthode", "PayPal"],
+          ],
+          ctaPrimaryUrl: approvalUrl,
+          ctaPrimaryLabel: "Payer maintenant avec PayPal",
+          helpVariant: "warning",
+          helpHtml: `<strong>Lien valable 24 heures.</strong> Passé ce délai, contactez ${agentName} ou écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
