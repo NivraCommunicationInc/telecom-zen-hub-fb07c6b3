@@ -26,23 +26,170 @@ Deno.serve(async (req) => {
 
     // ── Customer search (GET) ──
     if (req.method === "GET" && action === "customer-search") {
-      const q = (url.searchParams.get("q") || "").trim().toLowerCase();
-      if (q.length < 2) return new Response(JSON.stringify({ results: [] }), { headers });
+      const rawQuery = sanitizeString(url.searchParams.get("q") || "", 120);
+      const q = rawQuery.trim();
+      const qLower = q.toLowerCase();
+      const qDigits = q.replace(/\D/g, "");
 
-      const [accountsRes, fieldOrdersRes, ordersRes] = await Promise.all([
-        admin.from("accounts").select("id, account_number, status, primary_service_address, primary_service_city, primary_service_postal_code").or(`primary_service_address.ilike.%${q}%,primary_service_postal_code.ilike.%${q}%,account_number.ilike.%${q}%`).limit(10),
-        admin.from("field_sales_orders").select("id, customer_name, customer_address, payment_status, sync_status, created_at").ilike("customer_address", `%${q}%`).limit(10),
-        admin.from("orders").select("id, order_number, status, service_type, service_address").or(`service_address.ilike.%${q}%`).in("status", ["pending", "processing", "submitted", "received", "shipped"]).limit(10),
+      if (q.length < 2) {
+        return new Response(JSON.stringify({
+          results: [],
+          accounts: [],
+          orders: [],
+          fieldOrders: [],
+          hasExistingService: false,
+          hasPendingOrder: false,
+          isAvailable: true,
+        }), { headers });
+      }
+
+      const { data: allowedRoles, error: rolesError } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .in("role", ["admin", "employee", "field_sales", "technician"] as any)
+        .limit(1);
+
+      if (rolesError) throw rolesError;
+      if (!allowedRoles?.length) {
+        return new Response(JSON.stringify({ error: "Accès non autorisé" }), { status: 403, headers });
+      }
+
+      const profileFilters = [
+        `full_name.ilike.%${qLower}%`,
+        `email.ilike.%${qLower}%`,
+        `client_number.ilike.%${qLower}%`,
+      ];
+
+      if (qDigits.length >= 4) {
+        profileFilters.push(`phone.ilike.%${qDigits}%`);
+      }
+
+      const [profilesRes, accountsRes, fieldOrdersRes, ordersRes] = await Promise.all([
+        admin
+          .from("profiles")
+          .select("user_id, full_name, first_name, last_name, email, phone, client_number, service_address, service_city, service_postal_code")
+          .or(profileFilters.join(","))
+          .limit(20),
+        admin
+          .from("accounts")
+          .select("id, client_id, account_number, account_name, status, primary_service_address, primary_service_city, primary_service_postal_code")
+          .or(`account_number.ilike.%${qLower}%,account_name.ilike.%${qLower}%,primary_service_address.ilike.%${qLower}%,primary_service_postal_code.ilike.%${qLower}%`)
+          .limit(20),
+        admin
+          .from("field_sales_orders")
+          .select("id, customer_name, customer_address, payment_status, sync_status, created_at")
+          .or(`customer_name.ilike.%${qLower}%,customer_address.ilike.%${qLower}%`)
+          .limit(10),
+        admin
+          .from("orders")
+          .select("id, order_number, status, service_type, service_address")
+          .or(`order_number.ilike.%${qLower}%,service_address.ilike.%${qLower}%`)
+          .in("status", ["pending", "processing", "submitted", "received", "shipped"])
+          .limit(10),
       ]);
 
+      if (profilesRes.error) throw profilesRes.error;
+      if (accountsRes.error) throw accountsRes.error;
+      if (fieldOrdersRes.error) throw fieldOrdersRes.error;
+      if (ordersRes.error) throw ordersRes.error;
+
+      const profiles = profilesRes.data || [];
       const accounts = accountsRes.data || [];
       const fieldOrders = fieldOrdersRes.data || [];
       const orders = ordersRes.data || [];
 
-      const hasExistingService = accounts.some((a: any) => a.status === "active");
+      const missingProfileIds = Array.from(new Set(
+        accounts
+          .map((account: any) => account.client_id)
+          .filter((clientId: string | null) => !!clientId && !profiles.some((profile: any) => profile.user_id === clientId))
+      ));
+
+      const linkedProfilesRes = missingProfileIds.length > 0
+        ? await admin
+            .from("profiles")
+            .select("user_id, full_name, first_name, last_name, email, phone, client_number, service_address, service_city, service_postal_code")
+            .in("user_id", missingProfileIds)
+        : { data: [], error: null };
+
+      if (linkedProfilesRes.error) throw linkedProfilesRes.error;
+
+      const accountByClientId = new Map(
+        accounts
+          .filter((account: any) => account.client_id)
+          .map((account: any) => [account.client_id, account])
+      );
+
+      const resultsMap = new Map<string, any>();
+
+      const upsertResult = (profile: any, source: "profile" | "account") => {
+        const existing = resultsMap.get(profile.user_id);
+        const account = accountByClientId.get(profile.user_id);
+        const fullName = profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || account?.account_name || null;
+
+        resultsMap.set(profile.user_id, {
+          id: profile.user_id,
+          full_name: fullName,
+          email: profile.email || existing?.email || null,
+          phone: profile.phone || existing?.phone || null,
+          address: account?.primary_service_address || profile.service_address || existing?.address || "",
+          city: account?.primary_service_city || profile.service_city || existing?.city || "",
+          postal_code: account?.primary_service_postal_code || profile.service_postal_code || existing?.postal_code || "",
+          source: existing?.source === "profile" ? "profile" : source,
+          account_number: account?.account_number || existing?.account_number || null,
+        });
+      };
+
+      for (const profile of profiles) {
+        upsertResult(profile, "profile");
+      }
+
+      for (const profile of linkedProfilesRes.data || []) {
+        upsertResult(profile, "account");
+      }
+
+      for (const account of accounts) {
+        if (!account.client_id || resultsMap.has(account.client_id)) continue;
+        resultsMap.set(account.client_id, {
+          id: account.client_id,
+          full_name: account.account_name || `Compte ${account.account_number}`,
+          email: null,
+          phone: null,
+          address: account.primary_service_address || "",
+          city: account.primary_service_city || "",
+          postal_code: account.primary_service_postal_code || "",
+          source: "account",
+          account_number: account.account_number || null,
+        });
+      }
+
+      const rankResult = (entry: any) => {
+        const haystacks = [
+          entry.full_name,
+          entry.email,
+          entry.phone,
+          entry.address,
+          entry.postal_code,
+          entry.account_number,
+        ].filter(Boolean).map((value: string) => value.toLowerCase());
+
+        if (haystacks.some((value) => value === qLower)) return 0;
+        if (qDigits && entry.phone?.replace(/\D/g, "").includes(qDigits)) return 1;
+        if (haystacks.some((value) => value.startsWith(qLower))) return 2;
+        if (haystacks.some((value) => value.includes(qLower))) return 3;
+        return 4;
+      };
+
+      const results = Array.from(resultsMap.values())
+        .sort((a, b) => rankResult(a) - rankResult(b) || (a.full_name || "").localeCompare(b.full_name || ""))
+        .slice(0, 20);
+
+      const hasExistingService = accounts.some((account: any) => account.status === "active");
       const hasPendingOrder = orders.length > 0 || fieldOrders.length > 0;
 
       return new Response(JSON.stringify({
+        results,
         accounts,
         orders,
         fieldOrders,
