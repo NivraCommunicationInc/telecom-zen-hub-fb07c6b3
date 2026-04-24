@@ -508,7 +508,7 @@ async function processLegacyRenewals(
       let subtotal: number;
       const hasServices = subServices && subServices.length > 0;
       if (hasServices) {
-        subtotal = subServices.reduce((sum, svc) => sum + (Number(svc.unit_price) * (svc.quantity || 1)), 0);
+        subtotal = subServices.reduce((sum: number, svc: any) => sum + (Number(svc.unit_price) * (svc.quantity || 1)), 0);
       } else {
         subtotal = sub.plan_price;
       }
@@ -542,7 +542,7 @@ async function processLegacyRenewals(
       if (invErr) throw invErr;
 
       if (hasServices) {
-        const lines = subServices.map((svc) => ({
+        const lines = subServices.map((svc: any) => ({
           invoice_id: invoice.id,
           description: `${svc.service_name} – Renouvellement 30 jours`,
           unit_price: Number(svc.unit_price),
@@ -1282,7 +1282,7 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
   let mode = "daily_lifecycle";
   try {

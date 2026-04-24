@@ -22,7 +22,7 @@ const MIN_RECURRING_AMOUNT = 1.0;
  * Append a step to a paypal_autopay_attempts row (best-effort, never throws).
  */
 async function appendStep(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   attemptId: string,
   step: string,
   status: "ok" | "error" | "info",
