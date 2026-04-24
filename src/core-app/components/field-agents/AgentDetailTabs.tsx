@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, AlertTriangle, CheckCircle2, ShieldCheck, Mail, Phone, MapPin, CreditCard } from "lucide-react";
+import { Trash2, FileText, AlertTriangle, CheckCircle2, ShieldCheck, Mail, Phone, MapPin, CreditCard, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const RULE_TYPES: Record<string, string> = {
   flat_per_sale: "Forfait/vente",
@@ -213,11 +215,129 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
           )}
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" /> Documents fiscaux</h3>
-          <DocRow title="T4" subtitle="Relevé fédéral annuel" actionLabel="Aucun document généré" disabled />
-          <DocRow title="RL-1" subtitle="Relevé provincial annuel" actionLabel="Aucun document généré" disabled />
+        <TaxDocumentsSection userId={userId} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function TaxDocumentsSection({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const currentYear = new Date().getFullYear();
+  const lastYear = currentYear - 1;
+  const [genLoading, setGenLoading] = useState<string | null>(null);
+
+  const { data: docs = [] } = useQuery({
+    queryKey: ["agent-tax-docs", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tax_documents")
+        .select("id, document_type, tax_year, status, pdf_url, generated_at, created_at")
+        .eq("user_id", userId)
+        .order("tax_year", { ascending: false })
+        .order("document_type", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const handleDownload = async (pdfUrl: string) => {
+    const { data, error } = await supabase.storage.from("tax-documents").createSignedUrl(pdfUrl, 300);
+    if (error || !data?.signedUrl) {
+      toast.error("Impossible de générer le lien de téléchargement");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const handleGenerate = async (docType: "t4" | "rl1", year: number) => {
+    const key = `${docType}-${year}`;
+    setGenLoading(key);
+    try {
+      // Create draft row first
+      const { data: created, error: insertErr } = await supabase
+        .from("tax_documents")
+        .insert({ user_id: userId, document_type: docType, tax_year: year, status: "draft" })
+        .select("id")
+        .single();
+      if (insertErr) throw insertErr;
+
+      const { error: genErr } = await supabase.functions.invoke("generate-tax-document-pdf", {
+        body: { tax_document_id: created.id },
+      });
+      if (genErr) throw genErr;
+
+      toast.success(`${docType.toUpperCase()} ${year} généré`);
+      qc.invalidateQueries({ queryKey: ["agent-tax-docs", userId] });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de la génération");
+    } finally {
+      setGenLoading(null);
+    }
+  };
+
+  const findDoc = (type: string, year: number) =>
+    docs.find((d: any) => d.document_type === type && d.tax_year === year);
+
+  const renderRow = (type: "t4" | "rl1", year: number) => {
+    const doc = findDoc(type, year);
+    const label = type === "t4" ? "T4" : "RL-1";
+    const subtitle = type === "t4"
+      ? `Sommaire fédéral interne — ${year}`
+      : `Sommaire provincial interne — ${year}`;
+    const key = `${type}-${year}`;
+    const isGenerating = genLoading === key;
+    return (
+      <div key={key} className="flex items-center justify-between p-2 rounded border border-border">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{label} <span className="text-muted-foreground font-normal">— {year}</span></p>
+          <p className="text-[10px] text-muted-foreground">{subtitle}</p>
+          {doc && (
+            <Badge variant="outline" className="text-[9px] mt-1">
+              {doc.status === "draft" ? "Brouillon" : doc.status === "generated" ? "Généré" : doc.status === "sent" ? "Envoyé" : doc.status}
+              {doc.generated_at ? ` · ${format(new Date(doc.generated_at), "dd MMM yyyy")}` : ""}
+            </Badge>
+          )}
         </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {doc?.pdf_url && (
+            <Button size="sm" variant="outline" onClick={() => handleDownload(doc.pdf_url)}>
+              <Download className="h-3 w-3 mr-1" /> PDF
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant={doc ? "ghost" : "default"}
+            onClick={() => handleGenerate(type, year)}
+            disabled={isGenerating}
+          >
+            {isGenerating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
+            {doc ? "Régénérer" : `Générer ${label}`}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <FileText className="h-4 w-4" /> Documents fiscaux (sommaires internes)
+        </h3>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Sommaires fiscaux internes Nivra — À titre informatif uniquement (ne remplacent pas les T4/RL-1 officiels émis par la paie).
+      </p>
+      <div className="space-y-2">
+        {renderRow("t4", lastYear)}
+        {renderRow("rl1", lastYear)}
+        {renderRow("t4", currentYear)}
+        {renderRow("rl1", currentYear)}
+      </div>
+    </div>
+  );
+}
       </TabsContent>
     </Tabs>
   );
