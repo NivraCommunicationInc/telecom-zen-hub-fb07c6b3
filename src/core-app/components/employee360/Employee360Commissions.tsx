@@ -36,7 +36,7 @@ export default function Employee360Commissions({ userId }: Props) {
       const { data } = await supabase
         .from("sales_commissions")
         .select("*")
-        .eq("agent_id", userId)
+        .eq("salesperson_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
       return data ?? [];
@@ -49,7 +49,7 @@ export default function Employee360Commissions({ userId }: Props) {
       const { data } = await supabase
         .from("field_commissions")
         .select("*")
-        .eq("salesperson_id", userId)
+        .eq("agent_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
       return data ?? [];
@@ -58,8 +58,8 @@ export default function Employee360Commissions({ userId }: Props) {
 
   const loading = loadSales || loadField;
   const allComm = [
-    ...(salesComm?.map((c) => ({ ...c, source: "sales" as const })) ?? []),
-    ...(fieldComm?.map((c) => ({ ...c, source: "field" as const, amount: c.commission_amount })) ?? []),
+    ...(salesComm?.map((c: any) => ({ ...c, source: "sales" as const, amount: c.commission_amount })) ?? []),
+    ...(fieldComm?.map((c: any) => ({ ...c, source: "field" as const, amount: c.amount })) ?? []),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const totals = {
