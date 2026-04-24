@@ -11,8 +11,9 @@
  *  - `applies_to = 'installation'` requires an installation fee > 0
  *  - `applies_to = 'plan_only'` / `first_month_free` requires ≥ 1 service
  */
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   ArrowRight,
