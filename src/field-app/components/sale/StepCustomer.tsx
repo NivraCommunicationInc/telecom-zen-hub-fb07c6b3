@@ -61,22 +61,46 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
     } catch { /* Non-blocking */ }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const handleSearch = async (queryOverride?: string) => {
+    const q = (queryOverride ?? searchQuery).trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchDone(false);
+      setSearchError(null);
+      return;
+    }
     setSearching(true);
     setSearchDone(false);
+    setSearchError(null);
     try {
-      const data = await searchCustomers(searchQuery.trim());
+      const data = await searchCustomers(q);
       setSearchResults(data?.results || []);
       setSearchDone(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[StepCustomer] Search error:", err);
       setSearchResults([]);
       setSearchDone(true);
+      setSearchError(err?.message || "Erreur de recherche");
     } finally {
       setSearching(false);
     }
   };
+
+  // Auto-search with debounce when in search mode
+  useEffect(() => {
+    if (mode !== "search") return;
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchDone(false);
+      return;
+    }
+    const t = setTimeout(() => handleSearch(q), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, mode]);
 
   const selectExisting = (result: SearchResult) => {
     const nameParts = (result.full_name || "").split(" ");
