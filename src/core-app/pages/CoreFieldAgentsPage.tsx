@@ -433,11 +433,30 @@ export default function CoreFieldAgentsPage() {
       const newUserId: string | undefined = r?.user?.id;
       if (!newUserId) throw new Error("user_id manquant dans la réponse");
 
-      // 2. Update profile with territory + start date (best-effort)
+      // 2. Update profile with extended onboarding info (best-effort)
       const profileUpdate: Record<string, any> = {};
       if (repForm.territory) profileUpdate.sector_tags = [repForm.territory];
+      if (repForm.start_date) profileUpdate.hire_date = repForm.start_date;
+      if (repForm.address_street) profileUpdate.address_street = repForm.address_street.trim();
+      if (repForm.address_city) profileUpdate.address_city = repForm.address_city.trim();
+      if (repForm.address_province) profileUpdate.address_province = repForm.address_province.trim();
+      if (repForm.address_postal) profileUpdate.address_postal = repForm.address_postal.trim().toUpperCase();
+      if (repForm.date_of_birth) profileUpdate.date_of_birth = repForm.date_of_birth;
+      if (repForm.emergency_contact_name) profileUpdate.emergency_contact_name = repForm.emergency_contact_name.trim();
+      if (repForm.emergency_contact_relation) profileUpdate.emergency_contact_relation = repForm.emergency_contact_relation.trim();
+      if (repForm.emergency_contact_phone) profileUpdate.emergency_contact_phone = repForm.emergency_contact_phone.trim();
+      if (repForm.payment_method) {
+        profileUpdate.payment_method = repForm.payment_method;
+        if (repForm.payment_method === "direct_deposit") {
+          if (repForm.bank_institution) profileUpdate.bank_institution = repForm.bank_institution.trim();
+          if (repForm.bank_transit) profileUpdate.bank_transit = repForm.bank_transit.trim();
+          if (repForm.bank_account) profileUpdate.bank_account = repForm.bank_account.trim();
+        } else if (repForm.payment_method === "interac") {
+          if (repForm.interac_email) profileUpdate.interac_email = repForm.interac_email.trim().toLowerCase();
+        }
+      }
       if (Object.keys(profileUpdate).length > 0) {
-        await supabase.from("profiles").update(profileUpdate).eq("user_id", newUserId);
+        await supabase.from("profiles").update(profileUpdate as any).eq("user_id", newUserId);
       }
 
       // 3. Provision sales_targets for each service type
