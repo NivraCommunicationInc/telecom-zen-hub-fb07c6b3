@@ -762,8 +762,8 @@ Deno.serve(async (req) => {
           success: true, 
           orderId: canonicalOrder.id, 
           order_number: canonicalOrder.order_number || undefined,
-          invoice_id: invoiceId,
-          payment_id: paymentId,
+          invoice_id: invoiceId ?? undefined,
+          payment_id: paymentId ?? undefined,
         };
 
       } catch (error: any) {
