@@ -159,7 +159,7 @@ export default function FieldCommissions() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
             {[
               { label: "Total gagné", value: `${Number(summary.total).toFixed(2)} $`, color: "text-white" },
               { label: "En attente", value: `${Number(summary.pending).toFixed(2)} $`, color: "text-[hsl(var(--field-warning))]" },
@@ -167,9 +167,9 @@ export default function FieldCommissions() {
               { label: "Total payé", value: `${Number(summary.paid).toFixed(2)} $`, color: "text-[hsl(var(--field-success))]" },
               { label: "Retraits en cours", value: `${Number(summary.pendingWithdrawals).toFixed(2)} $`, color: "text-[hsl(var(--field-text-muted))]" },
             ].map((item) => (
-              <div key={item.label} className="bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))] rounded-xl p-4">
-                <p className="text-[11px] text-[hsl(var(--field-text-dim))] font-medium uppercase tracking-wider">{item.label}</p>
-                <p className={cn("text-lg font-bold mt-1", item.color)}>{item.value}</p>
+              <div key={item.label} className="bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))] rounded-xl p-4 md:p-5">
+                <p className="text-[11px] md:text-xs text-[hsl(var(--field-text-dim))] font-medium uppercase tracking-wider">{item.label}</p>
+                <p className={cn("text-lg md:text-xl font-bold mt-1", item.color)}>{item.value}</p>
               </div>
             ))}
           </div>
@@ -269,13 +269,13 @@ export default function FieldCommissions() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                  "flex items-center gap-1.5 px-4 py-3 min-h-[48px] text-sm md:text-base font-medium border-b-2 transition-colors whitespace-nowrap",
                   activeTab === tab.key
                     ? "border-[hsl(var(--field-accent))] text-white"
                     : "border-transparent text-[hsl(var(--field-text-muted))] hover:text-white"
                 )}
               >
-                <tab.icon className="h-3.5 w-3.5" />
+                <tab.icon className="h-4 w-4" />
                 {tab.label}
               </button>
             ))}

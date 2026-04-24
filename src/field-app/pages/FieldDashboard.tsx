@@ -146,7 +146,7 @@ function QuickAction({
     <button
       onClick={onClick}
       className={cn(
-        "group flex flex-col items-start gap-2 p-4 rounded-2xl transition-all text-left field-card-interactive w-full",
+        "group flex flex-col items-start gap-2 p-4 md:p-5 rounded-2xl transition-all text-left field-card-interactive w-full min-h-[112px] md:min-h-[128px]",
         primary && "field-glow",
       )}
       style={{
@@ -157,18 +157,18 @@ function QuickAction({
       }}
     >
       <div
-        className="h-10 w-10 rounded-xl flex items-center justify-center"
+        className="h-11 w-11 md:h-12 md:w-12 rounded-xl flex items-center justify-center"
         style={{
           background: primary ? "rgba(255,255,255,0.2)" : "hsl(var(--field-accent) / 0.15)",
         }}
       >
-        <Icon className="h-5 w-5" style={{ color: primary ? "white" : "hsl(var(--field-accent-glow))" }} />
+        <Icon className="h-5 w-5 md:h-6 md:w-6" style={{ color: primary ? "white" : "hsl(var(--field-accent-glow))" }} />
       </div>
       <div>
-        <p className={cn("text-sm font-bold", primary ? "text-white" : "text-white")}>{label}</p>
+        <p className={cn("text-sm md:text-base font-bold", primary ? "text-white" : "text-white")}>{label}</p>
         {sub && (
           <p
-            className="text-[10px] mt-0.5"
+            className="text-[11px] md:text-xs mt-0.5"
             style={{ color: primary ? "rgba(255,255,255,0.85)" : "hsl(var(--field-text-dim))" }}
           >
             {sub}
@@ -372,7 +372,7 @@ export default function FieldDashboard() {
       </div>
 
       {/* KPI ROW 1 — Goal + Revenue + Commissions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
         <KpiCard
           label="Ventes aujourd'hui"
           value={`${salesToday} / ${dailyGoal}`}
@@ -402,7 +402,7 @@ export default function FieldDashboard() {
       </div>
 
       {/* KPI ROW 2 — Conversion + Leads + Bonus */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
         <KpiCard
           label="Taux de conversion"
           value={`${conversionRate}%`}
@@ -514,7 +514,7 @@ export default function FieldDashboard() {
             style={{ color: "hsl(var(--field-text-dim))" }}>
           Actions rapides
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           <QuickAction
             label="Nouvelle vente"
             sub="Placer une commande"
@@ -550,7 +550,7 @@ export default function FieldDashboard() {
       </div>
 
       {/* RECENT ACTIVITY */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         {/* Orders */}
         <Card className="!p-0 overflow-hidden">
           <div
