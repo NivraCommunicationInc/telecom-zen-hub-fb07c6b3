@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import StaffAssistanceBanner from "@/components/StaffAssistanceBanner";
+// Mode assistance — staff_assistance banner mounted below for admin silent-view sessions.
 
 export default function RhAppLayout() {
   const { theme, themeClass, toggleTheme } = useInternalTheme();

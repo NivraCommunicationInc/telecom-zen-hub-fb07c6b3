@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import FieldSidebar from "./components/FieldSidebar";
 import InternalPortalGate from "@/components/shared/InternalPortalGate";
 import StaffAssistanceBanner from "@/components/StaffAssistanceBanner";
+// Mode assistance — staff_assistance banner mounted below for admin silent-view sessions.
 import "./styles/field-portal.css";
 
 export default function FieldAppLayout() {
