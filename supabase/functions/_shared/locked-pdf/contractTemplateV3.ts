@@ -8,7 +8,7 @@
  * Page 4: Signatures + Legal Notice
  */
 
-import jsPDFModule from "npm:jspdf@2";
+import jsPDFModule from "npm:jspdf@2.5.2";
 const jsPDF = (jsPDFModule as any).default || jsPDFModule;
 import type { PDFGenerationResult } from "./types.ts";
 import { NIVRA } from "./companyInfo.ts";
