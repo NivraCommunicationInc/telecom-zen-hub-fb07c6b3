@@ -347,15 +347,3 @@ function Row({ label, value }: { label: string; value?: string | null }) {
     </div>
   );
 }
-
-function DocRow({ title, subtitle, actionLabel, disabled }: { title: string; subtitle: string; actionLabel: string; disabled?: boolean }) {
-  return (
-    <div className="flex items-center justify-between p-2 rounded border border-border">
-      <div>
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-[10px] text-muted-foreground">{subtitle}</p>
-      </div>
-      <Button size="sm" variant="outline" disabled={disabled}>{actionLabel}</Button>
-    </div>
-  );
-}
