@@ -247,6 +247,39 @@ serve(async (req) => {
             paid_at: paymentResult.is_fully_paid ? new Date().toISOString() : null,
           };
 
+          if (paymentResult.is_fully_paid && v2Invoice.order_id) {
+            const { data: fieldSale } = await supabase
+              .from("field_sales_orders")
+              .select("id, payment_status")
+              .eq("converted_order_id", v2Invoice.order_id)
+              .maybeSingle();
+
+            if (fieldSale?.id && fieldSale.payment_status !== "confirmed") {
+              await supabase
+                .from("field_sales_orders")
+                .update({
+                  payment_status: "confirmed",
+                  payment_reference: captureId,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", fieldSale.id);
+
+              await supabase.from("field_order_status_history").insert({
+                field_order_id: fieldSale.id,
+                status_domain: "payment",
+                old_status: fieldSale.payment_status || "pending",
+                new_status: "confirmed",
+                changed_by_user_id: null,
+                change_reason: `PayPal capture ${captureId}`,
+                metadata: {
+                  invoice_id: v2Invoice.id,
+                  order_id: v2Invoice.order_id,
+                  provider: "paypal",
+                },
+              });
+            }
+          }
+
           // Queue confirmation email
           const customerEmail = v2Invoice.customer?.email;
           const customerName = `${v2Invoice.customer?.first_name || ""} ${v2Invoice.customer?.last_name || ""}`.trim();
