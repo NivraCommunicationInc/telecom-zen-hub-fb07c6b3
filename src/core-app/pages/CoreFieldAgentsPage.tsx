@@ -407,6 +407,57 @@ export default function CoreFieldAgentsPage() {
     onError: (e) => toast.error(`Échec sauvegarde profil: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
+  // Resend invitation
+  const resendInvitation = useMutation({
+    mutationFn: async (agent: AgentRow) => {
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "resend_invitation", user_id: agent.user_id },
+      });
+      if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
+      return agent.email || "";
+    },
+    onSuccess: (email) => { toast.success(`Invitation renvoyée à ${email}`); },
+    onError: (e) => toast.error(`Échec renvoi invitation: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
+
+  // Reset password (sends reset email)
+  const resetPassword = useMutation({
+    mutationFn: async (agent: AgentRow) => {
+      if (!agent.email) throw new Error("Aucun courriel");
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "send_password_reset", email: agent.email },
+      });
+      if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
+    },
+    onSuccess: () => { toast.success("Email de réinitialisation envoyé"); },
+    onError: (e) => toast.error(`Échec réinitialisation: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
+
+  // Change PIN (4 digits)
+  const updatePin = useMutation({
+    mutationFn: async () => {
+      if (!pinDialog) throw new Error("Aucun agent sélectionné");
+      if (!/^\d{4}$/.test(pinForm.pin)) throw new Error("Le NIP doit contenir 4 chiffres");
+      if (pinForm.pin !== pinForm.confirm) throw new Error("Les NIP ne correspondent pas");
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "reset_pin", user_id: pinDialog.user_id, pin: pinForm.pin },
+      });
+      if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
+    },
+    onSuccess: () => {
+      toast.success("NIP mis à jour");
+      setPinDialog(null);
+      setPinForm({ pin: "", confirm: "" });
+    },
+    onError: (e) => toast.error(`Échec mise à jour NIP: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
+
   // Create Field Rep — onboards rep with role=field_sales, sends invitation email,
   // and provisions sales_targets, commission grid assignment, and weekly schedule.
   const createFieldRep = useMutation({
