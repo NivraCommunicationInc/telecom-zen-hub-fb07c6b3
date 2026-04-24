@@ -191,6 +191,7 @@ const CorePhoneInventoryPage = lazy(() => import("@/core-app/pages/CorePhoneInve
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
+const CoreAgentDiscounts = lazy(() => import("@/core-app/pages/CoreAgentDiscounts"));
 // Supplier Accounts (admin-only)
 const SupplierAccountsPage = lazy(() => import("@/core-app/pages/SupplierAccountsPage"));
 const SupplierAccountNewPage = lazy(() => import("@/core-app/pages/SupplierAccountNewPage"));
@@ -792,6 +793,7 @@ const AppRoutes = () => {
           <Route path="quotes" element={<Suspense fallback={null}><CoreQuotesPage /></Suspense>} />
           <Route path="quotes/new" element={<Suspense fallback={null}><CoreCreateQuote /></Suspense>} />
           <Route path="quotes/:quoteId" element={<Suspense fallback={null}><CoreQuoteDetail /></Suspense>} />
+          <Route path="agent-discounts" element={<Suspense fallback={null}><CoreAgentDiscounts /></Suspense>} />
           {/* Clients */}
           <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
           <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />

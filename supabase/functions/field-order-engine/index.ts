@@ -349,6 +349,74 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
+    // ───────────────────────────────────────────────────────────
+    // FIX 1 — materialize_from_quote: called by paypal-webhook
+    // after a field_payment_intent capture is confirmed. Reads the
+    // stored field_quote and creates the real Core order/invoice.
+    // ───────────────────────────────────────────────────────────
+    if (action === "materialize_from_quote") {
+      const quoteId = body.quote_id;
+      const agentIdParam = body.agent_id || userId;
+      if (!quoteId) return new Response(JSON.stringify({ error: "quote_id requis" }), { status: 400, headers });
+
+      const { data: quote } = await admin.from("field_quotes").select("*").eq("id", quoteId).maybeSingle();
+      if (!quote) return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
+
+      const c: any = quote.client_info || {};
+      const services: any[] = (quote.services as any[]) || [];
+      const equipment: any[] = (quote.equipment as any[]) || [];
+
+      const normalizedServices = [
+        ...services.map((s: any) => ({
+          name: s.name, category: s.category || "Service",
+          quantity: 1, price_monthly: Number(s.monthlyPrice ?? s.price_monthly ?? 0), price_setup: 0,
+        })),
+        ...equipment.map((e: any) => ({
+          name: e.name, category: e.category || "Équipement",
+          quantity: Number(e.quantity || 1), price_monthly: 0, price_setup: Number(e.price || 0),
+        })),
+      ];
+
+      const customerName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || "Client";
+      const { data: fieldOrder, error: foErr } = await admin
+        .from("field_sales_orders").insert({
+          salesperson_id: agentIdParam,
+          customer_name: customerName,
+          customer_email: c.email || null,
+          customer_phone: c.phone || "",
+          customer_address: c.address || "",
+          customer_city: c.city || null,
+          customer_postal_code: c.postal_code || null,
+          customer_date_of_birth: c.date_of_birth || null,
+          services: normalizedServices,
+          total_amount: Number(quote.total || 0),
+          payment_method: "paypal",
+          payment_status: "confirmed",
+          sync_status: "pending",
+          internal_notes: `Commande terrain — Agent: ${quote.agent_name || ""} (quote ${quoteId})`,
+        } as any).select("id").single();
+      if (foErr || !fieldOrder) throw foErr ?? new Error("Création field_sales_orders échouée");
+
+      // Trigger sync to Core to create order + invoice + commission
+      const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+        },
+        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id }),
+      });
+      const syncData = await syncResp.json().catch(() => null);
+
+      return new Response(JSON.stringify({
+        success: true,
+        field_order_id: fieldOrder.id,
+        order_id: syncData?.orderId || syncData?.order_id || null,
+        invoice_id: syncData?.invoice_id || null,
+      }), { headers });
+    }
+
     if (action === "create-draft" || action === "submit-sale") {
       const customer = body.customer || {};
       const rawServices = Array.isArray(body.services) ? body.services : [];

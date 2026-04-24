@@ -634,6 +634,86 @@ serve(async (req) => {
           break;
         }
 
+        // ───────────────────────────────────────────────────────────
+        // FIX 1 — Field payment intent: payment confirms BEFORE order
+        // exists. Materialize the order/invoice/commission from the
+        // stored field_quote, then mark intent as paid.
+        // ───────────────────────────────────────────────────────────
+        if (typeof customId === "string" && customId.startsWith("fpi:")) {
+          const intentId = customId.slice(4);
+          console.log(`[PayPal Webhook] Field payment intent capture: ${intentId}`);
+
+          const { data: intent, error: intentErr } = await supabase
+            .from("field_payment_intents")
+            .select("id, status, quote_id, agent_id, amount")
+            .eq("id", intentId)
+            .maybeSingle();
+
+          if (intentErr || !intent) {
+            console.warn(`[PayPal Webhook] field_payment_intent not found: ${intentId}`);
+            break;
+          }
+          if (intent.status === "paid") {
+            console.log(`[PayPal Webhook] intent ${intentId} already paid — skipping`);
+            break;
+          }
+
+          const { data: quote } = await supabase
+            .from("field_quotes")
+            .select("*")
+            .eq("id", intent.quote_id)
+            .maybeSingle();
+
+          if (!quote) {
+            console.error(`[PayPal Webhook] quote ${intent.quote_id} missing — cannot materialize`);
+            break;
+          }
+
+          // Build a normalized payload and call field-sales-sync to
+          // create order + invoice + commission.
+          try {
+            const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+              },
+              body: JSON.stringify({
+                action: "materialize_from_quote",
+                quote_id: quote.id,
+                agent_id: intent.agent_id,
+                paypal_capture_id: captureId,
+                paypal_amount: captureAmount,
+              }),
+            });
+            const syncData = await syncResp.json().catch(() => null);
+            console.log(`[PayPal Webhook] materialize_from_quote → ${syncResp.status}`, syncData);
+
+            await supabase
+              .from("field_payment_intents")
+              .update({
+                status: "paid",
+                paid_at: new Date().toISOString(),
+                converted_field_order_id: syncData?.field_order_id ?? null,
+                converted_order_id: syncData?.order_id ?? null,
+                converted_invoice_id: syncData?.invoice_id ?? null,
+              })
+              .eq("id", intentId);
+
+            await supabase
+              .from("field_quotes")
+              .update({
+                status: "converted",
+                converted_order_id: syncData?.order_id ?? null,
+              })
+              .eq("id", quote.id);
+          } catch (e) {
+            console.error("[PayPal Webhook] materialize_from_quote failed", e);
+          }
+          break;
+        }
+
         const { data: v2Check } = await supabase
           .from("billing_invoices")
           .select("id, status")

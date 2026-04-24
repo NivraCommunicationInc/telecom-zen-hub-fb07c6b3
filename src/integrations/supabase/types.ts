@@ -2429,6 +2429,89 @@ export type Database = {
         }
         Relationships: []
       }
+      card_payment_intents: {
+        Row: {
+          agent_id: string
+          amount: number
+          card_brand: string | null
+          card_expiry: string
+          card_last4: string
+          card_name: string
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          cvv_hash: string
+          encrypted_card_number: string
+          encryption_auth_tag: string
+          encryption_iv: string
+          expires_at: string
+          field_payment_intent_id: string | null
+          id: string
+          order_reference: string
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          card_brand?: string | null
+          card_expiry: string
+          card_last4: string
+          card_name: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          cvv_hash: string
+          encrypted_card_number: string
+          encryption_auth_tag: string
+          encryption_iv: string
+          expires_at?: string
+          field_payment_intent_id?: string | null
+          id?: string
+          order_reference: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          card_brand?: string | null
+          card_expiry?: string
+          card_last4?: string
+          card_name?: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          cvv_hash?: string
+          encrypted_card_number?: string
+          encryption_auth_tag?: string
+          encryption_iv?: string
+          expires_at?: string
+          field_payment_intent_id?: string | null
+          id?: string
+          order_reference?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_payment_intents_field_payment_intent_id_fkey"
+            columns: ["field_payment_intent_id"]
+            isOneToOne: false
+            referencedRelation: "field_payment_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashout_requests: {
         Row: {
           admin_note: string | null
@@ -7411,6 +7494,77 @@ export type Database = {
             columns: ["field_order_id"]
             isOneToOne: false
             referencedRelation: "field_sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_payment_intents: {
+        Row: {
+          agent_id: string
+          amount: number
+          converted_field_order_id: string | null
+          converted_invoice_id: string | null
+          converted_order_id: string | null
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          expires_at: string
+          id: string
+          paid_at: string | null
+          payment_method: string
+          paypal_approval_url: string | null
+          paypal_order_id: string | null
+          quote_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          converted_field_order_id?: string | null
+          converted_invoice_id?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          expires_at?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string
+          paypal_approval_url?: string | null
+          paypal_order_id?: string | null
+          quote_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          converted_field_order_id?: string | null
+          converted_invoice_id?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          expires_at?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string
+          paypal_approval_url?: string | null
+          paypal_order_id?: string | null
+          quote_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_payment_intents_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "field_quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -19374,6 +19528,7 @@ export type Database = {
         }
       }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
+      cleanup_expired_card_intents: { Args: never; Returns: number }
       cleanup_expired_kyc_documents: { Args: never; Returns: Json }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_logs: { Args: never; Returns: undefined }
@@ -19552,6 +19707,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      expire_old_field_payment_intents: { Args: never; Returns: number }
       expire_stale_holds: { Args: never; Returns: number }
       extract_uuid_from_text: { Args: { p_text: string }; Returns: string }
       flag_client_for_risk: {
