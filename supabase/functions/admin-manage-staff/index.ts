@@ -1071,8 +1071,8 @@ serve(async (req: Request) => {
                 throw new Error(`Token invitation: ${tokenError.message}`);
               }
 
-              const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
-              const staffLoginLink = `${appBaseUrl}/staff`;
+              const setupLink = `${appBaseUrl}/hub/create-account?token=${token}`;
+              const staffLoginLink = `${appBaseUrl}/hub/login`;
               const firstName = (resolvedFullName || email).split(" ")[0];
 
               // Field Sales — branded "Violet Bold" invitation via canonical template
