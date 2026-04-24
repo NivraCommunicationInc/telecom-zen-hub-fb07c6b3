@@ -59,6 +59,34 @@ body {
   }
 }
 
+/* ── Internal portals: touch & scroll standards ───────────────
+ * Applies inside Field / RH / Employee / Core / Technician shells.
+ * Tablets (iPad) get 44×44 touch targets and momentum scrolling.
+ */
+.internal-ui,
+[data-field-portal] {
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 1279px) {
+  .internal-ui button,
+  .internal-ui a[role="button"],
+  .internal-ui [role="button"],
+  [data-field-portal] button,
+  [data-field-portal] a[role="button"],
+  [data-field-portal] [role="button"] {
+    min-height: 44px;
+  }
+  /* Inputs at 16px to prevent iOS zoom on focus */
+  .internal-ui input:not([type="checkbox"]):not([type="radio"]),
+  .internal-ui textarea,
+  .internal-ui select,
+  [data-field-portal] input:not([type="checkbox"]):not([type="radio"]),
+  [data-field-portal] textarea,
+  [data-field-portal] select {
+    font-size: 16px;
+  }
+}
+
 /* Staff Portal Animations */
 @keyframes staff-orb-1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
