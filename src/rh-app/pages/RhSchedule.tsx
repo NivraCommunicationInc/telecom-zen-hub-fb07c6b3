@@ -112,6 +112,22 @@ export default function RhSchedule() {
     enabled: !!userId,
   });
 
+  // Upcoming recurring schedule (current + next week) from staff_schedules (day_of_week)
+  const { data: weekSchedules = [] } = useQuery({
+    queryKey: ["rh-week-schedule", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data } = await supabase
+        .from("staff_schedules")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .order("day_of_week", { ascending: true });
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
   // Punch In
   const punchInMut = useMutation({
     mutationFn: async () => {
