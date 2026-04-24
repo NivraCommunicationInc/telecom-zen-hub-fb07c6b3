@@ -163,6 +163,11 @@ export default function CoreFieldAgentsPage() {
 
   // Create Field Rep dialog
   const [createRepDialog, setCreateRepDialog] = useState(false);
+
+  // PIN change dialog
+  const [pinDialog, setPinDialog] = useState<AgentRow | null>(null);
+  const [pinForm, setPinForm] = useState({ pin: "", confirm: "" });
+
   const todayISO = new Date().toISOString().slice(0, 10);
   const initialRepForm = {
     first_name: "",
@@ -400,6 +405,57 @@ export default function CoreFieldAgentsPage() {
     },
     onSuccess: () => { invalidateAll(); setEditAgent(null); toast.success("Profil sauvegardé"); },
     onError: (e) => toast.error(`Échec sauvegarde profil: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
+
+  // Resend invitation
+  const resendInvitation = useMutation({
+    mutationFn: async (agent: AgentRow) => {
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "resend_invitation", user_id: agent.user_id },
+      });
+      if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
+      return agent.email || "";
+    },
+    onSuccess: (email) => { toast.success(`Invitation renvoyée à ${email}`); },
+    onError: (e) => toast.error(`Échec renvoi invitation: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
+
+  // Reset password (sends reset email)
+  const resetPassword = useMutation({
+    mutationFn: async (agent: AgentRow) => {
+      if (!agent.email) throw new Error("Aucun courriel");
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "send_password_reset", email: agent.email },
+      });
+      if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
+    },
+    onSuccess: () => { toast.success("Email de réinitialisation envoyé"); },
+    onError: (e) => toast.error(`Échec réinitialisation: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
+
+  // Change PIN (4 digits)
+  const updatePin = useMutation({
+    mutationFn: async () => {
+      if (!pinDialog) throw new Error("Aucun agent sélectionné");
+      if (!/^\d{4}$/.test(pinForm.pin)) throw new Error("Le NIP doit contenir 4 chiffres");
+      if (pinForm.pin !== pinForm.confirm) throw new Error("Les NIP ne correspondent pas");
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "reset_pin", user_id: pinDialog.user_id, pin: pinForm.pin },
+      });
+      if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
+    },
+    onSuccess: () => {
+      toast.success("NIP mis à jour");
+      setPinDialog(null);
+      setPinForm({ pin: "", confirm: "" });
+    },
+    onError: (e) => toast.error(`Échec mise à jour NIP: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Create Field Rep — onboards rep with role=field_sales, sends invitation email,
@@ -1068,8 +1124,17 @@ export default function CoreFieldAgentsPage() {
                 <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border mt-1 inline-block", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Suspendu"}</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => { setEditAgent(a); setEditForm({ full_name: a.full_name || "", email: a.email || "", phone: a.phone || "" }); }}><Edit3 className="h-3 w-3 mr-1" /> Modifier</Button>
+              <Button size="sm" variant="outline" onClick={() => resendInvitation.mutate(a)} disabled={resendInvitation.isPending}>
+                {resendInvitation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Mail className="h-3 w-3 mr-1" />} Renvoyer l'invitation
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => resetPassword.mutate(a)} disabled={resetPassword.isPending}>
+                {resetPassword.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Shield className="h-3 w-3 mr-1" />} Réinitialiser le mot de passe
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setPinDialog(a); setPinForm({ pin: "", confirm: "" }); }}>
+                <Shield className="h-3 w-3 mr-1" /> Changer le NIP
+              </Button>
               <Button size="sm" variant={a.is_active ? "destructive" : "default"} onClick={() => toggleAgentStatus.mutate({ userId: a.user_id, activate: !a.is_active })}>
                 {a.is_active ? <><UserX className="h-3 w-3 mr-1" /> Suspendre</> : <><UserCheck className="h-3 w-3 mr-1" /> Réactiver</>}
               </Button>
@@ -1560,7 +1625,41 @@ export default function CoreFieldAgentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Create/Edit Grid */}
+      {/* Change PIN dialog */}
+      <Dialog open={!!pinDialog} onOpenChange={(o) => { if (!o) { setPinDialog(null); setPinForm({ pin: "", confirm: "" }); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Changer le NIP — {pinDialog?.full_name || pinDialog?.email}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Nouveau NIP (4 chiffres)</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={4}
+                value={pinForm.pin}
+                onChange={(e) => setPinForm((p) => ({ ...p, pin: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                placeholder="••••"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Confirmer le NIP</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={4}
+                value={pinForm.confirm}
+                onChange={(e) => setPinForm((p) => ({ ...p, confirm: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                placeholder="••••"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPinDialog(null)}>Annuler</Button>
+            <Button onClick={() => updatePin.mutate()} disabled={updatePin.isPending || pinForm.pin.length !== 4 || pinForm.pin !== pinForm.confirm}>
+              {updatePin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={gridDialog} onOpenChange={(o) => { if (!o) { setGridDialog(false); setEditGridId(null); } }}>
         <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{editGridId ? "Modifier la grille" : "Nouvelle grille de commission"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
