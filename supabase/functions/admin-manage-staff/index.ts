@@ -2372,7 +2372,7 @@ serve(async (req: Request) => {
         const currentRole = roleData.role as StaffRole;
         const oldPermissions = roleData.permissions || {};
 
-        const DEFAULT_PERMISSIONS: Record<StaffRole, PermissionSet> = {
+        const DEFAULT_PERMISSIONS: Partial<Record<StaffRole, PermissionSet>> = {
           admin: {
             view_clients: true, manage_clients: true, view_orders: true, manage_orders: true,
             view_billing: true, manage_billing: true, view_appointments: true, manage_appointments: true,
@@ -2393,7 +2393,7 @@ serve(async (req: Request) => {
           },
         };
 
-        const newPermissions = DEFAULT_PERMISSIONS[currentRole];
+        const newPermissions = DEFAULT_PERMISSIONS[currentRole] ?? DEFAULT_PERMISSIONS.employee!;
 
         const { error: updateError } = await adminClient
           .from("user_roles")
@@ -3947,9 +3947,9 @@ serve(async (req: Request) => {
             rule_type: commission_type,
             is_active: true,
           };
-          if (commission_type === "percentage" || commission_type === "base_percentage") {
+          if (commission_type === "base_percentage") {
             rulePayload.bonus_percentage = numericValue;
-          } else if (commission_type === "flat_bonus" || commission_type === "flat") {
+          } else if (commission_type === "flat_bonus") {
             rulePayload.bonus_amount = numericValue;
           } else if (commission_type === "tiered") {
             rulePayload.bonus_percentage = numericValue;
