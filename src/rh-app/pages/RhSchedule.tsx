@@ -112,6 +112,22 @@ export default function RhSchedule() {
     enabled: !!userId,
   });
 
+  // Upcoming recurring schedule (current + next week) from staff_schedules (day_of_week)
+  const { data: weekSchedules = [] } = useQuery({
+    queryKey: ["rh-week-schedule", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data } = await supabase
+        .from("staff_schedules")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .order("day_of_week", { ascending: true });
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
   // Punch In
   const punchInMut = useMutation({
     mutationFn: async () => {
@@ -404,6 +420,78 @@ export default function RhSchedule() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ───── UPCOMING — Recurring schedule (this week + next) ───── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Clock className="h-4 w-4 text-violet-600" />
+            Mon horaire à venir
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {weekSchedules.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              Aucun horaire récurrent publié. Contactez votre superviseur.
+            </p>
+          ) : (
+            <>
+              {[0, 1].map((weekOffset) => {
+                const wkStart = addDays(weekStart, weekOffset * 7);
+                const wkLabel = weekOffset === 0 ? "Cette semaine" : "Semaine prochaine";
+                return (
+                  <div key={weekOffset}>
+                    <p className="text-xs font-semibold text-foreground mb-2">
+                      {wkLabel}{" "}
+                      <span className="text-muted-foreground font-normal">
+                        ({format(wkStart, "d MMM", { locale: fr })} – {format(addDays(wkStart, 6), "d MMM", { locale: fr })})
+                      </span>
+                    </p>
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {Array.from({ length: 7 }, (_, i) => {
+                        const day = addDays(wkStart, i);
+                        const slots = weekSchedules.filter((s: any) => s.day_of_week === day.getDay());
+                        const isToday = isSameDay(day, now);
+                        return (
+                          <div
+                            key={i}
+                            className={cn(
+                              "rounded-md border p-2 min-h-[70px] flex flex-col gap-1",
+                              isToday
+                                ? "bg-violet-100 dark:bg-violet-950/40 border-violet-400"
+                                : slots.length > 0
+                                  ? "bg-muted/30 border-border"
+                                  : "border-dashed border-border bg-background",
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={cn("text-[10px] font-medium uppercase", isToday ? "text-violet-700 dark:text-violet-300" : "text-muted-foreground")}>
+                                {DAY_SHORT[day.getDay()]}
+                              </span>
+                              <span className={cn("text-[10px] font-mono", isToday ? "text-violet-700 dark:text-violet-300 font-bold" : "text-muted-foreground")}>
+                                {format(day, "d")}
+                              </span>
+                            </div>
+                            {slots.length === 0 ? (
+                              <span className="text-[10px] text-muted-foreground italic">Repos</span>
+                            ) : (
+                              slots.map((s: any) => (
+                                <span key={s.id} className="text-[10px] font-mono text-foreground">
+                                  {s.start_time?.slice(0, 5)}–{s.end_time?.slice(0, 5)}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </CardContent>
       </Card>
 

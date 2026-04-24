@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Clock } from "lucide-react";
+import { Loader2, Clock, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 type Props = { userId: string };
+
+const DAY_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
 export default function Employee360Time({ userId }: Props) {
   const { data: entries, isLoading } = useQuery({
@@ -16,8 +18,8 @@ export default function Employee360Time({ userId }: Props) {
       const { data } = await supabase
         .from("time_entries")
         .select("*")
-        .eq("employee_id", userId)
-        .order("clock_in", { ascending: false })
+        .eq("user_id", userId)
+        .order("punch_in", { ascending: false })
         .limit(50);
       return data ?? [];
     },
@@ -29,9 +31,9 @@ export default function Employee360Time({ userId }: Props) {
       const { data } = await supabase
         .from("staff_schedules")
         .select("*")
-        .eq("employee_id", userId)
-        .order("shift_date", { ascending: false })
-        .limit(14);
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .order("day_of_week", { ascending: true });
       return data ?? [];
     },
   });
@@ -40,8 +42,8 @@ export default function Employee360Time({ userId }: Props) {
     return <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
-  const totalHours = entries?.reduce((s, e) => s + (e.total_hours ?? 0), 0) ?? 0;
-  const activePunch = entries?.find((e) => !e.clock_out);
+  const totalHours = entries?.reduce((s, e) => s + (Number(e.total_hours) ?? 0), 0) ?? 0;
+  const activePunch = entries?.find((e) => !e.punch_out);
 
   return (
     <div className="space-y-4">
@@ -65,17 +67,17 @@ export default function Employee360Time({ userId }: Props) {
         </Card>
       </div>
 
-      {/* Horaires planifiés */}
+      {/* Horaires planifiés (récurrents) */}
       {schedules && schedules.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Horaires planifiés</CardTitle>
+            <CardTitle className="text-sm font-medium">Horaire récurrent</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Jour</TableHead>
                   <TableHead>Début</TableHead>
                   <TableHead>Fin</TableHead>
                   <TableHead>Statut</TableHead>
@@ -84,10 +86,10 @@ export default function Employee360Time({ userId }: Props) {
               <TableBody>
                 {schedules.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="text-xs">{format(new Date(s.shift_date), "EEE dd MMM", { locale: fr })}</TableCell>
+                    <TableCell className="text-xs">{DAY_FULL[s.day_of_week] ?? s.day_of_week}</TableCell>
                     <TableCell className="text-xs">{s.start_time}</TableCell>
                     <TableCell className="text-xs">{s.end_time}</TableCell>
-                    <TableCell><Badge variant={s.status === "approved" ? "default" : "secondary"}>{s.status}</Badge></TableCell>
+                    <TableCell><Badge variant={s.is_active ? "default" : "secondary"}>{s.is_active ? "Actif" : "Inactif"}</Badge></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -111,20 +113,37 @@ export default function Employee360Time({ userId }: Props) {
                   <TableHead>Punch In</TableHead>
                   <TableHead>Punch Out</TableHead>
                   <TableHead>Heures</TableHead>
+                  <TableHead>Géo</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Note</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="text-xs">{format(new Date(e.clock_in), "dd MMM HH:mm", { locale: fr })}</TableCell>
-                    <TableCell className="text-xs">{e.clock_out ? format(new Date(e.clock_out), "dd MMM HH:mm", { locale: fr }) : <Badge variant="outline" className="text-[10px]">En cours</Badge>}</TableCell>
-                    <TableCell className="font-medium">{e.total_hours ? `${e.total_hours.toFixed(1)}h` : "—"}</TableCell>
-                    <TableCell><Badge variant={e.status === "approved" ? "default" : "secondary"}>{e.status}</Badge></TableCell>
-                    <TableCell className="max-w-[150px] truncate text-xs text-muted-foreground">{e.notes || "—"}</TableCell>
-                  </TableRow>
-                ))}
+                {entries.map((e: any) => {
+                  const hasGeo = e.punch_in_lat != null || e.punch_out_lat != null;
+                  const geoLink = e.punch_in_lat != null && e.punch_in_lng != null
+                    ? `https://www.google.com/maps?q=${e.punch_in_lat},${e.punch_in_lng}`
+                    : null;
+                  return (
+                    <TableRow key={e.id}>
+                      <TableCell className="text-xs">{format(new Date(e.punch_in), "dd MMM HH:mm", { locale: fr })}</TableCell>
+                      <TableCell className="text-xs">{e.punch_out ? format(new Date(e.punch_out), "dd MMM HH:mm", { locale: fr }) : <Badge variant="outline" className="text-[10px]">En cours</Badge>}</TableCell>
+                      <TableCell className="font-medium">{e.total_hours != null ? `${Number(e.total_hours).toFixed(1)}h` : "—"}</TableCell>
+                      <TableCell>
+                        {hasGeo && geoLink ? (
+                          <a href={geoLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline" title={`${e.punch_in_lat}, ${e.punch_in_lng}`}>
+                            <MapPin className="h-3 w-3" />
+                            <span className="text-[10px]">Voir</span>
+                          </a>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">Sans géo</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell><Badge variant={e.status === "approved" ? "default" : "secondary"}>{e.status}</Badge></TableCell>
+                      <TableCell className="max-w-[150px] truncate text-xs text-muted-foreground">{e.notes || "—"}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
