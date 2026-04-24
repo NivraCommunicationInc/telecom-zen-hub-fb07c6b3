@@ -48,6 +48,7 @@ type TabView = "commissions" | "withdrawals" | "disputes";
 
 export default function FieldCommissions() {
   const queryClient = useQueryClient();
+  const { user } = useStaffUser();
   const [activeTab, setActiveTab] = useState<TabView>("commissions");
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
