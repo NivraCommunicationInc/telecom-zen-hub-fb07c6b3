@@ -1,7 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+
+// Loose Supabase client type — the generated Database type isn't available
+// in edge-function context, so we use `any` for schema generics. Without this,
+// `ReturnType<typeof createClient>` collapses to `never` for table rows.
+type AdminSupabaseClient = SupabaseClient<any, "public", any>;
 
 const SENDER_DOMAIN = "notify.nivra-telecom.ca";
 const FROM_ADDRESS = "Nivra Telecom <noreply@nivra-telecom.ca>";
