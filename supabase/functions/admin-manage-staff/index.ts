@@ -3833,14 +3833,14 @@ serve(async (req: Request) => {
           }
         }
 
-        // Send password reset email so rep can set their password
+        // Send password reset email so rep can set their password (canonical /hub/reset-password)
         const appBaseUrl = getAppBaseUrl();
-        const setupUrl = `${appBaseUrl}/field-sales/setup`;
+        const setupUrl = `${appBaseUrl}/hub/reset-password`;
         console.log(`[admin-manage-staff] ${stepBase} sending setup email to ${email}`);
-        
+
         try {
-          await adminClient.auth.resetPasswordForEmail(email, { 
-            redirectTo: setupUrl 
+          await adminClient.auth.resetPasswordForEmail(email, {
+            redirectTo: setupUrl
           });
         } catch (resetErr) {
           console.error(`[admin-manage-staff] ${stepBase} reset email error:`, resetErr);

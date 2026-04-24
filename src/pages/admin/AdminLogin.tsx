@@ -92,7 +92,7 @@ const AdminLogin = () => {
 
       setIsSubmitting(true);
 
-      const redirectUrl = `${window.location.origin}/admin/reset-password`;
+      const redirectUrl = `${window.location.origin}/hub/reset-password`;
       const { error } = await adminClient.auth.resetPasswordForEmail(submittedEmail, {
         redirectTo: redirectUrl,
       });
