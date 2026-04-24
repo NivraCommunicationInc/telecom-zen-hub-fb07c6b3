@@ -339,6 +339,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
               {[
                 { label: isFr ? "Conditions d'utilisation" : "Terms of Use", to: "/conditions-de-service" },
+                { label: isFr ? "Termes et conditions" : "Terms and Conditions", to: "/terms-and-conditions" },
                 { label: isFr ? "Politique de confidentialité" : "Privacy Policy", to: "/politique-de-confidentialite" },
                 { label: isFr ? "Garantie 30 jours" : "30-day Guarantee", to: "/garantie" },
                 { label: "Loi 25", to: "/confidentialite-loi25" },
