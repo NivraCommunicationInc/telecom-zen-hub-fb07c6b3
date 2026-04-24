@@ -1154,6 +1154,61 @@ export default function CoreFieldAgentsPage() {
           onDeleteAssignment={(id: string) => setDeleteConfirm({ type: "assignment", id })}
           onMarkPaid={(id: string) => markCommissionPaid.mutate(id)}
         />
+
+        {/* Edit agent dialog (also rendered in detail view so header buttons work) */}
+        <Dialog open={!!editAgent} onOpenChange={(o) => !o && setEditAgent(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Modifier vendeur</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              {[{ l: "Nom", k: "full_name" }, { l: "Courriel", k: "email" }, { l: "Téléphone", k: "phone" }].map((f) => (
+                <div key={f.k}>
+                  <Label className="text-xs">{f.l}</Label>
+                  <Input value={(editForm as any)[f.k]} onChange={(e) => setEditForm((p) => ({ ...p, [f.k]: e.target.value }))} />
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => saveAgentProfile.mutate()} disabled={saveAgentProfile.isPending}>
+                {saveAgentProfile.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change PIN dialog (also rendered in detail view so header buttons work) */}
+        <Dialog open={!!pinDialog} onOpenChange={(o) => { if (!o) { setPinDialog(null); setPinForm({ pin: "", confirm: "" }); } }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader><DialogTitle>Changer le NIP — {pinDialog?.full_name || pinDialog?.email}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Nouveau NIP (4 chiffres)</Label>
+                <Input
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinForm.pin}
+                  onChange={(e) => setPinForm((p) => ({ ...p, pin: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                  placeholder="••••"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Confirmer le NIP</Label>
+                <Input
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinForm.confirm}
+                  onChange={(e) => setPinForm((p) => ({ ...p, confirm: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                  placeholder="••••"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPinDialog(null)}>Annuler</Button>
+              <Button onClick={() => updatePin.mutate()} disabled={updatePin.isPending || pinForm.pin.length !== 4 || pinForm.pin !== pinForm.confirm}>
+                {updatePin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

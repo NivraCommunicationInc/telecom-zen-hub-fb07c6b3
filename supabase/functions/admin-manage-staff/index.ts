@@ -1358,6 +1358,7 @@ serve(async (req: Request) => {
             profileData?.full_name ||
             `${profileData?.first_name || ""} ${profileData?.last_name || ""}`.trim() ||
             "Collègue";
+          const firstName = (profileData?.first_name?.trim()) || displayName.split(" ")[0] || "";
 
           const roleLabels: Record<string, string> = {
             admin: "Administrateur",
@@ -1372,32 +1373,29 @@ serve(async (req: Request) => {
             kyc_agent: "Agent KYC",
           };
 
+          // CANONICAL — Always route through email_queue + customQueueTemplates Violet Bold shell.
+          // Field Sales gets the dedicated Field & RH template; all other roles use the generic staff_invitation.
+          const templateKey = roleData.role === "field_sales"
+            ? "staff_invitation_field_sales"
+            : "staff_invitation";
+
           try {
-            await sendStaffEmail(adminClient, {
-              to: targetEmail,
-              subject: "Invitation interne Nivra — Activez votre compte",
-              idempotencyKey: `staff_invite_${user_id}_${Date.now()}`,
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <div style="background:#0f172a;padding:24px;text-align:center;">
-                    <h1 style="color:#ffffff;margin:0;font-size:24px;">Nivra Core</h1>
-                    <p style="color:#cbd5e1;margin:8px 0 0;font-size:13px;">Invitation d'accès interne</p>
-                  </div>
-                  <div style="padding:24px;background:#ffffff;border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 16px;color:#0f172a;">Bonjour ${displayName},</p>
-                    <p style="margin:0 0 16px;color:#334155;line-height:1.6;">
-                      Vous avez été invité à activer votre compte interne avec le rôle <strong>${roleLabels[roleData.role] || roleData.role}</strong>.
-                    </p>
-                    <p style="text-align:center;margin:24px 0;">
-                      <a href="${setupLink}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
-                        Activer mon compte
-                      </a>
-                    </p>
-                    <p style="margin:0;color:#64748b;font-size:12px;">Ce lien expire dans 48 heures.</p>
-                  </div>
-                </div>
-              `,
-            });
+            const { error: queueErr } = await adminClient.from("email_queue").insert({
+              event_key: `staff_invite_resend_${user_id}_${Date.now()}`,
+              to_email: targetEmail,
+              template_key: templateKey,
+              template_vars: {
+                first_name: firstName,
+                invite_url: setupLink,
+                role: roleData.role,
+                role_label: roleLabels[roleData.role] || roleData.role,
+              },
+              status: "queued",
+            } as any);
+            if (queueErr) {
+              throw new Error(`Email queue insert failed: ${queueErr.message}`);
+            }
+            console.log(`[admin-manage-staff] ${stepBase} queued via ${templateKey}: to=${targetEmail} user=${user_id}`);
           } catch (e: unknown) {
             const err = e as Error;
             await logAction(
