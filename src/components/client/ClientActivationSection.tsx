@@ -268,7 +268,9 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         throw new Error("Session portail introuvable. Rechargez la page puis réessayez.");
       }
 
-      const resolvedLightColor = lightColor === LIGHT_OK ? "blanc_fixe" : lightColor;
+      const resolvedLightColor = lightColor
+        ? (lightColor === LIGHT_OK ? "blanc_fixe" : lightColor)
+        : null;
       const terminalConnected = checks.hasTerminal ? checks.hdmi && checks.terminalPower : null;
 
       const { data, error } = await portalSupabase.rpc("submit_activation_request", {
@@ -276,7 +278,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         p_wifi_password: parsed.data.wifi_password,
         p_contact_phone: parsed.data.contact_phone,
         p_client_notes: parsed.data.client_notes || null,
-        p_order_id: selectedOrderId,
+        p_order_id: selectedOrderId ?? null,
         p_light_color: resolvedLightColor,
         p_has_terminal: checks.hasTerminal,
         p_terminal_connected: terminalConnected,
@@ -287,8 +289,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         body: { activation_request_id: data },
       }).catch((err) => console.warn("[notify-activation] failed:", err));
 
-      toast.success("Demande soumise! Notre équipe va l'activer sous peu.");
-      setSuccessMessage("✅ Demande envoyée! Notre équipe traite maintenant votre activation WiFi.");
+      toast.success("Votre demande d'activation a été envoyée. Notre équipe vous contactera sous 24-48h.");
+      setSuccessMessage("Votre demande d'activation a été envoyée. Notre équipe vous contactera sous 24-48h.");
       setForm({
         wifi_network_name: "",
         wifi_password: "",
