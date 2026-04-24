@@ -122,12 +122,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify user is staff (admin or employee)
+    // Verify user is staff (admin, employee, or field_sales)
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
       .select("role, status")
       .eq("user_id", user_id)
-      .in("role", ["admin", "employee"])
+      .in("role", ["admin", "employee", "field_sales"])
       .maybeSingle();
 
     if (roleError) {
