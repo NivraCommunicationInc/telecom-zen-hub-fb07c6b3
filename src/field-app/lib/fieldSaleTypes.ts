@@ -68,6 +68,7 @@ export interface FieldSalePayment {
 export type FieldSaleStep =
   | "customer"
   | "services"
+  | "equipment"
   | "discounts"
   | "recap"
   | "payment"
@@ -115,6 +116,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
 export const STEP_ORDER: FieldSaleStep[] = [
   "customer",
   "services",
+  "equipment",
   "discounts",
   "recap",
   "payment",
@@ -123,6 +125,7 @@ export const STEP_ORDER: FieldSaleStep[] = [
 export const STEP_LABELS: Record<FieldSaleStep, string> = {
   customer: "Client",
   services: "Forfaits",
+  equipment: "Équipement",
   discounts: "Rabais",
   recap: "Récap",
   payment: "Paiement",
