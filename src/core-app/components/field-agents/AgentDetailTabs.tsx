@@ -54,7 +54,7 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version" as any)
+        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version, mfa_method, mfa_configured_at" as any)
         .eq("user_id", userId as any)
         .maybeSingle();
       if (error) throw error;
