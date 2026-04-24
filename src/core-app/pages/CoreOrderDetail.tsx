@@ -107,6 +107,11 @@ function OrderConsole({ orderId }: { orderId: string }) {
         <ArrowLeft className="h-3.5 w-3.5" /> Commandes
       </Link>
 
+      {/* Card-manual processing panel — visible only when a pending intent exists */}
+      {order.payment_method === "card_manual" && (
+        <CoreCardManualPanel orderId={order.id} orderReference={null} />
+      )}
+
       {/* Main shell — single dark container */}
       <div className="rounded-lg border border-[#1e2535] bg-[#0a0e16] overflow-hidden shadow-2xl">
         {/* HEADER */}
