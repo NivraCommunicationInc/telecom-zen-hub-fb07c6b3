@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .update({ otp_verified_at: new Date().toISOString() })
       .eq("user_id", user_id)
-      .in("role", ["admin", "employee"]);
+      .in("role", ["admin", "employee", "field_sales"]);
 
     if (updateError) {
       console.error("Failed to update otp_verified_at:", updateError);

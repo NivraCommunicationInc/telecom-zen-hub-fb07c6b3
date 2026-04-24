@@ -54,7 +54,7 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version" as any)
+        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version, mfa_method, mfa_configured_at" as any)
         .eq("user_id", userId as any)
         .maybeSingle();
       if (error) throw error;
@@ -191,6 +191,24 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
           ) : (
             <Badge variant="destructive" className="gap-1">
               <AlertTriangle className="h-3 w-3" /> Non acceptées
+            </Badge>
+          )}
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-4">
+          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Authentification multi-facteurs (MFA)</h3>
+          {p.mfa_configured_at && p.mfa_method ? (
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-foreground">
+                MFA actif — <strong>{p.mfa_method === "email" ? "Email" : "Application TOTP"}</strong> ✓
+                {" — configuré le "}
+                <strong>{format(new Date(p.mfa_configured_at), "dd MMM yyyy")}</strong>
+              </span>
+            </div>
+          ) : (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" /> ⚠️ MFA non configuré
             </Badge>
           )}
         </div>

@@ -13433,7 +13433,9 @@ export type Database = {
           last_auth_check_at: string | null
           last_login_at: string | null
           last_name: string | null
+          mfa_configured_at: string | null
           mfa_enabled: boolean | null
+          mfa_method: string | null
           mfa_secret: string | null
           mfa_verified_at: string | null
           notification_channel: string | null
@@ -13462,6 +13464,7 @@ export type Database = {
           service_province: string | null
           store_credit: number | null
           terms_accepted_at: string | null
+          terms_accepted_ip: string | null
           terms_accepted_version: string | null
           updated_at: string
           user_id: string
@@ -13516,7 +13519,9 @@ export type Database = {
           last_auth_check_at?: string | null
           last_login_at?: string | null
           last_name?: string | null
+          mfa_configured_at?: string | null
           mfa_enabled?: boolean | null
+          mfa_method?: string | null
           mfa_secret?: string | null
           mfa_verified_at?: string | null
           notification_channel?: string | null
@@ -13545,6 +13550,7 @@ export type Database = {
           service_province?: string | null
           store_credit?: number | null
           terms_accepted_at?: string | null
+          terms_accepted_ip?: string | null
           terms_accepted_version?: string | null
           updated_at?: string
           user_id: string
@@ -13599,7 +13605,9 @@ export type Database = {
           last_auth_check_at?: string | null
           last_login_at?: string | null
           last_name?: string | null
+          mfa_configured_at?: string | null
           mfa_enabled?: boolean | null
+          mfa_method?: string | null
           mfa_secret?: string | null
           mfa_verified_at?: string | null
           notification_channel?: string | null
@@ -13628,6 +13636,7 @@ export type Database = {
           service_province?: string | null
           store_credit?: number | null
           terms_accepted_at?: string | null
+          terms_accepted_ip?: string | null
           terms_accepted_version?: string | null
           updated_at?: string
           user_id?: string
