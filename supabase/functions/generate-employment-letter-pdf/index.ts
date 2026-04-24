@@ -114,6 +114,7 @@ function buildEmploymentLetterPDF(d: LetterData, letterNumber: string): ArrayBuf
   const titleMap: Record<string, string> = {
     confirmation: "Confirmation d\u2019emploi",
     offer: "Offre d\u2019emploi",
+    contract: "Contrat d\u2019emploi",
     termination: "Fin d\u2019emploi",
     reference: "Lettre de r\u00e9f\u00e9rence",
   };
@@ -137,7 +138,30 @@ function buildEmploymentLetterPDF(d: LetterData, letterNumber: string): ArrayBuf
 
   const empTypeLabel = EMPLOYMENT_TYPE_LABELS[d.employmentType] || d.employmentType;
 
-  if (d.letterType === "confirmation" || d.letterType === "offer") {
+  if (d.letterType === "contract") {
+    const paragraphs = [
+      `Madame, Monsieur ${d.employeeName},`,
+      `Le pr\u00e9sent contrat formalise les conditions d\u2019emploi entre ${NIVRA.tradeName} (${NIVRA.legalName}) et ${d.employeeName}, prenant effet le ${fmtDateFR(d.startDate)}.`,
+      `Titre du poste : ${d.jobTitle}`,
+      `Type d\u2019emploi : ${empTypeLabel}`,
+      d.salary ? `R\u00e9mun\u00e9ration : ${d.salary}` : null,
+      `L\u2019employ\u00e9(e) s\u2019engage \u00e0 ex\u00e9cuter avec diligence les t\u00e2ches associ\u00e9es au poste de ${d.jobTitle} et \u00e0 respecter en tout temps les politiques internes, le code de conduite, les r\u00e8gles de confidentialit\u00e9 et toute directive raisonnable de l\u2019employeur.`,
+      `L\u2019employeur s\u2019engage \u00e0 fournir un environnement de travail s\u00e9curitaire, conforme \u00e0 la l\u00e9gislation applicable au Qu\u00e9bec, et \u00e0 verser la r\u00e9mun\u00e9ration convenue selon le calendrier de paie en vigueur.`,
+      `Toute des parties peut mettre fin au pr\u00e9sent contrat conform\u00e9ment aux dispositions de la Loi sur les normes du travail (Qu\u00e9bec).`,
+      d.customContent || null,
+      `En signant ce document, l\u2019employ\u00e9(e) reconna\u00eet avoir lu, compris et accept\u00e9 l\u2019ensemble des conditions \u00e9nonc\u00e9es.`,
+    ].filter(Boolean) as string[];
+
+    for (const para of paragraphs) {
+      const lines = doc.splitTextToSize(para, mr - ml);
+      for (const line of lines) {
+        if (y > ph - 40) { doc.addPage(); y = 25; }
+        doc.text(line, ml, y);
+        y += lineHeight;
+      }
+      y += 3;
+    }
+  } else if (d.letterType === "confirmation" || d.letterType === "offer") {
     const paragraphs = [
       `Madame, Monsieur,`,
       `Par la pr\u00e9sente, nous confirmons que ${d.employeeName} est employ\u00e9(e) chez ${NIVRA.tradeName} (${NIVRA.legalName}) depuis le ${fmtDateFR(d.startDate)}.`,

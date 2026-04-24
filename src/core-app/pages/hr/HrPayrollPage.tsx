@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { notifyEmployee } from "@/lib/hr/notifyEmployee";
 
 // ─── CRA + Revenu Québec 2026 — Tables progressives officielles ──────────────
 // Périodes par année: 24 (paie bimensuelle 1-15 / 16-fin)
@@ -423,8 +424,25 @@ export default function HrPayrollPage() {
       const { data: inserted, error: insertErr } = await supabase
         .from("payroll_entries")
         .insert(rows)
-        .select("id");
+        .select("id, user_id, gross_pay, net_pay");
       if (insertErr) throw insertErr;
+
+      // Notify each employee that a new payslip has been issued (Violet Bold shell)
+      for (const row of (inserted as any[]) ?? []) {
+        await notifyEmployee({
+          employeeId: row.user_id,
+          templateKey: "hr_payroll_issued",
+          eventKey: `hr_payroll_issued_${row.id}`,
+          entityType: "payroll_entry",
+          entityId: row.id,
+          vars: {
+            period_label: periodDef.label,
+            gross_amount: row.gross_pay,
+            net_amount: row.net_pay,
+            pay_date: periodDef.endISO,
+          },
+        });
+      }
 
       return { periodId, created: inserted?.length ?? rows.length };
     },
@@ -477,11 +495,30 @@ export default function HrPayrollPage() {
 
   const markPaidMut = useMutation({
     mutationFn: async (entryId: string) => {
+      const { data: entry } = await supabase
+        .from("payroll_entries")
+        .select("id, user_id, net_pay, pay_period_id")
+        .eq("id", entryId)
+        .maybeSingle();
       const { error } = await supabase
         .from("payroll_entries")
         .update({ status: "paid", paid_at: new Date().toISOString() })
         .eq("id", entryId);
       if (error) throw error;
+      if (entry?.user_id) {
+        await notifyEmployee({
+          employeeId: entry.user_id,
+          templateKey: "hr_payroll_paid",
+          eventKey: `hr_payroll_paid_${entry.id}`,
+          entityType: "payroll_entry",
+          entityId: entry.id,
+          vars: {
+            net_amount: entry.net_pay,
+            period_label: currentPeriod?.period_name,
+            paid_at: new Date().toISOString(),
+          },
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Fiche marquée payée");
@@ -492,13 +529,28 @@ export default function HrPayrollPage() {
 
   const markAllPaidMut = useMutation({
     mutationFn: async () => {
-      const ids = entries.filter((e: any) => e.status === "approved").map((e: any) => e.id);
+      const eligible = entries.filter((e: any) => e.status === "approved");
+      const ids = eligible.map((e: any) => e.id);
       if (ids.length === 0) throw new Error("Aucune fiche approuvée à marquer payée");
       const { error } = await supabase
         .from("payroll_entries")
         .update({ status: "paid", paid_at: new Date().toISOString() })
         .in("id", ids);
       if (error) throw error;
+      for (const e of eligible as any[]) {
+        await notifyEmployee({
+          employeeId: e.user_id,
+          templateKey: "hr_payroll_paid",
+          eventKey: `hr_payroll_paid_${e.id}`,
+          entityType: "payroll_entry",
+          entityId: e.id,
+          vars: {
+            net_amount: e.net_pay,
+            period_label: currentPeriod?.period_name,
+            paid_at: new Date().toISOString(),
+          },
+        });
+      }
       return ids.length;
     },
     onSuccess: (n) => {
