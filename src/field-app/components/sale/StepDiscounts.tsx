@@ -176,7 +176,7 @@ export default function StepDiscounts({
     const prev = lastDiscountIdsRef.current;
     if (selected && prev && prev.has(selected.id) && !ids.has(selected.id)) {
       toast.warning("Ce rabais n'est plus disponible", {
-        description: "Le rabais a été retiré du sondage en cours.",
+        description: "Le rabais a été retiré de la vente en cours.",
       });
     }
     lastDiscountIdsRef.current = ids;
