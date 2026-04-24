@@ -124,6 +124,7 @@ export default function FieldNewSale() {
       });
 
       logger.log("Field sale created", result);
+      const fieldOrderId = result?.field_order_id;
       const orderId = result?.order_id;
       const invoiceId = result?.invoice_id || result?.billing_invoice_id;
 
@@ -183,6 +184,9 @@ export default function FieldNewSale() {
             linkSentTo: draft.customer.email,
             paypalApprovalUrl: approvalUrl,
             paypalOrderId: ppData?.id ?? null,
+            fieldOrderId: fieldOrderId ?? null,
+            invoiceId: invoiceId ?? null,
+            coreOrderId: orderId ?? null,
           },
         }));
         toast.success("Lien PayPal envoyé au client.");
@@ -195,6 +199,9 @@ export default function FieldNewSale() {
             status: "pending",
             paypalApprovalUrl: approvalUrl,
             paypalOrderId: ppData?.id ?? null,
+            fieldOrderId: fieldOrderId ?? null,
+            invoiceId: invoiceId ?? null,
+            coreOrderId: orderId ?? null,
           },
         }));
         toast.success("Lien PayPal prêt — montrez le QR au client.");
@@ -212,12 +219,30 @@ export default function FieldNewSale() {
 
   // ── Realtime: invoice paid → mark payment completed ──────
   useEffect(() => {
-    if (!draft.payment.paypalOrderId) return;
+    if (!draft.payment.invoiceId) return;
+
+    const checkInvoiceStatus = async () => {
+      const { data, error } = await supabase
+        .from("billing_invoices")
+        .select("status, amount_paid, balance_due")
+        .eq("id", draft.payment.invoiceId)
+        .maybeSingle();
+
+      if (error || !data) return;
+
+      if (data.status === "paid" || Number(data.balance_due ?? 0) <= 0 || Number(data.amount_paid ?? 0) > 0) {
+        setDraft((d) => ({ ...d, payment: { ...d.payment, status: "completed" } }));
+        toast.success("Paiement PayPal confirmé !");
+      }
+    };
+
+    checkInvoiceStatus();
+
     const channel = supabase
-      .channel(`field-sale-paypal-${draft.payment.paypalOrderId}`)
+      .channel(`field-sale-invoice-${draft.payment.invoiceId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "billing_invoices" },
+        { event: "UPDATE", schema: "public", table: "billing_invoices", filter: `id=eq.${draft.payment.invoiceId}` },
         (payload: any) => {
           if (payload.new?.status === "paid") {
             setDraft((d) => ({ ...d, payment: { ...d.payment, status: "completed" } }));
@@ -226,8 +251,14 @@ export default function FieldNewSale() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [draft.payment.paypalOrderId]);
+
+    const poll = window.setInterval(checkInvoiceStatus, 5000);
+
+    return () => {
+      window.clearInterval(poll);
+      supabase.removeChannel(channel);
+    };
+  }, [draft.payment.invoiceId]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 px-4 py-5">

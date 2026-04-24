@@ -43,7 +43,17 @@ export default function StepPaymentPaypal({
   const [copied, setCopied] = useState(false);
 
   const setMethod = (method: FieldPaymentMethod) => {
-    onChange({ ...payment, method, status: "pending", linkSentTo: null, paypalApprovalUrl: null, paypalOrderId: null });
+    onChange({
+      ...payment,
+      method,
+      status: "pending",
+      linkSentTo: null,
+      paypalApprovalUrl: null,
+      paypalOrderId: null,
+      fieldOrderId: null,
+      invoiceId: null,
+      coreOrderId: null,
+    });
     setQrDataUrl(null);
   };
 
