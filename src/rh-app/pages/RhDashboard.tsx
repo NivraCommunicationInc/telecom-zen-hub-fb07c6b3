@@ -22,6 +22,18 @@ import { fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
 
 const DAY_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
+function getCoords(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (!("geolocation" in navigator)) return resolve(null);
+    const t = setTimeout(() => resolve(null), 5000);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { clearTimeout(t); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      () => { clearTimeout(t); resolve(null); },
+      { timeout: 5000, maximumAge: 60000 },
+    );
+  });
+}
+
 function nextPayday(now: Date): Date {
   // Bi-monthly: 1st and 15th
   const d = now.getDate();
@@ -188,6 +200,7 @@ export default function RhDashboard() {
   const punchMut = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Non authentifié");
+      const coords = await getCoords();
       if (activePunch) {
         const punchOut = new Date();
         const punchIn = new Date(activePunch.punch_in);
@@ -197,23 +210,28 @@ export default function RhDashboard() {
           .update({
             punch_out: punchOut.toISOString(),
             total_hours: Math.round(totalH * 100) / 100,
+            punch_out_lat: coords?.lat ?? null,
+            punch_out_lng: coords?.lng ?? null,
           })
           .eq("id", activePunch.id);
         if (error) throw error;
-        return "out";
+        return { kind: "out" as const, geo: !!coords };
       } else {
         const { error } = await supabase.from("time_entries").insert({
           user_id: user.id,
           punch_in: new Date().toISOString(),
           entry_type: "regular",
           status: "pending",
+          punch_in_lat: coords?.lat ?? null,
+          punch_in_lng: coords?.lng ?? null,
         });
         if (error) throw error;
-        return "in";
+        return { kind: "in" as const, geo: !!coords };
       }
     },
-    onSuccess: (kind) => {
-      toast.success(kind === "in" ? "Entrée pointée ✓" : "Sortie pointée ✓");
+    onSuccess: (res) => {
+      const base = res.kind === "in" ? "Entrée pointée ✓" : "Sortie pointée ✓";
+      toast.success(res.geo ? base : `${base} (sans géolocalisation)`);
       qc.invalidateQueries({ queryKey: ["rh-active-punch"] });
       qc.invalidateQueries({ queryKey: ["rh-hours-month"] });
     },
