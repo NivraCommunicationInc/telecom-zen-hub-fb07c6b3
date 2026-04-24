@@ -116,6 +116,31 @@ export default function StepDiscounts({
     staleTime: 30_000,
   });
 
+  /* Realtime — assignments + discounts.
+     Invalidates the catalog when Core RH adds/revokes a discount. */
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!user?.id) return;
+    const invalidate = () =>
+      queryClient.invalidateQueries({ queryKey: ["field-agent-discounts", user.id] });
+    const channel = supabase
+      .channel(`field-step-discounts-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "agent_discount_assignments" },
+        invalidate,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "agent_discounts" },
+        invalidate,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
   const toFieldDiscount = (d: RawDiscount): FieldSaleDiscount => ({
     id: d.id,
     name: d.name,
@@ -144,9 +169,20 @@ export default function StepDiscounts({
   };
 
   // Drop selection if it disappears or becomes ineligible.
+  // If the discount was revoked while in the active sale, warn the agent.
+  const lastDiscountIdsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
+    const ids = new Set(discounts.map((d) => d.id));
+    const prev = lastDiscountIdsRef.current;
+    if (selected && prev && prev.has(selected.id) && !ids.has(selected.id)) {
+      toast.warning("Ce rabais n'est plus disponible", {
+        description: "Le rabais a été retiré du sondage en cours.",
+      });
+    }
+    lastDiscountIdsRef.current = ids;
+
     if (!selected) return;
-    if (!discounts.some((d) => d.id === selected.id)) {
+    if (!ids.has(selected.id)) {
       onChange(null);
       return;
     }
