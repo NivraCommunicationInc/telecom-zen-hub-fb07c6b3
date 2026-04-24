@@ -32,6 +32,7 @@ export interface AdminOrder {
   kyc_status: string | null;
   sla_deadline: string | null;
   sla_status: string | null;
+  payment_method: string | null;
 }
 
 export function useAdminOrders(environment: EnvironmentFilter = "all") {
