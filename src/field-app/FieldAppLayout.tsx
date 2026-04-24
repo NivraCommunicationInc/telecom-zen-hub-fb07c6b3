@@ -19,6 +19,7 @@ export default function FieldAppLayout() {
 
   return (
     <InternalPortalGate>
+      <StaffAssistanceBanner />
       <div
         data-field-portal
         className="min-h-screen flex w-full"
