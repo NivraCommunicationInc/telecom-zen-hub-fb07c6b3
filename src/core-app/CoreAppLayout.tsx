@@ -75,6 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: FileText,
     items: [
       { icon: FileText, label: "Soumissions", href: "/quotes" },
+      { icon: Tag, label: "Rabais agents", href: "/agent-discounts" },
     ],
   },
   {
