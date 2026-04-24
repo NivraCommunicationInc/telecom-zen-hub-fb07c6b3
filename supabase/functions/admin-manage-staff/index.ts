@@ -1353,7 +1353,7 @@ serve(async (req: Request) => {
 
         if (shouldSendEmail) {
           const appBaseUrl = getAppBaseUrl();
-          const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
+          const setupLink = `${appBaseUrl}/hub/create-account?token=${token}`;
           const displayName =
             profileData?.full_name ||
             `${profileData?.first_name || ""} ${profileData?.last_name || ""}`.trim() ||
@@ -3624,7 +3624,7 @@ serve(async (req: Request) => {
         // Send password reset if requested
         if (send_invitation && !password) {
           const appBaseUrl = getAppBaseUrl();
-          const resetUrl = `${appBaseUrl}/staff`;
+          const resetUrl = `${appBaseUrl}/hub/reset-password`;
           console.log(`[admin-manage-staff] ${stepBase} sending reset email to ${email}`);
           await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
         }
