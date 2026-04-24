@@ -729,8 +729,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
 
               <Button
                 type="submit"
-                disabled={submitting || eligibleOrders.length === 0 || !canSubmit}
-                title={!lightOk ? "La lumière doit être blanche fixe pour continuer" : undefined}
+                disabled={submitting}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
