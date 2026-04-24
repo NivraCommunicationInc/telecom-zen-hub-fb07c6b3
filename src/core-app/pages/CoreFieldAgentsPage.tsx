@@ -1080,35 +1080,14 @@ export default function CoreFieldAgentsPage() {
             ))}
           </div>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-sm font-bold text-foreground mb-2">Grilles assignées</h3>
-          {assignments.filter((as: any) => as.user_id === a.user_id && as.is_active).length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4 text-center">Aucune grille assignée</p>
-          ) : assignments.filter((as: any) => as.user_id === a.user_id && as.is_active).map((as: any) => {
-            const rule = rules.find((r: any) => r.id === as.rule_id);
-            return (
-              <div key={as.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
-                <div><p className="text-sm font-medium text-foreground">{rule?.rule_name || "—"}</p><p className="text-[10px] text-muted-foreground">{RULE_TYPES[rule?.rule_type] || rule?.rule_type} · {rule?.bonus_amount > 0 ? `${rule.bonus_amount}$` : `${rule?.bonus_percentage}%`}</p></div>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "assignment", id: as.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-              </div>
-            );
-          })}
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-sm font-bold text-foreground mb-2">Historique commissions</h3>
-          {ac.length === 0 ? <p className="text-xs text-muted-foreground py-4 text-center">Aucune</p> : ac.slice(0, 30).map((c: any) => {
-            const b = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
-            return (
-              <div key={c.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
-                <div><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span> <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span><p className="text-[10px] text-muted-foreground">{fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate) * 100).toFixed(0)}%</p></div>
-                <div className="flex items-center gap-1">
-                  {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => markCommissionPaid.mutate(c.id)}>Payer</Button>}
-                  <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yy")}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AgentDetailTabs
+          userId={a.user_id}
+          assignments={assignments.filter((as: any) => as.user_id === a.user_id && as.is_active)}
+          rules={rules}
+          commissions={ac}
+          onDeleteAssignment={(id: string) => setDeleteConfirm({ type: "assignment", id })}
+          onMarkPaid={(id: string) => markCommissionPaid.mutate(id)}
+        />
       </div>
     );
   }
