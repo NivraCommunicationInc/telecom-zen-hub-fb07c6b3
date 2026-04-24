@@ -23,6 +23,7 @@ import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 
 /* ─────────────────────────────────────────────────────────────
    Reusable atoms — all dark theme
@@ -270,27 +271,57 @@ export default function FieldDashboard() {
   const { data: commissionRules } = useCommissionRules(user?.id);
   const { data: monthlyTarget } = useMonthlyTarget(user?.id);
 
-  /* Real-time subscriptions */
+  /* Real-time subscriptions — Core RH ⇄ Field Sales sync.
+     Tables: commission_rules, sales_targets, sales_commissions, orders.
+     Toast notifications keep agents aware of upstream changes. */
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
       .channel(`field-dashboard-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "commission_rules" },
-        () => queryClient.invalidateQueries({ queryKey: ["field-commission-rules"] }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales_targets" },
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "commission_rules" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["field-commission-rules"] });
+          toast("Grille de commission mise à jour", { description: "Les nouveaux taux sont actifs." });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales_targets" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["field-monthly-target"] });
           queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] });
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales_commissions", filter: `agent_id=eq.${user.id}` },
-        () => queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `created_by_agent_id=eq.${user.id}` },
+          toast("Objectifs mis à jour", { description: "Vos KPI ont été recalculés." });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sales_commissions",
+          filter: `salesperson_id=eq.${user.id}`,
+        },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] });
+          if (payload.eventType === "INSERT") {
+            toast.success("Nouvelle commission ajoutée");
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `created_by_agent_id=eq.${user.id}` },
         () => {
           queryClient.invalidateQueries({ queryKey: ["field-dashboard-summary"] });
           queryClient.invalidateQueries({ queryKey: ["field-dashboard-activity"] });
-        })
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id, queryClient]);
 
   const greeting = () => {

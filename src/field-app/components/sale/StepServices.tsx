@@ -3,8 +3,10 @@
  * Source: services table (same source as the website).
  * Dark theme: Navy bg + white text + purple accents.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Wifi, Smartphone, Tv, Package, Loader2, Check, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
@@ -51,6 +53,7 @@ const toMonthlyPrice = (value: ServiceRow["price"]): number => {
 };
 
 export default function StepServices({ selected, onChange, onNext, onBack }: Props) {
+  const queryClient = useQueryClient();
   const { data: services = [], isLoading, error } = useQuery({
     queryKey: ["field-services-catalog"],
     queryFn: async (): Promise<ServiceRow[]> => {
@@ -65,6 +68,47 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  /* Realtime — services catalog. If a price changes for a service in the
+     current draft, warn the agent and update the price in place. */
+  useEffect(() => {
+    const channel = supabase
+      .channel("field-services-catalog")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "services" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["field-services-catalog"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  // Detect price changes against the current sale draft.
+  useEffect(() => {
+    if (!services.length || !selected.length) return;
+    let changed = false;
+    const next = selected.map((sel) => {
+      const fresh = services.find((s) => s.id === sel.id);
+      if (!fresh) return sel;
+      const newPrice = toMonthlyPrice(fresh.price);
+      if (newPrice !== sel.monthlyPrice) {
+        changed = true;
+        return { ...sel, monthlyPrice: newPrice };
+      }
+      return sel;
+    });
+    if (changed) {
+      toast.warning("Le prix d'un service a changé", {
+        description: "Le prix a été mis à jour dans la vente en cours.",
+      });
+      onChange(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services]);
 
   // Group by category
   const grouped: Record<string, ServiceRow[]> = {};
