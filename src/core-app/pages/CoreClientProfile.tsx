@@ -159,8 +159,8 @@ const CoreClientProfile = () => {
     enabled: !!billingCustomer,
   });
 
-  // ── Equipment ──
-  const { data: equipment = [] } = useQuery({
+  // ── Equipment (primary: equipment_inventory) ──
+  const { data: equipmentInv = [] } = useQuery({
     queryKey: ["core-client-equipment", clientId],
     queryFn: async () => {
       if (!account) return [];
@@ -171,7 +171,73 @@ const CoreClientProfile = () => {
       return (data || []) as any[];
     },
     enabled: !!clientId && !!account,
+    refetchInterval: 30_000,
   });
+
+  // ── Equipment fallback: orders.equipment_details JSON when inventory empty ──
+  const { data: equipmentFallback = [] } = useQuery({
+    queryKey: ["core-client-equipment-fallback", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data: ords } = await supabase.from("orders")
+        .select("id, equipment_details, service_activated_at, updated_at, status")
+        .eq("user_id", clientId!)
+        .in("status", ["activated", "delivered", "completed"]);
+      const out: any[] = [];
+      (ords || []).forEach((o: any) => {
+        const arr = Array.isArray(o.equipment_details) ? o.equipment_details : [];
+        arr.forEach((eq: any, idx: number) => {
+          if (!eq) return;
+          out.push({
+            id: `${o.id}-${idx}`,
+            catalog_name: eq.label || eq.type || "Équipement",
+            serial_number: eq.serial_number || null,
+            status: eq.status || "assigned",
+            price_client: eq.type === "router" ? 60 : eq.type === "tv_box" ? 50 : eq.type === "sim" ? 30 : 0,
+            assigned_at: o.service_activated_at || o.updated_at,
+          });
+        });
+      });
+      return out;
+    },
+    enabled: !!clientId,
+    refetchInterval: 30_000,
+  });
+
+  const equipment = equipmentInv.length > 0 ? equipmentInv : equipmentFallback;
+
+  // ── Contracts (FIX 2 — Section A) ──
+  const { data: contracts = [] } = useQuery({
+    queryKey: ["core-client-contracts", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data } = await supabase.from("contracts")
+        .select("id, contract_number, status, contract_pdf_url, created_at, signed_at, client_signed_at")
+        .eq("user_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return (data || []) as any[];
+    },
+    enabled: !!clientId,
+    refetchInterval: 30_000,
+  });
+
+  // ── Auto-generated documents (FIX 2 — Section A) ──
+  const { data: autoDocs = [] } = useQuery({
+    queryKey: ["core-client-auto-documents", clientId],
+    queryFn: async () => {
+      if (!account) return [];
+      const { data } = await supabase.from("client_auto_documents")
+        .select("id, doc_type, doc_number, storage_path, created_at, event_type")
+        .eq("account_id", account.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      return (data || []) as any[];
+    },
+    enabled: !!clientId && !!account,
+    refetchInterval: 30_000,
+  });
+
 
   // ── Invoices ──
   const { data: invoices = [] } = useQuery({
