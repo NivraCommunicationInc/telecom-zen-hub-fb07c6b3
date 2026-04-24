@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { notifyEmployee } from "@/lib/hr/notifyEmployee";
 
 // ─── CRA + Revenu Québec 2026 — Tables progressives officielles ──────────────
 // Périodes par année: 24 (paie bimensuelle 1-15 / 16-fin)
