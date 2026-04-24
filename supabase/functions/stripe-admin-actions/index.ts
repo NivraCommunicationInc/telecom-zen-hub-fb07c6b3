@@ -54,7 +54,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization required");
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader!.replace("Bearer ", "");
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !userData?.user) throw new Error("Authentication failed");
 
@@ -107,7 +107,7 @@ serve(async (req) => {
         throw new Error(`Cannot capture: PaymentIntent status is '${pi.status}', expected 'requires_capture'`);
       }
 
-      const captureAmount = amount ? Math.round(amount * 100) : undefined;
+      const captureAmount = amount ? Math.round((amount as number) * 100) : undefined;
       const captured = await stripe.paymentIntents.capture(payment_intent_id, {
         ...(captureAmount ? { amount_to_capture: captureAmount } : {}),
       });
@@ -300,7 +300,7 @@ serve(async (req) => {
 
     // ─── REFUND ───
     if (action === "refund") {
-      const refundAmount = amount ? Math.round(amount * 100) : undefined;
+      const refundAmount = amount ? Math.round((amount as number) * 100) : undefined;
 
       const refund = await stripe.refunds.create({
         payment_intent: payment_intent_id,
@@ -342,7 +342,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("[stripe-admin-actions] Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: (error as any) instanceof Error ? (error as Error).message : String(error) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

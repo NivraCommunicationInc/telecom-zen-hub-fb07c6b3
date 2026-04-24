@@ -40,13 +40,13 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization required");
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader!.replace("Bearer ", "");
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !userData?.user) throw new Error("Authentication failed");
 
@@ -131,7 +131,7 @@ serve(async (req) => {
 
       const paymentMethodId = typeof setupIntent.payment_method === "string"
         ? setupIntent.payment_method
-        : setupIntent.payment_method?.id;
+        : (setupIntent.payment_method as any)?.id;
 
       if (!paymentMethodId) throw new Error("No payment method on SetupIntent");
 
@@ -191,7 +191,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("[stripe-setup-autopay] Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: (error as any) instanceof Error ? (error as Error).message : String(error) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
