@@ -1124,8 +1124,17 @@ export default function CoreFieldAgentsPage() {
                 <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border mt-1 inline-block", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Suspendu"}</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => { setEditAgent(a); setEditForm({ full_name: a.full_name || "", email: a.email || "", phone: a.phone || "" }); }}><Edit3 className="h-3 w-3 mr-1" /> Modifier</Button>
+              <Button size="sm" variant="outline" onClick={() => resendInvitation.mutate(a)} disabled={resendInvitation.isPending}>
+                {resendInvitation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Mail className="h-3 w-3 mr-1" />} Renvoyer l'invitation
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => resetPassword.mutate(a)} disabled={resetPassword.isPending}>
+                {resetPassword.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Shield className="h-3 w-3 mr-1" />} Réinitialiser le mot de passe
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setPinDialog(a); setPinForm({ pin: "", confirm: "" }); }}>
+                <Shield className="h-3 w-3 mr-1" /> Changer le NIP
+              </Button>
               <Button size="sm" variant={a.is_active ? "destructive" : "default"} onClick={() => toggleAgentStatus.mutate({ userId: a.user_id, activate: !a.is_active })}>
                 {a.is_active ? <><UserX className="h-3 w-3 mr-1" /> Suspendre</> : <><UserCheck className="h-3 w-3 mr-1" /> Réactiver</>}
               </Button>
