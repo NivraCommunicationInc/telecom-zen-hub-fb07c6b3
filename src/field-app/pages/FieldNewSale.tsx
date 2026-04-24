@@ -26,6 +26,7 @@ import { getActivationFee, useFieldConfig } from "@/field-app/lib/useFieldConfig
 import SaleStepIndicator from "@/field-app/components/sale/SaleStepIndicator";
 import StepCustomer from "@/field-app/components/sale/StepCustomer";
 import StepServices from "@/field-app/components/sale/StepServices";
+import StepEquipment from "@/field-app/components/sale/StepEquipment";
 import StepDiscounts from "@/field-app/components/sale/StepDiscounts";
 import StepRecap from "@/field-app/components/sale/StepRecap";
 import StepPaymentPaypal from "@/field-app/components/sale/StepPaymentPaypal";
@@ -249,6 +250,15 @@ export default function FieldNewSale() {
           onChange={(services) => setDraft((d) => ({ ...d, services }))}
           onNext={() => advance("services")}
           onBack={() => goBack("services")}
+        />
+      )}
+
+      {draft.step === "equipment" && (
+        <StepEquipment
+          selected={draft.equipment}
+          onChange={(equipment) => setDraft((d) => ({ ...d, equipment }))}
+          onNext={() => advance("equipment")}
+          onBack={() => goBack("equipment")}
         />
       )}
 
