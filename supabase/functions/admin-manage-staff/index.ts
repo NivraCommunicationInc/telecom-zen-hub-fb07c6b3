@@ -3382,41 +3382,31 @@ serve(async (req: Request) => {
           }
 
           const resetLink = linkData.properties.action_link;
-          const loginPath = targetRole === "admin" ? "/admin/login" : targetRole === "employee" ? "/employee/login" : "/technician/auth";
-          const loginLink = joinUrl(appBaseUrl, loginPath);
-          const portalName = targetRole === "admin" ? "Administrateur" : targetRole === "employee" ? "Employé" : "Technicien";
+          const portalName = targetRole === "admin"
+            ? "Administrateur"
+            : targetRole === "employee"
+              ? "Employé"
+              : targetRole === "field_sales"
+                ? "Représentant terrain"
+                : "Technicien";
 
-          await sendStaffEmail(adminClient, {
-            to: normalizedEmail,
-            subject: "Réinitialisation de votre mot de passe - Nivra",
-            idempotencyKey: `staff_reset_${profile.user_id}_${Date.now()}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
-                </div>
-                <div style="padding: 30px; background: #f8fafc;">
-                  <h2>Bonjour,</h2>
-                  <p>Vous avez demandé à réinitialiser votre mot de passe pour le portail <strong>${portalName}</strong>.</p>
-                  <p>Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :</p>
-                  <p style="margin: 25px 0;">
-                    <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                      Réinitialiser mon mot de passe
-                    </a>
-                  </p>
-                  <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 1 heure.</p>
-                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
-                  <p>Une fois votre mot de passe défini, connectez-vous ici :</p>
-                  <p><a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></p>
-                  <p style="margin-top: 20px; color: #64748b; font-size: 13px;"><em>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</em></p>
-                </div>
-                <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
-                  <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
-                  <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
-                </div>
-              </div>
-            `,
-          });
+          // CANONICAL — Violet Bold shell via email_queue + customQueueTemplates
+          const { error: queueErr } = await adminClient.from("email_queue").insert({
+            event_key: `staff_reset_${profile.user_id}_${Date.now()}`,
+            to_email: normalizedEmail,
+            template_key: "staff_password_reset",
+            template_vars: {
+              reset_link: resetLink,
+              email: normalizedEmail,
+              audience: "staff",
+              portal_label: `votre portail ${portalName} Nivra`,
+            },
+            status: "queued",
+          } as any);
+          if (queueErr) {
+            console.error(`[admin-manage-staff] ${stepBase} email_queue insert error:`, queueErr);
+            throw new Error(`Email queue insert failed: ${queueErr.message}`);
+          }
 
           await logAction("staff_password_reset_sent", { 
             request_id: requestId, 
