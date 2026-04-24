@@ -146,7 +146,7 @@ function QuickAction({
     <button
       onClick={onClick}
       className={cn(
-        "group flex flex-col items-start gap-2 p-4 rounded-2xl transition-all text-left field-card-interactive w-full",
+        "group flex flex-col items-start gap-2 p-4 md:p-5 rounded-2xl transition-all text-left field-card-interactive w-full min-h-[112px] md:min-h-[128px]",
         primary && "field-glow",
       )}
       style={{
@@ -157,18 +157,18 @@ function QuickAction({
       }}
     >
       <div
-        className="h-10 w-10 rounded-xl flex items-center justify-center"
+        className="h-11 w-11 md:h-12 md:w-12 rounded-xl flex items-center justify-center"
         style={{
           background: primary ? "rgba(255,255,255,0.2)" : "hsl(var(--field-accent) / 0.15)",
         }}
       >
-        <Icon className="h-5 w-5" style={{ color: primary ? "white" : "hsl(var(--field-accent-glow))" }} />
+        <Icon className="h-5 w-5 md:h-6 md:w-6" style={{ color: primary ? "white" : "hsl(var(--field-accent-glow))" }} />
       </div>
       <div>
-        <p className={cn("text-sm font-bold", primary ? "text-white" : "text-white")}>{label}</p>
+        <p className={cn("text-sm md:text-base font-bold", primary ? "text-white" : "text-white")}>{label}</p>
         {sub && (
           <p
-            className="text-[10px] mt-0.5"
+            className="text-[11px] md:text-xs mt-0.5"
             style={{ color: primary ? "rgba(255,255,255,0.85)" : "hsl(var(--field-text-dim))" }}
           >
             {sub}
