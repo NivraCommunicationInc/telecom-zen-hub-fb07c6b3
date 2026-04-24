@@ -6,6 +6,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import FieldSidebar from "./components/FieldSidebar";
 import InternalPortalGate from "@/components/shared/InternalPortalGate";
+import StaffAssistanceBanner from "@/components/StaffAssistanceBanner";
 import "./styles/field-portal.css";
 
 export default function FieldAppLayout() {
