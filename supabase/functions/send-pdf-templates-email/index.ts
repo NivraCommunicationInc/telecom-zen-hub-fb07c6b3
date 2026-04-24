@@ -256,7 +256,7 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         message: `Email envoyé à ${email}`,
-        emailId: emailResult.id,
+        emailId: (emailResult as any)?.id,
         attachmentCount: hasAttachments ? attachments!.length : 0,
         attachments: attachmentDetails,
       }),

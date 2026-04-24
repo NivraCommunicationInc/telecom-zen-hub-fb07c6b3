@@ -66,7 +66,7 @@ serve(async (req) => {
     const { campaign_id, automation_rule_id, template_id, client_ids, test_email, subject_override: reqSubjectOverride, preview_count } = body;
 
     // Get template and campaign/automation info
-    let template: { id: string; subject: string; html_content: string; variables: string[] } | null = null;
+    let template: any = null;
     let subjectOverride: string | null = reqSubjectOverride || null;
     let segmentFilters: Record<string, unknown> = body.segment_filters || {};
 
