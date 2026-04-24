@@ -22,6 +22,7 @@
 
 import jsPDFModule from "npm:jspdf@2.5.2";
 const jsPDF = (jsPDFModule as any).default || jsPDFModule;
+type jsPDF = any;
 import type { InvoiceDataV2, PDFGenerationResult } from "./types.ts";
 import { NIVRA, TAX } from "./companyInfo.ts";
 
