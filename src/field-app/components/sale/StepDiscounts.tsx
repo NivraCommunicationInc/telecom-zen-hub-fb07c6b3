@@ -1,14 +1,44 @@
-import { useEffect, useState } from "react";
+/**
+ * Step 3 — Rabais agent.
+ *
+ * Loads ALL active discounts assigned to either:
+ *  - this specific agent (agent_discount_assignments.agent_id)
+ *  - any field_sales agent (assignments.role = 'field_sales')
+ *  - everyone (applies_to_all = true)
+ *
+ * Eligibility (greyed-out + tooltip if not met):
+ *  - `min_plan_price` requires at least one selected service ≥ that price
+ *  - `applies_to = 'installation'` requires an installation fee > 0
+ *  - `applies_to = 'plan_only'` / `first_month_free` requires ≥ 1 service
+ */
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Loader2, Tag, Percent, DollarSign, Check, AlertCircle, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Tag,
+  Percent,
+  DollarSign,
+  Check,
+  AlertCircle,
+  Sparkles,
+  Wrench,
+  CalendarClock,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { cn } from "@/lib/utils";
-import type { FieldSaleDiscount, FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
+import type {
+  FieldSaleDiscount,
+  FieldSaleService,
+} from "@/field-app/lib/fieldSaleTypes";
+import { isDiscountEligible } from "@/field-app/lib/fieldDiscountMath";
 
 interface Props {
   selected: FieldSaleDiscount | null;
   services: FieldSaleService[];
+  installationFee?: number;
   onChange: (discount: FieldSaleDiscount | null) => void;
   onNext: () => void;
   onBack: () => void;
@@ -24,9 +54,32 @@ interface RawDiscount {
   expires_at: string | null;
   max_uses: number | null;
   uses_count: number;
+  duration_months: number | null;
+  min_plan_price: number | null;
 }
 
-export default function StepDiscounts({ selected, services, onChange, onNext, onBack }: Props) {
+const iconFor = (type: string) => {
+  if (type === "remove_fee") return Wrench;
+  if (type === "first_month_free") return Sparkles;
+  if (type === "percentage") return Percent;
+  return DollarSign;
+};
+
+const valueLabel = (d: RawDiscount): string => {
+  if (d.type === "remove_fee") return "Gratuit";
+  if (d.type === "first_month_free") return "1er mois";
+  if (d.type === "percentage") return `${d.value}%`;
+  return `${Number(d.value || 0).toFixed(2)} $`;
+};
+
+export default function StepDiscounts({
+  selected,
+  services,
+  installationFee = 0,
+  onChange,
+  onNext,
+  onBack,
+}: Props) {
   const { user } = useStaffUser();
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +98,9 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
 
       const { data: rows, error: derr } = await supabase
         .from("agent_discounts")
-        .select("id,name,type,value,applies_to,description,expires_at,max_uses,uses_count,is_active")
+        .select(
+          "id,name,type,value,applies_to,description,expires_at,max_uses,uses_count,is_active,duration_months,min_plan_price",
+        )
         .in("id", ids)
         .eq("is_active", true);
       if (derr) throw derr;
@@ -60,48 +115,61 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
     staleTime: 30_000,
   });
 
-  const serviceCategories = new Set(services.map((service) => service.category));
+  const toFieldDiscount = (d: RawDiscount): FieldSaleDiscount => ({
+    id: d.id,
+    name: d.name,
+    type: d.type as FieldSaleDiscount["type"],
+    value: d.value,
+    applies_to: d.applies_to as FieldSaleDiscount["applies_to"],
+    description: d.description,
+    duration_months: d.duration_months,
+    min_plan_price: d.min_plan_price,
+  });
 
-  const isApplicable = (discount: RawDiscount): boolean => {
-    if (discount.applies_to === "all") return true;
-    if (services.length === 0) return false;
-    return serviceCategories.has(discount.applies_to);
-  };
-
-  const select = (discount: RawDiscount) => {
-    if (selected?.id === discount.id) {
+  const select = (d: RawDiscount) => {
+    if (selected?.id === d.id) {
       onChange(null);
+      setError(null);
       return;
     }
-
-    if (!isApplicable(discount)) {
-      setError(`Ce rabais s'applique uniquement à : ${discount.applies_to}. Aucun forfait ${discount.applies_to} sélectionné.`);
+    const candidate = toFieldDiscount(d);
+    const { eligible, reason } = isDiscountEligible(candidate, services, installationFee);
+    if (!eligible) {
+      setError(reason ?? "Ce rabais n'est pas applicable.");
       return;
     }
-
     setError(null);
-    onChange({
-      id: discount.id,
-      name: discount.name,
-      type: discount.type as FieldSaleDiscount["type"],
-      value: discount.value,
-      applies_to: discount.applies_to as FieldSaleDiscount["applies_to"],
-      description: discount.description,
-    });
+    onChange(candidate);
   };
 
+  // Drop selection if it disappears or becomes ineligible.
   useEffect(() => {
-    if (selected && !discounts.some((discount) => discount.id === selected.id)) {
+    if (!selected) return;
+    if (!discounts.some((d) => d.id === selected.id)) {
       onChange(null);
+      return;
     }
-  }, [discounts, selected, onChange]);
+    const { eligible } = isDiscountEligible(selected, services, installationFee);
+    if (!eligible) onChange(null);
+  }, [discounts, selected, services, installationFee, onChange]);
+
+  const sortedDiscounts = useMemo(
+    () =>
+      [...discounts].sort((a, b) => {
+        const aE = isDiscountEligible(toFieldDiscount(a), services, installationFee).eligible ? 0 : 1;
+        const bE = isDiscountEligible(toFieldDiscount(b), services, installationFee).eligible ? 0 : 1;
+        if (aE !== bE) return aE - bE;
+        return a.name.localeCompare(b.name);
+      }),
+    [discounts, services, installationFee],
+  );
 
   return (
     <div className="space-y-5 field-page-enter">
       <div>
-        <h2 className="text-2xl font-bold text-white">Rabais agent</h2>
-        <p className="text-sm text-[hsl(var(--field-text-muted))] mt-1">
-          Sélectionnez un rabais assigné par Nivra Core.
+        <h2 className="text-2xl md:text-3xl font-bold text-white">Rabais agent</h2>
+        <p className="text-sm md:text-base text-[hsl(var(--field-text-muted))] mt-1">
+          Sélectionnez un rabais Nivra à appliquer à cette commande.
         </p>
       </div>
 
@@ -116,7 +184,7 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--field-accent))]" />
         </div>
-      ) : discounts.length === 0 ? (
+      ) : sortedDiscounts.length === 0 ? (
         <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-8 text-center">
           <Sparkles className="h-10 w-10 text-[hsl(var(--field-text-dim))] mx-auto mb-3" />
           <p className="text-[hsl(var(--field-text-muted))] font-medium">
@@ -124,61 +192,79 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
           </p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {discounts.map((discount) => {
+        <div className="grid gap-3 md:grid-cols-2">
+          {sortedDiscounts.map((discount) => {
             const active = selected?.id === discount.id;
-            const usable = isApplicable(discount);
-            const Icon = discount.type === "percentage" ? Percent : DollarSign;
+            const candidate = toFieldDiscount(discount);
+            const { eligible, reason } = isDiscountEligible(
+              candidate,
+              services,
+              installationFee,
+            );
+            const Icon = iconFor(discount.type);
 
             return (
               <button
                 key={discount.id}
                 type="button"
                 onClick={() => select(discount)}
-                disabled={!usable && !active}
+                disabled={!eligible && !active}
+                title={!eligible ? reason : undefined}
                 className={cn(
-                  "field-card-interactive text-left rounded-2xl p-4 border transition-all relative overflow-hidden",
+                  "field-card-interactive text-left rounded-2xl p-5 border transition-all relative overflow-hidden min-h-[120px]",
                   active
                     ? "border-[hsl(var(--field-accent))] bg-[hsl(var(--field-accent)/0.12)] field-glow"
-                    : usable
+                    : eligible
                       ? "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] hover:border-[hsl(var(--field-accent)/0.4)]"
-                      : "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] opacity-50 cursor-not-allowed"
+                      : "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] opacity-50 cursor-not-allowed",
                 )}
               >
                 <div className="flex items-start gap-3">
                   <div
                     className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                      "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
                       active
                         ? "bg-[hsl(var(--field-accent))] text-white"
-                        : "bg-[hsl(var(--field-bg-elevated))] text-[hsl(var(--field-accent-glow))]"
+                        : "bg-[hsl(var(--field-bg-elevated))] text-[hsl(var(--field-accent-glow))]",
                     )}
                   >
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-white truncate">{discount.name}</h3>
+                      <h3 className="font-semibold text-white text-base leading-tight">
+                        {discount.name}
+                      </h3>
                       <span className="text-base font-bold text-[hsl(var(--field-accent-glow))] flex-shrink-0">
-                        {discount.type === "percentage" ? `${discount.value}%` : `${discount.value.toFixed(2)} $`}
+                        {valueLabel(discount)}
                       </span>
                     </div>
                     {discount.description && (
-                      <p className="text-xs text-[hsl(var(--field-text-muted))] mt-1 line-clamp-2">
+                      <p className="text-xs md:text-sm text-[hsl(var(--field-text-muted))] mt-1.5 line-clamp-3">
                         {discount.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--field-bg-elevated))] text-[hsl(var(--field-text-dim))] border border-[hsl(var(--field-border-subtle))]">
-                        {discount.applies_to === "all" ? "Tous services" : discount.applies_to}
+                        {discount.applies_to === "all"
+                          ? "Tous services"
+                          : discount.applies_to.replace(/_/g, " ")}
                       </span>
-                      {discount.max_uses != null && (
-                        <span className="text-[10px] text-[hsl(var(--field-text-dim))]">
-                          {discount.uses_count}/{discount.max_uses} utilisations
+                      {discount.duration_months ? (
+                        <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--field-accent)/0.15)] text-[hsl(var(--field-accent-glow))] border border-[hsl(var(--field-accent)/0.3)] inline-flex items-center gap-1">
+                          <CalendarClock className="h-3 w-3" />
+                          {discount.duration_months} mois
                         </span>
-                      )}
-                      {!usable && (
-                        <span className="text-[10px] text-[hsl(var(--field-warning))]">Non applicable</span>
+                      ) : null}
+                      {discount.min_plan_price ? (
+                        <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--field-bg-elevated))] text-[hsl(var(--field-text-dim))] border border-[hsl(var(--field-border-subtle))]">
+                          Min. {Number(discount.min_plan_price).toFixed(0)} $
+                        </span>
+                      ) : null}
+                      {!eligible && (
+                        <span className="text-[10px] text-[hsl(var(--field-warning))]">
+                          {reason ?? "Non applicable"}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -192,12 +278,15 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
 
       <button
         type="button"
-        onClick={() => onChange(null)}
+        onClick={() => {
+          onChange(null);
+          setError(null);
+        }}
         className={cn(
-          "w-full text-sm py-3 rounded-xl border border-dashed transition-colors",
+          "w-full text-sm md:text-base py-4 rounded-xl border border-dashed transition-colors min-h-[48px]",
           selected
             ? "border-[hsl(var(--field-border-subtle))] text-[hsl(var(--field-text-muted))] hover:text-white hover:border-[hsl(var(--field-accent)/0.4)]"
-            : "border-[hsl(var(--field-accent)/0.4)] bg-[hsl(var(--field-accent)/0.08)] text-[hsl(var(--field-accent-glow))]"
+            : "border-[hsl(var(--field-accent)/0.4)] bg-[hsl(var(--field-accent)/0.08)] text-[hsl(var(--field-accent-glow))]",
         )}
       >
         <Tag className="h-4 w-4 inline-block mr-2" />
@@ -208,14 +297,14 @@ export default function StepDiscounts({ selected, services, onChange, onNext, on
         <button
           type="button"
           onClick={onBack}
-          className="flex-1 h-12 rounded-xl border border-[hsl(var(--field-border-subtle))] text-white font-medium hover:bg-[hsl(var(--field-card-hover))] transition-colors flex items-center justify-center gap-2"
+          className="flex-1 h-14 rounded-xl border border-[hsl(var(--field-border-subtle))] text-white font-medium hover:bg-[hsl(var(--field-card-hover))] transition-colors flex items-center justify-center gap-2 text-base"
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 h-12 rounded-xl field-gradient-accent text-white font-semibold field-glow hover:field-glow-strong transition-all flex items-center justify-center gap-2"
+          className="flex-1 h-14 rounded-xl field-gradient-accent text-white font-semibold field-glow hover:field-glow-strong transition-all flex items-center justify-center gap-2 text-base"
         >
           Continuer <ArrowRight className="h-4 w-4" />
         </button>
