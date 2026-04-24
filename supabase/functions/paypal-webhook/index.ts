@@ -382,7 +382,7 @@ serve(async (req) => {
               template_vars: {
                 client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
                 plan_name: sub.plan_name,
-                reason: event.resource.status_change_note || "Annulé via PayPal",
+                reason: (event.resource as any).status_change_note || "Annulé via PayPal",
               },
               status: "queued",
               attempts: 0,

@@ -65,7 +65,7 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      if (payment?.stripe_payment_intent_id) {
+      if (payment && payment.stripe_payment_intent_id) {
         try {
           const pi = await stripe.paymentIntents.retrieve(payment.stripe_payment_intent_id);
           if (!resolvedPM && pi.payment_method) {
