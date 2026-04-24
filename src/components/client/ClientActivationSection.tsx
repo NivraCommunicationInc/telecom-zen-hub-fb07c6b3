@@ -482,28 +482,22 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         <Card>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Order selection */}
+              {/* Order selection — OPTIONAL */}
               <div>
                 <Label className="text-base font-semibold flex items-center gap-2">
-                  <Package className="w-4 h-4" /> Pour quelle commande demandez-vous l'activation? *
+                  <Package className="w-4 h-4" /> Associer cette demande à une commande (optionnel)
                 </Label>
+                <p className="text-xs text-slate-500 mt-1">
+                  Vous pouvez soumettre votre demande sans sélectionner de commande.
+                </p>
                 <div className="mt-3 space-y-2">
-                  {eligibleOrders.length === 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
-                      Aucune commande Internet ou TV en attente d'activation. Contactez le support
-                      si vous pensez qu'il s'agit d'une erreur.{" "}
-                      <a href="mailto:support@nivra-telecom.ca" className="underline font-medium">
-                        support@nivra-telecom.ca
-                      </a>
-                    </div>
-                  )}
                   {eligibleOrders.map((order: any) => {
                     const active = selectedOrderId === order.id;
                     return (
                       <button
                         type="button"
                         key={order.id}
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => setSelectedOrderId(active ? null : order.id)}
                         className={`w-full text-left rounded-xl px-4 py-3 flex items-center gap-3 transition-colors ${
                           active
                             ? "border-2 border-violet-500 bg-violet-50"
