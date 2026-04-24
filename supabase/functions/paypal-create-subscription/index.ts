@@ -53,7 +53,7 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
+  const adminSupabase = createClient<any>(supabaseUrl, supabaseServiceKey);
 
   let attemptId: string | null = null;
   let userId: string | null = null;
@@ -70,7 +70,7 @@ serve(async (req) => {
       );
     }
 
-    const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const authSupabase = createClient<any>(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 

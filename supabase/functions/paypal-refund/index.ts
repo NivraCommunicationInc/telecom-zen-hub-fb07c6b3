@@ -79,10 +79,10 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
     // Verify admin
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const anonClient = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: userData, error: userError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
