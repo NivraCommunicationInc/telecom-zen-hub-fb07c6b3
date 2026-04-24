@@ -16,8 +16,11 @@ import {
   ChevronRight, ArrowLeft, Phone, Mail, Calendar, Shield, Save,
   MessageSquare, Download, CreditCard, Receipt, Plus, Trash2,
   Timer, ClipboardList, Grid3X3, Link2, Briefcase, Zap, FileSpreadsheet,
-  ChevronLeft,
+  ChevronLeft, LogIn,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { startStaffAssistance, type StaffAssistanceRole } from "@/lib/staffAssistance";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,6 +109,7 @@ const normalizeStaffNotificationType = (type: string) => {
 
 export default function CoreFieldAgentsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<TabView>("agents");
   const [search, setSearch] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<AgentRow | null>(null);
@@ -1135,6 +1139,38 @@ export default function CoreFieldAgentsPage() {
               <Button size="sm" variant="outline" onClick={() => { setPinDialog(a); setPinForm({ pin: "", confirm: "" }); }}>
                 <Shield className="h-3 w-3 mr-1" /> Changer le NIP
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <LogIn className="h-3 w-3 mr-1" /> Accéder au portail
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {([
+                    { label: "Voir portail Field", role: "field_sales" as StaffAssistanceRole, path: "/field" },
+                    { label: "Voir portail RH", role: "rh" as StaffAssistanceRole, path: "/rh" },
+                    { label: "Voir portail Technicien", role: "technician" as StaffAssistanceRole, path: "/technician" },
+                  ]).map((opt) => (
+                    <DropdownMenuItem
+                      key={opt.role}
+                      onClick={async () => {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        startStaffAssistance({
+                          staff_user_id: a.user_id,
+                          staff_name: a.full_name || a.email || "Agent",
+                          staff_email: a.email || "",
+                          staff_role: opt.role,
+                          admin_user_id: user?.id || "",
+                          started_at: new Date().toISOString(),
+                        });
+                        navigate(opt.path);
+                      }}
+                    >
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button size="sm" variant={a.is_active ? "destructive" : "default"} onClick={() => toggleAgentStatus.mutate({ userId: a.user_id, activate: !a.is_active })}>
                 {a.is_active ? <><UserX className="h-3 w-3 mr-1" /> Suspendre</> : <><UserCheck className="h-3 w-3 mr-1" /> Réactiver</>}
               </Button>
