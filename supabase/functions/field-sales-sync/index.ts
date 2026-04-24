@@ -559,11 +559,15 @@ Deno.serve(async (req) => {
               due_date: dueDate,
               paid_at: isConfirmedPayment ? now.toISOString() : null,
               environment: "production",
+              notes: `Commande terrain — Agent: ${agentName}`,
               billing_snapshot_client: {
                 first_name: customerFirstName || null,
                 last_name: customerLastName || null,
                 email: customerEmail,
                 phone: sale.customer_phone || null,
+                agent_name: agentName,
+                agent_id: sale.salesperson_id,
+                source: "field_sales",
               },
             })
             .select("id")
