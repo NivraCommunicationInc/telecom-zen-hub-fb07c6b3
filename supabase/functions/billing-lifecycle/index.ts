@@ -542,7 +542,7 @@ async function processLegacyRenewals(
       if (invErr) throw invErr;
 
       if (hasServices) {
-        const lines = subServices.map((svc) => ({
+        const lines = subServices.map((svc: any) => ({
           invoice_id: invoice.id,
           description: `${svc.service_name} – Renouvellement 30 jours`,
           unit_price: Number(svc.unit_price),
