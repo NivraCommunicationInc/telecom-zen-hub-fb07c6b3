@@ -508,7 +508,7 @@ async function processLegacyRenewals(
       let subtotal: number;
       const hasServices = subServices && subServices.length > 0;
       if (hasServices) {
-        subtotal = subServices.reduce((sum, svc) => sum + (Number(svc.unit_price) * (svc.quantity || 1)), 0);
+        subtotal = subServices.reduce((sum: number, svc: any) => sum + (Number(svc.unit_price) * (svc.quantity || 1)), 0);
       } else {
         subtotal = sub.plan_price;
       }
