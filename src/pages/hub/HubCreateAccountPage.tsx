@@ -13,6 +13,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { landingPathForRole, HUB_LOGIN_PATH } from "@/lib/security/portalRedirect";
+import { createHubSession } from "@/lib/security/hubSession";
 import {
   AlertCircle,
   CheckCircle2,
