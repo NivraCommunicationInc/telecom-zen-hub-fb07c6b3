@@ -113,6 +113,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
           kyc_status: o.kyc_status ?? null,
           sla_deadline: o.sla_deadline ?? null,
           sla_status: o.sla_status ?? null,
+          payment_method: o.payment_method ?? null,
         };
       });
     },
