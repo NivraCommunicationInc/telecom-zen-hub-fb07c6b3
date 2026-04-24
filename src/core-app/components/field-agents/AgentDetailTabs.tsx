@@ -338,10 +338,6 @@ function TaxDocumentsSection({ userId }: { userId: string }) {
     </div>
   );
 }
-      </TabsContent>
-    </Tabs>
-  );
-}
 
 function Row({ label, value }: { label: string; value?: string | null }) {
   return (
