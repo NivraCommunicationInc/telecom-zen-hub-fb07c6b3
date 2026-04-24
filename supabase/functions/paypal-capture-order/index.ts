@@ -21,7 +21,7 @@ function normalizeEmail(email: string | undefined | null): string {
 }
 
 async function ensureBillingCustomer(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   email: string,
   firstName: string,
   lastName: string,
@@ -448,7 +448,7 @@ serve(async (req) => {
 // ============================================================================
 
 async function attemptRecurringSetup(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   orderId: string,
   invoiceId: string,
   customerId: string,
@@ -610,7 +610,7 @@ async function attemptRecurringSetup(
 }
 
 async function setRecurringStatus(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   subId: string | null,
   status: string,
 ): Promise<void> {
