@@ -191,6 +191,7 @@ const CorePhoneInventoryPage = lazy(() => import("@/core-app/pages/CorePhoneInve
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
+const CoreAgentDiscounts = lazy(() => import("@/core-app/pages/CoreAgentDiscounts"));
 // Supplier Accounts (admin-only)
 const SupplierAccountsPage = lazy(() => import("@/core-app/pages/SupplierAccountsPage"));
 const SupplierAccountNewPage = lazy(() => import("@/core-app/pages/SupplierAccountNewPage"));
