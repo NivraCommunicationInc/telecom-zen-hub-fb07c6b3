@@ -269,13 +269,13 @@ export default function FieldCommissions() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                  "flex items-center gap-1.5 px-4 py-3 min-h-[48px] text-sm md:text-base font-medium border-b-2 transition-colors whitespace-nowrap",
                   activeTab === tab.key
                     ? "border-[hsl(var(--field-accent))] text-white"
                     : "border-transparent text-[hsl(var(--field-text-muted))] hover:text-white"
                 )}
               >
-                <tab.icon className="h-3.5 w-3.5" />
+                <tab.icon className="h-4 w-4" />
                 {tab.label}
               </button>
             ))}
