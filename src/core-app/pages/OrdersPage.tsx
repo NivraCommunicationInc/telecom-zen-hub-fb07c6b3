@@ -296,6 +296,15 @@ const OrdersPage = () => {
                   <StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" />
                 </div>
 
+                {o.payment_method === "card_manual" && (
+                  <span
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-[#7C3AED]/15 text-[#A78BFA] border-[#7C3AED]/40"
+                    title="Paiement carte manuelle en attente de traitement"
+                  >
+                    💳 Carte manuelle
+                  </span>
+                )}
+
                 {sla ? (
                   <span
                     className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${sla.className}`}
