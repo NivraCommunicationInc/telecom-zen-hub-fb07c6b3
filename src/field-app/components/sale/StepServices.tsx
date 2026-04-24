@@ -3,8 +3,10 @@
  * Source: services table (same source as the website).
  * Dark theme: Navy bg + white text + purple accents.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Wifi, Smartphone, Tv, Package, Loader2, Check, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
