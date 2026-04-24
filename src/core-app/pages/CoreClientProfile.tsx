@@ -49,6 +49,41 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Realtime invalidation across all client-related tables (FIX 3)
+  useEffect(() => {
+    if (!clientId) return;
+    const tables = [
+      "billing_subscriptions",
+      "billing_invoices",
+      "billing_payments",
+      "orders",
+      "equipment_inventory",
+      "contracts",
+      "client_auto_documents",
+      "accounts",
+    ];
+    const channel = supabase.channel(`core-client-profile-${clientId}`);
+    tables.forEach((table) => {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        queryClient.invalidateQueries({ queryKey: ["core-client-profile", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-account", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-orders", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-billing-customer", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-subscriptions", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-equipment", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-equipment-fallback", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-invoices", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-payments", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-contracts", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-auto-documents", clientId] });
+      });
+    });
+    channel.subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [clientId, queryClient]);
+
 
   // ── Profile ──
   const { data: profile, isLoading: loadingProfile } = useQuery({
