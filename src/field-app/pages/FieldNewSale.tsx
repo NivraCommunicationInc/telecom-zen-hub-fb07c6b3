@@ -30,6 +30,8 @@ import StepEquipment from "@/field-app/components/sale/StepEquipment";
 import StepDiscounts from "@/field-app/components/sale/StepDiscounts";
 import StepRecap from "@/field-app/components/sale/StepRecap";
 import StepPaymentPaypal from "@/field-app/components/sale/StepPaymentPaypal";
+import LiveSummary from "@/field-app/components/sale/LiveSummary";
+import { computeDiscountBreakdown } from "@/field-app/lib/fieldDiscountMath";
 
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
