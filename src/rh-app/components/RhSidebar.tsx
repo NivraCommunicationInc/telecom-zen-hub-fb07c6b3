@@ -10,8 +10,9 @@ import {
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
   Briefcase, Target, Inbox, Upload,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
 
 const RH_BASE = "/rh";
 
@@ -62,7 +63,16 @@ const navGroups = [
 export default function RhSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const { isTablet, isDesktop } = usePortalBreakpoint();
+  const [collapsed, setCollapsed] = useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < 1280
+  );
+
+  // Auto-adjust on viewport changes (rotation, resize)
+  useEffect(() => {
+    if (isTablet) setCollapsed(true);
+    else if (isDesktop) setCollapsed(false);
+  }, [isTablet, isDesktop]);
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(href + "/");
