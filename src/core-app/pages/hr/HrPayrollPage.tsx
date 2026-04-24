@@ -495,11 +495,30 @@ export default function HrPayrollPage() {
 
   const markPaidMut = useMutation({
     mutationFn: async (entryId: string) => {
+      const { data: entry } = await supabase
+        .from("payroll_entries")
+        .select("id, user_id, net_pay, pay_period_id")
+        .eq("id", entryId)
+        .maybeSingle();
       const { error } = await supabase
         .from("payroll_entries")
         .update({ status: "paid", paid_at: new Date().toISOString() })
         .eq("id", entryId);
       if (error) throw error;
+      if (entry?.user_id) {
+        await notifyEmployee({
+          employeeId: entry.user_id,
+          templateKey: "hr_payroll_paid",
+          eventKey: `hr_payroll_paid_${entry.id}`,
+          entityType: "payroll_entry",
+          entityId: entry.id,
+          vars: {
+            net_amount: entry.net_pay,
+            period_label: currentPeriod?.period_name,
+            paid_at: new Date().toISOString(),
+          },
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Fiche marquée payée");
