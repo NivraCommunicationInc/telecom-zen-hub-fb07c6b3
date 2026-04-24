@@ -1503,6 +1503,222 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // HR / RH — Employee notifications (paie, horaire, commissions)
+    // All templates use the canonical violet shell. Callers pass
+    // `client_name` = employee name and `portal_url` = RH portal.
+    // ===================================================================
+    case "hr_payslip_issued":
+    case "hr_payroll_issued": {
+      const periodLabel = esc(v.period_label || v.period || "Période courante");
+      const grossAmount = money(v.gross_amount ?? v.gross ?? v.amount);
+      const netAmount = money(v.net_amount ?? v.net ?? v.amount);
+      const payDate = fmtDate(v.pay_date || v.paid_at || new Date().toISOString());
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/paie`);
+      return {
+        subject: `Nouvelle fiche de paie — ${periodLabel}`,
+        html: shell({
+          preheader: `Votre fiche de paie pour ${periodLabel} est disponible.`,
+          badge: "FICHE DE PAIE",
+          heroTitle: "Votre paie a été traitée",
+          heroSub: `Net : ${netAmount}`,
+          icon: "doc",
+          greeting,
+          bodyText: `Votre fiche de paie pour la période <strong style="color:#1a1a2e;">${periodLabel}</strong> vient d'être émise et est désormais consultable dans votre espace RH.`,
+          cardTitle: "Détails de la paie",
+          cardRows: [
+            ["Période", String(periodLabel)],
+            ["Date de versement", payDate],
+            ["Salaire brut", String(grossAmount)],
+            ["Salaire net", String(netAmount)],
+          ],
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Consulter ma fiche de paie",
+        }),
+      };
+    }
+
+    case "hr_payroll_paid": {
+      const periodLabel = esc(v.period_label || v.period || "Période courante");
+      const netAmount = money(v.net_amount ?? v.net ?? v.amount);
+      const payMethod = esc(v.payment_method || "Dépôt direct");
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/paie`);
+      return {
+        subject: `Paiement effectué — ${netAmount}`,
+        html: shell({
+          preheader: `Votre paie de ${netAmount} a été versée.`,
+          badge: "PAIEMENT EFFECTUÉ",
+          heroTitle: "Votre paie a été versée",
+          heroSub: `Montant net : ${netAmount}`,
+          icon: "check",
+          greeting,
+          bodyText: `Le paiement de votre fiche de paie pour <strong style="color:#1a1a2e;">${periodLabel}</strong> vient d'être effectué.`,
+          cardTitle: "Récapitulatif",
+          cardRows: [
+            ["Période", String(periodLabel)],
+            ["Méthode", String(payMethod)],
+            ["Date", fmtDate(v.paid_at || new Date().toISOString())],
+            ["Montant net", String(netAmount)],
+          ],
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Voir l'historique",
+        }),
+      };
+    }
+
+    case "hr_schedule_created":
+    case "hr_shift_created": {
+      const shiftDate = fmtDate(v.shift_date || v.date);
+      const startTime = esc(v.start_time || "—");
+      const endTime = esc(v.end_time || "—");
+      const location = esc(v.location || v.role || "Nivra");
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/horaire`);
+      return {
+        subject: `Nouveau quart assigné — ${shiftDate}`,
+        html: shell({
+          preheader: `Un nouveau quart vous a été assigné le ${shiftDate}.`,
+          badge: "NOUVEAU QUART",
+          heroTitle: "Nouveau quart à votre horaire",
+          heroSub: shiftDate,
+          icon: "calendar",
+          greeting,
+          bodyText: `Un nouveau quart de travail vient d'être ajouté à votre horaire.`,
+          cardTitle: "Détails du quart",
+          cardRows: [
+            ["Date", shiftDate],
+            ["Début", String(startTime)],
+            ["Fin", String(endTime)],
+            ["Poste / lieu", String(location)],
+          ],
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Voir mon horaire",
+        }),
+      };
+    }
+
+    case "hr_schedule_updated":
+    case "hr_shift_updated": {
+      const shiftDate = fmtDate(v.shift_date || v.date);
+      const startTime = esc(v.start_time || "—");
+      const endTime = esc(v.end_time || "—");
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/horaire`);
+      return {
+        subject: `Quart modifié — ${shiftDate}`,
+        html: shell({
+          preheader: `Votre quart du ${shiftDate} a été modifié.`,
+          badge: "HORAIRE MODIFIÉ",
+          heroTitle: "Votre horaire a été modifié",
+          heroSub: shiftDate,
+          icon: "calendar",
+          greeting,
+          bodyText: `Un quart à votre horaire vient d'être mis à jour. Veuillez prendre note des nouvelles informations.`,
+          cardTitle: "Nouveau détail",
+          cardRows: [
+            ["Date", shiftDate],
+            ["Début", String(startTime)],
+            ["Fin", String(endTime)],
+          ],
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Consulter mon horaire",
+          helpVariant: "warning",
+          helpHtml: `Si ce changement vous pose problème, contactez votre superviseur ou écrivez à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "hr_schedule_deleted":
+    case "hr_shift_deleted": {
+      const shiftDate = fmtDate(v.shift_date || v.date);
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/horaire`);
+      return {
+        subject: `Quart annulé — ${shiftDate}`,
+        html: shell({
+          preheader: `Votre quart du ${shiftDate} a été annulé.`,
+          badge: "QUART ANNULÉ",
+          heroTitle: "Un quart a été retiré de votre horaire",
+          heroSub: shiftDate,
+          icon: "x",
+          greeting,
+          bodyText: `Le quart prévu le <strong style="color:#1a1a2e;">${shiftDate}</strong> a été annulé. Vous n'avez plus à vous présenter pour cette période.`,
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Voir mon horaire à jour",
+        }),
+      };
+    }
+
+    case "hr_commission_generated": {
+      const amount = money(v.amount ?? v.commission_amount);
+      const description = esc(v.description || v.product || "Commission de vente");
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/commissions`);
+      return {
+        subject: `Nouvelle commission générée — ${amount}`,
+        html: shell({
+          preheader: `Une nouvelle commission de ${amount} vous a été attribuée.`,
+          badge: "COMMISSION GÉNÉRÉE",
+          heroTitle: "Une nouvelle commission s'ajoute à votre solde",
+          heroSub: `Montant : ${amount}`,
+          icon: "star",
+          greeting,
+          bodyText: `Félicitations ! Une nouvelle commission vient d'être enregistrée à votre nom.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Description", String(description)],
+            ["Date", fmtDate(v.created_at || new Date().toISOString())],
+            ["Statut", "En attente de validation"],
+            ["Montant", String(amount)],
+          ],
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Voir mes commissions",
+        }),
+      };
+    }
+
+    case "hr_commission_paid": {
+      const amount = money(v.amount ?? v.commission_amount);
+      const periodLabel = esc(v.period_label || v.period || "");
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/commissions`);
+      return {
+        subject: `Commission payée — ${amount}`,
+        html: shell({
+          preheader: `Votre commission de ${amount} a été versée.`,
+          badge: "COMMISSION PAYÉE",
+          heroTitle: "Votre commission a été versée",
+          heroSub: `Montant : ${amount}`,
+          icon: "check",
+          greeting,
+          bodyText: `Le versement de votre commission a été traité avec succès.`,
+          cardTitle: "Récapitulatif",
+          cardRows: [
+            periodLabel ? ["Période", String(periodLabel)] : null,
+            ["Date de versement", fmtDate(v.paid_at || new Date().toISOString())],
+            ["Méthode", esc(v.payment_method || "Dépôt direct")],
+            ["Montant", String(amount)],
+          ].filter(Boolean) as Array<[string, string]>,
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Voir l'historique",
+        }),
+      };
+    }
+
+    case "hr_commission_validated": {
+      const amount = money(v.amount ?? v.commission_amount);
+      const rhPortal = String(v.portal_url || `${APP_URL}/rh/commissions`);
+      return {
+        subject: `Commission validée — ${amount}`,
+        html: shell({
+          preheader: `Votre commission de ${amount} a été validée.`,
+          badge: "COMMISSION VALIDÉE",
+          heroTitle: "Votre commission a été validée",
+          heroSub: `Montant : ${amount}`,
+          icon: "check",
+          greeting,
+          bodyText: `Votre commission a été approuvée par les RH et sera versée selon le calendrier de paie en vigueur.`,
+          ctaPrimaryUrl: rhPortal,
+          ctaPrimaryLabel: "Voir mes commissions",
+        }),
+      };
+    }
+
     default:
       return null;
   }
