@@ -54,7 +54,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
 
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
   reason: string
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     )
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase: any = createClient(supabaseUrl, supabaseServiceKey)
 
   // 1. Check rate-limit cooldown and read queue config
   const { data: state } = await supabase
@@ -155,13 +155,13 @@ Deno.serve(async (req) => {
     // messages not attempted when a 429 stops processing early.
     const messageIds = Array.from(
       new Set(
-        messages
-          .map((msg) =>
+        (messages as any[])
+          .map((msg: any) =>
             msg?.message?.message_id && typeof msg.message.message_id === 'string'
               ? msg.message.message_id
               : null
           )
-          .filter((id): id is string => Boolean(id))
+          .filter((id: any): id is string => Boolean(id))
       )
     )
     const failedAttemptsByMessageId = new Map<string, number>()
@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
             {
               run_id: payload.run_id,
               to: payload.to,
-              bcc: Array.isArray(payload.bcc) ? payload.bcc : undefined,
+              ...(Array.isArray(payload.bcc) ? { bcc: payload.bcc } : {}),
               from: payload.from,
               sender_domain: payload.sender_domain,
               subject: payload.subject,
@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
               idempotency_key: payload.idempotency_key,
               unsubscribe_token: payload.unsubscribe_token,
               message_id: payload.message_id,
-            },
+            } as any,
             { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
           )
         }

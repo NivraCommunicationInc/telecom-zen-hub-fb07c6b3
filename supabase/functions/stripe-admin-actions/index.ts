@@ -49,12 +49,12 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization required");
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader!.replace("Bearer ", "");
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !userData?.user) throw new Error("Authentication failed");
 
@@ -73,7 +73,7 @@ serve(async (req) => {
     if (!payment_intent_id) throw new Error("payment_intent_id is required");
     if (!action) throw new Error("action is required");
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey!, { apiVersion: "2025-08-27.basil" });
     const adminId = userData.user.id;
     const adminLabel = admin_name || userData.user.email || "admin";
 
@@ -107,7 +107,7 @@ serve(async (req) => {
         throw new Error(`Cannot capture: PaymentIntent status is '${pi.status}', expected 'requires_capture'`);
       }
 
-      const captureAmount = amount ? Math.round(amount * 100) : undefined;
+      const captureAmount = amount ? Math.round((amount as number) * 100) : undefined;
       const captured = await stripe.paymentIntents.capture(payment_intent_id, {
         ...(captureAmount ? { amount_to_capture: captureAmount } : {}),
       });
@@ -300,7 +300,7 @@ serve(async (req) => {
 
     // ─── REFUND ───
     if (action === "refund") {
-      const refundAmount = amount ? Math.round(amount * 100) : undefined;
+      const refundAmount = amount ? Math.round((amount as number) * 100) : undefined;
 
       const refund = await stripe.refunds.create({
         payment_intent: payment_intent_id,
@@ -342,7 +342,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("[stripe-admin-actions] Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: (error as any) instanceof Error ? (error as Error).message : String(error) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

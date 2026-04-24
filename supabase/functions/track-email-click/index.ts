@@ -66,11 +66,13 @@ serve(async (req) => {
           .eq("id", rid);
 
         if (isFirstClick && send.campaign_id) {
-          await supabase.rpc("increment_campaign_stat", {
-            p_campaign_id: send.campaign_id,
-            p_field: "total_clicked",
-            p_increment: 1,
-          }).catch(() => {/* ignore */});
+          try {
+            await supabase.rpc("increment_campaign_stat", {
+              p_campaign_id: send.campaign_id,
+              p_field: "total_clicked",
+              p_increment: 1,
+            });
+          } catch { /* ignore */ }
         }
       }
     }

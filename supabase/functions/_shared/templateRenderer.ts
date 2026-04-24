@@ -457,7 +457,7 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
           ...(vars.service_type ? [{ label: "Service", value: vars.service_type }] : []),
           ...(vars.decline_reason ? [{ label: "Raison", value: vars.decline_reason }] : []),
         ], "Contacter le support", portalUrl,
-        vars.public_message ? `<p style="margin:16px 0; font-size:14px; color:${colors.textSecondary};">${vars.public_message}</p>` : undefined),
+        vars.public_message ? `<p style="margin:16px 0; font-size:14px; color:#6b7280;">${vars.public_message}</p>` : undefined),
     }),
 
     cancellation_requested: () => ({

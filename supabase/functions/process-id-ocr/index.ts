@@ -263,7 +263,8 @@ async function callTextract(imageBytes: Uint8Array): Promise<{ blocks: any[] }> 
   const encoder = new TextEncoder();
 
   async function hmac(key: ArrayBuffer | Uint8Array, msg: string): Promise<ArrayBuffer> {
-    const cryptoKey = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const keyData = key instanceof Uint8Array ? key : new Uint8Array(key);
+    const cryptoKey = await crypto.subtle.importKey("raw", keyData as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     return crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(msg));
   }
 

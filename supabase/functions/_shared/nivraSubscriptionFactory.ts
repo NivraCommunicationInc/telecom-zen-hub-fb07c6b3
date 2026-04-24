@@ -167,7 +167,7 @@ export async function createNivraSubscription(
 
   if (existingSub?.stripe_subscription_id) {
     console.log(`[NivraSub] Subscription already exists for order ${params.order_id}: ${existingSub.stripe_subscription_id}`);
-    const stripeSub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id);
+    const stripeSub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id) as any;
     return {
       stripe_subscription_id: existingSub.stripe_subscription_id,
       stripe_status: stripeSub.status,
@@ -275,10 +275,10 @@ export async function createNivraSubscription(
   }
 
   if (params.promo_code_stripe_id) {
-    subParams.coupon = params.promo_code_stripe_id;
+    (subParams as any).coupon = params.promo_code_stripe_id;
   }
 
-  const stripeSubscription = await stripe.subscriptions.create(subParams);
+  const stripeSubscription = await stripe.subscriptions.create(subParams) as any;
 
   console.log(
     `[NivraSub] ✓ Created ${stripeSubscription.id} | ${planItems.length} items: ${planSummary} | status: ${stripeSubscription.status}`

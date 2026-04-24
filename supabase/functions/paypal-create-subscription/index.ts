@@ -372,7 +372,7 @@ serve(async (req) => {
       customer_phone: effectiveCustomer.phone?.trim() || "",
       order_id: orderId || subscription.id,
       order_number: orderNumber,
-      account_id: accountId,
+      account_id: accountId ?? "",
       invoice_id: invoiceId || subscription.id,
       subscription_start_time: nextBillingAnchor || undefined,
       recurring_monthly_total: recurringAmount,

@@ -55,11 +55,13 @@ serve(async (req) => {
 
           // Increment campaign counter only on first open
           if (isFirstOpen && send.campaign_id) {
-            await supabase.rpc("increment_campaign_stat", {
-              p_campaign_id: send.campaign_id,
-              p_field: "total_opened",
-              p_increment: 1,
-            }).catch(() => {/* ignore if RPC missing */});
+            try {
+              await supabase.rpc("increment_campaign_stat", {
+                p_campaign_id: send.campaign_id,
+                p_field: "total_opened",
+                p_increment: 1,
+              });
+            } catch { /* ignore if RPC missing */ }
           }
         }
       }

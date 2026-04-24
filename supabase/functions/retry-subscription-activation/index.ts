@@ -65,9 +65,9 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      if (payment?.stripe_payment_intent_id) {
+      if (payment && (payment as any).stripe_payment_intent_id) {
         try {
-          const pi = await stripe.paymentIntents.retrieve(payment.stripe_payment_intent_id);
+          const pi = await stripe.paymentIntents.retrieve((payment as any).stripe_payment_intent_id);
           if (!resolvedPM && pi.payment_method) {
             resolvedPM = typeof pi.payment_method === "string" ? pi.payment_method : (pi.payment_method as any).id;
           }
@@ -97,9 +97,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
-    console.error("[retry-sub] Error:", error);
+    const err = error as any;
+    console.error("[retry-sub] Error:", err);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

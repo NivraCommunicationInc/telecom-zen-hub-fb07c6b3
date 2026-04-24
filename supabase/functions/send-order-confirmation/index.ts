@@ -1019,7 +1019,7 @@ Deno.serve(async (req) => {
         message: SMS_TEMPLATES.orderConfirmation({
           orderNumber: order_number,
           clientName: client_first_name || "Client",
-          monthlyTotal: formatCurrencySimple(monthly_total_tax_in),
+          monthlyTotal: formatCurrencySimple(monthly_total_tax_in ?? 0),
         }),
         clientId: clientIdForSms,
         eventType: "order_confirmation",

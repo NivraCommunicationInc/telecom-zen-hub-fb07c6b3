@@ -469,7 +469,7 @@ export const employeeWelcome = (params: BaseParams & {
       </table>
 
       ${setupLink ? `
-      ${alertBox('success', '🔐 Activez votre compte',
+      ${alertBox('success', '🔐', 'Activez votre compte',
         'Cliquez sur le bouton ci-dessous pour configurer votre mot de passe et accéder à votre portail RH immédiatement. Ce lien est personnel — ne le partagez avec personne.')}
 
       <div style="text-align: center; margin-top: 24px; margin-bottom: 16px;">
@@ -481,7 +481,7 @@ export const employeeWelcome = (params: BaseParams & {
         <a href="${setupLink}" style="color: ${colors.primary}; word-break: break-all; font-size: 12px;">${setupLink}</a>
       </p>
       ` : `
-      ${alertBox('info', 'Première connexion',
+      ${alertBox('info', 'ℹ️', 'Première connexion',
         'Vous recevrez sous peu un courriel séparé contenant un lien magique pour configurer votre compte (mot de passe, NIP, MFA si requis). Conservez cet email comme référence pour vos accès.')}
       `}
 
