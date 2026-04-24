@@ -424,8 +424,25 @@ export default function HrPayrollPage() {
       const { data: inserted, error: insertErr } = await supabase
         .from("payroll_entries")
         .insert(rows)
-        .select("id");
+        .select("id, user_id, gross_pay, net_pay");
       if (insertErr) throw insertErr;
+
+      // Notify each employee that a new payslip has been issued (Violet Bold shell)
+      for (const row of (inserted as any[]) ?? []) {
+        await notifyEmployee({
+          employeeId: row.user_id,
+          templateKey: "hr_payroll_issued",
+          eventKey: `hr_payroll_issued_${row.id}`,
+          entityType: "payroll_entry",
+          entityId: row.id,
+          vars: {
+            period_label: periodDef.label,
+            gross_amount: row.gross_pay,
+            net_amount: row.net_pay,
+            pay_date: periodDef.endISO,
+          },
+        });
+      }
 
       return { periodId, created: inserted?.length ?? rows.length };
     },
