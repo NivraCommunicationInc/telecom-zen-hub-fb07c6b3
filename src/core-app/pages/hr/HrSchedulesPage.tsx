@@ -23,6 +23,7 @@ import {
   startOfMonth, endOfMonth, parseISO, differenceInMinutes, eachDayOfInterval
 } from "date-fns";
 import { fr } from "date-fns/locale";
+import { notifyEmployee } from "@/lib/hr/notifyEmployee";
 
 const SHIFT_TYPES: Record<string, { label: string; color: string }> = {
   regular: { label: "Régulier", color: "bg-primary/15 text-primary border-primary/30" },
