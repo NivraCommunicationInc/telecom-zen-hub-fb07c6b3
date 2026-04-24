@@ -163,6 +163,11 @@ export default function CoreFieldAgentsPage() {
 
   // Create Field Rep dialog
   const [createRepDialog, setCreateRepDialog] = useState(false);
+
+  // PIN change dialog
+  const [pinDialog, setPinDialog] = useState<AgentRow | null>(null);
+  const [pinForm, setPinForm] = useState({ pin: "", confirm: "" });
+
   const todayISO = new Date().toISOString().slice(0, 10);
   const initialRepForm = {
     first_name: "",
