@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
+import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
 
 import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
 import {
@@ -230,11 +231,20 @@ const CoreAppLayout = () => {
   const { theme, themeClass, toggleTheme } = useInternalTheme();
   const { isAdmin, isLoading: isAdminLoading } = useIsCoreAdmin();
   const { badges } = useCoreSectionBadges();
+  const { isTablet, isDesktop } = usePortalBreakpoint();
   // Document generation is now 100% server-side autonomous via the
   // process-document-jobs edge function (cron every 60s). No browser worker needed.
   const isDarkTheme = themeClass === "theme-dark";
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < 1280
+  );
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Auto-collapse on tablet, expand on desktop (handles iPad rotation)
+  useEffect(() => {
+    if (isTablet) setCollapsed(true);
+    else if (isDesktop) setCollapsed(false);
+  }, [isTablet, isDesktop]);
 
   // Aggregate group-level badge: sum of all child item badges
   const groupBadge = useMemo(() => {
