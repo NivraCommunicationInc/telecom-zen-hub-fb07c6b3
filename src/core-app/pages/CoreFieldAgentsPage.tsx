@@ -158,6 +158,28 @@ export default function CoreFieldAgentsPage() {
   const [editAssignId, setEditAssignId] = useState<string | null>(null);
   const [editAssignForm, setEditAssignForm] = useState({ notes: "", is_active: true });
 
+  // Create Field Rep dialog
+  const [createRepDialog, setCreateRepDialog] = useState(false);
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const initialRepForm = {
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    territory: "",
+    start_date: todayISO,
+    rule_id: "",
+    target_internet: "0",
+    target_tv: "0",
+    target_mobile: "0",
+    target_total_sales: "0",
+    target_revenue: "0",
+    schedule_days: ["1", "2", "3", "4", "5"] as string[],
+    schedule_start: "09:00",
+    schedule_end: "17:00",
+  };
+  const [repForm, setRepForm] = useState(initialRepForm);
+
   const invalidateAll = () => { qc.invalidateQueries({ queryKey: ["core-field"] }); };
   const { data: agents = [], isLoading: loadingAgents } = useQuery({
     queryKey: ["core-field", "agents"],
@@ -209,6 +231,11 @@ export default function CoreFieldAgentsPage() {
     queryKey: ["core-field", "assignments"],
     queryFn: async () => { const { data } = await supabase.from("commission_grid_assignments").select("*").order("created_at", { ascending: false }); return data || []; },
     enabled: tab === "assignments" || !!selectedAgent,
+  });
+
+  const { data: territories = [] } = useQuery({
+    queryKey: ["core-field", "territories"],
+    queryFn: async () => { const { data } = await supabase.from("field_territories").select("id, territory_code, name, city, status").order("name"); return data || []; },
   });
 
   const { data: withdrawals = [] } = useQuery({
@@ -356,6 +383,112 @@ export default function CoreFieldAgentsPage() {
     onError: (e) => toast.error(`Échec sauvegarde profil: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
+  // Create Field Rep — onboards rep with role=field_sales, sends invitation email,
+  // and provisions sales_targets, commission grid assignment, and weekly schedule.
+  const createFieldRep = useMutation({
+    mutationFn: async () => {
+      const firstName = repForm.first_name.trim();
+      const lastName = repForm.last_name.trim();
+      const email = repForm.email.trim().toLowerCase();
+      if (!firstName || !lastName) throw new Error("Prénom et nom requis");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) throw new Error("Courriel invalide");
+
+      // 1. Create staff via admin-manage-staff (creates auth user + profile + role + invite)
+      const { data: createData, error: createErr } = await supabase.functions.invoke("admin-manage-staff", {
+        body: {
+          action: "create",
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          full_name: `${firstName} ${lastName}`,
+          phone: repForm.phone.trim() || undefined,
+          role: "field_sales",
+          send_invitation: true,
+          require_password_change: true,
+          is_active: true,
+          can_access_field: true,
+          can_access_employee: true,
+          mfa_required: true,
+        },
+      });
+      if (createErr) throw createErr;
+      const r = typeof createData === "string" ? JSON.parse(createData) : createData;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec création");
+      const newUserId: string | undefined = r?.user?.id;
+      if (!newUserId) throw new Error("user_id manquant dans la réponse");
+
+      // 2. Update profile with territory + start date (best-effort)
+      const profileUpdate: Record<string, any> = {};
+      if (repForm.territory) profileUpdate.sector_tags = [repForm.territory];
+      if (Object.keys(profileUpdate).length > 0) {
+        await supabase.from("profiles").update(profileUpdate).eq("user_id", newUserId);
+      }
+
+      // 3. Provision sales_targets for each service type
+      const now = new Date();
+      const period_year = now.getFullYear();
+      const period_month = now.getMonth() + 1;
+      const targetRows = [
+        { service_type: "internet", target_count: parseInt(repForm.target_internet) || 0 },
+        { service_type: "tv", target_count: parseInt(repForm.target_tv) || 0 },
+        { service_type: "mobile", target_count: parseInt(repForm.target_mobile) || 0 },
+        { service_type: "total_sales", target_count: parseInt(repForm.target_total_sales) || 0 },
+        { service_type: "revenue", target_count: 0, target_amount: parseFloat(repForm.target_revenue) || 0 },
+      ]
+        .filter((t) => (t.target_count > 0) || ((t as any).target_amount > 0))
+        .map((t) => ({
+          employee_id: newUserId,
+          role: "field_sales",
+          service_type: t.service_type,
+          target_count: t.target_count,
+          target_amount: (t as any).target_amount ?? 0,
+          period_month,
+          period_year,
+        }));
+      if (targetRows.length > 0) {
+        const { error: targetErr } = await supabase.from("sales_targets").insert(targetRows as any);
+        if (targetErr) console.warn("[createFieldRep] sales_targets insert warning:", targetErr);
+      }
+
+      // 4. Assign commission grid (if selected)
+      if (repForm.rule_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: assignErr } = await supabase.from("commission_grid_assignments").insert({
+          user_id: newUserId,
+          rule_id: repForm.rule_id,
+          assigned_by: user?.id,
+          notes: "Assignée à la création",
+          is_active: true,
+        });
+        if (assignErr) console.warn("[createFieldRep] commission assign warning:", assignErr);
+      }
+
+      // 5. Provision base schedule
+      if (repForm.schedule_days.length > 0 && repForm.schedule_start && repForm.schedule_end) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const scheduleRows = repForm.schedule_days.map((d) => ({
+          user_id: newUserId,
+          day_of_week: parseInt(d, 10),
+          start_time: repForm.schedule_start,
+          end_time: repForm.schedule_end,
+          is_active: true,
+          effective_from: repForm.start_date || todayISO,
+          created_by: user?.id,
+        }));
+        const { error: schedErr } = await supabase.from("staff_schedules").insert(scheduleRows as any);
+        if (schedErr) console.warn("[createFieldRep] staff_schedules insert warning:", schedErr);
+      }
+
+      return { invitation_sent: !!r?.invitation_sent };
+    },
+    onSuccess: (res) => {
+      invalidateAll();
+      setCreateRepDialog(false);
+      setRepForm(initialRepForm);
+      toast.success(res?.invitation_sent ? "Vendeur créé. Invitation envoyée." : "Vendeur créé. (Invitation à renvoyer)");
+    },
+    onError: (e) => toast.error(`Échec création vendeur: ${getMutationErrorMessage(e, "Action impossible")}`),
+  });
   // Commission Grid CRUD + EDIT
   const saveGrid = useMutation({
     mutationFn: async () => {
@@ -980,7 +1113,10 @@ export default function CoreFieldAgentsPage() {
       {/* ═══ AGENTS TAB ═══ */}
       {tab === "agents" && (
         <div className="space-y-4">
-          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm" /></div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm" /></div>
+            <Button size="sm" onClick={() => { setRepForm(initialRepForm); setCreateRepDialog(true); }}><Plus className="h-3.5 w-3.5 mr-1" /> Créer vendeur</Button>
+          </div>
           {loadingAgents ? <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" /> : filtered.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun vendeur</p> : (
             <div className="space-y-2">{filtered.map((a) => (
               <div key={a.user_id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/30">
@@ -1573,6 +1709,91 @@ export default function CoreFieldAgentsPage() {
             <div><Label className="text-xs">Raison du rejet</Label><Textarea value={rejectCommReason} onChange={(e) => setRejectCommReason(e.target.value)} placeholder="Expliquez la raison…" /></div>
           </div>
           <DialogFooter><Button variant="destructive" onClick={() => { if (rejectCommDialog && rejectCommReason.trim()) { rejectCommission.mutate({ id: rejectCommDialog, reason: rejectCommReason }); setRejectCommDialog(null); } }} disabled={!rejectCommReason.trim() || rejectCommission.isPending}>{rejectCommission.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rejeter"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ CREATE FIELD REP DIALOG ═══ */}
+      <Dialog open={createRepDialog} onOpenChange={(o) => { if (!o) { setCreateRepDialog(false); setRepForm(initialRepForm); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Créer un représentant terrain</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Prénom *</Label><Input value={repForm.first_name} onChange={(e) => setRepForm({ ...repForm, first_name: e.target.value })} /></div>
+              <div><Label>Nom *</Label><Input value={repForm.last_name} onChange={(e) => setRepForm({ ...repForm, last_name: e.target.value })} /></div>
+              <div><Label>Courriel professionnel *</Label><Input type="email" value={repForm.email} onChange={(e) => setRepForm({ ...repForm, email: e.target.value })} /></div>
+              <div><Label>Téléphone</Label><Input type="tel" value={repForm.phone} onChange={(e) => setRepForm({ ...repForm, phone: e.target.value })} /></div>
+              <div>
+                <Label>Territoire assigné</Label>
+                <Select value={repForm.territory} onValueChange={(v) => setRepForm({ ...repForm, territory: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                  <SelectContent>
+                    {territories.length === 0 ? <SelectItem value="__none__" disabled>Aucun territoire</SelectItem> : territories.map((t: any) => (
+                      <SelectItem key={t.id} value={t.territory_code || t.id}>{t.name}{t.city ? ` — ${t.city}` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Date de début</Label><Input type="date" value={repForm.start_date} onChange={(e) => setRepForm({ ...repForm, start_date: e.target.value })} /></div>
+              <div className="col-span-2">
+                <Label>Grille de commission</Label>
+                <Select value={repForm.rule_id} onValueChange={(v) => setRepForm({ ...repForm, rule_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner une grille…" /></SelectTrigger>
+                  <SelectContent>
+                    {rules.length === 0 ? <SelectItem value="__none__" disabled>Aucune grille</SelectItem> : rules.filter((r: any) => r.is_active !== false).map((r: any) => (
+                      <SelectItem key={r.id} value={r.id}>{r.rule_name} — {RULE_TYPES[r.rule_type] || r.rule_type}{r.service_type ? ` (${r.service_type})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Objectifs mensuels</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label className="text-xs">Internet</Label><Input type="number" min="0" value={repForm.target_internet} onChange={(e) => setRepForm({ ...repForm, target_internet: e.target.value })} /></div>
+                <div><Label className="text-xs">TV</Label><Input type="number" min="0" value={repForm.target_tv} onChange={(e) => setRepForm({ ...repForm, target_tv: e.target.value })} /></div>
+                <div><Label className="text-xs">Mobile</Label><Input type="number" min="0" value={repForm.target_mobile} onChange={(e) => setRepForm({ ...repForm, target_mobile: e.target.value })} /></div>
+                <div><Label className="text-xs">Total ventes</Label><Input type="number" min="0" value={repForm.target_total_sales} onChange={(e) => setRepForm({ ...repForm, target_total_sales: e.target.value })} /></div>
+                <div className="col-span-2"><Label className="text-xs">Revenu cible ($)</Label><Input type="number" min="0" step="0.01" value={repForm.target_revenue} onChange={(e) => setRepForm({ ...repForm, target_revenue: e.target.value })} /></div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Horaire de base</h4>
+              <div className="space-y-2">
+                <Label className="text-xs">Jours travaillés</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.map((d, idx) => {
+                    const k = String(idx);
+                    const sel = repForm.schedule_days.includes(k);
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setRepForm({ ...repForm, schedule_days: sel ? repForm.schedule_days.filter((x) => x !== k) : [...repForm.schedule_days, k] })}
+                        className={cn("px-3 py-1 rounded-md border text-xs", sel ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border")}
+                      >{d}</button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">Heure début</Label><Input type="time" value={repForm.schedule_start} onChange={(e) => setRepForm({ ...repForm, schedule_start: e.target.value })} /></div>
+                  <div><Label className="text-xs">Heure fin</Label><Input type="time" value={repForm.schedule_end} onChange={(e) => setRepForm({ ...repForm, schedule_end: e.target.value })} /></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+              <strong>Note :</strong> Une invitation par courriel sera envoyée automatiquement avec un lien de création de compte valide 72 heures. Les mêmes identifiants donnent accès aux portails Field et RH.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setCreateRepDialog(false); setRepForm(initialRepForm); }}>Annuler</Button>
+            <Button onClick={() => createFieldRep.mutate()} disabled={createFieldRep.isPending || !repForm.first_name.trim() || !repForm.last_name.trim() || !repForm.email.trim()}>
+              {createFieldRep.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+              Créer et envoyer invitation
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
