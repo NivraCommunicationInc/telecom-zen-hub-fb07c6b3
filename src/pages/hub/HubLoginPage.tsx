@@ -194,13 +194,83 @@ export default function HubLoginPage() {
   };
 
   if (!portal) {
+    if (checkingSession) {
+      return (
+        <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background", themeClass)}>
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Vérification de la session…</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (stage === "redirecting") {
+      return (
+        <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background", themeClass)}>
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Redirection vers votre portail…</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background px-4", themeClass)}>
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-4">Aucun espace sélectionné.</p>
-          <Button asChild variant="outline">
-            <Link to="/hub">Retour au Hub</Link>
-          </Button>
+        <div className="fixed right-3 top-3 z-40">
+          <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+        <div className="w-full max-w-sm">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-8">
+            <div className="text-center mb-8">
+              <div className="h-12 w-12 mx-auto rounded-xl bg-primary flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">Nivra Internal</h1>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Connectez-vous pour accéder à votre portail.
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Courriel professionnel"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="h-11"
+              />
+              <Input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="h-11"
+              />
+
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                  <p className="text-xs text-destructive">{error}</p>
+                </div>
+              )}
+
+              <Button type="submit" disabled={loading} className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connexion"}
+              </Button>
+
+              <p className="text-center text-xs text-muted-foreground pt-2">
+                <Link to="/hub" className="text-primary hover:underline">
+                  Choisir un portail spécifique
+                </Link>
+              </p>
+            </form>
+          </div>
         </div>
       </div>
     );
