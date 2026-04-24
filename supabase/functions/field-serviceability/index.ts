@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
         orderFilters.push(`client_phone.ilike.%${qDigits}%`);
       }
 
-      const [profilesRes, accountsRes, fieldOrdersRes, ordersRes] = await Promise.all([
+      const [profilesRes, accountsRes, fieldOrdersRes] = await Promise.all([
         admin
           .from("profiles")
           .select("user_id, full_name, first_name, last_name, email, phone, client_number, service_address, service_city, service_postal_code")
@@ -97,23 +97,30 @@ Deno.serve(async (req) => {
           .select("id, customer_name, customer_address, payment_status, sync_status, created_at")
           .or(`customer_name.ilike.%${qLower}%,customer_address.ilike.%${qLower}%`)
           .limit(10),
-        admin
-          .from("orders")
-          .select("id, order_number, status, service_type, client_full_address, shipping_address, client_first_name, client_last_name, client_email, client_phone")
-          .or(orderFilters.join(","))
-          .in("status", ["pending", "processing", "submitted", "received", "shipped"])
-          .limit(10),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
       if (accountsRes.error) throw accountsRes.error;
       if (fieldOrdersRes.error) throw fieldOrdersRes.error;
-      if (ordersRes.error) throw ordersRes.error;
+
+      const { data: ordersData, error: ordersError } = await admin
+        .from("orders")
+        .select("id, order_number, status, service_type, client_full_address, shipping_address, client_first_name, client_last_name, client_email, client_phone")
+        .or(orderFilters.join(","))
+        .in("status", ["pending", "processing", "submitted", "received", "shipped"])
+        .limit(10);
+
+      if (ordersError) {
+        console.error("[field-serviceability] customer-search orders lookup failed", {
+          query: q,
+          message: ordersError.message,
+        });
+      }
 
       const profiles = profilesRes.data || [];
       const accounts = accountsRes.data || [];
       const fieldOrders = fieldOrdersRes.data || [];
-      const orders = ordersRes.data || [];
+      const orders = ordersData || [];
 
       const missingProfileIds = Array.from(new Set(
         accounts
