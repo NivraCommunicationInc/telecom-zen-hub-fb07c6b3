@@ -144,6 +144,30 @@ export default function RhDashboard() {
     enabled: !!user?.id,
   });
 
+  /* Realtime — staff_schedules for this user (synced from Core RH). */
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`rh-schedule-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "staff_schedules",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["rh-week-schedule", user.id] });
+          toast("Horaire mis à jour");
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, qc]);
+
   // Notifications
   const { data: notifications = [] } = useQuery({
     queryKey: ["rh-recent-notifs", user?.id],
