@@ -16,7 +16,25 @@
  *     customer_email?, customer_name? }
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as bcrypt from "npm:bcryptjs@2.4.3";
+// CVV is salted+hashed with SHA-256 (PBKDF2-style, 100k iterations) — bcrypt npm shim
+// fails to resolve in the Deno runtime. PBKDF2 via WebCrypto is supported natively
+// and provides equivalent protection for a 3-4 digit value.
+async function hashCvv(cvv: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const baseKey = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(cvv), { name: "PBKDF2" }, false, ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
+    baseKey, 256,
+  );
+  const out = new Uint8Array(salt.length + 32);
+  out.set(salt, 0);
+  out.set(new Uint8Array(bits), salt.length);
+  let bin = "";
+  for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+  return "pbkdf2$" + btoa(bin);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
