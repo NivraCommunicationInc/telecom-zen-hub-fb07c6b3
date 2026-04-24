@@ -20,7 +20,7 @@ interface ServiceRow {
   id: string;
   name: string;
   category: string;
-  price: number | null;
+  price: number | string | null;
   description: string | null;
   short_description: string | null;
   features_json: any;
@@ -40,6 +40,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_ORDER = ["internet", "mobile", "tv"];
+
+const toMonthlyPrice = (value: ServiceRow["price"]): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
 
 export default function StepServices({ selected, onChange, onNext, onBack }: Props) {
   const { data: services = [], isLoading, error } = useQuery({
@@ -90,7 +99,7 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
           id: s.id,
           name: s.name,
           category: s.category,
-          monthlyPrice: Number(s.price ?? 0),
+          monthlyPrice: toMonthlyPrice(s.price),
           description: s.short_description || s.description,
           speed: getSpeed(s),
         },
@@ -139,7 +148,7 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
               <div className="space-y-2">
                 {items.map((service) => {
                   const active = isSelected(service.id);
-                  const price = Number(service.price ?? 0);
+                  const price = toMonthlyPrice(service.price);
                   const speed = getSpeed(service);
 
                   return (
