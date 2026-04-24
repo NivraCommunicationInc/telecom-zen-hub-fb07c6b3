@@ -455,8 +455,10 @@ export default function ClientActivationSection({ clientId, compact = false }: C
                 <div className="mt-3 space-y-2">
                   {eligibleOrders.length === 0 && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
-                      Aucune commande éligible trouvée. L'activation n'est disponible que pour les commandes en cours
-                      de traitement ou expédiées. Si vous pensez qu'il s'agit d'une erreur, contactez{" "}
+                      Aucune commande Internet ou TV en attente d'activation trouvée. L'activation
+                      WiFi n'est disponible que pour les commandes Internet, TV ou combo en cours
+                      de traitement ou expédiées. Si vous pensez qu'il s'agit d'une erreur,
+                      contactez{" "}
                       <a href="mailto:support@nivra-telecom.ca" className="underline font-medium">
                         support@nivra-telecom.ca
                       </a>
