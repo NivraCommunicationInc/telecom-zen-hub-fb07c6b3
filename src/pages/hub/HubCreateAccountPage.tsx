@@ -13,6 +13,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { landingPathForRole, HUB_LOGIN_PATH } from "@/lib/security/portalRedirect";
+import { createHubSession } from "@/lib/security/hubSession";
 import {
   AlertCircle,
   CheckCircle2,
@@ -105,7 +107,30 @@ export default function HubCreateAccountPage() {
       }
 
       setDone(true);
-      setTimeout(() => navigate("/hub/login"), 2500);
+
+      // Sign the user in with the credentials they just set, then route them
+      // straight to the correct portal based on their role + portal access flags.
+      // Avoids dropping them on a blank /hub/login (no ?portal selector) screen.
+      const result2 = result as { ok?: boolean; data?: { email?: string; role?: string | null } };
+      const signInEmail = result2?.data?.email?.trim().toLowerCase();
+      let landing = HUB_LOGIN_PATH;
+
+      try {
+        if (signInEmail) {
+          const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({
+            email: signInEmail,
+            password,
+          });
+          if (!signInError && signIn?.session?.user) {
+            createHubSession(signIn.session.user.id);
+            landing = landingPathForRole(result2?.data?.role ?? null);
+          }
+        }
+      } catch (signInErr) {
+        console.error("[HubCreateAccount] auto sign-in after onboarding failed:", signInErr);
+      }
+
+      setTimeout(() => navigate(landing, { replace: true }), 1500);
     } catch (err) {
       console.error("[HubCreateAccount] Unexpected error:", err);
       setError("Erreur inattendue. Réessayez ou contactez le support.");
