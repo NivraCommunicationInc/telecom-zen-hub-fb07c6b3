@@ -8,6 +8,7 @@ import { lazy, Suspense } from "react";
 // Hub pages
 const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
+const HubCreateAccountPage = lazy(() => import("@/pages/hub/HubCreateAccountPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
 
 // Employee Portal (lazy-loaded, fully isolated)
@@ -894,6 +895,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
       <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
+      <Route path="/hub/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
 
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}
