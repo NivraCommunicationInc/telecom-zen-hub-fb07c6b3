@@ -56,7 +56,7 @@ function addDays(dateStr: string, days: number): string {
 //   - J+10 (due_date + 10 days) → invoice VOIDED, no debt, no reactivation via this invoice
 // ══════════════════════════════════════════════════════════════════
 async function processExpirations(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const today = todayStr();
@@ -313,7 +313,7 @@ async function processExpirations(
 // Uses generate_account_renewal_invoice RPC for atomicity
 // ========================================
 async function processRenewals(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const today = new Date();
@@ -440,7 +440,7 @@ async function processRenewals(
 
 // Legacy renewal for subscriptions without account linkage
 async function processLegacyRenewals(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const targetDate = addDays(todayStr(), 3);
@@ -610,7 +610,7 @@ async function processLegacyRenewals(
 const ADMIN_ALERT_RECIPIENTS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
 
 async function queueAdminAlert(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   templateKey: "admin_alert_suspended" | "admin_alert_cancelled",
   vars: Record<string, unknown>,
   uniqueKey: string,
@@ -653,7 +653,7 @@ async function queueAdminAlert(
 // recouvrement faster when an invoice goes unpaid.
 // ========================================
 async function processSuspensionWarningJ3(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
   today: string,
 ) {
@@ -724,7 +724,7 @@ async function processSuspensionWarningJ3(
 // STEP 3 — Queue payment reminder emails at J-7, J-3, J-1, J0
 // ========================================
 async function processReminders(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const today = todayStr();
@@ -827,7 +827,7 @@ async function processReminders(
 // staying "pending" even after due_date had passed.
 // ========================================
 async function processOverdue(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const today = todayStr();
@@ -931,7 +931,7 @@ async function processOverdue(
 // Invoice voided at J+10+ (this step + processExpirations safety net).
 // ========================================
 async function cleanupOverdueInvoices(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const today = todayStr();
@@ -969,7 +969,7 @@ async function cleanupOverdueInvoices(
 // STEP 4 — Advance referral qualifying_cycles_paid when a renewal invoice is paid
 // ========================================
 async function advanceReferralCycles(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   try {
@@ -1041,7 +1041,7 @@ async function advanceReferralCycles(
 //       Idempotent via accounts.chargeback_reactivation_fee_applied_at.
 // ========================================
 async function processChargebackFees(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   stats: RunStats,
 ) {
   const today = new Date();
