@@ -2,8 +2,9 @@
  * CoreClientProfile — Full CRM client profile for Nivra Core.
  * Quick actions bar + data blocks: subscriptions, equipment, invoices, payments, tickets, notes, timeline.
  */
+import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format } from "date-fns";
@@ -14,7 +15,7 @@ import {
   ShoppingCart, FileText, Clock, StickyNote, ArrowLeft, Hash,
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
-  Calendar, DollarSign, Wrench, TicketIcon,
+  Calendar, DollarSign, Wrench, TicketIcon, Download, FileSignature,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -48,6 +49,41 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Realtime invalidation across all client-related tables (FIX 3)
+  useEffect(() => {
+    if (!clientId) return;
+    const tables = [
+      "billing_subscriptions",
+      "billing_invoices",
+      "billing_payments",
+      "orders",
+      "equipment_inventory",
+      "contracts",
+      "client_auto_documents",
+      "accounts",
+    ];
+    const channel = supabase.channel(`core-client-profile-${clientId}`);
+    tables.forEach((table) => {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        queryClient.invalidateQueries({ queryKey: ["core-client-profile", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-account", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-orders", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-billing-customer", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-subscriptions", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-equipment", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-equipment-fallback", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-invoices", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-payments", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-contracts", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-auto-documents", clientId] });
+      });
+    });
+    channel.subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [clientId, queryClient]);
+
 
   // ── Profile ──
   const { data: profile, isLoading: loadingProfile } = useQuery({
@@ -123,8 +159,8 @@ const CoreClientProfile = () => {
     enabled: !!billingCustomer,
   });
 
-  // ── Equipment ──
-  const { data: equipment = [] } = useQuery({
+  // ── Equipment (primary: equipment_inventory) ──
+  const { data: equipmentInv = [] } = useQuery({
     queryKey: ["core-client-equipment", clientId],
     queryFn: async () => {
       if (!account) return [];
@@ -135,7 +171,73 @@ const CoreClientProfile = () => {
       return (data || []) as any[];
     },
     enabled: !!clientId && !!account,
+    refetchInterval: 30_000,
   });
+
+  // ── Equipment fallback: orders.equipment_details JSON when inventory empty ──
+  const { data: equipmentFallback = [] } = useQuery({
+    queryKey: ["core-client-equipment-fallback", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data: ords } = await supabase.from("orders")
+        .select("id, equipment_details, service_activated_at, updated_at, status")
+        .eq("user_id", clientId!)
+        .in("status", ["activated", "delivered", "completed"]);
+      const out: any[] = [];
+      (ords || []).forEach((o: any) => {
+        const arr = Array.isArray(o.equipment_details) ? o.equipment_details : [];
+        arr.forEach((eq: any, idx: number) => {
+          if (!eq) return;
+          out.push({
+            id: `${o.id}-${idx}`,
+            catalog_name: eq.label || eq.type || "Équipement",
+            serial_number: eq.serial_number || null,
+            status: eq.status || "assigned",
+            price_client: eq.type === "router" ? 60 : eq.type === "tv_box" ? 50 : eq.type === "sim" ? 30 : 0,
+            assigned_at: o.service_activated_at || o.updated_at,
+          });
+        });
+      });
+      return out;
+    },
+    enabled: !!clientId,
+    refetchInterval: 30_000,
+  });
+
+  const equipment = equipmentInv.length > 0 ? equipmentInv : equipmentFallback;
+
+  // ── Contracts (FIX 2 — Section A) ──
+  const { data: contracts = [] } = useQuery({
+    queryKey: ["core-client-contracts", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data } = await supabase.from("contracts")
+        .select("id, contract_number, status, contract_pdf_url, created_at, signed_at, client_signed_at")
+        .eq("user_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return (data || []) as any[];
+    },
+    enabled: !!clientId,
+    refetchInterval: 30_000,
+  });
+
+  // ── Auto-generated documents (FIX 2 — Section A) ──
+  const { data: autoDocs = [] } = useQuery({
+    queryKey: ["core-client-auto-documents", clientId],
+    queryFn: async () => {
+      if (!account) return [];
+      const { data } = await supabase.from("client_auto_documents")
+        .select("id, doc_type, doc_number, storage_path, created_at, event_type")
+        .eq("account_id", account.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      return (data || []) as any[];
+    },
+    enabled: !!clientId && !!account,
+    refetchInterval: 30_000,
+  });
+
 
   // ── Invoices ──
   const { data: invoices = [] } = useQuery({
@@ -410,20 +512,113 @@ const CoreClientProfile = () => {
       }>
         {equipment.length > 0 ? (
           <div className="space-y-2">
-            {equipment.map((e: any) => (
-              <div key={e.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
-                <Package className="h-4 w-4 text-cyan-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-white truncate">{e.catalog_name}</p>
-                  <p className="text-[10px] text-[#A1A1AA]">S/N: {e.serial_number || "—"}</p>
+            {equipment.map((e: any) => {
+              const assignedDate = e.assigned_at ? new Date(e.assigned_at) : null;
+              const warrantyEnd = assignedDate ? new Date(assignedDate.getTime() + 365 * 24 * 60 * 60 * 1000) : null;
+              const underWarranty = warrantyEnd ? warrantyEnd > new Date() : false;
+              return (
+                <div key={e.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                  <Package className="h-4 w-4 text-cyan-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-white truncate">{e.catalog_name}</p>
+                    <p className="text-[10px] text-[#A1A1AA]">
+                      S/N: {e.serial_number || "—"}
+                      {assignedDate && <> · Attribué le {format(assignedDate, "d MMM yyyy", { locale: fr })}</>}
+                    </p>
+                  </div>
+                  {underWarranty ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Sous garantie</Badge>
+                  ) : warrantyEnd ? (
+                    <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Garantie expirée</Badge>
+                  ) : null}
+                  <span className="text-[10px] text-emerald-400 font-medium">{Number(e.price_client).toFixed(2)} $</span>
+                  <StatusBadge label={e.status} variant={statusToVariant(e.status === "assigned" ? "active" : e.status)} size="sm" />
                 </div>
-                <span className="text-[10px] text-emerald-400 font-medium">{Number(e.price_client).toFixed(2)} $</span>
-                <StatusBadge label={e.status} variant={statusToVariant(e.status === "assigned" ? "active" : e.status)} size="sm" />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun équipement attribué</p>
+        )}
+      </Section>
+
+      {/* ═══ CONTRACTS (FIX 2 — Section A) ═══ */}
+      <Section title="Contrats" icon={FileSignature}>
+        {contracts.length > 0 ? (
+          <div className="space-y-2">
+            {contracts.map((c: any) => {
+              const isSigned = c.status === "signed" || c.client_signed_at;
+              const isCancelled = c.status === "cancelled";
+              const awaitingSig = !isSigned && !isCancelled;
+              return (
+                <div key={c.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                  <FileSignature className="h-4 w-4 text-purple-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-white truncate font-mono">{c.contract_number || c.id.slice(0, 8)}</p>
+                    <p className="text-[10px] text-[#A1A1AA]">
+                      Créé le {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
+                      {c.client_signed_at && <> · Signé le {format(new Date(c.client_signed_at), "d MMM yyyy", { locale: fr })}</>}
+                    </p>
+                  </div>
+                  {isSigned && <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Signé</Badge>}
+                  {awaitingSig && <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[9px]">En attente signature</Badge>}
+                  {isCancelled && <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[9px]">Annulé</Badge>}
+                  {c.contract_pdf_url ? (
+                    <a href={c.contract_pdf_url} target="_blank" rel="noreferrer">
+                      <button className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1">
+                        <Download className="h-3 w-3" /> Télécharger
+                      </button>
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-[hsl(220,10%,40%)] italic">PDF non disponible</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun contrat</p>
+        )}
+      </Section>
+
+      {/* ═══ AUTO-DOCUMENTS (FIX 2 — Section A) ═══ */}
+      <Section title="Documents générés" icon={FileText}>
+        {autoDocs.length > 0 ? (
+          <div className="space-y-2">
+            {autoDocs.map((d: any) => (
+              <div key={d.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                <FileText className="h-4 w-4 text-blue-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-white truncate">
+                    <span className="font-mono">{d.doc_number || d.id.slice(0, 8)}</span>
+                    <span className="text-[#A1A1AA]"> · {d.doc_type}</span>
+                  </p>
+                  <p className="text-[10px] text-[#A1A1AA]">
+                    {d.event_type} · {d.created_at ? format(new Date(d.created_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
+                  </p>
+                </div>
+                {d.storage_path && (
+                  <button
+                    onClick={async () => {
+                      const { data, error } = await supabase.storage
+                        .from("client-documents")
+                        .createSignedUrl(d.storage_path, 60);
+                      if (error || !data?.signedUrl) {
+                        toast.error("Impossible d'ouvrir le document");
+                        return;
+                      }
+                      window.open(data.signedUrl, "_blank");
+                    }}
+                    className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+                  >
+                    <Download className="h-3 w-3" /> Ouvrir
+                  </button>
+                )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun équipement attribué</p>
+          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun document</p>
         )}
       </Section>
 
