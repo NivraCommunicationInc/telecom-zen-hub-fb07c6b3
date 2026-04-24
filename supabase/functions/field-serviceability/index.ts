@@ -66,6 +66,19 @@ Deno.serve(async (req) => {
         profileFilters.push(`phone.ilike.%${qDigits}%`);
       }
 
+      const orderFilters = [
+        `order_number.ilike.%${qLower}%`,
+        `client_email.ilike.%${qLower}%`,
+        `client_first_name.ilike.%${qLower}%`,
+        `client_last_name.ilike.%${qLower}%`,
+        `client_full_address.ilike.%${qLower}%`,
+        `shipping_address.ilike.%${qLower}%`,
+      ];
+
+      if (qDigits.length >= 4) {
+        orderFilters.push(`client_phone.ilike.%${qDigits}%`);
+      }
+
       const [profilesRes, accountsRes, fieldOrdersRes, ordersRes] = await Promise.all([
         admin
           .from("profiles")
@@ -84,8 +97,8 @@ Deno.serve(async (req) => {
           .limit(10),
         admin
           .from("orders")
-          .select("id, order_number, status, service_type, service_address")
-          .or(`order_number.ilike.%${qLower}%,service_address.ilike.%${qLower}%`)
+          .select("id, order_number, status, service_type, client_full_address, shipping_address, client_first_name, client_last_name, client_email, client_phone")
+          .or(orderFilters.join(","))
           .in("status", ["pending", "processing", "submitted", "received", "shipped"])
           .limit(10),
       ]);
