@@ -39,7 +39,6 @@ export default function FieldNewSale() {
   const { user } = useStaffUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
-  const [paymentWatchTick, setPaymentWatchTick] = useState(0);
 
   const [draft, setDraft] = useState<FieldSaleDraft>({
     ...EMPTY_DRAFT,
@@ -240,7 +239,7 @@ export default function FieldNewSale() {
     checkInvoiceStatus();
 
     const channel = supabase
-      .channel(`field-sale-invoice-${draft.payment.invoiceId}-${paymentWatchTick}`)
+      .channel(`field-sale-invoice-${draft.payment.invoiceId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "billing_invoices", filter: `id=eq.${draft.payment.invoiceId}` },
@@ -253,12 +252,12 @@ export default function FieldNewSale() {
       )
       .subscribe();
 
-    const poll = window.setInterval(() => {
-      setPaymentWatchTick((v) => v + 1);
-      checkInvoiceStatus();
-    }, 5000);
+    const poll = window.setInterval(checkInvoiceStatus, 5000);
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      window.clearInterval(poll);
+      supabase.removeChannel(channel);
+    };
   }, [draft.payment.invoiceId]);
 
   return (
