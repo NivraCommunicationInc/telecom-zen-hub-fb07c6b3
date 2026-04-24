@@ -1035,7 +1035,7 @@ serve(async (req: Request) => {
 
           try {
             if (role === "admin") {
-              const resetUrl = `${appBaseUrl}/admin/reset-password`;
+              const resetUrl = `${appBaseUrl}/hub/reset-password`;
               console.log(`[admin-manage-staff] Sending password reset email to admin ${email} with redirect: ${resetUrl}`);
               await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
               invitationSent = true;
@@ -1903,8 +1903,8 @@ serve(async (req: Request) => {
           });
         }
 
-        // ADMIN ONLY: Password reset with /admin/reset-password link
-        const redirectTo = joinUrl(appBaseUrl, "/admin/reset-password");
+        // ADMIN ONLY: Password reset routed through canonical /hub/reset-password
+        const redirectTo = joinUrl(appBaseUrl, "/hub/reset-password");
         console.log(`[admin-manage-staff] send_reset ADMIN ONLY target_role=${targetRole} redirect=${redirectTo}`);
 
         try {
@@ -1943,27 +1943,23 @@ serve(async (req: Request) => {
 
           const resetLink = linkData.properties.action_link;
 
-          await sendStaffEmail(adminClient, {
-            to: email,
-            subject: "Réinitialisation de votre mot de passe - Nivra",
-            idempotencyKey: `staff_reset_admin_${email}_${Date.now()}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
-                </div>
-                <div style="padding: 30px; background: #f8fafc;">
-                  <h2>Bonjour,</h2>
-                  <p>Voici votre lien de réinitialisation de mot de passe :</p>
-                  <p><a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px;">Réinitialiser mon mot de passe</a></p>
-                  <p style="margin-top: 20px; color: #64748b;">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
-                </div>
-                <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
-                  <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
-                </div>
-              </div>
-            `,
-          });
+          // CANONICAL — route through email_queue + customQueueTemplates Violet Bold shell.
+          const { error: queueErr } = await adminClient.from("email_queue").insert({
+            event_key: `staff_reset_admin_${email}_${Date.now()}`,
+            to_email: email,
+            template_key: "staff_password_reset",
+            template_vars: {
+              reset_link: resetLink,
+              email,
+              audience: "staff",
+              portal_label: "votre portail Administrateur Nivra",
+            },
+            status: "queued",
+          } as any);
+          if (queueErr) {
+            console.error("[admin-manage-staff] send_reset email_queue insert error:", queueErr);
+            throw new Error(`Email queue insert failed: ${queueErr.message}`);
+          }
 
           console.log("[admin-manage-staff] send_reset email enqueued to pgmq");
 
@@ -3364,16 +3360,8 @@ serve(async (req: Request) => {
         const targetRole = (roleData?.role as StaffRole) || "employee";
         const appBaseUrl = getAppBaseUrl();
 
-        // Determine redirect URL based on role - NEVER send admin links to non-admins
-        let redirectPath: string;
-        if (targetRole === "admin") {
-          redirectPath = "/admin/reset-password";
-        } else if (targetRole === "employee") {
-          redirectPath = "/employee/reset-password";
-        } else {
-          redirectPath = "/technician/reset-password";
-        }
-
+        // CANONICAL — all staff (admin/employee/technician/field_sales) reset via /hub/reset-password
+        const redirectPath = "/hub/reset-password";
         const redirectTo = joinUrl(appBaseUrl, redirectPath);
         console.log(`[admin-manage-staff] ${stepBase} target_role=${targetRole} redirect=${redirectTo}`);
 
