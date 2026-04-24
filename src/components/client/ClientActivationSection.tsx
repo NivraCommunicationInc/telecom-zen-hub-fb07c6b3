@@ -121,20 +121,36 @@ export default function ClientActivationSection({ clientId, compact = false }: C
     enabled: !!clientId && !authLoading,
   });
 
-  // Eligible orders for activation
+  // Eligible orders for activation — Internet/TV/Bundle only, equipment shipped,
+  // not already activated. Mobile/SIM-only orders are excluded.
   const { data: eligibleOrders = [] } = useQuery({
     queryKey: ["client-eligible-orders", clientId],
     queryFn: async () => {
       const { data: orders, error } = await portalSupabase
         .from("orders")
-        .select("id, order_number, created_at, status, plan_name")
+        .select("id, order_number, created_at, status, plan_name, service_type, category")
         .eq("client_id", clientId)
         .in("status", ELIGIBLE_ORDER_STATUSES as unknown as string[])
         .order("created_at", { ascending: false });
       if (error) throw error;
 
+      // Service-type filter: only Internet, TV, or Bundle/Combo orders.
+      const isInternetOrTv = (o: any) => {
+        const svc = String(o?.service_type || "").toLowerCase();
+        const cat = String(o?.category || "").toLowerCase();
+        const matches = (s: string) =>
+          s.includes("internet") ||
+          s.includes("tv") ||
+          s.includes("bundle") ||
+          s.includes("combo");
+        // Exclude pure mobile/SIM orders even when service_type is empty.
+        if (svc && !matches(svc) && (svc.includes("mobile") || svc.includes("sim"))) return false;
+        return matches(svc) || matches(cat);
+      };
+      const filtered = (orders || []).filter(isInternetOrTv);
+
       // Exclude orders that already have an active (non-terminal) activation request
-      const orderIds = (orders || []).map((o: any) => o.id);
+      const orderIds = filtered.map((o: any) => o.id);
       if (orderIds.length === 0) return [];
       const { data: activeReqs } = await portalSupabase
         .from("activation_requests")
@@ -142,7 +158,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         .in("order_id", orderIds)
         .not("status", "in", "(rejected,cancelled,completed)");
       const blocked = new Set((activeReqs || []).map((r: any) => r.order_id));
-      return (orders || []).filter((o: any) => !blocked.has(o.id));
+      return filtered.filter((o: any) => !blocked.has(o.id));
     },
     enabled: !!clientId && !authLoading,
   });
@@ -439,8 +455,10 @@ export default function ClientActivationSection({ clientId, compact = false }: C
                 <div className="mt-3 space-y-2">
                   {eligibleOrders.length === 0 && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
-                      Aucune commande éligible trouvée. L'activation n'est disponible que pour les commandes en cours
-                      de traitement ou expédiées. Si vous pensez qu'il s'agit d'une erreur, contactez{" "}
+                      Aucune commande Internet ou TV en attente d'activation trouvée. L'activation
+                      WiFi n'est disponible que pour les commandes Internet, TV ou combo en cours
+                      de traitement ou expédiées. Si vous pensez qu'il s'agit d'une erreur,
+                      contactez{" "}
                       <a href="mailto:support@nivra-telecom.ca" className="underline font-medium">
                         support@nivra-telecom.ca
                       </a>
