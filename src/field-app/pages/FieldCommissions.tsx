@@ -76,6 +76,50 @@ export default function FieldCommissions() {
     refetchInterval: 15000,
   });
 
+  /* Realtime — listen to sales_commissions for this agent.
+     Insert  → "Nouvelle commission ajoutée"
+     Update  → status change toast (validated / paid / rejected) */
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`field-commissions-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sales_commissions",
+          filter: `salesperson_id=eq.${user.id}`,
+        },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["field-commission-summary"] });
+          queryClient.invalidateQueries({ queryKey: ["field-commission-list"] });
+
+          if (payload.eventType === "INSERT") {
+            toast.success("Nouvelle commission ajoutée");
+          } else if (payload.eventType === "UPDATE") {
+            const oldStatus = (payload.old as any)?.status;
+            const newStatus = (payload.new as any)?.status;
+            if (oldStatus !== newStatus && newStatus) {
+              const labels: Record<string, string> = {
+                validated: "Commission validée",
+                approved: "Commission approuvée",
+                paid: "Commission payée",
+                rejected: "Commission rejetée",
+                clawback: "Commission récupérée",
+              };
+              const msg = labels[newStatus];
+              if (msg) toast(msg);
+            }
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
   const summary = summaryData?.summary || {
     pending: 0,
     approved: 0,
