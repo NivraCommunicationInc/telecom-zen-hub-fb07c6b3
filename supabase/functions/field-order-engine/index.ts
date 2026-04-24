@@ -348,6 +348,107 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
+    if (action === "create-draft" || action === "submit-sale") {
+      const customer = body.customer || {};
+      const rawServices = Array.isArray(body.services) ? body.services : [];
+      const rawEquipment = Array.isArray(body.equipment) ? body.equipment : [];
+
+      const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(" ").trim();
+      if (!customerName) return new Response(JSON.stringify({ error: "Nom du client requis" }), { status: 400, headers });
+      if (!customer.phone?.trim()) return new Response(JSON.stringify({ error: "Téléphone du client requis" }), { status: 400, headers });
+      if (!customer.address?.trim()) return new Response(JSON.stringify({ error: "Adresse du client requise" }), { status: 400, headers });
+      if (rawServices.length === 0) return new Response(JSON.stringify({ error: "Au moins un service est requis" }), { status: 400, headers });
+
+      const normalizedServices = [
+        ...rawServices.map((service: any) => ({
+          name: service.name,
+          category: service.category || "Service",
+          quantity: Number(service.quantity || 1),
+          price_monthly: Number(service.price_monthly ?? service.monthlyPrice ?? 0),
+          price_setup: Number(service.price_setup ?? 0),
+        })),
+        ...rawEquipment.map((equipment: any) => ({
+          name: equipment.name,
+          category: equipment.category || "Équipement",
+          quantity: Number(equipment.quantity || 1),
+          price_monthly: 0,
+          price_setup: Number(equipment.price || 0),
+        })),
+      ];
+
+      const now = new Date().toISOString();
+      const paymentMethod = body.payment?.method === "paypal" ? "paypal" : sanitizeString(body.payment?.method || "paypal", 50);
+      const paymentStatus = sanitizeString(body.payment?.status || "pending", 50);
+
+      const draftInsert = {
+        salesperson_id: userId,
+        customer_name: customerName,
+        customer_email: customer.email || null,
+        customer_phone: customer.phone,
+        customer_address: customer.address,
+        customer_city: customer.city || null,
+        customer_postal_code: customer.postal_code || null,
+        customer_date_of_birth: customer.date_of_birth || null,
+        services: normalizedServices,
+        total_amount: Number(body.total_amount || 0),
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        selected_channels: [],
+        internal_notes: customer.notes || null,
+        sync_status: action === "submit-sale" ? "pending" : "draft",
+        created_at: now,
+        updated_at: now,
+      };
+
+      const { data: fieldOrder, error: fieldOrderError } = await admin
+        .from("field_sales_orders")
+        .insert(draftInsert as any)
+        .select("id")
+        .single();
+
+      if (fieldOrderError || !fieldOrder) throw fieldOrderError || new Error("Impossible de créer la vente terrain");
+
+      await admin.from("field_order_status_history").insert({
+        field_order_id: fieldOrder.id,
+        status_domain: "order",
+        old_status: null,
+        new_status: action === "submit-sale" ? "submitted" : "draft",
+        changed_by_user_id: userId,
+        change_reason: action === "submit-sale" ? "Création depuis le portail Field" : "Brouillon créé depuis le portail Field",
+      } as any);
+
+      if (action === "create-draft") {
+        return new Response(JSON.stringify({ success: true, order_id: fieldOrder.id, sync_status: "draft" }), { headers });
+      }
+
+      await admin.from("field_order_sync_events").insert({
+        field_order_id: fieldOrder.id,
+        sync_target: "core",
+        sync_action: "create_order",
+        sync_status: "pending",
+        attempt_count: 0,
+      } as any);
+
+      const { data: syncData, error: syncError } = await admin.functions.invoke("field-sales-sync", {
+        body: { action: "sync_single", field_order_id: fieldOrder.id },
+      });
+
+      if (syncError) throw syncError;
+      if (!syncData?.success || !syncData?.invoice_id) {
+        throw new Error(syncData?.error || "La synchronisation de la vente a échoué");
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        field_order_id: fieldOrder.id,
+        order_id: syncData.orderId || null,
+        order_number: syncData.order_number || null,
+        invoice_id: syncData.invoice_id,
+        payment_id: syncData.payment_id || null,
+        sync_status: "synced",
+      }), { headers });
+    }
+
     // Validate
     if (action === "validate") {
       const issues: string[] = [];
