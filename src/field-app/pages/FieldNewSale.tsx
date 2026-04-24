@@ -148,23 +148,27 @@ export default function FieldNewSale() {
       const approvalUrl = approvalLink?.href;
       if (!approvalUrl) throw new Error("PayPal n'a pas retourné de lien d'approbation.");
 
-      // 3a) Email mode — send via transactional email
+      // 3a) Email mode — enqueue Violet Bold "field_payment_link" template
       if (draft.payment.method === "paypal_email") {
         setSubmitMessage("Envoi du lien au client…");
         try {
-          await supabase.functions.invoke("send-transactional-email", {
-            body: {
-              templateName: "field-payment-link",
-              recipientEmail: draft.customer.email,
-              idempotencyKey: `field-paypal-${invoiceId}`,
-              templateData: {
-                name: draft.customer.first_name,
-                total: total.toFixed(2),
-                approvalUrl,
-                orderNumber: orderId || invoiceId,
-              },
+          const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
+          const { error: queueErr } = await supabase.from("email_queue").insert({
+            event_key: `field_payment_link_${invoiceId}`,
+            to_email: draft.customer.email,
+            template_key: "field_payment_link",
+            template_vars: {
+              client_name: draft.customer.first_name || draft.customer.last_name || "Client",
+              first_name: draft.customer.first_name,
+              order_number: orderId || invoiceId,
+              total: total.toFixed(2),
+              approval_url: approvalUrl,
+              summary,
+              agent_name: user?.email || "votre conseiller Nivra",
             },
-          });
+            status: "queued",
+          } as any);
+          if (queueErr) throw queueErr;
         } catch (mailErr) {
           // Non-fatal: link is still generated. Surface a warning.
           logger.warn("Field email send failed (link still valid)", mailErr);
