@@ -177,6 +177,22 @@ export default function CoreFieldAgentsPage() {
     schedule_days: ["1", "2", "3", "4", "5"] as string[],
     schedule_start: "09:00",
     schedule_end: "17:00",
+    // Personal info
+    address_street: "",
+    address_city: "",
+    address_province: "QC",
+    address_postal: "",
+    date_of_birth: "",
+    // Emergency contact
+    emergency_contact_name: "",
+    emergency_contact_relation: "",
+    emergency_contact_phone: "",
+    // Payment method
+    payment_method: "direct_deposit" as "direct_deposit" | "interac",
+    bank_institution: "",
+    bank_transit: "",
+    bank_account: "",
+    interac_email: "",
   };
   const [repForm, setRepForm] = useState(initialRepForm);
 
