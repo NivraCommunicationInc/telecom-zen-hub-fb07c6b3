@@ -1414,6 +1414,40 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // PASSWORD RESET — Client portal, Hub (admin/employee/technician/field_sales)
+    // ===================================================================
+    case "password_reset":
+    case "client_password_reset":
+    case "staff_password_reset": {
+      const resetLink = String(v.reset_link || v.reset_url || v.action_link || "#");
+      const audience = String(v.audience || (templateKey === "client_password_reset" ? "client" : templateKey === "staff_password_reset" ? "staff" : "client"));
+      const portalLabel = esc(v.portal_label || (audience === "staff" ? "votre portail interne Nivra" : "votre espace client Nivra"));
+      const firstName = esc(v.first_name || v.FIRST_NAME || clientName);
+      return {
+        subject: "Réinitialisation de votre mot de passe — Nivra Télécom",
+        html: shell({
+          preheader: "Réinitialisez votre mot de passe Nivra en toute sécurité.",
+          badge: "RÉINITIALISATION DE MOT DE PASSE",
+          heroTitle: "Réinitialisez votre mot de passe",
+          heroSub: "Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.",
+          icon: "alert",
+          greeting: `Bonjour ${firstName || ""},`,
+          bodyText: `Nous avons reçu une demande de réinitialisation du mot de passe associé à ${portalLabel}.<br/><br/>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. <strong style="color:#7c3aed;">Ce lien est valide 1 heure.</strong>`,
+          cardTitle: "Détails de la demande",
+          cardRows: [
+            ["Compte", esc(v.email || v.to_email || "—")],
+            ["Type", audience === "staff" ? "Portail interne" : "Espace client"],
+            ["Validité", "1 heure"],
+          ],
+          ctaPrimaryUrl: resetLink,
+          ctaPrimaryLabel: "Réinitialiser mon mot de passe",
+          helpVariant: "warning",
+          helpHtml: `Si vous n'êtes pas à l'origine de cette demande, ignorez ce message ou contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // GENERIC FALLBACK
     // ===================================================================
     case "order_update":
