@@ -56,7 +56,10 @@ Toute violation des présentes conditions peut entraîner la suspension immédia
 Nivra Communications Inc. se réserve le droit de modifier les présentes conditions en tout temps. Vous serez notifié par courriel et devrez accepter les nouvelles conditions lors de votre prochaine connexion.
 
 12. JURIDICTION
-Les présentes conditions sont régies par les lois du Québec et du Canada. Tout litige sera soumis aux tribunaux du Québec.`;
+Les présentes conditions sont régies par les lois du Québec et du Canada. Tout litige sera soumis aux tribunaux du Québec.
+
+13. FOURNITURE DES SERVICES INTERNET
+Nivra Telecom est un fournisseur de services indépendant qui assure la gestion de la facturation, du service client et des ententes contractuelles. Les services Internet sont fournis à l'aide d'infrastructures de télécommunication existantes au Canada. La disponibilité, la performance et la qualité du service peuvent dépendre des réseaux utilisés.`;
 
 interface Props {
   userId: string;
