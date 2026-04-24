@@ -20,7 +20,7 @@ function isValidEmail(email: string): boolean {
  * Ensure an unsubscribe token exists for the given email (required by Lovable Email API).
  */
 async function ensureUnsubscribeToken(
-  client: ReturnType<typeof createClient>,
+  client: AdminSupabaseClient,
   email: string
 ): Promise<string> {
   const normalizedEmail = email.trim().toLowerCase();
@@ -31,12 +31,13 @@ async function ensureUnsubscribeToken(
     .eq("email", normalizedEmail)
     .maybeSingle();
 
-  if (existing?.token) return existing.token;
+  const existingRow = existing as { token?: string } | null;
+  if (existingRow?.token) return existingRow.token;
 
   const generatedToken = crypto.randomUUID();
   const { error: insertError } = await client
     .from("email_unsubscribe_tokens")
-    .insert({ email: normalizedEmail, token: generatedToken });
+    .insert({ email: normalizedEmail, token: generatedToken } as any);
 
   if (!insertError) return generatedToken;
 
@@ -47,7 +48,8 @@ async function ensureUnsubscribeToken(
     .eq("email", normalizedEmail)
     .maybeSingle();
 
-  if (raced?.token) return raced.token;
+  const racedRow = raced as { token?: string } | null;
+  if (racedRow?.token) return racedRow.token;
   throw new Error("Failed to generate unsubscribe token");
 }
 
@@ -56,7 +58,7 @@ async function ensureUnsubscribeToken(
  * Now includes unsubscribe_token required by Lovable Email API.
  */
 async function sendStaffEmail(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: AdminSupabaseClient,
   params: { to: string; subject: string; html: string; replyTo?: string; idempotencyKey?: string }
 ): Promise<void> {
   const normalizedTo = params.to.trim().toLowerCase();
@@ -80,7 +82,7 @@ async function sendStaffEmail(
     unsubscribe_token: unsubscribeToken,
   };
 
-  const { error } = await adminClient.rpc("enqueue_email", {
+  const { error } = await (adminClient.rpc as any)("enqueue_email", {
     queue_name: "transactional_emails",
     payload,
   });
