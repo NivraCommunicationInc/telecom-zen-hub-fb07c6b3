@@ -58,12 +58,27 @@ Deno.serve(async (req) => {
 
       const profileFilters = [
         `full_name.ilike.%${qLower}%`,
+        `first_name.ilike.%${qLower}%`,
+        `last_name.ilike.%${qLower}%`,
         `email.ilike.%${qLower}%`,
         `client_number.ilike.%${qLower}%`,
       ];
 
       if (qDigits.length >= 4) {
         profileFilters.push(`phone.ilike.%${qDigits}%`);
+      }
+
+      const orderFilters = [
+        `order_number.ilike.%${qLower}%`,
+        `client_email.ilike.%${qLower}%`,
+        `client_first_name.ilike.%${qLower}%`,
+        `client_last_name.ilike.%${qLower}%`,
+        `client_full_address.ilike.%${qLower}%`,
+        `shipping_address.ilike.%${qLower}%`,
+      ];
+
+      if (qDigits.length >= 4) {
+        orderFilters.push(`client_phone.ilike.%${qDigits}%`);
       }
 
       const [profilesRes, accountsRes, fieldOrdersRes, ordersRes] = await Promise.all([
@@ -84,8 +99,8 @@ Deno.serve(async (req) => {
           .limit(10),
         admin
           .from("orders")
-          .select("id, order_number, status, service_type, service_address")
-          .or(`order_number.ilike.%${qLower}%,service_address.ilike.%${qLower}%`)
+          .select("id, order_number, status, service_type, client_full_address, shipping_address, client_first_name, client_last_name, client_email, client_phone")
+          .or(orderFilters.join(","))
           .in("status", ["pending", "processing", "submitted", "received", "shipped"])
           .limit(10),
       ]);
@@ -161,6 +176,38 @@ Deno.serve(async (req) => {
           postal_code: account.primary_service_postal_code || "",
           source: "account",
           account_number: account.account_number || null,
+        });
+      }
+
+      for (const order of orders) {
+        const orderName = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ").trim();
+        const dedupeKey =
+          [order.client_email?.toLowerCase?.(), order.client_phone?.replace?.(/\D/g, ""), orderName.toLowerCase(), order.client_full_address || order.shipping_address]
+            .filter(Boolean)
+            .join("|") || `order:${order.id}`;
+
+        if (Array.from(resultsMap.values()).some((entry: any) => {
+          const entryPhone = entry.phone?.replace?.(/\D/g, "") || "";
+          const orderPhone = order.client_phone?.replace?.(/\D/g, "") || "";
+          return Boolean(
+            (entry.email && order.client_email && entry.email.toLowerCase() === order.client_email.toLowerCase()) ||
+            (entryPhone && orderPhone && entryPhone === orderPhone) ||
+            ((entry.full_name || "").toLowerCase() === orderName.toLowerCase() && (entry.address || "") === (order.client_full_address || order.shipping_address || ""))
+          );
+        })) {
+          continue;
+        }
+
+        resultsMap.set(`order:${dedupeKey}`, {
+          id: `order:${order.id}`,
+          full_name: orderName || `Commande ${order.order_number}`,
+          email: order.client_email || null,
+          phone: order.client_phone || null,
+          address: order.client_full_address || order.shipping_address || "",
+          city: "",
+          postal_code: "",
+          source: "order",
+          account_number: null,
         });
       }
 
