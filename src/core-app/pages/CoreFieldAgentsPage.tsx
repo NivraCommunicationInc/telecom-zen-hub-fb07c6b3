@@ -16,8 +16,11 @@ import {
   ChevronRight, ArrowLeft, Phone, Mail, Calendar, Shield, Save,
   MessageSquare, Download, CreditCard, Receipt, Plus, Trash2,
   Timer, ClipboardList, Grid3X3, Link2, Briefcase, Zap, FileSpreadsheet,
-  ChevronLeft,
+  ChevronLeft, LogIn,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { startStaffAssistance, type StaffAssistanceRole } from "@/lib/staffAssistance";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
