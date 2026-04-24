@@ -72,6 +72,23 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
   return null;
 }
 
+const BILLABLE_ORDER_STATUSES = new Set([
+  "submitted",
+  "pending_admin_review",
+  "confirmed",
+  "completed",
+  "activated",
+  "delivered",
+]);
+
+function isBillableOrderStatus(status?: string | null): boolean {
+  return BILLABLE_ORDER_STATUSES.has(String(status || "").toLowerCase());
+}
+
+function deriveCanonicalOrderStatus(paymentStatus?: string | null): string {
+  return String(paymentStatus || "").toLowerCase() === "confirmed" ? "confirmed" : "submitted";
+}
+
 function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
   return {
     line_items: lineItems,
@@ -123,13 +140,13 @@ Deno.serve(async (req) => {
 
       try {
         const { firstName: customerFirstName, lastName: customerLastName } = splitName(sale.customer_name);
-        let canonicalOrder: { id: string; order_number: string | null } | null = null;
+        let canonicalOrder: { id: string; order_number: string | null; status?: string | null } | null = null;
 
         // Check if this sale was already synced to orders and has a complete billing chain
         if (sale.converted_order_id) {
           const { data: existingOrder } = await supabaseAdmin
             .from("orders")
-            .select("id, order_number")
+            .select("id, order_number, status")
             .eq("id", sale.converted_order_id)
             .maybeSingle();
 
@@ -146,6 +163,22 @@ Deno.serve(async (req) => {
 
             console.warn(`[field-sales-sync] Sale ${sale.id} has order ${existingOrder.id} but no invoice yet — resuming billing pipeline`);
             canonicalOrder = existingOrder;
+          }
+        }
+
+        if (!canonicalOrder) {
+          const { data: orphanOrder } = await supabaseAdmin
+            .from("orders")
+            .select("id, order_number, status")
+            .eq("created_by", "field_sales")
+            .ilike("notes", `%Vente terrain (ID: ${sale.id})%`)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (orphanOrder) {
+            console.warn(`[field-sales-sync] Re-attaching orphan order ${orphanOrder.id} for sale ${sale.id}`);
+            canonicalOrder = orphanOrder;
           }
         }
 
@@ -366,7 +399,7 @@ Deno.serve(async (req) => {
               tvq_amount: tvqAmount,
               total_amount: totalAmount,
 
-              status: sale.payment_status === 'confirmed' ? 'confirmed' : 'pending',
+              status: deriveCanonicalOrderStatus(sale.payment_status),
               payment_status: sale.payment_status || 'pending',
               payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
               payment_reference: sale.payment_reference || null,
@@ -395,6 +428,27 @@ Deno.serve(async (req) => {
 
           canonicalOrder = newOrder;
           console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id}`);
+        }
+
+        const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status);
+        if (!isBillableOrderStatus(canonicalOrder.status)) {
+          const { error: promoteOrderError } = await supabaseAdmin
+            .from("orders")
+            .update({
+              status: targetOrderStatus,
+              payment_status: sale.payment_status || "pending",
+              payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
+              payment_reference: sale.payment_reference || null,
+              amount_paid: sale.payment_status === "confirmed" ? totalAmount : 0,
+            })
+            .eq("id", canonicalOrder.id);
+
+          if (promoteOrderError) {
+            throw new Error(`Order status promotion failed: ${promoteOrderError.message}`);
+          }
+
+          canonicalOrder = { ...canonicalOrder, status: targetOrderStatus };
+          console.log(`[field-sales-sync] Promoted order ${canonicalOrder.id} to billable status ${targetOrderStatus}`);
         }
 
         // ═══ CANONICAL INVOICE + PAYMENT CREATION ═══
