@@ -72,7 +72,7 @@ export interface FieldSaleDiscount {
  *  - paypal_onsite : Generate a PayPal link/QR — client pays on agent's device.
  *  - paypal_email  : Send a PayPal payment link to the client by email.
  */
-export type FieldPaymentMethod = "paypal_onsite" | "paypal_email";
+export type FieldPaymentMethod = "paypal_onsite" | "paypal_email" | "card_manual";
 
 export interface FieldSalePayment {
   method: FieldPaymentMethod;
