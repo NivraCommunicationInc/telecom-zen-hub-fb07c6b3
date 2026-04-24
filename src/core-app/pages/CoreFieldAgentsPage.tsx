@@ -233,6 +233,11 @@ export default function CoreFieldAgentsPage() {
     enabled: tab === "assignments" || !!selectedAgent,
   });
 
+  const { data: territories = [] } = useQuery({
+    queryKey: ["core-field", "territories"],
+    queryFn: async () => { const { data } = await supabase.from("field_territories").select("id, territory_code, name, city, status").order("name"); return data || []; },
+  });
+
   const { data: withdrawals = [] } = useQuery({
     queryKey: ["core-field", "withdrawals"],
     queryFn: async () => { const { data } = await supabase.from("commission_withdrawal_requests").select("*").order("created_at", { ascending: false }).limit(200); return data || []; },
