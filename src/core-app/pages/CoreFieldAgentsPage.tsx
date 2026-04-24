@@ -1782,6 +1782,82 @@ export default function CoreFieldAgentsPage() {
               </div>
             </div>
 
+            {/* Adresse + DOB */}
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Informations personnelles</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label className="text-xs">Rue (adresse civique)</Label><Input value={repForm.address_street} onChange={(e) => setRepForm({ ...repForm, address_street: e.target.value })} placeholder="123 rue Exemple" /></div>
+                <div><Label className="text-xs">Ville</Label><Input value={repForm.address_city} onChange={(e) => setRepForm({ ...repForm, address_city: e.target.value })} placeholder="Montréal" /></div>
+                <div>
+                  <Label className="text-xs">Province</Label>
+                  <Select value={repForm.address_province} onValueChange={(v) => setRepForm({ ...repForm, address_province: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="QC">QC</SelectItem>
+                      <SelectItem value="ON">ON</SelectItem>
+                      <SelectItem value="NB">NB</SelectItem>
+                      <SelectItem value="NS">NS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label className="text-xs">Code postal</Label><Input value={repForm.address_postal} onChange={(e) => setRepForm({ ...repForm, address_postal: e.target.value.toUpperCase() })} placeholder="H1A 1A1" maxLength={7} /></div>
+                <div><Label className="text-xs">Date de naissance</Label><Input type="date" value={repForm.date_of_birth} onChange={(e) => setRepForm({ ...repForm, date_of_birth: e.target.value })} /></div>
+              </div>
+            </div>
+
+            {/* Contact d'urgence */}
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Contact d'urgence</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-xs">Nom complet</Label><Input value={repForm.emergency_contact_name} onChange={(e) => setRepForm({ ...repForm, emergency_contact_name: e.target.value })} /></div>
+                <div>
+                  <Label className="text-xs">Lien</Label>
+                  <Select value={repForm.emergency_contact_relation} onValueChange={(v) => setRepForm({ ...repForm, emergency_contact_relation: v })}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conjoint">Conjoint(e)</SelectItem>
+                      <SelectItem value="parent">Parent</SelectItem>
+                      <SelectItem value="enfant">Enfant</SelectItem>
+                      <SelectItem value="frere_soeur">Frère / Sœur</SelectItem>
+                      <SelectItem value="ami">Ami(e)</SelectItem>
+                      <SelectItem value="autre">Autre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2"><Label className="text-xs">Téléphone</Label><Input type="tel" value={repForm.emergency_contact_phone} onChange={(e) => setRepForm({ ...repForm, emergency_contact_phone: e.target.value })} /></div>
+              </div>
+            </div>
+
+            {/* Méthode de paiement */}
+            <div className="border-t border-border pt-3">
+              <h4 className="text-sm font-semibold mb-2">Informations de paiement</h4>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Méthode préférée</Label>
+                  <Select value={repForm.payment_method} onValueChange={(v) => setRepForm({ ...repForm, payment_method: v as "direct_deposit" | "interac" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="direct_deposit">Dépôt direct</SelectItem>
+                      <SelectItem value="interac">Virement Interac</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {repForm.payment_method === "direct_deposit" ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><Label className="text-xs">Institution (3 chiffres)</Label><Input inputMode="numeric" maxLength={3} value={repForm.bank_institution} onChange={(e) => setRepForm({ ...repForm, bank_institution: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="001" /></div>
+                    <div><Label className="text-xs">Transit (5 chiffres)</Label><Input inputMode="numeric" maxLength={5} value={repForm.bank_transit} onChange={(e) => setRepForm({ ...repForm, bank_transit: e.target.value.replace(/\D/g, "").slice(0, 5) })} placeholder="12345" /></div>
+                    <div><Label className="text-xs">No. compte</Label><Input inputMode="numeric" value={repForm.bank_account} onChange={(e) => setRepForm({ ...repForm, bank_account: e.target.value.replace(/\D/g, "") })} placeholder="1234567" /></div>
+                    <p className="col-span-3 text-[10px] text-muted-foreground">Ces données sont stockées de façon sécurisée et affichées masquées dans l'interface.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs">Courriel ou téléphone Interac</Label>
+                    <Input value={repForm.interac_email} onChange={(e) => setRepForm({ ...repForm, interac_email: e.target.value })} placeholder="paiement@exemple.ca" />
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="border-t border-border pt-3">
               <h4 className="text-sm font-semibold mb-2">Objectifs mensuels</h4>
               <div className="grid grid-cols-3 gap-3">
