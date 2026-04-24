@@ -300,14 +300,32 @@ Deno.serve(async (req) => {
         }
 
         // Base fees model aligned to orders schema
-        const subtotal = monthlyTotal;
-        const activationFee = oneTimeFeesTotal;
+        let subtotal = monthlyTotal;
+        let activationFee = oneTimeFeesTotal;
         const deliveryFee = 0;
         const installationFee = 0;
 
         // Taxes (Quebec) — canonical tax module
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
-        const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
+        let { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
+
+        // ═══ AUTHORITATIVE TOTAL — sale.total_amount is the agent-displayed total ═══
+        // The field portal computes the total client-side (including discounts the
+        // agent applied at the door). We MUST honour that value so the PayPal link,
+        // the invoice and the visible order all stay aligned to the cent.
+        const agentTotal = Number(sale.total_amount || 0);
+        if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.01) {
+          console.log(`[field-sales-sync] Reconciling totals: sale.total_amount=${agentTotal} vs computed=${totalAmount}. Honouring agent total.`);
+          // Re-derive subtotal pre-tax from the authoritative total
+          const TAX_RATE = 0.14975; // TPS+TVQ combined
+          const newBase = Number((agentTotal / (1 + TAX_RATE)).toFixed(2));
+          const recomputed = computeTaxes(newBase);
+          tpsAmount = recomputed.tps;
+          tvqAmount = recomputed.tvq;
+          totalAmount = recomputed.total;
+          // Adjust subtotal to absorb any discount (keep activation fee unchanged)
+          subtotal = Math.max(0, newBase - activationFee - deliveryFee - installationFee);
+        }
 
         // ═══ RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) ═══
         let accountId: string | null = null;
@@ -368,6 +386,8 @@ Deno.serve(async (req) => {
             .eq("user_id", clientUserId!);
         }
 
+        const agentName = repProfile?.full_name || "Agent terrain";
+
         if (!canonicalOrder) {
           // Generate order number from DB sequence — Core is sole source of truth
           const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
@@ -381,6 +401,11 @@ Deno.serve(async (req) => {
               account_id: accountId,
               order_number: orderNumber,
               created_by: 'field_sales',
+
+              // ═══ AGENT IDENTITY — required for commissions + reporting ═══
+              source: 'field_sales',
+              created_by_agent_id: sale.salesperson_id,
+              agent_name: agentName,
 
               client_email: customerEmail,
               client_phone: sale.customer_phone || null,
@@ -415,8 +440,8 @@ Deno.serve(async (req) => {
               selected_channels: sale.selected_channels || [],
               equipment_details: wrapLineItemsForOrder(lineItems),
 
-              notes: `Vente terrain (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
-              internal_notes: `[VENTE TERRAIN]\nPar: ${repProfile?.full_name || 'Vendeur'} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
+              notes: `Vente terrain — Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
+              internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
             })
             .select('id, order_number')
             .single();
@@ -427,7 +452,17 @@ Deno.serve(async (req) => {
           }
 
           canonicalOrder = newOrder;
-          console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id}`);
+          console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id} by agent ${agentName}`);
+        } else {
+          // Backfill agent identity if order already exists but missing tags
+          await supabaseAdmin
+            .from('orders')
+            .update({
+              source: 'field_sales',
+              created_by_agent_id: sale.salesperson_id,
+              agent_name: agentName,
+            })
+            .eq('id', canonicalOrder.id);
         }
 
         const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status);
@@ -524,11 +559,15 @@ Deno.serve(async (req) => {
               due_date: dueDate,
               paid_at: isConfirmedPayment ? now.toISOString() : null,
               environment: "production",
+              notes: `Commande terrain — Agent: ${agentName}`,
               billing_snapshot_client: {
                 first_name: customerFirstName || null,
                 last_name: customerLastName || null,
                 email: customerEmail,
                 phone: sale.customer_phone || null,
+                agent_name: agentName,
+                agent_id: sale.salesperson_id,
+                source: "field_sales",
               },
             })
             .select("id")

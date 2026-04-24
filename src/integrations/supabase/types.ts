@@ -11258,6 +11258,7 @@ export type Database = {
           account_id: string
           activation_fee: number | null
           activation_preference: string
+          agent_name: string | null
           agreement_version: number | null
           amount_paid: number | null
           appointment_date: string | null
@@ -11278,6 +11279,7 @@ export type Database = {
           confirmation_number: string | null
           created_at: string
           created_by: string | null
+          created_by_agent_id: string | null
           credits_applied: number | null
           delivery_fee: number | null
           delivery_method: string | null
@@ -11360,6 +11362,7 @@ export type Database = {
           sla_deadline: string | null
           sla_status: string | null
           snapshot_total: number | null
+          source: string | null
           status: string
           subtotal: number | null
           technician_id: string | null
@@ -11379,6 +11382,7 @@ export type Database = {
           account_id: string
           activation_fee?: number | null
           activation_preference?: string
+          agent_name?: string | null
           agreement_version?: number | null
           amount_paid?: number | null
           appointment_date?: string | null
@@ -11399,6 +11403,7 @@ export type Database = {
           confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_agent_id?: string | null
           credits_applied?: number | null
           delivery_fee?: number | null
           delivery_method?: string | null
@@ -11481,6 +11486,7 @@ export type Database = {
           sla_deadline?: string | null
           sla_status?: string | null
           snapshot_total?: number | null
+          source?: string | null
           status?: string
           subtotal?: number | null
           technician_id?: string | null
@@ -11500,6 +11506,7 @@ export type Database = {
           account_id?: string
           activation_fee?: number | null
           activation_preference?: string
+          agent_name?: string | null
           agreement_version?: number | null
           amount_paid?: number | null
           appointment_date?: string | null
@@ -11520,6 +11527,7 @@ export type Database = {
           confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_agent_id?: string | null
           credits_applied?: number | null
           delivery_fee?: number | null
           delivery_method?: string | null
@@ -11602,6 +11610,7 @@ export type Database = {
           sla_deadline?: string | null
           sla_status?: string | null
           snapshot_total?: number | null
+          source?: string | null
           status?: string
           subtotal?: number | null
           technician_id?: string | null
@@ -19977,6 +19986,7 @@ export type Database = {
           account_id: string
           activation_fee: number | null
           activation_preference: string
+          agent_name: string | null
           agreement_version: number | null
           amount_paid: number | null
           appointment_date: string | null
@@ -19997,6 +20007,7 @@ export type Database = {
           confirmation_number: string | null
           created_at: string
           created_by: string | null
+          created_by_agent_id: string | null
           credits_applied: number | null
           delivery_fee: number | null
           delivery_method: string | null
@@ -20079,6 +20090,7 @@ export type Database = {
           sla_deadline: string | null
           sla_status: string | null
           snapshot_total: number | null
+          source: string | null
           status: string
           subtotal: number | null
           technician_id: string | null
