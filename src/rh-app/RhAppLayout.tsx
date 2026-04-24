@@ -8,12 +8,14 @@ import RhNotificationBell from "./components/RhNotificationBell";
 import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
+import StaffAssistanceBanner from "@/components/StaffAssistanceBanner";
 
 export default function RhAppLayout() {
   const { theme, themeClass, toggleTheme } = useInternalTheme();
 
   return (
     <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
+      <StaffAssistanceBanner />
       <RhSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-12 flex items-center justify-between gap-3 px-6 border-b border-border bg-card shrink-0">
