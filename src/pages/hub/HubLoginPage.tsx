@@ -15,6 +15,7 @@ import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { createHubSession, clearHubSession } from "@/lib/security/hubSession";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
+import { resolveStaffLandingPath } from "@/lib/security/portalRedirect";
 
 const PORTAL_CONFIG: Record<string, { label: string; icon: typeof Terminal; accessKey: string; href: string }> = {
   core: { label: "Nivra Core", icon: Terminal, accessKey: "can_access_core", href: "/core" },
