@@ -201,13 +201,29 @@ export default function HrSchedulesPage() {
         shift_type: shiftForm.shift_type,
         notes: shiftForm.notes || null,
       };
+      let shiftId: string | undefined;
       if (shiftDialog.mode === "create") {
-        const { error } = await supabase.from("employee_shifts" as any).insert({ ...payload, created_by: user?.id });
+        const { data, error } = await supabase.from("employee_shifts" as any).insert({ ...payload, created_by: user?.id }).select("id").single();
         if (error) throw error;
+        shiftId = (data as any)?.id;
       } else {
+        shiftId = shiftDialog.data.id;
         const { error } = await supabase.from("employee_shifts" as any).update(payload).eq("id", shiftDialog.data.id);
         if (error) throw error;
       }
+      // Email the employee — Violet Bold shell template
+      await notifyEmployee({
+        employeeId: shiftForm.user_id,
+        templateKey: shiftDialog.mode === "create" ? "hr_shift_created" : "hr_shift_updated",
+        eventKey: `hr_shift_${shiftDialog.mode === "create" ? "created" : "updated"}_${shiftId}_${Date.now()}`,
+        entityType: "employee_shift",
+        entityId: shiftId,
+        vars: {
+          shift_date: shiftForm.shift_date,
+          start_time: shiftForm.start_time,
+          end_time: shiftForm.end_time,
+        },
+      });
     },
     onSuccess: () => {
       toast.success(shiftDialog.mode === "create" ? "Quart créé" : "Quart modifié");
@@ -222,8 +238,21 @@ export default function HrSchedulesPage() {
   const deleteMut = useMutation({
     mutationFn: async () => {
       if (!deleteShift) return;
+      const targetUser = deleteShift.user_id;
+      const targetDate = deleteShift.shift_date;
+      const targetId = deleteShift.id;
       const { error } = await supabase.from("employee_shifts" as any).delete().eq("id", deleteShift.id);
       if (error) throw error;
+      if (targetUser) {
+        await notifyEmployee({
+          employeeId: targetUser,
+          templateKey: "hr_shift_deleted",
+          eventKey: `hr_shift_deleted_${targetId}`,
+          entityType: "employee_shift",
+          entityId: targetId,
+          vars: { shift_date: targetDate },
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Quart supprimé");
