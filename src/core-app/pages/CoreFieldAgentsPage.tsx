@@ -30,6 +30,7 @@ import FilterBar, { defaultFilters, applyFilters, type FilterConfig } from "@/co
 import { downloadCSV, COMMISSION_COLUMNS, PAYROLL_COLUMNS, TIME_COLUMNS, WITHDRAWAL_COLUMNS } from "@/core-app/components/field-agents/ExportUtils";
 import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfirmDialog";
 import PayrollDetailDialog from "@/core-app/components/field-agents/PayrollDetailDialog";
+import AgentDetailTabs from "@/core-app/components/field-agents/AgentDetailTabs";
 import WithdrawalTimeline from "@/core-app/components/field-agents/WithdrawalTimeline";
 import LettersTab from "@/core-app/components/field-agents/LettersTab";
 
