@@ -154,7 +154,6 @@ export default function HubLoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!portal) return;
 
     setError(null);
     setLoading(true);
@@ -168,6 +167,16 @@ export default function HubLoginPage() {
       if (authError || !data.session) {
         setError("Identifiants invalides.");
         setLoading(false);
+        return;
+      }
+
+      // No specific portal selected → resolve from role and route there directly.
+      if (!portal) {
+        const landing = await resolveStaffLandingPath(data.session.user.id);
+        createHubSession(data.session.user.id);
+        await auditAccess("hub_access", "auto");
+        setStage("redirecting");
+        navigate(landing, { replace: true });
         return;
       }
 
