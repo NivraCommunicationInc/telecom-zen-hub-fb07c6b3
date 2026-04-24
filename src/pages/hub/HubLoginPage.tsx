@@ -49,14 +49,24 @@ export default function HubLoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    if (!portal) {
-      setCheckingSession(false);
-      return;
-    }
-
     const checkExisting = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+
+        // No portal selected: if user is already signed in, route them to their default
+        // portal based on role; otherwise show the no-portal landing form.
+        if (!portal) {
+          if (session?.user) {
+            const landing = await resolveStaffLandingPath(session.user.id);
+            createHubSession(session.user.id);
+            setStage("redirecting");
+            navigate(landing, { replace: true });
+            return;
+          }
+          setCheckingSession(false);
+          return;
+        }
+
         if (!session?.user) {
           setCheckingSession(false);
           return;
@@ -68,6 +78,7 @@ export default function HubLoginPage() {
     };
 
     checkExisting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portal]);
 
   const verifyAndProceed = async (userId: string) => {
