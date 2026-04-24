@@ -60,6 +60,9 @@ export interface FieldSalePayment {
   linkSentTo: string | null;
   paypalApprovalUrl?: string | null;
   paypalOrderId?: string | null;
+  fieldOrderId?: string | null;
+  invoiceId?: string | null;
+  coreOrderId?: string | null;
 }
 
 /**
@@ -110,6 +113,9 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     linkSentTo: null,
     paypalApprovalUrl: null,
     paypalOrderId: null,
+    fieldOrderId: null,
+    invoiceId: null,
+    coreOrderId: null,
   },
 };
 
