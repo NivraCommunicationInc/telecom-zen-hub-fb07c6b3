@@ -104,7 +104,7 @@ export default function FieldNewSale() {
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
   const total = Math.round((subtotal + tps + tvq) * 100) / 100;
 
-  // ── Submit (creates order, then triggers PayPal) ─────────
+  // ── Submit (FIX 1: payment-first — NO order created until webhook confirms) ──
   const handleSubmit = async () => {
     if (!user?.id || isSubmitting) return;
     if (draft.payment.method === "paypal_email" && !draft.customer.email) {
@@ -113,104 +113,67 @@ export default function FieldNewSale() {
     }
 
     setIsSubmitting(true);
-    setSubmitMessage("Création de la commande…");
+    setSubmitMessage("Sauvegarde de la soumission…");
 
     try {
-      // 1) Create the order via the existing engine (reuses Order+Invoice+Commission pipeline)
-      const result = await submitNewSale({
-        customer: draft.customer,
-        services: draft.services.map((s) => ({
-          name: s.name, category: s.category, price_monthly: s.monthlyPrice, quantity: 1,
-        })),
-        equipment: draft.equipment.map((e) => ({ name: e.name, quantity: e.quantity, price: e.price })),
-        promos: draft.discount
-          ? [{ name: draft.discount.name, promo_type: draft.discount.type === "percentage" ? "percentage_off" : "monthly_discount" }]
-          : [],
-        installation: { type: "self_install", scheduledDate: null, timeWindow: null },
-        billing: { preauthorizedPayment: false, billingCycleDay: new Date().getDate() },
-        payment: { method: "paypal", status: "pending" },
-        total_amount: total,
+      // 1) Save the quote (no order/invoice yet)
+      const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
+      const quote = await saveQuoteAndEmail({
+        draft, agentName: user?.email || "Agent terrain", activationFee,
+        subtotal, tps, tvq, total,
       });
 
-      logger.log("Field sale created", result);
-      const fieldOrderId = result?.field_order_id;
-      const orderId = result?.order_id;
-      const invoiceId = result?.invoice_id || result?.billing_invoice_id;
-
-      if (!invoiceId) {
-        throw new Error("Aucune facture générée pour cette commande.");
-      }
-
-      // 2) Generate PayPal order via existing edge function
+      // 2) Ask backend to generate a PayPal link tied to a payment intent
       setSubmitMessage("Génération du lien PayPal…");
-      const { data: ppData, error: ppErr } = await supabase.functions.invoke("paypal-create-order", {
+      const { data, error } = await supabase.functions.invoke("field-payment-initiate", {
         body: {
-          invoice_id: invoiceId,
+          quote_id: quote.id,
           amount: total,
-          description: `Nivra Telecom — Commande ${orderId || ""}`.trim(),
+          customer_email: draft.customer.email,
+          customer_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim(),
+          description: `Nivra Telecom — Vente terrain (${draft.customer.first_name || ""})`.trim(),
         },
       });
-      if (ppErr) throw ppErr;
-
-      const approvalLink = ppData?.links?.find(
-        (l: { rel: string; href: string }) => l.rel === "payer-action" || l.rel === "approve"
-      );
-      const approvalUrl = approvalLink?.href;
+      if (error) throw error;
+      const approvalUrl: string | null = data?.approval_url || null;
       if (!approvalUrl) throw new Error("PayPal n'a pas retourné de lien d'approbation.");
 
-      // 3a) Email mode — enqueue Violet Bold "field_payment_link" template
+      // 3) Email mode — enqueue Violet Bold "field_payment_link" template
       if (draft.payment.method === "paypal_email") {
         setSubmitMessage("Envoi du lien au client…");
-        try {
-          const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
-          const { error: queueErr } = await supabase.from("email_queue").insert({
-            event_key: `field_payment_link_${invoiceId}`,
-            to_email: draft.customer.email,
-            template_key: "field_payment_link",
-            template_vars: {
-              client_name: draft.customer.first_name || draft.customer.last_name || "Client",
-              first_name: draft.customer.first_name,
-              order_number: orderId || invoiceId,
-              total: total.toFixed(2),
-              approval_url: approvalUrl,
-              summary,
-              agent_name: user?.email || "votre conseiller Nivra",
-            },
-            status: "queued",
-          } as any);
-          if (queueErr) throw queueErr;
-        } catch (mailErr) {
-          // Non-fatal: link is still generated. Surface a warning.
-          logger.warn("Field email send failed (link still valid)", mailErr);
-          toast.warning("Lien généré mais l'envoi du courriel a échoué — copiez-le manuellement.");
-        }
+        const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
+        await supabase.from("email_queue").insert({
+          event_key: `field_payment_link_${data.intent_id}`,
+          to_email: draft.customer.email,
+          template_key: "field_payment_link",
+          template_vars: {
+            client_name: draft.customer.first_name || "Client",
+            first_name: draft.customer.first_name,
+            order_number: data.intent_id,
+            total: total.toFixed(2),
+            approval_url: approvalUrl,
+            summary,
+            agent_name: user?.email || "votre conseiller Nivra",
+          },
+          status: "queued",
+        } as any);
 
         setDraft((d) => ({
           ...d,
           payment: {
-            ...d.payment,
-            status: "sent",
-            linkSentTo: draft.customer.email,
-            paypalApprovalUrl: approvalUrl,
-            paypalOrderId: ppData?.id ?? null,
-            fieldOrderId: fieldOrderId ?? null,
-            invoiceId: invoiceId ?? null,
-            coreOrderId: orderId ?? null,
+            ...d.payment, status: "sent", linkSentTo: draft.customer.email,
+            paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
+            fieldOrderId: null, invoiceId: null, coreOrderId: null,
           },
         }));
         toast.success("Lien PayPal envoyé au client.");
       } else {
-        // 3b) On-site mode — keep the link on screen for QR display
         setDraft((d) => ({
           ...d,
           payment: {
-            ...d.payment,
-            status: "pending",
-            paypalApprovalUrl: approvalUrl,
-            paypalOrderId: ppData?.id ?? null,
-            fieldOrderId: fieldOrderId ?? null,
-            invoiceId: invoiceId ?? null,
-            coreOrderId: orderId ?? null,
+            ...d.payment, status: "pending",
+            paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
+            fieldOrderId: null, invoiceId: null, coreOrderId: null,
           },
         }));
         toast.success("Lien PayPal prêt — montrez le QR au client.");
@@ -225,6 +188,50 @@ export default function FieldNewSale() {
       setSubmitMessage("");
     }
   };
+
+  // FIX 2 — Card manual submit
+  const handleCardSubmit = async (cardData: { number: string; name: string; expiry: string; cvv: string }) => {
+    if (!user?.id || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitMessage("Chiffrement et enregistrement…");
+    try {
+      const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
+      const quote = await saveQuoteAndEmail({
+        draft, agentName: user?.email || "Agent terrain", activationFee,
+        subtotal, tps, tvq, total,
+      });
+
+      const { data, error } = await supabase.functions.invoke("field-card-intent", {
+        body: {
+          quote_id: quote.id,
+          amount: total,
+          card_number: cardData.number,
+          card_name: cardData.name,
+          card_expiry: cardData.expiry,
+          cvv: cardData.cvv,
+          customer_email: draft.customer.email,
+          customer_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim(),
+        },
+      });
+      if (error) throw error;
+
+      setDraft((d) => ({
+        ...d,
+        payment: { ...d.payment, status: "sent", linkSentTo: null,
+          paypalApprovalUrl: null, paypalOrderId: null,
+          fieldOrderId: null, invoiceId: null, coreOrderId: null },
+      }));
+      toast.success(`Carte ••${data.card_last4} enregistrée. En attente de traitement par Core.`);
+      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep])]);
+    } catch (err: any) {
+      logger.warn("Field card submission failed", err);
+      toast.error(err?.message || "Erreur lors de l'enregistrement de la carte");
+    } finally {
+      setIsSubmitting(false);
+      setSubmitMessage("");
+    }
+  };
+
 
   // ── Realtime: invoice paid → mark payment completed ──────
   useEffect(() => {
