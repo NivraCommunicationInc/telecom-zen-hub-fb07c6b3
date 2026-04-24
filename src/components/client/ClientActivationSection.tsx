@@ -233,16 +233,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   }, [authLoading, clientId, queryClient]);
 
   const validateChecklist = (): string | null => {
-    if (!selectedOrderId) return "Veuillez sélectionner une commande";
-    if (!checks.coaxial || !checks.power) {
-      return "Veuillez compléter toutes les vérifications obligatoires avant de soumettre.";
-    }
-    if (!lightColor) {
-      return "Veuillez indiquer la couleur du voyant lumineux de la borne.";
-    }
-    if (lightColor !== LIGHT_OK) {
-      return "La lumière doit être blanche fixe pour activer votre service.";
-    }
+    // Order selection is OPTIONAL — clients can submit without an associated order.
+    // Pre-flight checklist is also optional; we only flag inconsistent terminal state.
     if (checks.hasTerminal && (!checks.hdmi || !checks.terminalPower)) {
       return "Veuillez confirmer le branchement du Terminal TV ou décocher l'option.";
     }
@@ -250,12 +242,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   };
 
   const lightOk = lightColor === LIGHT_OK;
-  const canSubmit =
-    !!selectedOrderId &&
-    checks.coaxial &&
-    checks.power &&
-    lightOk &&
-    (!checks.hasTerminal || (checks.hdmi && checks.terminalPower));
+  // Submit is always enabled (apart from in-flight submission). Order is optional.
+  const canSubmit = true;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
