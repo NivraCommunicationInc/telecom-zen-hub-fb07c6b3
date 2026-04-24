@@ -1073,58 +1073,123 @@ serve(async (req: Request) => {
 
               const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
               const staffLoginLink = `${appBaseUrl}/staff`;
-              await sendStaffEmail(adminClient, {
-                to: email,
-                subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
-                idempotencyKey: `staff_invite_${userId}_${Date.now()}`,
-                html: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-                      <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
-                      <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Bienvenue dans l'équipe!</p>
-                    </div>
-                    <div style="padding: 30px; background: #f8fafc;">
-                      <h2 style="color: #1e293b; margin-bottom: 16px;">Bonjour ${resolvedFullName},</h2>
-                      <p style="color: #374151; line-height: 1.6;">Votre compte <strong>${role === "employee" ? "employé" : "technicien"}</strong> a été créé avec succès.</p>
+              const firstName = (resolvedFullName || email).split(" ")[0];
 
-                      <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                        <p style="color: #92400e; margin: 0; font-weight: 600;">Configuration requise</p>
-                        <p style="color: #78350f; margin: 8px 0 0; font-size: 14px;">
-                          Avant d'accéder au portail, vous devez configurer votre profil: mot de passe, NIP de sécurité et accepter les conditions d'utilisation.
+              // Field Sales — branded "Violet Bold" invitation
+              if (role === "field_sales") {
+                await sendStaffEmail(adminClient, {
+                  to: email,
+                  subject: "Invitation — Portail Nivra Field & RH",
+                  idempotencyKey: `staff_invite_${userId}_${Date.now()}`,
+                  html: `
+                    <div style="font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                      <div style="background: linear-gradient(135deg, #7c3aed, #5b21b6); padding: 36px 30px; text-align: center;">
+                        <span style="display: inline-block; background: rgba(255,255,255,0.15); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; padding: 6px 14px; border-radius: 999px; text-transform: uppercase;">
+                          Bienvenue chez Nivra Telecom
+                        </span>
+                        <h1 style="color: #ffffff; margin: 18px 0 0; font-size: 26px; font-weight: 800; line-height: 1.2;">
+                          Vous êtes invité à rejoindre l'équipe terrain
+                        </h1>
+                      </div>
+                      <div style="padding: 32px 30px; background: #ffffff;">
+                        <p style="color: #18181b; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                          Bonjour <strong>${firstName}</strong>, vous avez été ajouté comme représentant terrain chez Nivra Telecom. Créez votre compte pour accéder au portail Field et au portail RH.
+                        </p>
+
+                        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 18px 22px; margin: 24px 0;">
+                          <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                              <td style="padding: 8px 0; font-size: 13px; color: #6b21a8; font-weight: 600; width: 45%;">Rôle</td>
+                              <td style="padding: 8px 0; font-size: 14px; color: #18181b; text-align: right;">Représentant terrain — Field Sales</td>
+                            </tr>
+                            <tr style="border-top: 1px solid #e9d5ff;">
+                              <td style="padding: 8px 0; font-size: 13px; color: #6b21a8; font-weight: 600;">Portails accessibles</td>
+                              <td style="padding: 8px 0; font-size: 14px; color: #18181b; text-align: right;">Nivra Field + Portail RH</td>
+                            </tr>
+                            <tr style="border-top: 1px solid #e9d5ff;">
+                              <td style="padding: 8px 0; font-size: 13px; color: #6b21a8; font-weight: 600;">Lien valide</td>
+                              <td style="padding: 8px 0; font-size: 14px; color: #18181b; text-align: right;">72 heures</td>
+                            </tr>
+                          </table>
+                        </div>
+
+                        <p style="margin: 28px 0; text-align: center;">
+                          <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);">
+                            Créer mon compte
+                          </a>
+                        </p>
+
+                        <p style="font-size: 12px; color: #71717a; text-align: center; margin: 0;">
+                          Si le bouton ne fonctionne pas, copiez ce lien :<br>
+                          <a href="${setupLink}" style="color: #7c3aed; word-break: break-all;">${setupLink}</a>
                         </p>
                       </div>
-
-                      <p style="margin: 25px 0; text-align: center;">
-                        <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                          Configurer mon profil
-                        </a>
-                      </p>
-                      <p style="font-size: 13px; color: #64748b; text-align: center;">Ce lien expire dans 48 heures.</p>
-
-                      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
-
-                      <p style="color: #374151; font-weight: 600; margin-bottom: 12px;">Étapes de configuration:</p>
-                      <ol style="color: #374151; line-height: 2; padding-left: 20px;">
-                        <li>Créez votre mot de passe sécurisé</li>
-                        <li>Choisissez un NIP à 4 chiffres (requis pour accéder aux profils clients)</li>
-                        <li>Acceptez les conditions de confidentialité</li>
-                      </ol>
-
-                      <p style="margin-top: 24px; color: #64748b; font-size: 13px;">
-                        Une fois configuré, connectez-vous à <a href="${staffLoginLink}" style="color: #0d9488;">${staffLoginLink}</a>
-                      </p>
+                      <div style="padding: 22px 30px; background: #18181b; text-align: center;">
+                        <p style="margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #ffffff;">Nivra Telecom</p>
+                        <p style="margin: 0 0 6px; font-size: 12px; color: #a1a1aa;">1799 Av. Pierre-Péladeau, Laval, QC</p>
+                        <p style="margin: 0; font-size: 12px; color: #a1a1aa;">
+                          <a href="mailto:support@nivra-telecom.ca" style="color: #c4b5fd; text-decoration: none;">support@nivra-telecom.ca</a> ·
+                          <a href="tel:4385442233" style="color: #c4b5fd; text-decoration: none; white-space: nowrap;">438-544-2233</a>
+                        </p>
+                        <p style="margin: 10px 0 0; font-size: 11px; color: #71717a;">© ${new Date().getFullYear()} Nivra Telecom. Tous droits réservés.</p>
+                      </div>
                     </div>
-                    <div style="padding: 24px 30px; background: #f1f5f9; border-top: 1px solid #e2e8f0; text-align: center;">
-                      <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
-                      <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">1799 Av. Pierre-Péladeau, Laval, QC</p>
-                      <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
-                        <a href="mailto:support@nivra-telecom.ca" style="color: #0d9488; text-decoration: none;">support@nivra-telecom.ca</a> |
-                        <a href="tel:4385442233" style="color: #0d9488; text-decoration: none; white-space: nowrap;">438-544-2233</a>
-                      </p>
+                  `,
+                });
+              } else {
+                await sendStaffEmail(adminClient, {
+                  to: email,
+                  subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
+                  idempotencyKey: `staff_invite_${userId}_${Date.now()}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                        <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+                        <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Bienvenue dans l'équipe!</p>
+                      </div>
+                      <div style="padding: 30px; background: #f8fafc;">
+                        <h2 style="color: #1e293b; margin-bottom: 16px;">Bonjour ${resolvedFullName},</h2>
+                        <p style="color: #374151; line-height: 1.6;">Votre compte <strong>${role === "employee" ? "employé" : "technicien"}</strong> a été créé avec succès.</p>
+
+                        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+                          <p style="color: #92400e; margin: 0; font-weight: 600;">Configuration requise</p>
+                          <p style="color: #78350f; margin: 8px 0 0; font-size: 14px;">
+                            Avant d'accéder au portail, vous devez configurer votre profil: mot de passe, NIP de sécurité et accepter les conditions d'utilisation.
+                          </p>
+                        </div>
+
+                        <p style="margin: 25px 0; text-align: center;">
+                          <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                            Configurer mon profil
+                          </a>
+                        </p>
+                        <p style="font-size: 13px; color: #64748b; text-align: center;">Ce lien expire dans 48 heures.</p>
+
+                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+
+                        <p style="color: #374151; font-weight: 600; margin-bottom: 12px;">Étapes de configuration:</p>
+                        <ol style="color: #374151; line-height: 2; padding-left: 20px;">
+                          <li>Créez votre mot de passe sécurisé</li>
+                          <li>Choisissez un NIP à 4 chiffres (requis pour accéder aux profils clients)</li>
+                          <li>Acceptez les conditions de confidentialité</li>
+                        </ol>
+
+                        <p style="margin-top: 24px; color: #64748b; font-size: 13px;">
+                          Une fois configuré, connectez-vous à <a href="${staffLoginLink}" style="color: #0d9488;">${staffLoginLink}</a>
+                        </p>
+                      </div>
+                      <div style="padding: 24px 30px; background: #f1f5f9; border-top: 1px solid #e2e8f0; text-align: center;">
+                        <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
+                        <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">1799 Av. Pierre-Péladeau, Laval, QC</p>
+                        <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
+                          <a href="mailto:support@nivra-telecom.ca" style="color: #0d9488; text-decoration: none;">support@nivra-telecom.ca</a> |
+                          <a href="tel:4385442233" style="color: #0d9488; text-decoration: none; white-space: nowrap;">438-544-2233</a>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                `,
-              });
+                  `,
+                });
+              }
 
               invitationSent = true;
               await logAction("staff_onboarding_invite_sent", { request_id: requestId, role, mode }, { type: "user", id: userId, email });
