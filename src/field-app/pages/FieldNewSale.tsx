@@ -30,6 +30,8 @@ import StepEquipment from "@/field-app/components/sale/StepEquipment";
 import StepDiscounts from "@/field-app/components/sale/StepDiscounts";
 import StepRecap from "@/field-app/components/sale/StepRecap";
 import StepPaymentPaypal from "@/field-app/components/sale/StepPaymentPaypal";
+import LiveSummary from "@/field-app/components/sale/LiveSummary";
+import { computeDiscountBreakdown } from "@/field-app/lib/fieldDiscountMath";
 
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
@@ -81,16 +83,23 @@ export default function FieldNewSale() {
     [draft.equipment]
   );
 
-  const monthlyDiscountAmount = useMemo(() => {
-    if (!draft.discount) return 0;
-    if (draft.discount.type === "percentage") {
-      return (monthlyBeforeDiscount * draft.discount.value) / 100;
-    }
-    return Math.min(draft.discount.value, monthlyBeforeDiscount);
-  }, [draft.discount, monthlyBeforeDiscount]);
+  // Centralized discount math (handles fixed_monthly, remove_fee, first_month_free, etc.).
+  const discountBreakdown = useMemo(
+    () => computeDiscountBreakdown(draft.discount, draft.services, activationFee),
+    [draft.discount, draft.services, activationFee],
+  );
+
+  const monthlyDiscountAmount = discountBreakdown.monthlyDiscountAmount;
+  const installationDiscountAmount = discountBreakdown.installationDiscountAmount;
+  const firstMonthCredit = discountBreakdown.firstMonthCredit;
 
   const monthlyAfterDiscount = Math.max(0, monthlyBeforeDiscount - monthlyDiscountAmount);
-  const subtotal = monthlyAfterDiscount + equipmentTotal + activationFee;
+  const effectiveActivation = Math.max(0, activationFee - installationDiscountAmount);
+  // First-month credit is a one-time credit on the first invoice only.
+  const subtotal = Math.max(
+    0,
+    monthlyAfterDiscount + equipmentTotal + effectiveActivation - firstMonthCredit,
+  );
   const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
   const total = Math.round((subtotal + tps + tvq) * 100) / 100;
@@ -261,81 +270,104 @@ export default function FieldNewSale() {
   }, [draft.payment.invoiceId]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 px-4 py-5">
-      <SaleStepIndicator
-        currentStep={draft.step}
-        completedSteps={completedSteps}
-        onStepClick={(step) => {
-          if (completedSteps.includes(step) || STEP_ORDER.indexOf(step) < STEP_ORDER.indexOf(draft.step)) goTo(step);
-        }}
-      />
-
-      {draft.step === "customer" && (
-        <StepCustomer
-          customer={draft.customer}
-          onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
-          onNext={() => advance("customer")}
-          onCancel={() => navigate(fieldPath("/dashboard"))}
+    <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-6">
+      <div className="mb-5">
+        <SaleStepIndicator
+          currentStep={draft.step}
+          completedSteps={completedSteps}
+          onStepClick={(step) => {
+            if (completedSteps.includes(step) || STEP_ORDER.indexOf(step) < STEP_ORDER.indexOf(draft.step)) goTo(step);
+          }}
         />
-      )}
+      </div>
 
-      {draft.step === "services" && (
-        <StepServices
-          selected={draft.services}
-          onChange={(services) => setDraft((d) => ({ ...d, services }))}
-          onNext={() => advance("services")}
-          onBack={() => goBack("services")}
-        />
-      )}
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-5 min-w-0">
+          {draft.step === "customer" && (
+            <StepCustomer
+              customer={draft.customer}
+              onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
+              onNext={() => advance("customer")}
+              onCancel={() => navigate(fieldPath("/dashboard"))}
+            />
+          )}
 
-      {draft.step === "equipment" && (
-        <StepEquipment
-          selected={draft.equipment}
-          onChange={(equipment) => setDraft((d) => ({ ...d, equipment }))}
-          onNext={() => advance("equipment")}
-          onBack={() => goBack("equipment")}
-        />
-      )}
+          {draft.step === "services" && (
+            <StepServices
+              selected={draft.services}
+              onChange={(services) => setDraft((d) => ({ ...d, services }))}
+              onNext={() => advance("services")}
+              onBack={() => goBack("services")}
+            />
+          )}
 
-      {draft.step === "discounts" && (
-        <StepDiscounts
-          selected={draft.discount}
-          services={draft.services}
-          onChange={(discount) => setDraft((d) => ({ ...d, discount }))}
-          onNext={() => advance("discounts")}
-          onBack={() => goBack("discounts")}
-        />
-      )}
+          {draft.step === "equipment" && (
+            <StepEquipment
+              selected={draft.equipment}
+              onChange={(equipment) => setDraft((d) => ({ ...d, equipment }))}
+              onNext={() => advance("equipment")}
+              onBack={() => goBack("equipment")}
+            />
+          )}
 
-      {draft.step === "recap" && (
-        <StepRecap
+          {draft.step === "discounts" && (
+            <StepDiscounts
+              selected={draft.discount}
+              services={draft.services}
+              installationFee={activationFee}
+              onChange={(discount) => setDraft((d) => ({ ...d, discount }))}
+              onNext={() => advance("discounts")}
+              onBack={() => goBack("discounts")}
+            />
+          )}
+
+          {draft.step === "recap" && (
+            <StepRecap
+              draft={draft}
+              activationFee={activationFee}
+              monthlyBeforeDiscount={monthlyBeforeDiscount}
+              monthlyDiscountAmount={monthlyDiscountAmount}
+              monthlyAfterDiscount={monthlyAfterDiscount}
+              installationDiscountAmount={installationDiscountAmount}
+              firstMonthCredit={firstMonthCredit}
+              equipmentTotal={equipmentTotal}
+              subtotal={subtotal}
+              tps={tps}
+              tvq={tvq}
+              total={total}
+              onNext={() => advance("recap")}
+              onBack={() => goBack("recap")}
+            />
+          )}
+
+          {draft.step === "payment" && (
+            <StepPaymentPaypal
+              payment={draft.payment}
+              customer={draft.customer}
+              totalAmount={total}
+              onChange={(payment) => setDraft((d) => ({ ...d, payment }))}
+              onSubmit={handleSubmit}
+              onBack={() => goBack("payment")}
+              isSubmitting={isSubmitting}
+              submitMessage={submitMessage}
+            />
+          )}
+        </div>
+
+        <LiveSummary
           draft={draft}
           activationFee={activationFee}
           monthlyBeforeDiscount={monthlyBeforeDiscount}
           monthlyDiscountAmount={monthlyDiscountAmount}
-          monthlyAfterDiscount={monthlyAfterDiscount}
+          installationDiscountAmount={installationDiscountAmount}
+          firstMonthCredit={firstMonthCredit}
           equipmentTotal={equipmentTotal}
           subtotal={subtotal}
           tps={tps}
           tvq={tvq}
           total={total}
-          onNext={() => advance("recap")}
-          onBack={() => goBack("recap")}
         />
-      )}
-
-      {draft.step === "payment" && (
-        <StepPaymentPaypal
-          payment={draft.payment}
-          customer={draft.customer}
-          totalAmount={total}
-          onChange={(payment) => setDraft((d) => ({ ...d, payment }))}
-          onSubmit={handleSubmit}
-          onBack={() => goBack("payment")}
-          isSubmitting={isSubmitting}
-          submitMessage={submitMessage}
-        />
-      )}
+      </div>
     </div>
   );
 }
