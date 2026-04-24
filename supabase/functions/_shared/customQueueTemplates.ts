@@ -1386,6 +1386,34 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // STAFF — Generic internal invitation (Violet Bold)
+    // ===================================================================
+    case "staff_invitation": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || "");
+      const inviteUrl = String(v.invite_url || v.INVITE_URL || v.setup_link || "#");
+      const roleLabel = esc(v.role_label || v.ROLE_LABEL || "Membre du personnel");
+      return {
+        subject: "Invitation interne Nivra — Activez votre compte",
+        html: shell({
+          preheader: "Vous avez été invité à activer votre compte interne Nivra Telecom.",
+          badge: "INVITATION — ACCÈS INTERNE",
+          heroTitle: "Bienvenue chez Nivra Telecom",
+          heroSub: "Activez votre compte pour accéder à votre portail.",
+          icon: "star",
+          greeting: `Bonjour ${firstName || ""},`,
+          bodyText: `Vous avez été invité à activer votre compte interne Nivra Telecom à titre de <strong>${roleLabel}</strong>.<br/><br/>Créez votre mot de passe et votre NIP pour accéder à votre portail.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 48 heures.</strong>`,
+          cardTitle: "Détails de votre accès",
+          cardRows: [
+            ["Rôle", roleLabel],
+            ["Lien valide", "48 heures"],
+          ],
+          ctaPrimaryUrl: inviteUrl,
+          ctaPrimaryLabel: "Activer mon compte",
+        }),
+      };
+    }
+
+    // ===================================================================
     // GENERIC FALLBACK
     // ===================================================================
     case "order_update":
