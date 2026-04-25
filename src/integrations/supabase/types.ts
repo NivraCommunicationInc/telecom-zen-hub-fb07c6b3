@@ -4330,6 +4330,36 @@ export type Database = {
           },
         ]
       }
+      coverage_waitlist: {
+        Row: {
+          city: string | null
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          notified_at: string | null
+          postal_code: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          notified_at?: string | null
+          postal_code?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          notified_at?: string | null
+          postal_code?: string | null
+        }
+        Relationships: []
+      }
       crm_contacts: {
         Row: {
           converted_at: string | null
@@ -15688,32 +15718,53 @@ export type Database = {
       service_coverage_areas: {
         Row: {
           available_services: Json
+          city: string | null
           coverage_type: string
           created_at: string
           id: string
+          internet_available: boolean
+          internet_max_speed: string
           is_active: boolean
+          mobile_available: boolean
+          network_provider: string
           notes: string | null
           postal_prefix: string
+          province: string
+          tv_available: boolean
           updated_at: string
         }
         Insert: {
           available_services?: Json
+          city?: string | null
           coverage_type?: string
           created_at?: string
           id?: string
+          internet_available?: boolean
+          internet_max_speed?: string
           is_active?: boolean
+          mobile_available?: boolean
+          network_provider?: string
           notes?: string | null
           postal_prefix: string
+          province?: string
+          tv_available?: boolean
           updated_at?: string
         }
         Update: {
           available_services?: Json
+          city?: string | null
           coverage_type?: string
           created_at?: string
           id?: string
+          internet_available?: boolean
+          internet_max_speed?: string
           is_active?: boolean
+          mobile_available?: boolean
+          network_provider?: string
           notes?: string | null
           postal_prefix?: string
+          province?: string
+          tv_available?: boolean
           updated_at?: string
         }
         Relationships: []
