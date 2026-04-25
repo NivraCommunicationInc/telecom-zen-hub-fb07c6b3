@@ -14,7 +14,7 @@ const StatsBanner = lazy(() => import("@/components/marketing/StatsBanner"));
 
 const TestimonialsSection = lazy(() => import("@/components/marketing/TestimonialsSection"));
 const TrustBadges = lazy(() => import("@/components/marketing/TrustBadges"));
-const CoverageSection = lazy(() => import("@/components/marketing/CoverageSection"));
+const CoverageSection = lazy(() => import("@/components/CoverageChecker"));
 
 const Index = () => {
   return (
