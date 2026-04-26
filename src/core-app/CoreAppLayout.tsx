@@ -49,6 +49,8 @@ const HREF_TO_BADGE: Record<string, CoreBadgeKey> = {
   "/support": "support",
   "/wifi-requests": "activations",
   "/notifications": "notifications",
+  "/hr/careers": "careers",
+  "/hr/applications": "careers",
 };
 
 interface NavGroup {
@@ -199,7 +201,9 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: FileText, label: "Documents RH", href: "/hr/documents" },
       { icon: FileText, label: "Docs fiscaux", href: "/hr/tax-documents" },
       { icon: MessageSquare, label: "Demandes RH", href: "/hr/requests" },
-      { icon: Briefcase, label: "Recrutement", href: "/hr/careers" },
+      { icon: Briefcase, label: "Recrutement (postes)", href: "/hr/careers", badgeKey: "careers" },
+      { icon: UserPlus, label: "Candidatures", href: "/hr/applications", badgeKey: "careers" },
+      { icon: Mail, label: "Templates emails", href: "/hr/email-templates" },
       { icon: History, label: "Audit RH", href: "/hr/audit" },
     ],
   },

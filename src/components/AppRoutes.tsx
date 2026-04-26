@@ -173,6 +173,7 @@ const HrAuditPage = lazy(() => import("@/core-app/pages/hr/HrAuditPage"));
 const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
+const CoreCareerEmailTemplatesPage = lazy(() => import("@/core-app/pages/hr/CoreCareerEmailTemplatesPage"));
 // System
 const CoreNotificationsPage = lazy(() => import("@/core-app/pages/CoreNotificationsPage"));
 const CoreMaintenancePage = lazy(() => import("@/core-app/pages/CoreMaintenancePage"));
@@ -861,6 +862,7 @@ const AppRoutes = () => {
           <Route path="hr/requests" element={<Suspense fallback={null}><HrRequestsPage /></Suspense>} />
           <Route path="hr/careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
           <Route path="hr/applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />
+          <Route path="hr/email-templates" element={<Suspense fallback={null}><CoreCareerEmailTemplatesPage /></Suspense>} />
           <Route path="hr/audit" element={<Suspense fallback={null}><HrAuditPage /></Suspense>} />
           {/* Legacy HR routes */}
           <Route path="careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
