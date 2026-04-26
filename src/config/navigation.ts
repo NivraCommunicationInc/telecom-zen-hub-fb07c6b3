@@ -96,14 +96,6 @@ export const NAV_TARGETS: NavTarget[] = [
     fallbackRoute: '/compare',
   },
   {
-    id: 'couverture',
-    label: 'Coverage',
-    labelFr: 'Couverture',
-    type: 'route',
-    target: '/couverture',
-    fallbackRoute: '/couverture',
-  },
-  {
     id: 'support',
     label: 'Support',
     labelFr: 'Support',
