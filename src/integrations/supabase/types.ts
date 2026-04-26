@@ -9806,11 +9806,15 @@ export type Database = {
           message: string | null
           phone: string
           position: string
+          read_at: string | null
           rejection_reason: string | null
+          score: number | null
+          source: string | null
           stage: string
           stage_changed_at: string | null
           stage_changed_by: string | null
           status: string
+          tags: string[]
         }
         Insert: {
           created_at?: string
@@ -9825,11 +9829,15 @@ export type Database = {
           message?: string | null
           phone: string
           position: string
+          read_at?: string | null
           rejection_reason?: string | null
+          score?: number | null
+          source?: string | null
           stage?: string
           stage_changed_at?: string | null
           stage_changed_by?: string | null
           status?: string
+          tags?: string[]
         }
         Update: {
           created_at?: string
@@ -9844,11 +9852,15 @@ export type Database = {
           message?: string | null
           phone?: string
           position?: string
+          read_at?: string | null
           rejection_reason?: string | null
+          score?: number | null
+          source?: string | null
           stage?: string
           stage_changed_at?: string | null
           stage_changed_by?: string | null
           status?: string
+          tags?: string[]
         }
         Relationships: [
           {
@@ -9874,11 +9886,45 @@ export type Database = {
           },
         ]
       }
+      job_email_templates: {
+        Row: {
+          body_md: string
+          created_at: string
+          enabled: boolean
+          id: string
+          language: string
+          stage: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body_md: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          language?: string
+          stage: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body_md?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          language?: string
+          stage?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           created_at: string
           department: string
           description: string | null
+          description_md: string | null
           expires_at: string | null
           id: string
           is_active: boolean | null
@@ -9887,14 +9933,17 @@ export type Database = {
           requirements: string | null
           salary_max: number | null
           salary_min: number | null
+          slug: string | null
           title: string
           type: string
           updated_at: string
+          views_count: number
         }
         Insert: {
           created_at?: string
           department: string
           description?: string | null
+          description_md?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -9903,14 +9952,17 @@ export type Database = {
           requirements?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          slug?: string | null
           title: string
           type?: string
           updated_at?: string
+          views_count?: number
         }
         Update: {
           created_at?: string
           department?: string
           description?: string | null
+          description_md?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -9919,9 +9971,11 @@ export type Database = {
           requirements?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          slug?: string | null
           title?: string
           type?: string
           updated_at?: string
+          views_count?: number
         }
         Relationships: [
           {
@@ -20041,6 +20095,7 @@ export type Database = {
         Args: { p_campaign_id: string; p_field: string; p_increment?: number }
         Returns: undefined
       }
+      increment_job_views: { Args: { _slug: string }; Returns: undefined }
       increment_referral_usage: {
         Args: { code_id: string }
         Returns: undefined
