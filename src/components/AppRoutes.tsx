@@ -217,7 +217,7 @@ const PhoneCatalog = lazy(() => import("@/pages/PhoneCatalog"));
 const PhoneDetail = lazy(() => import("@/pages/PhoneDetail"));
 const PhoneCheckout = lazy(() => import("@/pages/PhoneCheckout"));
 const MobileCoverage = lazy(() => import("@/pages/MobileCoverage"));
-const Couverture = lazy(() => import("@/pages/Couverture"));
+
 const StreamingPlans = lazy(() => import("@/pages/StreamingPlans"));
 const DevLogin = lazy(() => import("@/pages/DevLogin"));
 const E2eInstallTest = lazy(() => import("@/pages/E2eInstallTest"));

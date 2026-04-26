@@ -28,7 +28,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const services = [
     { label: isFr ? "Internet haute vitesse" : "High-speed Internet", to: "/internet" },
     { label: isFr ? "Télévision" : "Television", to: "/tv" },
-    { label: isFr ? "Vérifier la couverture" : "Check coverage", to: "/couverture" },
+    
     { label: isFr ? "Comparer les forfaits" : "Compare Plans", to: "/compare" },
     { label: isFr ? "Nos équipements" : "Our Equipment", to: "/frais-possibles" },
     { label: isFr ? "Frais et tarifs" : "Fees & Pricing", to: "/frais-possibles" },
