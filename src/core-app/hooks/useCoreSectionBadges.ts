@@ -28,6 +28,7 @@ export type CoreBadgeKey =
   | "support"
   | "activations"
   | "hr"
+  | "careers"
   | "notifications";
 
 export type CoreSectionBadges = Record<CoreBadgeKey, number>;
@@ -40,6 +41,7 @@ const EMPTY: CoreSectionBadges = {
   support: 0,
   activations: 0,
   hr: 0,
+  careers: 0,
   notifications: 0,
 };
 
@@ -98,6 +100,13 @@ export function useCoreSectionBadges(): {
         .in("status", ["open", "in_progress"]);
       acc.support = ticketCount ?? 0;
 
+      // Careers : candidatures non lues (read_at IS NULL)
+      const { count: careersCount } = await supabase
+        .from("job_applications")
+        .select("id", { count: "exact", head: true })
+        .is("read_at", null);
+      acc.careers = careersCount ?? 0;
+
       return acc;
     },
   });
@@ -119,6 +128,11 @@ export function useCoreSectionBadges(): {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tickets" },
+        () => queryClient.invalidateQueries({ queryKey: ["core-section-badges"] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_applications" },
         () => queryClient.invalidateQueries({ queryKey: ["core-section-badges"] }),
       )
       .subscribe();
@@ -162,5 +176,6 @@ export const SECTION_TO_TYPES: Record<CoreBadgeKey, string[]> = {
   ],
   support: [],
   activations: [],
+  careers: [],
   notifications: [],
 };
