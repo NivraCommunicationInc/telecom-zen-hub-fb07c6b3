@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Download, Upload, Zap, Share2, AlertTriangle, RefreshCw, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,84 +12,61 @@ interface Results {
   latency: number;  // ms
 }
 
-// Reference Nivra Internet plans (advertised speeds in Mbps).
-// Used to suggest a matching plan when user is anonymous.
+// Brand palette (Xfinity Premium / Nivra)
+const COLORS = {
+  bg: "#1e1b4b",
+  card: "rgba(255,255,255,0.05)",
+  border: "rgba(124,58,237,0.3)",
+  accent: "#7c3aed",
+  accentSoft: "#a78bfa",
+  text: "#ffffff",
+  green: "#10b981",
+  blue: "#3b82f6",
+} as const;
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const SPEEDTEST_ENDPOINT = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
+
+// Reference Nivra Internet plans for matching the result.
 const NIVRA_PLANS = [
-  { name: "Internet 100 Mbps", mbps: 100, href: "/internet" },
-  { name: "Internet 300 Mbps", mbps: 300, href: "/internet" },
-  { name: "Internet 500 Mbps", mbps: 500, href: "/internet" },
-  { name: "Internet Giga", mbps: 1010, href: "/internet" },
+  { name: "Internet 100 Mbps", mbps: 100 },
+  { name: "Internet 300 Mbps", mbps: 300 },
+  { name: "Internet 500 Mbps", mbps: 500 },
+  { name: "Internet Giga", mbps: 1010 },
 ];
 
-function classifyVsPlan(measured: number, plan: number): "good" | "warn" | "bad" {
-  const ratio = measured / plan;
-  if (ratio >= 0.8) return "good";
-  if (ratio >= 0.5) return "warn";
-  return "bad";
-}
-
 function suggestPlan(measured: number) {
-  // Pick the highest plan whose advertised speed is <= measured (with a tolerance).
   const eligible = NIVRA_PLANS.filter((p) => p.mbps <= measured * 1.1);
   return eligible[eligible.length - 1] ?? NIVRA_PLANS[0];
 }
 
+function speedVerdict(mbps: number): {
+  icon: string;
+  label: string;
+  tone: "good" | "warn" | "bad";
+} {
+  if (mbps >= 800) return { icon: "✅", label: "Excellent — Compatible Internet Giga", tone: "good" };
+  if (mbps >= 400) return { icon: "✅", label: "Très bien — Compatible Internet 500 Mbps", tone: "good" };
+  if (mbps >= 80) return { icon: "⚠️", label: "Bien — Compatible Internet 100 Mbps", tone: "warn" };
+  return { icon: "❌", label: "Faible — Contactez le support Nivra", tone: "bad" };
+}
+
 export default function TestVitesse() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [progress, setProgress] = useState(0); // 0-100 within current phase
   const [liveSpeed, setLiveSpeed] = useState(0);
   const [results, setResults] = useState<Results | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [subscribedPlanMbps, setSubscribedPlanMbps] = useState<number | null>(null);
-  const [subscribedPlanName, setSubscribedPlanName] = useState<string | null>(null);
-
-  const liveSpeedRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
-      if (!mounted) return;
-      setUserId(data.user?.id ?? null);
+      if (mounted) setUserId(data.user?.id ?? null);
     });
     return () => {
       mounted = false;
     };
   }, []);
-
-  // Fetch subscribed plan info if logged in (best-effort; safe if table empty)
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from("subscriptions")
-          .select("plan_name, service_category, status")
-          .eq("user_id", userId)
-          .in("status", ["active", "trialing", "processing"] as never)
-          .limit(5);
-        if (cancelled || !data) return;
-        const internet = data.find(
-          (r: any) => (r.service_category ?? "").toLowerCase() === "internet",
-        );
-        if (internet?.plan_name) {
-          setSubscribedPlanName(internet.plan_name);
-          // Try to extract speed from plan name (e.g. "Internet 300 Mbps", "Internet Giga")
-          const match = String(internet.plan_name).match(/(\d{2,4})\s*Mbps/i);
-          if (match) {
-            setSubscribedPlanMbps(parseInt(match[1], 10));
-          } else if (/giga/i.test(internet.plan_name)) {
-            setSubscribedPlanMbps(1010);
-          }
-        }
-      } catch {
-        // Non-critical; ignore
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
 
   const phaseLabel = useMemo(() => {
     switch (phase) {
@@ -99,100 +74,112 @@ export default function TestVitesse() {
       case "download": return "Test de téléchargement...";
       case "upload": return "Test de téléversement...";
       case "saving": return "Calcul des résultats...";
-      case "done": return "Test terminé";
-      default: return "Prêt à tester";
+      case "done": return "Terminé";
+      default: return "Prêt";
     }
   }, [phase]);
 
-  async function runPing(): Promise<number> {
-    setPhase("ping");
-    setProgress(0);
-    // Run a few quick fetches and take the minimum (closest to true latency)
-    const samples: number[] = [];
-    for (let i = 0; i < 4; i++) {
-      const start = performance.now();
-      const res = await fetch(`/speedtest-1mb.bin?ping=${Date.now()}-${i}`, {
-        cache: "no-store",
-      });
-      // Read first byte to get TTFB-ish measurement
-      const reader = res.body?.getReader();
-      if (reader) {
-        await reader.read();
-        await reader.cancel();
-      }
-      samples.push(performance.now() - start);
-      setProgress(((i + 1) / 4) * 100);
-    }
-    return Math.round(Math.min(...samples));
-  }
+  // ===== Speed test logic =====
+  // We call the speedtest-upload edge function for ALL phases:
+  //   - latency:  POST 100 bytes, measure round-trip
+  //   - upload:   POST N MB, compute Mbps
+  //   - download: POST N MB, server echoes byte count (we use round-trip / 2 as a stand-in,
+  //               OR we can stream a binary file from /public). We use the static file when
+  //               available, falling back to the edge function on failure.
 
-  async function runDownload(): Promise<number> {
-    setPhase("download");
-    setProgress(0);
-    setLiveSpeed(0);
-    liveSpeedRef.current = 0;
-
-    const url = `/speedtest-10mb.bin?dl=${Date.now()}`;
+  async function postBytes(payload: Uint8Array | ArrayBuffer): Promise<number> {
+    // Returns elapsed ms for the full round trip
     const start = performance.now();
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.body) throw new Error("Stream not supported");
-
-    const totalBytes = 10 * 1024 * 1024;
-    const reader = res.body.getReader();
-    let received = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        received += value.byteLength;
-        const elapsedSec = (performance.now() - start) / 1000;
-        if (elapsedSec > 0.05) {
-          const mbps = (received * 8) / elapsedSec / 1_000_000;
-          liveSpeedRef.current = mbps;
-          setLiveSpeed(mbps);
-        }
-        setProgress(Math.min(100, (received / totalBytes) * 100));
-      }
+    const res = await fetch(SPEEDTEST_ENDPOINT, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${SUPABASE_ANON}`,
+      },
+      body: payload as BodyInit,
+    });
+    if (!res.ok) {
+      throw new Error(`speedtest-upload returned ${res.status}`);
     }
-
-    const totalSec = (performance.now() - start) / 1000;
-    const mbps = (received * 8) / totalSec / 1_000_000;
-    return Number(mbps.toFixed(2));
+    // Drain body
+    await res.arrayBuffer();
+    return performance.now() - start;
   }
 
-  async function runUpload(): Promise<number> {
-    setPhase("upload");
-    setProgress(0);
+  async function testLatency(): Promise<number> {
+    setPhase("ping");
+    setLiveSpeed(0);
+    const pings: number[] = [];
+    const tiny = new Uint8Array(100);
+    for (let i = 0; i < 5; i++) {
+      try {
+        const ms = await postBytes(tiny);
+        pings.push(ms);
+      } catch {
+        // skip failed sample
+      }
+    }
+    if (pings.length === 0) throw new Error("Latence: aucun échantillon");
+    return Math.round(Math.min(...pings));
+  }
+
+  async function testDownload(): Promise<number> {
+    setPhase("download");
     setLiveSpeed(0);
 
+    // Try the static file first (fast path); fall back to edge function if missing.
+    try {
+      const url = `/speedtest-10mb.bin?dl=${Date.now()}`;
+      const start = performance.now();
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("no stream");
+      let received = 0;
+      const totalBytes = 10 * 1024 * 1024;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          received += value.byteLength;
+          const elapsed = (performance.now() - start) / 1000;
+          if (elapsed > 0.05) {
+            setLiveSpeed((received * 8) / elapsed / 1_000_000);
+          }
+        }
+      }
+      const totalSec = (performance.now() - start) / 1000;
+      const mbps = (received * 8) / totalSec / 1_000_000;
+      if (mbps > 0) return Number(mbps.toFixed(2));
+      throw new Error("zero throughput");
+    } catch {
+      // Fallback: round-trip several payload sizes via the edge function and take the best.
+      const sizes = [1, 2, 5]; // MB
+      const speeds: number[] = [];
+      for (const size of sizes) {
+        const data = new Uint8Array(size * 1024 * 1024);
+        const elapsedMs = await postBytes(data);
+        const elapsedSec = elapsedMs / 1000;
+        const mbps = (size * 8) / elapsedSec; // 1 MB ≈ 8 Mb (using 1MB=10^6 ish; close enough)
+        speeds.push(mbps);
+        setLiveSpeed(mbps);
+      }
+      return Number(Math.max(...speeds).toFixed(2));
+    }
+  }
+
+  async function testUpload(): Promise<number> {
+    setPhase("upload");
+    setLiveSpeed(0);
     const sizeBytes = 2 * 1024 * 1024; // 2 MB
     const payload = new Uint8Array(sizeBytes);
-    // Fill with pseudo-random bytes to defeat any compression
+    // Pseudo-random fill to defeat compression
     for (let i = 0; i < sizeBytes; i += 1024) payload[i] = (i * 7) & 0xff;
-
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speedtest-upload?ul=${Date.now()}`;
-    const start = performance.now();
-
-    // Animate progress optimistically while we wait for the request to complete
-    const animTimer = window.setInterval(() => {
-      setProgress((p) => Math.min(95, p + 5));
-    }, 200);
-
-    try {
-      await fetch(url, {
-        method: "POST",
-        body: payload,
-        cache: "no-store",
-        headers: { "Content-Type": "application/octet-stream" },
-      });
-    } finally {
-      clearInterval(animTimer);
-    }
-
-    const totalSec = (performance.now() - start) / 1000;
-    setProgress(100);
-    const mbps = (sizeBytes * 8) / totalSec / 1_000_000;
+    const elapsedMs = await postBytes(payload);
+    const elapsedSec = elapsedMs / 1000;
+    const mbps = (sizeBytes * 8) / elapsedSec / 1_000_000;
     setLiveSpeed(mbps);
     return Number(mbps.toFixed(2));
   }
@@ -201,19 +188,17 @@ export default function TestVitesse() {
     if (phase !== "idle" && phase !== "done") return;
     setResults(null);
     try {
-      const latency = await runPing();
-      const download = await runDownload();
-      const upload = await runUpload();
+      const latency = await testLatency();
+      const download = await testDownload();
+      const upload = await testUpload();
 
       setPhase("saving");
-      setProgress(0);
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 500));
 
       const r: Results = { download, upload, latency };
       setResults(r);
       setPhase("done");
 
-      // Save if logged in (best-effort)
       if (userId) {
         try {
           await supabase.from("speedtest_results").insert({
@@ -223,306 +208,474 @@ export default function TestVitesse() {
             latency_ms: r.latency,
           } as never);
         } catch {
-          // ignore
+          /* non-critical */
         }
       }
     } catch (err) {
       console.error("Speed test failed", err);
       toast({
         title: "Test interrompu",
-        description: "Une erreur est survenue. Veuillez réessayer.",
+        description: "Une erreur réseau est survenue. Veuillez réessayer.",
         variant: "destructive",
       });
       setPhase("idle");
     }
   }
 
-  function handleShare() {
-    if (!results) return;
-    const text = `🚀 Mon test de vitesse Nivra Telecom :
-📥 Téléchargement : ${results.download} Mbps
-📤 Téléversement : ${results.upload} Mbps
-⚡ Latence : ${results.latency} ms
-Serveur : Nivra Telecom — Montréal, QC
-Testez votre vitesse : ${window.location.origin}/test-vitesse`;
-    navigator.clipboard.writeText(text).then(
-      () =>
-        toast({
-          title: "Résultats copiés",
-          description: "Vous pouvez maintenant les partager.",
-        }),
-      () =>
-        toast({
-          title: "Impossible de copier",
-          description: "Veuillez copier manuellement.",
-          variant: "destructive",
-        }),
-    );
-  }
-
   const isRunning = phase !== "idle" && phase !== "done";
   const displaySpeed = isRunning ? liveSpeed : results?.download ?? 0;
 
-  // Gauge math (semi-circle, 0 to 1100 Mbps scale)
+  // Gauge math (full circle, 0–1100 Mbps scale)
   const MAX_GAUGE = 1100;
   const gaugePct = Math.min(100, (displaySpeed / MAX_GAUGE) * 100);
-  const gaugeAngle = (gaugePct / 100) * 180; // degrees
+  const RADIUS = 88;
+  const CIRC = 2 * Math.PI * RADIUS; // ~553
+  const dashOffset = CIRC - (CIRC * gaugePct) / 100;
 
-  // Comparison block
-  const compareTo = subscribedPlanMbps ?? null;
+  // Ring color depends on phase
+  const ringColor =
+    phase === "download" ? COLORS.green :
+    phase === "upload" ? COLORS.blue :
+    COLORS.accent;
+
+  const verdict = results ? speedVerdict(results.download) : null;
   const matchedPlan = results ? suggestPlan(results.download) : null;
-  const verdict =
-    results && compareTo ? classifyVsPlan(results.download, compareTo) : null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: COLORS.bg,
+        color: COLORS.text,
+        fontFamily: "Inter, Helvetica, Arial, sans-serif",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Helmet>
         <title>Test de vitesse Internet | Nivra Telecom</title>
         <meta
           name="description"
-          content="Testez votre vitesse Internet (téléchargement, téléversement, latence) propulsé par Nivra Telecom. Serveurs au Québec."
+          content="Testez votre vitesse Internet (téléchargement, téléversement, latence) propulsé par Nivra Telecom — Serveurs Montréal, QC."
         />
         <link rel="canonical" href="/test-vitesse" />
       </Helmet>
 
-      {/* HERO */}
-      <section className="relative overflow-hidden border-b border-white/5 bg-gradient-to-b from-[#1e1b4b] to-[#0a0a14]">
-        <div className="mx-auto max-w-5xl px-6 py-16 text-center sm:py-20">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-purple-300">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-purple-400" />
-            Serveur : Nivra Telecom — Montréal, QC
-          </div>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">
-            Testez votre vitesse Internet
-          </h1>
-          <p className="mx-auto max-w-2xl text-base text-white/60 sm:text-lg">
-            Propulsé par Nivra Telecom — Serveurs Québec
-          </p>
-        </div>
-      </section>
+      {/* HEADER */}
+      <header
+        style={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          background: "rgba(0,0,0,0.25)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: "16px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          <Link
+            to="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              textDecoration: "none",
+              color: COLORS.text,
+            }}
+            aria-label="Accueil Nivra Telecom"
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: COLORS.accent,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              N
+            </div>
+            <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: 0.2 }}>
+              Nivra Telecom
+            </span>
+          </Link>
 
-      {/* SPEED TEST UI */}
-      <section className="mx-auto max-w-5xl px-6 py-12">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-sm sm:p-12">
-          {/* Gauge */}
-          <div className="mx-auto mb-8 flex max-w-md flex-col items-center">
-            <div className="relative h-56 w-full max-w-[360px]">
-              {/* Semi-circle gauge */}
-              <svg viewBox="0 0 200 110" className="h-full w-full">
-                <defs>
-                  <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#7c3aed" />
-                    <stop offset="100%" stopColor="#a78bfa" />
-                  </linearGradient>
-                </defs>
-                {/* Track */}
-                <path
-                  d="M 10 100 A 90 90 0 0 1 190 100"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeWidth="14"
-                  strokeLinecap="round"
-                />
-                {/* Fill */}
-                <path
-                  d="M 10 100 A 90 90 0 0 1 190 100"
-                  fill="none"
-                  stroke="url(#gaugeGrad)"
-                  strokeWidth="14"
-                  strokeLinecap="round"
-                  strokeDasharray="282.74"
-                  strokeDashoffset={282.74 - (282.74 * gaugePct) / 100}
-                  style={{ transition: "stroke-dashoffset 200ms ease-out" }}
-                />
-                {/* Needle */}
-                <g
-                  style={{
-                    transform: `rotate(${gaugeAngle - 90}deg)`,
-                    transformOrigin: "100px 100px",
-                    transition: "transform 200ms ease-out",
-                  }}
-                >
-                  <line x1="100" y1="100" x2="100" y2="25" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="100" cy="100" r="6" fill="#fff" />
-                </g>
-              </svg>
-              {/* Live readout */}
-              <div className="absolute inset-x-0 bottom-2 text-center">
-                <div className="text-5xl font-bold tabular-nums text-white sm:text-6xl">
-                  {displaySpeed.toFixed(displaySpeed >= 100 ? 0 : 1)}
-                </div>
-                <div className="text-xs uppercase tracking-widest text-white/50">Mbps</div>
+          <Link
+            to="/"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              minHeight: 44,
+              padding: "10px 18px",
+              borderRadius: 999,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text,
+              textDecoration: "none",
+              fontSize: 14,
+              fontWeight: 600,
+              background: "transparent",
+              transition: "background 150ms ease",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(124,58,237,0.12)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            ← Retour au site
+          </Link>
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main style={{ flex: 1, padding: "48px 24px 64px" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+          {/* HERO */}
+          <h1
+            style={{
+              fontSize: "clamp(32px, 5vw, 44px)",
+              fontWeight: 800,
+              letterSpacing: -0.5,
+              margin: "0 0 12px",
+            }}
+          >
+            Test de vitesse Internet
+          </h1>
+          <p style={{ color: COLORS.accentSoft, fontSize: 16, margin: "0 0 8px", fontWeight: 600 }}>
+            Propulsé par Nivra Telecom
+          </p>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 14px",
+              borderRadius: 999,
+              border: `1px solid ${COLORS.border}`,
+              background: "rgba(124,58,237,0.08)",
+              fontSize: 12,
+              color: COLORS.accentSoft,
+              fontWeight: 600,
+              marginBottom: 40,
+            }}
+          >
+            🌐 Serveur — Montréal, QC
+          </div>
+
+          {/* GAUGE */}
+          <div
+            style={{
+              position: "relative",
+              width: 240,
+              height: 240,
+              margin: "0 auto 24px",
+            }}
+          >
+            <svg viewBox="0 0 200 200" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
+              {/* Track */}
+              <circle
+                cx="100"
+                cy="100"
+                r={RADIUS}
+                fill="none"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="14"
+              />
+              {/* Fill */}
+              <circle
+                cx="100"
+                cy="100"
+                r={RADIUS}
+                fill="none"
+                stroke={ringColor}
+                strokeWidth="14"
+                strokeLinecap="round"
+                strokeDasharray={CIRC}
+                strokeDashoffset={dashOffset}
+                style={{ transition: "stroke-dashoffset 200ms ease-out, stroke 200ms ease-out" }}
+              />
+            </svg>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <div style={{ fontSize: 48, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                {displaySpeed.toFixed(displaySpeed >= 100 ? 0 : 1)}
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.accentSoft, letterSpacing: 2, marginTop: 4, textTransform: "uppercase" }}>
+                Mbps
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 10, fontWeight: 500 }}>
+                {phaseLabel}
               </div>
             </div>
-
-            {/* Phase */}
-            <div className="mt-4 text-center">
-              <div className="text-sm font-medium text-purple-300">{phaseLabel}</div>
-              {isRunning && (
-                <div className="mx-auto mt-3 h-1.5 w-64 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full bg-gradient-to-r from-purple-500 to-purple-300 transition-all duration-200"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Metrics row */}
-          <div className="mb-8 grid gap-4 sm:grid-cols-3">
-            <MetricCard
-              icon={<Download className="h-5 w-5" />}
-              label="Téléchargement"
-              value={results ? results.download : isRunning && phase === "download" ? liveSpeed : 0}
-              unit="Mbps"
-              decimals={1}
-              accent="from-purple-600/20 to-purple-500/5"
-            />
-            <MetricCard
-              icon={<Upload className="h-5 w-5" />}
-              label="Téléversement"
-              value={results ? results.upload : isRunning && phase === "upload" ? liveSpeed : 0}
-              unit="Mbps"
-              decimals={1}
-              accent="from-violet-600/20 to-violet-500/5"
-            />
-            <MetricCard
-              icon={<Zap className="h-5 w-5" />}
-              label="Latence"
-              value={results ? results.latency : 0}
-              unit="ms"
-              decimals={0}
-              accent="from-fuchsia-600/20 to-fuchsia-500/5"
-            />
-          </div>
-
-          {/* Action */}
-          {phase === "idle" && (
-            <div className="text-center">
-              <button
-                onClick={runTest}
-                className="inline-flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-full bg-[#7c3aed] px-8 text-base font-semibold text-white shadow-lg shadow-purple-900/40 transition-all hover:bg-[#6d28d9] hover:shadow-xl active:scale-[0.98]"
-              >
-                Démarrer le test
-              </button>
-            </div>
+          {/* BUTTON */}
+          {!results && !isRunning && (
+            <button
+              onClick={runTest}
+              style={{
+                width: "100%",
+                height: 64,
+                borderRadius: 999,
+                background: COLORS.accent,
+                color: "#fff",
+                border: "none",
+                fontSize: 18,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 10px 30px rgba(124,58,237,0.4)",
+                transition: "transform 120ms ease, background 150ms ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#6d28d9")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.accent)}
+            >
+              ▶ Démarrer le test
+            </button>
           )}
           {isRunning && (
-            <div className="text-center">
+            <button
+              disabled
+              style={{
+                width: "100%",
+                height: 64,
+                borderRadius: 999,
+                background: "rgba(124,58,237,0.5)",
+                color: "#fff",
+                border: "none",
+                fontSize: 18,
+                fontWeight: 700,
+                cursor: "not-allowed",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+              }}
+            >
+              <span
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.4)",
+                  borderTopColor: "#fff",
+                  animation: "nivra-spin 0.8s linear infinite",
+                }}
+              />
+              Test en cours...
+            </button>
+          )}
+          {results && phase === "done" && (
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
-                disabled
-                className="inline-flex h-14 min-w-[220px] cursor-not-allowed items-center justify-center gap-2 rounded-full bg-[#7c3aed]/60 px-8 text-base font-semibold text-white"
+                onClick={runTest}
+                style={{
+                  flex: "1 1 200px",
+                  minHeight: 56,
+                  borderRadius: 999,
+                  background: "transparent",
+                  color: "#fff",
+                  border: `2px solid ${COLORS.accent}`,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  padding: "0 20px",
+                }}
               >
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                Test en cours...
+                🔄 Retester
               </button>
+              <Link
+                to={userId ? "/portal/tickets" : "/contact"}
+                style={{
+                  flex: "1 1 200px",
+                  minHeight: 56,
+                  borderRadius: 999,
+                  background: "transparent",
+                  color: "#fff",
+                  border: "2px solid rgba(255,255,255,0.2)",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  padding: "0 20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                📞 Signaler un problème
+              </Link>
             </div>
           )}
         </div>
 
         {/* RESULTS */}
-        {phase === "done" && results && (
-          <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-sm">
-            <h2 className="mb-6 text-2xl font-semibold">Résultats</h2>
-
-            {/* Comparison block */}
-            {compareTo ? (
-              <div
-                className={`mb-6 rounded-2xl border p-5 ${
-                  verdict === "good"
-                    ? "border-emerald-500/30 bg-emerald-500/10"
-                    : verdict === "warn"
-                    ? "border-amber-500/30 bg-amber-500/10"
-                    : "border-rose-500/30 bg-rose-500/10"
-                }`}
-              >
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/60">
-                  Votre forfait
-                </div>
-                <div className="text-lg font-semibold">
-                  {subscribedPlanName ?? `Internet ${compareTo} Mbps`} · {compareTo} Mbps
-                </div>
-                <div className="mt-2 text-sm text-white/80">
-                  {verdict === "good" && (
-                    <>✅ Excellente vitesse — vous obtenez {Math.round((results.download / compareTo) * 100)}% de votre forfait.</>
-                  )}
-                  {verdict === "warn" && (
-                    <>⚠️ Vitesse correcte — vous obtenez {Math.round((results.download / compareTo) * 100)}% de votre forfait.</>
-                  )}
-                  {verdict === "bad" && (
-                    <>❌ Vitesse faible — vous obtenez seulement {Math.round((results.download / compareTo) * 100)}% de votre forfait.</>
-                  )}
-                </div>
-              </div>
-            ) : matchedPlan ? (
-              <div className="mb-6 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5">
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/60">
-                  Comparaison Nivra
-                </div>
-                <div className="text-base text-white/90">
-                  Votre vitesse correspond au forfait{" "}
-                  <span className="font-semibold text-white">{matchedPlan.name}</span> de Nivra Telecom.
-                </div>
-              </div>
-            ) : null}
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={handleShare} className="bg-[#7c3aed] hover:bg-[#6d28d9]">
-                <Share2 className="h-4 w-4" />
-                Partager mes résultats
-              </Button>
-              <Button asChild variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-                <Link to={userId ? "/portal/tickets" : "/contact"}>
-                  <AlertTriangle className="h-4 w-4" />
-                  Signaler un problème
-                </Link>
-              </Button>
-              <Button onClick={runTest} variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-                <RefreshCw className="h-4 w-4" />
-                Retester
-              </Button>
-              <Button asChild variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-                <Link to="/internet">
-                  Voir nos forfaits
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+        {results && phase === "done" && (
+          <div style={{ maxWidth: 900, margin: "48px auto 0" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: 16,
+                marginBottom: 24,
+              }}
+            >
+              <ResultCard icon="📥" label="Téléchargement" value={results.download.toFixed(results.download >= 100 ? 0 : 1)} unit="Mbps" color={COLORS.green} />
+              <ResultCard icon="⚡" label="Latence" value={String(results.latency)} unit="ms" color={COLORS.accent} />
+              <ResultCard icon="📤" label="Téléversement" value={results.upload.toFixed(results.upload >= 100 ? 0 : 1)} unit="Mbps" color={COLORS.blue} />
             </div>
+
+            {verdict && (
+              <div
+                style={{
+                  borderRadius: 16,
+                  padding: "20px 24px",
+                  background: COLORS.card,
+                  border: `1px solid ${
+                    verdict.tone === "good" ? "rgba(16,185,129,0.4)" :
+                    verdict.tone === "warn" ? "rgba(245,158,11,0.4)" :
+                    "rgba(239,68,68,0.4)"
+                  }`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 16,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, color: COLORS.accentSoft, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+                    Comparaison Nivra
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>
+                    {verdict.icon} {verdict.label}
+                  </div>
+                  {matchedPlan && (
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>
+                      Forfait suggéré : <strong>{matchedPlan.name}</strong>
+                    </div>
+                  )}
+                </div>
+                <Link
+                  to="/internet"
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: 999,
+                    background: COLORS.accent,
+                    color: "#fff",
+                    textDecoration: "none",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    minHeight: 44,
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
+                  Voir nos forfaits →
+                </Link>
+              </div>
+            )}
           </div>
         )}
-      </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer
+        style={{
+          borderTop: `1px solid ${COLORS.border}`,
+          background: "rgba(0,0,0,0.3)",
+          padding: "24px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: 13,
+            color: "rgba(255,255,255,0.6)",
+          }}
+        >
+          <div>
+            © 2026 Nivra Communications Inc. —{" "}
+            <a href="mailto:support@nivra-telecom.ca" style={{ color: COLORS.accentSoft, textDecoration: "none" }}>
+              support@nivra-telecom.ca
+            </a>
+          </div>
+          <nav style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
+            {[
+              { label: "Accueil", to: "/" },
+              { label: "Internet", to: "/internet" },
+              { label: "Mobile", to: "/mobile" },
+              { label: "TV", to: "/tv" },
+              { label: "Assistance", to: "/support" },
+            ].map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none", fontWeight: 500 }}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </footer>
+
+      <style>{`@keyframes nivra-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-function MetricCard({
+function ResultCard({
   icon,
   label,
   value,
   unit,
-  decimals,
-  accent,
+  color,
 }: {
-  icon: React.ReactNode;
+  icon: string;
   label: string;
-  value: number;
+  value: string;
   unit: string;
-  decimals: number;
-  accent: string;
+  color: string;
 }) {
   return (
-    <div className={`rounded-2xl border border-white/10 bg-gradient-to-br ${accent} p-5`}>
-      <div className="mb-2 flex items-center gap-2 text-white/70">
-        {icon}
-        <span className="text-xs font-semibold uppercase tracking-wider">{label}</span>
+    <div
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(124,58,237,0.3)",
+        borderRadius: 16,
+        padding: "20px 24px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+      <div style={{ fontSize: 12, color: "#a78bfa", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+        {label}
       </div>
-      <div className="flex items-baseline gap-2">
-        <div className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
-          {value.toFixed(decimals)}
-        </div>
-        <div className="text-sm text-white/50">{unit}</div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
+        <span style={{ fontSize: 36, fontWeight: 800, color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{unit}</span>
       </div>
     </div>
   );
