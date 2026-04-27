@@ -126,6 +126,8 @@ export default function EmployeeClients() {
           </div>
         </div>
       )}
+
+      <CreateClientDialog open={showCreate} onClose={() => setShowCreate(false)} />
     </div>
   );
 }
