@@ -294,7 +294,7 @@ export default function EmployeeKYC() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{item.verified_by ?? "—"}</td>
                     {filter === "pending" && (
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <ActionConfirmButton
                             label="Approuver"
                             consequence="Approuver cette vérification d'identité — le client sera marqué comme vérifié"
@@ -309,6 +309,15 @@ export default function EmployeeKYC() {
                             isPending={kycMutation.isPending}
                             variant="warning"
                           />
+                          <button
+                            onClick={() => { setAskDocsFor(item); setDocNote(""); setDocType(ADDITIONAL_DOC_OPTIONS[0]); }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-[11px] text-foreground hover:bg-secondary transition-colors min-h-[32px]"
+                            disabled={askDocsMutation.isPending}
+                            title="Demander un document supplémentaire au client"
+                          >
+                            <FileQuestion className="h-3.5 w-3.5" />
+                            Demander documents supplémentaires
+                          </button>
                         </div>
                       </td>
                     )}
@@ -319,6 +328,57 @@ export default function EmployeeKYC() {
           </div>
         </div>
       )}
+
+      {/* Additional documents request dialog */}
+      <Dialog open={!!askDocsFor} onOpenChange={(open) => { if (!open) setAskDocsFor(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Demander documents supplémentaires</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              Le client recevra un courriel l'invitant à soumettre le document demandé.
+              Le statut KYC passera à <span className="font-medium text-foreground">«&nbsp;documents supplémentaires requis&nbsp;»</span>.
+            </p>
+            <div>
+              <Label htmlFor="kyc-doc-type" className="text-xs">Document demandé *</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger id="kyc-doc-type" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADDITIONAL_DOC_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="kyc-doc-note" className="text-xs">Note pour le client (optionnel)</Label>
+              <Textarea
+                id="kyc-doc-note"
+                value={docNote}
+                onChange={(e) => setDocNote(e.target.value)}
+                placeholder="Précisez le contexte ou ce qui est attendu…"
+                rows={4}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAskDocsFor(null)} disabled={askDocsMutation.isPending}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => askDocsMutation.mutate()}
+              disabled={!docType || askDocsMutation.isPending}
+            >
+              {askDocsMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Envoyer la demande
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
