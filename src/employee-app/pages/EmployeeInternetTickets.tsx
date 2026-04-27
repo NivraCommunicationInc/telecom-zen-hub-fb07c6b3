@@ -380,3 +380,26 @@ export default function EmployeeInternetTickets() {
     </div>
   );
 }
+
+function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<string | { value: string; label: string }> }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-sm">
+        {options.map((option) => {
+          const item = typeof option === "string" ? { value: option, label: option } : option;
+          return <option key={item.value} value={item.value}>{item.label}</option>;
+        })}
+      </select>
+    </div>
+  );
+}
+
+function InputField({ label, type = "text", value, onChange }: { label: string; type?: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-sm" />
+    </div>
+  );
+}
