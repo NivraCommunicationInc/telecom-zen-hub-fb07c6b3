@@ -9,8 +9,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 export default function EmployeeEquipment() {
+  usePortalRealtime(["equipment_inventory"], [["employee-equipment"]]);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 

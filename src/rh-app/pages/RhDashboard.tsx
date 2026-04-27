@@ -19,6 +19,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSa
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const DAY_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
@@ -43,6 +44,7 @@ function nextPayday(now: Date): Date {
 }
 
 export default function RhDashboard() {
+  usePortalRealtime(["sales_commissions", "field_commissions", "sales_targets", "staff_schedules", "time_entries"], [["rh-dashboard"], ["rh-commissions"], ["rh-targets"], ["rh-schedule"]]);
   const qc = useQueryClient();
   const [now, setNow] = useState(new Date());
 

@@ -17,6 +17,7 @@ import { useWorkItems, WorkItem } from "@/employee-app/hooks/useWorkItems";
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { toast } from "sonner";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 type FilterKey = "all" | "mine" | "unassigned" | "urgent" | "breached" | "order" | "payment" | "kyc" | "activation" | "ticket";
 
@@ -72,6 +73,7 @@ function SlaIndicator({ item }: { item: WorkItem }) {
 }
 
 export default function EmployeeWorkQueue() {
+  usePortalRealtime(["employee_work_items", "orders", "support_tickets"], [["employee-work-queue"]]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeFilter, setActiveFilter] = useState<FilterKey>(
     (searchParams.get("filter") as FilterKey) || "all"

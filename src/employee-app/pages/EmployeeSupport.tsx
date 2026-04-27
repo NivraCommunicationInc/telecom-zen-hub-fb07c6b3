@@ -16,10 +16,12 @@ import { addOperationalNote } from "@/shared-ops";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 type SupportFilter = "open" | "in_progress" | "resolved" | "all";
 
 export default function EmployeeSupport() {
+  usePortalRealtime(["support_tickets"], [["employee-support"]]);
   const [filter, setFilter] = useState<SupportFilter>("open");
   const navigate = useNavigate();
 

@@ -16,6 +16,7 @@ import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 type PaymentTab = "pending" | "confirmed" | "all";
 
@@ -26,6 +27,7 @@ const TABS: { key: PaymentTab; label: string }[] = [
 ];
 
 export default function EmployeePayments() {
+  usePortalRealtime(["billing_payments", "billing_invoices"], [["employee-payments"]]);
   const [tab, setTab] = useState<PaymentTab>("pending");
   const { data: allPayments = [], isLoading, refetch } = usePaymentsList("live");
   const navigate = useNavigate();

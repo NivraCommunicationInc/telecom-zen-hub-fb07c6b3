@@ -16,6 +16,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { updateOrderStatus } from "@/shared-ops";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 interface ActivationItem {
   id: string;
@@ -35,6 +36,7 @@ interface ActivationItem {
 }
 
 export default function EmployeeActivations() {
+  usePortalRealtime(["activation_requests", "orders"], [["employee-activations"]]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 

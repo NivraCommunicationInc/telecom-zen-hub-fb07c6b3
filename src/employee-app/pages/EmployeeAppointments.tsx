@@ -10,10 +10,12 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useAppointmentsList } from "@/shared-ops/hooks/useAppointmentDetail";
 import { useState } from "react";
 import { CreateAppointmentDialog } from "@/employee-app/components/CreateAppointmentDialog";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 type FilterKey = "all" | "today" | "upcoming" | "past";
 
 export default function EmployeeAppointments() {
+  usePortalRealtime(["appointments"], [["employee-appointments"]]);
   const navigate = useNavigate();
   const { data: items = [], isLoading } = useAppointmentsList();
   const [filter, setFilter] = useState<FilterKey>("all");
