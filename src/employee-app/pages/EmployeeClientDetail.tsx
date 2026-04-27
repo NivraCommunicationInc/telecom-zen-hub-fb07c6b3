@@ -193,6 +193,14 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         onPinReset={() => setShowPinReset(!showPinReset)}
         onEscalationPreset={handleEscalationPreset}
       />
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowKycRequest(true)}
+          className="min-h-[44px] rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 text-xs font-medium text-blue-300 hover:bg-blue-500/20 transition-colors"
+        >
+          Demander vérification KYC
+        </button>
+      </div>
 
       {/* Dialogs */}
       {showCreateTicket && (
