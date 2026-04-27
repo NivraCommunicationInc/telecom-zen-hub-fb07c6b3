@@ -27,6 +27,7 @@ export default function EmployeeSupportDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [replyText, setReplyText] = useState("");
+  const [assignOpen, setAssignOpen] = useState(false);
 
   // Fetch ticket
   const { data: ticket, isLoading } = useQuery({
