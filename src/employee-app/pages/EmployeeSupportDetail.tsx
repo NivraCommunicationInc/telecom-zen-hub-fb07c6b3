@@ -393,6 +393,15 @@ export default function EmployeeSupportDetail() {
           </div>
         </div>
       </div>
+
+      {assignOpen && (
+        <AssignTechnicianDialog
+          ticketId={ticketId!}
+          currentAssignedUserId={ticket.assigned_to_user_id ?? null}
+          currentAssignedName={ticket.assigned_to ?? null}
+          onClose={() => setAssignOpen(false)}
+        />
+      )}
     </div>
   );
 }
