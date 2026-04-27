@@ -14,6 +14,7 @@ import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { createHubSession, clearHubSession } from "@/lib/security/hubSession";
+import { clearStaffAssistance } from "@/lib/staffAssistance";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 import { resolveStaffLandingPath } from "@/lib/security/portalRedirect";
 
@@ -169,6 +170,11 @@ export default function HubLoginPage() {
         setLoading(false);
         return;
       }
+
+      // Normal login → wipe any stale staff-assistance flag from a previous
+      // admin session on this device. The banner must never appear when the
+      // employee is signing in with their own credentials.
+      clearStaffAssistance();
 
       // No specific portal selected → resolve from role and route there directly.
       if (!portal) {
