@@ -92,7 +92,7 @@ export function AssignTechnicianDialog({ ticketId, currentAssignedUserId, curren
         portal: "employee",
         targetType: "support_ticket",
         targetId: ticketId,
-        metadata: userId ? { assigned_to_user_id: userId, assigned_to_name: name } : {},
+        details: userId ? { assigned_to_user_id: userId, assigned_to_name: name } : {},
       });
     },
     onSuccess: () => {
