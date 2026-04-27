@@ -33,6 +33,19 @@ interface SelectedPlan {
   category: string;
 }
 
+// Direct-apply ceiling: aligned with Field policy (max $50/mo, 24 months).
+// Anything beyond requires Core escalation.
+const EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP = 50;
+
+interface AgentDiscountRow {
+  id: string;
+  name: string;
+  type: string;
+  value: number;
+  duration_months: number | null;
+  applies_to: string;
+}
+
 export default function EmployeeCreateOrder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -44,6 +57,7 @@ export default function EmployeeCreateOrder() {
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
   const [agentNotes, setAgentNotes] = useState("");
+  const [selectedDiscount, setSelectedDiscount] = useState<AgentDiscountRow | null>(null);
 
   // If preset client, load directly
   useEffect(() => {
