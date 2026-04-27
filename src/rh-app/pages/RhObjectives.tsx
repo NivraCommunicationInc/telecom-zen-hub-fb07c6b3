@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Target, DollarSign, TrendingUp, Loader2, AlertCircle } from "lucide-react";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
