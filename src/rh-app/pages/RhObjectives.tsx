@@ -16,6 +16,12 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
 
 export default function RhObjectives() {
+  // Realtime: refresh when targets/commissions change
+  usePortalRealtime(
+    ["sales_targets", "sales_commissions"],
+    [["rh-objectives"]],
+  );
+
   const { data: userId } = useQuery({
     queryKey: ["rh-user-id"],
     queryFn: async () => {
