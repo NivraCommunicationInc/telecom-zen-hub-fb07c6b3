@@ -72,7 +72,7 @@ const emptyForm: RequestForm = {
 };
 
 export default function RhRequests() {
-  usePortalRealtime(["leave_requests", "service_change_requests"], [["rh-requests"]]);
+  usePortalRealtime(["hr_requests", "employee_leave_requests"], [["rh-my-requests"], ["rh-requests"]]);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<RequestForm>(emptyForm);
