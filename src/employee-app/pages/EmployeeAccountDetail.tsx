@@ -31,6 +31,8 @@ import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 import { EmployeePayPalPaymentDialog } from "@/employee-app/components/EmployeePayPalPaymentDialog";
+import { EmployeeAccountManagement } from "@/employee-app/components/EmployeeAccountManagement";
+import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import EmployeeCancellationRequestDialog from "@/employee-app/components/EmployeeCancellationRequestDialog";
 
 const OPERATIONAL_ENVS = ["live", "production"] as const;
@@ -48,6 +50,7 @@ export default function EmployeeAccountDetail() {
   const [showEscalation, setShowEscalation] = useState(false);
   const [escalationPreset, setEscalationPreset] = useState<EscalationPreset | null>(null);
   const [showCancellation, setShowCancellation] = useState(false);
+  const [showKycRequest, setShowKycRequest] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["employee-account-detail", accountId],
@@ -258,14 +261,12 @@ export default function EmployeeAccountDetail() {
             Gérer client
           </button>
 
-          {unpaidInvoices.length > 0 && (
-            <button
-              onClick={() => setPaymentInvoice(unpaidInvoices[0])}
-              className="px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-            >
-              Enregistrer paiement
-            </button>
-          )}
+          <button
+            onClick={() => unpaidInvoices[0] ? setPaymentInvoice(unpaidInvoices[0]) : openEscalation({ category: "payment", subject: `Paiement — ${account.account_number}`, description: "Aucune facture impayée disponible." })}
+            className="min-h-[44px] px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+          >
+            Prendre un paiement
+          </button>
 
           {activationCandidate && (
             <button
@@ -325,6 +326,13 @@ export default function EmployeeAccountDetail() {
           )}
 
           <button
+            onClick={() => setShowKycRequest(true)}
+            className="min-h-[44px] px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary hover:bg-primary/10 transition-colors"
+          >
+            Demander vérification KYC
+          </button>
+
+          <button
             onClick={() => setShowCancellation(true)}
             className="px-3 py-1.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
           >
@@ -332,6 +340,8 @@ export default function EmployeeAccountDetail() {
           </button>
         </div>
       </div>
+
+      <EmployeeAccountManagement account={account} profile={profile} subscriptions={subscriptions} equipment={equipment} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
@@ -518,19 +528,18 @@ export default function EmployeeAccountDetail() {
       )}
 
       {paymentInvoice?.customer_id && (
-        <RecordPaymentDialog
+        <EmployeePayPalPaymentDialog
           open={!!paymentInvoice}
-          onOpenChange={(open) => {
-            if (!open) setPaymentInvoice(null);
-          }}
-          invoiceId={paymentInvoice.id}
-          customerId={paymentInvoice.customer_id}
-          invoiceNumber={paymentInvoice.invoice_number}
-          balanceDue={paymentInvoice.balance_due ?? paymentInvoice.total}
-          portal="employee"
+          onOpenChange={(open) => { if (!open) setPaymentInvoice(null); }}
+          invoice={paymentInvoice}
+          invoices={unpaidInvoices}
+          clientEmail={profile?.email}
+          clientName={profile?.full_name}
           onSuccess={() => refetch()}
         />
       )}
+
+      <KYCRequestDialog open={showKycRequest} onOpenChange={setShowKycRequest} clientId={account.client_id} accountId={account.id} clientName={profile?.full_name} clientEmail={profile?.email} />
 
       <EmployeeCancellationRequestDialog
         open={showCancellation}
