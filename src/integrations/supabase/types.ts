@@ -17410,7 +17410,9 @@ export type Database = {
           assigned_department: string | null
           assigned_to: string | null
           assigned_to_user_id: string | null
+          attachments: Json | null
           category: string | null
+          cc_user_ids: string[] | null
           client_email: string | null
           created_at: string
           created_by_role: string | null
@@ -17421,8 +17423,9 @@ export type Database = {
           id_files: Json | null
           id_verification_status: string | null
           internal_notes: string | null
+          is_internal: boolean | null
           issue_type: string | null
-          owner_user_id: string
+          owner_user_id: string | null
           point_of_contact_id: string | null
           priority: string
           related_order_id: string | null
@@ -17434,13 +17437,15 @@ export type Database = {
           subject: string
           ticket_number: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           assigned_department?: string | null
           assigned_to?: string | null
           assigned_to_user_id?: string | null
+          attachments?: Json | null
           category?: string | null
+          cc_user_ids?: string[] | null
           client_email?: string | null
           created_at?: string
           created_by_role?: string | null
@@ -17451,8 +17456,9 @@ export type Database = {
           id_files?: Json | null
           id_verification_status?: string | null
           internal_notes?: string | null
+          is_internal?: boolean | null
           issue_type?: string | null
-          owner_user_id: string
+          owner_user_id?: string | null
           point_of_contact_id?: string | null
           priority?: string
           related_order_id?: string | null
@@ -17464,13 +17470,15 @@ export type Database = {
           subject: string
           ticket_number?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           assigned_department?: string | null
           assigned_to?: string | null
           assigned_to_user_id?: string | null
+          attachments?: Json | null
           category?: string | null
+          cc_user_ids?: string[] | null
           client_email?: string | null
           created_at?: string
           created_by_role?: string | null
@@ -17481,8 +17489,9 @@ export type Database = {
           id_files?: Json | null
           id_verification_status?: string | null
           internal_notes?: string | null
+          is_internal?: boolean | null
           issue_type?: string | null
-          owner_user_id?: string
+          owner_user_id?: string | null
           point_of_contact_id?: string | null
           priority?: string
           related_order_id?: string | null
@@ -17494,7 +17503,7 @@ export type Database = {
           subject?: string
           ticket_number?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
