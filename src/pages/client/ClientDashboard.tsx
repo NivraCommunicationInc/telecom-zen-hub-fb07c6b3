@@ -26,6 +26,16 @@ const ClientDashboard = () => {
   });
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
 
+  // Realtime: refresh dashboard when Core/billing/support data changes
+  usePortalRealtime(
+    ["orders", "billing_invoices", "billing_payments", "billing_subscriptions", "accounts", "support_tickets", "appointments", "contracts"],
+    [
+      ["canonical-client-data", user?.id],
+      ["client-account-identity", user?.id],
+      ["ledger-balance", user?.id],
+    ],
+  );
+
   const { data: canonicalData } = useCanonicalClientData(user?.id);
   const profile = canonicalData?.profile;
   const account = canonicalData?.account;
