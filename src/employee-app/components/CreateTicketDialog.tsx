@@ -21,7 +21,7 @@ interface Props {
 const CATEGORIES = [
   { value: "general", label: "Général" },
   { value: "billing", label: "Facturation" },
-  { value: "technical", label: "Technique" },
+  { value: "technical", label: "Technique / Internet" },
   { value: "service", label: "Service" },
   { value: "equipment", label: "Équipement" },
   { value: "activation", label: "Activation" },
