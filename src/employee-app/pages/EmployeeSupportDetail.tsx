@@ -19,6 +19,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { addOperationalNote } from "@/shared-ops";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
+import { AssignTechnicianDialog } from "@/employee-app/components/AssignTechnicianDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 
 export default function EmployeeSupportDetail() {
