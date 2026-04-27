@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
     // Upload
     const storagePath = `${letter.user_id}/letters/${letterNumber}.pdf`;
     const { error: uploadErr } = await supabase.storage
-      .from("payslips")
+      .from("hr-documents")
       .upload(storagePath, new Uint8Array(pdfBuffer), {
         contentType: "application/pdf",
         upsert: true,
@@ -321,7 +321,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: signed } = await supabase.storage
-      .from("payslips")
+      .from("hr-documents")
       .createSignedUrl(storagePath, 604800);
 
     // Update letter record
