@@ -3260,6 +3260,7 @@ export type Database = {
       }
       client_internal_notes: {
         Row: {
+          account_id: string | null
           body: string
           client_id: string
           created_at: string
@@ -3270,6 +3271,7 @@ export type Database = {
           note_type: string
         }
         Insert: {
+          account_id?: string | null
           body: string
           client_id: string
           created_at?: string
@@ -3280,6 +3282,7 @@ export type Database = {
           note_type: string
         }
         Update: {
+          account_id?: string | null
           body?: string
           client_id?: string
           created_at?: string
@@ -3289,7 +3292,15 @@ export type Database = {
           id?: string
           note_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_internal_notes_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_login_pins: {
         Row: {
@@ -17417,6 +17428,7 @@ export type Database = {
           related_order_id: string | null
           related_order_reference: string | null
           requires_id_upload: boolean | null
+          route_to: string | null
           service_address: string | null
           status: string
           subject: string
@@ -17446,6 +17458,7 @@ export type Database = {
           related_order_id?: string | null
           related_order_reference?: string | null
           requires_id_upload?: boolean | null
+          route_to?: string | null
           service_address?: string | null
           status?: string
           subject: string
@@ -17475,6 +17488,7 @@ export type Database = {
           related_order_id?: string | null
           related_order_reference?: string | null
           requires_id_upload?: boolean | null
+          route_to?: string | null
           service_address?: string | null
           status?: string
           subject?: string
