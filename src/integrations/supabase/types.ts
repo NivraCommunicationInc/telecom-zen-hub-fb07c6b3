@@ -16586,6 +16586,44 @@ export type Database = {
         }
         Relationships: []
       }
+      speedtest_results: {
+        Row: {
+          download_mbps: number | null
+          id: string
+          latency_ms: number | null
+          server: string
+          tested_at: string
+          upload_mbps: number | null
+          user_id: string
+        }
+        Insert: {
+          download_mbps?: number | null
+          id?: string
+          latency_ms?: number | null
+          server?: string
+          tested_at?: string
+          upload_mbps?: number | null
+          user_id: string
+        }
+        Update: {
+          download_mbps?: number | null
+          id?: string
+          latency_ms?: number | null
+          server?: string
+          tested_at?: string
+          upload_mbps?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "speedtest_results_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       staff_client_access_sessions: {
         Row: {
           client_user_id: string

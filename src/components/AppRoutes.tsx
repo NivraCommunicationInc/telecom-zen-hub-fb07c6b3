@@ -202,6 +202,7 @@ const SupplierAccountDetailPage = lazy(() => import("@/core-app/pages/SupplierAc
 
 // Public pages (lazy-loaded for code splitting)
 const Index = lazy(() => import("@/pages/Index"));
+const TestVitesse = lazy(() => import("@/pages/TestVitesse"));
 const About = lazy(() => import("@/pages/About"));
 const Careers = lazy(() => import("@/pages/Careers"));
 const JobApplication = lazy(() => import("@/pages/JobApplication"));
@@ -486,6 +487,7 @@ const AppRoutes = () => {
       <Route path="/internet" element={<MaintenanceGuard><PublicLayout><InternetPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/tv" element={<MaintenanceGuard><PublicLayout><TVPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/mobile" element={<MaintenanceGuard><PublicLayout><MobilePlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/test-vitesse" element={<MaintenanceGuard><PublicLayout><TestVitesse /></PublicLayout></MaintenanceGuard>} />
       <Route path="/telephones" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneCatalog /></Suspense></MaintenanceGuard>} />
       <Route path="/telephones/:id" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneDetail /></Suspense></MaintenanceGuard>} />
       <Route path="/telephones/:id/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneCheckout /></Suspense></MaintenanceGuard>} />

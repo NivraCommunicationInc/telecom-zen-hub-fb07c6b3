@@ -42,6 +42,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Activation WiFi" : "WiFi Activation", to: "/portail" },
     { label: isFr ? "Terminal Nivra TV" : "Nivra TV Terminal", to: "/support" },
     { label: isFr ? "Suivre ma commande" : "Track Order", to: "/track-order" },
+    { label: isFr ? "Test de vitesse" : "Speed Test", to: "/test-vitesse" },
     { label: isFr ? "Nous contacter" : "Contact Us", to: "/contact" },
   ];
 
