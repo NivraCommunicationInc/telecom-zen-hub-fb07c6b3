@@ -168,9 +168,17 @@ export default function EmployeeAppointmentDetail() {
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">{apt.title}</p>
         </div>
-        <span className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold uppercase", statusColor(s))}>
-          {s}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-secondary transition-colors min-h-[36px]"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Modifier le rendez-vous
+          </button>
+          <span className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold uppercase", statusColor(s))}>
+            {s}
+          </span>
+        </div>
       </div>
 
       {/* Details grid */}
