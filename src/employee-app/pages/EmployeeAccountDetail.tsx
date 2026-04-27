@@ -7,6 +7,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { employeePath } from "@/employee-app/lib/employeePaths";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import {
   ArrowLeft,
   Loader2,
@@ -51,6 +52,12 @@ export default function EmployeeAccountDetail() {
   const [escalationPreset, setEscalationPreset] = useState<EscalationPreset | null>(null);
   const [showCancellation, setShowCancellation] = useState(false);
   const [showKycRequest, setShowKycRequest] = useState(false);
+
+  // Realtime: keep account 360 in sync with Core changes
+  usePortalRealtime(
+    ["orders", "billing_invoices", "billing_payments", "billing_subscriptions", "accounts", "support_tickets"],
+    [["employee-account-detail", accountId]],
+  );
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["employee-account-detail", accountId],

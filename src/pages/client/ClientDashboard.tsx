@@ -16,6 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
 import { getCycleDisplay } from "@/lib/billingCycleDisplay";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
@@ -24,6 +25,16 @@ const ClientDashboard = () => {
     return !localStorage.getItem("nivra_welcomed");
   });
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
+
+  // Realtime: refresh dashboard when Core/billing/support data changes
+  usePortalRealtime(
+    ["orders", "billing_invoices", "billing_payments", "billing_subscriptions", "accounts", "support_tickets", "appointments", "contracts"],
+    [
+      ["canonical-client-data", user?.id],
+      ["client-account-identity", user?.id],
+      ["ledger-balance", user?.id],
+    ],
+  );
 
   const { data: canonicalData } = useCanonicalClientData(user?.id);
   const profile = canonicalData?.profile;

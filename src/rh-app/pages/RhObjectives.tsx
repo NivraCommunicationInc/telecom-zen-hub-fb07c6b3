@@ -10,11 +10,18 @@ import { cn } from "@/lib/utils";
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Target, DollarSign, TrendingUp, Loader2, AlertCircle } from "lucide-react";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
 
 export default function RhObjectives() {
+  // Realtime: refresh when targets/commissions change
+  usePortalRealtime(
+    ["sales_targets", "sales_commissions"],
+    [["rh-objectives"]],
+  );
+
   const { data: userId } = useQuery({
     queryKey: ["rh-user-id"],
     queryFn: async () => {

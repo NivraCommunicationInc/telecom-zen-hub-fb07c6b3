@@ -23,6 +23,7 @@ import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +66,15 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [escalationPreset, setEscalationPreset] = useState<{ category: string; subject: string; desc: string } | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [showKycRequest, setShowKycRequest] = useState(false);
+
+  // Realtime: keep client 360 in sync with Core changes
+  usePortalRealtime(
+    ["orders", "accounts", "support_tickets", "kyc_verifications", "appointments"],
+    [
+      ["employee-client-360-extras", clientId],
+      ["shared-client-profile", clientId],
+    ],
+  );
 
   // Extra data: tickets, notes, appointments, locations
   const { data: extras } = useQuery({

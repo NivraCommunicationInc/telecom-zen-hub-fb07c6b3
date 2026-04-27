@@ -45,6 +45,7 @@ import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/use
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -72,6 +73,20 @@ const ClientBillingHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "pay-invoice";
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Realtime: refresh billing hub when invoices/payments/subscriptions/account change
+  usePortalRealtime(
+    ["billing_invoices", "billing_payments", "billing_subscriptions", "accounts"],
+    [
+      ["billing-hub-unpaid", user?.id],
+      ["billing-hub-all-invoices", user?.id],
+      ["ledger-balance", user?.id],
+      ["client-invoice-breakdowns"],
+      ["client-invoices"],
+      ["pending-invoices-canonical"],
+      ["canonical-client-data", user?.id],
+    ],
+  );
 
   // Sync tab to URL
   useEffect(() => {

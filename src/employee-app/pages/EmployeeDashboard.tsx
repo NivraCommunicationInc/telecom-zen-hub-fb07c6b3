@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useWorkItemCounts } from "@/employee-app/hooks/useWorkItems";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
@@ -107,6 +108,16 @@ function useDashboardExtras() {
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const { data: counts, isLoading } = useWorkItemCounts();
+
+  // Realtime: keep dashboard in sync with Core operations
+  usePortalRealtime(
+    ["orders", "billing_invoices", "billing_payments", "support_tickets", "appointments", "accounts", "employee_work_items"],
+    [
+      ["employee-recent-activity"],
+      ["employee-dashboard-extras"],
+      ["work-item-counts"],
+    ],
+  );
   const { data: userName } = useEmployeeName();
   const { data: recentItems = [] } = useRecentActivity();
   const { data: extras } = useDashboardExtras();

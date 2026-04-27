@@ -41,11 +41,14 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 1000 * 60 * 10, // 10 minutes - prevent unnecessary refetches
+      // Tighter freshness: 30s default so views update naturally between Realtime events
+      staleTime: 30 * 1000,
       gcTime: 1000 * 60 * 30, // 30 minutes cache time
-      refetchOnWindowFocus: false, // CRITICAL: Disable auto-refresh on tab switch
-      refetchOnReconnect: false, // Disable refetch on network reconnect
-      refetchInterval: false, // No polling
+      // Refresh stale data on window focus / reconnect — cheap and bounded by staleTime.
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      // No global polling — realtime + focus/reconnect is enough; pages opt-in to refetchInterval when needed
+      refetchInterval: false,
     },
     mutations: {
       retry: 1,

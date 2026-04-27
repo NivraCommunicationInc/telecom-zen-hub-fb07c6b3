@@ -28,6 +28,7 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
@@ -70,6 +71,17 @@ export default function RhCommissions() {
   const [disputeOpen, setDisputeOpen] = useState<UnifiedCommission | null>(null);
   const [disputeReason, setDisputeReason] = useState("");
   const queryClient = useQueryClient();
+
+  // Realtime: refresh when commissions / targets / rules change
+  usePortalRealtime(
+    ["sales_commissions", "field_commissions", "commission_rules", "sales_targets"],
+    [
+      ["rh-commissions"],
+      ["rh-payroll-commission-links"],
+      ["rh-withdrawals"],
+      ["employee-wallet"],
+    ],
+  );
 
   const { data: userId } = useQuery({
     queryKey: ["rh-user-id"],
