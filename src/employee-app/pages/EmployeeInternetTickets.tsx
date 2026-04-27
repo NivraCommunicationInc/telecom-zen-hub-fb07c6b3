@@ -5,7 +5,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Wifi, Loader2, ArrowUpRight, User, Clock, AlertTriangle } from "lucide-react";
+import { Wifi, Loader2, ArrowUpRight, User, Clock, AlertTriangle, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,6 +23,15 @@ type Filter = "open" | "in_progress" | "resolved" | "all";
 export default function EmployeeInternetTickets() {
   const [filter, setFilter] = useState<Filter>("open");
   const [assignTarget, setAssignTarget] = useState<{ id: string; assignedUserId: string | null; assignedName: string | null } | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [problemType, setProblemType] = useState("Connexion Internet");
+  const [priority, setPriority] = useState("normal");
+  const [routeTo, setRouteTo] = useState("support_interne");
+  const [technicianId, setTechnicianId] = useState("");
+  const [appointmentAt, setAppointmentAt] = useState("");
+  const [description, setDescription] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -71,6 +80,118 @@ export default function EmployeeInternetTickets() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const { data: clients = [], isLoading: searchingClients } = useQuery({
+    queryKey: ["employee-internet-ticket-client-search", clientSearch],
+    enabled: showCreateForm && clientSearch.length >= 2,
+    queryFn: async () => {
+      const term = `%${clientSearch}%`;
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email, phone, service_address, service_city, service_postal_code")
+        .or(`full_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`)
+        .limit(8);
+      return data ?? [];
+    },
+  });
+
+  const { data: technicians = [] } = useQuery({
+    queryKey: ["employee-internet-ticket-technicians"],
+    enabled: showCreateForm,
+    queryFn: async () => {
+      const { data } = await supabase.from("technicians" as any).select("id, user_id, full_name, email").eq("status", "active").order("full_name");
+      return data ?? [];
+    },
+  });
+
+  const routeLabels: Record<string, string> = {
+    support_interne: "Support interne",
+    field_sales: "Field Sales",
+    technicien_assigne: "Technicien assigné",
+    facturation: "Facturation",
+    kyc: "KYC",
+  };
+
+  const createTicketMutation = useMutation({
+    mutationFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const actorId = sessionData.session?.user.id;
+      if (!actorId) throw new Error("Non authentifié");
+      if (!selectedClient?.user_id) throw new Error("Client requis");
+      if (routeTo === "technicien_assigne" && (!technicianId || !appointmentAt)) throw new Error("Technicien et rendez-vous requis");
+
+      const selectedTech = (technicians as any[]).find((t) => t.id === technicianId);
+      const subject = `${problemType} — ${selectedClient.full_name ?? selectedClient.email ?? "Client"}`;
+      const route_to = routeTo;
+      const { data: ticket, error } = await supabase.from("support_tickets").insert({
+        user_id: selectedClient.user_id,
+        owner_user_id: selectedClient.user_id,
+        client_email: selectedClient.email ?? null,
+        subject,
+        description: description || problemType,
+        priority,
+        category: "internet_technical",
+        issue_type: problemType,
+        status: "open",
+        assigned_department: routeLabels[routeTo],
+        route_to,
+        assigned_to: selectedTech?.full_name ?? routeLabels[routeTo],
+        assigned_to_user_id: selectedTech?.user_id ?? null,
+        service_address: [selectedClient.service_address, selectedClient.service_city, selectedClient.service_postal_code].filter(Boolean).join(", ") || null,
+        created_by_user_id: actorId,
+        created_by_role: "employee",
+      } as any).select("id, ticket_number").single();
+      if (error) throw error;
+
+      if (routeTo === "technicien_assigne") {
+        const when = new Date(appointmentAt);
+        const { error: appointmentError } = await supabase.from("appointments").insert({
+          client_id: selectedClient.user_id,
+          client_email: selectedClient.email ?? null,
+          client_phone: selectedClient.phone ?? null,
+          title: `Ticket Internet — ${selectedClient.full_name ?? "Client"}`,
+          service_type: "internet_technical",
+          description: `Ticket ${ticket.ticket_number ?? ticket.id}: ${problemType}`,
+          internal_notes: description || null,
+          scheduled_at: when.toISOString(),
+          duration_minutes: 60,
+          status: "scheduled",
+          technician_id: selectedTech?.id ?? null,
+          service_address: selectedClient.service_address ?? null,
+          service_city: selectedClient.service_city ?? null,
+          service_postal_code: selectedClient.service_postal_code ?? null,
+          created_by: actorId,
+          environment: "live",
+        } as any);
+        if (appointmentError) throw appointmentError;
+      }
+
+      await supabase.from("email_queue").insert({
+        event_key: `ticket_assigned_notification_${ticket.id}`,
+        to_email: selectedTech?.email ?? "support@nivratelecom.ca",
+        template_key: "ticket_assigned_notification",
+        template_vars: {
+          ticket_number: ticket.ticket_number ?? ticket.id,
+          subject,
+          priority,
+          client_name: selectedClient.full_name ?? selectedClient.email ?? "Client",
+          client_label: selectedClient.full_name ?? selectedClient.email ?? "Client",
+          assignee_name: selectedTech?.full_name ?? routeLabels[routeTo],
+          description,
+        },
+        status: "queued",
+      } as any);
+    },
+    onSuccess: () => {
+      toast.success("Ticket Internet créé");
+      setShowCreateForm(false);
+      setClientSearch("");
+      setSelectedClient(null);
+      setDescription("");
+      queryClient.invalidateQueries({ queryKey: ["employee-internet-tickets"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   const counts = {
     open: tickets.filter(t => t.status === "open").length,
     in_progress: tickets.filter(t => t.status === "in_progress").length,
@@ -89,7 +210,37 @@ export default function EmployeeInternetTickets() {
             Tickets liés au service internet, équipements et problèmes techniques
           </p>
         </div>
+        <button
+          onClick={() => setShowCreateForm((v) => !v)}
+          className="min-h-[44px] inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" /> Nouveau ticket Internet
+        </button>
       </div>
+
+      {showCreateForm && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs text-muted-foreground">Client search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-border bg-background pl-9 pr-3 text-sm" placeholder="Nom, courriel, téléphone" />
+              </div>
+              {searchingClients && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+              {clients.map((c: any) => <button key={c.user_id} onClick={() => setSelectedClient(c)} className="w-full rounded-lg border border-border p-2 text-left text-xs hover:bg-secondary"><span className="block font-medium text-foreground">{c.full_name ?? c.email}</span><span className="text-muted-foreground">{c.email}</span></button>)}
+              {selectedClient && <div className="rounded-lg bg-primary/10 p-2 text-xs text-primary">Client: {selectedClient.full_name ?? selectedClient.email}</div>}
+            </div>
+            <SelectField label="Problem type" value={problemType} onChange={setProblemType} options={["Connexion Internet", "Modem / routeur", "Vitesse lente", "Panne complète", "Installation", "Autre"]} />
+            <SelectField label="Priority" value={priority} onChange={setPriority} options={[{ value: "normal", label: "Normale" }, { value: "urgent", label: "Urgente" }, { value: "critical", label: "Critique" }]} />
+            <SelectField label="Route to" value={routeTo} onChange={setRouteTo} options={[{ value: "support_interne", label: "Support interne" }, { value: "field_sales", label: "Field Sales" }, { value: "technicien_assigne", label: "Technicien assigné" }, { value: "facturation", label: "Facturation" }, { value: "kyc", label: "KYC" }]} />
+            {routeTo === "technicien_assigne" && <SelectField label="Technicien" value={technicianId} onChange={setTechnicianId} options={[{ value: "", label: "Sélectionner" }, ...(technicians as any[]).map((t) => ({ value: t.id, label: t.full_name ?? t.email ?? t.id }))]} />}
+            {routeTo === "technicien_assigne" && <InputField label="Date + time" type="datetime-local" value={appointmentAt} onChange={setAppointmentAt} />}
+            <div className="md:col-span-2"><label className="text-xs text-muted-foreground">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 min-h-[90px] w-full rounded-lg border border-border bg-background p-3 text-sm" /></div>
+          </div>
+          <div className="flex justify-end gap-2"><button onClick={() => setShowCreateForm(false)} className="min-h-[44px] rounded-lg border border-border px-3 text-xs">Annuler</button><button onClick={() => createTicketMutation.mutate()} disabled={createTicketMutation.isPending || !selectedClient} className="min-h-[44px] rounded-lg bg-primary px-3 text-xs text-primary-foreground disabled:opacity-40">{createTicketMutation.isPending && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}Créer ticket</button></div>
+        </div>
+      )}
 
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2">
@@ -226,6 +377,29 @@ export default function EmployeeInternetTickets() {
           onClose={() => setAssignTarget(null)}
         />
       )}
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<string | { value: string; label: string }> }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-sm">
+        {options.map((option) => {
+          const item = typeof option === "string" ? { value: option, label: option } : option;
+          return <option key={item.value} value={item.value}>{item.label}</option>;
+        })}
+      </select>
+    </div>
+  );
+}
+
+function InputField({ label, type = "text", value, onChange }: { label: string; type?: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-sm" />
     </div>
   );
 }

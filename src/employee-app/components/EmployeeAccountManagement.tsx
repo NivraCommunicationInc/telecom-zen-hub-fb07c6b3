@@ -6,12 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { toast } from "sonner";
 
-const NOTE_CATEGORIES = ["General", "Facturation", "Technique", "Plainte", "Suivi", "Important"];
+const NOTE_CATEGORIES = ["Général", "Facturation", "Technique", "Plainte", "Suivi", "Important"];
 
 export function EmployeeAccountManagement({ account, profile, subscriptions, equipment }: { account: any; profile: any; subscriptions: any[]; equipment: any[] }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [noteCategory, setNoteCategory] = useState("General");
+  const [noteCategory, setNoteCategory] = useState("Général");
   const [noteText, setNoteText] = useState("");
   const [inventoryItemId, setInventoryItemId] = useState("");
   const [changeSubscriptionId, setChangeSubscriptionId] = useState(subscriptions[0]?.id ?? "");
@@ -21,7 +21,7 @@ export function EmployeeAccountManagement({ account, profile, subscriptions, equ
   const { data: notes = [] } = useQuery({
     queryKey: ["employee-account-notes", account.id],
     queryFn: async () => {
-      const { data } = await supabase.from("client_internal_notes").select("id, note_type, body, created_by_name, created_at").eq("client_id", account.client_id).order("created_at", { ascending: false }).limit(50);
+      const { data } = await supabase.from("client_internal_notes").select("id, note_type, body, created_by_name, created_by_role, created_at").eq("account_id", account.id).order("created_at", { ascending: false }).limit(50);
       return data ?? [];
     },
   });
@@ -50,6 +50,7 @@ export function EmployeeAccountManagement({ account, profile, subscriptions, equ
       const { data: actor } = await supabase.from("profiles").select("full_name").eq("user_id", actorId).maybeSingle();
       const { error } = await supabase.from("client_internal_notes").insert({
         client_id: account.client_id,
+        account_id: account.id,
         note_type: noteCategory,
         body: noteText,
         created_by_user_id: actorId,
@@ -125,17 +126,19 @@ export function EmployeeAccountManagement({ account, profile, subscriptions, equ
         {equipment.map((eq) => <div key={eq.id} className="rounded-lg border border-border p-2 text-xs space-y-2"><p className="font-medium text-foreground">{eq.catalog_name ?? eq.category}</p><input placeholder="Numéro de série" defaultValue={eq.serial_number ?? ""} onChange={(e) => setSerialEdits((m) => ({ ...m, [eq.id]: { ...m[eq.id], serial_number: e.target.value } }))} className="w-full rounded border border-border bg-background px-2 py-1" /><input placeholder="Adresse MAC" defaultValue={eq.mac_address ?? ""} onChange={(e) => setSerialEdits((m) => ({ ...m, [eq.id]: { ...m[eq.id], mac_address: e.target.value } }))} className="w-full rounded border border-border bg-background px-2 py-1" /><div className="flex gap-2"><button onClick={() => updateEquipment.mutate(eq.id)} className="text-primary">Mettre à jour</button><button onClick={() => scheduleReturn.mutate(eq)} className="text-amber-400">Schedule return / RMA</button></div></div>)}
       </Panel>
       <Panel title="Gérer les forfaits">
-        {subscriptions.map((s) => <div key={s.id} className="rounded-lg border border-border p-2 text-xs"><div className="flex justify-between"><span className="text-foreground font-medium">{s.plan_name}</span><span>{s.status}</span></div><button onClick={() => suspendService.mutate(s)} className="mt-2 text-amber-400">Suspendre service</button></div>)}
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Current active subscriptions</p>
+        {subscriptions.filter((s) => s.status === "active").map((s) => <div key={s.id} className="rounded-lg border border-border p-2 text-xs"><div className="flex justify-between"><span className="text-foreground font-medium">{s.plan_name}</span><span>{s.status}</span></div><button onClick={() => suspendService.mutate(s)} className="mt-2 text-amber-400">Suspendre</button><p className="mt-1 text-[10px] text-muted-foreground">En attente Core après soumission</p></div>)}
+        {subscriptions.filter((s) => s.status === "active").length === 0 && <p className="text-xs text-muted-foreground">Aucun abonnement actif.</p>}
         <select value={changeSubscriptionId} onChange={(e) => setChangeSubscriptionId(e.target.value)} className="min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-xs"><option value="">Abonnement</option>{subscriptions.map((s) => <option key={s.id} value={s.id}>{s.plan_name}</option>)}</select>
         <select value={requestedPlanId} onChange={(e) => setRequestedPlanId(e.target.value)} className="min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-xs"><option value="">Changer plan vers…</option>{(services as any[]).map((s) => <option key={s.id} value={s.id}>{s.name} — {Number(s.price ?? 0).toFixed(2)} $</option>)}</select>
-        <button onClick={() => createServiceChange.mutate()} className="min-h-[44px] w-full rounded-lg bg-primary px-3 text-xs text-primary-foreground">Créer service_change_request</button>
+        <button onClick={() => createServiceChange.mutate()} className="min-h-[44px] w-full rounded-lg bg-primary px-3 text-xs text-primary-foreground">Changer de forfait — créer service_change_request</button>
         <button onClick={() => navigate(employeePath(`/orders/new?clientId=${account.client_id}`))} className="min-h-[44px] w-full rounded-lg border border-border px-3 text-xs text-foreground">Ajouter service</button>
       </Panel>
       <Panel title="Notes internes">
         <select value={noteCategory} onChange={(e) => setNoteCategory(e.target.value)} className="min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-xs">{NOTE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
         <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Nouvelle note interne…" className="min-h-[90px] w-full rounded-lg border border-border bg-background p-3 text-xs" />
         <button onClick={() => addNote.mutate()} disabled={!noteText.trim() || addNote.isPending} className="min-h-[44px] w-full rounded-lg bg-primary px-3 text-xs text-primary-foreground disabled:opacity-40">{addNote.isPending && <Loader2 className="inline h-3 w-3 animate-spin mr-1" />}Ajouter une note</button>
-        <div className="max-h-64 overflow-y-auto space-y-2">{(notes as any[]).map((n) => <div key={n.id} className="rounded-lg bg-secondary/30 p-2 text-xs"><div className="flex justify-between"><span className="text-primary">{n.note_type}</span><span className="text-muted-foreground">{new Date(n.created_at).toLocaleDateString("fr-CA")}</span></div><p className="text-foreground">{n.body}</p><p className="text-[10px] text-muted-foreground">{n.created_by_name ?? "Employé"}</p></div>)}</div>
+        <div className="max-h-64 overflow-y-auto space-y-2">{(notes as any[]).map((n) => <div key={n.id} className="rounded-lg bg-secondary/30 p-2 text-xs"><div className="flex justify-between"><span className="text-primary">{n.note_type}</span><span className="text-muted-foreground">{new Date(n.created_at).toLocaleDateString("fr-CA")}</span></div><p className="text-foreground">{n.body}</p><p className="text-[10px] text-muted-foreground">{n.created_by_name ?? "Employé"} · {n.created_by_role ?? "employee"}</p></div>)}</div>
       </Panel>
     </div>
   );
