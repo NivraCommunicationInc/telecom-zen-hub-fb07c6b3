@@ -67,6 +67,15 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [showKycRequest, setShowKycRequest] = useState(false);
 
+  // Realtime: keep client 360 in sync with Core changes
+  usePortalRealtime(
+    ["orders", "accounts", "support_tickets", "kyc_verifications", "appointments"],
+    [
+      ["employee-client-360-extras", clientId],
+      ["shared-client-profile", clientId],
+    ],
+  );
+
   // Extra data: tickets, notes, appointments, locations
   const { data: extras } = useQuery({
     queryKey: ["employee-client-360-extras", clientId],
