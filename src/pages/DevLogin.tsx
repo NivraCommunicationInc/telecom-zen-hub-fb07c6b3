@@ -32,8 +32,12 @@ const TEST_PASSWORD = "AuditTest2026!Secure";
 
 const ADMIN_EMAIL = "admin-audit@nivradev.com";
 const CLIENT_EMAIL = "client-audit@nivradev.com";
-const OLDO_EMAIL = "oldo.lavaud3112@icloud.com";
-const SERGE_EMAIL = "kozyspott@gmail.com";
+// Optional preview-only audit accounts. Populate via Vite env vars in the
+// preview environment only — never commit real customer PII to source.
+const OLDO_EMAIL = (import.meta.env.VITE_AUDIT_USER_EMAIL_1 as string | undefined) ?? "";
+const SERGE_EMAIL = (import.meta.env.VITE_AUDIT_USER_EMAIL_2 as string | undefined) ?? "";
+const SERGE_LABEL = (import.meta.env.VITE_AUDIT_USER_LABEL_2 as string | undefined) ?? "Audit referrer";
+const OLDO_LABEL = (import.meta.env.VITE_AUDIT_USER_LABEL_1 as string | undefined) ?? "Audit user 1";
 export default function DevLogin() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("");
@@ -165,7 +169,7 @@ export default function DevLogin() {
 
     try {
       // DEV-ONLY helper: audited access to real account via one-time magic link (no password reset)
-      if (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL) {
+      if (targetEmail && (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL)) {
         const auditLabel = targetEmail === SERGE_EMAIL ? "Audit referral portal" : "Audit RLS /portal/service-addresses";
         const auditRedirect = targetEmail === SERGE_EMAIL
           ? `${window.location.origin}/portal/referrals?audit_session=1`
@@ -338,23 +342,27 @@ export default function DevLogin() {
             Connexion Client Portal
           </button>
 
-          <button
-            onClick={() => loginClient(OLDO_EMAIL)}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg font-medium transition"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
-            Connexion Client OLDO (audit)
-          </button>
+          {OLDO_EMAIL && (
+            <button
+              onClick={() => loginClient(OLDO_EMAIL)}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg font-medium transition"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
+              {OLDO_LABEL}
+            </button>
+          )}
 
-          <button
-            onClick={() => loginClient(SERGE_EMAIL)}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg font-medium transition"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
-            Connexion Serge Beaulne (referrer audit)
-          </button>
+          {SERGE_EMAIL && (
+            <button
+              onClick={() => loginClient(SERGE_EMAIL)}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg font-medium transition"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
+              {SERGE_LABEL}
+            </button>
+          )}
         </div>
 
         {status && (
