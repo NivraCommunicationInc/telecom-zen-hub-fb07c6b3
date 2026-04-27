@@ -21,7 +21,7 @@ interface Props {
 const CATEGORIES = [
   { value: "general", label: "Général" },
   { value: "billing", label: "Facturation" },
-  { value: "technical", label: "Technique" },
+  { value: "technical", label: "Technique / Internet" },
   { value: "service", label: "Service" },
   { value: "equipment", label: "Équipement" },
   { value: "activation", label: "Activation" },
@@ -57,7 +57,6 @@ export function CreateTicketDialog({ clientId, clientName, clientEmail, onClose 
           category,
           priority,
           status: "open",
-          client_name: clientName ?? null,
           client_email: clientEmail ?? null,
           created_by_user_id: user.id,
           created_by_role: "employee",

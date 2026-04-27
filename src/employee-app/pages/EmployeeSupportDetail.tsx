@@ -19,6 +19,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { addOperationalNote } from "@/shared-ops";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
+import { AssignTechnicianDialog } from "@/employee-app/components/AssignTechnicianDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 
 export default function EmployeeSupportDetail() {
@@ -26,6 +27,7 @@ export default function EmployeeSupportDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [replyText, setReplyText] = useState("");
+  const [assignOpen, setAssignOpen] = useState(false);
 
   // Fetch ticket
   const { data: ticket, isLoading } = useQuery({
@@ -148,7 +150,7 @@ export default function EmployeeSupportDetail() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  // Assign to self
+  // Assign to self (quick action) — full reassignment uses AssignTechnicianDialog
   const assignMutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -158,7 +160,11 @@ export default function EmployeeSupportDetail() {
 
       const { error } = await supabase
         .from("support_tickets")
-        .update({ assigned_to: name, updated_at: new Date().toISOString() })
+        .update({
+          assigned_to_user_id: user.id,
+          assigned_to: name,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", ticketId!);
       if (error) throw error;
 
@@ -167,6 +173,14 @@ export default function EmployeeSupportDetail() {
         entityType: "support_ticket",
         note: `Assigné à ${name}`,
         portal: "employee",
+      });
+      await logInternalAudit({
+        action: "ticket_assigned",
+        category: "operations",
+        portal: "employee",
+        targetType: "support_ticket",
+        targetId: ticketId!,
+        details: { assigned_to_user_id: user.id, assigned_to_name: name, self: true },
       });
     },
     onSuccess: () => {
@@ -235,6 +249,12 @@ export default function EmployeeSupportDetail() {
             Prendre en charge
           </button>
         )}
+        <button
+          onClick={() => setAssignOpen(true)}
+          className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-secondary transition-colors"
+        >
+          {ticket.assigned_to_user_id ? "Réassigner" : "Assigner à un technicien"}
+        </button>
         {ticket.status === "open" && (
           <ActionConfirmButton label="En cours" consequence="Le ticket sera marqué en cours de traitement"
             onConfirm={() => statusMutation.mutate("in_progress")} isPending={statusMutation.isPending} variant="default" />
@@ -373,6 +393,15 @@ export default function EmployeeSupportDetail() {
           </div>
         </div>
       </div>
+
+      {assignOpen && (
+        <AssignTechnicianDialog
+          ticketId={ticketId!}
+          currentAssignedUserId={ticket.assigned_to_user_id ?? null}
+          currentAssignedName={ticket.assigned_to ?? null}
+          onClose={() => setAssignOpen(false)}
+        />
+      )}
     </div>
   );
 }
