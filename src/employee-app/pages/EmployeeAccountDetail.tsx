@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { EmployeePayPalPaymentDialog } from "@/employee-app/components/EmployeePayPalPaymentDialog";
 import EmployeeCancellationRequestDialog from "@/employee-app/components/EmployeeCancellationRequestDialog";
 
 const OPERATIONAL_ENVS = ["live", "production"] as const;

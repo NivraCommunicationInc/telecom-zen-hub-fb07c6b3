@@ -1038,6 +1038,37 @@ export function renderQueueTemplate(
       };
     }
 
+    case "ticket_assigned_notification":
+    case "ticket_assigned": {
+      const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "—");
+      const subject = esc(v.subject || v.SUBJECT || "Nouveau ticket");
+      const priority = esc(v.priority || "normal");
+      const clientLine = esc(v.client_label || v.client_name || v.client_email || "—");
+      const desc = String(v.description || v.DESCRIPTION || "").slice(0, 600);
+      const assigneeName = String(v.assignee_name || v.client_name || "Agent");
+      return {
+        subject: `Nouveau ticket assigné — ${ticketNum}`,
+        html: shell({
+          preheader: `Ticket ${ticketNum} vous a été assigné.`,
+          badge: "TICKET ASSIGNÉ",
+          heroTitle: "Un nouveau ticket vous a été assigné",
+          heroSub: "Veuillez en prendre connaissance dès que possible.",
+          icon: "alert",
+          greeting: `Bonjour ${assigneeName},`,
+          bodyText: desc ? `<strong>Description:</strong> ${esc(desc)}` : "Consultez le ticket pour plus de détails.",
+          cardTitle: "Détails du ticket",
+          cardRows: [
+            ["Numéro", String(ticketNum)],
+            ["Sujet", String(subject)],
+            ["Priorité", String(priority).toUpperCase()],
+            ["Client", String(clientLine)],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/employee/support`,
+          ctaPrimaryLabel: "Voir le ticket",
+        }),
+      };
+    }
+
     case "autopay_activation_invitation": {
       const setupUrl = String(v.setup_url || `${portalUrl}/paiement`);
       return {
