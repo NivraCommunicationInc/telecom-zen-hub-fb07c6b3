@@ -74,6 +74,20 @@ const ClientBillingHub = () => {
   const initialTab = searchParams.get("tab") || "pay-invoice";
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  // Realtime: refresh billing hub when invoices/payments/subscriptions/account change
+  usePortalRealtime(
+    ["billing_invoices", "billing_payments", "billing_subscriptions", "accounts"],
+    [
+      ["billing-hub-unpaid", user?.id],
+      ["billing-hub-all-invoices", user?.id],
+      ["ledger-balance", user?.id],
+      ["client-invoice-breakdowns"],
+      ["client-invoices"],
+      ["pending-invoices-canonical"],
+      ["canonical-client-data", user?.id],
+    ],
+  );
+
   // Sync tab to URL
   useEffect(() => {
     const urlTab = searchParams.get("tab");
