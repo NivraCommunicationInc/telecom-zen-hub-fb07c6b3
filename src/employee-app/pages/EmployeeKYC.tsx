@@ -6,7 +6,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldCheck, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Loader2, CheckCircle, XCircle, AlertTriangle, FileQuestion } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -18,8 +18,20 @@ import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDial
 import { useState } from "react";
 import { addOperationalNote } from "@/shared-ops";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type KYCFilter = "pending" | "approved" | "rejected" | "all";
+
+const ADDITIONAL_DOC_OPTIONS = [
+  "Permis de conduire",
+  "Passeport",
+  "Carte d'identité",
+  "Autre",
+];
 
 interface KYCItem {
   id: string;
@@ -121,6 +133,42 @@ export default function EmployeeKYC() {
     onSuccess: (_, { action }) => {
       queryClient.invalidateQueries({ queryKey: ["employee-kyc-v2"] });
       toast.success(action === "approved" ? "KYC approuvé" : "KYC rejeté");
+    },
+    onError: (err: any) => toast.error(`Erreur: ${err.message}`),
+  });
+
+  // ── Additional documents request dialog state ──────────────────────────
+  const [askDocsFor, setAskDocsFor] = useState<KYCItem | null>(null);
+  const [docType, setDocType] = useState<string>(ADDITIONAL_DOC_OPTIONS[0]);
+  const [docNote, setDocNote] = useState("");
+
+  const askDocsMutation = useMutation({
+    mutationFn: async () => {
+      if (!askDocsFor) throw new Error("Aucun dossier sélectionné");
+      const { data, error } = await supabase.functions.invoke("kyc-additional-docs-request", {
+        body: {
+          identity_record_id: askDocsFor.id,
+          document_requested: docType,
+          note: docNote.trim(),
+        },
+      });
+      if (error) throw new Error(error.message ?? "Erreur lors de la demande");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      await logInternalAudit({
+        action: "kyc_additional_docs_requested",
+        category: "security",
+        portal: "employee",
+        targetType: "kyc",
+        targetId: askDocsFor.id,
+        details: { document_requested: docType, note: docNote || null },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-kyc-v2"] });
+      toast.success("Demande envoyée au client");
+      setAskDocsFor(null);
+      setDocNote("");
+      setDocType(ADDITIONAL_DOC_OPTIONS[0]);
     },
     onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
@@ -246,7 +294,7 @@ export default function EmployeeKYC() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{item.verified_by ?? "—"}</td>
                     {filter === "pending" && (
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <ActionConfirmButton
                             label="Approuver"
                             consequence="Approuver cette vérification d'identité — le client sera marqué comme vérifié"
@@ -261,6 +309,15 @@ export default function EmployeeKYC() {
                             isPending={kycMutation.isPending}
                             variant="warning"
                           />
+                          <button
+                            onClick={() => { setAskDocsFor(item); setDocNote(""); setDocType(ADDITIONAL_DOC_OPTIONS[0]); }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-[11px] text-foreground hover:bg-secondary transition-colors min-h-[32px]"
+                            disabled={askDocsMutation.isPending}
+                            title="Demander un document supplémentaire au client"
+                          >
+                            <FileQuestion className="h-3.5 w-3.5" />
+                            Demander documents supplémentaires
+                          </button>
                         </div>
                       </td>
                     )}
@@ -271,6 +328,57 @@ export default function EmployeeKYC() {
           </div>
         </div>
       )}
+
+      {/* Additional documents request dialog */}
+      <Dialog open={!!askDocsFor} onOpenChange={(open) => { if (!open) setAskDocsFor(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Demander documents supplémentaires</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              Le client recevra un courriel l'invitant à soumettre le document demandé.
+              Le statut KYC passera à <span className="font-medium text-foreground">«&nbsp;documents supplémentaires requis&nbsp;»</span>.
+            </p>
+            <div>
+              <Label htmlFor="kyc-doc-type" className="text-xs">Document demandé *</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger id="kyc-doc-type" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADDITIONAL_DOC_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="kyc-doc-note" className="text-xs">Note pour le client (optionnel)</Label>
+              <Textarea
+                id="kyc-doc-note"
+                value={docNote}
+                onChange={(e) => setDocNote(e.target.value)}
+                placeholder="Précisez le contexte ou ce qui est attendu…"
+                rows={4}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAskDocsFor(null)} disabled={askDocsMutation.isPending}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => askDocsMutation.mutate()}
+              disabled={!docType || askDocsMutation.isPending}
+            >
+              {askDocsMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Envoyer la demande
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

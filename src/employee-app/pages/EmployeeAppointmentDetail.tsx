@@ -2,8 +2,8 @@
  * EmployeeAppointmentDetail — Appointment detail with actions, using shared-ops.
  */
 import { useParams, Link } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Calendar, MapPin, User, Phone, Mail, Clock, Wrench, Hash, AlertTriangle } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2, Calendar, MapPin, User, Phone, Mail, Clock, Wrench, Hash, AlertTriangle, Pencil } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,13 @@ import { useAppointmentDetail } from "@/shared-ops/hooks/useAppointmentDetail";
 import { addOperationalNote } from "@/shared-ops";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function EmployeeAppointmentDetail() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -44,6 +50,76 @@ export default function EmployeeAppointmentDetail() {
       setNoteText("");
       toast.success("Note ajoutée");
     },
+  });
+
+  // ── Edit appointment dialog ────────────────────────────────────────
+  const [editOpen, setEditOpen] = useState(false);
+  const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [editTechnicianId, setEditTechnicianId] = useState<string>("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  const { data: technicians = [] } = useQuery({
+    queryKey: ["employee-technicians-list"],
+    enabled: editOpen,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("technicians")
+        .select("id, full_name, is_active")
+        .eq("is_active", true)
+        .order("full_name");
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (!editOpen || !data) return;
+    const apt = data.appointment;
+    setEditScheduledAt(apt.scheduled_at ? new Date(apt.scheduled_at).toISOString().slice(0, 16) : "");
+    setEditTechnicianId(apt.technician_id ?? "");
+    setEditAddress(apt.service_address ?? "");
+    setEditNotes(apt.internal_notes ?? "");
+  }, [editOpen, data]);
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!appointmentId) throw new Error("ID manquant");
+      if (!editScheduledAt) throw new Error("Date et heure requises");
+      const newIso = new Date(editScheduledAt).toISOString();
+      const { error: updErr } = await supabase
+        .from("appointments")
+        .update({
+          scheduled_at: newIso,
+          technician_id: editTechnicianId || null,
+          service_address: editAddress || null,
+          internal_notes: editNotes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointmentId);
+      if (updErr) throw updErr;
+
+      // Send reschedule email (best-effort)
+      try {
+        await supabase.functions.invoke("appointment-rescheduled", {
+          body: { appointment_id: appointmentId },
+        });
+      } catch (e) {
+        console.warn("[appointment-rescheduled] invoke failed", e);
+      }
+
+      await addOperationalNote({
+        entityId: appointmentId,
+        entityType: "appointment",
+        note: `Rendez-vous modifié (date, technicien ou adresse)`,
+        portal: "employee",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shared-appointment-detail", appointmentId] });
+      toast.success("Rendez-vous modifié et client notifié");
+      setEditOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message),
   });
 
   if (!appointmentId) {
@@ -92,9 +168,17 @@ export default function EmployeeAppointmentDetail() {
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">{apt.title}</p>
         </div>
-        <span className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold uppercase", statusColor(s))}>
-          {s}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-secondary transition-colors min-h-[36px]"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Modifier le rendez-vous
+          </button>
+          <span className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold uppercase", statusColor(s))}>
+            {s}
+          </span>
+        </div>
       </div>
 
       {/* Details grid */}
