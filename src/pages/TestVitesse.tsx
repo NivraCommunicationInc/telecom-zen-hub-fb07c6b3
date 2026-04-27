@@ -596,6 +596,24 @@ export default function TestVitesse() {
             </div>
           </div>
 
+          {/* Sub-progress (e.g. "Test 2/5 — 124 Mbps") */}
+          {isRunning && subLabel && (
+            <div
+              style={{
+                marginTop: -8,
+                marginBottom: 24,
+                fontSize: 13,
+                color: COLORS.accentSoft,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                minHeight: 20,
+              }}
+              aria-live="polite"
+            >
+              {subLabel}
+            </div>
+          )}
+
           {/* BUTTON */}
           {!results && !isRunning && (
             <button
