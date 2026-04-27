@@ -28,6 +28,7 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
