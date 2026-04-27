@@ -33,6 +33,19 @@ interface SelectedPlan {
   category: string;
 }
 
+// Direct-apply ceiling: aligned with Field policy (max $50/mo, 24 months).
+// Anything beyond requires Core escalation.
+const EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP = 50;
+
+interface AgentDiscountRow {
+  id: string;
+  name: string;
+  type: string;
+  value: number;
+  duration_months: number | null;
+  applies_to: string;
+}
+
 export default function EmployeeCreateOrder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -44,6 +57,7 @@ export default function EmployeeCreateOrder() {
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
   const [agentNotes, setAgentNotes] = useState("");
+  const [selectedDiscount, setSelectedDiscount] = useState<AgentDiscountRow | null>(null);
 
   // If preset client, load directly
   useEffect(() => {
@@ -104,6 +118,20 @@ export default function EmployeeCreateOrder() {
     },
   });
 
+  // Active agent_discounts available for direct apply
+  const { data: discounts } = useQuery({
+    queryKey: ["employee-agent-discounts"],
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("agent_discounts")
+        .select("id, name, type, value, duration_months, applies_to")
+        .eq("is_active", true)
+        .order("value", { ascending: true });
+      return (data ?? []) as AgentDiscountRow[];
+    },
+  });
+
   const selectClient = async (profile: any) => {
     const { data: acc } = await supabase
       .from("accounts")
@@ -160,6 +188,18 @@ export default function EmployeeCreateOrder() {
         .eq("user_id", user.id)
         .maybeSingle();
 
+      // Direct-apply discount cap (aligned with Field policy: max $50/mo)
+      let appliedDiscount: AgentDiscountRow | null = null;
+      if (selectedDiscount) {
+        const monthlyValue = selectedDiscount.type === "fixed_monthly" ? Number(selectedDiscount.value) : 0;
+        if (monthlyValue > EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP) {
+          throw new Error(
+            `Rabais > ${EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP}$/mois — escalation Core requise. Annulez la sélection ou choisissez un rabais plus petit.`,
+          );
+        }
+        appliedDiscount = selectedDiscount;
+      }
+
       // Create the order via direct insert (canonical-sync will handle billing)
       const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
@@ -182,12 +222,23 @@ export default function EmployeeCreateOrder() {
           service_postal_code: address.postal || null,
           notes: agentNotes || null,
           selected_plan: selectedPlan.name,
+          discount_code: appliedDiscount?.id ?? null,
+          discount_amount: appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
           metadata: {
             created_by_agent: agentProfile?.full_name ?? user.email,
             created_by_agent_id: user.id,
             portal: "employee",
             plan_id: selectedPlan.id,
             plan_category: selectedPlan.category,
+            agent_discount: appliedDiscount
+              ? {
+                  id: appliedDiscount.id,
+                  name: appliedDiscount.name,
+                  type: appliedDiscount.type,
+                  value: Number(appliedDiscount.value),
+                  duration_months: appliedDiscount.duration_months,
+                }
+              : null,
           },
         })
         .select("id, order_number")
@@ -401,6 +452,44 @@ export default function EmployeeCreateOrder() {
       {step === "review" && selectedClient && selectedPlan && (
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">Révision de la commande</h2>
+
+          {/* Discount selector — direct apply, capped at $50/mo (Field policy) */}
+          <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Appliquer un rabais
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Max {EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP}$/mois — au-delà: escalation Core
+              </span>
+            </div>
+            <select
+              value={selectedDiscount?.id ?? ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedDiscount(id ? (discounts ?? []).find((d) => d.id === id) ?? null : null);
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:border-primary/50 min-h-[44px]"
+            >
+              <option value="">Aucun rabais</option>
+              {(discounts ?? []).map((d) => {
+                const monthly = d.type === "fixed_monthly" ? Number(d.value) : 0;
+                const overCap = monthly > EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP;
+                return (
+                  <option key={d.id} value={d.id} disabled={overCap}>
+                    {d.name} {overCap ? "— escalation Core requise" : ""}
+                  </option>
+                );
+              })}
+            </select>
+            {selectedDiscount && (
+              <p className="text-[11px] text-emerald-400">
+                Rabais sélectionné: {selectedDiscount.name}
+                {selectedDiscount.type === "fixed_monthly" && ` (-${Number(selectedDiscount.value).toFixed(2)} $/mois`}
+                {selectedDiscount.duration_months ? ` × ${selectedDiscount.duration_months} mois)` : selectedDiscount.type === "fixed_monthly" ? ")" : ""}
+              </p>
+            )}
+          </div>
 
           <div className="bg-muted rounded-lg p-4 space-y-3 text-xs">
             <div className="flex justify-between">

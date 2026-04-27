@@ -276,14 +276,8 @@ export default function EmployeeAccountDetail() {
           )}
 
           <button
-            onClick={() =>
-              openEscalation({
-                category: "order_creation",
-                subject: `Création commande — ${account.account_number}`,
-                description: "Demande de création de nouvelle commande pour ce compte.",
-              })
-            }
-            className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground hover:bg-secondary transition-colors"
+            onClick={() => navigate(employeePath(`/orders/new?clientId=${account.client_id}`))}
+            className="px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary hover:bg-primary/10 transition-colors"
           >
             <Plus className="h-3 w-3 inline mr-1" /> Nouvelle commande
           </button>

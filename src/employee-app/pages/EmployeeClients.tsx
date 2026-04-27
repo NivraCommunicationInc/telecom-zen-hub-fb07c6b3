@@ -4,9 +4,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Users, Loader2, Search, ArrowUpRight } from "lucide-react";
+import { Users, Loader2, Search, ArrowUpRight, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
+import CreateClientDialog from "@/employee-app/components/CreateClientDialog";
 
 function useEmployeeClients(search: string) {
   return useQuery({
@@ -46,13 +47,23 @@ export default function EmployeeClients() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [showCreate, setShowCreate] = useState(false);
   const { data: clients = [], isLoading } = useEmployeeClients(search);
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">Clients</h1>
-        <p className="text-sm text-[hsl(220,10%,45%)]">{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Clients</h1>
+          <p className="text-sm text-[hsl(220,10%,45%)]">{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors min-h-[44px]"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          Nouveau client
+        </button>
       </div>
 
       <div className="relative max-w-sm">
@@ -115,6 +126,8 @@ export default function EmployeeClients() {
           </div>
         </div>
       )}
+
+      <CreateClientDialog open={showCreate} onClose={() => setShowCreate(false)} />
     </div>
   );
 }
