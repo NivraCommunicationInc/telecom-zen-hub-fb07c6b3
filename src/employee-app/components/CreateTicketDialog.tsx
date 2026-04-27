@@ -57,7 +57,6 @@ export function CreateTicketDialog({ clientId, clientName, clientEmail, onClose 
           category,
           priority,
           status: "open",
-          client_name: clientName ?? null,
           client_email: clientEmail ?? null,
           created_by_user_id: user.id,
           created_by_role: "employee",
