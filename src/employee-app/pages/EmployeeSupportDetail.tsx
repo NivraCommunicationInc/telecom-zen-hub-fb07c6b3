@@ -249,6 +249,12 @@ export default function EmployeeSupportDetail() {
             Prendre en charge
           </button>
         )}
+        <button
+          onClick={() => setAssignOpen(true)}
+          className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-secondary transition-colors"
+        >
+          {ticket.assigned_to_user_id ? "Réassigner" : "Assigner à un technicien"}
+        </button>
         {ticket.status === "open" && (
           <ActionConfirmButton label="En cours" consequence="Le ticket sera marqué en cours de traitement"
             onConfirm={() => statusMutation.mutate("in_progress")} isPending={statusMutation.isPending} variant="default" />
