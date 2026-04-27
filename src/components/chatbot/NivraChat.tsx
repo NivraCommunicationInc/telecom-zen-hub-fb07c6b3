@@ -188,49 +188,36 @@ const NivraChat = () => {
         // Fresh session — write welcome lazily on open
         return;
       }
-      const { data, error } = await supabase
-        .from("live_chat_messages")
-        .select("*")
-        .eq("session_id", persisted.sessionId)
-        .order("created_at", { ascending: true })
-        .limit(50);
 
-      if (error || !data || cancelled) return;
+      // SECURITY: live_chat_messages is no longer publicly readable. We fetch
+      // the visitor's own history through a scoped edge function that uses the
+      // unguessable session_id as the access token.
+      const { data: history, error } = await supabase.functions.invoke(
+        "live-chat-history",
+        { body: { session_id: persisted.sessionId, limit: 50 } },
+      );
+
+      if (error || !history?.ok || cancelled) return;
+      const data: any[] = history.messages ?? [];
       if (data.length === 0) return;
 
-      // Refresh signed URLs for any stored attachments (signed URL TTL = 1h)
-      const restored: Message[] = await Promise.all(
-        data.map(async (m: any) => {
-          let attachmentUrl: string | undefined = m.attachment_url ?? undefined;
-          if (m.attachment_path) {
-            const fresh = await getChatAttachmentSignedUrl(m.attachment_path);
-            if (fresh) attachmentUrl = fresh;
-          }
-          return {
-            id: m.id,
-            role: m.role === "visitor" ? "user" : "assistant",
-            content: m.content ?? "",
-            timestamp: new Date(m.created_at),
-            isHumanAgent: m.role === "admin",
-            agentName: m.admin_name ?? undefined,
-            attachmentUrl,
-            attachmentPath: m.attachment_path ?? undefined,
-            attachmentName: m.attachment_name ?? undefined,
-            attachmentType: m.attachment_type ?? undefined,
-            seenByAdmin: !!m.admin_seen_at,
-          } as Message;
-        }),
-      );
+      const restored: Message[] = data.map((m: any) => ({
+        id: m.id,
+        role: m.role === "visitor" ? "user" : "assistant",
+        content: m.content ?? "",
+        timestamp: new Date(m.created_at),
+        isHumanAgent: m.role === "admin",
+        agentName: m.admin_name ?? undefined,
+        attachmentUrl: m.attachment_url ?? undefined,
+        attachmentPath: m.attachment_path ?? undefined,
+        attachmentName: m.attachment_name ?? undefined,
+        attachmentType: m.attachment_type ?? undefined,
+        seenByAdmin: !!m.admin_seen_at,
+      }));
 
       if (cancelled) return;
       setMessages(restored);
-      // Detect takeover state from session row
-      const { data: sess } = await supabase
-        .from("live_chat_sessions")
-        .select("status")
-        .eq("session_id", persisted.sessionId)
-        .maybeSingle();
-      if (sess?.status === "human_takeover") setHumanTakeover(true);
+      if (history.session_status === "human_takeover") setHumanTakeover(true);
     };
     loadHistory();
     return () => {
