@@ -118,6 +118,20 @@ export default function EmployeeCreateOrder() {
     },
   });
 
+  // Active agent_discounts available for direct apply
+  const { data: discounts } = useQuery({
+    queryKey: ["employee-agent-discounts"],
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("agent_discounts")
+        .select("id, name, type, value, duration_months, applies_to")
+        .eq("is_active", true)
+        .order("value", { ascending: true });
+      return (data ?? []) as AgentDiscountRow[];
+    },
+  });
+
   const selectClient = async (profile: any) => {
     const { data: acc } = await supabase
       .from("accounts")
