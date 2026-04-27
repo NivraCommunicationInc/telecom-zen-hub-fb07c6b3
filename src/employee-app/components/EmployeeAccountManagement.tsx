@@ -134,7 +134,7 @@ export function EmployeeAccountManagement({ account, profile, subscriptions, equ
       <Panel title="Notes internes">
         <select value={noteCategory} onChange={(e) => setNoteCategory(e.target.value)} className="min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-xs">{NOTE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
         <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Nouvelle note interne…" className="min-h-[90px] w-full rounded-lg border border-border bg-background p-3 text-xs" />
-        <button onClick={() => addNote.mutate()} disabled={!noteText.trim() || addNote.isPending} className="min-h-[44px] w-full rounded-lg bg-primary px-3 text-xs text-primary-foreground disabled:opacity-40">{addNote.isPending && <Loader2 className="inline h-3 w-3 animate-spin mr-1" />}addNote — note category</button>
+        <button onClick={() => addNote.mutate()} disabled={!noteText.trim() || addNote.isPending} className="min-h-[44px] w-full rounded-lg bg-primary px-3 text-xs text-primary-foreground disabled:opacity-40">{addNote.isPending && <Loader2 className="inline h-3 w-3 animate-spin mr-1" />}Ajouter une note</button>
         <div className="max-h-64 overflow-y-auto space-y-2">{(notes as any[]).map((n) => <div key={n.id} className="rounded-lg bg-secondary/30 p-2 text-xs"><div className="flex justify-between"><span className="text-primary">{n.note_type}</span><span className="text-muted-foreground">{new Date(n.created_at).toLocaleDateString("fr-CA")}</span></div><p className="text-foreground">{n.body}</p><p className="text-[10px] text-muted-foreground">{n.created_by_name ?? "Employé"}</p></div>)}</div>
       </Panel>
     </div>

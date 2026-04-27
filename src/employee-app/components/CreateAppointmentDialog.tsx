@@ -68,7 +68,7 @@ export function CreateAppointmentDialog({ open, onOpenChange, presetClientId, pr
         client_email: selectedClient.email ?? null,
         client_phone: selectedClient.phone ?? null,
         title: `${type} — ${selectedClient.full_name ?? "Client"}`,
-        service_type: type.toLowerCase().replaceAll(" ", "_"),
+        service_type: type.toLowerCase().split(" ").join("_"),
         description: notes || null,
         internal_notes: notes || null,
         scheduled_at: when.toISOString(),
