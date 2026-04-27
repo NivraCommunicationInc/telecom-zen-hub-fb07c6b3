@@ -31,6 +31,7 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   invoice: Invoice;
+  invoices?: Invoice[];
   clientEmail?: string | null;
   clientName?: string | null;
   onSuccess?: () => void;
