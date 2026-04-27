@@ -453,6 +453,44 @@ export default function EmployeeCreateOrder() {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">Révision de la commande</h2>
 
+          {/* Discount selector — direct apply, capped at $50/mo (Field policy) */}
+          <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Appliquer un rabais
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Max {EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP}$/mois — au-delà: escalation Core
+              </span>
+            </div>
+            <select
+              value={selectedDiscount?.id ?? ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedDiscount(id ? (discounts ?? []).find((d) => d.id === id) ?? null : null);
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:border-primary/50 min-h-[44px]"
+            >
+              <option value="">Aucun rabais</option>
+              {(discounts ?? []).map((d) => {
+                const monthly = d.type === "fixed_monthly" ? Number(d.value) : 0;
+                const overCap = monthly > EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP;
+                return (
+                  <option key={d.id} value={d.id} disabled={overCap}>
+                    {d.name} {overCap ? "— escalation Core requise" : ""}
+                  </option>
+                );
+              })}
+            </select>
+            {selectedDiscount && (
+              <p className="text-[11px] text-emerald-400">
+                Rabais sélectionné: {selectedDiscount.name}
+                {selectedDiscount.type === "fixed_monthly" && ` (-${Number(selectedDiscount.value).toFixed(2)} $/mois`}
+                {selectedDiscount.duration_months ? ` × ${selectedDiscount.duration_months} mois)` : selectedDiscount.type === "fixed_monthly" ? ")" : ""}
+              </p>
+            )}
+          </div>
+
           <div className="bg-muted rounded-lg p-4 space-y-3 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Client</span>
