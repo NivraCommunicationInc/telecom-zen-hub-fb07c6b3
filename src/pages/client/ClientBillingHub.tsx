@@ -45,6 +45,7 @@ import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/use
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
