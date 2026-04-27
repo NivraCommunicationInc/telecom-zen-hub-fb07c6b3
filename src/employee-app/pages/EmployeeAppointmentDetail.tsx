@@ -52,6 +52,76 @@ export default function EmployeeAppointmentDetail() {
     },
   });
 
+  // ── Edit appointment dialog ────────────────────────────────────────
+  const [editOpen, setEditOpen] = useState(false);
+  const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [editTechnicianId, setEditTechnicianId] = useState<string>("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  const { data: technicians = [] } = useQuery({
+    queryKey: ["employee-technicians-list"],
+    enabled: editOpen,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("technicians")
+        .select("id, full_name, is_active")
+        .eq("is_active", true)
+        .order("full_name");
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (!editOpen || !data) return;
+    const apt = data.appointment;
+    setEditScheduledAt(apt.scheduled_at ? new Date(apt.scheduled_at).toISOString().slice(0, 16) : "");
+    setEditTechnicianId(apt.technician_id ?? "");
+    setEditAddress(apt.service_address ?? "");
+    setEditNotes(apt.internal_notes ?? "");
+  }, [editOpen, data]);
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!appointmentId) throw new Error("ID manquant");
+      if (!editScheduledAt) throw new Error("Date et heure requises");
+      const newIso = new Date(editScheduledAt).toISOString();
+      const { error: updErr } = await supabase
+        .from("appointments")
+        .update({
+          scheduled_at: newIso,
+          technician_id: editTechnicianId || null,
+          service_address: editAddress || null,
+          internal_notes: editNotes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointmentId);
+      if (updErr) throw updErr;
+
+      // Send reschedule email (best-effort)
+      try {
+        await supabase.functions.invoke("appointment-rescheduled", {
+          body: { appointment_id: appointmentId },
+        });
+      } catch (e) {
+        console.warn("[appointment-rescheduled] invoke failed", e);
+      }
+
+      await addOperationalNote({
+        entityId: appointmentId,
+        entityType: "appointment",
+        note: `Rendez-vous modifié (date, technicien ou adresse)`,
+        portal: "employee",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shared-appointment-detail", appointmentId] });
+      toast.success("Rendez-vous modifié et client notifié");
+      setEditOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   if (!appointmentId) {
     return <div className="py-20 text-center"><p className="text-sm text-muted-foreground">Rendez-vous introuvable</p></div>;
   }
