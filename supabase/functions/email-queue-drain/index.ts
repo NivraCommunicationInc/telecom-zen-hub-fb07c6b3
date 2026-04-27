@@ -148,6 +148,26 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Sanity validation — placeholder leak detector. Logs only, never blocks.
+      // If a template renders any "---", "undefined", or "null" literal in its
+      // final HTML, that means a template variable was missing a fallback.
+      // The email is still sent, but a warning is logged for investigation.
+      try {
+        const placeholderPatterns = [/---/g, /\bundefined\b/g, /\bnull\b/g];
+        const hits: string[] = [];
+        for (const re of placeholderPatterns) {
+          const m = resolved.html.match(re);
+          if (m && m.length > 0) hits.push(`${re.source} (${m.length}x)`);
+        }
+        if (hits.length > 0) {
+          console.warn(
+            `[email-queue-drain] Placeholder leak in template '${row.template_key}' (queue id=${row.id}): ${hits.join(", ")}`,
+          );
+        }
+      } catch (_e) {
+        // never let validation block the send
+      }
+
       // Forward to canonical pgmq pipeline (including PDF attachments if present)
       const enqRes = await enqueueEmail({
         to: row.to_email,

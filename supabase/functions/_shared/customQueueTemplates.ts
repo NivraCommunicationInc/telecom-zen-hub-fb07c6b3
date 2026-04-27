@@ -1,4 +1,17 @@
 /**
+ * RÈGLE ABSOLUE — TEMPLATES EMAIL
+ *
+ * 1. Utiliser shell() Violet Bold pour TOUS les emails
+ * 2. JAMAIS de HTML inline
+ * 3. JAMAIS afficher "---", undefined, null ou vide
+ * 4. TOUJOURS utiliser formatMoney() pour les montants
+ * 5. TOUJOURS utiliser fmtDate() pour les dates
+ * 6. TOUJOURS avoir un fallback significatif
+ * 7. Cette règle s'applique à TOUS les emails
+ *    présents et futurs sans exception
+ */
+
+/**
  * Inlined HTML templates for emails inserted directly into the
  * `email_queue` table (status='queued') by various edge functions.
  *
@@ -35,18 +48,47 @@ const esc = (v: unknown): string => {
     .replace(/"/g, "&quot;");
 };
 
-const money = (v: unknown): string => {
-  const n = typeof v === "number" ? v : parseFloat(String(v ?? 0));
-  if (!isFinite(n)) return String(v ?? "—");
-  return n.toFixed(2).replace(".", ",") + " $";
-};
+/**
+ * Robust monetary formatter — French Canadian (fr-CA).
+ * Always returns a non-empty, human-readable string.
+ *  - null / undefined / "" / NaN  → "0,00 $"
+ *  - 129.9                         → "129,90 $"
+ * Never returns "---", "undefined", "null", or empty.
+ */
+export function formatMoney(amount: unknown): string {
+  if (amount === null || amount === undefined || amount === "") return "0,00 $";
+  const num = typeof amount === "number" ? amount : parseFloat(String(amount));
+  if (!isFinite(num) || isNaN(num)) return "0,00 $";
+  return num.toLocaleString("fr-CA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }) + " $";
+}
 
-const fmtDate = (v: unknown): string => {
-  if (!v) return "—";
-  const d = new Date(String(v));
-  if (isNaN(d.getTime())) return String(v);
-  return d.toLocaleDateString("fr-CA", { dateStyle: "long" });
-};
+/**
+ * Robust date formatter — French Canadian (fr-CA).
+ * Always returns a non-empty, human-readable string.
+ *  - null / undefined / invalid  → "Date non disponible"
+ *  - "2026-04-27"                 → "27 avril 2026"
+ * Never returns "---", "Invalid Date", "undefined", or empty.
+ */
+export function fmtDate(d: unknown): string {
+  if (d === null || d === undefined || d === "") return "Date non disponible";
+  try {
+    const date = new Date(String(d));
+    if (isNaN(date.getTime())) return "Date non disponible";
+    return date.toLocaleDateString("fr-CA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return "Date non disponible";
+  }
+}
+
+// Backwards-compatible alias used throughout this file.
+const money = formatMoney;
 
 // ---------------------------------------------------------------------------
 // SVG icons (kept simple for email-client compatibility)
@@ -1428,7 +1470,7 @@ export function renderQueueTemplate(
           heroTitle: "Bienvenue chez Nivra Telecom",
           heroSub: "Vous avez été ajouté comme représentant terrain.",
           icon: "star",
-          greeting: `Bonjour ${firstName || ""},`,
+          greeting: `Bonjour ${firstName || "Client"},`,
           bodyText: `Vous avez été invité à rejoindre l'équipe terrain de Nivra Telecom à titre de représentant Field Sales.<br/><br/>Créez votre compte pour accéder au <strong>Portail Nivra Field</strong> et au <strong>Portail RH</strong> avec les mêmes identifiants.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 72 heures.</strong>`,
           cardTitle: "Détails de votre accès",
           cardRows: [
@@ -1457,7 +1499,7 @@ export function renderQueueTemplate(
           heroTitle: "Bienvenue chez Nivra Telecom",
           heroSub: "Activez votre compte pour accéder à votre portail.",
           icon: "star",
-          greeting: `Bonjour ${firstName || ""},`,
+          greeting: `Bonjour ${firstName || "Client"},`,
           bodyText: `Vous avez été invité à activer votre compte interne Nivra Telecom à titre de <strong>${roleLabel}</strong>.<br/><br/>Créez votre mot de passe et votre NIP pour accéder à votre portail.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 48 heures.</strong>`,
           cardTitle: "Détails de votre accès",
           cardRows: [
@@ -1488,7 +1530,7 @@ export function renderQueueTemplate(
           heroTitle: "Réinitialisez votre mot de passe",
           heroSub: "Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.",
           icon: "alert",
-          greeting: `Bonjour ${firstName || ""},`,
+          greeting: `Bonjour ${firstName || "Client"},`,
           bodyText: `Nous avons reçu une demande de réinitialisation du mot de passe associé à ${portalLabel}.<br/><br/>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. <strong style="color:#7c3aed;">Ce lien est valide 1 heure.</strong>`,
           cardTitle: "Détails de la demande",
           cardRows: [
