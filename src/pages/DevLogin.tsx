@@ -342,23 +342,27 @@ export default function DevLogin() {
             Connexion Client Portal
           </button>
 
-          <button
-            onClick={() => loginClient(OLDO_EMAIL)}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg font-medium transition"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
-            Connexion Client OLDO (audit)
-          </button>
+          {OLDO_EMAIL && (
+            <button
+              onClick={() => loginClient(OLDO_EMAIL)}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg font-medium transition"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
+              {OLDO_LABEL}
+            </button>
+          )}
 
-          <button
-            onClick={() => loginClient(SERGE_EMAIL)}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg font-medium transition"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
-            Connexion Serge Beaulne (referrer audit)
-          </button>
+          {SERGE_EMAIL && (
+            <button
+              onClick={() => loginClient(SERGE_EMAIL)}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg font-medium transition"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
+              {SERGE_LABEL}
+            </button>
+          )}
         </div>
 
         {status && (
