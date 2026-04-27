@@ -3,7 +3,7 @@ import { Eye, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   clearStaffAssistance,
-  getStaffAssistance,
+  resolveStaffAssistance,
   type StaffAssistanceSession,
 } from "@/lib/staffAssistance";
 
@@ -12,10 +12,18 @@ export default function StaffAssistanceBanner() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setSession(getStaffAssistance());
-    const onStorage = () => setSession(getStaffAssistance());
+    let alive = true;
+    const refresh = async () => {
+      const s = await resolveStaffAssistance();
+      if (alive) setSession(s);
+    };
+    refresh();
+    const onStorage = () => { refresh(); };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    return () => {
+      alive = false;
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (!session) return null;
