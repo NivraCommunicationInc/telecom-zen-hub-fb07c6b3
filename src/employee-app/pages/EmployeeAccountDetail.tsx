@@ -53,6 +53,12 @@ export default function EmployeeAccountDetail() {
   const [showCancellation, setShowCancellation] = useState(false);
   const [showKycRequest, setShowKycRequest] = useState(false);
 
+  // Realtime: keep account 360 in sync with Core changes
+  usePortalRealtime(
+    ["orders", "billing_invoices", "billing_payments", "billing_subscriptions", "accounts", "support_tickets"],
+    [["employee-account-detail", accountId]],
+  );
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["employee-account-detail", accountId],
     enabled: !!accountId,
