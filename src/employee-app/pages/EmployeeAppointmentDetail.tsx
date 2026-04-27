@@ -2,8 +2,8 @@
  * EmployeeAppointmentDetail — Appointment detail with actions, using shared-ops.
  */
 import { useParams, Link } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Calendar, MapPin, User, Phone, Mail, Clock, Wrench, Hash, AlertTriangle } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2, Calendar, MapPin, User, Phone, Mail, Clock, Wrench, Hash, AlertTriangle, Pencil } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,13 @@ import { useAppointmentDetail } from "@/shared-ops/hooks/useAppointmentDetail";
 import { addOperationalNote } from "@/shared-ops";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function EmployeeAppointmentDetail() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
