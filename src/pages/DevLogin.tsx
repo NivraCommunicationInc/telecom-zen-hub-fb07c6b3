@@ -32,8 +32,12 @@ const TEST_PASSWORD = "AuditTest2026!Secure";
 
 const ADMIN_EMAIL = "admin-audit@nivradev.com";
 const CLIENT_EMAIL = "client-audit@nivradev.com";
-const OLDO_EMAIL = "oldo.lavaud3112@icloud.com";
-const SERGE_EMAIL = "kozyspott@gmail.com";
+// Optional preview-only audit accounts. Populate via Vite env vars in the
+// preview environment only — never commit real customer PII to source.
+const OLDO_EMAIL = (import.meta.env.VITE_AUDIT_USER_EMAIL_1 as string | undefined) ?? "";
+const SERGE_EMAIL = (import.meta.env.VITE_AUDIT_USER_EMAIL_2 as string | undefined) ?? "";
+const SERGE_LABEL = (import.meta.env.VITE_AUDIT_USER_LABEL_2 as string | undefined) ?? "Audit referrer";
+const OLDO_LABEL = (import.meta.env.VITE_AUDIT_USER_LABEL_1 as string | undefined) ?? "Audit user 1";
 export default function DevLogin() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("");
