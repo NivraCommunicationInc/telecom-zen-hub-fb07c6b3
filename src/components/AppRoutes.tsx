@@ -969,7 +969,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* NIVRA RH — Employee HR Portal                 */}
       {/* ============================================ */}
-      <Route path="/rh" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense>}>
+      <Route path="/rh" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense></AuthProvider>}>
         <Route element={<Suspense fallback={null}><RhAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><RhDashboard /></Suspense>} />
