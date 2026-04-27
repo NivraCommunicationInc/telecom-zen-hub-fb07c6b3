@@ -96,7 +96,7 @@ export function EmployeePayPalPaymentDialog({
     await sendReceiptEmail();
     await logInternalAudit({
       action: "paypal_payment_completed",
-      category: "billing",
+      category: "operations",
       portal: "employee",
       targetType: "invoice",
       targetId: invoice.id,
