@@ -1719,6 +1719,209 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // FIELD QUOTE — Soumission préparée par un agent terrain
+    // ===================================================================
+    case "field_quote": {
+      const agentName = esc(v.agent_name || v.AGENT_NAME || "votre conseiller Nivra");
+      const quoteNum = esc(v.quote_number || v.QUOTE_NUMBER || "—");
+      const services = esc(v.services_summary || v.SERVICES_LIST || v.plan_name || "—");
+      const equipment = esc(v.equipment_summary || v.EQUIPMENT_LIST || "—");
+      const subtotal = money(v.subtotal);
+      const discount = money(v.discount ?? 0);
+      const activationFee = money(v.activation_fee ?? 0);
+      const total = money(v.total ?? v.amount);
+      const validUntil = fmtDate(
+        v.valid_until ||
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      );
+      const completeUrl = String(
+        v.complete_url ||
+          v.quote_url ||
+          `${APP_URL}/soumission/${esc(v.quote_id || v.public_token || "")}`,
+      );
+      const rows: Array<[string, string]> = [
+        ["Soumission", `#${String(quoteNum).replace(/^#/, "")}`],
+        ["Préparée par", String(agentName)],
+        ["Services", String(services)],
+        ["Équipement", String(equipment)],
+      ];
+      if (v.discount && Number(v.discount) > 0) rows.push(["Rabais", `- ${discount}`]);
+      if (v.activation_fee && Number(v.activation_fee) > 0)
+        rows.push(["Frais d'activation", String(activationFee)]);
+      if (v.subtotal !== undefined) rows.push(["Sous-total", String(subtotal)]);
+      rows.push(["Valide jusqu'au", String(validUntil)]);
+      rows.push(["Total (taxes incluses)", String(total)]);
+      return {
+        subject: `Votre soumission Nivra Telecom — Valide 30 jours`,
+        html: shell({
+          preheader: `Votre soumission est prête. Valide 30 jours.`,
+          badge: "SOUMISSION — VALIDE 30 JOURS",
+          heroTitle: "Votre soumission est prête",
+          heroSub: `Préparée par ${agentName}`,
+          icon: "doc",
+          greeting,
+          bodyText: `Votre conseiller <strong style="color:#1a1a2e;">${agentName}</strong> a préparé une soumission personnalisée pour vous. Pour compléter votre commande, cliquez le bouton ci-dessous.`,
+          cardTitle: "Résumé de la soumission",
+          cardRows: rows,
+          ctaPrimaryUrl: completeUrl,
+          ctaPrimaryLabel: "Compléter ma commande",
+          afterCardText: `Cette soumission est valide jusqu'au <strong style="color:#7c3aed;">${validUntil}</strong>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // INVOICE SENT — Facture émise et disponible
+    // ===================================================================
+    case "invoice_sent": {
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const period = esc(v.period || v.billing_period || "—");
+      const subtotal = money(v.subtotal);
+      const tps = money(v.tps ?? v.gst);
+      const tvq = money(v.tvq ?? v.qst);
+      const total = money(v.total ?? v.amount_due ?? v.amount);
+      const dueDate = fmtDate(v.due_date || v.payment_due_date);
+      const invoiceUrl = String(
+        v.invoice_url || v.portal_url
+          ? `${String(v.portal_url || PORTAL_URL).replace(/\/$/, "")}/facturation`
+          : `${PORTAL_URL}/facturation`,
+      );
+      return {
+        subject: `Votre facture Nivra Telecom — ${invoiceNum}`,
+        html: shell({
+          preheader: `Votre facture ${invoiceNum} est disponible.`,
+          badge: "FACTURE",
+          heroTitle: "Votre facture est disponible",
+          heroSub: `Facture ${invoiceNum}`,
+          icon: "doc",
+          greeting,
+          bodyText: `Votre facture <strong style="color:#1a1a2e;">${invoiceNum}</strong> est maintenant disponible dans votre portail client.`,
+          cardTitle: "Détails de la facture",
+          cardRows: [
+            ["Numéro", String(invoiceNum)],
+            ["Période", String(period)],
+            ["Sous-total", String(subtotal)],
+            ["TPS (5 %)", String(tps)],
+            ["TVQ (9,975 %)", String(tvq)],
+            ["Échéance", String(dueDate)],
+            ["Total à payer", String(total)],
+          ],
+          ctaPrimaryUrl: invoiceUrl,
+          ctaPrimaryLabel: "Voir ma facture",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ORDER PROCESSING — Commande en traitement
+    // ===================================================================
+    case "order_processing": {
+      const services = esc(v.services_summary || v.SERVICES_LIST || v.plan_name || "—");
+      const estActivation = fmtDate(v.estimated_activation_date || v.activation_date);
+      const ordersUrl = `${String(v.portal_url || PORTAL_URL).replace(/\/$/, "")}/commandes`;
+      return {
+        subject: `Votre commande est en traitement — Nivra Telecom`,
+        html: shell({
+          preheader: `Nous préparons votre commande ${orderNum}.`,
+          badge: "COMMANDE EN TRAITEMENT",
+          heroTitle: "Nous préparons votre commande",
+          heroSub: `Commande #${String(orderNum).replace(/^#/, "")}`,
+          icon: "doc",
+          greeting,
+          bodyText: `Votre commande est en cours de traitement. Notre équipe prépare votre équipement et planifie votre activation.`,
+          cardTitle: "Détails de la commande",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Services", String(services)],
+            ["Activation prévue", String(estActivation)],
+          ],
+          ctaPrimaryUrl: ordersUrl,
+          ctaPrimaryLabel: "Voir ma commande",
+          afterCardText: `Vous recevrez un autre courriel dès l'expédition de votre équipement.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // SHIPMENT CREATED — Étiquette d'expédition générée
+    // ===================================================================
+    case "shipment_created": {
+      const carrier = esc(v.carrier || v.CARRIER || "Postes Canada");
+      const tracking = esc(v.tracking_number || v.TRACKING_NUMBER || "—");
+      const pickupDate = fmtDate(v.pickup_date || v.created_at || new Date().toISOString());
+      const deliveryWindow = esc(
+        v.delivery_window || v.estimated_delivery || "3 à 5 jours ouvrables",
+      );
+      const trackingUrl = String(
+        v.tracking_url ||
+          (v.tracking_number
+            ? `https://www.canadapost-postescanada.ca/track-reperage/fr#/details/${esc(v.tracking_number)}`
+            : `${PORTAL_URL}/commandes`),
+      );
+      return {
+        subject: `Expédition créée pour votre commande — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre colis a été pris en charge par ${carrier}.`,
+          badge: "EXPÉDITION CRÉÉE",
+          heroTitle: "Votre colis a été pris en charge",
+          heroSub: `Transporteur : ${carrier}`,
+          icon: "truck",
+          greeting,
+          bodyText: `Bonne nouvelle ! Une étiquette d'expédition a été créée pour votre commande <strong style="color:#1a1a2e;">${orderNum}</strong>.`,
+          cardTitle: "Détails de l'expédition",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Transporteur", String(carrier)],
+            ["Numéro de suivi", String(tracking)],
+            ["Date de prise en charge", String(pickupDate)],
+            ["Livraison estimée", String(deliveryWindow)],
+          ],
+          ctaPrimaryUrl: trackingUrl,
+          ctaPrimaryLabel: "Suivre mon colis",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ORDER SHIPPED — Colis en route vers le client
+    // ===================================================================
+    case "order_shipped": {
+      const carrier = esc(v.carrier || v.CARRIER || "Postes Canada");
+      const tracking = esc(v.tracking_number || v.TRACKING_NUMBER || "—");
+      const estDelivery = fmtDate(
+        v.estimated_delivery_date || v.estimated_delivery || v.delivery_date,
+      );
+      const trackingUrl = String(
+        v.tracking_url ||
+          (v.tracking_number
+            ? `https://www.canadapost-postescanada.ca/track-reperage/fr#/details/${esc(v.tracking_number)}`
+            : `${PORTAL_URL}/commandes`),
+      );
+      return {
+        subject: `Votre commande est en route — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre équipement Nivra est en route !`,
+          badge: "COMMANDE EXPÉDIÉE",
+          heroTitle: "Votre équipement est en route !",
+          heroSub: `Transporteur : ${carrier}`,
+          icon: "truck",
+          greeting,
+          bodyText: `Votre commande <strong style="color:#1a1a2e;">${orderNum}</strong> a été expédiée. Vous pouvez suivre votre colis avec les informations ci-dessous.`,
+          cardTitle: "Suivi de livraison",
+          cardRows: [
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Transporteur", String(carrier)],
+            ["Numéro de suivi", String(tracking)],
+            ["Livraison estimée", String(estDelivery)],
+          ],
+          ctaPrimaryUrl: trackingUrl,
+          ctaPrimaryLabel: "Suivre ma livraison",
+          afterCardText: `Une fois votre équipement reçu, suivez les instructions d'installation incluses dans la boîte ou consultez votre portail client.`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
