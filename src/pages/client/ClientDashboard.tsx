@@ -16,6 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
 import { getCycleDisplay } from "@/lib/billingCycleDisplay";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
