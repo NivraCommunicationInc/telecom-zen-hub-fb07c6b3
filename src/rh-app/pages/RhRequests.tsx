@@ -24,6 +24,7 @@ import { Inbox, Plus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const TYPE_LABELS: Record<string, string> = {
   vacation: "Vacances",
@@ -71,6 +72,7 @@ const emptyForm: RequestForm = {
 };
 
 export default function RhRequests() {
+  usePortalRealtime(["leave_requests", "service_change_requests"], [["rh-requests"]]);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<RequestForm>(emptyForm);

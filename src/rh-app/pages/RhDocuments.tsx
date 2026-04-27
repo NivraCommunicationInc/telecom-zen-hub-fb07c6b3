@@ -26,6 +26,7 @@ import { Upload, FileText, Loader2, Eye, Trash2, Download, Inbox, Receipt } from
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   medical_certificate: "Certificat médical",
@@ -74,6 +75,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function RhDocuments() {
+  usePortalRealtime(["employment_letters", "tax_documents"], [["rh-documents"], ["rh-letters"]]);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [docType, setDocType] = useState("medical_certificate");

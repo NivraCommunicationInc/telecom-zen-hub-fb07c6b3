@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const INTERNET_CATEGORIES = ["technical", "internet", "internet_technical"];
 
@@ -46,6 +47,7 @@ const PRIORITY_OPTIONS = [
 const STAFF_ROLES = ["admin", "employee", "field_sales", "technician", "techops"];
 
 export default function EmployeeInternetTickets() {
+  usePortalRealtime(["support_tickets"], [["employee-internet-tickets"]]);
   const [filter, setFilter] = useState<Filter>("open");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [subject, setSubject] = useState("");

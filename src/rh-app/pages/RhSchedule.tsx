@@ -20,6 +20,7 @@ import {
   Clock, Loader2, Play, Square, AlertTriangle, CheckCircle2, MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const DAY_SHORT = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 const DAY_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
@@ -40,6 +41,7 @@ function getCoords(): Promise<{ lat: number; lng: number } | null> {
 }
 
 export default function RhSchedule() {
+  usePortalRealtime(["staff_schedules", "time_entries"], [["rh-schedule"], ["rh-time"]]);
   const qc = useQueryClient();
   const [now, setNow] = useState(new Date());
   const [punchNote, setPunchNote] = useState("");

@@ -24,6 +24,7 @@ import {
   DollarSign, AlertCircle, FileText,
 } from "lucide-react";
 import PayslipDetailDialog from "@/rh-app/components/PayslipDetailDialog";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; cls: string }> = {
   draft: { label: "Brouillon", variant: "secondary", cls: "bg-muted text-muted-foreground" },
@@ -36,6 +37,7 @@ const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
 
 export default function RhPayslips() {
+  usePortalRealtime(["payroll_entries", "billing_payments"], [["rh-payslips"]]);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");

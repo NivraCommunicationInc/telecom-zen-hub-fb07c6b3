@@ -15,6 +15,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useOrdersList } from "@/shared-ops";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Toutes" },
@@ -26,6 +27,7 @@ const STATUS_FILTERS = [
 ];
 
 export default function EmployeeOrders() {
+  usePortalRealtime(["orders"], [["employee-orders"]]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");

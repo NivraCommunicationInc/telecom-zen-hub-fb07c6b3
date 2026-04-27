@@ -17,6 +17,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { useState } from "react";
 import { addOperationalNote } from "@/shared-ops";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 type KYCFilter = "pending" | "approved" | "rejected" | "all";
 
@@ -33,6 +34,7 @@ interface KYCItem {
 }
 
 export default function EmployeeKYC() {
+  usePortalRealtime(["kyc_verifications", "kyc_requests"], [["employee-kyc"]]);
   const [filter, setFilter] = useState<KYCFilter>("pending");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
