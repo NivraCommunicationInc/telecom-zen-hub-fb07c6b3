@@ -36,6 +36,9 @@ const ClientOrders = () => {
   const orders = canonicalData?.orders || [];
   const lifecycleByOrderId = canonicalData?.orderLifecycle || {};
 
+  // Realtime: refresh when an order updates
+  usePortalRealtime(["orders"], [["canonical-client-data", user?.id]]);
+
   const statusColors: Record<string, string> = {
     pending: "bg-amber-100 text-amber-700",
     payment_pending: "bg-amber-100 text-amber-700",
