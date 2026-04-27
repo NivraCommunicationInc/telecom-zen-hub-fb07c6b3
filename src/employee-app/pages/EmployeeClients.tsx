@@ -4,9 +4,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Users, Loader2, Search, ArrowUpRight } from "lucide-react";
+import { Users, Loader2, Search, ArrowUpRight, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
+import CreateClientDialog from "@/employee-app/components/CreateClientDialog";
 
 function useEmployeeClients(search: string) {
   return useQuery({
