@@ -23,6 +23,7 @@ import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -63,6 +64,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [showPinReset, setShowPinReset] = useState(false);
   const [escalationPreset, setEscalationPreset] = useState<{ category: string; subject: string; desc: string } | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+  const [showKycRequest, setShowKycRequest] = useState(false);
 
   // Extra data: tickets, notes, appointments, locations
   const { data: extras } = useQuery({
@@ -196,6 +198,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
       {showCreateTicket && (
         <CreateTicketDialog clientId={clientId} clientName={profile.full_name ?? undefined} clientEmail={profile.email ?? undefined} onClose={() => setShowCreateTicket(false)} />
       )}
+      <KYCRequestDialog open={showKycRequest} onOpenChange={setShowKycRequest} clientId={clientId} accountId={account?.id} clientName={profile.full_name} clientEmail={profile.email} />
       {showEscalation && (
         <EscalationRequestDialog
           clientId={clientId} clientName={profile.full_name ?? undefined} accountNumber={account?.account_number}

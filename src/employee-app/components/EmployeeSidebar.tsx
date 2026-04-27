@@ -6,10 +6,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  LayoutDashboard, ListTodo, ShoppingCart, Users, CreditCard,
+  ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
-  Package, Settings, UserCheck, Wifi,
+  Package, UserCheck, Wifi,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,41 +21,40 @@ const EMP_BASE = "/employee";
 
 const navGroups = [
   {
-    label: "Opérations",
+    label: "CLIENTS & COMPTES",
     items: [
-      { label: "Tableau de bord", href: `${EMP_BASE}/dashboard`, icon: LayoutDashboard },
+      { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users, badge: "Nouveau client" },
+      { label: "Comptes", href: `${EMP_BASE}/accounts`, icon: Briefcase },
       { label: "File de travail", href: `${EMP_BASE}/work-queue`, icon: ListTodo },
+    ],
+  },
+  {
+    label: "VENTES",
+    items: [
+      { label: "Nouvelle commande", href: `${EMP_BASE}/orders/new`, icon: ShoppingCart },
+      { label: "Soumissions", href: `${EMP_BASE}/quotes`, icon: FileText },
+      { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
+    ],
+  },
+  {
+    label: "SUPPORT",
+    items: [
+      { label: "Tickets support", href: `${EMP_BASE}/support`, icon: Headphones, badge: "Nouveau" },
+      { label: "Tickets Internet", href: `${EMP_BASE}/internet-tickets`, icon: Wifi, badge: "Nouveau" },
+      { label: "Rendez-vous", href: `${EMP_BASE}/appointments`, icon: Calendar, badge: "Nouveau" },
+    ],
+  },
+  {
+    label: "GESTION",
+    items: [
+      { label: "Équipement & Retours", href: `${EMP_BASE}/equipment`, icon: Package },
+      { label: "KYC & Identité", href: `${EMP_BASE}/kyc`, icon: ShieldCheck },
       { label: "Activations", href: `${EMP_BASE}/activations`, icon: Zap },
     ],
   },
   {
-    label: "Ventes",
+    label: "ADMIN",
     items: [
-      { label: "Soumissions", href: `${EMP_BASE}/quotes`, icon: FileText },
-    ],
-  },
-  {
-    label: "Service client",
-    items: [
-      { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users },
-      { label: "Comptes", href: `${EMP_BASE}/accounts`, icon: Briefcase },
-      { label: "Commandes", href: `${EMP_BASE}/orders`, icon: ShoppingCart },
-      { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
-      { label: "Support", href: `${EMP_BASE}/support`, icon: Headphones },
-      { label: "Tickets Internet", href: `${EMP_BASE}/internet-tickets`, icon: Wifi },
-    ],
-  },
-  {
-    label: "Planification",
-    items: [
-      { label: "Rendez-vous", href: `${EMP_BASE}/appointments`, icon: Calendar },
-      { label: "Équipement", href: `${EMP_BASE}/equipment`, icon: Package },
-    ],
-  },
-  {
-    label: "Vérification",
-    items: [
-      { label: "KYC", href: `${EMP_BASE}/kyc`, icon: ShieldCheck },
       { label: "Audit", href: `${EMP_BASE}/audit`, icon: ScrollText },
     ],
   },
@@ -161,7 +160,8 @@ export default function EmployeeSidebar() {
                     )}
                   >
                     <item.icon className={cn("h-3.5 w-3.5 shrink-0", isActive(item.href) && "text-primary")} />
-                    {!collapsed && <span>{item.label}</span>}
+                    {!collapsed && <span className="flex-1">{item.label}</span>}
+                    {!collapsed && (item as any).badge && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold text-primary">{(item as any).badge}</span>}
                   </Link>
                 ))}
               </div>
@@ -184,7 +184,8 @@ export default function EmployeeSidebar() {
             )}
           >
             <item.icon className="h-3.5 w-3.5 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && <span className="flex-1">{item.label}</span>}
+                    {!collapsed && (item as any).badge && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold text-primary">{(item as any).badge}</span>}
           </Link>
         ))}
         <button

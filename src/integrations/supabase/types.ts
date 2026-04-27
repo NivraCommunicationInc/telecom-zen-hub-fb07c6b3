@@ -1247,6 +1247,7 @@ export type Database = {
           created_by: string | null
           delivery_fee: number | null
           description: string | null
+          duration_minutes: number | null
           environment: string
           equipment_details: Json | null
           hold_expires_at: string | null
@@ -1277,6 +1278,7 @@ export type Database = {
           created_by?: string | null
           delivery_fee?: number | null
           description?: string | null
+          duration_minutes?: number | null
           environment?: string
           equipment_details?: Json | null
           hold_expires_at?: string | null
@@ -1307,6 +1309,7 @@ export type Database = {
           created_by?: string | null
           delivery_fee?: number | null
           description?: string | null
+          duration_minutes?: number | null
           environment?: string
           equipment_details?: Json | null
           hold_expires_at?: string | null
@@ -10134,6 +10137,65 @@ export type Database = {
           },
         ]
       }
+      kyc_verifications: {
+        Row: {
+          account_id: string | null
+          client_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          notes: string | null
+          reason: string | null
+          rejection_reason: string | null
+          requested_by: string
+          requested_id_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_by: string
+          requested_id_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_by?: string
+          requested_id_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_verifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ledger_entries: {
         Row: {
           account_id: string | null
@@ -15769,6 +15831,89 @@ export type Database = {
           },
         ]
       }
+      service_change_requests: {
+        Row: {
+          account_id: string
+          approved_at: string | null
+          approved_by: string | null
+          change_type: string
+          client_id: string
+          created_at: string
+          current_plan_name: string | null
+          id: string
+          notes: string | null
+          requested_by: string
+          requested_plan_id: string | null
+          requested_plan_name: string
+          status: string
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          approved_at?: string | null
+          approved_by?: string | null
+          change_type?: string
+          client_id: string
+          created_at?: string
+          current_plan_name?: string | null
+          id?: string
+          notes?: string | null
+          requested_by: string
+          requested_plan_id?: string | null
+          requested_plan_name: string
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          change_type?: string
+          client_id?: string
+          created_at?: string
+          current_plan_name?: string | null
+          id?: string
+          notes?: string | null
+          requested_by?: string
+          requested_plan_id?: string | null
+          requested_plan_name?: string
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_change_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_change_requests_requested_plan_id_fkey"
+            columns: ["requested_plan_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_change_requests_requested_plan_id_fkey"
+            columns: ["requested_plan_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_change_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_coverage_areas: {
         Row: {
           available_services: Json
@@ -17251,6 +17396,7 @@ export type Database = {
       }
       support_tickets: {
         Row: {
+          assigned_department: string | null
           assigned_to: string | null
           assigned_to_user_id: string | null
           category: string | null
@@ -17259,6 +17405,7 @@ export type Database = {
           created_by_role: string | null
           created_by_user_id: string | null
           description: string
+          equipment_serial: string | null
           id: string
           id_files: Json | null
           id_verification_status: string | null
@@ -17270,6 +17417,7 @@ export type Database = {
           related_order_id: string | null
           related_order_reference: string | null
           requires_id_upload: boolean | null
+          service_address: string | null
           status: string
           subject: string
           ticket_number: string | null
@@ -17277,6 +17425,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_department?: string | null
           assigned_to?: string | null
           assigned_to_user_id?: string | null
           category?: string | null
@@ -17285,6 +17434,7 @@ export type Database = {
           created_by_role?: string | null
           created_by_user_id?: string | null
           description: string
+          equipment_serial?: string | null
           id?: string
           id_files?: Json | null
           id_verification_status?: string | null
@@ -17296,6 +17446,7 @@ export type Database = {
           related_order_id?: string | null
           related_order_reference?: string | null
           requires_id_upload?: boolean | null
+          service_address?: string | null
           status?: string
           subject: string
           ticket_number?: string | null
@@ -17303,6 +17454,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_department?: string | null
           assigned_to?: string | null
           assigned_to_user_id?: string | null
           category?: string | null
@@ -17311,6 +17463,7 @@ export type Database = {
           created_by_role?: string | null
           created_by_user_id?: string | null
           description?: string
+          equipment_serial?: string | null
           id?: string
           id_files?: Json | null
           id_verification_status?: string | null
@@ -17322,6 +17475,7 @@ export type Database = {
           related_order_id?: string | null
           related_order_reference?: string | null
           requires_id_upload?: boolean | null
+          service_address?: string | null
           status?: string
           subject?: string
           ticket_number?: string | null
@@ -17382,6 +17536,69 @@ export type Database = {
           reason?: string
         }
         Relationships: []
+      }
+      suspension_requests: {
+        Row: {
+          account_id: string
+          client_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          reason: string
+          requested_by: string
+          requested_for: string | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason: string
+          requested_by: string
+          requested_for?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string
+          requested_by?: string
+          requested_for?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suspension_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspension_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_status: {
         Row: {
