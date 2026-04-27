@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useWorkItemCounts } from "@/employee-app/hooks/useWorkItems";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
