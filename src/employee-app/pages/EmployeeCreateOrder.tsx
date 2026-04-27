@@ -188,6 +188,18 @@ export default function EmployeeCreateOrder() {
         .eq("user_id", user.id)
         .maybeSingle();
 
+      // Direct-apply discount cap (aligned with Field policy: max $50/mo)
+      let appliedDiscount: AgentDiscountRow | null = null;
+      if (selectedDiscount) {
+        const monthlyValue = selectedDiscount.type === "fixed_monthly" ? Number(selectedDiscount.value) : 0;
+        if (monthlyValue > EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP) {
+          throw new Error(
+            `Rabais > ${EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP}$/mois — escalation Core requise. Annulez la sélection ou choisissez un rabais plus petit.`,
+          );
+        }
+        appliedDiscount = selectedDiscount;
+      }
+
       // Create the order via direct insert (canonical-sync will handle billing)
       const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
@@ -210,12 +222,23 @@ export default function EmployeeCreateOrder() {
           service_postal_code: address.postal || null,
           notes: agentNotes || null,
           selected_plan: selectedPlan.name,
+          discount_code: appliedDiscount?.id ?? null,
+          discount_amount: appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
           metadata: {
             created_by_agent: agentProfile?.full_name ?? user.email,
             created_by_agent_id: user.id,
             portal: "employee",
             plan_id: selectedPlan.id,
             plan_category: selectedPlan.category,
+            agent_discount: appliedDiscount
+              ? {
+                  id: appliedDiscount.id,
+                  name: appliedDiscount.name,
+                  type: appliedDiscount.type,
+                  value: Number(appliedDiscount.value),
+                  duration_months: appliedDiscount.duration_months,
+                }
+              : null,
           },
         })
         .select("id, order_number")
