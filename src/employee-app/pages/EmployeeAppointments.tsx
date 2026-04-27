@@ -2,13 +2,14 @@
  * EmployeeAppointments — Appointment management view using shared-ops.
  */
 import { useNavigate } from "react-router-dom";
-import { Calendar, Loader2, MapPin, Phone, User, Clock, ArrowUpRight } from "lucide-react";
+import { Calendar, Loader2, MapPin, Phone, User, Clock, ArrowUpRight, Plus } from "lucide-react";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useAppointmentsList } from "@/shared-ops/hooks/useAppointmentDetail";
 import { useState } from "react";
+import { CreateAppointmentDialog } from "@/employee-app/components/CreateAppointmentDialog";
 
 type FilterKey = "all" | "today" | "upcoming" | "past";
 
@@ -16,6 +17,7 @@ export default function EmployeeAppointments() {
   const navigate = useNavigate();
   const { data: items = [], isLoading } = useAppointmentsList();
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [showCreateAppointment, setShowCreateAppointment] = useState(false);
 
   const filtered = items.filter((a: any) => {
     const d = new Date(a.scheduled_at);
@@ -48,9 +50,14 @@ export default function EmployeeAppointments() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">Rendez-vous</h1>
-        <p className="text-sm text-muted-foreground">{todayCount} rendez-vous aujourd'hui</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Rendez-vous</h1>
+          <p className="text-sm text-muted-foreground">{todayCount} rendez-vous aujourd'hui</p>
+        </div>
+        <button onClick={() => setShowCreateAppointment(true)} className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Plus className="h-4 w-4" /> Nouveau rendez-vous
+        </button>
       </div>
 
       <div className="flex gap-2">
@@ -127,6 +134,7 @@ export default function EmployeeAppointments() {
           })}
         </div>
       )}
+      <CreateAppointmentDialog open={showCreateAppointment} onOpenChange={setShowCreateAppointment} />
     </div>
   );
 }
