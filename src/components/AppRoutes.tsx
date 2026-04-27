@@ -202,6 +202,7 @@ const SupplierAccountDetailPage = lazy(() => import("@/core-app/pages/SupplierAc
 
 // Public pages (lazy-loaded for code splitting)
 const Index = lazy(() => import("@/pages/Index"));
+const TestVitesse = lazy(() => import("@/pages/TestVitesse"));
 const About = lazy(() => import("@/pages/About"));
 const Careers = lazy(() => import("@/pages/Careers"));
 const JobApplication = lazy(() => import("@/pages/JobApplication"));
