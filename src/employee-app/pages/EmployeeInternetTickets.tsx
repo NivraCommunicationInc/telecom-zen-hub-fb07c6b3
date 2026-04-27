@@ -5,7 +5,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Wifi, Loader2, ArrowUpRight, User, Clock, AlertTriangle } from "lucide-react";
+import { Wifi, Loader2, ArrowUpRight, User, Clock, AlertTriangle, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,6 +23,15 @@ type Filter = "open" | "in_progress" | "resolved" | "all";
 export default function EmployeeInternetTickets() {
   const [filter, setFilter] = useState<Filter>("open");
   const [assignTarget, setAssignTarget] = useState<{ id: string; assignedUserId: string | null; assignedName: string | null } | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [problemType, setProblemType] = useState("Connexion Internet");
+  const [priority, setPriority] = useState("normal");
+  const [routeTo, setRouteTo] = useState("support_interne");
+  const [technicianId, setTechnicianId] = useState("");
+  const [appointmentAt, setAppointmentAt] = useState("");
+  const [description, setDescription] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -67,6 +76,118 @@ export default function EmployeeInternetTickets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-internet-tickets"] });
       toast.success("Statut mis à jour");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const { data: clients = [], isLoading: searchingClients } = useQuery({
+    queryKey: ["employee-internet-ticket-client-search", clientSearch],
+    enabled: showCreateForm && clientSearch.length >= 2,
+    queryFn: async () => {
+      const term = `%${clientSearch}%`;
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email, phone, service_address, service_city, service_postal_code")
+        .or(`full_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`)
+        .limit(8);
+      return data ?? [];
+    },
+  });
+
+  const { data: technicians = [] } = useQuery({
+    queryKey: ["employee-internet-ticket-technicians"],
+    enabled: showCreateForm,
+    queryFn: async () => {
+      const { data } = await supabase.from("technicians" as any).select("id, user_id, full_name, email").eq("status", "active").order("full_name");
+      return data ?? [];
+    },
+  });
+
+  const routeLabels: Record<string, string> = {
+    support_interne: "Support interne",
+    field_sales: "Field Sales",
+    technicien_assigne: "Technicien assigné",
+    facturation: "Facturation",
+    kyc: "KYC",
+  };
+
+  const createTicketMutation = useMutation({
+    mutationFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const actorId = sessionData.session?.user.id;
+      if (!actorId) throw new Error("Non authentifié");
+      if (!selectedClient?.user_id) throw new Error("Client requis");
+      if (routeTo === "technicien_assigne" && (!technicianId || !appointmentAt)) throw new Error("Technicien et rendez-vous requis");
+
+      const selectedTech = (technicians as any[]).find((t) => t.id === technicianId);
+      const subject = `${problemType} — ${selectedClient.full_name ?? selectedClient.email ?? "Client"}`;
+      const route_to = routeTo;
+      const { data: ticket, error } = await supabase.from("support_tickets").insert({
+        user_id: selectedClient.user_id,
+        owner_user_id: selectedClient.user_id,
+        client_email: selectedClient.email ?? null,
+        subject,
+        description: description || problemType,
+        priority,
+        category: "internet_technical",
+        issue_type: problemType,
+        status: "open",
+        assigned_department: routeLabels[routeTo],
+        route_to,
+        assigned_to: selectedTech?.full_name ?? routeLabels[routeTo],
+        assigned_to_user_id: selectedTech?.user_id ?? null,
+        service_address: [selectedClient.service_address, selectedClient.service_city, selectedClient.service_postal_code].filter(Boolean).join(", ") || null,
+        created_by_user_id: actorId,
+        created_by_role: "employee",
+      } as any).select("id, ticket_number").single();
+      if (error) throw error;
+
+      if (routeTo === "technicien_assigne") {
+        const when = new Date(appointmentAt);
+        const { error: appointmentError } = await supabase.from("appointments").insert({
+          client_id: selectedClient.user_id,
+          client_email: selectedClient.email ?? null,
+          client_phone: selectedClient.phone ?? null,
+          title: `Ticket Internet — ${selectedClient.full_name ?? "Client"}`,
+          service_type: "internet_technical",
+          description: `Ticket ${ticket.ticket_number ?? ticket.id}: ${problemType}`,
+          internal_notes: description || null,
+          scheduled_at: when.toISOString(),
+          duration_minutes: 60,
+          status: "scheduled",
+          technician_id: selectedTech?.id ?? null,
+          service_address: selectedClient.service_address ?? null,
+          service_city: selectedClient.service_city ?? null,
+          service_postal_code: selectedClient.service_postal_code ?? null,
+          created_by: actorId,
+          environment: "live",
+        } as any);
+        if (appointmentError) throw appointmentError;
+      }
+
+      await supabase.from("email_queue").insert({
+        event_key: `ticket_assigned_notification_${ticket.id}`,
+        to_email: selectedTech?.email ?? "support@nivratelecom.ca",
+        template_key: "ticket_assigned_notification",
+        template_vars: {
+          ticket_number: ticket.ticket_number ?? ticket.id,
+          subject,
+          priority,
+          client_name: selectedClient.full_name ?? selectedClient.email ?? "Client",
+          client_label: selectedClient.full_name ?? selectedClient.email ?? "Client",
+          assignee_name: selectedTech?.full_name ?? routeLabels[routeTo],
+          description,
+        },
+        status: "queued",
+      } as any);
+    },
+    onSuccess: () => {
+      toast.success("Ticket Internet créé");
+      setShowCreateForm(false);
+      setClientSearch("");
+      setSelectedClient(null);
+      setDescription("");
+      queryClient.invalidateQueries({ queryKey: ["employee-internet-tickets"] });
     },
     onError: (err: any) => toast.error(err.message),
   });
