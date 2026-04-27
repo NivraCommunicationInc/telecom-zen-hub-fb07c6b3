@@ -150,7 +150,7 @@ export default function EmployeeSupportDetail() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  // Assign to self
+  // Assign to self (quick action) — full reassignment uses AssignTechnicianDialog
   const assignMutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -160,7 +160,11 @@ export default function EmployeeSupportDetail() {
 
       const { error } = await supabase
         .from("support_tickets")
-        .update({ assigned_to: name, updated_at: new Date().toISOString() })
+        .update({
+          assigned_to_user_id: user.id,
+          assigned_to: name,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", ticketId!);
       if (error) throw error;
 
@@ -169,6 +173,14 @@ export default function EmployeeSupportDetail() {
         entityType: "support_ticket",
         note: `Assigné à ${name}`,
         portal: "employee",
+      });
+      await logInternalAudit({
+        action: "ticket_assigned",
+        category: "operations",
+        portal: "employee",
+        targetType: "support_ticket",
+        targetId: ticketId!,
+        details: { assigned_to_user_id: user.id, assigned_to_name: name, self: true },
       });
     },
     onSuccess: () => {
