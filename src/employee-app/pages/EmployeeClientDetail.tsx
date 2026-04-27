@@ -23,6 +23,7 @@ import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
