@@ -72,6 +72,17 @@ export default function RhCommissions() {
   const [disputeReason, setDisputeReason] = useState("");
   const queryClient = useQueryClient();
 
+  // Realtime: refresh when commissions / targets / rules change
+  usePortalRealtime(
+    ["sales_commissions", "field_commissions", "commission_rules", "sales_targets"],
+    [
+      ["rh-commissions"],
+      ["rh-payroll-commission-links"],
+      ["rh-withdrawals"],
+      ["employee-wallet"],
+    ],
+  );
+
   const { data: userId } = useQuery({
     queryKey: ["rh-user-id"],
     queryFn: async () => {
