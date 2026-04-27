@@ -117,10 +117,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 1000 * 60 * 10,
+      // 30s freshness so views catch up with mutations from other portals
+      staleTime: 30 * 1000,
       gcTime: 1000 * 60 * 30,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       refetchInterval: false,
     },
     mutations: { retry: 1 },
