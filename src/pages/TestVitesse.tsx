@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,12 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const SPEEDTEST_ENDPOINT = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
 
+// Test plan — realistic timings (~25–35s total, like Videotron/Bell)
+const PING_SAMPLES = 10;          // 10 × ~50–500ms ≈ 5–8s
+const DOWNLOAD_CHUNKS = 5;        // 5 × 10MB sequential GETs
+const UPLOAD_CHUNKS = 5;          // 5 × 5MB sequential POSTs
+const UPLOAD_CHUNK_BYTES = 5 * 1024 * 1024;
+
 // Reference Nivra Internet plans for matching the result.
 const NIVRA_PLANS = [
   { name: "Internet 100 Mbps", mbps: 100 },
@@ -52,9 +58,26 @@ function speedVerdict(mbps: number): {
   return { icon: "❌", label: "Faible — Contactez le support Nivra", tone: "bad" };
 }
 
+function median(arr: number[]): number {
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export default function TestVitesse() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [liveSpeed, setLiveSpeed] = useState(0);
+  // Speed shown on the gauge — animated smoothly via rAF towards `targetSpeedRef`
+  const [displaySpeed, setDisplaySpeed] = useState(0);
+  const targetSpeedRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+
+  // Sub-progress label (e.g. "Test 2/5 — 124 Mbps")
+  const [subLabel, setSubLabel] = useState("");
+
   const [results, setResults] = useState<Results | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -68,6 +91,33 @@ export default function TestVitesse() {
     };
   }, []);
 
+  // Smooth gauge interpolation — animates `displaySpeed` toward `targetSpeedRef.current`
+  // using requestAnimationFrame so the number counts up gradually.
+  useEffect(() => {
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(100, now - last); // ms, clamped
+      last = now;
+      setDisplaySpeed((curr) => {
+        const target = targetSpeedRef.current;
+        const diff = target - curr;
+        if (Math.abs(diff) < 0.05) return target;
+        // Ease toward target: ~30% of remaining gap per ~16ms frame
+        const ease = 1 - Math.pow(0.001, dt / 1000); // exponential smoothing
+        return curr + diff * ease;
+      });
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  function setTargetSpeed(v: number) {
+    targetSpeedRef.current = Math.max(0, v);
+  }
+
   const phaseLabel = useMemo(() => {
     switch (phase) {
       case "ping": return "Test de latence...";
@@ -79,16 +129,144 @@ export default function TestVitesse() {
     }
   }, [phase]);
 
-  // ===== Speed test logic =====
-  // We call the speedtest-upload edge function for ALL phases:
-  //   - latency:  POST 100 bytes, measure round-trip
-  //   - upload:   POST N MB, compute Mbps
-  //   - download: POST N MB, server echoes byte count (we use round-trip / 2 as a stand-in,
-  //               OR we can stream a binary file from /public). We use the static file when
-  //               available, falling back to the edge function on failure.
+  // ===================================================================
+  // PHASE 1 — LATENCY
+  // 10 sequential POSTs of 1KB. Median is the reported ping.
+  // Updates sub-label after every sample so the user sees live progress.
+  // ===================================================================
+  async function testLatency(): Promise<number> {
+    setPhase("ping");
+    setTargetSpeed(0);
+    setSubLabel("Préparation...");
 
-  async function postBytes(payload: Uint8Array | ArrayBuffer): Promise<number> {
-    // Returns elapsed ms for the full round trip
+    const tiny = new Uint8Array(1024); // 1 KB
+    const pings: number[] = [];
+
+    for (let i = 0; i < PING_SAMPLES; i++) {
+      const start = performance.now();
+      try {
+        const res = await fetch(SPEEDTEST_ENDPOINT, {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            apikey: SUPABASE_ANON,
+            Authorization: `Bearer ${SUPABASE_ANON}`,
+          },
+          body: tiny,
+        });
+        await res.arrayBuffer();
+        const ms = performance.now() - start;
+        pings.push(ms);
+        const currentMedian = Math.round(median(pings));
+        setSubLabel(`Ping ${i + 1}/${PING_SAMPLES} — ${currentMedian} ms`);
+        // Brief pacing so each ping is visible
+        await sleep(120);
+      } catch {
+        // skip failed sample
+      }
+    }
+
+    if (pings.length === 0) throw new Error("Latence: aucun échantillon");
+    return Math.round(median(pings));
+  }
+
+  // ===================================================================
+  // PHASE 2 — DOWNLOAD
+  // 5 sequential GETs of /speedtest-10mb.bin streamed via ReadableStream.
+  // Speed is computed continuously from bytes received over elapsed time
+  // and pushed to the gauge every animation frame. A running average
+  // across chunks is displayed in the sub-label.
+  // Falls back to edge-function round-trip if the static file 404s.
+  // ===================================================================
+  async function testDownload(): Promise<number> {
+    setPhase("download");
+    setTargetSpeed(0);
+    setSubLabel("Préparation...");
+
+    const chunkSpeeds: number[] = [];
+
+    // Probe the static file once; fall back to edge-function round-trip per chunk.
+    let useStatic = true;
+    try {
+      const probe = await fetch(`/speedtest-10mb.bin?probe=${Date.now()}`, {
+        cache: "no-store",
+        method: "HEAD",
+      });
+      if (!probe.ok) useStatic = false;
+    } catch {
+      useStatic = false;
+    }
+
+    for (let i = 0; i < DOWNLOAD_CHUNKS; i++) {
+      setSubLabel(`Test ${i + 1}/${DOWNLOAD_CHUNKS} — démarrage...`);
+
+      let chunkMbps = 0;
+      if (useStatic) {
+        chunkMbps = await downloadOneChunkStreaming(i + 1);
+      } else {
+        chunkMbps = await downloadOneChunkViaEdge(i + 1);
+      }
+
+      if (chunkMbps > 0) chunkSpeeds.push(chunkMbps);
+
+      const avg = chunkSpeeds.length
+        ? chunkSpeeds.reduce((a, b) => a + b, 0) / chunkSpeeds.length
+        : 0;
+      setTargetSpeed(avg);
+      setSubLabel(`Test ${i + 1}/${DOWNLOAD_CHUNKS} — ${chunkMbps.toFixed(1)} Mbps (moy. ${avg.toFixed(1)})`);
+      await sleep(200);
+    }
+
+    if (chunkSpeeds.length === 0) throw new Error("Téléchargement: aucun échantillon");
+    // Drop slowest sample (likely TCP slow-start) when we have enough data
+    const usable =
+      chunkSpeeds.length >= 3
+        ? [...chunkSpeeds].sort((a, b) => b - a).slice(0, chunkSpeeds.length - 1)
+        : chunkSpeeds;
+    const finalMbps = usable.reduce((a, b) => a + b, 0) / usable.length;
+    setTargetSpeed(finalMbps);
+    return Number(finalMbps.toFixed(2));
+  }
+
+  // Stream a 10MB file chunk-by-chunk and push live Mbps to the gauge.
+  async function downloadOneChunkStreaming(chunkIndex: number): Promise<number> {
+    const url = `/speedtest-10mb.bin?dl=${Date.now()}-${chunkIndex}`;
+    const start = performance.now();
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok || !res.body) throw new Error(`status ${res.status}`);
+
+    const reader = res.body.getReader();
+    let received = 0;
+    let lastUiUpdate = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      received += value.byteLength;
+      const elapsed = (performance.now() - start) / 1000;
+      if (elapsed > 0.05) {
+        const liveMbps = (received * 8) / elapsed / 1_000_000;
+        // Throttle UI updates to ~every 100ms; rAF smooths the rest
+        if (performance.now() - lastUiUpdate > 100) {
+          setTargetSpeed(liveMbps);
+          setSubLabel(
+            `Test ${chunkIndex}/${DOWNLOAD_CHUNKS} — ${liveMbps.toFixed(1)} Mbps`,
+          );
+          lastUiUpdate = performance.now();
+        }
+      }
+    }
+
+    const totalSec = (performance.now() - start) / 1000;
+    return (received * 8) / totalSec / 1_000_000;
+  }
+
+  // Fallback: round-trip via edge function (no static file available).
+  async function downloadOneChunkViaEdge(chunkIndex: number): Promise<number> {
+    const sizeBytes = 5 * 1024 * 1024; // 5 MB round trip
+    const payload = new Uint8Array(sizeBytes);
     const start = performance.now();
     const res = await fetch(SPEEDTEST_ENDPOINT, {
       method: "POST",
@@ -98,106 +276,98 @@ export default function TestVitesse() {
         apikey: SUPABASE_ANON,
         Authorization: `Bearer ${SUPABASE_ANON}`,
       },
-      body: payload as BodyInit,
+      body: payload,
     });
-    if (!res.ok) {
-      throw new Error(`speedtest-upload returned ${res.status}`);
-    }
-    // Drain body
     await res.arrayBuffer();
-    return performance.now() - start;
+    const totalSec = (performance.now() - start) / 1000;
+    // Round-trip carries data both ways; approximate effective single-direction throughput
+    const mbps = (sizeBytes * 8) / totalSec / 1_000_000;
+    setTargetSpeed(mbps);
+    setSubLabel(`Test ${chunkIndex}/${DOWNLOAD_CHUNKS} — ${mbps.toFixed(1)} Mbps`);
+    return mbps;
   }
 
-  async function testLatency(): Promise<number> {
-    setPhase("ping");
-    setLiveSpeed(0);
-    const pings: number[] = [];
-    const tiny = new Uint8Array(100);
-    for (let i = 0; i < 5; i++) {
-      try {
-        const ms = await postBytes(tiny);
-        pings.push(ms);
-      } catch {
-        // skip failed sample
-      }
-    }
-    if (pings.length === 0) throw new Error("Latence: aucun échantillon");
-    return Math.round(Math.min(...pings));
-  }
-
-  async function testDownload(): Promise<number> {
-    setPhase("download");
-    setLiveSpeed(0);
-
-    // Try the static file first (fast path); fall back to edge function if missing.
-    try {
-      const url = `/speedtest-10mb.bin?dl=${Date.now()}`;
-      const start = performance.now();
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("no stream");
-      let received = 0;
-      const totalBytes = 10 * 1024 * 1024;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          received += value.byteLength;
-          const elapsed = (performance.now() - start) / 1000;
-          if (elapsed > 0.05) {
-            setLiveSpeed((received * 8) / elapsed / 1_000_000);
-          }
-        }
-      }
-      const totalSec = (performance.now() - start) / 1000;
-      const mbps = (received * 8) / totalSec / 1_000_000;
-      if (mbps > 0) return Number(mbps.toFixed(2));
-      throw new Error("zero throughput");
-    } catch {
-      // Fallback: round-trip several payload sizes via the edge function and take the best.
-      const sizes = [1, 2, 5]; // MB
-      const speeds: number[] = [];
-      for (const size of sizes) {
-        const data = new Uint8Array(size * 1024 * 1024);
-        const elapsedMs = await postBytes(data);
-        const elapsedSec = elapsedMs / 1000;
-        const mbps = (size * 8) / elapsedSec; // 1 MB ≈ 8 Mb (using 1MB=10^6 ish; close enough)
-        speeds.push(mbps);
-        setLiveSpeed(mbps);
-      }
-      return Number(Math.max(...speeds).toFixed(2));
-    }
-  }
-
+  // ===================================================================
+  // PHASE 3 — UPLOAD
+  // 5 sequential POSTs of 5MB. Sub-label updates per chunk; gauge
+  // animates to the running average via rAF interpolation.
+  // ===================================================================
   async function testUpload(): Promise<number> {
     setPhase("upload");
-    setLiveSpeed(0);
-    const sizeBytes = 2 * 1024 * 1024; // 2 MB
-    const payload = new Uint8Array(sizeBytes);
-    // Pseudo-random fill to defeat compression
-    for (let i = 0; i < sizeBytes; i += 1024) payload[i] = (i * 7) & 0xff;
-    const elapsedMs = await postBytes(payload);
-    const elapsedSec = elapsedMs / 1000;
-    const mbps = (sizeBytes * 8) / elapsedSec / 1_000_000;
-    setLiveSpeed(mbps);
-    return Number(mbps.toFixed(2));
+    setTargetSpeed(0);
+    setSubLabel("Préparation...");
+
+    // Build payload once and reuse — pseudo-random fill defeats compression
+    const payload = new Uint8Array(UPLOAD_CHUNK_BYTES);
+    for (let i = 0; i < UPLOAD_CHUNK_BYTES; i += 1024) payload[i] = (i * 7) & 0xff;
+
+    const chunkSpeeds: number[] = [];
+
+    for (let i = 0; i < UPLOAD_CHUNKS; i++) {
+      setSubLabel(`Test ${i + 1}/${UPLOAD_CHUNKS} — envoi en cours...`);
+
+      // Optimistic in-flight ramp so the gauge moves while the request is outbound
+      const optimisticTimer = window.setInterval(() => {
+        const last = chunkSpeeds[chunkSpeeds.length - 1] ?? targetSpeedRef.current;
+        // Drift gauge toward last known value while we wait
+        setTargetSpeed(last);
+      }, 250);
+
+      const start = performance.now();
+      try {
+        const res = await fetch(SPEEDTEST_ENDPOINT, {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            apikey: SUPABASE_ANON,
+            Authorization: `Bearer ${SUPABASE_ANON}`,
+          },
+          body: payload,
+        });
+        await res.arrayBuffer();
+      } finally {
+        clearInterval(optimisticTimer);
+      }
+
+      const totalSec = (performance.now() - start) / 1000;
+      const chunkMbps = (UPLOAD_CHUNK_BYTES * 8) / totalSec / 1_000_000;
+      chunkSpeeds.push(chunkMbps);
+      const avg = chunkSpeeds.reduce((a, b) => a + b, 0) / chunkSpeeds.length;
+      setTargetSpeed(avg);
+      setSubLabel(`Test ${i + 1}/${UPLOAD_CHUNKS} — ${chunkMbps.toFixed(1)} Mbps (moy. ${avg.toFixed(1)})`);
+      await sleep(200);
+    }
+
+    if (chunkSpeeds.length === 0) throw new Error("Téléversement: aucun échantillon");
+    const usable =
+      chunkSpeeds.length >= 3
+        ? [...chunkSpeeds].sort((a, b) => b - a).slice(0, chunkSpeeds.length - 1)
+        : chunkSpeeds;
+    const finalMbps = usable.reduce((a, b) => a + b, 0) / usable.length;
+    setTargetSpeed(finalMbps);
+    return Number(finalMbps.toFixed(2));
   }
 
   async function runTest() {
     if (phase !== "idle" && phase !== "done") return;
     setResults(null);
+    setTargetSpeed(0);
+    setDisplaySpeed(0);
     try {
       const latency = await testLatency();
       const download = await testDownload();
       const upload = await testUpload();
 
       setPhase("saving");
-      await new Promise((r) => setTimeout(r, 500));
+      setSubLabel("Calcul des résultats...");
+      await sleep(700);
 
       const r: Results = { download, upload, latency };
       setResults(r);
       setPhase("done");
+      setSubLabel("");
+      setTargetSpeed(download);
 
       if (userId) {
         try {
@@ -219,11 +389,11 @@ export default function TestVitesse() {
         variant: "destructive",
       });
       setPhase("idle");
+      setSubLabel("");
     }
   }
 
   const isRunning = phase !== "idle" && phase !== "done";
-  const displaySpeed = isRunning ? liveSpeed : results?.download ?? 0;
 
   // Gauge math (full circle, 0–1100 Mbps scale)
   const MAX_GAUGE = 1100;
@@ -425,6 +595,24 @@ export default function TestVitesse() {
               </div>
             </div>
           </div>
+
+          {/* Sub-progress (e.g. "Test 2/5 — 124 Mbps") */}
+          {isRunning && subLabel && (
+            <div
+              style={{
+                marginTop: -8,
+                marginBottom: 24,
+                fontSize: 13,
+                color: COLORS.accentSoft,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                minHeight: 20,
+              }}
+              aria-live="polite"
+            >
+              {subLabel}
+            </div>
+          )}
 
           {/* BUTTON */}
           {!results && !isRunning && (
