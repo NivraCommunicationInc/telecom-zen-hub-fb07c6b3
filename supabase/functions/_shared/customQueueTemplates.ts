@@ -1470,7 +1470,7 @@ export function renderQueueTemplate(
           heroTitle: "Bienvenue chez Nivra Telecom",
           heroSub: "Vous avez été ajouté comme représentant terrain.",
           icon: "star",
-          greeting: `Bonjour ${firstName || ""},`,
+          greeting: `Bonjour ${firstName || "Client"},`,
           bodyText: `Vous avez été invité à rejoindre l'équipe terrain de Nivra Telecom à titre de représentant Field Sales.<br/><br/>Créez votre compte pour accéder au <strong>Portail Nivra Field</strong> et au <strong>Portail RH</strong> avec les mêmes identifiants.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 72 heures.</strong>`,
           cardTitle: "Détails de votre accès",
           cardRows: [
@@ -1499,7 +1499,7 @@ export function renderQueueTemplate(
           heroTitle: "Bienvenue chez Nivra Telecom",
           heroSub: "Activez votre compte pour accéder à votre portail.",
           icon: "star",
-          greeting: `Bonjour ${firstName || ""},`,
+          greeting: `Bonjour ${firstName || "Client"},`,
           bodyText: `Vous avez été invité à activer votre compte interne Nivra Telecom à titre de <strong>${roleLabel}</strong>.<br/><br/>Créez votre mot de passe et votre NIP pour accéder à votre portail.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 48 heures.</strong>`,
           cardTitle: "Détails de votre accès",
           cardRows: [
@@ -1530,7 +1530,7 @@ export function renderQueueTemplate(
           heroTitle: "Réinitialisez votre mot de passe",
           heroSub: "Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.",
           icon: "alert",
-          greeting: `Bonjour ${firstName || ""},`,
+          greeting: `Bonjour ${firstName || "Client"},`,
           bodyText: `Nous avons reçu une demande de réinitialisation du mot de passe associé à ${portalLabel}.<br/><br/>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. <strong style="color:#7c3aed;">Ce lien est valide 1 heure.</strong>`,
           cardTitle: "Détails de la demande",
           cardRows: [
