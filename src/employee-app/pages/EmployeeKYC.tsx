@@ -137,6 +137,42 @@ export default function EmployeeKYC() {
     onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
 
+  // ── Additional documents request dialog state ──────────────────────────
+  const [askDocsFor, setAskDocsFor] = useState<KYCItem | null>(null);
+  const [docType, setDocType] = useState<string>(ADDITIONAL_DOC_OPTIONS[0]);
+  const [docNote, setDocNote] = useState("");
+
+  const askDocsMutation = useMutation({
+    mutationFn: async () => {
+      if (!askDocsFor) throw new Error("Aucun dossier sélectionné");
+      const { data, error } = await supabase.functions.invoke("kyc-additional-docs-request", {
+        body: {
+          identity_record_id: askDocsFor.id,
+          document_requested: docType,
+          note: docNote.trim(),
+        },
+      });
+      if (error) throw new Error(error.message ?? "Erreur lors de la demande");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      await logInternalAudit({
+        action: "kyc_additional_docs_requested",
+        category: "security",
+        portal: "employee",
+        targetType: "kyc",
+        targetId: askDocsFor.id,
+        details: { document_requested: docType, note: docNote || null },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-kyc-v2"] });
+      toast.success("Demande envoyée au client");
+      setAskDocsFor(null);
+      setDocNote("");
+      setDocType(ADDITIONAL_DOC_OPTIONS[0]);
+    },
+    onError: (err: any) => toast.error(`Erreur: ${err.message}`),
+  });
+
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
       pending: "text-amber-400 bg-amber-500/10",
