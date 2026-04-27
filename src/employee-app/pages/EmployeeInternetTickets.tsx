@@ -210,7 +210,37 @@ export default function EmployeeInternetTickets() {
             Tickets liés au service internet, équipements et problèmes techniques
           </p>
         </div>
+        <button
+          onClick={() => setShowCreateForm((v) => !v)}
+          className="min-h-[44px] inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" /> Nouveau ticket Internet
+        </button>
       </div>
+
+      {showCreateForm && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs text-muted-foreground">Client search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-border bg-background pl-9 pr-3 text-sm" placeholder="Nom, courriel, téléphone" />
+              </div>
+              {searchingClients && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+              {clients.map((c: any) => <button key={c.user_id} onClick={() => setSelectedClient(c)} className="w-full rounded-lg border border-border p-2 text-left text-xs hover:bg-secondary"><span className="block font-medium text-foreground">{c.full_name ?? c.email}</span><span className="text-muted-foreground">{c.email}</span></button>)}
+              {selectedClient && <div className="rounded-lg bg-primary/10 p-2 text-xs text-primary">Client: {selectedClient.full_name ?? selectedClient.email}</div>}
+            </div>
+            <SelectField label="Problem type" value={problemType} onChange={setProblemType} options={["Connexion Internet", "Modem / routeur", "Vitesse lente", "Panne complète", "Installation", "Autre"]} />
+            <SelectField label="Priority" value={priority} onChange={setPriority} options={[{ value: "normal", label: "Normale" }, { value: "urgent", label: "Urgente" }, { value: "critical", label: "Critique" }]} />
+            <SelectField label="Route to" value={routeTo} onChange={setRouteTo} options={[{ value: "support_interne", label: "Support interne" }, { value: "field_sales", label: "Field Sales" }, { value: "technicien_assigne", label: "Technicien assigné" }, { value: "facturation", label: "Facturation" }, { value: "kyc", label: "KYC" }]} />
+            {routeTo === "technicien_assigne" && <SelectField label="Technicien" value={technicianId} onChange={setTechnicianId} options={[{ value: "", label: "Sélectionner" }, ...(technicians as any[]).map((t) => ({ value: t.id, label: t.full_name ?? t.email ?? t.id }))]} />}
+            {routeTo === "technicien_assigne" && <InputField label="Date + time" type="datetime-local" value={appointmentAt} onChange={setAppointmentAt} />}
+            <div className="md:col-span-2"><label className="text-xs text-muted-foreground">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 min-h-[90px] w-full rounded-lg border border-border bg-background p-3 text-sm" /></div>
+          </div>
+          <div className="flex justify-end gap-2"><button onClick={() => setShowCreateForm(false)} className="min-h-[44px] rounded-lg border border-border px-3 text-xs">Annuler</button><button onClick={() => createTicketMutation.mutate()} disabled={createTicketMutation.isPending || !selectedClient} className="min-h-[44px] rounded-lg bg-primary px-3 text-xs text-primary-foreground disabled:opacity-40">{createTicketMutation.isPending && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}Créer ticket</button></div>
+        </div>
+      )}
 
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2">
