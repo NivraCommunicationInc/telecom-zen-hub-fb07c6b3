@@ -42,6 +42,7 @@ const navGroups = [
       { label: "Commandes", href: `${EMP_BASE}/orders`, icon: ShoppingCart },
       { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
       { label: "Support", href: `${EMP_BASE}/support`, icon: Headphones },
+      { label: "Tickets Internet", href: `${EMP_BASE}/internet-tickets`, icon: Wifi },
     ],
   },
   {
