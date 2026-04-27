@@ -1038,6 +1038,32 @@ export function renderQueueTemplate(
       };
     }
 
+    case "kyc_request_client": {
+      const idType = esc(v.requested_id_type || v.id_type || "Pièce d'identité");
+      const reason = esc(v.reason || v.notes || "Vérification requise");
+      const verificationUrl = String(v.verification_url || `${portalUrl}/identite`);
+      return {
+        subject: "Vérification d'identité requise — Nivra",
+        html: shell({
+          preheader: "Une vérification d'identité est requise pour votre dossier Nivra.",
+          badge: "VÉRIFICATION KYC",
+          heroTitle: "Vérification d'identité requise",
+          heroSub: "Veuillez compléter la demande dans votre espace client.",
+          icon: "doc",
+          greeting,
+          bodyText: "Une vérification d'identité est nécessaire pour continuer le traitement de votre dossier.",
+          cardTitle: "Détails de la demande",
+          cardRows: [
+            ["Type de pièce", String(idType)],
+            ["Raison", String(reason)],
+            ["Date", fmtDate(new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: verificationUrl,
+          ctaPrimaryLabel: "Compléter la vérification",
+        }),
+      };
+    }
+
     case "ticket_assigned_notification":
     case "ticket_assigned": {
       const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "—");
