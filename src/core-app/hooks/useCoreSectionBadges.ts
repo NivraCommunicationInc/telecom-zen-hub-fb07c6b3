@@ -125,9 +125,10 @@ export function useCoreSectionBadges(): {
         { event: "*", schema: "public", table: "activation_requests" },
         () => queryClient.invalidateQueries({ queryKey: ["core-section-badges"] }),
       )
+      // 'tickets' is a view; subscribe to the underlying 'support_tickets' table
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "tickets" },
+        { event: "*", schema: "public", table: "support_tickets" },
         () => queryClient.invalidateQueries({ queryKey: ["core-section-badges"] }),
       )
       .on(
