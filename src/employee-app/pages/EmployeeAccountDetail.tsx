@@ -326,6 +326,13 @@ export default function EmployeeAccountDetail() {
           )}
 
           <button
+            onClick={() => document.getElementById("employee-account-management")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="min-h-[44px] px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary hover:bg-primary/10 transition-colors"
+          >
+            Gérer les forfaits
+          </button>
+
+          <button
             onClick={() => setShowKycRequest(true)}
             className="min-h-[44px] px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary hover:bg-primary/10 transition-colors"
           >
@@ -341,7 +348,9 @@ export default function EmployeeAccountDetail() {
         </div>
       </div>
 
-      <EmployeeAccountManagement account={account} profile={profile} subscriptions={subscriptions} equipment={equipment} />
+      <div id="employee-account-management" aria-label="Gérer les forfaits et Notes internes client_internal_notes">
+        <EmployeeAccountManagement account={account} profile={profile} subscriptions={subscriptions} equipment={equipment} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
