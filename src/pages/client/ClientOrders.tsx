@@ -21,6 +21,7 @@ import OrderStatusTimeline from "@/components/client/OrderStatusTimeline";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 import { OrderShippingActivationPanel } from "@/components/orders/OrderShippingActivationPanel";
 import { OrderLifecycleTimeline } from "@/components/orders/OrderLifecycleTimeline";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 // Phase 3 — règle: pro = jamais de bloc livraison côté client
 const isProInstall = (order: any) => order?.installation_type === "technician";
