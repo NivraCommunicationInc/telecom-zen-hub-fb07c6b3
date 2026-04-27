@@ -7,29 +7,101 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 
+type DisplayPlan = {
+  id: string;
+  name: string;
+  speed: string;
+  price: number;
+  description: string;
+  features: string[];
+  equipmentType: "internet" | "tv" | "combo";
+  link: string;
+  recommended: boolean;
+};
+
+// Canonical homepage selection — exact 3 plans, fixed content, prices come from DB.
+const HOMEPAGE_PLAN_SPECS: Array<{
+  matchName: string;
+  speed: string;
+  description: string;
+  features: string[];
+  equipmentType: "internet" | "tv" | "combo";
+  link: string;
+  recommended: boolean;
+}> = [
+  {
+    matchName: "internet giga",
+    speed: "1 010 Mbps",
+    description: "Données illimitées — Support VIP — Ultra-faible latence",
+    features: [
+      "Téléchargement jusqu'à 1 010 Mbps",
+      "Données illimitées",
+      "Support VIP 7j/7",
+      "Ultra-faible latence",
+    ],
+    equipmentType: "internet",
+    link: "/internet",
+    recommended: false,
+  },
+  {
+    matchName: "giga + tv 15 choix",
+    speed: "1 Gbps",
+    description: "Internet Giga + 42 chaînes populaires + 15 chaînes au choix",
+    features: [
+      "Internet GIGA 1 Gbps inclus",
+      "42 chaînes populaires + sports",
+      "15 chaînes au choix",
+      "Télécommande vocale",
+      "Terminal Nivra 4K Smart inclus",
+    ],
+    equipmentType: "combo",
+    link: "/tv",
+    recommended: true,
+  },
+  {
+    matchName: "giga + tv 25 choix",
+    speed: "1 Gbps",
+    description: "Internet Giga + 52 chaînes populaires + 25 chaînes au choix",
+    features: [
+      "Internet GIGA 1 Gbps inclus",
+      "52 chaînes populaires + sports",
+      "25 chaînes au choix",
+      "Télécommande vocale",
+      "Support VIP prioritaire",
+      "Terminal Nivra 4K Smart inclus",
+    ],
+    equipmentType: "combo",
+    link: "/tv",
+    recommended: false,
+  },
+];
+
 const HomePricing = () => {
   const { t } = useLanguage();
-  const { data: services, isLoading } = usePublicServices({ surface: "website", categories: ["Internet"] });
+  const { data: services, isLoading } = usePublicServices({
+    surface: "website",
+    categories: ["Internet", "TV"],
+  });
 
-  const plans = useMemo(() => {
+  const plans = useMemo<DisplayPlan[]>(() => {
     if (!services?.length) return [];
-    return services
-      .sort((a, b) => {
-        if (a.display_order !== b.display_order) return a.display_order - b.display_order;
-        return a.price - b.price;
-      })
-      .slice(0, 3)
-      .map((s, idx) => {
-        const features = s.features_json.length > 0
-          ? s.features_json.slice(0, 3)
-          : (s.short_description || s.description || "").split(/•|\||;/g).map(f => f.trim()).filter(Boolean).slice(0, 3);
-        const speedMatch = s.name.match(/(\d+)\s*(Mbps|Gbps|Giga)/i) || (s.description || "").match(/(\d+)\s*(Mbps|Gbps)/i);
-        const speed = speedMatch ? `${speedMatch[1]} ${speedMatch[2]}` : null;
-        return {
-          id: s.id, name: s.name, price: Number(s.price), speed, features,
-          recommended: Boolean(s.is_recommended || s.is_featured) || idx === 1,
-        };
-      });
+    return HOMEPAGE_PLAN_SPECS.map((spec) => {
+      const match = services.find(
+        (s) => s.name.trim().toLowerCase() === spec.matchName,
+      );
+      if (!match) return null;
+      return {
+        id: match.id,
+        name: match.name,
+        speed: spec.speed,
+        price: Number(match.price),
+        description: spec.description,
+        features: spec.features,
+        equipmentType: spec.equipmentType,
+        link: spec.link,
+        recommended: spec.recommended,
+      } satisfies DisplayPlan;
+    }).filter((p): p is DisplayPlan => p !== null);
   }, [services]);
 
   if (isLoading) {
@@ -88,7 +160,7 @@ const HomePricing = () => {
 
               <div className="p-8 flex flex-col h-full">
                 <h3 className="font-bold mb-1 pr-20" style={{ color: '#0D0D0D', fontSize: 18 }}>{plan.name}</h3>
-                {plan.speed && <p className="text-xs mb-5" style={{ color: '#999999' }}>{plan.speed}</p>}
+                <p className="text-xs mb-5" style={{ color: '#999999' }}>{plan.speed}</p>
 
                 <div className="mb-5">
                   <span className="font-extrabold leading-none" style={{ color: '#0D0D0D', fontSize: 52 }}>
@@ -106,13 +178,13 @@ const HomePricing = () => {
                   ))}
                 </div>
 
-                <EquipmentRequiredBox type="internet" />
+                <EquipmentRequiredBox type={plan.equipmentType} />
 
                 <div
-                  className="w-full flex items-center justify-center gap-2 font-bold text-white"
+                  className="w-full flex items-center justify-center gap-2 font-bold text-white mt-4"
                   style={{ height: 50, borderRadius: 50, background: '#7C3AED', fontSize: 15 }}
                 >
-                  {t('pricing.choose')}
+                  Commencer
                   <ArrowRight className="w-4 h-4" />
                 </div>
               </div>
