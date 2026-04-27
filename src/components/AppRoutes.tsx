@@ -903,7 +903,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}
       {/* ============================================ */}
-      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><EmployeeProtectedRoute /></Suspense>}>
+      <Route path="/employee" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-white" />}><EmployeeProtectedRoute /></Suspense></AuthProvider>}>
         <Route element={<Suspense fallback={null}><EmployeeAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
@@ -937,7 +937,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* FIELD PORTAL — Field Sales Workspace          */}
       {/* ============================================ */}
-      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><FieldProtectedRoute /></Suspense>}>
+      <Route path="/field" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-white" />}><FieldProtectedRoute /></Suspense></AuthProvider>}>
         <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />
@@ -969,7 +969,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* NIVRA RH — Employee HR Portal                 */}
       {/* ============================================ */}
-      <Route path="/rh" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense>}>
+      <Route path="/rh" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense></AuthProvider>}>
         <Route element={<Suspense fallback={null}><RhAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><RhDashboard /></Suspense>} />
