@@ -169,7 +169,7 @@ export default function DevLogin() {
 
     try {
       // DEV-ONLY helper: audited access to real account via one-time magic link (no password reset)
-      if (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL) {
+      if (targetEmail && (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL)) {
         const auditLabel = targetEmail === SERGE_EMAIL ? "Audit referral portal" : "Audit RLS /portal/service-addresses";
         const auditRedirect = targetEmail === SERGE_EMAIL
           ? `${window.location.origin}/portal/referrals?audit_session=1`
