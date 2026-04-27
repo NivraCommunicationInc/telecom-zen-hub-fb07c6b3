@@ -9,7 +9,7 @@ import {
   LayoutDashboard, ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
-  Package, Settings, UserCheck,
+  Package, Settings, UserCheck, Wifi,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
