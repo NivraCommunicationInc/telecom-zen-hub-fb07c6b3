@@ -280,7 +280,7 @@ export default function RhDocuments() {
                         <TableCell>
                           {l.pdf_url ? (
                             <Button size="sm" variant="ghost" className="h-7 gap-1"
-                              onClick={() => window.open(l.pdf_url, "_blank", "noopener,noreferrer")}>
+                              onClick={() => viewDoc(l.pdf_url)}>
                               <Download className="h-3.5 w-3.5" /> PDF
                             </Button>
                           ) : (
