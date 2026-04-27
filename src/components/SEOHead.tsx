@@ -64,7 +64,7 @@ export const SEO_DATA = {
   home: {
     title: "Nivra Telecom | Internet & TV prépayé au Québec — Sans contrat",
     description:
-      "Nivra Telecom offre des forfaits Internet et TV prépayés au Québec, sans engagement ni contrat. Économisez sur Bell et Vidéotron. Activation rapide, support en français.",
+      "Internet haute vitesse dès 45$/mois, TV et Mobile 4G sans contrat au Québec. Montréal, Laval, Québec, Rive-Sud et plus.",
   },
   about: {
     title: "À propos de Nivra Telecom | Notre mission et valeurs",
@@ -82,19 +82,19 @@ export const SEO_DATA = {
       "Internet haute vitesse, télévision IPTV, téléphonie mobile prépayée et sécurité résidentielle. Services sans contrat disponibles partout au Québec.",
   },
   internet: {
-    title: "Forfaits Internet haute vitesse sans contrat | Nivra Telecom Québec",
+    title: "Internet haute vitesse au Québec | Nivra Telecom — Dès 45$/mois",
     description:
-      "Internet illimité haute vitesse sans contrat. Forfaits de 25 à 1000 Mbps, installation rapide, équipement inclus. Vérifiez la disponibilité à votre adresse.",
+      "Internet 100 Mbps, 500 Mbps et Giga jusqu'à 1 010 Mbps. Données illimitées. Sans contrat. Dès 45$/mois.",
   },
   tv: {
-    title: "Forfaits télévision IPTV sans contrat | Nivra Telecom Québec",
+    title: "Télévision au Québec | Nivra Telecom — Forfaits dès 75$/mois",
     description:
-      "Télévision IPTV sans contrat avec 100+ chaînes. Forfaits personnalisables, enregistrement cloud, 4K disponible. Essayez sans engagement.",
+      "Forfaits TV avec Internet. Chaînes générales, sports, cinéma. Dès 75$/mois avec Internet.",
   },
   mobile: {
-    title: "Forfaits mobile prépayés | Nivra Telecom Québec",
+    title: "Forfaits Mobile 4G au Québec | Nivra Telecom — Dès 50$/mois",
     description:
-      "Téléphonie mobile prépayée sans contrat. Données, appels et textos illimités. Activez votre carte SIM en ligne, réseau fiable partout au Québec.",
+      "Mobile 4G illimité Canada. 50 Go et 75 Go. Appels illimités. SMS/MMS internationaux. Dès 50$/mois.",
   },
   streaming: {
     title: "Services de streaming | Nivra Telecom Québec",
