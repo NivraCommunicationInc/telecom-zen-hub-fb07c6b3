@@ -6,7 +6,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldCheck, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Loader2, CheckCircle, XCircle, AlertTriangle, FileQuestion } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -18,8 +18,20 @@ import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDial
 import { useState } from "react";
 import { addOperationalNote } from "@/shared-ops";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type KYCFilter = "pending" | "approved" | "rejected" | "all";
+
+const ADDITIONAL_DOC_OPTIONS = [
+  "Permis de conduire",
+  "Passeport",
+  "Carte d'identité",
+  "Autre",
+];
 
 interface KYCItem {
   id: string;
