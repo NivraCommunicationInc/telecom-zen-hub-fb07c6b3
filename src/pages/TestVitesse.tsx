@@ -499,7 +499,9 @@ export default function TestVitesse() {
               marginBottom: 40,
             }}
           >
-            🌐 Serveur — Montréal, QC
+            🌐 {cfMeta?.city
+              ? `Serveur Cloudflare — ${cfMeta.city}, ${cfMeta.country ?? ""}${cfMeta.colo ? ` (${cfMeta.colo})` : ""}`
+              : "Serveur Cloudflare — détection..."}
           </div>
 
           {/* GAUGE */}
