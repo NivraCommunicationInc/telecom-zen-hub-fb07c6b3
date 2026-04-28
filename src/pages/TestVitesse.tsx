@@ -141,17 +141,16 @@ export default function TestVitesse() {
           {/* IFRAME EMBED */}
           <section style={{ marginBottom: 24 }}>
             <iframe
-              src="https://speed.cloudflare.com"
+              src="https://www.speedtest.net/embed/e7990bc2-7363-4a09-9b57-ad2f3d1f2a12"
+              width="100%"
+              height={530}
               style={{
-                width: "100%",
-                height: `${iframeHeight}px`,
                 border: "none",
                 borderRadius: 12,
                 background: "transparent",
                 display: "block",
               }}
-              title="Test de vitesse Nivra Telecom"
-              allow="camera; microphone"
+              title="Test de vitesse — Speedtest by Ookla"
             />
           </section>
 
