@@ -24,15 +24,25 @@ const COLORS = {
   blue: "#3b82f6",
 } as const;
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-const SPEEDTEST_ENDPOINT = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
+// Cloudflare public Speed Test endpoints — no auth required
+const CF_DOWN = "https://speed.cloudflare.com/__down";
+const CF_UP = "https://speed.cloudflare.com/__up";
+const CF_META = "https://speed.cloudflare.com/meta";
 
 // Test plan — realistic timings (~25–35s total, like Videotron/Bell)
 const PING_SAMPLES = 10;          // 10 × ~50–500ms ≈ 5–8s
+const DOWNLOAD_BYTES = 10_000_000; // 10MB per chunk
 const DOWNLOAD_CHUNKS = 5;        // 5 × 10MB sequential GETs
 const UPLOAD_CHUNKS = 5;          // 5 × 5MB sequential POSTs
 const UPLOAD_CHUNK_BYTES = 5 * 1024 * 1024;
+
+interface CfMeta {
+  city?: string;
+  country?: string;
+  region?: string;
+  asn?: number;
+  colo?: string;
+}
 
 // Reference Nivra Internet plans for matching the result.
 const NIVRA_PLANS = [
@@ -80,12 +90,21 @@ export default function TestVitesse() {
 
   const [results, setResults] = useState<Results | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [cfMeta, setCfMeta] = useState<CfMeta | null>(null);
 
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
       if (mounted) setUserId(data.user?.id ?? null);
     });
+    fetch(CF_META, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((meta) => {
+        if (mounted) setCfMeta(meta);
+      })
+      .catch(() => {
+        /* non-critical */
+      });
     return () => {
       mounted = false;
     };
@@ -139,28 +158,20 @@ export default function TestVitesse() {
     setTargetSpeed(0);
     setSubLabel("Préparation...");
 
-    const tiny = new Uint8Array(1024); // 1 KB
     const pings: number[] = [];
 
     for (let i = 0; i < PING_SAMPLES; i++) {
       const start = performance.now();
       try {
-        const res = await fetch(SPEEDTEST_ENDPOINT, {
-          method: "POST",
+        const res = await fetch(`${CF_DOWN}?bytes=0&t=${Date.now()}-${i}`, {
+          method: "GET",
           cache: "no-store",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            apikey: SUPABASE_ANON,
-            Authorization: `Bearer ${SUPABASE_ANON}`,
-          },
-          body: tiny,
         });
         await res.arrayBuffer();
         const ms = performance.now() - start;
         pings.push(ms);
         const currentMedian = Math.round(median(pings));
         setSubLabel(`Ping ${i + 1}/${PING_SAMPLES} — ${currentMedian} ms`);
-        // Brief pacing so each ping is visible
         await sleep(120);
       } catch {
         // skip failed sample
@@ -172,12 +183,8 @@ export default function TestVitesse() {
   }
 
   // ===================================================================
-  // PHASE 2 — DOWNLOAD
-  // 5 sequential GETs of /speedtest-10mb.bin streamed via ReadableStream.
-  // Speed is computed continuously from bytes received over elapsed time
-  // and pushed to the gauge every animation frame. A running average
-  // across chunks is displayed in the sub-label.
-  // Falls back to edge-function round-trip if the static file 404s.
+  // PHASE 2 — DOWNLOAD via Cloudflare __down endpoint
+  // 5 sequential 10MB GETs streamed via ReadableStream.
   // ===================================================================
   async function testDownload(): Promise<number> {
     setPhase("download");
@@ -186,28 +193,10 @@ export default function TestVitesse() {
 
     const chunkSpeeds: number[] = [];
 
-    // Probe the static file once; fall back to edge-function round-trip per chunk.
-    let useStatic = true;
-    try {
-      const probe = await fetch(`/speedtest-10mb.bin?probe=${Date.now()}`, {
-        cache: "no-store",
-        method: "HEAD",
-      });
-      if (!probe.ok) useStatic = false;
-    } catch {
-      useStatic = false;
-    }
-
     for (let i = 0; i < DOWNLOAD_CHUNKS; i++) {
       setSubLabel(`Test ${i + 1}/${DOWNLOAD_CHUNKS} — démarrage...`);
 
-      let chunkMbps = 0;
-      if (useStatic) {
-        chunkMbps = await downloadOneChunkStreaming(i + 1);
-      } else {
-        chunkMbps = await downloadOneChunkViaEdge(i + 1);
-      }
-
+      const chunkMbps = await downloadOneChunkStreaming(i + 1);
       if (chunkMbps > 0) chunkSpeeds.push(chunkMbps);
 
       const avg = chunkSpeeds.length
@@ -219,7 +208,6 @@ export default function TestVitesse() {
     }
 
     if (chunkSpeeds.length === 0) throw new Error("Téléchargement: aucun échantillon");
-    // Drop slowest sample (likely TCP slow-start) when we have enough data
     const usable =
       chunkSpeeds.length >= 3
         ? [...chunkSpeeds].sort((a, b) => b - a).slice(0, chunkSpeeds.length - 1)
@@ -229,9 +217,9 @@ export default function TestVitesse() {
     return Number(finalMbps.toFixed(2));
   }
 
-  // Stream a 10MB file chunk-by-chunk and push live Mbps to the gauge.
+  // Stream a 10MB Cloudflare download chunk-by-chunk and push live Mbps.
   async function downloadOneChunkStreaming(chunkIndex: number): Promise<number> {
-    const url = `/speedtest-10mb.bin?dl=${Date.now()}-${chunkIndex}`;
+    const url = `${CF_DOWN}?bytes=${DOWNLOAD_BYTES}&t=${Date.now()}-${chunkIndex}`;
     const start = performance.now();
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok || !res.body) throw new Error(`status ${res.status}`);
@@ -248,7 +236,6 @@ export default function TestVitesse() {
       const elapsed = (performance.now() - start) / 1000;
       if (elapsed > 0.05) {
         const liveMbps = (received * 8) / elapsed / 1_000_000;
-        // Throttle UI updates to ~every 100ms; rAF smooths the rest
         if (performance.now() - lastUiUpdate > 100) {
           setTargetSpeed(liveMbps);
           setSubLabel(
@@ -263,66 +250,36 @@ export default function TestVitesse() {
     return (received * 8) / totalSec / 1_000_000;
   }
 
-  // Fallback: round-trip via edge function (no static file available).
-  async function downloadOneChunkViaEdge(chunkIndex: number): Promise<number> {
-    const sizeBytes = 5 * 1024 * 1024; // 5 MB round trip
-    const payload = new Uint8Array(sizeBytes);
-    const start = performance.now();
-    const res = await fetch(SPEEDTEST_ENDPOINT, {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/octet-stream",
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-      },
-      body: payload,
-    });
-    await res.arrayBuffer();
-    const totalSec = (performance.now() - start) / 1000;
-    // Round-trip carries data both ways; approximate effective single-direction throughput
-    const mbps = (sizeBytes * 8) / totalSec / 1_000_000;
-    setTargetSpeed(mbps);
-    setSubLabel(`Test ${chunkIndex}/${DOWNLOAD_CHUNKS} — ${mbps.toFixed(1)} Mbps`);
-    return mbps;
-  }
-
   // ===================================================================
-  // PHASE 3 — UPLOAD
-  // 5 sequential POSTs of 5MB. Sub-label updates per chunk; gauge
-  // animates to the running average via rAF interpolation.
+  // PHASE 3 — UPLOAD via Cloudflare __up endpoint
+  // 5 sequential 5MB POSTs.
   // ===================================================================
   async function testUpload(): Promise<number> {
     setPhase("upload");
     setTargetSpeed(0);
     setSubLabel("Préparation...");
 
-    // Build payload once and reuse — pseudo-random fill defeats compression
+    // Random fill defeats compression
     const payload = new Uint8Array(UPLOAD_CHUNK_BYTES);
-    for (let i = 0; i < UPLOAD_CHUNK_BYTES; i += 1024) payload[i] = (i * 7) & 0xff;
+    crypto.getRandomValues(payload.subarray(0, Math.min(65536, UPLOAD_CHUNK_BYTES)));
+    for (let i = 65536; i < UPLOAD_CHUNK_BYTES; i += 1024) payload[i] = (i * 7) & 0xff;
 
     const chunkSpeeds: number[] = [];
 
     for (let i = 0; i < UPLOAD_CHUNKS; i++) {
       setSubLabel(`Test ${i + 1}/${UPLOAD_CHUNKS} — envoi en cours...`);
 
-      // Optimistic in-flight ramp so the gauge moves while the request is outbound
       const optimisticTimer = window.setInterval(() => {
         const last = chunkSpeeds[chunkSpeeds.length - 1] ?? targetSpeedRef.current;
-        // Drift gauge toward last known value while we wait
         setTargetSpeed(last);
       }, 250);
 
       const start = performance.now();
       try {
-        const res = await fetch(SPEEDTEST_ENDPOINT, {
+        const res = await fetch(CF_UP, {
           method: "POST",
           cache: "no-store",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            apikey: SUPABASE_ANON,
-            Authorization: `Bearer ${SUPABASE_ANON}`,
-          },
+          headers: { "Content-Type": "application/octet-stream" },
           body: payload,
         });
         await res.arrayBuffer();
@@ -542,7 +499,9 @@ export default function TestVitesse() {
               marginBottom: 40,
             }}
           >
-            🌐 Serveur — Montréal, QC
+            🌐 {cfMeta?.city
+              ? `Serveur Cloudflare — ${cfMeta.city}, ${cfMeta.country ?? ""}${cfMeta.colo ? ` (${cfMeta.colo})` : ""}`
+              : "Serveur Cloudflare — détection..."}
           </div>
 
           {/* GAUGE */}
