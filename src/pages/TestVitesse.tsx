@@ -90,12 +90,21 @@ export default function TestVitesse() {
 
   const [results, setResults] = useState<Results | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [cfMeta, setCfMeta] = useState<CfMeta | null>(null);
 
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
       if (mounted) setUserId(data.user?.id ?? null);
     });
+    fetch(CF_META, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((meta) => {
+        if (mounted) setCfMeta(meta);
+      })
+      .catch(() => {
+        /* non-critical */
+      });
     return () => {
       mounted = false;
     };
