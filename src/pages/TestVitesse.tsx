@@ -1,16 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-
-type Phase = "idle" | "ping" | "download" | "upload" | "saving" | "done";
-
-interface Results {
-  download: number; // Mbps
-  upload: number;   // Mbps
-  latency: number;  // ms
-}
+import { useEffect, useState } from "react";
 
 // Brand palette (Xfinity Premium / Nivra)
 const COLORS = {
@@ -20,390 +10,55 @@ const COLORS = {
   accent: "#7c3aed",
   accentSoft: "#a78bfa",
   text: "#ffffff",
-  green: "#10b981",
-  blue: "#3b82f6",
 } as const;
 
-// Cloudflare public Speed Test endpoints — no auth required
-const CF_DOWN = "https://speed.cloudflare.com/__down";
-const CF_UP = "https://speed.cloudflare.com/__up";
-const CF_META = "https://speed.cloudflare.com/meta";
+const LOGO_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
-// Test plan — realistic timings (~25–35s total, like Videotron/Bell)
-const PING_SAMPLES = 10;          // 10 × ~50–500ms ≈ 5–8s
-const DOWNLOAD_BYTES = 10_000_000; // 10MB per chunk
-const DOWNLOAD_CHUNKS = 5;        // 5 × 10MB sequential GETs
-const UPLOAD_CHUNKS = 5;          // 5 × 5MB sequential POSTs
-const UPLOAD_CHUNK_BYTES = 5 * 1024 * 1024;
-
-interface CfMeta {
-  city?: string;
-  country?: string;
-  region?: string;
-  asn?: number;
-  colo?: string;
-}
-
-// Reference Nivra Internet plans for matching the result.
-const NIVRA_PLANS = [
-  { name: "Internet 100 Mbps", mbps: 100 },
-  { name: "Internet 300 Mbps", mbps: 300 },
-  { name: "Internet 500 Mbps", mbps: 500 },
-  { name: "Internet Giga", mbps: 1010 },
-];
-
-function suggestPlan(measured: number) {
-  const eligible = NIVRA_PLANS.filter((p) => p.mbps <= measured * 1.1);
-  return eligible[eligible.length - 1] ?? NIVRA_PLANS[0];
-}
-
-function speedVerdict(mbps: number): {
-  icon: string;
-  label: string;
-  tone: "good" | "warn" | "bad";
-} {
-  if (mbps >= 800) return { icon: "✅", label: "Excellent — Compatible Internet Giga", tone: "good" };
-  if (mbps >= 400) return { icon: "✅", label: "Très bien — Compatible Internet 500 Mbps", tone: "good" };
-  if (mbps >= 80) return { icon: "⚠️", label: "Bien — Compatible Internet 100 Mbps", tone: "warn" };
-  return { icon: "❌", label: "Faible — Contactez le support Nivra", tone: "bad" };
-}
-
-function median(arr: number[]): number {
-  const s = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+function useIframeHeight(): number {
+  const [h, setH] = useState<number>(() => {
+    if (typeof window === "undefined") return 650;
+    const w = window.innerWidth;
+    if (w < 640) return 500;
+    if (w < 1024) return 550;
+    return 650;
+  });
+  useEffect(() => {
+    const onResize = () => {
+      const w = window.innerWidth;
+      if (w < 640) setH(500);
+      else if (w < 1024) setH(550);
+      else setH(650);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return h;
 }
 
 export default function TestVitesse() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  // Speed shown on the gauge — animated smoothly via rAF towards `targetSpeedRef`
-  const [displaySpeed, setDisplaySpeed] = useState(0);
-  const targetSpeedRef = useRef(0);
-  const rafRef = useRef<number | null>(null);
-
-  // Sub-progress label (e.g. "Test 2/5 — 124 Mbps")
-  const [subLabel, setSubLabel] = useState("");
-
-  const [results, setResults] = useState<Results | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [cfMeta, setCfMeta] = useState<CfMeta | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted) setUserId(data.user?.id ?? null);
-    });
-    fetch(CF_META, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((meta) => {
-        if (mounted) setCfMeta(meta);
-      })
-      .catch(() => {
-        /* non-critical */
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Smooth gauge interpolation — animates `displaySpeed` toward `targetSpeedRef.current`
-  // using requestAnimationFrame so the number counts up gradually.
-  useEffect(() => {
-    let last = performance.now();
-    const tick = (now: number) => {
-      const dt = Math.min(100, now - last); // ms, clamped
-      last = now;
-      setDisplaySpeed((curr) => {
-        const target = targetSpeedRef.current;
-        const diff = target - curr;
-        if (Math.abs(diff) < 0.05) return target;
-        // Ease toward target: ~30% of remaining gap per ~16ms frame
-        const ease = 1 - Math.pow(0.001, dt / 1000); // exponential smoothing
-        return curr + diff * ease;
-      });
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
-  function setTargetSpeed(v: number) {
-    targetSpeedRef.current = Math.max(0, v);
-  }
-
-  const phaseLabel = useMemo(() => {
-    switch (phase) {
-      case "ping": return "Test de latence...";
-      case "download": return "Test de téléchargement...";
-      case "upload": return "Test de téléversement...";
-      case "saving": return "Calcul des résultats...";
-      case "done": return "Terminé";
-      default: return "Prêt";
-    }
-  }, [phase]);
-
-  // ===================================================================
-  // PHASE 1 — LATENCY
-  // 10 sequential POSTs of 1KB. Median is the reported ping.
-  // Updates sub-label after every sample so the user sees live progress.
-  // ===================================================================
-  async function testLatency(): Promise<number> {
-    setPhase("ping");
-    setTargetSpeed(0);
-    setSubLabel("Préparation...");
-
-    const pings: number[] = [];
-
-    for (let i = 0; i < PING_SAMPLES; i++) {
-      const start = performance.now();
-      try {
-        const res = await fetch(`${CF_DOWN}?bytes=0&t=${Date.now()}-${i}`, {
-          method: "GET",
-          cache: "no-store",
-        });
-        await res.arrayBuffer();
-        const ms = performance.now() - start;
-        pings.push(ms);
-        const currentMedian = Math.round(median(pings));
-        setSubLabel(`Ping ${i + 1}/${PING_SAMPLES} — ${currentMedian} ms`);
-        await sleep(120);
-      } catch {
-        // skip failed sample
-      }
-    }
-
-    if (pings.length === 0) throw new Error("Latence: aucun échantillon");
-    return Math.round(median(pings));
-  }
-
-  // ===================================================================
-  // PHASE 2 — DOWNLOAD via Cloudflare __down endpoint
-  // 5 sequential 10MB GETs streamed via ReadableStream.
-  // ===================================================================
-  async function testDownload(): Promise<number> {
-    setPhase("download");
-    setTargetSpeed(0);
-    setSubLabel("Préparation...");
-
-    const chunkSpeeds: number[] = [];
-
-    for (let i = 0; i < DOWNLOAD_CHUNKS; i++) {
-      setSubLabel(`Test ${i + 1}/${DOWNLOAD_CHUNKS} — démarrage...`);
-
-      const chunkMbps = await downloadOneChunkStreaming(i + 1);
-      if (chunkMbps > 0) chunkSpeeds.push(chunkMbps);
-
-      const avg = chunkSpeeds.length
-        ? chunkSpeeds.reduce((a, b) => a + b, 0) / chunkSpeeds.length
-        : 0;
-      setTargetSpeed(avg);
-      setSubLabel(`Test ${i + 1}/${DOWNLOAD_CHUNKS} — ${chunkMbps.toFixed(1)} Mbps (moy. ${avg.toFixed(1)})`);
-      await sleep(200);
-    }
-
-    if (chunkSpeeds.length === 0) throw new Error("Téléchargement: aucun échantillon");
-    const usable =
-      chunkSpeeds.length >= 3
-        ? [...chunkSpeeds].sort((a, b) => b - a).slice(0, chunkSpeeds.length - 1)
-        : chunkSpeeds;
-    const finalMbps = usable.reduce((a, b) => a + b, 0) / usable.length;
-    setTargetSpeed(finalMbps);
-    return Number(finalMbps.toFixed(2));
-  }
-
-  // Stream a 10MB Cloudflare download chunk-by-chunk and push live Mbps.
-  async function downloadOneChunkStreaming(chunkIndex: number): Promise<number> {
-    const url = `${CF_DOWN}?bytes=${DOWNLOAD_BYTES}&t=${Date.now()}-${chunkIndex}`;
-    const start = performance.now();
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok || !res.body) throw new Error(`status ${res.status}`);
-
-    const reader = res.body.getReader();
-    let received = 0;
-    let lastUiUpdate = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      received += value.byteLength;
-      const elapsed = (performance.now() - start) / 1000;
-      if (elapsed > 0.05) {
-        const liveMbps = (received * 8) / elapsed / 1_000_000;
-        if (performance.now() - lastUiUpdate > 100) {
-          setTargetSpeed(liveMbps);
-          setSubLabel(
-            `Test ${chunkIndex}/${DOWNLOAD_CHUNKS} — ${liveMbps.toFixed(1)} Mbps`,
-          );
-          lastUiUpdate = performance.now();
-        }
-      }
-    }
-
-    const totalSec = (performance.now() - start) / 1000;
-    return (received * 8) / totalSec / 1_000_000;
-  }
-
-  // ===================================================================
-  // PHASE 3 — UPLOAD via Cloudflare __up endpoint
-  // 5 sequential 5MB POSTs.
-  // ===================================================================
-  async function testUpload(): Promise<number> {
-    setPhase("upload");
-    setTargetSpeed(0);
-    setSubLabel("Préparation...");
-
-    // Random fill defeats compression
-    const payload = new Uint8Array(UPLOAD_CHUNK_BYTES);
-    crypto.getRandomValues(payload.subarray(0, Math.min(65536, UPLOAD_CHUNK_BYTES)));
-    for (let i = 65536; i < UPLOAD_CHUNK_BYTES; i += 1024) payload[i] = (i * 7) & 0xff;
-
-    const chunkSpeeds: number[] = [];
-
-    for (let i = 0; i < UPLOAD_CHUNKS; i++) {
-      setSubLabel(`Test ${i + 1}/${UPLOAD_CHUNKS} — envoi en cours...`);
-
-      const optimisticTimer = window.setInterval(() => {
-        const last = chunkSpeeds[chunkSpeeds.length - 1] ?? targetSpeedRef.current;
-        setTargetSpeed(last);
-      }, 250);
-
-      const start = performance.now();
-      try {
-        const res = await fetch(CF_UP, {
-          method: "POST",
-          cache: "no-store",
-          headers: { "Content-Type": "application/octet-stream" },
-          body: payload,
-        });
-        await res.arrayBuffer();
-      } finally {
-        clearInterval(optimisticTimer);
-      }
-
-      const totalSec = (performance.now() - start) / 1000;
-      const chunkMbps = (UPLOAD_CHUNK_BYTES * 8) / totalSec / 1_000_000;
-      chunkSpeeds.push(chunkMbps);
-      const avg = chunkSpeeds.reduce((a, b) => a + b, 0) / chunkSpeeds.length;
-      setTargetSpeed(avg);
-      setSubLabel(`Test ${i + 1}/${UPLOAD_CHUNKS} — ${chunkMbps.toFixed(1)} Mbps (moy. ${avg.toFixed(1)})`);
-      await sleep(200);
-    }
-
-    if (chunkSpeeds.length === 0) throw new Error("Téléversement: aucun échantillon");
-    const usable =
-      chunkSpeeds.length >= 3
-        ? [...chunkSpeeds].sort((a, b) => b - a).slice(0, chunkSpeeds.length - 1)
-        : chunkSpeeds;
-    const finalMbps = usable.reduce((a, b) => a + b, 0) / usable.length;
-    setTargetSpeed(finalMbps);
-    return Number(finalMbps.toFixed(2));
-  }
-
-  async function runTest() {
-    if (phase !== "idle" && phase !== "done") return;
-    setResults(null);
-    setTargetSpeed(0);
-    setDisplaySpeed(0);
-    try {
-      const latency = await testLatency();
-      const download = await testDownload();
-      const upload = await testUpload();
-
-      setPhase("saving");
-      setSubLabel("Calcul des résultats...");
-      await sleep(700);
-
-      const r: Results = { download, upload, latency };
-      setResults(r);
-      setPhase("done");
-      setSubLabel("");
-      setTargetSpeed(download);
-
-      if (userId) {
-        try {
-          await supabase.from("speedtest_results").insert({
-            user_id: userId,
-            download_mbps: r.download,
-            upload_mbps: r.upload,
-            latency_ms: r.latency,
-          } as never);
-        } catch {
-          /* non-critical */
-        }
-      }
-    } catch (err) {
-      console.error("Speed test failed", err);
-      toast({
-        title: "Test interrompu",
-        description: "Une erreur réseau est survenue. Veuillez réessayer.",
-        variant: "destructive",
-      });
-      setPhase("idle");
-      setSubLabel("");
-    }
-  }
-
-  const isRunning = phase !== "idle" && phase !== "done";
-
-  // Gauge math (full circle, 0–1100 Mbps scale)
-  const MAX_GAUGE = 1100;
-  const gaugePct = Math.min(100, (displaySpeed / MAX_GAUGE) * 100);
-  const RADIUS = 88;
-  const CIRC = 2 * Math.PI * RADIUS; // ~553
-  const dashOffset = CIRC - (CIRC * gaugePct) / 100;
-
-  // Ring color depends on phase
-  const ringColor =
-    phase === "download" ? COLORS.green :
-    phase === "upload" ? COLORS.blue :
-    COLORS.accent;
-
-  const verdict = results ? speedVerdict(results.download) : null;
-  const matchedPlan = results ? suggestPlan(results.download) : null;
+  const iframeHeight = useIframeHeight();
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: COLORS.bg,
-        color: COLORS.text,
-        fontFamily: "Inter, Helvetica, Arial, sans-serif",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <>
       <Helmet>
-        <title>Test de vitesse Internet | Nivra Telecom</title>
+        <title>Test de vitesse Internet — Nivra Telecom</title>
         <meta
           name="description"
-          content="Testez votre vitesse Internet (téléchargement, téléversement, latence) propulsé par Nivra Telecom — Serveurs Montréal, QC."
+          content="Mesurez votre vitesse Internet réelle avec le test propulsé par Cloudflare. Serveurs Québec, résultats fiables."
         />
-        <link rel="canonical" href="/test-vitesse" />
+        <link rel="canonical" href="https://nivra-telecom.ca/test-vitesse" />
       </Helmet>
 
-      {/* HEADER */}
-      <header
-        style={{
-          borderBottom: `1px solid ${COLORS.border}`,
-          background: "rgba(0,0,0,0.25)",
-        }}
-      >
-        <div
+      <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text }}>
+        {/* HEADER */}
+        <header
           style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            padding: "16px 24px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 16,
+            padding: "16px 24px",
+            borderBottom: `1px solid ${COLORS.border}`,
+            background: "rgba(0,0,0,0.2)",
           }}
         >
           <Link
@@ -415,29 +70,25 @@ export default function TestVitesse() {
               textDecoration: "none",
               color: COLORS.text,
             }}
-            aria-label="Accueil Nivra Telecom"
           >
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 borderRadius: "50%",
                 background: COLORS.accent,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                fontFamily: LOGO_FONT,
                 fontWeight: 800,
-                fontSize: 18,
-                lineHeight: 1,
+                fontSize: 20,
                 color: "#ffffff",
-                fontStyle: "normal",
               }}
-              aria-hidden="true"
             >
               N
             </div>
-            <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: 0.2 }}>
+            <span style={{ fontFamily: LOGO_FONT, fontWeight: 700, fontSize: 18 }}>
               Nivra Telecom
             </span>
           </Link>
@@ -445,389 +96,185 @@ export default function TestVitesse() {
           <Link
             to="/"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              minHeight: 44,
               padding: "10px 18px",
               borderRadius: 999,
               border: `1px solid ${COLORS.border}`,
+              background: "rgba(255,255,255,0.05)",
               color: COLORS.text,
               textDecoration: "none",
               fontSize: 14,
               fontWeight: 600,
-              background: "transparent",
-              transition: "background 150ms ease",
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(124,58,237,0.12)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             ← Retour au site
           </Link>
-        </div>
-      </header>
+        </header>
 
-      {/* MAIN */}
-      <main style={{ flex: 1, padding: "48px 24px 64px" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
-          {/* HERO */}
-          <h1
-            style={{
-              fontSize: "clamp(32px, 5vw, 44px)",
-              fontWeight: 800,
-              letterSpacing: -0.5,
-              margin: "0 0 12px",
-            }}
-          >
-            Test de vitesse Internet
-          </h1>
-          <p style={{ color: COLORS.accentSoft, fontSize: 16, margin: "0 0 8px", fontWeight: 600 }}>
-            Propulsé par Nivra Telecom
-          </p>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 14px",
-              borderRadius: 999,
-              border: `1px solid ${COLORS.border}`,
-              background: "rgba(124,58,237,0.08)",
-              fontSize: 12,
-              color: COLORS.accentSoft,
-              fontWeight: 600,
-              marginBottom: 40,
-            }}
-          >
-            🌐 {cfMeta?.city
-              ? `Serveur Cloudflare — ${cfMeta.city}, ${cfMeta.country ?? ""}${cfMeta.colo ? ` (${cfMeta.colo})` : ""}`
-              : "Serveur Cloudflare — détection..."}
-          </div>
-
-          {/* GAUGE */}
-          <div
-            style={{
-              position: "relative",
-              width: 240,
-              height: 240,
-              margin: "0 auto 24px",
-            }}
-          >
-            <svg viewBox="0 0 200 200" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
-              {/* Track */}
-              <circle
-                cx="100"
-                cy="100"
-                r={RADIUS}
-                fill="none"
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth="14"
-              />
-              {/* Fill */}
-              <circle
-                cx="100"
-                cy="100"
-                r={RADIUS}
-                fill="none"
-                stroke={ringColor}
-                strokeWidth="14"
-                strokeLinecap="round"
-                strokeDasharray={CIRC}
-                strokeDashoffset={dashOffset}
-                style={{ transition: "stroke-dashoffset 200ms ease-out, stroke 200ms ease-out" }}
-              />
-            </svg>
-            <div
+        {/* MAIN */}
+        <main style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px" }}>
+          {/* TITLE */}
+          <section style={{ textAlign: "center", marginBottom: 32 }}>
+            <h1
               style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
+                fontSize: "clamp(28px, 5vw, 44px)",
+                fontWeight: 800,
+                margin: 0,
+                lineHeight: 1.15,
               }}
             >
-              <div style={{ fontSize: 48, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-                {displaySpeed.toFixed(displaySpeed >= 100 ? 0 : 1)}
-              </div>
-              <div style={{ fontSize: 12, color: COLORS.accentSoft, letterSpacing: 2, marginTop: 4, textTransform: "uppercase" }}>
-                Mbps
-              </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 10, fontWeight: 500 }}>
-                {phaseLabel}
-              </div>
-            </div>
-          </div>
-
-          {/* Sub-progress (e.g. "Test 2/5 — 124 Mbps") */}
-          {isRunning && subLabel && (
-            <div
+              Test de vitesse Internet
+            </h1>
+            <p
               style={{
-                marginTop: -8,
-                marginBottom: 24,
-                fontSize: 13,
+                marginTop: 12,
                 color: COLORS.accentSoft,
-                fontWeight: 600,
-                fontVariantNumeric: "tabular-nums",
-                minHeight: 20,
+                fontSize: "clamp(14px, 2vw, 16px)",
               }}
-              aria-live="polite"
             >
-              {subLabel}
-            </div>
-          )}
+              Propulsé par Cloudflare — Serveurs Québec
+            </p>
+          </section>
 
-          {/* BUTTON */}
-          {!results && !isRunning && (
-            <button
-              onClick={runTest}
+          {/* IFRAME EMBED */}
+          <section style={{ marginBottom: 24 }}>
+            <iframe
+              src="https://speed.cloudflare.com"
               style={{
                 width: "100%",
-                height: 64,
-                borderRadius: 999,
-                background: COLORS.accent,
-                color: "#fff",
+                height: `${iframeHeight}px`,
                 border: "none",
-                fontSize: 18,
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: "0 10px 30px rgba(124,58,237,0.4)",
-                transition: "transform 120ms ease, background 150ms ease",
+                borderRadius: 12,
+                background: "transparent",
+                display: "block",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#6d28d9")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.accent)}
-            >
-              ▶ Démarrer le test
-            </button>
-          )}
-          {isRunning && (
-            <button
-              disabled
+              title="Test de vitesse Nivra Telecom"
+              allow="camera; microphone"
+            />
+          </section>
+
+          {/* INFO CARD */}
+          <section
+            style={{
+              background: COLORS.card,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 12,
+              padding: 20,
+              marginBottom: 24,
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: "rgba(255,255,255,0.85)",
+            }}
+          >
+            💡 Ce test utilise les serveurs Cloudflare pour mesurer votre vitesse
+            réelle depuis votre appareil. Les résultats peuvent varier selon votre
+            équipement et votre réseau local.
+          </section>
+
+          {/* CTA BUTTONS */}
+          <section
+            style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            <a
+              href="mailto:support@nivra-telecom.ca"
               style={{
-                width: "100%",
-                height: 64,
+                padding: "12px 22px",
                 borderRadius: 999,
-                background: "rgba(124,58,237,0.5)",
-                color: "#fff",
-                border: "none",
-                fontSize: 18,
-                fontWeight: 700,
-                cursor: "not-allowed",
+                background: "rgba(255,255,255,0.05)",
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text,
+                textDecoration: "none",
+                fontWeight: 600,
+                minHeight: 44,
                 display: "inline-flex",
                 alignItems: "center",
-                justifyContent: "center",
-                gap: 12,
               }}
             >
-              <span
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "2px solid rgba(255,255,255,0.4)",
-                  borderTopColor: "#fff",
-                  animation: "nivra-spin 0.8s linear infinite",
-                }}
-              />
-              Test en cours...
-            </button>
-          )}
-          {results && phase === "done" && (
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button
-                onClick={runTest}
-                style={{
-                  flex: "1 1 200px",
-                  minHeight: 56,
-                  borderRadius: 999,
-                  background: "transparent",
-                  color: "#fff",
-                  border: `2px solid ${COLORS.accent}`,
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  padding: "0 20px",
-                }}
-              >
-                🔄 Retester
-              </button>
-              <Link
-                to={userId ? "/portal/tickets" : "/contact"}
-                style={{
-                  flex: "1 1 200px",
-                  minHeight: 56,
-                  borderRadius: 999,
-                  background: "transparent",
-                  color: "#fff",
-                  border: "2px solid rgba(255,255,255,0.2)",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  padding: "0 20px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                📞 Signaler un problème
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* RESULTS */}
-        {results && phase === "done" && (
-          <div style={{ maxWidth: 900, margin: "48px auto 0" }}>
-            <div
+              📞 Signaler un problème
+            </a>
+            <Link
+              to="/internet"
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: 16,
-                marginBottom: 24,
+                padding: "12px 22px",
+                borderRadius: 999,
+                background: COLORS.accent,
+                color: "#ffffff",
+                textDecoration: "none",
+                fontWeight: 700,
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
               }}
             >
-              <ResultCard icon="📥" label="Téléchargement" value={results.download.toFixed(results.download >= 100 ? 0 : 1)} unit="Mbps" color={COLORS.green} />
-              <ResultCard icon="⚡" label="Latence" value={String(results.latency)} unit="ms" color={COLORS.accent} />
-              <ResultCard icon="📤" label="Téléversement" value={results.upload.toFixed(results.upload >= 100 ? 0 : 1)} unit="Mbps" color={COLORS.blue} />
-            </div>
+              🌐 Voir nos forfaits
+            </Link>
+          </section>
+        </main>
 
-            {verdict && (
-              <div
-                style={{
-                  borderRadius: 16,
-                  padding: "20px 24px",
-                  background: COLORS.card,
-                  border: `1px solid ${
-                    verdict.tone === "good" ? "rgba(16,185,129,0.4)" :
-                    verdict.tone === "warn" ? "rgba(245,158,11,0.4)" :
-                    "rgba(239,68,68,0.4)"
-                  }`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 16,
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 12, color: COLORS.accentSoft, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
-                    Comparaison Nivra
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>
-                    {verdict.icon} {verdict.label}
-                  </div>
-                  {matchedPlan && (
-                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>
-                      Forfait suggéré : <strong>{matchedPlan.name}</strong>
-                    </div>
-                  )}
-                </div>
-                <Link
-                  to="/internet"
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: 999,
-                    background: COLORS.accent,
-                    color: "#fff",
-                    textDecoration: "none",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    minHeight: 44,
-                    display: "inline-flex",
-                    alignItems: "center",
-                  }}
-                >
-                  Voir nos forfaits →
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* FOOTER */}
-      <footer
-        style={{
-          borderTop: `1px solid ${COLORS.border}`,
-          background: "rgba(0,0,0,0.3)",
-          padding: "24px",
-        }}
-      >
-        <div
+        {/* FOOTER */}
+        <footer
           style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 16,
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 13,
-            color: "rgba(255,255,255,0.6)",
+            borderTop: `1px solid ${COLORS.border}`,
+            padding: "24px",
+            marginTop: 48,
+            background: "rgba(0,0,0,0.2)",
           }}
         >
-          <div>
-            © 2026 Nivra Communications Inc. —{" "}
-            <a href="mailto:support@nivra-telecom.ca" style={{ color: COLORS.accentSoft, textDecoration: "none" }}>
-              support@nivra-telecom.ca
-            </a>
-          </div>
-          <nav style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
-            {[
-              { label: "Accueil", to: "/" },
-              { label: "Internet", to: "/internet" },
-              { label: "Mobile", to: "/mobile" },
-              { label: "TV", to: "/tv" },
-              { label: "Assistance", to: "/support" },
-            ].map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none", fontWeight: 500 }}
+          <div
+            style={{
+              maxWidth: 1100,
+              margin: "0 auto",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 16,
+              alignItems: "center",
+              justifyContent: "space-between",
+              fontSize: 14,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: COLORS.accent,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: LOGO_FONT,
+                  fontWeight: 800,
+                  color: "#ffffff",
+                  fontSize: 14,
+                }}
               >
-                {l.label}
+                N
+              </div>
+              <span style={{ color: "rgba(255,255,255,0.7)" }}>
+                © {new Date().getFullYear()} Nivra Telecom
+              </span>
+            </div>
+            <nav style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <Link to="/" style={{ color: COLORS.accentSoft, textDecoration: "none" }}>
+                Accueil
               </Link>
-            ))}
-          </nav>
-        </div>
-      </footer>
-
-      <style>{`@keyframes nivra-spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
-
-function ResultCard({
-  icon,
-  label,
-  value,
-  unit,
-  color,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  unit: string;
-  color: string;
-}) {
-  return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(124,58,237,0.3)",
-        borderRadius: 16,
-        padding: "20px 24px",
-        textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
-      <div style={{ fontSize: 12, color: "#a78bfa", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
-        {label}
+              <Link to="/internet" style={{ color: COLORS.accentSoft, textDecoration: "none" }}>
+                Internet
+              </Link>
+              <Link to="/contact" style={{ color: COLORS.accentSoft, textDecoration: "none" }}>
+                Contact
+              </Link>
+            </nav>
+          </div>
+        </footer>
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
-        <span style={{ fontSize: 36, fontWeight: 800, color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</span>
-        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{unit}</span>
-      </div>
-    </div>
+    </>
   );
 }
