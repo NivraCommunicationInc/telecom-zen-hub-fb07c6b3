@@ -134,7 +134,7 @@ export default function TestVitesse() {
                 fontSize: "clamp(14px, 2vw, 16px)",
               }}
             >
-              Propulsé par Cloudflare — Serveurs Québec
+              Propulsé par Speedtest.net — Serveurs Montréal, QC
             </p>
           </section>
 
