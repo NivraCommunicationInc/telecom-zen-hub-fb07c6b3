@@ -92,105 +92,216 @@ export default function TestVitesse() {
 
         {/* MAIN */}
         <main style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px" }}>
-          {/* TITLE */}
-          <section style={{ textAlign: "center", marginBottom: 32 }}>
+          {/* HERO */}
+          <section style={{ textAlign: "center", marginBottom: 40 }}>
             <h1
               style={{
-                fontSize: "clamp(28px, 5vw, 44px)",
+                fontSize: "clamp(28px, 5vw, 48px)",
                 fontWeight: 800,
                 margin: 0,
                 lineHeight: 1.15,
               }}
             >
-              Test de vitesse Internet
+              Testez votre vitesse Internet
             </h1>
             <p
               style={{
-                marginTop: 12,
+                marginTop: 14,
                 color: COLORS.accentSoft,
-                fontSize: "clamp(14px, 2vw, 16px)",
+                fontSize: "clamp(14px, 2vw, 17px)",
+                maxWidth: 640,
+                marginLeft: "auto",
+                marginRight: "auto",
               }}
             >
-              Propulsé par Speedtest.net — Serveurs Montréal, QC
+              Vérifiez si votre connexion correspond à votre forfait Nivra Telecom
             </p>
           </section>
 
-          {/* IFRAME EMBED */}
-          <section style={{ marginBottom: 24 }}>
-            <iframe
-              src="https://www.speedtest.net/embed/e7990bc2-7363-4a09-9b57-ad2f3d1f2a12"
-              width="100%"
-              height={530}
-              style={{
-                border: "none",
-                borderRadius: 12,
-                background: "transparent",
-                display: "block",
-              }}
-              title="Test de vitesse — Speedtest by Ookla"
-            />
+          {/* INFO CARDS */}
+          <section
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 16,
+              marginBottom: 40,
+            }}
+          >
+            {[
+              { icon: "🌐", title: "Serveur recommandé", line1: "Montréal, QC", line2: "Bell / Videotron" },
+              { icon: "⚡", title: "Test complet", line1: "Download, Upload", line2: "et Latence" },
+              { icon: "🏆", title: "Propulsé par", line1: "Speedtest.net by Ookla", line2: "Le standard mondial" },
+            ].map((c) => (
+              <div
+                key={c.title}
+                style={{
+                  background: COLORS.card,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 16,
+                  padding: 24,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 36, marginBottom: 8 }}>{c.icon}</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>{c.title}</div>
+                <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>{c.line1}</div>
+                <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>{c.line2}</div>
+              </div>
+            ))}
           </section>
 
-          {/* INFO CARD */}
+          {/* LARGE CTA */}
+          <section style={{ textAlign: "center", marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => window.open("https://www.speedtest.net", "_blank", "noopener,noreferrer")}
+              style={{
+                width: "min(300px, 100%)",
+                height: 64,
+                borderRadius: 999,
+                border: "none",
+                background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentSoft})`,
+                color: "#ffffff",
+                fontWeight: 800,
+                fontSize: 17,
+                cursor: "pointer",
+                boxShadow: "0 10px 30px -10px rgba(124,58,237,0.6)",
+              }}
+            >
+              ▶ Démarrer le test de vitesse
+            </button>
+            <p
+              style={{
+                marginTop: 14,
+                fontSize: 13,
+                color: "rgba(255,255,255,0.6)",
+                lineHeight: 1.5,
+              }}
+            >
+              Vous serez redirigé vers Speedtest.net.
+              <br />
+              Le test s'ouvrira dans un nouvel onglet.
+            </p>
+          </section>
+
+          {/* COMPARISON */}
+          <section style={{ marginTop: 56, marginBottom: 48 }}>
+            <h2
+              style={{
+                fontSize: "clamp(20px, 3vw, 26px)",
+                fontWeight: 700,
+                marginBottom: 20,
+                textAlign: "center",
+              }}
+            >
+              Comparez avec votre forfait Nivra
+            </h2>
+            <div
+              style={{
+                background: COLORS.card,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 16,
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
+                  <thead>
+                    <tr style={{ background: "rgba(124,58,237,0.15)" }}>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 14, fontWeight: 700 }}>
+                        Forfait
+                      </th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 14, fontWeight: 700 }}>
+                        Download
+                      </th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 14, fontWeight: 700 }}>
+                        Upload
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { plan: "Internet 100 Mbps", down: "~90 Mbps", up: "~20 Mbps" },
+                      { plan: "Internet 500 Mbps", down: "~450 Mbps", up: "~50 Mbps" },
+                      { plan: "Internet Giga", down: "~900 Mbps", up: "~100 Mbps" },
+                    ].map((row) => (
+                      <tr key={row.plan} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                        <td style={{ padding: "14px 18px", fontSize: 14, fontWeight: 600 }}>{row.plan}</td>
+                        <td style={{ padding: "14px 18px", fontSize: 14, color: COLORS.accentSoft }}>{row.down}</td>
+                        <td style={{ padding: "14px 18px", fontSize: 14, color: COLORS.accentSoft }}>{row.up}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p
+              style={{
+                marginTop: 14,
+                fontSize: 13,
+                color: "rgba(255,255,255,0.65)",
+                textAlign: "center",
+              }}
+            >
+              Si votre vitesse est inférieure à 70 % de votre forfait, contactez notre support.
+            </p>
+          </section>
+
+          {/* SUPPORT */}
           <section
             style={{
               background: COLORS.card,
               border: `1px solid ${COLORS.border}`,
-              borderRadius: 12,
-              padding: 20,
-              marginBottom: 24,
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: "rgba(255,255,255,0.85)",
+              borderRadius: 16,
+              padding: 28,
+              textAlign: "center",
             }}
           >
-            💡 Ce test utilise les serveurs Cloudflare pour mesurer votre vitesse
-            réelle depuis votre appareil. Les résultats peuvent varier selon votre
-            équipement et votre réseau local.
-          </section>
-
-          {/* CTA BUTTONS */}
-          <section
-            style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            <a
-              href="mailto:support@nivra-telecom.ca"
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0, marginBottom: 16 }}>
+              Un problème avec votre connexion ?
+            </h3>
+            <div
               style={{
-                padding: "12px 22px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.05)",
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text,
-                textDecoration: "none",
-                fontWeight: 600,
-                minHeight: 44,
-                display: "inline-flex",
-                alignItems: "center",
+                display: "flex",
+                gap: 12,
+                flexWrap: "wrap",
+                justifyContent: "center",
               }}
             >
-              📞 Signaler un problème
-            </a>
-            <Link
-              to="/internet"
-              style={{
-                padding: "12px 22px",
-                borderRadius: 999,
-                background: COLORS.accent,
-                color: "#ffffff",
-                textDecoration: "none",
-                fontWeight: 700,
-                minHeight: 44,
-                display: "inline-flex",
-                alignItems: "center",
-              }}
-            >
-              🌐 Voir nos forfaits
-            </Link>
+              <a
+                href="mailto:support@nivra-telecom.ca"
+                style={{
+                  padding: "12px 22px",
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.05)",
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.text,
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                📧 Contacter le support
+              </a>
+              <Link
+                to="/portal/tickets"
+                style={{
+                  padding: "12px 22px",
+                  borderRadius: 999,
+                  background: COLORS.accent,
+                  color: "#ffffff",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                🎫 Ouvrir un ticket
+              </Link>
+            </div>
           </section>
         </main>
 
