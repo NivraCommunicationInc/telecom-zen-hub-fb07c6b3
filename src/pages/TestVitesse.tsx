@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { useEffect, useState } from "react";
 
 // Brand palette (Xfinity Premium / Nivra)
 const COLORS = {
@@ -14,29 +13,7 @@ const COLORS = {
 
 const LOGO_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
-function useIframeHeight(): number {
-  const [h, setH] = useState<number>(() => {
-    if (typeof window === "undefined") return 650;
-    const w = window.innerWidth;
-    if (w < 640) return 500;
-    if (w < 1024) return 550;
-    return 650;
-  });
-  useEffect(() => {
-    const onResize = () => {
-      const w = window.innerWidth;
-      if (w < 640) setH(500);
-      else if (w < 1024) setH(550);
-      else setH(650);
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  return h;
-}
-
 export default function TestVitesse() {
-  const iframeHeight = useIframeHeight();
 
   return (
     <>
@@ -134,24 +111,23 @@ export default function TestVitesse() {
                 fontSize: "clamp(14px, 2vw, 16px)",
               }}
             >
-              Propulsé par Cloudflare — Serveurs Québec
+              Propulsé par Speedtest.net — Serveurs Montréal, QC
             </p>
           </section>
 
           {/* IFRAME EMBED */}
           <section style={{ marginBottom: 24 }}>
             <iframe
-              src="https://speed.cloudflare.com"
+              src="https://www.speedtest.net/embed/e7990bc2-7363-4a09-9b57-ad2f3d1f2a12"
+              width="100%"
+              height={530}
               style={{
-                width: "100%",
-                height: `${iframeHeight}px`,
                 border: "none",
                 borderRadius: 12,
                 background: "transparent",
                 display: "block",
               }}
-              title="Test de vitesse Nivra Telecom"
-              allow="camera; microphone"
+              title="Test de vitesse — Speedtest by Ookla"
             />
           </section>
 
