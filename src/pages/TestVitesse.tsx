@@ -24,15 +24,25 @@ const COLORS = {
   blue: "#3b82f6",
 } as const;
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-const SPEEDTEST_ENDPOINT = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
+// Cloudflare public Speed Test endpoints — no auth required
+const CF_DOWN = "https://speed.cloudflare.com/__down";
+const CF_UP = "https://speed.cloudflare.com/__up";
+const CF_META = "https://speed.cloudflare.com/meta";
 
 // Test plan — realistic timings (~25–35s total, like Videotron/Bell)
 const PING_SAMPLES = 10;          // 10 × ~50–500ms ≈ 5–8s
+const DOWNLOAD_BYTES = 10_000_000; // 10MB per chunk
 const DOWNLOAD_CHUNKS = 5;        // 5 × 10MB sequential GETs
 const UPLOAD_CHUNKS = 5;          // 5 × 5MB sequential POSTs
 const UPLOAD_CHUNK_BYTES = 5 * 1024 * 1024;
+
+interface CfMeta {
+  city?: string;
+  country?: string;
+  region?: string;
+  asn?: number;
+  colo?: string;
+}
 
 // Reference Nivra Internet plans for matching the result.
 const NIVRA_PLANS = [
