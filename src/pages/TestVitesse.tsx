@@ -469,10 +469,14 @@ export default function TestVitesse() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                 fontWeight: 800,
                 fontSize: 18,
                 lineHeight: 1,
+                color: "#ffffff",
+                fontStyle: "normal",
               }}
+              aria-hidden="true"
             >
               N
             </div>
