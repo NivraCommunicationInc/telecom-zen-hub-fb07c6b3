@@ -15,6 +15,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import CommissionGridTables from "@/components/commissions/CommissionGridTables";
 
 const RULE_TYPES: Record<string, string> = {
   flat_per_sale: "Forfait/vente",
@@ -80,6 +81,7 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     <Tabs defaultValue="grids" className="w-full">
       <TabsList className="w-full justify-start flex-wrap h-auto">
         <TabsTrigger value="grids">Grilles & Commissions</TabsTrigger>
+        <TabsTrigger value="commission_grid">Commissions & Bonus</TabsTrigger>
         <TabsTrigger value="profile">Profil complet</TabsTrigger>
         <TabsTrigger value="schedule">Horaire</TabsTrigger>
         <TabsTrigger value="documents">Documents RH</TabsTrigger>
