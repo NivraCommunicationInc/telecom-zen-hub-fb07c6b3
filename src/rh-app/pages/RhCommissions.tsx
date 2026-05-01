@@ -282,6 +282,9 @@ export default function RhCommissions() {
         </Button>
       </div>
 
+      {/* Sections A/B/C — official commission grid, bonus grid, my targets */}
+      <RhGridsAndTargets userId={userId ?? undefined} />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KpiCard icon={<TrendingUp className="h-4 w-4 text-primary" />} label="Total gagné" value={fmt(stats.total)} />
