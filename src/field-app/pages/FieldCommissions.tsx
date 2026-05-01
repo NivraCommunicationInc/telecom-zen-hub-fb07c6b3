@@ -202,6 +202,9 @@ export default function FieldCommissions() {
         </button>
       </div>
 
+      {/* Sections A/B/C — official commission & bonus grids + my targets */}
+      <FieldGridsAndTargets userId={user?.id} />
+
       {isLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--field-accent))]" />
