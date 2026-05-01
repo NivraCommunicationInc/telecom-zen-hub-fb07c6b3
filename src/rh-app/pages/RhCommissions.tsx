@@ -508,3 +508,86 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
     </Card>
   );
 }
+
+/* ════════════════════════════════════════════════════════════════
+   RH GRIDS & TARGETS — Sections A, B, C (read-only)
+   ════════════════════════════════════════════════════════════════ */
+function RhGridsAndTargets({ userId }: { userId?: string }) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthStart = new Date(year, month - 1, 1).toISOString();
+  const monthEnd = new Date(year, month, 1).toISOString();
+
+  const { data: monthSales = 0 } = useQuery({
+    queryKey: ["rh-month-sales", userId, year, month],
+    queryFn: async () => {
+      if (!userId) return 0;
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("field_agent_id", userId)
+        .gte("created_at", monthStart)
+        .lt("created_at", monthEnd)
+        .in("status", ["activated", "completed", "active"]);
+      return count ?? 0;
+    },
+    enabled: !!userId,
+  });
+
+  const { data: targets = [] } = useQuery({
+    queryKey: ["rh-targets", userId, year, month],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data } = await supabase
+        .from("sales_targets")
+        .select("service_type, target_count")
+        .eq("employee_id", userId)
+        .eq("period_year", year)
+        .eq("period_month", month);
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
+  const weeklyT = (targets as any[]).find((t) => t.service_type === "weekly_sales")?.target_count ?? 0;
+  const monthlyT = (targets as any[]).find((t) => t.service_type === "total_sales")?.target_count ?? 0;
+  const monthlyPct = monthlyT > 0 ? Math.min(100, Math.round((monthSales / monthlyT) * 100)) : 0;
+
+  return (
+    <div className="space-y-4">
+      <CommissionGridTables variant="light" currentSales={monthSales} />
+
+      <Card>
+        <CardContent className="py-4 px-5">
+          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" /> Mes objectifs
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg border border-border bg-muted/20">
+              <p className="text-[11px] text-muted-foreground">Objectif hebdomadaire</p>
+              <p className="text-lg font-bold text-foreground">{weeklyT} ventes</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border bg-muted/20">
+              <p className="text-[11px] text-muted-foreground">Objectif mensuel</p>
+              <p className="text-lg font-bold text-foreground">
+                {monthSales} / {monthlyT || "—"}{" "}
+                <span className="text-xs text-muted-foreground">ventes</span>
+              </p>
+              {monthlyT > 0 && (
+                <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${monthlyPct}%` }} />
+                </div>
+              )}
+            </div>
+          </div>
+          {monthlyT === 0 && (
+            <p className="text-[11px] text-muted-foreground mt-2 italic">
+              Aucun objectif défini pour ce mois — votre superviseur peut les configurer dans le Core.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
