@@ -23,9 +23,10 @@ import { fr } from "date-fns/locale";
 import {
   DollarSign, Loader2, Filter, AlertCircle, TrendingUp,
   Clock, CheckCircle2, XCircle, RotateCcw, Receipt,
-  Banknote, AlertTriangle,
+  Banknote, AlertTriangle, Target,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import CommissionGridTables from "@/components/commissions/CommissionGridTables";
 import { toast } from "sonner";
 import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
