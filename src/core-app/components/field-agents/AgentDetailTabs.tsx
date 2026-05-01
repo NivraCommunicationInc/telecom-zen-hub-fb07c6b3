@@ -952,3 +952,226 @@ function Row({ label, value }: { label: string; value?: string | null }) {
     </div>
   );
 }
+
+/* ════════════════════════════════════════════════════════════════
+   COMMISSIONS & BONUS TAB
+   ════════════════════════════════════════════════════════════════ */
+function CommissionAndBonusTab({ userId, commissions }: { userId: string; commissions: any[] }) {
+  const qc = useQueryClient();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const monthStart = new Date(currentYear, currentMonth - 1, 1).toISOString();
+  const monthEnd = new Date(currentYear, currentMonth, 1).toISOString();
+
+  // Field commissions for this agent
+  const { data: fieldComms = [] } = useQuery({
+    queryKey: ["agent-field-commissions", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("field_commissions")
+        .select("id, amount, status, commission_type, description, order_id, created_at, paid_at")
+        .eq("agent_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Count current month activated sales (for bonus progress)
+  const { data: monthSales = 0 } = useQuery({
+    queryKey: ["agent-month-sales", userId, currentYear, currentMonth],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("field_agent_id", userId)
+        .gte("created_at", monthStart)
+        .lt("created_at", monthEnd)
+        .in("status", ["activated", "completed", "active"]);
+      return count ?? 0;
+    },
+  });
+
+  // Existing targets for this month
+  const { data: targets = [] } = useQuery({
+    queryKey: ["agent-targets-tab", userId, currentYear, currentMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_targets")
+        .select("id, service_type, target_count, target_amount, period_month, period_year")
+        .eq("employee_id", userId)
+        .eq("period_year", currentYear)
+        .eq("period_month", currentMonth);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [showTargetForm, setShowTargetForm] = useState(false);
+  const [weeklyTarget, setWeeklyTarget] = useState("");
+  const [monthlyTarget, setMonthlyTarget] = useState("");
+  const [targetMonth, setTargetMonth] = useState<string>(`${currentYear}-${String(currentMonth).padStart(2, "0")}`);
+
+  useEffect(() => {
+    const weekly = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? "";
+    const monthly = targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? "";
+    setWeeklyTarget(String(weekly || ""));
+    setMonthlyTarget(String(monthly || ""));
+  }, [targets]);
+
+  const saveTargets = useMutation({
+    mutationFn: async () => {
+      const [yearStr, monthStr] = targetMonth.split("-");
+      const y = parseInt(yearStr);
+      const m = parseInt(monthStr);
+      const rows = [
+        { service_type: "weekly_sales", target_count: parseInt(weeklyTarget) || 0 },
+        { service_type: "total_sales", target_count: parseInt(monthlyTarget) || 0 },
+      ];
+      for (const r of rows) {
+        // Check existing for the chosen month
+        const { data: existing } = await supabase
+          .from("sales_targets")
+          .select("id")
+          .eq("employee_id", userId)
+          .eq("period_year", y)
+          .eq("period_month", m)
+          .eq("service_type", r.service_type)
+          .maybeSingle();
+        if (existing?.id) {
+          await supabase.from("sales_targets").update({ target_count: r.target_count, target_amount: 0 } as any).eq("id", existing.id);
+        } else if (r.target_count > 0) {
+          await supabase.from("sales_targets").insert({
+            employee_id: userId,
+            role: "field_sales",
+            service_type: r.service_type,
+            target_count: r.target_count,
+            target_amount: 0,
+            period_month: m,
+            period_year: y,
+          } as any);
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success("Objectifs enregistrés");
+      qc.invalidateQueries({ queryKey: ["agent-targets-tab", userId] });
+      qc.invalidateQueries({ queryKey: ["agent-targets", userId] });
+      setShowTargetForm(false);
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur sauvegarde objectifs"),
+  });
+
+  const STATUS_BADGE_LOCAL: Record<string, { cls: string; label: string }> = {
+    pending: { cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400", label: "En attente" },
+    approved: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400", label: "Approuvée" },
+    paid: { cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400", label: "Payée" },
+    clawback: { cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400", label: "Récupérée" },
+    rejected: { cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400", label: "Rejetée" },
+    validated: { cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400", label: "Validée" },
+  };
+
+  const weeklyT = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? 0;
+  const monthlyT = targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0;
+  const monthlyPct = monthlyT > 0 ? Math.min(100, Math.round((monthSales / monthlyT) * 100)) : 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Section 1 + 2: official grids */}
+      <CommissionGridTables variant="light" currentSales={monthSales} />
+
+      {/* Section 4: Sales targets */}
+      <div className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" /> Objectifs de vente
+          </h3>
+          <Button size="sm" variant="outline" onClick={() => setShowTargetForm((v) => !v)}>
+            <Plus className="h-3 w-3 mr-1" /> Définir les objectifs
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3 rounded-lg border border-border bg-muted/20">
+            <p className="text-[11px] text-muted-foreground">Objectif hebdomadaire</p>
+            <p className="text-lg font-bold text-foreground">{weeklyT} ventes</p>
+          </div>
+          <div className="p-3 rounded-lg border border-border bg-muted/20">
+            <p className="text-[11px] text-muted-foreground">Objectif mensuel</p>
+            <p className="text-lg font-bold text-foreground">
+              {monthSales} / {monthlyT} <span className="text-xs text-muted-foreground">ventes</span>
+            </p>
+            {monthlyT > 0 && (
+              <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${monthlyPct}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {showTargetForm && (
+          <div className="mt-4 p-3 border border-border rounded-lg space-y-3 bg-muted/10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Objectif hebdomadaire</Label>
+                <Input type="number" min="0" value={weeklyTarget} onChange={(e) => setWeeklyTarget(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Objectif mensuel</Label>
+                <Input type="number" min="0" value={monthlyTarget} onChange={(e) => setMonthlyTarget(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Mois cible</Label>
+                <Input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setShowTargetForm(false)}>Annuler</Button>
+              <Button size="sm" onClick={() => saveTargets.mutate()} disabled={saveTargets.isPending}>
+                {saveTargets.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Section 3: Agent commissions list */}
+      <div className="bg-card border border-border rounded-xl p-4">
+        <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-primary" /> Commissions de cet agent
+        </h3>
+        {fieldComms.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-6 text-center">Aucune commission</p>
+        ) : (
+          <div className="space-y-1.5">
+            {fieldComms.map((c: any) => {
+              const b = STATUS_BADGE_LOCAL[c.status] || STATUS_BADGE_LOCAL.pending;
+              return (
+                <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-foreground">{fmtMoney(Number(c.amount))}</span>
+                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", b.cls)}>{b.label}</span>
+                      {c.commission_type && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">{c.commission_type}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                      {c.description || (c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "—")}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
+                    {format(new Date(c.created_at), "dd/MM/yy")}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
