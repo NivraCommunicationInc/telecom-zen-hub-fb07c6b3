@@ -71,6 +71,76 @@ export type Database = {
           },
         ]
       }
+      account_adjustments: {
+        Row: {
+          account_id: string
+          amount: number
+          applied_count: number
+          created_at: string
+          created_by: string | null
+          description: string
+          expires_at: string | null
+          id: string
+          last_applied_at: string | null
+          months_remaining: number
+          months_total: number
+          status: string
+          type: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          applied_count?: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          expires_at?: string | null
+          id?: string
+          last_applied_at?: string | null
+          months_remaining: number
+          months_total?: number
+          status?: string
+          type: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          applied_count?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expires_at?: string | null
+          id?: string
+          last_applied_at?: string | null
+          months_remaining?: number
+          months_total?: number
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_adjustments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "account_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
       account_deletion_requests: {
         Row: {
           admin_notes: string | null
@@ -6983,6 +7053,36 @@ export type Database = {
           },
         ]
       }
+      field_bonus_rules: {
+        Row: {
+          bonus_amount: number
+          created_at: string
+          id: string
+          is_active: boolean
+          max_sales: number | null
+          min_sales: number
+          period: string
+        }
+        Insert: {
+          bonus_amount: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_sales?: number | null
+          min_sales: number
+          period?: string
+        }
+        Update: {
+          bonus_amount?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_sales?: number | null
+          min_sales?: number
+          period?: string
+        }
+        Relationships: []
+      }
       field_commission_payout_items: {
         Row: {
           amount: number
@@ -7063,8 +7163,13 @@ export type Database = {
           amount: number
           approved_at: string | null
           approved_by: string | null
+          clawback_at: string | null
+          clawback_eligible_until: string | null
           clawback_reason: string | null
+          commission_type: string
           created_at: string
+          description: string | null
+          earned_at: string | null
           id: string
           lead_id: string | null
           notes: string | null
@@ -7078,8 +7183,13 @@ export type Database = {
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
+          clawback_at?: string | null
+          clawback_eligible_until?: string | null
           clawback_reason?: string | null
+          commission_type?: string
           created_at?: string
+          description?: string | null
+          earned_at?: string | null
           id?: string
           lead_id?: string | null
           notes?: string | null
@@ -7093,8 +7203,13 @@ export type Database = {
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
+          clawback_at?: string | null
+          clawback_eligible_until?: string | null
           clawback_reason?: string | null
+          commission_type?: string
           created_at?: string
+          description?: string | null
+          earned_at?: string | null
           id?: string
           lead_id?: string | null
           notes?: string | null
@@ -20149,6 +20264,10 @@ export type Database = {
           p_reason?: string
         }
         Returns: undefined
+      }
+      fn_calculate_field_commission: {
+        Args: { p_agent_id: string; p_order_id: string }
+        Returns: number
       }
       fn_check_order_completeness: {
         Args: { p_order_id: string }

@@ -16,6 +16,7 @@ import {
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
 import { AddCreditWithDurationDialog } from "@/core-app/components/account-actions/AddCreditWithDurationDialog";
+import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/AccountAdjustmentDialog";
 
 interface Props {
   accountId: string | undefined;
@@ -35,6 +36,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
   const [pinResetOpen, setPinResetOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
 
   const updateStatus = async (newStatus: string) => {
     if (!accountId) return;
@@ -56,6 +58,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices"), color: "default" },
     { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments"), color: "default" },
     { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
+    { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
     ...(accountStatus !== "suspended"
       ? [{ icon: PauseCircle, label: "Suspendre", onClick: () => updateStatus("suspended"), color: "warning" as const }]
       : [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
@@ -121,6 +124,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         clientName={clientName}
         open={creditOpen}
         onClose={() => setCreditOpen(false)}
+        onRefresh={onRefresh}
+      />
+
+      <AccountAdjustmentDialog
+        accountId={accountId}
+        clientName={clientName}
+        open={adjustmentOpen}
+        onClose={() => setAdjustmentOpen(false)}
         onRefresh={onRefresh}
       />
     </>

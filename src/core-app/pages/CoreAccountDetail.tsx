@@ -11,6 +11,7 @@ import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileTex
 import { Account360Header } from "@/core-app/components/account-360/Account360Header";
 import { Account360KPIStrip } from "@/core-app/components/account-360/Account360KPIStrip";
 import { Account360QuickActions } from "@/core-app/components/account-360/Account360QuickActions";
+import { AccountAdjustmentsList } from "@/core-app/components/account-actions/AccountAdjustmentsList";
 import { Account360RightPanel } from "@/core-app/components/account-360/Account360RightPanel";
 import { Account360ProfileEditDialog } from "@/core-app/components/account-360/Account360ProfileEditDialog";
 import {
@@ -192,6 +193,9 @@ const CoreAccountDetail = () => {
         onNavigateSection={(s) => setActiveSection(s as SectionId)}
         onEditProfile={() => setEditProfileOpen(true)}
       />
+
+      {/* Active manual adjustments (credits / fees) */}
+      <AccountAdjustmentsList accountId={accountId} />
 
       {/* 3-column layout: Nav | Content | Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] gap-3">
