@@ -562,6 +562,77 @@ async function processLegacyRenewals(
         });
       }
 
+      // ─── Apply manual account_adjustments (credit / fee) ────────────
+      try {
+        const { data: cust } = await supabase
+          .from("billing_customers")
+          .select("user_id")
+          .eq("id", sub.customer_id)
+          .maybeSingle();
+
+        const userId = (cust as any)?.user_id;
+        if (userId) {
+          const { data: acct } = await supabase
+            .from("accounts")
+            .select("id")
+            .eq("client_id", userId)
+            .maybeSingle();
+
+          const accountId = (acct as any)?.id;
+          if (accountId) {
+            const { data: adjustments } = await supabase
+              .from("account_adjustments")
+              .select("*")
+              .eq("account_id", accountId)
+              .eq("status", "active")
+              .gt("months_remaining", 0);
+
+            if (adjustments && adjustments.length > 0) {
+              let adjustmentDelta = 0;
+              const adjLines: any[] = [];
+
+              for (const adj of adjustments as any[]) {
+                const amt = Number(adj.amount);
+                const isCredit = adj.type === "credit";
+                const signedTotal = isCredit ? -amt : amt;
+                adjustmentDelta += signedTotal;
+
+                adjLines.push({
+                  invoice_id: invoice.id,
+                  description: adj.description,
+                  unit_price: signedTotal,
+                  quantity: 1,
+                  line_total: signedTotal,
+                  line_type: isCredit ? "credit" : "fee",
+                });
+
+                const nextRemaining = Math.max(0, adj.months_remaining - 1);
+                await supabase
+                  .from("account_adjustments")
+                  .update({
+                    months_remaining: nextRemaining,
+                    applied_count: (adj.applied_count || 0) + 1,
+                    last_applied_at: new Date().toISOString(),
+                    status: nextRemaining <= 0 ? "completed" : "active",
+                  })
+                  .eq("id", adj.id);
+              }
+
+              if (adjLines.length > 0) {
+                await supabase.from("billing_invoice_lines").insert(adjLines);
+                const newTotal = Math.max(0, Number(total) + adjustmentDelta);
+                await supabase
+                  .from("billing_invoices")
+                  .update({ total: newTotal, balance_due: newTotal })
+                  .eq("id", invoice.id);
+              }
+            }
+          }
+        }
+      } catch (adjErr) {
+        console.error(`[lifecycle] account_adjustments error for sub ${sub.id}:`, adjErr);
+      }
+
       // FIX: Advance subscription cycle dates after invoice creation
       const nextRenewalAt = addDays(newCycleEnd, -3); // J-3
       await supabase
