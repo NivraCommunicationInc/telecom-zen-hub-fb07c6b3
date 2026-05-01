@@ -132,6 +132,11 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
         </div>
       </TabsContent>
 
+      {/* === Commission & Bonus grids + agent commissions + targets === */}
+      <TabsContent value="commission_grid" className="space-y-4 mt-4">
+        <CommissionAndBonusTab userId={userId} commissions={ac} />
+      </TabsContent>
+
       {/* === Profil complet (editable) === */}
       <TabsContent value="profile" className="space-y-4 mt-4">
         <EditableProfileSection userId={userId} profile={profile} />
