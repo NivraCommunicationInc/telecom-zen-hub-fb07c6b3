@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import CommissionGridTables from "@/components/commissions/CommissionGridTables";
+import { Target } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; tone: string; icon: typeof Clock }> = {
   pending: { label: "En attente", tone: "text-[hsl(var(--field-warning))] bg-[hsl(var(--field-warning)/0.15)]", icon: Clock },
@@ -199,6 +201,9 @@ export default function FieldCommissions() {
           <ArrowDownToLine className="h-4 w-4" /> Demander un retrait
         </button>
       </div>
+
+      {/* Sections A/B/C — official commission & bonus grids + my targets */}
+      <FieldGridsAndTargets userId={user?.id} />
 
       {isLoading ? (
         <div className="flex justify-center py-16">
@@ -507,6 +512,91 @@ export default function FieldCommissions() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FIELD GRIDS & TARGETS — Sections A, B, C (read-only)
+   ════════════════════════════════════════════════════════════════ */
+function FieldGridsAndTargets({ userId }: { userId?: string }) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthStart = new Date(year, month - 1, 1).toISOString();
+  const monthEnd = new Date(year, month, 1).toISOString();
+
+  const { data: monthSales = 0 } = useQuery({
+    queryKey: ["field-month-sales", userId, year, month],
+    queryFn: async () => {
+      if (!userId) return 0;
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("field_agent_id", userId)
+        .gte("created_at", monthStart)
+        .lt("created_at", monthEnd)
+        .in("status", ["activated", "completed", "active"]);
+      return count ?? 0;
+    },
+    enabled: !!userId,
+  });
+
+  const { data: targets = [] } = useQuery({
+    queryKey: ["field-targets", userId, year, month],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data } = await supabase
+        .from("sales_targets")
+        .select("service_type, target_count")
+        .eq("employee_id", userId)
+        .eq("period_year", year)
+        .eq("period_month", month);
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
+  const weeklyT = (targets as any[]).find((t) => t.service_type === "weekly_sales")?.target_count ?? 0;
+  const monthlyT = (targets as any[]).find((t) => t.service_type === "total_sales")?.target_count ?? 0;
+  const monthlyPct = monthlyT > 0 ? Math.min(100, Math.round((monthSales / monthlyT) * 100)) : 0;
+
+  return (
+    <div className="space-y-4">
+      <CommissionGridTables variant="field" currentSales={monthSales} />
+
+      {/* Section C — My targets */}
+      <div className="bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))] rounded-2xl p-4 md:p-5">
+        <h3 className="text-sm md:text-base font-bold text-white mb-3 flex items-center gap-2">
+          <Target className="h-4 w-4 text-[hsl(var(--field-accent-glow))]" /> Mes objectifs
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-bg-elevated))]">
+            <p className="text-[11px] text-[hsl(var(--field-text-muted))]">Objectif hebdomadaire</p>
+            <p className="text-lg font-bold text-white mt-0.5">{weeklyT} ventes</p>
+          </div>
+          <div className="p-3 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-bg-elevated))]">
+            <p className="text-[11px] text-[hsl(var(--field-text-muted))]">Objectif mensuel</p>
+            <p className="text-lg font-bold text-white mt-0.5">
+              {monthSales} / {monthlyT || "—"}{" "}
+              <span className="text-xs text-[hsl(var(--field-text-muted))]">ventes</span>
+            </p>
+            {monthlyT > 0 && (
+              <div className="mt-2 h-2 w-full rounded-full bg-[hsl(var(--field-bg))] overflow-hidden">
+                <div
+                  className="h-full bg-[hsl(var(--field-accent))] transition-all"
+                  style={{ width: `${monthlyPct}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        {monthlyT === 0 && (
+          <p className="text-[11px] text-[hsl(var(--field-text-dim))] mt-2 italic">
+            Aucun objectif défini pour ce mois — votre superviseur peut les configurer dans le Core.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
