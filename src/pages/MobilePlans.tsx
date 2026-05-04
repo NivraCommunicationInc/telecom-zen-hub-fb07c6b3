@@ -13,6 +13,7 @@ import Footer from "@/components/Footer";
 import { MobileInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useMobilePlans, useEquipmentPrices } from "@/hooks/usePublicServices";
+import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import { ProductSchema, BreadcrumbSchema, type ProductSchemaItem } from "@/components/seo";
 
 const MobilePlans = () => {
@@ -25,7 +26,8 @@ const MobilePlans = () => {
   useEffect(() => { if (planViewTracked.current) return; planViewTracked.current = true; trackLiveActivity("plan_view", "Consultation: Forfaits Mobile", { metadata: { category: "mobile" } }); }, []);
 
   // Fetch plans from database
-  const { plans, isLoading: isLoadingPlans } = useMobilePlans(isFrench);
+  const { plans: rawPlans, isLoading: isLoadingPlans } = useMobilePlans(isFrench);
+  const { plans } = useAutoTranslatePlans(rawPlans);
   const { simPrice, esimPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
   
   const isLoading = isLoadingPlans || isLoadingEquipment;
