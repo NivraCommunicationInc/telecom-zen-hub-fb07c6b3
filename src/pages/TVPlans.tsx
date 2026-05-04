@@ -15,6 +15,7 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { TVInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useTVPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
+import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 
 
 const TVPlans = () => {
@@ -32,7 +33,9 @@ const TVPlans = () => {
   useEffect(() => { if (planViewTracked.current) return; planViewTracked.current = true; trackLiveActivity("plan_view", "Consultation: Forfaits TV", { metadata: { category: "tv" } }); }, []);
 
   // Fetch plans from database
-  const { standardPlans, gigaPlans, isLoading: isLoadingPlans } = useTVPlans(isFrench);
+  const { standardPlans: rawStandard, gigaPlans: rawGiga, isLoading: isLoadingPlans } = useTVPlans(isFrench);
+  const { plans: standardPlans } = useAutoTranslatePlans(rawStandard);
+  const { plans: gigaPlans } = useAutoTranslatePlans(rawGiga);
   const { terminalPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
   
   const isLoading = isLoadingPlans || isLoadingEquipment;
