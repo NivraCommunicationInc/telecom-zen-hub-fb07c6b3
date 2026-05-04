@@ -15,6 +15,7 @@ import { InternetInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { ItemListSchema } from "@/components/seo";
 import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
+import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 
 
 const InternetPlans = () => {
@@ -31,7 +32,8 @@ const InternetPlans = () => {
   useEffect(() => { if (planViewTracked.current) return; planViewTracked.current = true; trackLiveActivity("plan_view", "Consultation: Forfaits Internet", { metadata: { category: "internet" } }); }, []);
 
   // Fetch plans from database
-  const { plans, isLoading: isLoadingPlans } = useInternetPlans(isFrench);
+  const { plans: rawPlans, isLoading: isLoadingPlans } = useInternetPlans(isFrench);
+  const { plans } = useAutoTranslatePlans(rawPlans);
   const { routerPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
   
   const isLoading = isLoadingPlans || isLoadingEquipment;
