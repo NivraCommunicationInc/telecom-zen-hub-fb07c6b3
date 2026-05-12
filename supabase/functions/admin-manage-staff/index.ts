@@ -2729,9 +2729,40 @@ serve(async (req: Request) => {
 
         await logAction(
           "staff_profile_updated",
-          { request_id: requestId, updated_fields: Object.keys(updateData) },
+          { request_id: requestId, updated_fields: Object.keys({ ...updateData, ...profilePatch }) },
           { type: "user", id: user_id, email: profile?.email }
         );
+
+        // Notify the affected employee that their profile was modified by an admin.
+        const notifyEmail = (normalizedNewEmail ?? profile?.email ?? "").trim().toLowerCase();
+        const updatedFieldKeys = Object.keys({ ...updateData, ...profilePatch });
+        if (notifyEmail && updatedFieldKeys.length > 0) {
+          try {
+            const { data: notifyProfile } = await adminClient
+              .from("profiles")
+              .select("first_name, full_name")
+              .eq("user_id", user_id)
+              .maybeSingle();
+            const firstName =
+              notifyProfile?.first_name ||
+              (notifyProfile?.full_name ? String(notifyProfile.full_name).split(" ")[0] : "");
+            const portalUrl = `${getAppBaseUrl()}/hub/login`;
+            await adminClient.from("email_queue").insert({
+              event_key: `staff_profile_updated_${user_id}_${Date.now()}`,
+              to_email: notifyEmail,
+              template_key: "profile_updated_notification",
+              template_vars: {
+                first_name: firstName,
+                updated_fields: updatedFieldKeys,
+                updated_at: new Date().toISOString().slice(0, 10),
+                portal_url: portalUrl,
+              },
+              status: "queued",
+            } as any);
+          } catch (e) {
+            console.error(`[admin-manage-staff] ${stepBase} profile_updated_notification queue failed:`, e);
+          }
+        }
 
         return json(200, {
           ok: true,
