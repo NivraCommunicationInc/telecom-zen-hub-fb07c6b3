@@ -2481,28 +2481,54 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
 
-        const pinHash = await hashPinLegacy(pin);
+        // CANONICAL — Staff PIN lives in user_roles (PBKDF2 + salt) and is the
+        // hash verified by staff-verify-pin. Legacy employees.pin_hash is kept
+        // in sync for backward compatibility but is NOT the source of truth.
+        const pinSalt = generateSalt();
+        const pinHashPbkdf2 = await hashPinPBKDF2(pin, pinSalt);
 
-        const { error: updateError } = await adminClient
-          .from("employees")
+        const { error: roleUpdateError } = await adminClient
+          .from("user_roles")
           .update({
-            pin_hash: pinHash,
-            pin_set_at: new Date().toISOString(),
-            require_pin_change,
+            staff_pin_hash: pinHashPbkdf2,
+            staff_pin_salt: pinSalt,
+            staff_pin_set_at: new Date().toISOString(),
+            staff_pin_failed_attempts: 0,
+            staff_pin_lockout_until: null,
           })
-          .or(`id.eq.${user_id},email.in.(select email from profiles where user_id = '${user_id}')`);
+          .eq("user_id", user_id);
 
+        if (roleUpdateError) {
+          console.error(`[admin-manage-staff] ${stepBase} user_roles error:`, roleUpdateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: roleUpdateError.message, step: `${stepBase}.update_user_roles` } satisfies ApiError,
+          });
+        }
+
+        // Best-effort sync of legacy employees.pin_hash (scoped strictly to user_id / linked email).
         const { data: profile } = await adminClient
           .from("profiles")
           .select("email")
           .eq("user_id", user_id)
           .maybeSingle();
 
-        if (!updateError && profile?.email) {
+        const legacyHash = await hashPinLegacy(pin);
+        await adminClient
+          .from("employees")
+          .update({
+            pin_hash: legacyHash,
+            pin_set_at: new Date().toISOString(),
+            require_pin_change,
+          })
+          .eq("user_id", user_id);
+
+        if (profile?.email) {
           await adminClient
             .from("employees")
             .update({
-              pin_hash: pinHash,
+              pin_hash: legacyHash,
               pin_set_at: new Date().toISOString(),
               require_pin_change,
             })
@@ -2511,7 +2537,7 @@ serve(async (req: Request) => {
 
         await logAction(
           isReset ? "staff_pin_reset" : "staff_pin_set",
-          { request_id: requestId, require_pin_change },
+          { request_id: requestId, require_pin_change, target_user_id: user_id },
           { type: "user", id: user_id, email: profile?.email }
         );
 
@@ -2703,9 +2729,40 @@ serve(async (req: Request) => {
 
         await logAction(
           "staff_profile_updated",
-          { request_id: requestId, updated_fields: Object.keys(updateData) },
+          { request_id: requestId, updated_fields: Object.keys({ ...updateData, ...profilePatch }) },
           { type: "user", id: user_id, email: profile?.email }
         );
+
+        // Notify the affected employee that their profile was modified by an admin.
+        const notifyEmail = (normalizedNewEmail ?? profile?.email ?? "").trim().toLowerCase();
+        const updatedFieldKeys = Object.keys({ ...updateData, ...profilePatch });
+        if (notifyEmail && updatedFieldKeys.length > 0) {
+          try {
+            const { data: notifyProfile } = await adminClient
+              .from("profiles")
+              .select("first_name, full_name")
+              .eq("user_id", user_id)
+              .maybeSingle();
+            const firstName =
+              notifyProfile?.first_name ||
+              (notifyProfile?.full_name ? String(notifyProfile.full_name).split(" ")[0] : "");
+            const portalUrl = `${getAppBaseUrl()}/hub/login`;
+            await adminClient.from("email_queue").insert({
+              event_key: `staff_profile_updated_${user_id}_${Date.now()}`,
+              to_email: notifyEmail,
+              template_key: "profile_updated_notification",
+              template_vars: {
+                first_name: firstName,
+                updated_fields: updatedFieldKeys,
+                updated_at: new Date().toISOString().slice(0, 10),
+                portal_url: portalUrl,
+              },
+              status: "queued",
+            } as any);
+          } catch (e) {
+            console.error(`[admin-manage-staff] ${stepBase} profile_updated_notification queue failed:`, e);
+          }
+        }
 
         return json(200, {
           ok: true,
