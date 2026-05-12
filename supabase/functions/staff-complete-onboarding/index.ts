@@ -236,6 +236,42 @@ serve(async (req: Request) => {
       target_email: userEmail,
     });
 
+    // Welcome email — Violet Bold via canonical email_queue + customQueueTemplates.
+    try {
+      const baseUrl = (Deno.env.get("APP_BASE_URL") || "https://nivra-telecom.ca").replace(/\/+$/, "");
+      const portalUrl =
+        userRole === "field_sales" ? `${baseUrl}/field`
+          : userRole === "technician" ? `${baseUrl}/staff/technician`
+          : userRole === "admin" ? `${baseUrl}/core`
+          : `${baseUrl}/rh`;
+      const roleLabel: Record<string, string> = {
+        admin: "Administrateur",
+        employee: "Employé",
+        technician: "Technicien",
+        field_sales: "Représentant terrain",
+      };
+      const { data: prof } = await adminClient
+        .from("profiles")
+        .select("first_name, full_name")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const firstName =
+        prof?.first_name || (prof?.full_name ? String(prof.full_name).split(" ")[0] : "");
+      await adminClient.from("email_queue").insert({
+        event_key: `staff_account_created_${userId}_${Date.now()}`,
+        to_email: userEmail,
+        template_key: "staff_account_created",
+        template_vars: {
+          first_name: firstName,
+          role_label: roleLabel[userRole] || userRole,
+          portal_url: portalUrl,
+        },
+        status: "queued",
+      } as any);
+    } catch (e) {
+      console.error("[staff-complete-onboarding] welcome email queue failed:", e);
+    }
+
     console.log(`[staff-complete-onboarding] SUCCESS for ${userEmail}`);
 
     return json(200, {
