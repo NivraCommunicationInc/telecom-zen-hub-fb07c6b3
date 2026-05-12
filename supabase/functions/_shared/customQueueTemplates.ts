@@ -1547,6 +1547,72 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // STAFF — Welcome email after onboarding completion (Violet Bold)
+    // ===================================================================
+    case "staff_account_created": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || "");
+      const portalUrlIn = String(v.portal_url || v.PORTAL_URL || "https://nivra-telecom.ca/hub/login");
+      const roleLabel = esc(v.role_label || v.ROLE_LABEL || "Membre du personnel");
+      return {
+        subject: "Votre compte Nivra est activé",
+        html: shell({
+          preheader: "Votre compte interne Nivra Telecom est prêt.",
+          badge: "COMPTE ACTIVÉ",
+          heroTitle: "Bienvenue dans l'équipe Nivra",
+          heroSub: "Votre compte est maintenant actif.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Collègue"},`,
+          bodyText: `Votre compte interne Nivra Telecom à titre de <strong>${roleLabel}</strong> a été configuré avec succès.<br/><br/>Vous pouvez désormais vous connecter à votre portail à tout moment avec votre mot de passe et votre NIP.`,
+          cardTitle: "Détails de votre accès",
+          cardRows: [
+            ["Rôle", roleLabel],
+            ["Connexion", "https://nivra-telecom.ca/hub/login"],
+            ["Support", SUPPORT_EMAIL],
+          ],
+          ctaPrimaryUrl: portalUrlIn,
+          ctaPrimaryLabel: "Accéder à mon portail",
+          helpHtml: `Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // STAFF — Profile updated by an admin (Violet Bold)
+    // ===================================================================
+    case "profile_updated_notification": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || "");
+      const portalUrlIn = String(v.portal_url || v.PORTAL_URL || "https://nivra-telecom.ca/hub/login");
+      const updatedFields = esc(
+        Array.isArray(v.updated_fields)
+          ? (v.updated_fields as unknown[]).join(", ")
+          : String(v.updated_fields || "—")
+      );
+      const updatedAt = esc(v.updated_at || new Date().toISOString().slice(0, 10));
+      return {
+        subject: "Votre profil Nivra a été mis à jour",
+        html: shell({
+          preheader: "Un administrateur a modifié votre profil interne Nivra.",
+          badge: "MISE À JOUR DE PROFIL",
+          heroTitle: "Votre profil a été modifié",
+          heroSub: "Une mise à jour vient d'être appliquée à votre compte.",
+          icon: "alert",
+          greeting: `Bonjour ${firstName || "Collègue"},`,
+          bodyText: `Un administrateur Nivra a apporté des modifications à votre profil le <strong>${updatedAt}</strong>.<br/><br/>Si vous n'avez pas autorisé ce changement, contactez immédiatement le support.`,
+          cardTitle: "Détails de la mise à jour",
+          cardRows: [
+            ["Date", updatedAt],
+            ["Champs modifiés", updatedFields],
+            ["Support", SUPPORT_EMAIL],
+          ],
+          ctaPrimaryUrl: portalUrlIn,
+          ctaPrimaryLabel: "Voir mon profil",
+          helpVariant: "warning",
+          helpHtml: `Si cette modification ne vient pas de vous, écrivez-nous immédiatement à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // GENERIC FALLBACK
     // ===================================================================
     case "order_update":
