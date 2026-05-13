@@ -1669,6 +1669,43 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // FIELD SALES — Daily payment reminder for unpaid orders
+    // ===================================================================
+    case "field_payment_reminder": {
+      const total = money(v.total ?? v.amount ?? v.total_amount);
+      const approvalUrl = String(v.payment_url || v.approval_url || v.approvalUrl || "#");
+      const orderRef = esc(v.order_number || v.order_id || orderNum);
+      const agentName = esc(v.agent_name || "Nivra Telecom");
+      const summary = esc(v.summary || v.services || "Services Nivra");
+      const validUntil = esc(v.valid_until || "Bientôt");
+      const reminderIdx = Number(v.reminder_index) || 1;
+      return {
+        subject: "Votre commande Nivra attend votre paiement",
+        html: shell({
+          preheader: `Rappel ${reminderIdx}/3 — finalisez votre commande Nivra de ${total}.`,
+          badge: "ACTION REQUISE",
+          heroTitle: "Complétez votre commande",
+          heroSub: `Montant : ${total}`,
+          icon: "alert",
+          greeting,
+          bodyText: `Votre commande Nivra n'a pas encore été réglée. Pour ne pas la perdre, finalisez le paiement maintenant en cliquant ci-dessous (PayPal — carte de crédit acceptée, aucun compte requis).`,
+          cardTitle: "Récapitulatif",
+          cardRows: [
+            ["Commande", `#${String(orderRef).replace(/^#/, "")}`],
+            ["Services commandés", String(summary)],
+            ["Total TTC", String(total)],
+            ["Lien valide jusqu'au", String(validUntil)],
+            ["Support", "support@nivra-telecom.ca"],
+          ],
+          ctaPrimaryUrl: approvalUrl,
+          ctaPrimaryLabel: "Payer maintenant",
+          helpVariant: "warning",
+          helpHtml: `<strong>Rappel ${reminderIdx} sur 3.</strong> Sans paiement, votre commande sera annulée automatiquement.`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // HR / RH — Employee notifications (paie, horaire, commissions)
     // All templates use the canonical violet shell. Callers pass
     // `client_name` = employee name and `portal_url` = RH portal.
