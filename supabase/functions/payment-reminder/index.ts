@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       const { error: insErr } = await supabase.from("email_queue").insert({
         event_key: `payment_reminder_${(it as any).id}_${Date.now()}`,
         to_email: email,
-        template_key: "payment_reminder",
+        template_key: "field_payment_reminder",
         template_vars: {
           client_name: fullName,
           first_name: ci.first_name || "Client",
