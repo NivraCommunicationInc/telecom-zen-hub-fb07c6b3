@@ -180,7 +180,7 @@ export default function FieldNewSale() {
           payment: {
             ...d.payment, status: "sent", linkSentTo: draft.customer.email,
             paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
-            fieldOrderId: null, invoiceId: null, coreOrderId: null,
+            fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
         toast.success("Lien PayPal envoyé au client.");
@@ -190,7 +190,7 @@ export default function FieldNewSale() {
           payment: {
             ...d.payment, status: "pending",
             paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
-            fieldOrderId: null, invoiceId: null, coreOrderId: null,
+            fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
         toast.success("Lien PayPal prêt — montrez le QR au client.");
