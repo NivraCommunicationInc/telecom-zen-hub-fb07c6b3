@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       const { count } = await supabase
         .from("email_queue")
         .select("id", { count: "exact", head: true })
-        .eq("template_key", "payment_reminder")
+        .eq("template_key", "field_payment_reminder")
         .ilike("event_key", `payment_reminder_${(it as any).id}_%`);
 
       if ((count ?? 0) >= 3) {
