@@ -138,32 +138,49 @@ export default function FieldNewSale() {
       const approvalUrl: string | null = data?.approval_url || null;
       if (!approvalUrl) throw new Error("PayPal n'a pas retourné de lien d'approbation.");
 
-      // 3) Email mode — enqueue Violet Bold "field_payment_link" template
+      // 3) Email mode — enqueue Violet Bold "field_payment_link" template (with retry)
       if (draft.payment.method === "paypal_email") {
         setSubmitMessage("Envoi du lien au client…");
         const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
-        await supabase.from("email_queue").insert({
+        const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+        const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const emailPayload = {
           event_key: `field_payment_link_${data.intent_id}`,
           to_email: draft.customer.email,
           template_key: "field_payment_link",
           template_vars: {
-            client_name: draft.customer.first_name || "Client",
-            first_name: draft.customer.first_name,
+            client_name: fullName,
+            first_name: draft.customer.first_name || "Client",
             order_number: data.intent_id,
             total: total.toFixed(2),
             approval_url: approvalUrl,
+            payment_url: approvalUrl,
             summary,
+            services: summary,
+            valid_until: validUntil,
             agent_name: user?.email || "votre conseiller Nivra",
           },
           status: "queued",
-        } as any);
+        };
+        // Retry insert up to 3 times with 2s backoff
+        let emailErr: any = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const { error: e } = await supabase.from("email_queue").insert(emailPayload as any);
+          if (!e) { emailErr = null; break; }
+          emailErr = e;
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+        }
+        if (emailErr) {
+          logger.warn("field_payment_link enqueue failed after 3 attempts", emailErr);
+          toast.warning("Lien généré mais courriel non envoyé — utilisez Renvoyer.");
+        }
 
         setDraft((d) => ({
           ...d,
           payment: {
             ...d.payment, status: "sent", linkSentTo: draft.customer.email,
             paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
-            fieldOrderId: null, invoiceId: null, coreOrderId: null,
+            fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
         toast.success("Lien PayPal envoyé au client.");
@@ -173,7 +190,7 @@ export default function FieldNewSale() {
           payment: {
             ...d.payment, status: "pending",
             paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
-            fieldOrderId: null, invoiceId: null, coreOrderId: null,
+            fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
         toast.success("Lien PayPal prêt — montrez le QR au client.");
@@ -358,6 +375,43 @@ export default function FieldNewSale() {
               onBack={() => goBack("payment")}
               isSubmitting={isSubmitting}
               submitMessage={submitMessage}
+              onResendEmail={async () => {
+                if (!draft.payment.paypalApprovalUrl || !draft.customer.email || !draft.payment.fieldOrderId) {
+                  toast.error("Aucun lien à renvoyer."); return;
+                }
+                const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
+                const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+                const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                const payload = {
+                  event_key: `field_payment_link_resend_${draft.payment.fieldOrderId}_${Date.now()}`,
+                  to_email: draft.customer.email,
+                  template_key: "field_payment_link",
+                  template_vars: {
+                    client_name: fullName, first_name: draft.customer.first_name || "Client",
+                    order_number: draft.payment.fieldOrderId, total: total.toFixed(2),
+                    approval_url: draft.payment.paypalApprovalUrl, payment_url: draft.payment.paypalApprovalUrl,
+                    summary, services: summary, valid_until: validUntil,
+                    agent_name: user?.email || "votre conseiller Nivra",
+                  },
+                  status: "queued",
+                };
+                let err: any = null;
+                for (let i = 1; i <= 3; i++) {
+                  const { error: e } = await supabase.from("email_queue").insert(payload as any);
+                  if (!e) { err = null; break; }
+                  err = e;
+                  if (i < 3) await new Promise((r) => setTimeout(r, 2000));
+                }
+                if (err) { toast.error("Échec d'envoi du courriel."); }
+                else { toast.success("Courriel renvoyé."); }
+              }}
+              onChangeMethod={() => {
+                setDraft((d) => ({
+                  ...d,
+                  payment: { ...d.payment, method: undefined as any, status: "pending", linkSentTo: null,
+                    paypalApprovalUrl: null, paypalOrderId: null, fieldOrderId: null, invoiceId: null, coreOrderId: null },
+                }));
+              }}
             />
           )}
         </div>
