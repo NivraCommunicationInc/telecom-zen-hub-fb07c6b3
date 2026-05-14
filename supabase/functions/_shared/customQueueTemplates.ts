@@ -1637,6 +1637,7 @@ export function renderQueueTemplate(
     // ===================================================================
     // FIELD SALES — PayPal payment link sent by agent
     // ===================================================================
+    case "payment_link_employee":
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
       const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || "#");
