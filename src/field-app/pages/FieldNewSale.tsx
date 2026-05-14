@@ -309,6 +309,7 @@ export default function FieldNewSale() {
           },
         }));
         toast.success("Lien PayPal envoyé au client.");
+        clearDraft();
       } else {
         setDraft((d) => ({
           ...d,
@@ -437,7 +438,7 @@ export default function FieldNewSale() {
               customer={draft.customer}
               onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
               onNext={() => advance("customer")}
-              onCancel={() => navigate(fieldPath("/dashboard"))}
+              onCancel={() => { clearDraft(); navigate(fieldPath("/dashboard")); }}
             />
           )}
 
@@ -575,6 +576,7 @@ export default function FieldNewSale() {
                     }
                   }
                   toast.success("Transaction annulée. Client informé.");
+                  clearDraft();
                   navigate(fieldPath("/dashboard"));
                 } catch (e: any) {
                   logger.warn("Cancel transaction failed", e);
@@ -666,6 +668,7 @@ export default function FieldNewSale() {
                     if (i < 3) await new Promise((r) => setTimeout(r, 2000));
                   }
                   toast.success("Soumission envoyée au client (valide 7 jours).");
+                  clearDraft();
                   navigate(fieldPath("/dashboard"));
                 } catch (e: any) {
                   logger.warn("Convert to quote failed", e);
@@ -690,6 +693,48 @@ export default function FieldNewSale() {
           total={total}
         />
       </div>
+
+      {/* Restore-draft dialog (FIX: survive page refresh mid-sale) */}
+      {restoreDialogOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Commande en cours détectée</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Vous avez une commande en cours. Voulez-vous la reprendre où vous l'avez laissée ?
+              </p>
+            </div>
+            {pendingRestore?.draft?.customer?.first_name || pendingRestore?.draft?.customer?.last_name ? (
+              <div className="text-xs bg-muted/50 rounded-lg p-3">
+                <span className="text-muted-foreground">Client :</span>{" "}
+                <span className="font-medium text-foreground">
+                  {[pendingRestore.draft.customer.first_name, pendingRestore.draft.customer.last_name].filter(Boolean).join(" ")}
+                </span>
+                {pendingRestore.draft.services.length > 0 && (
+                  <div className="mt-1">
+                    <span className="text-muted-foreground">Forfaits :</span>{" "}
+                    <span className="text-foreground">{pendingRestore.draft.services.length}</span>
+                  </div>
+                )}
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                onClick={handleRestoreReject}
+                className="flex-1 h-10 px-4 rounded-lg border border-border bg-background text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Nouvelle commande
+              </button>
+              <button
+                onClick={handleRestoreAccept}
+                className="flex-1 h-10 px-4 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors"
+              >
+                Reprendre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
