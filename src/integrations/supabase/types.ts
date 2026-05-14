@@ -4414,6 +4414,27 @@ export type Database = {
           },
         ]
       }
+      core_settings: {
+        Row: {
+          allow_impersonation_actions: boolean
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allow_impersonation_actions?: boolean
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allow_impersonation_actions?: boolean
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       coverage_waitlist: {
         Row: {
           city: string | null
@@ -16799,6 +16820,51 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_impersonation_sessions: {
+        Row: {
+          admin_user_id: string
+          consumed_at: string | null
+          ended_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          is_active: boolean
+          portal: string
+          started_at: string
+          target_user_id: string
+          token: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          consumed_at?: string | null
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          portal: string
+          started_at?: string
+          target_user_id: string
+          token?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          consumed_at?: string | null
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          portal?: string
+          started_at?: string
+          target_user_id?: string
+          token?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       staff_notifications: {
         Row: {
           amount: number | null
@@ -20237,6 +20303,7 @@ export type Database = {
       }
       encrypt_wifi_password: { Args: { p_password: string }; Returns: string }
       end_impersonation: { Args: { _token: string }; Returns: boolean }
+      end_staff_impersonation: { Args: { _token: string }; Returns: boolean }
       enqueue_document_job: {
         Args: {
           p_account_id: string
@@ -20909,6 +20976,19 @@ export type Database = {
           token: string
         }[]
       }
+      start_staff_impersonation: {
+        Args: {
+          _ip?: string
+          _portal: string
+          _target_user_id: string
+          _ua?: string
+        }
+        Returns: {
+          expires_at: string
+          session_id: string
+          token: string
+        }[]
+      }
       submit_activation_request:
         | {
             Args: {
@@ -20999,6 +21079,17 @@ export type Database = {
           error_message: string
           is_valid: boolean
           role: string
+        }[]
+      }
+      validate_staff_impersonation_token: {
+        Args: { _token: string }
+        Returns: {
+          admin_user_id: string
+          expires_at: string
+          is_valid: boolean
+          portal: string
+          session_id: string
+          target_user_id: string
         }[]
       }
       verify_client_identity_links: {
