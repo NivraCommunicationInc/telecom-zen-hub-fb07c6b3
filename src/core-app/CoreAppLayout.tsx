@@ -3,6 +3,7 @@
  * Light modal-style layout with grouped sidebar navigation.
  */
 import { useState, useEffect, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { CoreGlobalSearch } from "./components/CoreGlobalSearch";
 import { supabase } from "@/integrations/supabase/client";
@@ -354,6 +355,7 @@ const CoreAppLayout = () => {
 
   return (
     <div className={cn("internal-ui min-h-screen flex bg-background text-foreground", themeClass, isDarkTheme && "core-console")}>
+      <Helmet><title>Nivra Core — Administration</title></Helmet>
       {/* ═══ SIDEBAR ═══ */}
         <aside
           className={cn(

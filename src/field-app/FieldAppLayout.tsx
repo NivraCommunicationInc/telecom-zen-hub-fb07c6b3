@@ -9,6 +9,7 @@
  */
 import { Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import FieldSidebar from "./components/FieldSidebar";
 import InternalPortalGate from "@/components/shared/InternalPortalGate";
 import StaffAssistanceBanner from "@/components/StaffAssistanceBanner";
@@ -39,6 +40,7 @@ export default function FieldAppLayout() {
 
   return (
     <InternalPortalGate>
+      <Helmet><title>Nivra Field — Portail terrain</title></Helmet>
       <StaffAssistanceBanner />
       <div
         data-field-portal

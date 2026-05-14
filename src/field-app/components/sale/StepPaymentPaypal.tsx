@@ -28,6 +28,9 @@ interface Props {
   submitMessage?: string;
   onResendEmail?: () => Promise<void>;
   onChangeMethod?: () => void;
+  onCancelTransaction?: (reason: string) => Promise<void>;
+  onHoldTransaction?: () => Promise<void>;
+  onConvertToQuote?: () => Promise<void>;
 }
 
 const formatCAD = (n: number) =>
@@ -46,7 +49,10 @@ const TIMER_SECONDS = 5 * 60;
 export default function StepPaymentPaypal({
   payment, customer, totalAmount, onChange, onSubmit, onSubmitCard, onBack, isSubmitting, submitMessage,
   onResendEmail, onChangeMethod,
+  onCancelTransaction, onHoldTransaction, onConvertToQuote,
 }: Props) {
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [card, setCard] = useState({ number: "", name: "", expiry: "", cvv: "" });
@@ -347,6 +353,54 @@ export default function StepPaymentPaypal({
         <div className="rounded-2xl border border-[hsl(var(--field-success)/0.5)] bg-[hsl(var(--field-success)/0.1)] p-5 text-center">
           <CheckCircle2 className="h-10 w-10 text-[hsl(var(--field-success))] mx-auto mb-2" />
           <p className="font-bold text-white text-lg">Paiement confirmé</p>
+        </div>
+      )}
+
+      {/* CANCEL / HOLD / CONVERT — visible after link sent or email sent, before completion */}
+      {(isLinkReady || isSent) && !isCompleted && (onCancelTransaction || onHoldTransaction || onConvertToQuote) && (
+        <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-4 space-y-2">
+          <p className="text-xs uppercase tracking-wider text-[hsl(var(--field-text-dim))] mb-2">Actions agent</p>
+          {onCancelTransaction && (
+            <button type="button" onClick={() => setShowCancelDialog(true)} disabled={isSubmitting}
+              className="w-full h-11 rounded-xl border border-red-500/40 text-red-300 font-medium hover:bg-red-500/10 transition-colors text-sm disabled:opacity-50">
+              ✕ Annuler la transaction
+            </button>
+          )}
+          {onHoldTransaction && (
+            <button type="button" onClick={() => onHoldTransaction()} disabled={isSubmitting}
+              className="w-full h-11 rounded-xl border border-amber-500/40 text-amber-200 font-medium hover:bg-amber-500/10 transition-colors text-sm disabled:opacity-50">
+              ⏸ Mettre en attente
+            </button>
+          )}
+          {onConvertToQuote && (
+            <button type="button" onClick={() => onConvertToQuote()} disabled={isSubmitting}
+              className="w-full h-11 rounded-xl border border-[hsl(var(--field-accent)/0.4)] text-[hsl(var(--field-accent-glow))] font-medium hover:bg-[hsl(var(--field-accent)/0.1)] transition-colors text-sm disabled:opacity-50">
+              📄 Convertir en soumission (7 jours)
+            </button>
+          )}
+        </div>
+      )}
+
+      {showCancelDialog && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowCancelDialog(false)}>
+          <div className="bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))] rounded-2xl p-5 max-w-md w-full space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white">Annuler la transaction</h3>
+            <p className="text-sm text-[hsl(var(--field-text-muted))]">Indiquez le motif d'annulation. Le client sera informé par courriel.</p>
+            <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3}
+              placeholder="Motif (ex: Client a changé d'avis)…"
+              className="w-full rounded-xl bg-[hsl(var(--field-bg))] border border-[hsl(var(--field-border-subtle))] px-3 py-2 text-white text-sm" />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowCancelDialog(false)}
+                className="flex-1 h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] text-white font-medium text-sm">
+                Retour
+              </button>
+              <button type="button" disabled={!cancelReason.trim() || isSubmitting}
+                onClick={async () => { await onCancelTransaction?.(cancelReason.trim()); setShowCancelDialog(false); setCancelReason(""); }}
+                className="flex-1 h-11 rounded-xl bg-red-500 text-white font-semibold text-sm disabled:opacity-50">
+                Confirmer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

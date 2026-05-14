@@ -1637,6 +1637,7 @@ export function renderQueueTemplate(
     // ===================================================================
     // FIELD SALES — PayPal payment link sent by agent
     // ===================================================================
+    case "payment_link_employee":
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
       const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || "#");
@@ -1924,6 +1925,34 @@ export function renderQueueTemplate(
     // ===================================================================
     // FIELD QUOTE — Soumission préparée par un agent terrain
     // ===================================================================
+    case "transaction_cancelled": {
+      const orderRef = esc(v.order_number || v.order_id || orderNum);
+      const reason = esc(v.reason || "Annulation par l'agent");
+      const total = money(v.total ?? v.amount ?? 0);
+      return {
+        subject: `Votre transaction Nivra a été annulée`,
+        html: shell({
+          preheader: `Votre transaction Nivra ${orderRef} a été annulée.`,
+          badge: "TRANSACTION ANNULÉE",
+          heroTitle: "Transaction annulée",
+          heroSub: `Aucun montant ne sera prélevé.`,
+          icon: "alert",
+          greeting,
+          bodyText: `Votre transaction a été annulée par notre équipe. Aucun montant n'a été prélevé sur votre compte. Si vous souhaitez recommencer, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Référence", `#${String(orderRef).replace(/^#/, "")}`],
+            ["Montant prévu", String(total)],
+            ["Motif", String(reason)],
+            ["Statut", "Annulée"],
+          ],
+          helpVariant: "info",
+          helpHtml: `Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "quote_client":
     case "field_quote": {
       const agentName = esc(v.agent_name || v.AGENT_NAME || "votre conseiller Nivra");
       const quoteNum = esc(v.quote_number || v.QUOTE_NUMBER || "—");
