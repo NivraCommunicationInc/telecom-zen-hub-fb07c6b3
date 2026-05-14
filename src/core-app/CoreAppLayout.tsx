@@ -185,6 +185,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Send,
     items: [
       { icon: Users, label: "Agents terrain", href: "/field-agents" },
+      { icon: Send, label: "Soumissions terrain", href: "/field-submissions" },
       { icon: DollarSign, label: "Grille de commission", href: "/commissions/grille" },
     ],
   },
