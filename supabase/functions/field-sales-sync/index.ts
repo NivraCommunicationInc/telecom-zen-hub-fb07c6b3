@@ -829,8 +829,8 @@ Deno.serve(async (req) => {
          console.error('[field-sales-sync] Role check error:', roleError);
        }
 
-      if (!isOwner && !adminRole) {
-        console.error('[field-sales-sync] Unauthorized:', claims.user.id);
+      if (!internalCall && !isOwner && !adminRole) {
+        console.error('[field-sales-sync] Unauthorized:', claims.user?.id);
         return new Response(
           JSON.stringify({ success: false, error: 'Non autorisé' }),
           { status: 403, headers: buildCorsHeaders(req) }
