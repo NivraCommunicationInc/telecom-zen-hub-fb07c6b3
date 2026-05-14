@@ -120,17 +120,33 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: claimsError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (claimsError || !claims.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Session invalide' }),
-        { status: 401, headers: buildCorsHeaders(req) }
-      );
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Service-role bypass: allow internal server-to-server calls (e.g. paypal-capture-order
+    // bridging Field sales). Caller must present the project service-role key AND set
+    // body.internal=true to opt-in.
+    const isServiceRoleCall = token === serviceRoleKey;
+    let claims: { user: { id: string } | null } = { user: null };
+
+    if (!isServiceRoleCall) {
+      const { data: c, error: claimsError } = await supabaseAdmin.auth.getUser(token);
+      if (claimsError || !c.user) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Session invalide' }),
+          { status: 401, headers: buildCorsHeaders(req) }
+        );
+      }
+      claims = c as any;
     }
 
     const body = await req.json();
     const { action, sale_id } = body;
+    const internalCall = isServiceRoleCall && body.internal === true;
+
+    // For internal calls, synthesize claims from the sale's salesperson_id (resolved later).
+    if (internalCall && !claims.user) {
+      claims = { user: { id: '00000000-0000-0000-0000-000000000000' } } as any;
+    }
 
     // Helper function to sync a single field sale to the orders table
     async function syncSaleToOrders(
@@ -798,30 +814,31 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Verify the caller is the salesperson or an admin
-      const isOwner = sale.salesperson_id === claims.user.id;
-       const { data: adminRole, error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', claims.user.id)
-         // user_roles.role is enum app_role (admin, client, technician, employee, influencer, field_sales)
-         .in('role', ['admin', 'employee'])
-        .eq('is_active', true)
-        .maybeSingle();
+      // Verify the caller is the salesperson or an admin (skipped for internal service-role calls)
+      const callerId = claims.user?.id ?? null;
+      const isOwner = !!callerId && sale.salesperson_id === callerId;
+      let adminRole: any = null;
+      if (!internalCall && callerId) {
+        const { data: ar, error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', callerId)
+          .in('role', ['admin', 'employee'])
+          .eq('is_active', true)
+          .maybeSingle();
+        if (roleError) console.error('[field-sales-sync] Role check error:', roleError);
+        adminRole = ar;
+      }
 
-       if (roleError) {
-         console.error('[field-sales-sync] Role check error:', roleError);
-       }
-
-      if (!isOwner && !adminRole) {
-        console.error('[field-sales-sync] Unauthorized:', claims.user.id);
+      if (!internalCall && !isOwner && !adminRole) {
+        console.error('[field-sales-sync] Unauthorized:', callerId);
         return new Response(
           JSON.stringify({ success: false, error: 'Non autorisé' }),
           { status: 403, headers: buildCorsHeaders(req) }
         );
       }
 
-      console.log('[field-sales-sync] Converting sale:', saleIdToSync, 'by user:', claims.user.id);
+      console.log('[field-sales-sync] Converting sale:', saleIdToSync, 'by user:', callerId ?? '(internal)');
       const result = await syncSaleToOrders(sale);
       
       return new Response(
