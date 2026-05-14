@@ -3,6 +3,7 @@
  * Sidebar + header with omni-search + notification bell + main content area.
  */
 import { Outlet } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import EmployeeSidebar from "./components/EmployeeSidebar";
 import EmployeeNotificationBell from "./components/EmployeeNotificationBell";
 import EmployeeOmniSearch from "./components/EmployeeOmniSearch";
@@ -19,6 +20,7 @@ export default function EmployeeAppLayout() {
 
   return (
     <InternalPortalGate>
+      <Helmet><title>Nivra Employee — Portail employé</title></Helmet>
       <StaffAssistanceBanner />
       <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
         <EmployeeSidebar />

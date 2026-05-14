@@ -3,6 +3,7 @@
  * Sidebar + header with notification bell + main content area.
  */
 import { Outlet } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import RhSidebar from "./components/RhSidebar";
 import RhNotificationBell from "./components/RhNotificationBell";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ export default function RhAppLayout() {
 
   return (
     <div className={cn("internal-ui min-h-screen flex flex-col w-full bg-background text-foreground", themeClass)}>
+      <Helmet><title>Nivra RH — Ressources humaines</title></Helmet>
       <StaffAssistanceBanner />
       <div className="flex flex-1 overflow-hidden">
         <RhSidebar />
