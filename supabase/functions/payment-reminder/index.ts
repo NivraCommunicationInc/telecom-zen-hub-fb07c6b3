@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
           first_name: ci.first_name || "Client",
           order_number: (it as any).id,
           total: Number((it as any).amount).toFixed(2),
-          payment_url: (it as any).paypal_approval_url || "#",
+          payment_url: `https://nivra-telecom.ca/payer/${(it as any).id}`,
           approval_url: (it as any).paypal_approval_url || "#",
           summary: services,
           services,

@@ -164,7 +164,7 @@ export default function FieldNewSale() {
             tvq: tvq.toFixed(2),
             total: total.toFixed(2),
             approval_url: approvalUrl,
-            payment_url: approvalUrl,
+            payment_url: `https://nivra-telecom.ca/payer/${data.intent_id}`,
             valid_until: validUntil,
             agent_name: user?.email || "votre conseiller Nivra",
           },
@@ -397,7 +397,7 @@ export default function FieldNewSale() {
                   template_vars: {
                     client_name: fullName, first_name: draft.customer.first_name || "Client",
                     order_number: draft.payment.fieldOrderId, total: total.toFixed(2),
-                    approval_url: draft.payment.paypalApprovalUrl, payment_url: draft.payment.paypalApprovalUrl,
+                    approval_url: draft.payment.paypalApprovalUrl, payment_url: `https://nivra-telecom.ca/payer/${draft.payment.fieldOrderId}`,
                     summary, services: summary, valid_until: validUntil,
                     agent_name: user?.email || "votre conseiller Nivra",
                   },
