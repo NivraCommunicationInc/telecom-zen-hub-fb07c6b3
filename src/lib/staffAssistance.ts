@@ -1,17 +1,19 @@
 /**
- * Staff Assistance Mode — Admin can silently view a staff member's portal.
- * No emails, no notifications, no audit pings to the user. Stored locally.
+ * Staff Impersonation — Admin opens an employee's portal as that employee.
  *
- * Banner only shows when:
- *  1) localStorage has a valid session
- *  2) admin_user_id !== current auth uid (i.e. someone else originated it)
- *  3) started_at is less than 8 hours ago
- * Otherwise the key is cleared.
+ * Two modes coexist:
+ *   1. Legacy "assistance" mode (localStorage banner only — admin keeps own session).
+ *      Kept for backward compatibility; the banner displays when present.
+ *   2. Real impersonation (preferred) — admin clicks Accéder au portail,
+ *      backend generates a magic-link, the new tab signs in as the target
+ *      user. Admin's session in this browser is replaced; closing the tab +
+ *      re-login restores admin access. The banner shows because we mark
+ *      `staff_assistance_session` with admin_user_id !== current uid.
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type StaffAssistanceRole = "field_sales" | "rh" | "technician" | "employee";
+export type StaffAssistanceRole = "field_sales" | "rh" | "technician" | "employee" | "core";
 
 export interface StaffAssistanceSession {
   staff_user_id: string;
@@ -20,24 +22,21 @@ export interface StaffAssistanceSession {
   staff_role: StaffAssistanceRole;
   admin_user_id: string;
   started_at: string;
+  /** Token from start_staff_impersonation (real impersonation only). */
+  imp_token?: string;
+  /** Session id from staff_impersonation_sessions (real impersonation only). */
+  imp_session_id?: string;
+  /** True when this is an actual auth swap (not legacy view-only). */
+  real_impersonation?: boolean;
 }
 
 const KEY = "staff_assistance_session";
-const MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
+const MAX_AGE_MS = 8 * 60 * 60 * 1000;
 
 export function startStaffAssistance(s: StaffAssistanceSession) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(s));
-  } catch {
-    /* noop */
-  }
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* noop */ }
 }
 
-/**
- * Synchronous read — returns the raw stored session if structurally valid
- * and not expired. Does NOT validate against the current auth user.
- * Use `resolveStaffAssistance()` for the full check.
- */
 export function getStaffAssistance(): StaffAssistanceSession | null {
   try {
     const raw = localStorage.getItem(KEY);
@@ -53,38 +52,93 @@ export function getStaffAssistance(): StaffAssistanceSession | null {
       return null;
     }
     return parsed;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-/**
- * Async resolver — returns the session only if all 3 conditions hold:
- *   1) valid + not expired
- *   2) admin_user_id !== current auth uid
- *   3) started_at < 8h ago (already enforced in getStaffAssistance)
- * Clears the localStorage key when any condition fails.
- */
 export async function resolveStaffAssistance(): Promise<StaffAssistanceSession | null> {
   const stored = getStaffAssistance();
   if (!stored) return null;
   try {
     const { data } = await supabase.auth.getUser();
     const currentUid = data.user?.id;
-    if (!currentUid || currentUid === stored.admin_user_id) {
-      clearStaffAssistance();
-      return null;
-    }
-    return stored;
-  } catch {
+    if (!currentUid) return null;
+    // Real impersonation: current user is the TARGET — keep banner.
+    if (stored.real_impersonation && currentUid === stored.staff_user_id) return stored;
+    // Legacy assistance: current user is NOT admin — keep banner.
+    if (!stored.real_impersonation && currentUid !== stored.admin_user_id) return stored;
+    // Otherwise stale — clear.
+    clearStaffAssistance();
     return null;
-  }
+  } catch { return null; }
 }
 
 export function clearStaffAssistance() {
+  try { localStorage.removeItem(KEY); } catch { /* noop */ }
+}
+
+/**
+ * Begin a true impersonation session.
+ * Calls start_staff_impersonation RPC → staff-impersonate-issue edge function
+ * → opens the magic-link in a new tab. Admin session in same browser will
+ * be replaced when the new tab loads (Supabase storage is shared).
+ */
+export async function beginRealStaffImpersonation(args: {
+  targetUserId: string;
+  targetName: string | null;
+  targetEmail: string | null;
+  portal: "field" | "rh" | "technician" | "employee" | "core";
+  adminUserId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Open placeholder tab synchronously to keep user gesture
+  const placeholder = window.open("about:blank", "_blank");
   try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* noop */
+    const { data: rpcData, error: rpcErr } = await supabase.rpc("start_staff_impersonation", {
+      _target_user_id: args.targetUserId,
+      _portal: args.portal,
+      _ip: null,
+      _ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null,
+    });
+    if (rpcErr) throw rpcErr;
+    const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    const token = (row as any)?.token;
+    if (!token) throw new Error("Token impersonation manquant");
+
+    const { data: issued, error: issErr } = await supabase.functions.invoke("staff-impersonate-issue", {
+      body: { token },
+    });
+    if (issErr || !issued?.action_link) throw new Error(issErr?.message || "Émission du lien échouée");
+
+    // Persist banner session BEFORE redirecting (target tab will read it).
+    startStaffAssistance({
+      staff_user_id: args.targetUserId,
+      staff_name: args.targetName || args.targetEmail || "Employé",
+      staff_email: args.targetEmail || "",
+      staff_role: ({
+        field: "field_sales", rh: "rh", technician: "technician", employee: "employee", core: "core",
+      } as const)[args.portal],
+      admin_user_id: args.adminUserId,
+      started_at: new Date().toISOString(),
+      imp_token: token,
+      imp_session_id: (row as any)?.session_id,
+      real_impersonation: true,
+    });
+
+    if (placeholder && !placeholder.closed) {
+      placeholder.location.replace(issued.action_link);
+    } else {
+      window.open(issued.action_link, "_blank");
+    }
+    return { ok: true };
+  } catch (e: any) {
+    if (placeholder && !placeholder.closed) { try { placeholder.close(); } catch { /* noop */ } }
+    return { ok: false, error: e?.message || "Échec impersonation" };
   }
+}
+
+export async function endRealStaffImpersonation(token?: string): Promise<void> {
+  const t = token || getStaffAssistance()?.imp_token;
+  if (t) {
+    try { await supabase.rpc("end_staff_impersonation", { _token: t }); } catch { /* noop */ }
+  }
+  clearStaffAssistance();
 }

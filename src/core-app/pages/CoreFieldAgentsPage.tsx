@@ -1147,23 +1147,26 @@ export default function CoreFieldAgentsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {([
-                    { label: "Voir portail Field", role: "field_sales" as StaffAssistanceRole, path: "/field" },
-                    { label: "Voir portail RH", role: "rh" as StaffAssistanceRole, path: "/rh" },
-                    { label: "Voir portail Technicien", role: "technician" as StaffAssistanceRole, path: "/technician" },
+                    { label: "Accéder au portail Field", portal: "field" as const },
+                    { label: "Accéder au portail RH", portal: "rh" as const },
+                    { label: "Accéder au portail Technicien", portal: "technician" as const },
                   ]).map((opt) => (
                     <DropdownMenuItem
-                      key={opt.role}
+                      key={opt.portal}
                       onClick={async () => {
                         const { data: { user } } = await supabase.auth.getUser();
-                        startStaffAssistance({
-                          staff_user_id: a.user_id,
-                          staff_name: a.full_name || a.email || "Agent",
-                          staff_email: a.email || "",
-                          staff_role: opt.role,
-                          admin_user_id: user?.id || "",
-                          started_at: new Date().toISOString(),
+                        const { beginRealStaffImpersonation } = await import("@/lib/staffAssistance");
+                        const result = await beginRealStaffImpersonation({
+                          targetUserId: a.user_id,
+                          targetName: a.full_name || a.email || "Agent",
+                          targetEmail: a.email || null,
+                          portal: opt.portal,
+                          adminUserId: user?.id || "",
                         });
-                        navigate(opt.path);
+                        if (!result.ok) {
+                          const { toast } = await import("sonner");
+                          toast.error((result as { ok: false; error: string }).error);
+                        }
                       }}
                     >
                       {opt.label}
