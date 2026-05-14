@@ -8164,6 +8164,8 @@ export type Database = {
       }
       field_submissions: {
         Row: {
+          activation_fee: number | null
+          agent_email: string | null
           agent_id: string
           agent_name: string | null
           created_at: string
@@ -8178,8 +8180,10 @@ export type Database = {
           id: string
           intent_id: string | null
           last_email_sent_at: string | null
+          monthly_price: number | null
           payment_url: string
           services: Json
+          source: string | null
           status: string
           subtotal: number | null
           total: number
@@ -8187,6 +8191,8 @@ export type Database = {
           tvq: number | null
         }
         Insert: {
+          activation_fee?: number | null
+          agent_email?: string | null
           agent_id: string
           agent_name?: string | null
           created_at?: string
@@ -8201,8 +8207,10 @@ export type Database = {
           id?: string
           intent_id?: string | null
           last_email_sent_at?: string | null
+          monthly_price?: number | null
           payment_url: string
           services?: Json
+          source?: string | null
           status?: string
           subtotal?: number | null
           total: number
@@ -8210,6 +8218,8 @@ export type Database = {
           tvq?: number | null
         }
         Update: {
+          activation_fee?: number | null
+          agent_email?: string | null
           agent_id?: string
           agent_name?: string | null
           created_at?: string
@@ -8224,8 +8234,10 @@ export type Database = {
           id?: string
           intent_id?: string | null
           last_email_sent_at?: string | null
+          monthly_price?: number | null
           payment_url?: string
           services?: Json
+          source?: string | null
           status?: string
           subtotal?: number | null
           total?: number

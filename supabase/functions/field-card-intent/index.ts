@@ -200,8 +200,8 @@ Deno.serve(async (req) => {
   } catch (err: any) {
     console.error("[field-card-intent] error", err);
     return new Response(
-      JSON.stringify({ error: err?.message || String(err) }),
-      { status: 500, headers },
+      JSON.stringify({ ok: false, error: err?.message || String(err) }),
+      { status: 200, headers },
     );
   }
 });
