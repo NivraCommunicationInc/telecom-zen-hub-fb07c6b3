@@ -1983,16 +1983,20 @@ export function renderQueueTemplate(
           v.quote_url ||
           `${APP_URL}/soumission/${esc(v.quote_id || v.public_token || "")}`,
       );
+      const discountLabel = v.discount_label ? esc(v.discount_label) : null;
       const rows: Array<[string, string]> = [
-        ["Soumission", `#${String(quoteNum).replace(/^#/, "")}`],
+        ["Numéro de soumission", `#${String(quoteNum).replace(/^#/, "")}`],
         ["Préparée par", String(agentName)],
-        ["Services", String(services)],
+        ["Forfaits", String(services)],
         ["Équipement", String(equipment)],
       ];
-      if (v.discount && Number(v.discount) > 0) rows.push(["Rabais", `- ${discount}`]);
+      if (discountLabel) rows.push(["Rabais appliqué", String(discountLabel)]);
+      else if (v.discount && Number(v.discount) > 0) rows.push(["Rabais", `- ${discount}`]);
       if (v.activation_fee && Number(v.activation_fee) > 0)
         rows.push(["Frais d'activation", String(activationFee)]);
       if (v.subtotal !== undefined) rows.push(["Sous-total", String(subtotal)]);
+      if (v.tps) rows.push(["TPS (5%)", money(v.tps)]);
+      if (v.tvq) rows.push(["TVQ (9,975%)", money(v.tvq)]);
       rows.push(["Valide jusqu'au", String(validUntil)]);
       rows.push(["Total (taxes incluses)", String(total)]);
       return {
