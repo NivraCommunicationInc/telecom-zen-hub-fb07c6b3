@@ -192,6 +192,162 @@ serve(async (req) => {
       linkedCustomerId = await ensureBillingCustomer(supabase, payerEmail, payerFirstName, payerLastName, payerPhone);
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // FIELD-SALES BRIDGE — if this capture corresponds to a Field
+    // payment intent, materialize the field_sales_orders row, call
+    // field-sales-sync to create the canonical orders/invoice rows,
+    // mark the intent paid, and queue a commission. Then return early.
+    // ════════════════════════════════════════════════════════════════
+    {
+      const { data: fieldIntent } = await supabase
+        .from("field_payment_intents")
+        .select("id, quote_id, agent_id, amount, status, converted_field_order_id, customer_email, customer_name")
+        .eq("paypal_order_id", body.paypal_order_id)
+        .maybeSingle();
+
+      if (fieldIntent) {
+        console.log("[PayPal Capture] ▶ Field-sale bridge: intent=", fieldIntent.id);
+
+        // Idempotency — already processed
+        if (fieldIntent.status === "completed" && fieldIntent.converted_field_order_id) {
+          console.log("[PayPal Capture] ✓ Field intent already completed, skipping");
+          return new Response(JSON.stringify({
+            success: true, capture_id: captureId, amount, currency: currencyCode,
+            status: "COMPLETED", already_processed: true, field_intent_id: fieldIntent.id,
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        try {
+          // Load quote
+          const { data: quote } = await supabase
+            .from("field_quotes")
+            .select("id, agent_id, agent_name, client_info, services, equipment, total")
+            .eq("id", fieldIntent.quote_id)
+            .single();
+
+          if (!quote) throw new Error("Field quote not found for intent " + fieldIntent.id);
+
+          const ci: any = quote.client_info || {};
+          const customerName = `${ci.first_name || ""} ${ci.last_name || ""}`.trim()
+            || fieldIntent.customer_name || "Client";
+
+          // Insert field_sales_orders row (mirror of completed sale)
+          const { data: fso, error: fsoErr } = await supabase
+            .from("field_sales_orders")
+            .insert({
+              salesperson_id: fieldIntent.agent_id,
+              customer_name: customerName,
+              customer_email: ci.email || fieldIntent.customer_email || null,
+              customer_phone: ci.phone || null,
+              customer_address: ci.address || null,
+              customer_city: ci.city || null,
+              customer_postal_code: ci.postal_code || null,
+              services: { services: quote.services, equipment: quote.equipment },
+              total_amount: Number(quote.total),
+              payment_method: "paypal",
+              payment_reference: captureId,
+              payment_status: "confirmed",
+              sync_status: "pending",
+              internal_notes: `Agent: ${quote.agent_name || "—"} · Field PayPal capture · intent=${fieldIntent.id}`,
+            })
+            .select("id")
+            .single();
+
+          if (fsoErr || !fso) throw fsoErr ?? new Error("field_sales_orders insert failed");
+
+          // Call field-sales-sync internally (service-role bypass)
+          const syncResp = await fetch(`${supabaseUrl}/functions/v1/field-sales-sync`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ action: "sync_single", sale_id: fso.id, internal: true }),
+          });
+
+          const syncResult = await syncResp.json().catch(() => ({}));
+          console.log("[PayPal Capture] field-sales-sync result:", syncResp.status, syncResult);
+
+          const newOrderId = syncResult?.orderId || syncResult?.order_id || null;
+          const newInvoiceId = syncResult?.invoice_id || null;
+
+          // Mark intent completed
+          await supabase
+            .from("field_payment_intents")
+            .update({
+              status: "completed",
+              paid_at: new Date().toISOString(),
+              converted_field_order_id: fso.id,
+              converted_order_id: newOrderId,
+              converted_invoice_id: newInvoiceId,
+            })
+            .eq("id", fieldIntent.id);
+
+          // Queue commission (best-effort — uses existing commission rules if defined)
+          try {
+            await supabase.from("field_commissions").insert({
+              agent_id: fieldIntent.agent_id,
+              order_id: newOrderId,
+              amount: 0, // calculated by trigger / commission engine
+              status: "pending",
+              commission_type: "field_sale",
+              description: `Vente terrain — ${customerName}`,
+              earned_at: new Date().toISOString(),
+              notes: `intent=${fieldIntent.id} · sale=${fso.id}`,
+            });
+          } catch (commErr) {
+            console.warn("[PayPal Capture] commission insert failed (non-fatal):", commErr);
+          }
+
+          // Activity log
+          await supabase.from("activity_logs").insert({
+            user_id: fieldIntent.agent_id,
+            entity_type: "field_payment_intent",
+            entity_id: fieldIntent.id,
+            action: "paypal_captured",
+            details: {
+              ...captureProof,
+              field_sales_order_id: fso.id,
+              new_order_id: newOrderId,
+              new_invoice_id: newInvoiceId,
+              sync_result: syncResult,
+            },
+          });
+
+          console.log("[PayPal Capture] ★ Field bridge complete — sale:", fso.id, "order:", newOrderId);
+
+          return new Response(JSON.stringify({
+            success: true,
+            capture_id: captureId, amount, currency: currencyCode,
+            status: "COMPLETED",
+            field_intent_id: fieldIntent.id,
+            field_sales_order_id: fso.id,
+            order_id: newOrderId,
+            invoice_id: newInvoiceId,
+            payer_email: payerEmail,
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        } catch (bridgeErr: any) {
+          console.error("[PayPal Capture] ✗ Field bridge error:", bridgeErr);
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "field_paypal_bridge_error",
+            entity_type: "field_payment_intent",
+            entity_id: fieldIntent.id,
+            entity_reference: captureId,
+            details: {
+              error: bridgeErr?.message || String(bridgeErr),
+              capture_id: captureId,
+              intent_id: fieldIntent.id,
+            },
+          });
+          // fall through to return error
+          return new Response(JSON.stringify({
+            success: false, capture_id: captureId,
+            error: "Field bridge failed: " + (bridgeErr?.message || String(bridgeErr)),
+          }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+    }
+
     // Resolve invoice_id: request body > PayPal custom_id
     const invoiceId = body.invoice_id || customId;
 
