@@ -20491,6 +20491,7 @@ export type Database = {
         Args: { p_entry_id: string }
         Returns: number
       }
+      get_field_payment_intent_public: { Args: { p_id: string }; Returns: Json }
       get_influencer_id: { Args: { _user_id: string }; Returns: string }
       get_invoice_payment_history: {
         Args: { p_invoice_entry_id: string }
