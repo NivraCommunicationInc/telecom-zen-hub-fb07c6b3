@@ -3,9 +3,10 @@
  * before allowing access to internal portals.
  */
 import { useState } from "react";
-import { Shield, Loader2, AlertCircle } from "lucide-react";
+import { Shield, Loader2, AlertCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { verifyMfaCode } from "@/lib/security/mfaUtils";
 import { auditAuth } from "@/lib/security/internalAuditLogger";
 
