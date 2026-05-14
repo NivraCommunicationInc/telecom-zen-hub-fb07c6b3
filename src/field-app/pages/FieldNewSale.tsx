@@ -10,7 +10,7 @@
  * Submission still goes through the existing field-order-engine; we simply
  * map the new payment method enum to the engine's contract.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { submitNewSale } from "@/field-app/lib/fieldServices";
@@ -35,6 +35,7 @@ import { computeDiscountBreakdown } from "@/field-app/lib/fieldDiscountMath";
 
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
+const DRAFT_KEY = "field_sale_draft";
 
 export default function FieldNewSale() {
   const navigate = useNavigate();
@@ -50,6 +51,77 @@ export default function FieldNewSale() {
 
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
   const { data: fieldConfig } = useFieldConfig();
+
+  // ── Draft persistence (FIX: survive page refresh) ──
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<{ draft: FieldSaleDraft; completed: FieldSaleStep[] } | null>(null);
+  const hasCheckedRestoreRef = useRef(false);
+  const hasMountedRef = useRef(false);
+
+  // Restore draft on mount (run once)
+  useEffect(() => {
+    if (hasCheckedRestoreRef.current) return;
+    hasCheckedRestoreRef.current = true;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      const savedDraft = parsed?.draft as FieldSaleDraft | undefined;
+      const savedCompleted = (parsed?.completedSteps as FieldSaleStep[] | undefined) || [];
+      if (!savedDraft || savedDraft.step === "customer" && savedCompleted.length === 0) {
+        // Empty draft — nothing meaningful to restore
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      setPendingRestore({ draft: savedDraft, completed: savedCompleted });
+      setRestoreDialogOpen(true);
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  // Persist draft on every change (skip first render to avoid clobbering pending restore)
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (restoreDialogOpen) return; // don't overwrite while user decides
+    try {
+      // Only persist if something meaningful has been entered
+      const meaningful =
+        draft.step !== "customer" ||
+        draft.customer.first_name ||
+        draft.customer.last_name ||
+        draft.customer.email ||
+        draft.services.length > 0 ||
+        completedSteps.length > 0;
+      if (meaningful) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft, completedSteps }));
+      }
+    } catch {
+      /* quota exceeded — ignore */
+    }
+  }, [draft, completedSteps, restoreDialogOpen]);
+
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  }, []);
+
+  const handleRestoreAccept = () => {
+    if (pendingRestore) {
+      setDraft({ ...pendingRestore.draft, agentId: user?.id ?? pendingRestore.draft.agentId });
+      setCompletedSteps(pendingRestore.completed);
+    }
+    setPendingRestore(null);
+    setRestoreDialogOpen(false);
+  };
+
+  const handleRestoreReject = () => {
+    clearDraft();
+    setPendingRestore(null);
+    setRestoreDialogOpen(false);
+  };
 
   // ── Fetch agent full name (for emails) ──
   const [agentFullName, setAgentFullName] = useState<string>("");
@@ -237,6 +309,7 @@ export default function FieldNewSale() {
           },
         }));
         toast.success("Lien PayPal envoyé au client.");
+        clearDraft();
       } else {
         setDraft((d) => ({
           ...d,
@@ -365,7 +438,7 @@ export default function FieldNewSale() {
               customer={draft.customer}
               onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
               onNext={() => advance("customer")}
-              onCancel={() => navigate(fieldPath("/dashboard"))}
+              onCancel={() => { clearDraft(); navigate(fieldPath("/dashboard")); }}
             />
           )}
 
@@ -503,6 +576,7 @@ export default function FieldNewSale() {
                     }
                   }
                   toast.success("Transaction annulée. Client informé.");
+                  clearDraft();
                   navigate(fieldPath("/dashboard"));
                 } catch (e: any) {
                   logger.warn("Cancel transaction failed", e);
@@ -594,6 +668,7 @@ export default function FieldNewSale() {
                     if (i < 3) await new Promise((r) => setTimeout(r, 2000));
                   }
                   toast.success("Soumission envoyée au client (valide 7 jours).");
+                  clearDraft();
                   navigate(fieldPath("/dashboard"));
                 } catch (e: any) {
                   logger.warn("Convert to quote failed", e);
@@ -618,6 +693,48 @@ export default function FieldNewSale() {
           total={total}
         />
       </div>
+
+      {/* Restore-draft dialog (FIX: survive page refresh mid-sale) */}
+      {restoreDialogOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Commande en cours détectée</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Vous avez une commande en cours. Voulez-vous la reprendre où vous l'avez laissée ?
+              </p>
+            </div>
+            {pendingRestore?.draft?.customer?.first_name || pendingRestore?.draft?.customer?.last_name ? (
+              <div className="text-xs bg-muted/50 rounded-lg p-3">
+                <span className="text-muted-foreground">Client :</span>{" "}
+                <span className="font-medium text-foreground">
+                  {[pendingRestore.draft.customer.first_name, pendingRestore.draft.customer.last_name].filter(Boolean).join(" ")}
+                </span>
+                {pendingRestore.draft.services.length > 0 && (
+                  <div className="mt-1">
+                    <span className="text-muted-foreground">Forfaits :</span>{" "}
+                    <span className="text-foreground">{pendingRestore.draft.services.length}</span>
+                  </div>
+                )}
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                onClick={handleRestoreReject}
+                className="flex-1 h-10 px-4 rounded-lg border border-border bg-background text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Nouvelle commande
+              </button>
+              <button
+                onClick={handleRestoreAccept}
+                className="flex-1 h-10 px-4 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors"
+              >
+                Reprendre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

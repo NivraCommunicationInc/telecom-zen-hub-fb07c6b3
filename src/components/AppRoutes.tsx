@@ -148,6 +148,7 @@ const MarketingEmailCampaignsPage = lazy(() => import("@/core-app/pages/marketin
 const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSettingsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
+const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
 const CoreCommissionGridPage = lazy(() => import("@/core-app/pages/CoreCommissionGridPage"));
 const CoreCommissionWithdrawalsPage = lazy(() => import("@/core-app/pages/CoreCommissionWithdrawalsPage"));
 // Partners
@@ -844,6 +845,7 @@ const AppRoutes = () => {
           <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
           {/* Field Management */}
           <Route path="field-agents" element={<Suspense fallback={null}><CoreFieldAgentsPage /></Suspense>} />
+          <Route path="field-submissions" element={<Suspense fallback={null}><CoreFieldSubmissionsPage /></Suspense>} />
           <Route path="commissions/grille" element={<Suspense fallback={null}><CoreCommissionGridPage /></Suspense>} />
           <Route path="commission-withdrawals" element={<Suspense fallback={null}><CoreCommissionWithdrawalsPage /></Suspense>} />
           {/* Partners */}
