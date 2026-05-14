@@ -171,6 +171,7 @@ export default function FieldNewSale() {
           status: "queued",
         };
         // Retry insert up to 3 times with 2s backoff
+        console.log('[EMAIL] Attempting to queue email for:', draft.customer.email);
         let emailErr: any = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           const { error: e } = await supabase.from("email_queue").insert(emailPayload as any);
@@ -178,9 +179,11 @@ export default function FieldNewSale() {
           emailErr = e;
           if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
         }
+        console.log('[EMAIL] Queue result:', emailErr ? emailErr.message : 'SUCCESS');
         if (emailErr) {
+          const payerUrl = `https://nivra-telecom.ca/payer/${data.intent_id}`;
           logger.warn("field_payment_link enqueue failed after 3 attempts", emailErr);
-          toast.warning("Lien généré mais courriel non envoyé — utilisez Renvoyer.");
+          toast.warning(`Commande créée mais l'email n'a pas pu être envoyé. Le client peut payer via: ${payerUrl}`, { duration: 15000 });
         }
 
         setDraft((d) => ({

@@ -1,18 +1,24 @@
 /**
- * FieldObjectives — Reads canonical sales_targets (set by Core admin) for the
- * current period and counts the agent's actual sales this week / this month
- * from field_sales_orders. Shows weekly + monthly progress bars and the next
- * bonus tier remaining.
+ * FieldObjectives — Always shows weekly/monthly sales counts and bonus tier
+ * progression for the agent (from field_commissions). The canonical monthly
+ * target from sales_targets is shown when present, otherwise an info card.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Target, TrendingUp, Award } from "lucide-react";
+import { Loader2, Target, TrendingUp, Award, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(n || 0);
+
+const BONUS_TIERS: Array<{ count: number; bonus: number }> = [
+  { count: 10, bonus: 100 },
+  { count: 20, bonus: 250 },
+  { count: 30, bonus: 450 },
+  { count: 50, bonus: 750 },
+];
 
 export default function FieldObjectives() {
   const { data, isLoading } = useQuery({
@@ -36,42 +42,31 @@ export default function FieldObjectives() {
         .eq("period_month", month);
 
       const totalRow = (targets || []).find((t: any) => t.service_type === "total_sales");
-      const revenueRow = (targets || []).find((t: any) => t.service_type === "revenue");
-
       const monthlyTarget = Number(totalRow?.target_count ?? 0);
-      const weeklyTarget = monthlyTarget > 0 ? Math.max(1, Math.ceil(monthlyTarget / 4)) : 0;
-      const revenueTarget = Number(revenueRow?.target_amount ?? 0);
-      const bonusAmount = Number(totalRow?.bonus_amount ?? revenueRow?.bonus_amount ?? 0);
+      const targetBonusAmount = Number(totalRow?.bonus_amount ?? 0);
 
-      // 2) Current sales counts from field_sales_orders
+      // 2) Sales counts from field_commissions (this agent)
       const [weekRes, monthRes] = await Promise.all([
         supabase
-          .from("field_sales_orders")
-          .select("id, total_amount", { count: "exact" })
-          .eq("salesperson_id", user.id)
-          .gte("created_at", weekStart),
+          .from("field_commissions")
+          .select("id, amount", { count: "exact" })
+          .eq("agent_id", user.id)
+          .gte("earned_at", weekStart),
         supabase
-          .from("field_sales_orders")
-          .select("id, total_amount", { count: "exact" })
-          .eq("salesperson_id", user.id)
-          .gte("created_at", monthStart),
+          .from("field_commissions")
+          .select("id, amount", { count: "exact" })
+          .eq("agent_id", user.id)
+          .gte("earned_at", monthStart),
       ]);
 
-      const weeklyCurrent = weekRes.count ?? (weekRes.data?.length || 0);
-      const monthlyCurrent = monthRes.count ?? (monthRes.data?.length || 0);
-      const monthlyRevenue = (monthRes.data || []).reduce(
-        (s: number, o: any) => s + Number(o.total_amount || 0),
-        0,
-      );
+      const weekSales = weekRes.count ?? (weekRes.data?.length || 0);
+      const monthSales = monthRes.count ?? (monthRes.data?.length || 0);
 
       return {
-        weeklyTarget,
-        weeklyCurrent,
+        weekSales,
+        monthSales,
         monthlyTarget,
-        monthlyCurrent,
-        revenueTarget,
-        monthlyRevenue,
-        bonusAmount,
+        targetBonusAmount,
         hasTargets: (targets || []).length > 0,
       };
     },
@@ -85,11 +80,16 @@ export default function FieldObjectives() {
     );
   }
 
-  const d = data;
-  const weeklyPct = d && d.weeklyTarget > 0 ? Math.min(100, Math.round((d.weeklyCurrent / d.weeklyTarget) * 100)) : 0;
-  const monthlyPct = d && d.monthlyTarget > 0 ? Math.min(100, Math.round((d.monthlyCurrent / d.monthlyTarget) * 100)) : 0;
-  const revenuePct = d && d.revenueTarget > 0 ? Math.min(100, Math.round((d.monthlyRevenue / d.revenueTarget) * 100)) : 0;
-  const bonusRemaining = d ? Math.max(0, d.monthlyTarget - d.monthlyCurrent) : 0;
+  const monthSales = data?.monthSales ?? 0;
+  const weekSales = data?.weekSales ?? 0;
+  const monthlyTarget = data?.monthlyTarget ?? 0;
+  const monthlyPct = monthlyTarget > 0 ? Math.min(100, Math.round((monthSales / monthlyTarget) * 100)) : 0;
+  const monthlyRemaining = Math.max(0, monthlyTarget - monthSales);
+
+  // Bonus tier logic
+  const currentTier = [...BONUS_TIERS].reverse().find((t) => monthSales >= t.count);
+  const nextTier = BONUS_TIERS.find((t) => monthSales < t.count);
+  const nextTierRemaining = nextTier ? nextTier.count - monthSales : 0;
 
   return (
     <div className="space-y-6">
@@ -98,96 +98,114 @@ export default function FieldObjectives() {
         <p className="text-sm text-[#6B7280] mt-0.5">{format(new Date(), "MMMM yyyy", { locale: fr })}</p>
       </div>
 
-      {!d?.hasTargets && (
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 text-center">
+      {/* SECTION 1 — Ce mois-ci */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
+              <Calendar className="h-5 w-5 text-[#3B82F6]" />
+            </div>
+            <p className="text-xs font-medium text-[#6B7280]">Ce mois</p>
+          </div>
+          <p className="text-3xl font-bold text-[#000000]">{monthSales}</p>
+          <p className="text-xs text-[#9CA3AF] mt-1">vente{monthSales !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#EDE9FE]">
+              <TrendingUp className="h-5 w-5 text-[#7C3AED]" />
+            </div>
+            <p className="text-xs font-medium text-[#6B7280]">Cette semaine</p>
+          </div>
+          <p className="text-3xl font-bold text-[#000000]">{weekSales}</p>
+          <p className="text-xs text-[#9CA3AF] mt-1">vente{weekSales !== 1 ? "s" : ""}</p>
+        </div>
+      </div>
+
+      {/* SECTION 4 — Objectif mensuel (if assigned) */}
+      {data?.hasTargets && monthlyTarget > 0 ? (
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
+                <Target className="h-5 w-5 text-[#3B82F6]" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#000000]">Objectif du mois</p>
+                <p className="text-[10px] text-[#9CA3AF]">Assigné par votre gestionnaire</p>
+              </div>
+            </div>
+            <p className="text-xl font-bold text-[#000000]">{monthSales} / {monthlyTarget}</p>
+          </div>
+          <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all duration-700", monthlyPct >= 100 ? "bg-[#22C55E]" : monthlyPct >= 50 ? "bg-[#3B82F6]" : "bg-[#F59E0B]")}
+              style={{ width: `${monthlyPct}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-[#6B7280] mt-2">
+            {monthlyRemaining > 0
+              ? `${monthlyRemaining} vente${monthlyRemaining > 1 ? "s" : ""} restante${monthlyRemaining > 1 ? "s" : ""} pour atteindre votre objectif`
+              : "✅ Objectif atteint !"}
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 text-center">
           <Target className="h-8 w-8 mx-auto mb-3 text-[#9CA3AF]" />
-          <p className="text-sm text-[#6B7280]">Aucun objectif défini pour ce mois. Contactez votre superviseur.</p>
+          <p className="text-sm text-[#6B7280]">
+            Aucun objectif assigné pour ce mois.<br />
+            Votre gestionnaire vous assignera des objectifs prochainement.
+          </p>
         </div>
       )}
 
-      {d?.hasTargets && (
-        <>
-          {/* Weekly */}
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#EDE9FE]">
-                  <TrendingUp className="h-5 w-5 text-[#7C3AED]" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[#000000]">Cette semaine</p>
-                  <p className="text-[10px] text-[#9CA3AF]">Objectif hebdomadaire</p>
-                </div>
-              </div>
-              <p className="text-xl font-bold text-[#000000]">{d.weeklyCurrent} / {d.weeklyTarget} ventes</p>
-            </div>
-            <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all duration-700", weeklyPct >= 100 ? "bg-[#22C55E]" : weeklyPct >= 50 ? "bg-[#7C3AED]" : "bg-[#F59E0B]")}
-                style={{ width: `${weeklyPct}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-[#9CA3AF] mt-1.5">{weeklyPct}% atteint</p>
+      {/* SECTION 3 — Progression vers le bonus (always shown) */}
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#FEF3C7]">
+            <Award className="h-5 w-5 text-[#D97706]" />
           </div>
-
-          {/* Monthly */}
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
-                  <Target className="h-5 w-5 text-[#3B82F6]" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[#000000]">Ce mois</p>
-                  <p className="text-[10px] text-[#9CA3AF]">Objectif mensuel</p>
-                </div>
-              </div>
-              <p className="text-xl font-bold text-[#000000]">{d.monthlyCurrent} / {d.monthlyTarget} ventes</p>
-            </div>
-            <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all duration-700", monthlyPct >= 100 ? "bg-[#22C55E]" : monthlyPct >= 50 ? "bg-[#3B82F6]" : "bg-[#F59E0B]")}
-                style={{ width: `${monthlyPct}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-[#9CA3AF] mt-1.5">{monthlyPct}% atteint</p>
+          <div>
+            <p className="text-sm font-bold text-[#000000]">Progression vers le bonus</p>
+            <p className="text-[10px] text-[#9CA3AF]">Bonus mensuels Nivra</p>
           </div>
+        </div>
 
-          {/* Revenue (optional) */}
-          {d.revenueTarget > 0 && (
-            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-bold text-[#000000]">Revenus ce mois</p>
-                <p className="text-sm font-bold text-[#000000]">{fmtMoney(d.monthlyRevenue)} / {fmtMoney(d.revenueTarget)}</p>
+        <div className="space-y-2">
+          {BONUS_TIERS.map((tier) => {
+            const reached = monthSales >= tier.count;
+            const isNext = nextTier?.count === tier.count;
+            return (
+              <div
+                key={tier.count}
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-xl border transition-all",
+                  reached ? "bg-[#DCFCE7] border-[#22C55E]/40" : isNext ? "bg-[#FEF3C7] border-[#F59E0B]/40" : "bg-[#F9FAFB] border-[#E5E7EB]",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={cn("h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", reached ? "bg-[#22C55E] text-white" : isNext ? "bg-[#F59E0B] text-white" : "bg-[#E5E7EB] text-[#6B7280]")}>
+                    {reached ? "✓" : tier.count}
+                  </span>
+                  <span className="text-sm font-medium text-[#111827]">{tier.count} ventes</span>
+                </div>
+                <span className={cn("text-sm font-bold", reached ? "text-[#15803D]" : "text-[#111827]")}>{fmtMoney(tier.bonus)}</span>
               </div>
-              <div className="h-2.5 rounded-full bg-[#F3F4F6] overflow-hidden">
-                <div className="h-full rounded-full bg-[#22C55E] transition-all duration-700" style={{ width: `${revenuePct}%` }} />
-              </div>
-            </div>
-          )}
+            );
+          })}
+        </div>
 
-          {/* Next bonus tier */}
-          {d.bonusAmount > 0 && (
-            <div className="bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#F59E0B]/30 rounded-2xl p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white/70">
-                  <Award className="h-5 w-5 text-[#D97706]" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-[#78350F]">Prochain bonus</p>
-                  {bonusRemaining > 0 ? (
-                    <p className="text-xs text-[#92400E] mt-0.5">
-                      Encore <span className="font-bold">{bonusRemaining} vente{bonusRemaining > 1 ? "s" : ""}</span> pour <span className="font-bold">{fmtMoney(d.bonusAmount)}</span>
-                    </p>
-                  ) : (
-                    <p className="text-xs text-[#065F46] mt-0.5 font-bold">✅ Bonus de {fmtMoney(d.bonusAmount)} atteint !</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+        {nextTier && (
+          <p className="text-xs text-[#6B7280] mt-3 text-center">
+            Encore <span className="font-bold text-[#7C3AED]">{nextTierRemaining} vente{nextTierRemaining > 1 ? "s" : ""}</span> pour atteindre <span className="font-bold">{fmtMoney(nextTier.bonus)}</span>
+          </p>
+        )}
+        {!nextTier && currentTier && (
+          <p className="text-xs text-[#15803D] mt-3 text-center font-bold">
+            ✅ Bonus maximum atteint : {fmtMoney(currentTier.bonus)}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
