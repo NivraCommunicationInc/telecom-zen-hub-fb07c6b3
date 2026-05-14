@@ -267,7 +267,7 @@ export default function FieldNewSale() {
     try {
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({
-        draft, agentName: user?.email || "Agent terrain", activationFee,
+        draft, agentName, activationFee,
         subtotal, tps, tvq, total,
       });
 
