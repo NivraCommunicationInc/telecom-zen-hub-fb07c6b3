@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const description = `Bonus mensuel performance — ${count} ventes ${marker}`;
+    const description = `Bonus mensuel — ${count} forfaits vendus en ${tag} ${marker}`;
 
     const { error: insErr } = await supabase.from("field_commissions").insert({
       agent_id: agentId,
