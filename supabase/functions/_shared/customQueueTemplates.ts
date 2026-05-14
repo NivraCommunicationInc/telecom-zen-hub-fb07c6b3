@@ -1646,18 +1646,21 @@ export function renderQueueTemplate(
       const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Services Nivra");
       const equipment = esc(v.equipment || "Aucun");
       const validUntil = esc(v.valid_until || "24 heures");
+      const discountLabel = v.discount_label ? esc(v.discount_label) : null;
       const rows: Array<[string, string]> = [
-        ["Commande", `#${String(orderRef).replace(/^#/, "")}`],
-        ["Services", String(summary)],
+        ["Numéro de soumission", `#${String(orderRef).replace(/^#/, "")}`],
+        ["Forfaits", String(summary)],
         ["Équipement", String(equipment)],
       ];
-      if (v.discount && Number(v.discount) > 0) rows.push(["Rabais appliqué", `-${money(v.discount)}`]);
+      if (discountLabel) rows.push(["Rabais appliqué", String(discountLabel)]);
+      else if (v.discount && Number(v.discount) > 0) rows.push(["Rabais appliqué", `-${money(v.discount)}`]);
       if (v.subtotal) rows.push(["Sous-total", money(v.subtotal)]);
       if (v.tps) rows.push(["TPS (5%)", money(v.tps)]);
       if (v.tvq) rows.push(["TVQ (9,975%)", money(v.tvq)]);
       rows.push(["Total à payer", String(total)]);
       rows.push(["Méthode", "PayPal"]);
       rows.push(["Lien valide jusqu'au", String(validUntil)]);
+      rows.push(["Agent responsable", String(agentName)]);
       return {
         subject: `Votre lien de paiement PayPal — ${total}`,
         html: shell({
