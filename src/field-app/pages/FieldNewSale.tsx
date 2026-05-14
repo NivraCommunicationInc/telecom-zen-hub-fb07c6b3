@@ -138,25 +138,33 @@ export default function FieldNewSale() {
       const approvalUrl: string | null = data?.approval_url || null;
       if (!approvalUrl) throw new Error("PayPal n'a pas retourné de lien d'approbation.");
 
-      // 3) Email mode — enqueue Violet Bold "field_payment_link" template (with retry)
+      // 3) Email mode — enqueue Violet Bold "payment_link_employee" template (with retry)
       if (draft.payment.method === "paypal_email") {
         setSubmitMessage("Envoi du lien au client…");
-        const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
+        const servicesList = draft.services.map((s) => s.name).filter(Boolean).join(", ") || "Services Nivra";
+        const equipmentList = (draft.equipment || []).map((e: any) => e?.name).filter(Boolean).join(", ") || "Aucun";
         const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
         const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const discountAmount = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
         const emailPayload = {
-          event_key: `field_payment_link_${data.intent_id}`,
+          event_key: `payment_link_employee_${data.intent_id}`,
           to_email: draft.customer.email,
-          template_key: "field_payment_link",
+          template_key: "payment_link_employee",
           template_vars: {
             client_name: fullName,
+            client_email: draft.customer.email,
             first_name: draft.customer.first_name || "Client",
             order_number: data.intent_id,
+            services: servicesList,
+            summary: servicesList,
+            equipment: equipmentList,
+            discount: discountAmount.toFixed(2),
+            subtotal: subtotal.toFixed(2),
+            tps: tps.toFixed(2),
+            tvq: tvq.toFixed(2),
             total: total.toFixed(2),
             approval_url: approvalUrl,
             payment_url: approvalUrl,
-            summary,
-            services: summary,
             valid_until: validUntil,
             agent_name: user?.email || "votre conseiller Nivra",
           },
