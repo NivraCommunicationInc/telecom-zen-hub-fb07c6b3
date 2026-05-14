@@ -104,16 +104,21 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Count activated orders this month for this agent
-    const { count: salesCount } = await supabase
+    // Count this month's qualifying orders: activated/completed AND
+    // containing at least one forfait item (internet/tv/bundle).
+    // Equipment-only or mobile-only orders DO NOT count toward bonus.
+    const { data: agentOrders } = await supabase
       .from("orders")
-      .select("id", { count: "exact", head: true })
+      .select("id, order_items!inner(service_type)")
       .eq("created_by_agent_id", agentId)
-      .eq("status", "activated")
+      .in("status", ["activated", "completed"])
       .gte("updated_at", start)
-      .lt("updated_at", endExclusive);
+      .lt("updated_at", endExclusive)
+      .in("order_items.service_type", ["internet", "tv", "bundle"]);
 
-    const count = salesCount || 0;
+    // Dedupe by order id (1 order = 1 sale, even with multiple forfait items)
+    const uniqueOrderIds = new Set((agentOrders ?? []).map((o: any) => o.id));
+    const count = uniqueOrderIds.size;
     const bonus = matchTier(count);
 
     if (bonus <= 0) {
