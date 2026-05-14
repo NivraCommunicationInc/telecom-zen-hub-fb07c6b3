@@ -1,56 +1,81 @@
 /**
- * RhObjectives — Monthly objectives with progression and estimated commissions.
- * Reads from employee_objectives table.
+ * RhObjectives — Reads canonical sales_targets (set by Core admin) for the
+ * current period and counts the employee's actual sales this week / this
+ * month from field_sales_orders. Shows weekly + monthly progress and next
+ * bonus tier.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
-import { format, startOfMonth } from "date-fns";
+import { format, startOfWeek, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Target, DollarSign, TrendingUp, Loader2, AlertCircle } from "lucide-react";
+import { Target, DollarSign, TrendingUp, Loader2, AlertCircle, Award } from "lucide-react";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
 
 export default function RhObjectives() {
-  // Realtime: refresh when targets/commissions change
-  usePortalRealtime(
-    ["sales_targets", "sales_commissions"],
-    [["rh-objectives"]],
-  );
+  usePortalRealtime(["sales_targets", "field_sales_orders"], [["rh-objectives"]]);
 
-  const { data: userId } = useQuery({
-    queryKey: ["rh-user-id"],
+  const { data, isLoading } = useQuery({
+    queryKey: ["rh-objectives"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      return user?.id ?? null;
-    },
-  });
+      if (!user) return null;
 
-  const { data: objectives, isLoading } = useQuery({
-    queryKey: ["rh-objectives", userId],
-    queryFn: async () => {
-      if (!userId) return [];
-      const { data } = await supabase
-        .from("employee_objectives")
-        .select("*")
-        .eq("user_id", userId)
-        .order("month", { ascending: false })
-        .limit(12);
-      return data ?? [];
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
+      const monthStart = startOfMonth(now).toISOString();
+
+      const { data: targets = [] } = await supabase
+        .from("sales_targets")
+        .select("service_type, target_count, target_amount, bonus_amount, notes")
+        .eq("employee_id", user.id)
+        .eq("period_year", year)
+        .eq("period_month", month);
+
+      const totalRow = (targets || []).find((t: any) => t.service_type === "total_sales");
+      const revenueRow = (targets || []).find((t: any) => t.service_type === "revenue");
+
+      const monthlyTarget = Number(totalRow?.target_count ?? 0);
+      const weeklyTarget = monthlyTarget > 0 ? Math.max(1, Math.ceil(monthlyTarget / 4)) : 0;
+      const revenueTarget = Number(revenueRow?.target_amount ?? 0);
+      const bonusAmount = Number(totalRow?.bonus_amount ?? revenueRow?.bonus_amount ?? 0);
+
+      const [weekRes, monthRes] = await Promise.all([
+        supabase.from("field_sales_orders").select("id, total_amount", { count: "exact" })
+          .eq("salesperson_id", user.id).gte("created_at", weekStart),
+        supabase.from("field_sales_orders").select("id, total_amount", { count: "exact" })
+          .eq("salesperson_id", user.id).gte("created_at", monthStart),
+      ]);
+
+      const weeklyCurrent = weekRes.count ?? (weekRes.data?.length || 0);
+      const monthlyCurrent = monthRes.count ?? (monthRes.data?.length || 0);
+      const monthlyRevenue = (monthRes.data || []).reduce(
+        (s: number, o: any) => s + Number(o.total_amount || 0), 0);
+
+      return {
+        hasTargets: (targets || []).length > 0,
+        weeklyTarget, weeklyCurrent, monthlyTarget, monthlyCurrent,
+        revenueTarget, monthlyRevenue, bonusAmount,
+        notes: totalRow?.notes ?? null,
+      };
     },
-    enabled: !!userId,
   });
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
-  const currentMonth = startOfMonth(new Date()).toISOString().slice(0, 10);
-  const currentObj = objectives?.find((o: any) => o.month === currentMonth);
+  const d = data;
+  const weeklyPct = d && d.weeklyTarget > 0 ? Math.min(100, (d.weeklyCurrent / d.weeklyTarget) * 100) : 0;
+  const monthlyPct = d && d.monthlyTarget > 0 ? Math.min(100, (d.monthlyCurrent / d.monthlyTarget) * 100) : 0;
+  const revenuePct = d && d.revenueTarget > 0 ? Math.min(100, (d.monthlyRevenue / d.revenueTarget) * 100) : 0;
+  const bonusRemaining = d ? Math.max(0, d.monthlyTarget - d.monthlyCurrent) : 0;
 
   return (
     <div className="space-y-6">
@@ -59,106 +84,94 @@ export default function RhObjectives() {
           <Target className="h-6 w-6 text-primary" />
           Mes objectifs
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Objectifs mensuels et progression des ventes</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {format(new Date(), "MMMM yyyy", { locale: fr })} — Progression hebdomadaire et mensuelle
+        </p>
       </div>
 
-      {/* Current month spotlight */}
-      {currentObj ? (
-        <Card className="border-2 border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="text-base">
-              {format(new Date(currentObj.month + "T00:00:00"), "MMMM yyyy", { locale: fr })} — Objectif en cours
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {/* Sales progress */}
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Ventes</span>
-                <span className="font-bold text-foreground">
-                  {currentObj.current_sales} / {currentObj.target_sales}
-                </span>
-              </div>
-              <Progress
-                value={currentObj.target_sales > 0 ? Math.min(100, (currentObj.current_sales / currentObj.target_sales) * 100) : 0}
-                className="h-3"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {currentObj.target_sales > 0
-                  ? `${Math.round((currentObj.current_sales / currentObj.target_sales) * 100)}% atteint`
-                  : "Objectif non défini"}
-              </p>
-            </div>
-
-            {/* Revenue progress */}
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Revenus</span>
-                <span className="font-bold text-foreground">
-                  {fmt(Number(currentObj.current_revenue))} / {fmt(Number(currentObj.target_revenue))}
-                </span>
-              </div>
-              <Progress
-                value={Number(currentObj.target_revenue) > 0 ? Math.min(100, (Number(currentObj.current_revenue) / Number(currentObj.target_revenue)) * 100) : 0}
-                className="h-3"
-              />
-            </div>
-
-            {/* Estimated commission */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-emerald-600" />
-                <span className="text-sm text-muted-foreground">Commission estimée</span>
-              </div>
-              <span className="text-lg font-bold text-emerald-600">{fmt(Number(currentObj.estimated_commission))}</span>
-            </div>
-
-            {currentObj.notes && (
-              <p className="text-xs text-muted-foreground italic">{currentObj.notes}</p>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
+      {!d?.hasTargets ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <AlertCircle className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
             <p>Aucun objectif défini pour ce mois.</p>
           </CardContent>
         </Card>
-      )}
+      ) : (
+        <>
+          {/* Weekly */}
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Cette semaine
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Ventes</span>
+                <span className="font-bold text-foreground">{d.weeklyCurrent} / {d.weeklyTarget}</span>
+              </div>
+              <Progress value={weeklyPct} className="h-3" />
+              <p className="text-xs text-muted-foreground">{Math.round(weeklyPct)}% atteint</p>
+            </CardContent>
+          </Card>
 
-      {/* History */}
-      {objectives && objectives.length > 0 && (
-        <div>
-          <h2 className="text-sm font-bold text-foreground mb-3">Historique</h2>
-          <div className="space-y-2">
-            {objectives
-              .filter((o: any) => o.month !== currentMonth)
-              .map((o: any) => {
-                const salesPct = o.target_sales > 0 ? Math.round((o.current_sales / o.target_sales) * 100) : 0;
-                return (
-                  <Card key={o.id}>
-                    <CardContent className="flex items-center justify-between py-3 px-5">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">
-                          {format(new Date(o.month + "T00:00:00"), "MMMM yyyy", { locale: fr })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {o.current_sales}/{o.target_sales} ventes · {salesPct}%
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className={cn("text-sm font-bold", salesPct >= 100 ? "text-emerald-600" : "text-foreground")}>
-                          {fmt(Number(o.estimated_commission))}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">commission</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </div>
-        </div>
+          {/* Monthly */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                Ce mois
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-muted-foreground">Ventes</span>
+                  <span className="font-bold text-foreground">{d.monthlyCurrent} / {d.monthlyTarget}</span>
+                </div>
+                <Progress value={monthlyPct} className="h-3" />
+                <p className="text-xs text-muted-foreground mt-1">{Math.round(monthlyPct)}% atteint</p>
+              </div>
+
+              {d.revenueTarget > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Revenus</span>
+                    <span className="font-bold text-foreground">{fmt(d.monthlyRevenue)} / {fmt(d.revenueTarget)}</span>
+                  </div>
+                  <Progress value={revenuePct} className="h-3" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Next bonus tier */}
+          {d.bonusAmount > 0 && (
+            <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white/70">
+                  <Award className="h-5 w-5 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-amber-900 dark:text-amber-200">Prochain bonus</p>
+                  {bonusRemaining > 0 ? (
+                    <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                      Encore <span className="font-bold">{bonusRemaining} vente{bonusRemaining > 1 ? "s" : ""}</span> pour <span className="font-bold">{fmt(d.bonusAmount)}</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs font-bold text-emerald-700 mt-0.5">✅ Bonus de {fmt(d.bonusAmount)} atteint !</p>
+                  )}
+                </div>
+                <DollarSign className="h-5 w-5 text-amber-600" />
+              </CardContent>
+            </Card>
+          )}
+
+          {d.notes && (
+            <p className="text-xs text-muted-foreground italic px-1">{d.notes}</p>
+          )}
+        </>
       )}
     </div>
   );
