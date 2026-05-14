@@ -1165,7 +1165,7 @@ export default function CoreFieldAgentsPage() {
                         });
                         if (!result.ok) {
                           const { toast } = await import("sonner");
-                          toast.error(result.error);
+                          toast.error((result as { ok: false; error: string }).error);
                         }
                       }}
                     >
