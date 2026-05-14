@@ -73,17 +73,23 @@ export function formatMoney(amount: unknown): string {
  * Never returns "---", "Invalid Date", "undefined", or empty.
  */
 export function fmtDate(d: unknown): string {
-  if (d === null || d === undefined || d === "") return "Date non disponible";
+  if (d === null || d === undefined || d === "") return "Bientôt";
+  const s = String(d).trim();
+  if (!s) return "Bientôt";
+  // Already a human-readable / pre-formatted string (contains French month
+  // names, weekday names, or any non-ISO words) — return as-is.
+  const FRENCH_TOKENS = /(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|jours?|heures?|à compter)/i;
+  if (FRENCH_TOKENS.test(s)) return s;
   try {
-    const date = new Date(String(d));
-    if (isNaN(date.getTime())) return "Date non disponible";
+    const date = new Date(s);
+    if (isNaN(date.getTime())) return s; // unparseable → return original string, never "Date non disponible"
     return date.toLocaleDateString("fr-CA", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
   } catch {
-    return "Date non disponible";
+    return s;
   }
 }
 
