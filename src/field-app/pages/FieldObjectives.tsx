@@ -148,6 +148,19 @@ export default function FieldObjectives() {
               ? `${monthlyRemaining} vente${monthlyRemaining > 1 ? "s" : ""} restante${monthlyRemaining > 1 ? "s" : ""} pour atteindre votre objectif`
               : "✅ Objectif atteint !"}
           </p>
+          <p className={cn(
+            "text-xs font-semibold mt-2 text-center",
+            monthlyPct >= 100 ? "text-[#15803D]" :
+            monthlyPct >= 76 ? "text-[#D97706]" :
+            monthlyPct >= 51 ? "text-[#3B82F6]" :
+            monthlyPct >= 26 ? "text-[#7C3AED]" : "text-[#6B7280]"
+          )}>
+            {monthlyPct >= 100 ? "🏆 Objectif atteint ! Félicitations !" :
+             monthlyPct >= 76 ? "Presque là ! Encore un effort !" :
+             monthlyPct >= 51 ? "Excellent ! Vous êtes sur la bonne voie !" :
+             monthlyPct >= 26 ? "Bon départ ! Continuez comme ça !" :
+             "Bonne chance ! Vous pouvez le faire !"}
+          </p>
         </div>
       ) : (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 text-center">
