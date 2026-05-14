@@ -53,7 +53,8 @@ const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [closeAccountOpen, setCloseAccountOpen] = useState(false);
   // Realtime invalidation across all client-related tables (FIX 3)
   useEffect(() => {
     if (!clientId) return;
