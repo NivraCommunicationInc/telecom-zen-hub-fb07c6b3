@@ -20,7 +20,7 @@ const FIELD_BASE = "/field";
 
 const salesNav = [
   { label: "Nouvelle vente", href: `${FIELD_BASE}/sale/new`, icon: ShoppingCart, primary: true },
-  { label: "Mes commandes", href: `${FIELD_BASE}/submissions`, icon: Send, badgeKey: "orders" as const },
+  { label: "Soumissions", href: `${FIELD_BASE}/submissions`, icon: Send, badgeKey: "orders" as const },
   { label: "Suivi pipeline", href: `${FIELD_BASE}/tracking`, icon: TrendingUp },
 ];
 
