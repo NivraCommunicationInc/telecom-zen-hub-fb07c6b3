@@ -432,19 +432,25 @@ export default function FieldNewSale() {
                 if (!draft.payment.paypalApprovalUrl || !draft.customer.email || !draft.payment.fieldOrderId) {
                   toast.error("Aucun lien à renvoyer."); return;
                 }
-                const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
+                const summary = buildServicesList(draft);
+                const equipmentList = buildEquipmentList(draft);
+                const discountLabel = buildDiscountLabel(draft);
                 const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
                 const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                const orderNumber = `SUB-${String(draft.payment.fieldOrderId).slice(0, 8).toUpperCase()}`;
                 const payload = {
                   event_key: `field_payment_link_resend_${draft.payment.fieldOrderId}_${Date.now()}`,
                   to_email: draft.customer.email,
                   template_key: "field_payment_link",
                   template_vars: {
                     client_name: fullName, first_name: draft.customer.first_name || "Client",
-                    order_number: draft.payment.fieldOrderId, total: total.toFixed(2),
+                    order_number: orderNumber, total: total.toFixed(2),
                     approval_url: draft.payment.paypalApprovalUrl, payment_url: `https://nivra-telecom.ca/payer/${draft.payment.fieldOrderId}`,
-                    summary, services: summary, valid_until: validUntil,
-                    agent_name: user?.email || "votre conseiller Nivra",
+                    summary, services: summary, equipment: equipmentList,
+                    discount_label: discountLabel,
+                    subtotal: subtotal.toFixed(2), tps: tps.toFixed(2), tvq: tvq.toFixed(2),
+                    valid_until: validUntil,
+                    agent_name: agentName,
                   },
                   status: "queued",
                 };
