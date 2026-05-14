@@ -1647,12 +1647,12 @@ export function renderQueueTemplate(
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
       const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || v.payment_url || "#");
-      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum);
-      const agentName = esc(v.agent_name || "votre conseiller Nivra");
-      const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Services Nivra");
-      const equipment = esc(v.equipment || "Aucun");
-      const validUntil = esc(v.valid_until || "24 heures");
-      const discountLabel = v.discount_label ? esc(v.discount_label) : null;
+      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum || `SUB-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
+      const agentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Voir détails de la commande");
+      const equipment = esc(v.equipment || "Aucun équipement");
+      const validUntil = esc(v.valid_until || "24 heures à compter de ce courriel");
+      const discountLabel = v.discount_label ? esc(String(v.discount_label)) : null;
       const rows: Array<[string, string]> = [
         ["Numéro de soumission", `#${String(orderRef).replace(/^#/, "")}`],
         ["Forfaits", String(summary)],
