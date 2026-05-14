@@ -3,6 +3,7 @@
  * Light modal-style layout with grouped sidebar navigation.
  */
 import { useState, useEffect, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { CoreGlobalSearch } from "./components/CoreGlobalSearch";
 import { supabase } from "@/integrations/supabase/client";
