@@ -814,30 +814,31 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Verify the caller is the salesperson or an admin
-      const isOwner = sale.salesperson_id === claims.user.id;
-       const { data: adminRole, error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', claims.user.id)
-         // user_roles.role is enum app_role (admin, client, technician, employee, influencer, field_sales)
-         .in('role', ['admin', 'employee'])
-        .eq('is_active', true)
-        .maybeSingle();
-
-       if (roleError) {
-         console.error('[field-sales-sync] Role check error:', roleError);
-       }
+      // Verify the caller is the salesperson or an admin (skipped for internal service-role calls)
+      const callerId = claims.user?.id ?? null;
+      const isOwner = !!callerId && sale.salesperson_id === callerId;
+      let adminRole: any = null;
+      if (!internalCall && callerId) {
+        const { data: ar, error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', callerId)
+          .in('role', ['admin', 'employee'])
+          .eq('is_active', true)
+          .maybeSingle();
+        if (roleError) console.error('[field-sales-sync] Role check error:', roleError);
+        adminRole = ar;
+      }
 
       if (!internalCall && !isOwner && !adminRole) {
-        console.error('[field-sales-sync] Unauthorized:', claims.user?.id);
+        console.error('[field-sales-sync] Unauthorized:', callerId);
         return new Response(
           JSON.stringify({ success: false, error: 'Non autorisé' }),
           { status: 403, headers: buildCorsHeaders(req) }
         );
       }
 
-      console.log('[field-sales-sync] Converting sale:', saleIdToSync, 'by user:', claims.user.id);
+      console.log('[field-sales-sync] Converting sale:', saleIdToSync, 'by user:', callerId ?? '(internal)');
       const result = await syncSaleToOrders(sale);
       
       return new Response(
