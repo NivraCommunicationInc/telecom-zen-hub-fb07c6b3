@@ -530,12 +530,13 @@ export default function FieldNewSale() {
                 const validUntilDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
                 const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
                 const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
-                const servicesSummary = draft.services.map((s) => `${s.name} (${s.monthlyPrice.toFixed(2)}$/mois)`).join(", ") || "—";
-                const equipmentSummary = draft.equipment.map((e) => `${e.name} x${e.quantity} (${(e.price * e.quantity).toFixed(2)}$)`).join(", ") || "—";
+                const servicesSummary = buildServicesList(draft);
+                const equipmentSummary = buildEquipmentList(draft);
+                const discountLabel = buildDiscountLabel(draft);
                 try {
                   const insertPayload: any = {
                     agent_id: user?.id,
-                    agent_name: user?.email || null,
+                    agent_name: agentName,
                     intent_id: intentId,
                     customer_name: customerName,
                     customer_email: draft.customer.email,
@@ -551,6 +552,7 @@ export default function FieldNewSale() {
                   const { data: row, error } = await supabase.from("field_submissions" as any).insert(insertPayload).select("id").maybeSingle();
                   if (error) throw error;
                   const quoteId = (row as any)?.id || intentId;
+                  const quoteNumber = `SUB-${String(quoteId).slice(0, 8).toUpperCase()}`;
                   const payload = {
                     event_key: `quote_client_${quoteId}_${Date.now()}`,
                     to_email: draft.customer.email,
@@ -558,12 +560,16 @@ export default function FieldNewSale() {
                     template_vars: {
                       client_name: customerName,
                       first_name: draft.customer.first_name || "Client",
-                      quote_number: quoteId, quote_id: quoteId,
+                      quote_number: quoteNumber, quote_id: quoteId,
+                      order_number: quoteNumber,
                       complete_url: payerUrl,
                       payment_url: payerUrl,
-                      agent_name: user?.email || "votre conseiller Nivra",
+                      agent_name: agentName,
                       services_summary: servicesSummary, equipment_summary: equipmentSummary,
-                      subtotal: subtotal.toFixed(2), discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
+                      subtotal: subtotal.toFixed(2),
+                      discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
+                      discount_label: discountLabel,
+                      tps: tps.toFixed(2), tvq: tvq.toFixed(2),
                       activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
                       valid_until: validUntilLabel,
                     },
