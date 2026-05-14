@@ -473,36 +473,45 @@ export default function FieldNewSale() {
               }}
               onConvertToQuote={async () => {
                 if (!draft.customer.email) { toast.error("Email client requis pour soumission."); return; }
+                const intentId = draft.payment.fieldOrderId;
+                if (!intentId) { toast.error("Lien de paiement requis avant soumission."); return; }
+                const payerUrl = `https://nivra-telecom.ca/payer/${intentId}`;
                 const validUntilDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                const validUntilIso = validUntilDate.toISOString();
                 const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
-                const services = draft.services.map((s) => `${s.name} (${s.monthlyPrice.toFixed(2)}$/mois)`).join(", ") || "—";
-                const equipment = draft.equipment.map((e) => `${e.name} x${e.quantity} (${(e.price * e.quantity).toFixed(2)}$)`).join(", ") || "—";
+                const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+                const servicesSummary = draft.services.map((s) => `${s.name} (${s.monthlyPrice.toFixed(2)}$/mois)`).join(", ") || "—";
+                const equipmentSummary = draft.equipment.map((e) => `${e.name} x${e.quantity} (${(e.price * e.quantity).toFixed(2)}$)`).join(", ") || "—";
                 try {
-                  const publicToken = crypto.randomUUID();
                   const insertPayload: any = {
-                    agent_id: user?.id, customer_email: draft.customer.email,
-                    customer_first_name: draft.customer.first_name, customer_last_name: draft.customer.last_name,
-                    customer_phone: draft.customer.phone, customer_address: draft.customer.address,
-                    services_summary: services, equipment_summary: equipment,
-                    subtotal, tps, tvq, total, activation_fee: activationFee,
-                    discount: monthlyDiscountAmount + installationDiscountAmount,
-                    status: "pending_client", valid_until: validUntilIso,
-                    public_token: publicToken,
+                    agent_id: user?.id,
+                    agent_name: user?.email || null,
+                    intent_id: intentId,
+                    customer_name: customerName,
+                    customer_email: draft.customer.email,
+                    customer_phone: draft.customer.phone || null,
+                    customer_address: draft.customer.address || null,
+                    services: draft.services as any,
+                    equipment: draft.equipment as any,
+                    discount: { monthly: monthlyDiscountAmount, installation: installationDiscountAmount } as any,
+                    subtotal, tps, tvq, total,
+                    payment_url: payerUrl,
+                    status: "pending_client",
                   };
                   const { data: row, error } = await supabase.from("field_submissions" as any).insert(insertPayload).select("id").maybeSingle();
                   if (error) throw error;
-                  const quoteId = (row as any)?.id || publicToken;
+                  const quoteId = (row as any)?.id || intentId;
                   const payload = {
                     event_key: `quote_client_${quoteId}_${Date.now()}`,
                     to_email: draft.customer.email,
                     template_key: "quote_client",
                     template_vars: {
-                      client_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim() || "Client",
+                      client_name: customerName,
                       first_name: draft.customer.first_name || "Client",
-                      quote_number: quoteId, quote_id: quoteId, public_token: publicToken,
+                      quote_number: quoteId, quote_id: quoteId,
+                      complete_url: payerUrl,
+                      payment_url: payerUrl,
                       agent_name: user?.email || "votre conseiller Nivra",
-                      services_summary: services, equipment_summary: equipment,
+                      services_summary: servicesSummary, equipment_summary: equipmentSummary,
                       subtotal: subtotal.toFixed(2), discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
                       activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
                       valid_until: validUntilLabel,
