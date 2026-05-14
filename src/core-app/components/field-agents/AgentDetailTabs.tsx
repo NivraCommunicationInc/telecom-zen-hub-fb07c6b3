@@ -289,6 +289,50 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
       const { error: e2 } = await supabase.from("profiles").update(profileUpdate as any).eq("user_id", userId as any);
       if (e2) throw e2;
 
+      // 2b) Territory assignment — create territory if needed, end prior, insert new
+      const territoryName = (form.territory || "").trim();
+      if (territoryName) {
+        const { data: existingTerr } = await supabase
+          .from("field_territories")
+          .select("id, name")
+          .ilike("name", territoryName)
+          .maybeSingle();
+        let territoryId = existingTerr?.id as string | undefined;
+        if (!territoryId) {
+          const code = territoryName.toUpperCase().replace(/[^A-Z0-9]+/g, "_").slice(0, 24) || `TERR_${Date.now()}`;
+          const { data: created, error: ctErr } = await supabase
+            .from("field_territories")
+            .insert({ name: territoryName, territory_code: code, status: "active" } as any)
+            .select("id")
+            .single();
+          if (ctErr) throw ctErr;
+          territoryId = created!.id as string;
+        }
+        // End any active prior assignment for this user
+        await supabase
+          .from("field_territory_assignments")
+          .update({ status: "ended", assigned_to: new Date().toISOString() } as any)
+          .eq("user_id", userId as any)
+          .eq("status", "active");
+        // Insert new active assignment (skip if already active on this territory)
+        const { data: stillActive } = await supabase
+          .from("field_territory_assignments")
+          .select("id")
+          .eq("user_id", userId as any)
+          .eq("territory_id", territoryId as any)
+          .eq("status", "active")
+          .maybeSingle();
+        if (!stillActive) {
+          const { error: aErr } = await supabase.from("field_territory_assignments").insert({
+            user_id: userId,
+            territory_id: territoryId,
+            status: "active",
+            assigned_from: new Date().toISOString(),
+          } as any);
+          if (aErr) throw aErr;
+        }
+      }
+
       // 3) sales_targets upsert per service for current month
       const targetsRows = [
         { service_type: "internet", target_count: parseInt(form.target_internet) || 0, target_amount: 0 },
