@@ -8162,6 +8162,86 @@ export type Database = {
         }
         Relationships: []
       }
+      field_submissions: {
+        Row: {
+          agent_id: string
+          agent_name: string | null
+          created_at: string
+          customer_address: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          discount: Json | null
+          email_sent_count: number
+          equipment: Json | null
+          expires_at: string
+          id: string
+          intent_id: string | null
+          last_email_sent_at: string | null
+          payment_url: string
+          services: Json
+          status: string
+          subtotal: number | null
+          total: number
+          tps: number | null
+          tvq: number | null
+        }
+        Insert: {
+          agent_id: string
+          agent_name?: string | null
+          created_at?: string
+          customer_address?: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          discount?: Json | null
+          email_sent_count?: number
+          equipment?: Json | null
+          expires_at?: string
+          id?: string
+          intent_id?: string | null
+          last_email_sent_at?: string | null
+          payment_url: string
+          services?: Json
+          status?: string
+          subtotal?: number | null
+          total: number
+          tps?: number | null
+          tvq?: number | null
+        }
+        Update: {
+          agent_id?: string
+          agent_name?: string | null
+          created_at?: string
+          customer_address?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          discount?: Json | null
+          email_sent_count?: number
+          equipment?: Json | null
+          expires_at?: string
+          id?: string
+          intent_id?: string | null
+          last_email_sent_at?: string | null
+          payment_url?: string
+          services?: Json
+          status?: string
+          subtotal?: number | null
+          total?: number
+          tps?: number | null
+          tvq?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_submissions_intent_id_fkey"
+            columns: ["intent_id"]
+            isOneToOne: false
+            referencedRelation: "field_payment_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_territories: {
         Row: {
           city: string | null
