@@ -10,7 +10,7 @@
  * Submission still goes through the existing field-order-engine; we simply
  * map the new payment method enum to the engine's contract.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { submitNewSale } from "@/field-app/lib/fieldServices";
@@ -35,6 +35,7 @@ import { computeDiscountBreakdown } from "@/field-app/lib/fieldDiscountMath";
 
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
+const DRAFT_KEY = "field_sale_draft";
 
 export default function FieldNewSale() {
   const navigate = useNavigate();
