@@ -189,7 +189,7 @@ export default function MarketingAIConfigPage() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Via Lovable AI Gateway — aucune clé API requise.
+              Via Nivra AI Gateway — aucune clé API requise.
             </p>
           </div>
 

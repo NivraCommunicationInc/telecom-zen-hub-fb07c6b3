@@ -152,7 +152,7 @@ const MarketingSettingsPage = () => {
             <div className="text-sm text-white">
               <div className="font-medium mb-1">Clé API (sécurisée)</div>
               <p className="text-[#888] text-xs">
-                <code className="text-[#7C3AED]">OPENPHONE_API_KEY</code> est stockée dans les secrets backend. Pour la mettre à jour, utilisez la gestion des secrets Lovable Cloud.{" "}
+                <code className="text-[#7C3AED]">OPENPHONE_API_KEY</code> est stockée dans les secrets backend. Pour la mettre à jour, utilisez la gestion des secrets Nivra Cloud.{" "}
                 <a href="https://www.openphone.com/app/settings/api" target="_blank" rel="noreferrer"
                   className="text-[#7C3AED] hover:underline inline-flex items-center gap-1">
                   Obtenir une clé <ExternalLink className="h-3 w-3" />
