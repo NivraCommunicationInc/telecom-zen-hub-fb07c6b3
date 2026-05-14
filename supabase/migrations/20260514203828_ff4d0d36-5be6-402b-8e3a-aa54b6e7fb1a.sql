@@ -1,0 +1,1 @@
+CREATE POLICY "Field sales can insert email queue" ON public.email_queue FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'field_sales'::app_role));
