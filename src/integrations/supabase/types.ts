@@ -20334,7 +20334,12 @@ export type Database = {
       }
       fn_calculate_field_commission: {
         Args: { p_agent_id: string; p_order_id: string }
-        Returns: number
+        Returns: {
+          equipment_commission: number
+          forfait_commission: number
+          forfait_count: number
+          total_commission: number
+        }[]
       }
       fn_check_order_completeness: {
         Args: { p_order_id: string }
