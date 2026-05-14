@@ -279,7 +279,7 @@ const ClientDocumentUpload = () => {
         {/* Header */}
         <div className="text-center">
           <img 
-            src="/lovable-uploads/3c596b71-aa59-43f0-ac7e-8b87a060ad02.png" 
+            src="/icons/nivra-192.png" 
             alt="Nivra Telecom" 
             className="h-10 mx-auto mb-4"
           />
