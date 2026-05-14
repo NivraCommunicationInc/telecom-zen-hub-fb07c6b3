@@ -207,7 +207,9 @@ export function BonusGridTable({
       )}
 
       <p className={s.note}>
-        ℹ️ Calculé automatiquement le dernier jeudi de chaque mois.
+        ℹ️ Calculé automatiquement le dernier jeudi de chaque mois.<br />
+        ℹ️ Bonus calculé sur les forfaits uniquement (équipement exclu).<br />
+        ℹ️ 1 commande = 1 vente pour le calcul du bonus.
       </p>
     </div>
   );
