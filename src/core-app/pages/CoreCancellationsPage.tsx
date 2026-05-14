@@ -155,9 +155,47 @@ export default function CoreCancellationsPage() {
       const effective: string = (fields.effective_date as string) || new Date().toISOString();
       const serviceType: string = (req.service_type ?? "").toString().toLowerCase();
 
-      // STEP 2 — Deactivate billing subscription(s) tied to the account (via orders)
+      // Parse refund metadata stored in staff_notes by the dialogs
+      let refundMode: "none" | "full" | "partial" | "credit" = "none";
+      let refundAmount = 0;
       try {
-        if (accountId) {
+        const parsed = req.staff_notes ? JSON.parse(req.staff_notes) : null;
+        if (parsed && typeof parsed === "object") {
+          refundMode = (parsed.refund_mode ?? "none") as any;
+          refundAmount = Number(parsed.refund_amount ?? parsed.refund_amount_per_sub ?? 0) || 0;
+        }
+      } catch { /* legacy plain-text notes — ignore */ }
+
+      // STEP 2 — Deactivate billing subscription(s)
+      // Prefer targeted update by service_identifier (set by the dialogs);
+      // fall back to all subs tied to the account via orders.
+      try {
+        let cancelledSubscriptionId: string | null = null;
+        let paypalSubscriptionId: string | null = null;
+
+        if (req.service_identifier) {
+          const { data: subRow } = await supabase
+            .from("billing_subscriptions")
+            .select("id, paypal_subscription_id, plan_name")
+            .eq("id", req.service_identifier)
+            .maybeSingle();
+          if (subRow) {
+            cancelledSubscriptionId = subRow.id;
+            paypalSubscriptionId = subRow.paypal_subscription_id ?? null;
+            const { error: subErr } = await supabase
+              .from("billing_subscriptions")
+              .update({
+                status: "cancelled",
+                stripe_canceled_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", subRow.id);
+            if (subErr) throw subErr;
+            result._sideEffects.subscription = true;
+          }
+        }
+
+        if (!cancelledSubscriptionId && accountId) {
           const { data: orderRows } = await supabase
             .from("orders")
             .select("id")
@@ -175,6 +213,46 @@ export default function CoreCancellationsPage() {
               .eq("status", "active");
             if (subErr) throw subErr;
             result._sideEffects.subscription = true;
+          }
+        }
+
+        // STEP 2a — PayPal: cancel recurring binding
+        if (paypalSubscriptionId && cancelledSubscriptionId) {
+          try {
+            await supabase.functions.invoke("paypal-cancel-subscription", {
+              body: {
+                subscription_id: cancelledSubscriptionId,
+                account_id: accountId,
+                reason: req.reason_code || "service_cancelled",
+              },
+            });
+          } catch (ppErr: any) {
+            console.error("[CoreCancellations] paypal-cancel-subscription failed:", ppErr?.message ?? ppErr);
+          }
+        }
+
+        // STEP 2b — PayPal refund (if requested)
+        if (refundMode !== "none" && refundMode !== "credit" && refundAmount > 0 && accountId) {
+          try {
+            const { data: lastPayment } = await supabase
+              .from("billing_payments")
+              .select("id, status")
+              .eq("customer_id", (await supabase.from("billing_customers").select("id").eq("account_id", accountId as any).maybeSingle()).data?.id ?? "")
+              .eq("status", "captured")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (lastPayment?.id) {
+              await supabase.functions.invoke("paypal-refund", {
+                body: {
+                  payment_id: lastPayment.id,
+                  amount: refundAmount,
+                  reason: `Service cancellation — ${req.reason_code ?? "n/a"}`,
+                },
+              });
+            }
+          } catch (refErr: any) {
+            console.error("[CoreCancellations] paypal-refund failed:", refErr?.message ?? refErr);
           }
         }
       } catch (e: any) {
