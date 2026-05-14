@@ -355,6 +355,7 @@ const CoreAppLayout = () => {
 
   return (
     <div className={cn("internal-ui min-h-screen flex bg-background text-foreground", themeClass, isDarkTheme && "core-console")}>
+      <Helmet><title>Nivra Core — Administration</title></Helmet>
       {/* ═══ SIDEBAR ═══ */}
         <aside
           className={cn(
