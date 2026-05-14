@@ -51,6 +51,45 @@ export default function FieldNewSale() {
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
   const { data: fieldConfig } = useFieldConfig();
 
+  // ── Fetch agent full name (for emails) ──
+  const [agentFullName, setAgentFullName] = useState<string>("");
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data: agentProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setAgentFullName(((agentProfile as any)?.full_name as string) || "");
+    })();
+  }, [user?.id]);
+  const agentName = agentFullName || user?.email || "votre conseiller Nivra";
+
+  // ── Email payload helpers (services / equipment / discount) ──
+  const buildServicesList = useCallback((d: FieldSaleDraft) => {
+    const list = (d.services || [])
+      .filter((s: any) => s && s.name)
+      .map((s: any) => `${s.name} — ${(s.monthlyPrice ?? s.price ?? 0)}$/mois`)
+      .join(", ");
+    return list || "Aucun forfait";
+  }, []);
+  const buildEquipmentList = useCallback((d: FieldSaleDraft) => {
+    const list = (d.equipment || [])
+      .filter((e: any) => e && e.name)
+      .map((e: any) => `${e.name}${e.quantity > 1 ? ` x${e.quantity}` : ""} — ${(e.price ?? e.unit_price ?? 0)}$`)
+      .join(", ");
+    return list || "Aucun équipement";
+  }, []);
+  const buildDiscountLabel = useCallback((d: FieldSaleDraft): string | null => {
+    const disc: any = d.discount;
+    if (!disc) return null;
+    const dur = disc.duration_months ? ` — ${disc.duration_months} mois` : "";
+    const val = Number(disc.value || 0);
+    const unit = disc.type === "percentage" ? "%" : "$/mois";
+    return `${disc.name}${dur} — ${val}${unit}`;
+  }, []);
+
   const goTo = useCallback((step: FieldSaleStep) => {
     setDraft((d) => ({ ...d, step }));
   }, []);
@@ -119,7 +158,7 @@ export default function FieldNewSale() {
       // 1) Save the quote (no order/invoice yet)
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({
-        draft, agentName: user?.email || "Agent terrain", activationFee,
+        draft, agentName, activationFee,
         subtotal, tps, tvq, total,
       });
 
@@ -141,11 +180,13 @@ export default function FieldNewSale() {
       // 3) Email mode — enqueue Violet Bold "payment_link_employee" template (with retry)
       if (draft.payment.method === "paypal_email") {
         setSubmitMessage("Envoi du lien au client…");
-        const servicesList = draft.services.map((s) => s.name).filter(Boolean).join(", ") || "Services Nivra";
-        const equipmentList = (draft.equipment || []).map((e: any) => e?.name).filter(Boolean).join(", ") || "Aucun";
+        const servicesList = buildServicesList(draft);
+        const equipmentList = buildEquipmentList(draft);
+        const discountLabel = buildDiscountLabel(draft);
         const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
         const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
         const discountAmount = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
+        const orderNumber = `SUB-${String(data.intent_id).slice(0, 8).toUpperCase()}`;
         const emailPayload = {
           event_key: `payment_link_employee_${data.intent_id}`,
           to_email: draft.customer.email,
@@ -154,11 +195,12 @@ export default function FieldNewSale() {
             client_name: fullName,
             client_email: draft.customer.email,
             first_name: draft.customer.first_name || "Client",
-            order_number: data.intent_id,
+            order_number: orderNumber,
             services: servicesList,
             summary: servicesList,
             equipment: equipmentList,
             discount: discountAmount.toFixed(2),
+            discount_label: discountLabel,
             subtotal: subtotal.toFixed(2),
             tps: tps.toFixed(2),
             tvq: tvq.toFixed(2),
@@ -166,7 +208,7 @@ export default function FieldNewSale() {
             approval_url: approvalUrl,
             payment_url: `https://nivra-telecom.ca/payer/${data.intent_id}`,
             valid_until: validUntil,
-            agent_name: user?.email || "votre conseiller Nivra",
+            agent_name: agentName,
           },
           status: "queued",
         };
@@ -225,7 +267,7 @@ export default function FieldNewSale() {
     try {
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({
-        draft, agentName: user?.email || "Agent terrain", activationFee,
+        draft, agentName, activationFee,
         subtotal, tps, tvq, total,
       });
 
@@ -390,19 +432,25 @@ export default function FieldNewSale() {
                 if (!draft.payment.paypalApprovalUrl || !draft.customer.email || !draft.payment.fieldOrderId) {
                   toast.error("Aucun lien à renvoyer."); return;
                 }
-                const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
+                const summary = buildServicesList(draft);
+                const equipmentList = buildEquipmentList(draft);
+                const discountLabel = buildDiscountLabel(draft);
                 const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
                 const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                const orderNumber = `SUB-${String(draft.payment.fieldOrderId).slice(0, 8).toUpperCase()}`;
                 const payload = {
                   event_key: `field_payment_link_resend_${draft.payment.fieldOrderId}_${Date.now()}`,
                   to_email: draft.customer.email,
                   template_key: "field_payment_link",
                   template_vars: {
                     client_name: fullName, first_name: draft.customer.first_name || "Client",
-                    order_number: draft.payment.fieldOrderId, total: total.toFixed(2),
+                    order_number: orderNumber, total: total.toFixed(2),
                     approval_url: draft.payment.paypalApprovalUrl, payment_url: `https://nivra-telecom.ca/payer/${draft.payment.fieldOrderId}`,
-                    summary, services: summary, valid_until: validUntil,
-                    agent_name: user?.email || "votre conseiller Nivra",
+                    summary, services: summary, equipment: equipmentList,
+                    discount_label: discountLabel,
+                    subtotal: subtotal.toFixed(2), tps: tps.toFixed(2), tvq: tvq.toFixed(2),
+                    valid_until: validUntil,
+                    agent_name: agentName,
                   },
                   status: "queued",
                 };
@@ -482,12 +530,13 @@ export default function FieldNewSale() {
                 const validUntilDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
                 const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
                 const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
-                const servicesSummary = draft.services.map((s) => `${s.name} (${s.monthlyPrice.toFixed(2)}$/mois)`).join(", ") || "—";
-                const equipmentSummary = draft.equipment.map((e) => `${e.name} x${e.quantity} (${(e.price * e.quantity).toFixed(2)}$)`).join(", ") || "—";
+                const servicesSummary = buildServicesList(draft);
+                const equipmentSummary = buildEquipmentList(draft);
+                const discountLabel = buildDiscountLabel(draft);
                 try {
                   const insertPayload: any = {
                     agent_id: user?.id,
-                    agent_name: user?.email || null,
+                    agent_name: agentName,
                     intent_id: intentId,
                     customer_name: customerName,
                     customer_email: draft.customer.email,
@@ -503,6 +552,7 @@ export default function FieldNewSale() {
                   const { data: row, error } = await supabase.from("field_submissions" as any).insert(insertPayload).select("id").maybeSingle();
                   if (error) throw error;
                   const quoteId = (row as any)?.id || intentId;
+                  const quoteNumber = `SUB-${String(quoteId).slice(0, 8).toUpperCase()}`;
                   const payload = {
                     event_key: `quote_client_${quoteId}_${Date.now()}`,
                     to_email: draft.customer.email,
@@ -510,12 +560,16 @@ export default function FieldNewSale() {
                     template_vars: {
                       client_name: customerName,
                       first_name: draft.customer.first_name || "Client",
-                      quote_number: quoteId, quote_id: quoteId,
+                      quote_number: quoteNumber, quote_id: quoteId,
+                      order_number: quoteNumber,
                       complete_url: payerUrl,
                       payment_url: payerUrl,
-                      agent_name: user?.email || "votre conseiller Nivra",
+                      agent_name: agentName,
                       services_summary: servicesSummary, equipment_summary: equipmentSummary,
-                      subtotal: subtotal.toFixed(2), discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
+                      subtotal: subtotal.toFixed(2),
+                      discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
+                      discount_label: discountLabel,
+                      tps: tps.toFixed(2), tvq: tvq.toFixed(2),
                       activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
                       valid_until: validUntilLabel,
                     },
