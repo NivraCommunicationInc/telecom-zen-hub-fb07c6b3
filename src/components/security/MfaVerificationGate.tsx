@@ -20,6 +20,7 @@ export default function MfaVerificationGate({ factorId, onVerified, onLogout }: 
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const handleVerify = async () => {
     if (code.length !== 6) return;
@@ -32,11 +33,11 @@ export default function MfaVerificationGate({ factorId, onVerified, onLogout }: 
         await auditAuth("mfa_verified", { method: "totp" });
         onVerified();
       } else {
-        setError("Code invalide. Vérifiez l'heure de votre appareil.");
+        setError("Code invalide. Vérifiez l'heure de votre appareil et réessayez.");
         setCode("");
       }
     } catch {
-      setError("Code invalide. Vérifiez l'heure de votre appareil.");
+      setError("Code invalide. Vérifiez l'heure de votre appareil et réessayez.");
       setCode("");
     } finally {
       setVerifying(false);
@@ -89,6 +90,15 @@ export default function MfaVerificationGate({ factorId, onVerified, onLogout }: 
           </Button>
 
           <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            className="w-full text-center text-xs text-emerald-400/80 hover:text-emerald-300 transition-colors mt-3 inline-flex items-center justify-center gap-1.5"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            Problème avec le code 2FA ?
+          </button>
+
+          <button
             onClick={onLogout}
             className="w-full text-center text-xs text-[hsl(220,10%,35%)] hover:text-red-400 transition-colors mt-2"
           >
@@ -96,6 +106,22 @@ export default function MfaVerificationGate({ factorId, onVerified, onLogout }: 
           </button>
         </div>
       </div>
+
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="bg-[hsl(220,20%,10%)] border-[hsl(220,15%,18%)] text-white">
+          <DialogHeader>
+            <DialogTitle>Problème avec le code 2FA</DialogTitle>
+            <DialogDescription className="text-[hsl(220,10%,55%)]">
+              Le code TOTP dépend de l'heure exacte de votre appareil.
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="space-y-3 text-sm text-[hsl(220,10%,75%)] list-decimal list-inside">
+            <li>Synchronisez l'horloge de votre téléphone (Réglages → Date et heure → Automatique).</li>
+            <li>Attendez le prochain code (un nouveau code apparaît toutes les 30 secondes).</li>
+            <li>Si le problème persiste, contactez : <a href="mailto:support@nivra-telecom.ca" className="text-emerald-400 hover:underline">support@nivra-telecom.ca</a></li>
+          </ol>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
