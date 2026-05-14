@@ -412,6 +412,107 @@ export default function FieldNewSale() {
                     paypalApprovalUrl: null, paypalOrderId: null, fieldOrderId: null, invoiceId: null, coreOrderId: null },
                 }));
               }}
+              onCancelTransaction={async (reason: string) => {
+                const intentId = draft.payment.fieldOrderId;
+                const orderId = draft.payment.coreOrderId;
+                try {
+                  if (intentId) {
+                    await supabase.from("field_payment_intents" as any)
+                      .update({ status: "cancelled", cancelled_reason: reason } as any).eq("id", intentId);
+                  }
+                  if (orderId) {
+                    await supabase.from("orders").update({ status: "cancelled" } as any).eq("id", orderId);
+                  }
+                  if (draft.customer.email) {
+                    const payload = {
+                      event_key: `tx_cancelled_${intentId || orderId || Date.now()}`,
+                      to_email: draft.customer.email,
+                      template_key: "transaction_cancelled",
+                      template_vars: {
+                        client_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim() || "Client",
+                        first_name: draft.customer.first_name || "Client",
+                        order_number: intentId || orderId || "—",
+                        total: total.toFixed(2),
+                        reason,
+                      },
+                      status: "queued",
+                    };
+                    for (let i = 1; i <= 3; i++) {
+                      const { error } = await supabase.from("email_queue").insert(payload as any);
+                      if (!error) break;
+                      if (i < 3) await new Promise((r) => setTimeout(r, 2000));
+                    }
+                  }
+                  toast.success("Transaction annulée. Client informé.");
+                  navigate(fieldPath("/dashboard"));
+                } catch (e: any) {
+                  logger.warn("Cancel transaction failed", e);
+                  toast.error(e?.message || "Échec de l'annulation");
+                }
+              }}
+              onHoldTransaction={async () => {
+                const orderId = draft.payment.coreOrderId;
+                try {
+                  if (orderId) {
+                    await supabase.from("orders").update({ status: "on_hold" } as any).eq("id", orderId);
+                  }
+                  toast.success("Commande mise en attente. Vous pouvez la reprendre depuis Mes commandes.");
+                  navigate(fieldPath("/dashboard"));
+                } catch (e: any) {
+                  logger.warn("Hold transaction failed", e);
+                  toast.error(e?.message || "Échec de la mise en attente");
+                }
+              }}
+              onConvertToQuote={async () => {
+                if (!draft.customer.email) { toast.error("Email client requis pour soumission."); return; }
+                const validUntilDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                const validUntilIso = validUntilDate.toISOString();
+                const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
+                const services = draft.services.map((s) => `${s.name} (${s.monthlyPrice.toFixed(2)}$/mois)`).join(", ") || "—";
+                const equipment = draft.equipment.map((e) => `${e.name} x${e.quantity} (${(e.price * e.quantity).toFixed(2)}$)`).join(", ") || "—";
+                try {
+                  const publicToken = crypto.randomUUID();
+                  const insertPayload: any = {
+                    agent_id: user?.id, customer_email: draft.customer.email,
+                    customer_first_name: draft.customer.first_name, customer_last_name: draft.customer.last_name,
+                    customer_phone: draft.customer.phone, customer_address: draft.customer.address,
+                    services_summary: services, equipment_summary: equipment,
+                    subtotal, tps, tvq, total, activation_fee: activationFee,
+                    discount: monthlyDiscountAmount + installationDiscountAmount,
+                    status: "pending_client", valid_until: validUntilIso,
+                    public_token: publicToken,
+                  };
+                  const { data: row, error } = await supabase.from("field_submissions" as any).insert(insertPayload).select("id").maybeSingle();
+                  if (error) throw error;
+                  const quoteId = (row as any)?.id || publicToken;
+                  const payload = {
+                    event_key: `quote_client_${quoteId}_${Date.now()}`,
+                    to_email: draft.customer.email,
+                    template_key: "quote_client",
+                    template_vars: {
+                      client_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim() || "Client",
+                      first_name: draft.customer.first_name || "Client",
+                      quote_number: quoteId, quote_id: quoteId, public_token: publicToken,
+                      agent_name: user?.email || "votre conseiller Nivra",
+                      services_summary: services, equipment_summary: equipment,
+                      subtotal: subtotal.toFixed(2), discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
+                      activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
+                      valid_until: validUntilLabel,
+                    },
+                    status: "queued",
+                  };
+                  for (let i = 1; i <= 3; i++) {
+                    const { error: e } = await supabase.from("email_queue").insert(payload as any);
+                    if (!e) break;
+                    if (i < 3) await new Promise((r) => setTimeout(r, 2000));
+                  }
+                  toast.success("Soumission envoyée au client (valide 7 jours).");
+                  navigate(fieldPath("/dashboard"));
+                } catch (e: any) {
+                  logger.warn("Convert to quote failed", e);
+                  toast.error(e?.message || "Échec de la conversion en soumission");
+                }
+              }}
             />
           )}
         </div>
