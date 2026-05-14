@@ -395,6 +395,18 @@ const CoreClientProfile = () => {
           <button onClick={() => navigate(corePath("/appointments"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-pink-500/20 text-[10px] font-medium text-pink-400 hover:bg-pink-500/10 min-w-[80px]">
             <Calendar className="h-4 w-4" /> RDV
           </button>
+          <button
+            onClick={() => setCancelOpen(true)}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-orange-500/20 text-[10px] font-medium text-orange-400 hover:bg-orange-500/10 min-w-[80px]"
+          >
+            <FileX className="h-4 w-4" /> Résilier
+          </button>
+          <button
+            onClick={() => setCloseAccountOpen(true)}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-red-500/20 text-[10px] font-medium text-red-400 hover:bg-red-500/10 min-w-[80px]"
+          >
+            <UserX className="h-4 w-4" /> Fermer compte
+          </button>
           <ImpersonateButton
             clientId={clientId!}
             clientEmail={profile.email}
@@ -770,6 +782,24 @@ const CoreClientProfile = () => {
 
       {/* ═══ NOTES PRIVÉES (admin only) ═══ */}
       <ClientAdminNotesSection clientId={clientId} />
+
+      {/* ═══ DIALOGS (résiliation / fermeture) ═══ */}
+      <CancellationDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        clientUserId={clientId!}
+        accountId={account?.id ?? null}
+        subscriptions={(subscriptions as any[]).filter((s: any) => s.status === "active")}
+      />
+      <AccountClosureDialog
+        open={closeAccountOpen}
+        onOpenChange={setCloseAccountOpen}
+        clientUserId={clientId!}
+        clientEmail={profile.email ?? null}
+        clientName={displayName}
+        accountId={account?.id ?? null}
+        subscriptions={(subscriptions as any[]).filter((s: any) => s.status === "active")}
+      />
     </div>
   );
 };
