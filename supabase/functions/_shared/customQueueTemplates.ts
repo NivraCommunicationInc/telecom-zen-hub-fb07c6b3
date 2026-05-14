@@ -1640,10 +1640,24 @@ export function renderQueueTemplate(
     case "payment_link_employee":
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
-      const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || "#");
+      const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || v.payment_url || "#");
       const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum);
       const agentName = esc(v.agent_name || "votre conseiller Nivra");
-      const summary = esc(v.summary || v.plan_name || v.SERVICES_LIST || "Services Nivra");
+      const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Services Nivra");
+      const equipment = esc(v.equipment || "Aucun");
+      const validUntil = esc(v.valid_until || "24 heures");
+      const rows: Array<[string, string]> = [
+        ["Commande", `#${String(orderRef).replace(/^#/, "")}`],
+        ["Services", String(summary)],
+        ["Équipement", String(equipment)],
+      ];
+      if (v.discount && Number(v.discount) > 0) rows.push(["Rabais appliqué", `-${money(v.discount)}`]);
+      if (v.subtotal) rows.push(["Sous-total", money(v.subtotal)]);
+      if (v.tps) rows.push(["TPS (5%)", money(v.tps)]);
+      if (v.tvq) rows.push(["TVQ (9,975%)", money(v.tvq)]);
+      rows.push(["Total à payer", String(total)]);
+      rows.push(["Méthode", "PayPal"]);
+      rows.push(["Lien valide jusqu'au", String(validUntil)]);
       return {
         subject: `Votre lien de paiement PayPal — ${total}`,
         html: shell({
@@ -1655,12 +1669,7 @@ export function renderQueueTemplate(
           greeting,
           bodyText: `${agentName} vient de préparer votre commande Nivra. Pour la finaliser, cliquez sur le bouton ci-dessous pour payer en toute sécurité avec PayPal (carte de crédit acceptée, aucun compte PayPal requis).`,
           cardTitle: "Récapitulatif",
-          cardRows: [
-            ["Commande", `#${String(orderRef).replace(/^#/, "")}`],
-            ["Services", String(summary)],
-            ["Total à payer", String(total)],
-            ["Méthode", "PayPal"],
-          ],
+          cardRows: rows,
           ctaPrimaryUrl: approvalUrl,
           ctaPrimaryLabel: "Payer maintenant avec PayPal",
           helpVariant: "warning",
