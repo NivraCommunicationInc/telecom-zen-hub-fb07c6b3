@@ -31,11 +31,12 @@ export default function MfaVerificationGate({ factorId, onVerified, onLogout }: 
         await auditAuth("mfa_verified", { method: "totp" });
         onVerified();
       } else {
-        setError("Code invalide. Veuillez réessayer.");
+        setError("Code invalide. Vérifiez l'heure de votre appareil.");
         setCode("");
       }
     } catch {
-      setError("Erreur de vérification.");
+      setError("Code invalide. Vérifiez l'heure de votre appareil.");
+      setCode("");
     } finally {
       setVerifying(false);
     }
