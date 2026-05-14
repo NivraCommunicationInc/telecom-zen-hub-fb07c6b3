@@ -2162,6 +2162,72 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // SERVICE CANCELLED — Confirmation après approbation
+    // ===================================================================
+    case "service_cancelled": {
+      const serviceName = esc(v.service_name || v.plan_name || "Service Nivra");
+      const cancellationDate = fmtDate(v.cancellation_date || v.effective_date || new Date().toISOString());
+      const refundRaw = Number(v.refund_amount ?? 0);
+      const refundLine = refundRaw > 0 ? money(refundRaw) : "Aucun remboursement";
+      return {
+        subject: `Confirmation d'annulation — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre service ${serviceName} a été annulé.`,
+          badge: "SERVICE ANNULÉ",
+          heroTitle: "Votre service a été annulé",
+          heroSub: "Nous regrettons de vous voir partir.",
+          icon: "x",
+          greeting,
+          bodyText: `Votre demande d'annulation a été traitée. Voici les détails ci-dessous.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Service", String(serviceName)],
+            ["Date d'annulation", String(cancellationDate)],
+            ["Remboursement", String(refundLine)],
+            ["Prochaines étapes", "Aucune action requise. Conservez ce courriel pour vos dossiers."],
+          ],
+          cardEmphasizeLast: false,
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
+          afterCardText: refundRaw > 0
+            ? `Le remboursement sera traité sous 5 à 10 jours ouvrables.`
+            : undefined,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ACCOUNT CLOSURE REQUESTED — Demande de fermeture de compte
+    // ===================================================================
+    case "account_closure_requested": {
+      const reason = esc(v.reason || "Demande du client");
+      const refundRaw = Number(v.refund_amount ?? 0);
+      const subsCount = Number(v.subscriptions_count ?? 0);
+      return {
+        subject: `Demande de fermeture de compte Nivra`,
+        html: shell({
+          preheader: `Votre demande de fermeture de compte a été reçue.`,
+          badge: "FERMETURE DE COMPTE",
+          heroTitle: "Votre demande a été reçue",
+          heroSub: "Traitement sous 3 à 5 jours ouvrables.",
+          icon: "doc",
+          greeting,
+          bodyText: `Nous avons bien reçu votre demande de fermeture de compte. Notre équipe la traitera dans les plus brefs délais.`,
+          cardTitle: "Récapitulatif",
+          cardRows: [
+            ["Raison", String(reason)],
+            ["Services à résilier", String(subsCount || "—")],
+            ["Remboursement estimé", refundRaw > 0 ? money(refundRaw) : "Aucun"],
+            ["Délai de traitement", "3 à 5 jours ouvrables"],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+          afterCardText: `Si vous avez des questions, écrivez-nous à <strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong>.`,
+        }),
+      };
+    }
+
     default:
       return null;
   }

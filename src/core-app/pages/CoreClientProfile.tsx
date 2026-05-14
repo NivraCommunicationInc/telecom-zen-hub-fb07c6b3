@@ -2,8 +2,10 @@
  * CoreClientProfile — Full CRM client profile for Nivra Core.
  * Quick actions bar + data blocks: subscriptions, equipment, invoices, payments, tickets, notes, timeline.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { CancellationDialog } from "@/core-app/components/account-actions/CancellationDialog";
+import { AccountClosureDialog } from "@/core-app/components/account-actions/AccountClosureDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
@@ -16,6 +18,7 @@ import {
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
   Calendar, DollarSign, Wrench, TicketIcon, Download, FileSignature,
+  FileX, UserX,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -50,7 +53,8 @@ const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [closeAccountOpen, setCloseAccountOpen] = useState(false);
   // Realtime invalidation across all client-related tables (FIX 3)
   useEffect(() => {
     if (!clientId) return;
@@ -391,6 +395,18 @@ const CoreClientProfile = () => {
           </button>
           <button onClick={() => navigate(corePath("/appointments"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-pink-500/20 text-[10px] font-medium text-pink-400 hover:bg-pink-500/10 min-w-[80px]">
             <Calendar className="h-4 w-4" /> RDV
+          </button>
+          <button
+            onClick={() => setCancelOpen(true)}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-orange-500/20 text-[10px] font-medium text-orange-400 hover:bg-orange-500/10 min-w-[80px]"
+          >
+            <FileX className="h-4 w-4" /> Résilier
+          </button>
+          <button
+            onClick={() => setCloseAccountOpen(true)}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-red-500/20 text-[10px] font-medium text-red-400 hover:bg-red-500/10 min-w-[80px]"
+          >
+            <UserX className="h-4 w-4" /> Fermer compte
           </button>
           <ImpersonateButton
             clientId={clientId!}
@@ -767,6 +783,24 @@ const CoreClientProfile = () => {
 
       {/* ═══ NOTES PRIVÉES (admin only) ═══ */}
       <ClientAdminNotesSection clientId={clientId} />
+
+      {/* ═══ DIALOGS (résiliation / fermeture) ═══ */}
+      <CancellationDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        clientUserId={clientId!}
+        accountId={account?.id ?? null}
+        subscriptions={(subscriptions as any[]).filter((s: any) => s.status === "active")}
+      />
+      <AccountClosureDialog
+        open={closeAccountOpen}
+        onOpenChange={setCloseAccountOpen}
+        clientUserId={clientId!}
+        clientEmail={profile.email ?? null}
+        clientName={displayName}
+        accountId={account?.id ?? null}
+        subscriptions={(subscriptions as any[]).filter((s: any) => s.status === "active")}
+      />
     </div>
   );
 };
