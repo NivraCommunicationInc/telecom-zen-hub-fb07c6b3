@@ -73,17 +73,23 @@ export function formatMoney(amount: unknown): string {
  * Never returns "---", "Invalid Date", "undefined", or empty.
  */
 export function fmtDate(d: unknown): string {
-  if (d === null || d === undefined || d === "") return "Date non disponible";
+  if (d === null || d === undefined || d === "") return "Bientôt";
+  const s = String(d).trim();
+  if (!s) return "Bientôt";
+  // Already a human-readable / pre-formatted string (contains French month
+  // names, weekday names, or any non-ISO words) — return as-is.
+  const FRENCH_TOKENS = /(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|jours?|heures?|à compter)/i;
+  if (FRENCH_TOKENS.test(s)) return s;
   try {
-    const date = new Date(String(d));
-    if (isNaN(date.getTime())) return "Date non disponible";
+    const date = new Date(s);
+    if (isNaN(date.getTime())) return s; // unparseable → return original string, never "Date non disponible"
     return date.toLocaleDateString("fr-CA", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
   } catch {
-    return "Date non disponible";
+    return s;
   }
 }
 
@@ -1641,12 +1647,12 @@ export function renderQueueTemplate(
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
       const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || v.payment_url || "#");
-      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum);
-      const agentName = esc(v.agent_name || "votre conseiller Nivra");
-      const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Services Nivra");
-      const equipment = esc(v.equipment || "Aucun");
-      const validUntil = esc(v.valid_until || "24 heures");
-      const discountLabel = v.discount_label ? esc(v.discount_label) : null;
+      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum || `SUB-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
+      const agentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Voir détails de la commande");
+      const equipment = esc(v.equipment || "Aucun équipement");
+      const validUntil = esc(v.valid_until || "24 heures à compter de ce courriel");
+      const discountLabel = v.discount_label ? esc(String(v.discount_label)) : null;
       const rows: Array<[string, string]> = [
         ["Numéro de soumission", `#${String(orderRef).replace(/^#/, "")}`],
         ["Forfaits", String(summary)],
@@ -1966,24 +1972,31 @@ export function renderQueueTemplate(
 
     case "quote_client":
     case "field_quote": {
-      const agentName = esc(v.agent_name || v.AGENT_NAME || "votre conseiller Nivra");
-      const quoteNum = esc(v.quote_number || v.QUOTE_NUMBER || "—");
-      const services = esc(v.services_summary || v.SERVICES_LIST || v.plan_name || "—");
-      const equipment = esc(v.equipment_summary || v.EQUIPMENT_LIST || "—");
-      const subtotal = money(v.subtotal);
+      const agentName = esc(v.agent_name || v.AGENT_NAME || "Votre conseiller Nivra");
+      const rawQuoteNum = String(v.quote_number || v.QUOTE_NUMBER || v.order_number || "").trim();
+      const quoteNum = esc(rawQuoteNum || `SUB-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
+      const services = esc(
+        v.services_summary || v.SERVICES_LIST || v.services || v.plan_name ||
+        "Voir détails de la commande"
+      );
+      const equipment = esc(
+        v.equipment_summary || v.EQUIPMENT_LIST || v.equipment || "Aucun équipement"
+      );
+      const subtotal = money(v.subtotal ?? 0);
       const discount = money(v.discount ?? 0);
       const activationFee = money(v.activation_fee ?? 0);
-      const total = money(v.total ?? v.amount);
+      const total = money(v.total ?? v.amount ?? 0);
       const validUntil = fmtDate(
-        v.valid_until ||
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        v.valid_until_iso || v.valid_until ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       );
       const completeUrl = String(
         v.complete_url ||
+          v.payment_url ||
           v.quote_url ||
           `${APP_URL}/soumission/${esc(v.quote_id || v.public_token || "")}`,
       );
-      const discountLabel = v.discount_label ? esc(v.discount_label) : null;
+      const discountLabel = v.discount_label ? esc(String(v.discount_label)) : null;
       const rows: Array<[string, string]> = [
         ["Numéro de soumission", `#${String(quoteNum).replace(/^#/, "")}`],
         ["Préparée par", String(agentName)],
@@ -1994,16 +2007,16 @@ export function renderQueueTemplate(
       else if (v.discount && Number(v.discount) > 0) rows.push(["Rabais", `- ${discount}`]);
       if (v.activation_fee && Number(v.activation_fee) > 0)
         rows.push(["Frais d'activation", String(activationFee)]);
-      if (v.subtotal !== undefined) rows.push(["Sous-total", String(subtotal)]);
+      if (v.subtotal !== undefined && v.subtotal !== null) rows.push(["Sous-total", String(subtotal)]);
       if (v.tps) rows.push(["TPS (5%)", money(v.tps)]);
       if (v.tvq) rows.push(["TVQ (9,975%)", money(v.tvq)]);
-      rows.push(["Valide jusqu'au", String(validUntil)]);
       rows.push(["Total (taxes incluses)", String(total)]);
+      rows.push(["Valide jusqu'au", String(validUntil)]);
       return {
-        subject: `Votre soumission Nivra Telecom — Valide 30 jours`,
+        subject: `Votre soumission Nivra Telecom — Valide 7 jours`,
         html: shell({
-          preheader: `Votre soumission est prête. Valide 30 jours.`,
-          badge: "SOUMISSION — VALIDE 30 JOURS",
+          preheader: `Votre soumission est prête. Valide jusqu'au ${validUntil}.`,
+          badge: "SOUMISSION — VALIDE 7 JOURS",
           heroTitle: "Votre soumission est prête",
           heroSub: `Préparée par ${agentName}`,
           icon: "doc",

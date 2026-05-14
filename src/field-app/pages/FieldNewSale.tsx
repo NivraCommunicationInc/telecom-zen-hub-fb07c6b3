@@ -528,7 +528,8 @@ export default function FieldNewSale() {
                 if (!intentId) { toast.error("Lien de paiement requis avant soumission."); return; }
                 const payerUrl = `https://nivra-telecom.ca/payer/${intentId}`;
                 const validUntilDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
+                const validUntilIso = validUntilDate.toISOString();
+                const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
                 const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
                 const servicesSummary = buildServicesList(draft);
                 const equipmentSummary = buildEquipmentList(draft);
@@ -553,26 +554,38 @@ export default function FieldNewSale() {
                   if (error) throw error;
                   const quoteId = (row as any)?.id || intentId;
                   const quoteNumber = `SUB-${String(quoteId).slice(0, 8).toUpperCase()}`;
+                  const templateVars = {
+                    client_name: customerName,
+                    first_name: draft.customer.first_name || "Client",
+                    quote_number: quoteNumber, quote_id: quoteId,
+                    order_number: quoteNumber,
+                    complete_url: payerUrl,
+                    payment_url: payerUrl,
+                    agent_name: agentName,
+                    services: servicesSummary,
+                    services_summary: servicesSummary,
+                    equipment: equipmentSummary,
+                    equipment_summary: equipmentSummary,
+                    subtotal: subtotal.toFixed(2),
+                    discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
+                    discount_label: discountLabel,
+                    tps: tps.toFixed(2), tvq: tvq.toFixed(2),
+                    activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
+                    valid_until: validUntilLabel,
+                    valid_until_iso: validUntilIso,
+                  };
+                  // Validate before queuing — log any anomalies, never block.
+                  const issues: string[] = [];
+                  if (!templateVars.agent_name || templateVars.agent_name.includes('@')) issues.push('agent_name missing/email');
+                  if (!templateVars.services || templateVars.services === '—') issues.push('services missing');
+                  if (!templateVars.order_number || templateVars.order_number.includes('—')) issues.push('order_number missing');
+                  if (!templateVars.valid_until || templateVars.valid_until.includes('non disponible')) issues.push('valid_until missing');
+                  if (issues.length > 0) console.error('[EMAIL VALIDATION FAILED quote_client]', issues, templateVars);
                   const payload = {
                     event_key: `quote_client_${quoteId}_${Date.now()}`,
                     to_email: draft.customer.email,
                     template_key: "quote_client",
-                    template_vars: {
-                      client_name: customerName,
-                      first_name: draft.customer.first_name || "Client",
-                      quote_number: quoteNumber, quote_id: quoteId,
-                      order_number: quoteNumber,
-                      complete_url: payerUrl,
-                      payment_url: payerUrl,
-                      agent_name: agentName,
-                      services_summary: servicesSummary, equipment_summary: equipmentSummary,
-                      subtotal: subtotal.toFixed(2),
-                      discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
-                      discount_label: discountLabel,
-                      tps: tps.toFixed(2), tvq: tvq.toFixed(2),
-                      activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
-                      valid_until: validUntilLabel,
-                    },
+                    template_vars: templateVars,
                     status: "queued",
                   };
                   for (let i = 1; i <= 3; i++) {
