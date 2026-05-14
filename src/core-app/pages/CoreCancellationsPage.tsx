@@ -389,6 +389,43 @@ export default function CoreCancellationsPage() {
           if (emailErr) throw emailErr;
           result._sideEffects.email = true;
         }
+
+        // STEP 8b — Queue branded service_cancelled email (Violet shell)
+        if (clientProfile?.email) {
+          try {
+            // Re-parse staff_notes here so we can include refund_amount in the email
+            let refundAmt = 0;
+            try {
+              const parsed = req.staff_notes ? JSON.parse(req.staff_notes) : null;
+              refundAmt = Number(parsed?.refund_amount ?? parsed?.refund_amount_per_sub ?? 0) || 0;
+            } catch { /* ignore */ }
+
+            // Best-effort plan name lookup for the email
+            let planName: string | null = null;
+            if (req.service_identifier) {
+              const { data: subRow } = await supabase
+                .from("billing_subscriptions")
+                .select("plan_name")
+                .eq("id", req.service_identifier)
+                .maybeSingle();
+              planName = subRow?.plan_name ?? null;
+            }
+
+            await supabase.from("email_queue").insert({
+              to_email: clientProfile.email,
+              template_key: "service_cancelled",
+              variables: {
+                client_name: clientProfile.full_name ?? "Client",
+                service_name: planName ?? req.service_type,
+                cancellation_date: effective,
+                refund_amount: refundAmt,
+              },
+              status: "pending",
+            } as any);
+          } catch (qErr: any) {
+            console.error("[CoreCancellations] STEP 8b service_cancelled email queue failed:", qErr?.message ?? qErr);
+          }
+        }
       } catch (e: any) {
         console.error("[CoreCancellations] STEP 8 confirmation email failed:", e?.message ?? e);
       }
