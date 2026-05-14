@@ -180,11 +180,13 @@ export default function FieldNewSale() {
       // 3) Email mode — enqueue Violet Bold "payment_link_employee" template (with retry)
       if (draft.payment.method === "paypal_email") {
         setSubmitMessage("Envoi du lien au client…");
-        const servicesList = draft.services.map((s) => s.name).filter(Boolean).join(", ") || "Services Nivra";
-        const equipmentList = (draft.equipment || []).map((e: any) => e?.name).filter(Boolean).join(", ") || "Aucun";
+        const servicesList = buildServicesList(draft);
+        const equipmentList = buildEquipmentList(draft);
+        const discountLabel = buildDiscountLabel(draft);
         const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
         const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
         const discountAmount = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
+        const orderNumber = `SUB-${String(data.intent_id).slice(0, 8).toUpperCase()}`;
         const emailPayload = {
           event_key: `payment_link_employee_${data.intent_id}`,
           to_email: draft.customer.email,
@@ -193,11 +195,12 @@ export default function FieldNewSale() {
             client_name: fullName,
             client_email: draft.customer.email,
             first_name: draft.customer.first_name || "Client",
-            order_number: data.intent_id,
+            order_number: orderNumber,
             services: servicesList,
             summary: servicesList,
             equipment: equipmentList,
             discount: discountAmount.toFixed(2),
+            discount_label: discountLabel,
             subtotal: subtotal.toFixed(2),
             tps: tps.toFixed(2),
             tvq: tvq.toFixed(2),
@@ -205,7 +208,7 @@ export default function FieldNewSale() {
             approval_url: approvalUrl,
             payment_url: `https://nivra-telecom.ca/payer/${data.intent_id}`,
             valid_until: validUntil,
-            agent_name: user?.email || "votre conseiller Nivra",
+            agent_name: agentName,
           },
           status: "queued",
         };
