@@ -76,18 +76,14 @@ export async function enrollMfa() {
 }
 
 /**
- * Verify a TOTP code during enrollment (first-time) or login challenge.
+ * Verify a TOTP code. Always issues a fresh challenge then verifies atomically
+ * via challengeAndVerify so expired/reused challenge IDs are impossible.
  */
 export async function verifyMfaCode(factorId: string, code: string): Promise<boolean> {
-  const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
-  if (challengeError) throw challengeError;
-
-  const { error: verifyError } = await supabase.auth.mfa.verify({
-    factorId,
-    challengeId: challenge.id,
-    code,
-  });
-
-  if (verifyError) return false;
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
+  if (error) {
+    console.warn("[MFA] verify failed:", error.message);
+    return false;
+  }
   return true;
 }
