@@ -139,11 +139,8 @@ export default function RhProfile() {
 
   const verifyEnroll = async () => {
     try {
-      const { data: chal, error: ce } = await supabase.auth.mfa.challenge({ factorId });
-      if (ce) throw ce;
-      const { error: ve } = await supabase.auth.mfa.verify({
+      const { error: ve } = await supabase.auth.mfa.challengeAndVerify({
         factorId,
-        challengeId: chal.id,
         code: otp.trim(),
       });
       if (ve) throw ve;
