@@ -51,6 +51,45 @@ export default function FieldNewSale() {
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
   const { data: fieldConfig } = useFieldConfig();
 
+  // ── Fetch agent full name (for emails) ──
+  const [agentFullName, setAgentFullName] = useState<string>("");
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data: agentProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setAgentFullName(((agentProfile as any)?.full_name as string) || "");
+    })();
+  }, [user?.id]);
+  const agentName = agentFullName || user?.email || "votre conseiller Nivra";
+
+  // ── Email payload helpers (services / equipment / discount) ──
+  const buildServicesList = useCallback((d: FieldSaleDraft) => {
+    const list = (d.services || [])
+      .filter((s: any) => s && s.name)
+      .map((s: any) => `${s.name} — ${(s.monthlyPrice ?? s.price ?? 0)}$/mois`)
+      .join(", ");
+    return list || "Aucun forfait";
+  }, []);
+  const buildEquipmentList = useCallback((d: FieldSaleDraft) => {
+    const list = (d.equipment || [])
+      .filter((e: any) => e && e.name)
+      .map((e: any) => `${e.name}${e.quantity > 1 ? ` x${e.quantity}` : ""} — ${(e.price ?? e.unit_price ?? 0)}$`)
+      .join(", ");
+    return list || "Aucun équipement";
+  }, []);
+  const buildDiscountLabel = useCallback((d: FieldSaleDraft): string | null => {
+    const disc: any = d.discount;
+    if (!disc) return null;
+    const dur = disc.duration_months ? ` — ${disc.duration_months} mois` : "";
+    const val = Number(disc.value || 0);
+    const unit = disc.type === "percentage" ? "%" : "$/mois";
+    return `${disc.name}${dur} — ${val}${unit}`;
+  }, []);
+
   const goTo = useCallback((step: FieldSaleStep) => {
     setDraft((d) => ({ ...d, step }));
   }, []);
