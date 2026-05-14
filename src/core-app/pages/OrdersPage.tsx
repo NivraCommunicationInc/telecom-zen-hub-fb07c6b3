@@ -12,6 +12,7 @@
  */
 import { useState, useMemo } from "react";
 import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link, useNavigate } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
@@ -49,6 +50,7 @@ function getSlaBadge(
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
+  { label: "Field Sales", value: "__source_field_sales" },
   { label: "Pending", value: "pending" },
   { label: "Validated", value: "validated" },
   { label: "Paid", value: "paid" },
@@ -68,10 +70,20 @@ const OrdersPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
+  // Realtime: refresh when orders or field_payment_intents change
+  usePortalRealtime(
+    ["orders", "field_payment_intents"],
+    [["admin-orders-v2", envFilter]],
+  );
+
   const filtered = useMemo(() => {
     if (!orders) return [];
     let list = orders;
-    if (statusFilter) list = list.filter((o) => o.status === statusFilter);
+    if (statusFilter === "__source_field_sales") {
+      list = list.filter((o) => o.source === "field_sales");
+    } else if (statusFilter) {
+      list = list.filter((o) => o.status === statusFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -289,8 +301,20 @@ const OrdersPage = () => {
                   </div>
                   <div style={{ color: "#666", fontSize: "11px", marginTop: "2px" }}>
                     {productSummary} · {amountLabel}
+                    {o.source === "field_sales" && o.agent_full_name && (
+                      <> · <span style={{ color: "#A78BFA" }}>Agent: {o.agent_full_name}</span></>
+                    )}
                   </div>
                 </div>
+
+                {o.source === "field_sales" && (
+                  <span
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-[#7C3AED]/15 text-[#A78BFA] border-[#7C3AED]/40"
+                    title="Vente terrain — Porte-à-porte"
+                  >
+                    🚪 Field Sales — Porte-à-porte
+                  </span>
+                )}
 
                 <div className="shrink-0">
                   <StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" />

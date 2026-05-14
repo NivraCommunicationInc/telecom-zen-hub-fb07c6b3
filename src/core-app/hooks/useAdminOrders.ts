@@ -33,6 +33,9 @@ export interface AdminOrder {
   sla_deadline: string | null;
   sla_status: string | null;
   payment_method: string | null;
+  source: string | null;
+  created_by_agent_id: string | null;
+  agent_full_name: string | null;
 }
 
 export function useAdminOrders(environment: EnvironmentFilter = "all") {
@@ -41,7 +44,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
     queryFn: async () => {
       let query = supabase
         .from("orders")
-        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, payment_method, total_amount, risk_flags, created_at, environment, kyc_status, sla_deadline, sla_status")
+        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, payment_method, total_amount, risk_flags, created_at, environment, kyc_status, sla_deadline, sla_status, source, created_by_agent_id")
         .order("created_at", { ascending: false })
         .limit(500);
       if (environment !== "all") query = query.eq("environment", environment);
@@ -50,10 +53,12 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
       if (!orders || orders.length === 0) return [];
 
       const userIds = [...new Set(orders.map((o) => o.user_id))];
+      const agentIds = [...new Set(orders.map((o: any) => o.created_by_agent_id).filter(Boolean) as string[])];
+      const allProfileIds = [...new Set([...userIds, ...agentIds])];
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, email")
-        .in("user_id", userIds);
+        .in("user_id", allProfileIds);
 
       const orderIds = orders.map((o) => o.id);
       const { data: invoices } = await supabase
@@ -114,6 +119,9 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
           sla_deadline: o.sla_deadline ?? null,
           sla_status: o.sla_status ?? null,
           payment_method: o.payment_method ?? null,
+          source: o.source ?? null,
+          created_by_agent_id: o.created_by_agent_id ?? null,
+          agent_full_name: o.created_by_agent_id ? (profileMap.get(o.created_by_agent_id)?.full_name ?? null) : null,
         };
       });
     },
