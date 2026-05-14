@@ -52,6 +52,77 @@ export default function FieldNewSale() {
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
   const { data: fieldConfig } = useFieldConfig();
 
+  // ── Draft persistence (FIX: survive page refresh) ──
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<{ draft: FieldSaleDraft; completed: FieldSaleStep[] } | null>(null);
+  const hasCheckedRestoreRef = useRef(false);
+  const hasMountedRef = useRef(false);
+
+  // Restore draft on mount (run once)
+  useEffect(() => {
+    if (hasCheckedRestoreRef.current) return;
+    hasCheckedRestoreRef.current = true;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      const savedDraft = parsed?.draft as FieldSaleDraft | undefined;
+      const savedCompleted = (parsed?.completedSteps as FieldSaleStep[] | undefined) || [];
+      if (!savedDraft || savedDraft.step === "customer" && savedCompleted.length === 0) {
+        // Empty draft — nothing meaningful to restore
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      setPendingRestore({ draft: savedDraft, completed: savedCompleted });
+      setRestoreDialogOpen(true);
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  // Persist draft on every change (skip first render to avoid clobbering pending restore)
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (restoreDialogOpen) return; // don't overwrite while user decides
+    try {
+      // Only persist if something meaningful has been entered
+      const meaningful =
+        draft.step !== "customer" ||
+        draft.customer.first_name ||
+        draft.customer.last_name ||
+        draft.customer.email ||
+        draft.services.length > 0 ||
+        completedSteps.length > 0;
+      if (meaningful) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft, completedSteps }));
+      }
+    } catch {
+      /* quota exceeded — ignore */
+    }
+  }, [draft, completedSteps, restoreDialogOpen]);
+
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  }, []);
+
+  const handleRestoreAccept = () => {
+    if (pendingRestore) {
+      setDraft({ ...pendingRestore.draft, agentId: user?.id ?? pendingRestore.draft.agentId });
+      setCompletedSteps(pendingRestore.completed);
+    }
+    setPendingRestore(null);
+    setRestoreDialogOpen(false);
+  };
+
+  const handleRestoreReject = () => {
+    clearDraft();
+    setPendingRestore(null);
+    setRestoreDialogOpen(false);
+  };
+
   // ── Fetch agent full name (for emails) ──
   const [agentFullName, setAgentFullName] = useState<string>("");
   useEffect(() => {
