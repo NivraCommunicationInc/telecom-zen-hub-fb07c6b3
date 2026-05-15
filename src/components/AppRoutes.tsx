@@ -979,6 +979,7 @@ const AppRoutes = () => {
           <Route path="leads/:leadId" element={<Suspense fallback={null}><FieldLeadDetail /></Suspense>} />
           <Route path="offers" element={<Suspense fallback={null}><FieldOffers /></Suspense>} />
           <Route path="submissions" element={<Suspense fallback={null}><FieldSubmissions /></Suspense>} />
+          <Route path="orders" element={<Suspense fallback={null}><FieldOrders /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><FieldOrderDetail /></Suspense>} />
           <Route path="tracking" element={<Suspense fallback={null}><FieldTracking /></Suspense>} />
           <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
