@@ -358,7 +358,7 @@ export default function FieldNewSale() {
     }
   };
 
-  // FIX 2 — Card manual submit
+  // FIX 1 — Card manual submit: order_confirmation email + pending commission + success screen
   const handleCardSubmit = async (cardData: { number: string; name: string; expiry: string; cvv: string }) => {
     if (!user?.id || isSubmitting) return;
     setIsSubmitting(true);
@@ -383,21 +383,113 @@ export default function FieldNewSale() {
         },
       });
       if (error) throw error;
+      if (!data?.intent_id) throw new Error("Réponse invalide du backend (intent_id manquant).");
 
-      setDraft((d) => ({
-        ...d,
-        payment: { ...d.payment, status: "sent", linkSentTo: null,
-          paypalApprovalUrl: null, paypalOrderId: null,
-          fieldOrderId: null, invoiceId: null, coreOrderId: null },
-      }));
-      toast.success(`Carte ••${data.card_last4} enregistrée. En attente de traitement par Core.`);
-      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep])]);
+      const intentId: string = data.intent_id;
+      const last4: string = data.card_last4 || cardData.number.slice(-4);
+      const orderNumber = `SUB-${String(intentId).slice(0, 8).toUpperCase()}`;
+
+      // Commission pending — visible immediately to agent
+      const commissionAmount = Math.max(0, Number((monthlyAfterDiscount * 0.1).toFixed(2)));
+      try {
+        await supabase.from("field_commissions").insert({
+          agent_id: user.id,
+          order_id: null,
+          amount: commissionAmount,
+          status: "pending",
+          commission_type: "forfait",
+          description: `Carte en attente de capture — intent ${intentId}`,
+        } as any);
+      } catch (commErr: any) {
+        logger.warn("commission insert failed", commErr);
+      }
+
+      // Order confirmation email (reuses payment_link_employee template engine).
+      if (draft.customer.email) {
+        const servicesList = buildServicesList(draft);
+        const equipmentList = buildEquipmentList(draft);
+        const discountLabel = buildDiscountLabel(draft);
+        const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+        const discountAmount = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
+        const emailPayload = {
+          event_key: `order_confirmation_${intentId}`,
+          to_email: draft.customer.email,
+          template_key: "order_confirmation",
+          template_vars: {
+            client_name: fullName,
+            client_email: draft.customer.email,
+            first_name: draft.customer.first_name || "Client",
+            order_number: orderNumber,
+            services: servicesList,
+            summary: servicesList,
+            equipment: equipmentList,
+            discount: discountAmount.toFixed(2),
+            discount_label: discountLabel,
+            subtotal: subtotal.toFixed(2),
+            tps: tps.toFixed(2),
+            tvq: tvq.toFixed(2),
+            total: total.toFixed(2),
+            payment_status: "En attente de traitement (carte)",
+            card_last4: last4,
+            agent_name: agentName,
+            subject_override: "Confirmation de commande — Nivra Telecom",
+            badge_override: "COMMANDE REÇUE",
+            hero_override: "Votre commande a été enregistrée",
+            body_override: "Le paiement par carte sera traité par notre équipe dans les 48 heures.",
+          },
+          status: "queued",
+        };
+        for (let i = 1; i <= 3; i++) {
+          const { error: e } = await supabase.from("email_queue").insert(emailPayload as any);
+          if (!e) break;
+          if (i < 3) await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+
+      setCardSuccess({ intentId, orderNumber, last4, amount: total, commission: commissionAmount });
+      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+      toast.success(`Commande créée ${orderNumber} • Carte ••${last4}`);
     } catch (err: any) {
       logger.warn("Field card submission failed", err);
       toast.error(err?.message || "Erreur lors de l'enregistrement de la carte");
     } finally {
       setIsSubmitting(false);
       setSubmitMessage("");
+    }
+  };
+
+  // Save installation appointment (FIX 6)
+  const saveAppointment = async () => {
+    if (!cardSuccess) return;
+    if (!apptDate) { toast.error("Date du rendez-vous requise."); return; }
+    setSavingAppt(true);
+    try {
+      const fee =
+        apptFeeType === "free" ? 0 :
+        apptFeeType === "waived" ? 0 :
+        apptFeeType === "custom" ? Number(apptFeeCustom || 0) :
+        10;
+      const { error } = await supabase.from("installation_appointments" as any).insert({
+        order_id: null,
+        appointment_date: new Date(apptDate).toISOString(),
+        appointment_window: apptWindow,
+        installation_fee: fee,
+        fee_type: apptFeeType,
+        fee_notes: apptFeeNotes || null,
+        notes: apptNotes
+          ? `${apptNotes} — Intent ${cardSuccess.intentId}`
+          : `Intent ${cardSuccess.intentId}`,
+        created_by: user?.id ?? null,
+      } as any);
+      if (error) throw error;
+      setApptSaved(true);
+      toast.success("Rendez-vous d'installation planifié.");
+    } catch (e: any) {
+      logger.warn("appointment insert failed", e);
+      toast.error(e?.message || "Échec de la planification");
+    } finally {
+      setSavingAppt(false);
     }
   };
 
