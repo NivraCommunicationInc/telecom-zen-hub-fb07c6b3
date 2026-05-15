@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
-    if (!authHeader) return new Response(JSON.stringify({ error: "Auth required" }), { status: 401, headers });
+    if (!authHeader) return new Response(JSON.stringify({ ok: false, error: "Auth required" }), { status: 200, headers });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
