@@ -211,6 +211,15 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "hub",
+    label: "Nivra Source",
+    icon: Megaphone,
+    items: [
+      { icon: LayoutDashboard, label: "Gestion du Hub", href: "/hub" },
+      { icon: Mail, label: "Envoyer un courriel", href: "/email/compose" },
+    ],
+  },
+  {
     id: "system",
     label: "System",
     icon: Settings,
