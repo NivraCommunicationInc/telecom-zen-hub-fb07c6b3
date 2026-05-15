@@ -503,6 +503,7 @@ export default function FieldNewSale() {
             agent_name: agentName,
             agent_number: agentNumber || "N/A",
             payment_url: `https://nivra-telecom.ca/payer/${intentId}`,
+            subject_override: "Confirmation de commande — Nivra Telecom",
             badge_override: "COMMANDE REÇUE",
             hero_override: "Votre commande a été enregistrée",
             body_override: "Le paiement par carte sera traité par notre équipe dans les 48 heures.",
