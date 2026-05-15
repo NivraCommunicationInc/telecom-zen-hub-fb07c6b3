@@ -81,6 +81,7 @@ export default function EmployeeSidebar() {
     typeof window !== "undefined" && window.innerWidth < 1280
   );
   const { badges: sectionBadges } = useEmployeeSectionBadges();
+  const { data: hubUnread = 0 } = useHubUnreadCount();
 
   useEffect(() => {
     if (isTablet) setCollapsed(true);
