@@ -543,6 +543,18 @@ Deno.serve(async (req) => {
         let invoiceId: string | null = null;
         let paymentId: string | null = null;
 
+        const { data: verifiedOrder, error: verifyOrderBeforeBillingError } = await supabaseAdmin
+          .from("orders")
+          .select("id, status, source, payment_method")
+          .eq("id", canonicalOrder.id)
+          .maybeSingle();
+
+        if (verifyOrderBeforeBillingError || !verifiedOrder) {
+          throw new Error(`Order verification failed before billing: ${verifyOrderBeforeBillingError?.message || "order not found"}`);
+        }
+
+        canonicalOrder = { ...canonicalOrder, status: verifiedOrder.status };
+
         try {
           // Generate invoice number from DB sequence
           const { data: invoiceNum, error: invNumErr } = await supabaseAdmin.rpc("generate_invoice_number");
