@@ -225,7 +225,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
           <NavSection title="Prospection" items={prospectNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
           <NavSection title="Revenus" items={revenueNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
           <NavSection title="Outils" items={toolsNav} isActive={isActive} badges={{}} collapsed={collapsed} />
-          <NavSection title="Nivra Source" items={hubNav} isActive={isActive} badges={{}} collapsed={collapsed} />
+          <NavSection title="Nivra Source" items={hubNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
         </ScrollArea>
 
         {/* Bottom — profile + logout */}
