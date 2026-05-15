@@ -453,11 +453,22 @@ export default function FieldNewSale() {
             customer_address: draft.customer.address || "",
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
-            services: draft.services.map((service) => ({
-              ...service,
-              price_monthly: service.monthlyPrice,
-              monthly_price: service.monthlyPrice,
-            })) as any,
+            services: [
+              ...draft.services.map((service) => ({
+                ...service,
+                quantity: 1,
+                price_monthly: service.monthlyPrice,
+                monthly_price: service.monthlyPrice,
+                price_setup: 0,
+              })),
+              ...draft.equipment.map((equipment) => ({
+                ...equipment,
+                quantity: equipment.quantity,
+                price_monthly: 0,
+                monthly_price: 0,
+                price_setup: equipment.price,
+              })),
+            ] as any,
             total_amount: total,
             payment_method: "card_manual",
             payment_reference: intentId,
@@ -572,8 +583,7 @@ export default function FieldNewSale() {
             </div>
           </div>
           <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200 mb-6">
-            La commande est visible dans Core pour traitement. Le paiement sera traité par l'équipe sous 48h.
-            Le rendez-vous d'installation sera planifié par l'admin depuis Core.
+            Le rendez-vous d'installation sera planifié par l'équipe Nivra depuis Core.
           </div>
 
           {/* Nouvelle vente — always available */}
