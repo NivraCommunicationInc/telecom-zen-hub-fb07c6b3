@@ -51,7 +51,7 @@ export default function FieldNewSale() {
 
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
 
-  // FIX 1+5+6 — Card-saved success state (drives "Nouvelle vente" + install appt form)
+  // Card-saved success state.
   const [cardSuccess, setCardSuccess] = useState<{
     intentId: string;
     orderNumber: string;
@@ -59,22 +59,12 @@ export default function FieldNewSale() {
     amount: number;
     commission: number;
   } | null>(null);
-  const [apptDate, setApptDate] = useState<string>("");
-  const [apptWindow, setApptWindow] = useState<"morning"|"afternoon"|"evening"|"flexible">("flexible");
-  const [apptFeeType, setApptFeeType] = useState<"standard"|"free"|"custom"|"waived">("standard");
-  const [apptFeeCustom, setApptFeeCustom] = useState<string>("");
-  const [apptFeeNotes, setApptFeeNotes] = useState<string>("");
-  const [apptNotes, setApptNotes] = useState<string>("");
-  const [apptSaved, setApptSaved] = useState<boolean>(false);
-  const [savingAppt, setSavingAppt] = useState<boolean>(false);
 
   const resetForNewSale = useCallback(() => {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     setDraft({ ...EMPTY_DRAFT, agentId: user?.id ?? "", createdAt: new Date().toISOString() });
     setCompletedSteps([]);
     setCardSuccess(null);
-    setApptDate(""); setApptWindow("flexible"); setApptFeeType("standard");
-    setApptFeeCustom(""); setApptFeeNotes(""); setApptNotes(""); setApptSaved(false);
   }, [user?.id]);
   const { data: fieldConfig } = useFieldConfig();
 
@@ -449,7 +439,8 @@ export default function FieldNewSale() {
         }
       }
 
-      // FIX 2 — Create real order in Core via field_sales_orders + field-sales-sync
+      // Create real order in Core via field_sales_orders + field-sales-sync.
+      let coreOrderNumber = orderNumber;
       try {
         const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
         const { data: fsRow, error: fsErr } = await supabase
@@ -462,13 +453,28 @@ export default function FieldNewSale() {
             customer_address: draft.customer.address || "",
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
-            services: draft.services as any,
+            services: [
+              ...draft.services.map((service) => ({
+                ...service,
+                quantity: 1,
+                price_monthly: service.monthlyPrice,
+                monthly_price: service.monthlyPrice,
+                price_setup: 0,
+              })),
+              ...draft.equipment.map((equipment) => ({
+                ...equipment,
+                quantity: equipment.quantity,
+                price_monthly: 0,
+                monthly_price: 0,
+                price_setup: equipment.price,
+              })),
+            ] as any,
             total_amount: total,
             payment_method: "card_manual",
             payment_reference: intentId,
             payment_status: "pending",
             sync_status: "pending",
-            internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}`,
+            internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}\nCommission: ${commissionAmount.toFixed(2)}$ = 30% récurrent (${monthlyBeforeDiscount.toFixed(2)}$) + 5% équipement (${equipmentTotal.toFixed(2)}$)`,
           } as any)
           .select("id")
           .single();
@@ -479,12 +485,16 @@ export default function FieldNewSale() {
         }
         const saleId = (fsRow as any)?.id;
         if (saleId) {
-          const { error: syncError } = await supabase.functions.invoke("field-sales-sync", {
+          const { data: syncData, error: syncError } = await supabase.functions.invoke("field-sales-sync", {
             body: { action: "sync_single", sale_id: saleId },
           });
-          if (syncError) {
-            console.error("[sync] field-sales-sync failed", syncError);
-            logger.warn("[card-sync] field-sales-sync failed", syncError);
+          if (syncError || syncData?.success === false) {
+            const message = syncError?.message || syncData?.error || "Erreur sync inconnue";
+            console.error("[sync] field-sales-sync failed", syncError || syncData);
+            logger.warn("[card-sync] field-sales-sync failed", syncError || syncData);
+            toast.error("Commande créée, mais sync Core échouée: " + message);
+          } else if (syncData?.order_number) {
+            coreOrderNumber = syncData.order_number;
           }
         }
       } catch (syncCatch: any) {
@@ -492,7 +502,7 @@ export default function FieldNewSale() {
         logger.warn("[card-sync] order creation failed (non-blocking)", syncCatch);
       }
 
-      setCardSuccess({ intentId, orderNumber, last4, amount: total, commission: commissionAmount });
+      setCardSuccess({ intentId, orderNumber: coreOrderNumber, last4, amount: total, commission: commissionAmount });
       setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       toast.success(`Commande créée ${orderNumber} • Carte ••${last4}`);
@@ -504,41 +514,6 @@ export default function FieldNewSale() {
       setSubmitMessage("");
     }
   };
-
-  // Save installation appointment (FIX 6)
-  const saveAppointment = async () => {
-    if (!cardSuccess) return;
-    if (!apptDate) { toast.error("Date du rendez-vous requise."); return; }
-    setSavingAppt(true);
-    try {
-      const fee =
-        apptFeeType === "free" ? 0 :
-        apptFeeType === "waived" ? 0 :
-        apptFeeType === "custom" ? Number(apptFeeCustom || 0) :
-        10;
-      const { error } = await supabase.from("installation_appointments" as any).insert({
-        order_id: null,
-        appointment_date: new Date(apptDate).toISOString(),
-        appointment_window: apptWindow,
-        installation_fee: fee,
-        fee_type: apptFeeType,
-        fee_notes: apptFeeNotes || null,
-        notes: apptNotes
-          ? `${apptNotes} — Intent ${cardSuccess.intentId}`
-          : `Intent ${cardSuccess.intentId}`,
-        created_by: user?.id ?? null,
-      } as any);
-      if (error) throw error;
-      setApptSaved(true);
-      toast.success("Rendez-vous d'installation planifié.");
-    } catch (e: any) {
-      logger.warn("appointment insert failed", e);
-      toast.error(e?.message || "Échec de la planification");
-    } finally {
-      setSavingAppt(false);
-    }
-  };
-
 
   // ── Realtime: invoice paid → mark payment completed ──────
   useEffect(() => {
@@ -583,13 +558,8 @@ export default function FieldNewSale() {
     };
   }, [draft.payment.invoiceId]);
 
-  // FIX 1 step 6 + FIX 5 + FIX 6 — Card success screen with install appointment + Nouvelle vente reset
+  // Card success screen.
   if (cardSuccess) {
-    const feeDisplay =
-      apptFeeType === "free" ? "0$" :
-      apptFeeType === "waived" ? "Exonéré" :
-      apptFeeType === "custom" ? `${apptFeeCustom || "0"}$` :
-      "10$";
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
         <div className="rounded-2xl border border-violet-500/30 bg-card p-6 md:p-8 shadow-xl">
@@ -613,8 +583,7 @@ export default function FieldNewSale() {
             </div>
           </div>
           <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200 mb-6">
-            La commande est visible dans Core pour traitement. Le paiement sera traité par l'équipe sous 48h.
-            Le rendez-vous d'installation sera planifié par l'admin depuis Core.
+            Le rendez-vous d'installation sera planifié par l'équipe Nivra depuis Core.
           </div>
 
           {/* Nouvelle vente — always available */}

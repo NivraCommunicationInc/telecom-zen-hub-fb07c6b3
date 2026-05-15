@@ -61,7 +61,7 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
   const v = String(raw ?? "").trim().toLowerCase();
   if (!v) return null;
 
-  const allowed = new Set(["card", "etransfer", "e_transfer", "apple_pay", "google_pay"]);
+  const allowed = new Set(["card", "card_manual", "etransfer", "e_transfer", "apple_pay", "google_pay"]);
   if (allowed.has(v)) return v;
 
   // Field sales payment_method allows: interac, paypal, deferred

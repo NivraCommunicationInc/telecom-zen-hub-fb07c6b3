@@ -7,7 +7,6 @@
  * created at this stage.
  */
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,7 +21,6 @@ import {
   Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
 import { saveQuoteAndEmail } from "@/field-app/lib/fieldQuoteService";
@@ -70,24 +68,9 @@ export default function StepRecap({
   const [savingQuote, setSavingQuote] = useState(false);
   const [quoteSavedId, setQuoteSavedId] = useState<string | null>(null);
 
-  const { data: commissionRate = 0 } = useQuery({
-    queryKey: ["field-commission-rate", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("commission_rules")
-        .select("rate_pct")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      return data?.[0]?.rate_pct ?? 0;
-    },
-    staleTime: 60_000,
-  });
-
   const estimatedCommission = useMemo(
-    () => (monthlyAfterDiscount * (commissionRate || 0)) / 100,
-    [monthlyAfterDiscount, commissionRate],
+    () => Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)),
+    [monthlyBeforeDiscount, equipmentTotal],
   );
 
   const handleSaveQuote = async () => {
@@ -269,19 +252,17 @@ export default function StepRecap({
       </div>
 
       {/* Commission preview */}
-      {commissionRate > 0 && (
-        <div className="rounded-2xl border border-[hsl(var(--field-accent)/0.3)] field-gradient-purple p-5">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[hsl(var(--field-accent-glow))] mb-1">
-            <TrendingUp className="h-3.5 w-3.5" /> Commission estimée
-          </div>
-          <p className="text-xl font-bold text-white">
-            {formatCAD(estimatedCommission)}
-            <span className="text-xs font-normal text-[hsl(var(--field-text-muted))] ml-2">
-              ({commissionRate}% du récurrent)
-            </span>
-          </p>
+      <div className="rounded-2xl border border-[hsl(var(--field-accent)/0.3)] field-gradient-purple p-5">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[hsl(var(--field-accent-glow))] mb-1">
+          <TrendingUp className="h-3.5 w-3.5" /> Commission estimée
         </div>
-      )}
+        <p className="text-xl font-bold text-white">
+          {formatCAD(estimatedCommission)}
+          <span className="text-xs font-normal text-[hsl(var(--field-text-muted))] ml-2">
+            (30% récurrent + 5% équipement)
+          </span>
+        </p>
+      </div>
 
       {/* Save as quote — never creates an order */}
       <button
