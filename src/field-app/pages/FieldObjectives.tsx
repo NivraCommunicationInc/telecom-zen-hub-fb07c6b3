@@ -90,6 +90,7 @@ export default function FieldObjectives() {
   const monthlyTarget = data?.monthlyTarget ?? 0;
   const monthlyPct = monthlyTarget > 0 ? Math.min(100, Math.round((monthSales / monthlyTarget) * 100)) : 0;
   const monthlyRemaining = Math.max(0, monthlyTarget - monthSales);
+  const weeklyTarget = monthlyTarget > 0 ? Math.ceil(monthlyTarget / 4) : 0;
 
   // Bonus tier logic
   const currentTier = [...BONUS_TIERS].reverse().find((t) => monthSales >= t.count);
