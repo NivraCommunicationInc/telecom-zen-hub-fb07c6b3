@@ -99,9 +99,9 @@ function FormDialog({ form, onClose, onSubmitted }: { form: FormDef; onClose: ()
       const document_urls: string[] = [];
       for (const f of files) {
         const path = `${user.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const { error: upErr } = await supabase.storage.from("hub-attachments").upload(path, f, { upsert: false });
+        const { error: upErr } = await supabase.storage.from("hub-media").upload(path, f, { upsert: false });
         if (upErr) throw new Error(`Upload échoué: ${upErr.message}`);
-        const { data: pub } = supabase.storage.from("hub-attachments").getPublicUrl(path);
+        const { data: pub } = supabase.storage.from("hub-media").getPublicUrl(path);
         if (f.type.startsWith("image/")) media_urls.push(pub.publicUrl);
         else document_urls.push(pub.publicUrl);
       }
