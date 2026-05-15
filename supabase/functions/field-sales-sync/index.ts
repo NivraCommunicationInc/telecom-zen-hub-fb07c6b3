@@ -476,7 +476,7 @@ Deno.serve(async (req) => {
               tvq_amount: tvqAmount,
               total_amount: totalAmount,
 
-              status: deriveCanonicalOrderStatus(sale.payment_status),
+              status: deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method),
               payment_status: sale.payment_status || 'pending',
               payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
               payment_reference: sale.payment_reference || null,
@@ -495,7 +495,7 @@ Deno.serve(async (req) => {
               notes: `Vente terrain — Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
               internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
             })
-            .select('id, order_number')
+            .select('id, order_number, status')
             .single();
 
           if (orderError) {
@@ -517,7 +517,7 @@ Deno.serve(async (req) => {
             .eq('id', canonicalOrder.id);
         }
 
-        const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status);
+        const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method);
         if (!isBillableOrderStatus(canonicalOrder.status)) {
           const { error: promoteOrderError } = await supabaseAdmin
             .from("orders")
