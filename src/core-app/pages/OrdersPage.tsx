@@ -363,8 +363,52 @@ const OrdersPage = () => {
                   <span className="shrink-0 text-[10px] text-core-muted-soft w-[60px] text-center">—</span>
                 )}
 
-                <Link
-                  to={corePath(`/orders/${o.id}`)}
+                {o.source === "field_sales" && (
+                  <div className="shrink-0 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {o.status !== "activated" && (
+                      <button
+                        onClick={() => setOrderStatus(o.id, "activated")}
+                        className="rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1"
+                        title="Active le service et déclenche la commission"
+                      >
+                        Activer le service
+                      </button>
+                    )}
+                    {o.status !== "on_hold" && o.status !== "cancelled" && (
+                      <button
+                        onClick={() => setOrderStatus(o.id, "on_hold")}
+                        className="rounded-full bg-orange-500 hover:bg-orange-400 text-white text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Mettre en attente
+                      </button>
+                    )}
+                    {o.status !== "cancelled" && (
+                      <button
+                        onClick={() => cancelWithReason(o.id)}
+                        className="rounded-full bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Annuler
+                      </button>
+                    )}
+                    {o.user_id && (
+                      <button
+                        onClick={() => navigate(corePath(`/clients/${o.user_id}`))}
+                        className="rounded-full border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Voir le client
+                      </button>
+                    )}
+                    {o.created_by_agent_id && (
+                      <button
+                        onClick={() => navigate(corePath(`/field-agents/${o.created_by_agent_id}`))}
+                        className="rounded-full border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Contacter l'agent
+                      </button>
+                    )}
+                  </div>
+                )}
+
                   onClick={(e) => e.stopPropagation()}
                   style={{ textDecoration: "none" }}
                 >
