@@ -911,6 +911,9 @@ const AppRoutes = () => {
           <Route path="supplier-accounts" element={<Suspense fallback={null}><SupplierAccountsPage /></Suspense>} />
           <Route path="supplier-accounts/new" element={<Suspense fallback={null}><SupplierAccountNewPage /></Suspense>} />
           <Route path="supplier-accounts/:id" element={<Suspense fallback={null}><SupplierAccountDetailPage /></Suspense>} />
+          {/* Nivra Source Hub — admin */}
+          <Route path="hub" element={<Suspense fallback={null}><CoreHubManagementPage /></Suspense>} />
+          <Route path="email/compose" element={<Suspense fallback={null}><CoreEmailComposePage /></Suspense>} />
         </Route>
       </Route>
 
