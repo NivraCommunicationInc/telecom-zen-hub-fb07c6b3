@@ -956,6 +956,15 @@ const AppRoutes = () => {
           <Route path="quotes" element={<Suspense fallback={null}><EmployeeQuotes /></Suspense>} />
           <Route path="quotes/new" element={<Suspense fallback={null}><EmployeeCreateQuote /></Suspense>} />
           <Route path="quotes/:quoteId" element={<Suspense fallback={null}><EmployeeQuoteDetail /></Suspense>} />
+          {/* Email composer */}
+          <Route path="email/compose" element={<Suspense fallback={null}><EmployeeEmailComposePage /></Suspense>} />
+          {/* Nivra Source Hub */}
+          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
+          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
+          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
+          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
+          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
+          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
         </Route>
       </Route>
 
