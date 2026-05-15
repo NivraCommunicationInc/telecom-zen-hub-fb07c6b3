@@ -821,7 +821,7 @@ Deno.serve(async (req) => {
         // Mark as failed
         await supabaseAdmin
           .from('field_sales_orders')
-          .update({ sync_status: 'error', sync_error: error?.message || String(error) })
+          .update({ sync_status: 'failed', sync_error: error?.message || String(error) })
           .eq('id', sale.id);
 
         return { success: false, error: error.message };
