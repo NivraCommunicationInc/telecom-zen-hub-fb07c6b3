@@ -1,75 +1,54 @@
-## Scope assessment
+## Findings (raw audit)
 
-This request mixes **small, surgical fixes** (FIX 1, FIX 2, parts of FIX 3) with **full feature rebuilds** (most of FIX 4, FIX 5). I want explicit approval before doing the heavy ones, because some sections (Leaderboard, Calendar, Contests, Training, FAQ, Directory, Tickets management) are 100–500 line implementations each and would require ~3000+ lines of new code plus possibly new tables/columns.
+**1. Card payment in `FieldNewSale.tsx`** — `handleCardSubmit` (line 336) only calls edge `field-card-intent` which inserts `card_payment_intents` + `field_payment_intents` (status=`pending`). **No row in `orders`, no `field_commissions`, no email sent.** That's why Core sees nothing and the agent's commission never appears.
 
-Below is what I'll do per fix. **I will execute FIX 1, FIX 2, and the form-additions part of FIX 3 immediately on approval.** For FIX 4 and FIX 5 I list what already exists vs what's truly missing, and ask you to confirm scope before I start.
+**2. Stuck data** — 5 intents for `oldo.lavaud3112@icloud.com` all `status=pending`, `converted_order_id=NULL`. Latest real order in `orders` is 2026‑04‑17 (no Field orders at all).
 
----
+**3. PayerCommande.tsx** — already loads `services / equipment / discount / total` from `field_payment_intents` + `field_quotes` via public RPC. **No fix needed** for FIX 2.
 
-## FIX 1 — Date of birth placeholder (small, ~6 lines)
+**4. OrdersPage** — `useAdminOrders` fetches all orders w/o status filter; UI has a `__source_field_sales` filter, status options are `pending/processing/.../cancelled` but **`pending_payment` is missing from the dropdown**. Once orders exist with that status, they appear in "all" but cannot be filtered by it.
 
-- `Account360ProfileEditDialog.tsx` line 251: replace `{form.date_of_birth || "—"}` → `{form.date_of_birth || "Non renseignée"}`.
-- `Account360Sections.tsx` line 39: change `fmtDate(prof?.date_of_birth)` to `prof?.date_of_birth ? fmtDate(prof.date_of_birth) : "Non renseignée"` (helper currently returns "—" or "Date non disponible").
+**5. Email** — `email_queue.template_key='order_confirmation'` does **not exist** anywhere (no row in `email_templates`, no handler in queue processor). Sending it would silently fail until I either (a) add a row to `email_templates` with the HTML, or (b) reuse the existing `payment_link_employee` template with a different subject/badge.
 
-## FIX 2 — Field agent profile completeness (~150 lines added to FieldProfile.tsx)
+**6. `orders` NOT NULL columns** — `user_id`, `account_id`, `service_type`, `client_request_id` are all NOT NULL. A card_manual order has no client account yet → I must either create a placeholder profile/account OR call `field-sales-sync` edge function (which already handles account creation for paid Field orders). The current `field-sales-sync` only fires on PayPal capture; reusing it for "pending_payment" needs a new code path.
 
-Current query only selects `full_name, email, phone, avatar_url`. I'll extend to:
-- Add `address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, payment_method` to the `profiles` select.
-- Join `field_territories` for territory name (currently shows raw UUID).
-- Add new editable section "Adresse domicile" (street/city/province/postal).
-- Add new editable section "Contact d'urgence" (name/phone).
-- Add read-only "Date de naissance" formatted `15 janvier 1990`, "Méthode de paiement", improved territory name.
-- Replace all `"—"` placeholders with `"Non renseigné"`.
-- Update mutation to persist new editable fields.
-
-## FIX 3 — Core agent creation form additions
-
-I'll read `CoreFieldAgentsPage.tsx` (2102 lines) and locate the existing creation dialog. I'll add the missing fields you listed (DOB, home address, emergency contact + relation, monthly target, payment method + interac/paypal email) into the existing form, organized as visual steps/sections (single dialog with grouped sections — not a wizard, to keep the change focused). On save: update profiles with all fields, upsert into `sales_targets` if monthly target > 0, upsert `field_territory_assignments` if territory selected, and invoke the existing invitation send (assuming one exists; otherwise I'll wire it via supabase admin invite).
-
-**Note**: "stored encrypted" for DOB — `profiles.date_of_birth` is currently a plain `date` column. True encryption requires pgcrypto + key management which is out of scope here. I'll store it as-is in the existing column unless you want a separate migration.
-
-## FIX 4 — Nivra Source sections (LARGE — needs your call)
-
-Audit of current state:
-
-| Section | File | State |
-|---|---|---|
-| Annonces | `HubAnnouncements.tsx` (62 lines) | Basic list, no pinned/badges/reactions/view count |
-| Feed | `sections/HubFeed.tsx` (117 lines) | Basic list |
-| Documents | `HubDocuments.tsx` | Has category filter, basic |
-| Boutique | `sections/HubStore.tsx` | Already rebuilt ✅ |
-| Leaderboard | `HubLeaderboard.tsx` | Need to inspect |
-| Calendrier | `HubCalendar.tsx` | List view only — no monthly grid |
-| Concours | `sections/HubContests.tsx` | Basic |
-| Conseils | `sections/HubTips.tsx` | Basic |
-| Forfaits & Prix | `sections/HubPricing.tsx` | Basic |
-| Formulaires | `HubForms.tsx` | Need to inspect |
-| Mes tickets | `sections/HubMyTickets.tsx` | Need to inspect |
-| Formation | `sections/HubTraining.tsx` | Basic |
-| FAQ | `sections/HubFaq.tsx` | Basic |
-| Annuaire | `sections/HubDirectory.tsx` | Basic |
-
-A full rebuild of all 13 sections to the level you described (monthly calendar grid, video player + quiz + certificates for training, voting on FAQ, real-time tickets, reaction system + view counter on every post, etc.) is **a multi-day, ~3000+ line undertaking** that likely needs new DB tables: `hub_post_reactions`, `hub_post_views`, `hub_faq_votes`, `hub_training_progress`, `hub_quiz_responses`, `hub_certificates`, `hub_bookmarks`.
-
-**My recommendation — ship in phases:**
-- **Phase 4A (this turn, ~400 lines)**: enrich Annonces (pinned + category badges + "Nouveau" badge), Feed (better media display + "Nouveau"), Documents ("Nouveau" badge), Calendar (add monthly grid view toggle), proper empty states everywhere. No new tables.
-- **Phase 4B (next request)**: reactions + view_count system (1 new table, RLS, increments on open).
-- **Phase 4C (later)**: training progress/quiz/certificates, FAQ voting, contest countdown, leaderboard tier-progress.
-
-## FIX 5 — Core admin Hub management (LARGE — needs your call)
-
-`CoreHubManagementPage.tsx` is 1763 lines. I need to inspect what's already there before estimating. The features you listed (rich text editor, drag-and-drop multi-image upload, bulk select, internal notes on tickets, assign to staff) are individually substantial. Once I read the file I'll report back what exists vs what's missing and propose a phased delivery.
+**7. Install appointment** — `installation_appointments` table does not exist.
 
 ---
 
-## What I'll do right now on approval
+## Plan (6 changes, in order)
 
-1. **FIX 1** — 2 small edits, immediate.
-2. **FIX 2** — extend `FieldProfile.tsx` query + UI + mutation.
-3. **FIX 3** — add missing fields to existing creation dialog in `CoreFieldAgentsPage.tsx`.
-4. **FIX 4 Phase 4A** — pinned/badges/"Nouveau"/empty states + Calendar monthly grid.
-5. **FIX 5 audit** — read `CoreHubManagementPage.tsx` and report back with a concrete plan, no edits.
+### A. Migration 1 — `installation_appointments` table
+- Create table with columns from spec (`order_id FK orders`, `appointment_date`, `appointment_window` enum, `technician_id FK profiles.user_id`, `installation_fee numeric`, `fee_type` enum, `fee_notes`, `status` enum, `notes`, `created_by`, `created_at`).
+- RLS: SELECT for any authenticated staff (`has_role` admin/employee/field_sales/technician); INSERT for admin + field_sales + employee; UPDATE for admin + assigned technician.
+- Index on `order_id`, `technician_id`, `appointment_date`.
 
-Then I'll run the proof commands you listed.
+### B. Migration 2 — Backfill 11 stuck `field_payment_intents` → `orders`
+- Inserting into `orders` requires `user_id`, `account_id`, `service_type` (NOT NULL). For backfill I'll create stub `profiles` + `accounts` rows from `field_quotes.customer_email/name`, OR — safer — add a new optional column `orders.guest_intent_id uuid` and allow nullable user_id/account_id only for `payment_method='card_manual' AND status='pending_payment'` via a CHECK + dropping the NOT NULL with a partial guard.
+- **This is destructive** to the schema invariant `assertCanonicalAccountInvariant`. **I need confirmation** before relaxing those NOT NULLs.
+- Alternative: leave intents as-is and surface them in Core via a new "Pending card payments" panel that joins `field_payment_intents` instead of `orders`. **Strongly recommended** — preserves canonical invariant.
 
-**Confirm** if this phased approach is OK, or tell me to do everything in one shot and I'll proceed (warning: that will be a very large diff with higher regression risk on the protected files' neighbors).
+### C. `FieldNewSale.tsx` — make `handleCardSubmit` create real artifacts
+- After `field-card-intent` returns successfully:
+  - Insert `field_commissions` row: `agent_id=user.id`, `order_id=null` (set later by capture), `amount=computed`, `status='pending'`, `commission_type='forfait'`, `description='Card pending capture — intent <id>'`.
+  - Enqueue email with `template_key='payment_link_employee'` reused but with subject "Confirmation de commande — Nivra Telecom" and a `payment_status: "En attente de traitement (carte)"` row in template_vars (no new template needed, no silent failure).
+  - Switch to local `submittedState = { kind: 'card', intentId, amount, commissionAmount }` and render a **success screen** with: order number `SUB-XXXX`, status, "Nouvelle vente" button (`localStorage.removeItem(DRAFT_KEY)` + `setDraft(EMPTY_DRAFT)` + `setCompletedSteps([])`), and (if Migration A approved) the install appointment form posting to `installation_appointments`.
+- **No order row** is created from the client. Instead the existing edge function `field-payment-capture` (or equivalent admin action) is responsible for promoting the intent to a real `orders` row when the card is actually charged. This keeps the canonical invariant intact.
+
+### D. `OrdersPage.tsx` — add `pending_payment` to status filter dropdown (1 line)
+
+### E. New "Pending card payments" panel in Core (optional, recommended)
+- Uses `field_payment_intents` joined with `field_quotes` + `profiles(agent)` to surface card_manual intents that have not yet been promoted to orders.
+- Lives in `OrdersPage.tsx` as a collapsible section at top, or a new tab. Allows Admin to "Process card" → triggers the existing capture flow.
+
+### F. Reset/"Nouvelle vente" — already wired in success screen from C.
+
+---
+
+## Decisions I need from you
+
+1. **For Fix 4 (backfill)**: relax `orders.user_id/account_id` NOT NULL (risky, breaks invariants), OR surface intents via a new Core panel without ever creating `orders` rows for unpaid cards (recommended)?
+2. **For Fix 1 step 5 (email)**: reuse `payment_link_employee` template with adjusted vars (works today), OR insert a brand-new `order_confirmation` template into `email_templates` + add a handler in the queue processor (needs more files, more risk)?
+3. **For Fix 1 steps 1–3 (insert order + invoke field-sales-sync at card-save time)**: this contradicts the existing payment-first invariant ("FIX 1: NO order created until webhook confirms" — comment at line 218 of `FieldNewSale.tsx`). Override that invariant or keep it?
+
+Once you answer these three, I execute the migrations + edits and paste raw proof.

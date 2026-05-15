@@ -10277,6 +10277,76 @@ export type Database = {
           },
         ]
       }
+      installation_appointments: {
+        Row: {
+          appointment_date: string | null
+          appointment_window: string | null
+          created_at: string
+          created_by: string | null
+          fee_notes: string | null
+          fee_type: string | null
+          id: string
+          installation_fee: number | null
+          notes: string | null
+          order_id: string | null
+          status: string | null
+          technician_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          appointment_date?: string | null
+          appointment_window?: string | null
+          created_at?: string
+          created_by?: string | null
+          fee_notes?: string | null
+          fee_type?: string | null
+          id?: string
+          installation_fee?: number | null
+          notes?: string | null
+          order_id?: string | null
+          status?: string | null
+          technician_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appointment_date?: string | null
+          appointment_window?: string | null
+          created_at?: string
+          created_by?: string | null
+          fee_notes?: string | null
+          fee_type?: string | null
+          id?: string
+          installation_fee?: number | null
+          notes?: string | null
+          order_id?: string | null
+          status?: string | null
+          technician_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installation_appointments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "installation_appointments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "installation_appointments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installation_job_logs: {
         Row: {
           action: string

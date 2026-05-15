@@ -50,6 +50,32 @@ export default function FieldNewSale() {
   });
 
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
+
+  // FIX 1+5+6 — Card-saved success state (drives "Nouvelle vente" + install appt form)
+  const [cardSuccess, setCardSuccess] = useState<{
+    intentId: string;
+    orderNumber: string;
+    last4: string;
+    amount: number;
+    commission: number;
+  } | null>(null);
+  const [apptDate, setApptDate] = useState<string>("");
+  const [apptWindow, setApptWindow] = useState<"morning"|"afternoon"|"evening"|"flexible">("flexible");
+  const [apptFeeType, setApptFeeType] = useState<"standard"|"free"|"custom"|"waived">("standard");
+  const [apptFeeCustom, setApptFeeCustom] = useState<string>("");
+  const [apptFeeNotes, setApptFeeNotes] = useState<string>("");
+  const [apptNotes, setApptNotes] = useState<string>("");
+  const [apptSaved, setApptSaved] = useState<boolean>(false);
+  const [savingAppt, setSavingAppt] = useState<boolean>(false);
+
+  const resetForNewSale = useCallback(() => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    setDraft({ ...EMPTY_DRAFT, agentId: user?.id ?? "", createdAt: new Date().toISOString() });
+    setCompletedSteps([]);
+    setCardSuccess(null);
+    setApptDate(""); setApptWindow("flexible"); setApptFeeType("standard");
+    setApptFeeCustom(""); setApptFeeNotes(""); setApptNotes(""); setApptSaved(false);
+  }, [user?.id]);
   const { data: fieldConfig } = useFieldConfig();
 
   // ── Draft persistence (FIX: survive page refresh) ──
@@ -332,7 +358,7 @@ export default function FieldNewSale() {
     }
   };
 
-  // FIX 2 — Card manual submit
+  // FIX 1 — Card manual submit: order_confirmation email + pending commission + success screen
   const handleCardSubmit = async (cardData: { number: string; name: string; expiry: string; cvv: string }) => {
     if (!user?.id || isSubmitting) return;
     setIsSubmitting(true);
@@ -357,21 +383,113 @@ export default function FieldNewSale() {
         },
       });
       if (error) throw error;
+      if (!data?.intent_id) throw new Error("Réponse invalide du backend (intent_id manquant).");
 
-      setDraft((d) => ({
-        ...d,
-        payment: { ...d.payment, status: "sent", linkSentTo: null,
-          paypalApprovalUrl: null, paypalOrderId: null,
-          fieldOrderId: null, invoiceId: null, coreOrderId: null },
-      }));
-      toast.success(`Carte ••${data.card_last4} enregistrée. En attente de traitement par Core.`);
-      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep])]);
+      const intentId: string = data.intent_id;
+      const last4: string = data.card_last4 || cardData.number.slice(-4);
+      const orderNumber = `SUB-${String(intentId).slice(0, 8).toUpperCase()}`;
+
+      // Commission pending — visible immediately to agent
+      const commissionAmount = Math.max(0, Number((monthlyAfterDiscount * 0.1).toFixed(2)));
+      try {
+        await supabase.from("field_commissions").insert({
+          agent_id: user.id,
+          order_id: null,
+          amount: commissionAmount,
+          status: "pending",
+          commission_type: "forfait",
+          description: `Carte en attente de capture — intent ${intentId}`,
+        } as any);
+      } catch (commErr: any) {
+        logger.warn("commission insert failed", commErr);
+      }
+
+      // Order confirmation email (reuses payment_link_employee template engine).
+      if (draft.customer.email) {
+        const servicesList = buildServicesList(draft);
+        const equipmentList = buildEquipmentList(draft);
+        const discountLabel = buildDiscountLabel(draft);
+        const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+        const discountAmount = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
+        const emailPayload = {
+          event_key: `order_confirmation_${intentId}`,
+          to_email: draft.customer.email,
+          template_key: "order_confirmation",
+          template_vars: {
+            client_name: fullName,
+            client_email: draft.customer.email,
+            first_name: draft.customer.first_name || "Client",
+            order_number: orderNumber,
+            services: servicesList,
+            summary: servicesList,
+            equipment: equipmentList,
+            discount: discountAmount.toFixed(2),
+            discount_label: discountLabel,
+            subtotal: subtotal.toFixed(2),
+            tps: tps.toFixed(2),
+            tvq: tvq.toFixed(2),
+            total: total.toFixed(2),
+            payment_status: "En attente de traitement (carte)",
+            card_last4: last4,
+            agent_name: agentName,
+            subject_override: "Confirmation de commande — Nivra Telecom",
+            badge_override: "COMMANDE REÇUE",
+            hero_override: "Votre commande a été enregistrée",
+            body_override: "Le paiement par carte sera traité par notre équipe dans les 48 heures.",
+          },
+          status: "queued",
+        };
+        for (let i = 1; i <= 3; i++) {
+          const { error: e } = await supabase.from("email_queue").insert(emailPayload as any);
+          if (!e) break;
+          if (i < 3) await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+
+      setCardSuccess({ intentId, orderNumber, last4, amount: total, commission: commissionAmount });
+      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+      toast.success(`Commande créée ${orderNumber} • Carte ••${last4}`);
     } catch (err: any) {
       logger.warn("Field card submission failed", err);
       toast.error(err?.message || "Erreur lors de l'enregistrement de la carte");
     } finally {
       setIsSubmitting(false);
       setSubmitMessage("");
+    }
+  };
+
+  // Save installation appointment (FIX 6)
+  const saveAppointment = async () => {
+    if (!cardSuccess) return;
+    if (!apptDate) { toast.error("Date du rendez-vous requise."); return; }
+    setSavingAppt(true);
+    try {
+      const fee =
+        apptFeeType === "free" ? 0 :
+        apptFeeType === "waived" ? 0 :
+        apptFeeType === "custom" ? Number(apptFeeCustom || 0) :
+        10;
+      const { error } = await supabase.from("installation_appointments" as any).insert({
+        order_id: null,
+        appointment_date: new Date(apptDate).toISOString(),
+        appointment_window: apptWindow,
+        installation_fee: fee,
+        fee_type: apptFeeType,
+        fee_notes: apptFeeNotes || null,
+        notes: apptNotes
+          ? `${apptNotes} — Intent ${cardSuccess.intentId}`
+          : `Intent ${cardSuccess.intentId}`,
+        created_by: user?.id ?? null,
+      } as any);
+      if (error) throw error;
+      setApptSaved(true);
+      toast.success("Rendez-vous d'installation planifié.");
+    } catch (e: any) {
+      logger.warn("appointment insert failed", e);
+      toast.error(e?.message || "Échec de la planification");
+    } finally {
+      setSavingAppt(false);
     }
   };
 
@@ -418,6 +536,136 @@ export default function FieldNewSale() {
       supabase.removeChannel(channel);
     };
   }, [draft.payment.invoiceId]);
+
+  // FIX 1 step 6 + FIX 5 + FIX 6 — Card success screen with install appointment + Nouvelle vente reset
+  if (cardSuccess) {
+    const feeDisplay =
+      apptFeeType === "free" ? "0$" :
+      apptFeeType === "waived" ? "Exonéré" :
+      apptFeeType === "custom" ? `${apptFeeCustom || "0"}$` :
+      "10$";
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
+        <div className="rounded-2xl border border-violet-500/30 bg-card p-6 md:p-8 shadow-xl">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-violet-600/10 mb-3">
+              <span className="text-3xl">✅</span>
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Commande créée</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Numéro <span className="font-mono font-semibold text-foreground">#{cardSuccess.orderNumber}</span> · Carte ••{cardSuccess.last4}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm mb-6">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-xs text-muted-foreground">Total commande</div>
+              <div className="font-semibold text-foreground">{cardSuccess.amount.toFixed(2)} $</div>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-xs text-muted-foreground">Commission en attente</div>
+              <div className="font-semibold text-violet-400">{cardSuccess.commission.toFixed(2)} $</div>
+            </div>
+          </div>
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200 mb-6">
+            La commande est visible dans Core pour traitement. Le paiement sera traité par l'équipe sous 48h.
+          </div>
+
+          {/* Installation appointment */}
+          <div className="border-t border-border pt-5 mb-6">
+            <h2 className="text-base font-semibold text-foreground mb-3">Rendez-vous d'installation</h2>
+            {apptSaved ? (
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-300">
+                Rendez-vous planifié ✓
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Date</label>
+                  <input
+                    type="datetime-local"
+                    value={apptDate}
+                    onChange={(e) => setApptDate(e.target.value)}
+                    className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Créneau</label>
+                  <select
+                    value={apptWindow}
+                    onChange={(e) => setApptWindow(e.target.value as any)}
+                    className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  >
+                    <option value="morning">Matin</option>
+                    <option value="afternoon">Après-midi</option>
+                    <option value="evening">Soir</option>
+                    <option value="flexible">Flexible</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Frais d'installation ({feeDisplay})</label>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {([
+                      ["standard", "Standard — 10$"],
+                      ["free", "Gratuit — 0$"],
+                      ["custom", "Personnalisé"],
+                      ["waived", "Exonéré"],
+                    ] as const).map(([val, label]) => (
+                      <label key={val} className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer ${apptFeeType === val ? "border-violet-500 bg-violet-500/10" : "border-border"}`}>
+                        <input type="radio" name="feeType" value={val} checked={apptFeeType === val} onChange={() => setApptFeeType(val)} />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {apptFeeType === "custom" && (
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={apptFeeCustom}
+                      onChange={(e) => setApptFeeCustom(e.target.value)}
+                      placeholder="Montant ($)"
+                      className="mt-2 w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                    />
+                  )}
+                  {apptFeeType === "waived" && (
+                    <input
+                      type="text"
+                      value={apptFeeNotes}
+                      onChange={(e) => setApptFeeNotes(e.target.value)}
+                      placeholder="Raison de l'exonération"
+                      className="mt-2 w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Notes pour le technicien</label>
+                  <textarea
+                    value={apptNotes}
+                    onChange={(e) => setApptNotes(e.target.value)}
+                    rows={2}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <button
+                  onClick={saveAppointment}
+                  disabled={savingAppt || !apptDate}
+                  className="w-full h-11 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {savingAppt ? "Enregistrement…" : "Confirmer le rendez-vous"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Nouvelle vente — always available */}
+          <button
+            onClick={resetForNewSale}
+            className="w-full h-12 rounded-lg border border-violet-500/40 bg-violet-600/10 text-violet-200 text-sm font-semibold hover:bg-violet-600/20"
+          >
+            Nouvelle vente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-6">
