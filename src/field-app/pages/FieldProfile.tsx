@@ -122,6 +122,8 @@ export default function FieldProfile() {
         emergencyPhone: p.emergency_contact_phone || "",
         emergencyRelation: p.emergency_contact_relation || "",
         paymentMethod: p.payment_method || "",
+        agentNumber: p.agent_number || "",
+        professionalEmail: p.professional_email || "",
         role: roleRes.data?.role || "field_sales",
         startDate: roleRes.data?.created_at || null,
         isActive: roleRes.data?.is_active ?? true,
