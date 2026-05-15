@@ -12,9 +12,9 @@ import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
   DollarSign, User, Lock, LogOut, ShoppingCart,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
-  ChevronLeft, ChevronRight,
-  Megaphone, FileText, ShoppingBag, Trophy, ClipboardList,
+  ChevronLeft, ChevronRight, LayoutGrid,
 } from "lucide-react";
+import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const FIELD_BASE = "/field";
@@ -43,12 +43,7 @@ const toolsNav = [
 ];
 
 const hubNav = [
-  { label: "Annonces", href: `${FIELD_BASE}/hub/annonces`, icon: Megaphone },
-  { label: "Documents", href: `${FIELD_BASE}/hub/documents`, icon: FileText },
-  { label: "Boutique", href: `${FIELD_BASE}/hub/boutique`, icon: ShoppingBag },
-  { label: "Leaderboard", href: `${FIELD_BASE}/hub/leaderboard`, icon: Trophy },
-  { label: "Calendrier", href: `${FIELD_BASE}/hub/calendrier`, icon: Calendar },
-  { label: "Formulaires", href: `${FIELD_BASE}/hub/formulaires`, icon: ClipboardList },
+  { label: "Nivra Source", href: `${FIELD_BASE}/hub`, icon: LayoutGrid, badgeKey: "hub" as const },
 ];
 
 const bottomItems = [
