@@ -439,7 +439,8 @@ export default function FieldNewSale() {
         }
       }
 
-      // FIX 2 — Create real order in Core via field_sales_orders + field-sales-sync
+      // Create real order in Core via field_sales_orders + field-sales-sync.
+      let coreOrderNumber = orderNumber;
       try {
         const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
         const { data: fsRow, error: fsErr } = await supabase
@@ -452,13 +453,17 @@ export default function FieldNewSale() {
             customer_address: draft.customer.address || "",
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
-            services: draft.services as any,
+            services: draft.services.map((service) => ({
+              ...service,
+              price_monthly: service.monthlyPrice,
+              monthly_price: service.monthlyPrice,
+            })) as any,
             total_amount: total,
             payment_method: "card_manual",
             payment_reference: intentId,
             payment_status: "pending",
             sync_status: "pending",
-            internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}`,
+            internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}\nCommission: ${commissionAmount.toFixed(2)}$ = 30% récurrent (${monthlyBeforeDiscount.toFixed(2)}$) + 5% équipement (${equipmentTotal.toFixed(2)}$)`,
           } as any)
           .select("id")
           .single();
@@ -469,12 +474,16 @@ export default function FieldNewSale() {
         }
         const saleId = (fsRow as any)?.id;
         if (saleId) {
-          const { error: syncError } = await supabase.functions.invoke("field-sales-sync", {
+          const { data: syncData, error: syncError } = await supabase.functions.invoke("field-sales-sync", {
             body: { action: "sync_single", sale_id: saleId },
           });
-          if (syncError) {
-            console.error("[sync] field-sales-sync failed", syncError);
-            logger.warn("[card-sync] field-sales-sync failed", syncError);
+          if (syncError || syncData?.success === false) {
+            const message = syncError?.message || syncData?.error || "Erreur sync inconnue";
+            console.error("[sync] field-sales-sync failed", syncError || syncData);
+            logger.warn("[card-sync] field-sales-sync failed", syncError || syncData);
+            toast.error("Commande créée, mais sync Core échouée: " + message);
+          } else if (syncData?.order_number) {
+            coreOrderNumber = syncData.order_number;
           }
         }
       } catch (syncCatch: any) {
@@ -482,7 +491,7 @@ export default function FieldNewSale() {
         logger.warn("[card-sync] order creation failed (non-blocking)", syncCatch);
       }
 
-      setCardSuccess({ intentId, orderNumber, last4, amount: total, commission: commissionAmount });
+      setCardSuccess({ intentId, orderNumber: coreOrderNumber, last4, amount: total, commission: commissionAmount });
       setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       toast.success(`Commande créée ${orderNumber} • Carte ••${last4}`);
