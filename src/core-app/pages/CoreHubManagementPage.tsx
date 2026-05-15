@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Plus, Loader2, Trash2, Pin, PinOff, Eye, EyeOff, Upload, X,
+  Plus, Loader2, Trash2, Pin, PinOff, Eye, EyeOff, Upload, X, Check,
   Megaphone, Rss, BookOpen, ShoppingBag, Trophy, Calendar, Target,
   Lightbulb, BarChart3, ClipboardList, Ticket, GraduationCap,
   HelpCircle, Phone, Bell, BarChart2,
