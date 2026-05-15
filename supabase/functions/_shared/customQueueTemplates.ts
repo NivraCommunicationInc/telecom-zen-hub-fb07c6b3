@@ -2248,6 +2248,60 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // FIELD COMMISSION APPROVED — agent commission notification
+    // ===================================================================
+    case "commission_approved": {
+      const agentName = String(v.agent_name || v.client_name || "Agent");
+      const orderNo = esc(v.order_number || "N/A");
+      const amount = money(v.amount);
+      const statusLabel = esc(v.status_label || "Approuvée");
+      return {
+        subject: `Votre commission a été approuvée`,
+        html: shell({
+          preheader: `Bonne nouvelle — votre commission ${amount} est approuvée.`,
+          badge: "COMMISSION APPROUVÉE",
+          heroTitle: "Bonne nouvelle !",
+          heroSub: "Votre commission vient d'être approuvée.",
+          icon: "star",
+          greeting: `Bonjour ${agentName},`,
+          bodyText: `Félicitations — votre commission est désormais approuvée et sera traitée selon le calendrier de paie.`,
+          cardTitle: "Détails de la commission",
+          cardRows: [
+            ["Commande", `#${String(orderNo).replace(/^#/, "")}`],
+            ["Montant", String(amount)],
+            ["Statut", String(statusLabel)],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/field/commissions`,
+          ctaPrimaryLabel: "Voir mes commissions",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // INTERNAL EMAIL COMPOSE — staff-to-anyone messaging from Core/Employee
+    // ===================================================================
+    case "internal_email_compose": {
+      const customSubject = String(v.subject || "Message de Nivra Telecom");
+      const messageBody = String(v.message_html || v.message || "");
+      const senderName = esc(v.sender_name || "Équipe Nivra");
+      return {
+        subject: customSubject,
+        html: shell({
+          preheader: customSubject,
+          badge: "MESSAGE DE NIVRA TELECOM",
+          heroTitle: customSubject,
+          icon: "doc",
+          greeting,
+          bodyText: messageBody,
+          afterCardText: `Cordialement,<br/><strong>${senderName}</strong><br/>Nivra Telecom`,
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Répondre",
+          helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a> · Québec, Canada`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
