@@ -5,6 +5,7 @@
  */
 import { Receipt } from "lucide-react";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
+import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
 
 interface Props {
   draft: FieldSaleDraft;
