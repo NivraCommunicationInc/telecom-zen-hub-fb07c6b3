@@ -18,7 +18,7 @@ import {
 
 import HubAnnouncements from "./HubAnnouncements";
 import HubDocuments from "./HubDocuments";
-import HubStore from "./HubStore";
+import HubStore from "./sections/HubStore";
 import HubLeaderboard from "./HubLeaderboard";
 import HubCalendar from "./HubCalendar";
 import HubForms from "./HubForms";
