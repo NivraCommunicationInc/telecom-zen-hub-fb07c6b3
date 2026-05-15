@@ -36,7 +36,7 @@ export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: an
         <div className="flex items-start justify-between py-1.5 border-b border-[hsl(220,15%,14%)] last:border-0">
           <span className="text-[11px] text-[hsl(220,10%,45%)]">Date de naissance</span>
           <span className="text-[11px] text-white text-right flex items-center gap-1.5">
-            {fmtDate(prof?.date_of_birth)}
+            {prof?.date_of_birth ? fmtDate(prof.date_of_birth) : "Non renseignée"}
             {prof?.dob_locked && !isAdminCore && (
               <span title="Champ verrouillé — modification réservée à admin_core" className="cursor-help">🔒</span>
             )}

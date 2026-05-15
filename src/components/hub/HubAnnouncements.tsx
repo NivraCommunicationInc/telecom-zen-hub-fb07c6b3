@@ -40,16 +40,30 @@ export default function HubAnnouncements() {
     );
   }
 
+  const isNew = (d?: string | null) => {
+    if (!d) return false;
+    return (Date.now() - new Date(d).getTime()) < 48 * 60 * 60 * 1000;
+  };
+
   return (
     <div className="space-y-3 max-w-3xl">
       {data.map((a: any) => (
-        <article key={a.id} className="rounded-xl border border-border bg-card p-4">
+        <article key={a.id} className={`rounded-xl border bg-card p-4 ${a.is_pinned ? "border-violet-300 ring-1 ring-violet-200" : "border-border"}`}>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {a.is_pinned && <Pin className="h-3.5 w-3.5 text-violet-600" />}
+            {a.is_pinned && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider rounded-full bg-violet-100 text-violet-700 px-2 py-0.5">
+                <Pin className="h-3 w-3" /> Épinglée
+              </span>
+            )}
             <span className={`text-[10px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5 ${CATEGORY_COLORS[a.category] || CATEGORY_COLORS.general}`}>
               {a.category}
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            {isNew(a.published_at) && (
+              <span className="text-[10px] font-bold uppercase tracking-wider rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5">
+                Nouveau
+              </span>
+            )}
+            <span className="text-[11px] text-muted-foreground ml-auto">
               {a.published_at && formatDistanceToNow(new Date(a.published_at), { addSuffix: true, locale: fr })}
             </span>
           </div>

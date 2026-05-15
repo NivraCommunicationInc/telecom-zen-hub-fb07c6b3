@@ -37,11 +37,32 @@ function getInitials(name?: string | null, email?: string | null) {
   return src.slice(0, 2).toUpperCase();
 }
 
+const PROVINCES = ["QC", "ON", "NB", "NS", "PE", "NL", "MB", "SK", "AB", "BC", "YT", "NT", "NU"];
+
+const PAYMENT_LABELS: Record<string, string> = {
+  interac: "Virement Interac",
+  direct_deposit: "Dépôt direct",
+  paypal: "PayPal",
+  cheque: "Chèque",
+};
+
+const RELATION_OPTIONS = ["Conjoint/e", "Parent", "Frère/Sœur", "Enfant", "Ami/e", "Autre"];
+
 export default function FieldProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({ full_name: "", phone: "" });
+  const [formData, setFormData] = useState({
+    full_name: "",
+    phone: "",
+    address_street: "",
+    address_city: "",
+    address_province: "QC",
+    address_postal: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_relation: "",
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-profile-pro"],
@@ -53,7 +74,7 @@ export default function FieldProfile() {
 
       const [profileRes, roleRes, territoryRes, commRes] = await Promise.all([
         supabase.from("profiles")
-          .select("full_name, email, phone, avatar_url")
+          .select("full_name, email, phone, avatar_url, address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, payment_method")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase.from("user_roles")
@@ -62,7 +83,7 @@ export default function FieldProfile() {
           .eq("role", "field_sales")
           .maybeSingle(),
         supabase.from("field_territory_assignments")
-          .select("territory_id, status, assigned_from")
+          .select("territory_id, status, assigned_from, field_territories(name, territory_code, city)")
           .eq("user_id", user.id)
           .eq("status", "active")
           .order("assigned_from", { ascending: false })
@@ -83,16 +104,28 @@ export default function FieldProfile() {
       const nextTier = BONUS_TIERS.find((t) => monthSales < t.count);
       const nextTierRemaining = nextTier ? nextTier.count - monthSales : 0;
 
+      const p: any = profileRes.data || {};
+      const terr: any = (territoryRes.data as any)?.field_territories || null;
+
       return {
         userId: user.id,
-        email: user.email || profileRes.data?.email || "",
-        fullName: profileRes.data?.full_name || "",
-        phone: profileRes.data?.phone || "",
-        avatarUrl: profileRes.data?.avatar_url || null,
+        email: user.email || p.email || "",
+        fullName: p.full_name || "",
+        phone: p.phone || "",
+        avatarUrl: p.avatar_url || null,
+        addressStreet: p.address_street || "",
+        addressCity: p.address_city || "",
+        addressProvince: p.address_province || "QC",
+        addressPostal: p.address_postal || "",
+        dateOfBirth: p.date_of_birth || null,
+        emergencyName: p.emergency_contact_name || "",
+        emergencyPhone: p.emergency_contact_phone || "",
+        emergencyRelation: p.emergency_contact_relation || "",
+        paymentMethod: p.payment_method || "",
         role: roleRes.data?.role || "field_sales",
         startDate: roleRes.data?.created_at || null,
         isActive: roleRes.data?.is_active ?? true,
-        territoryId: territoryRes.data?.territory_id || null,
+        territoryName: terr?.name || (terr?.territory_code ? `${terr.territory_code}${terr.city ? " — " + terr.city : ""}` : null),
         territoryFrom: territoryRes.data?.assigned_from || null,
         monthSales,
         totalAmount,
@@ -105,11 +138,18 @@ export default function FieldProfile() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: { full_name: string; phone: string }) => {
+    mutationFn: async (payload: typeof formData) => {
       const { error } = await supabase.from("profiles").update({
         full_name: payload.full_name.trim(),
         phone: payload.phone.trim() || null,
-      }).eq("user_id", data!.userId);
+        address_street: payload.address_street.trim() || null,
+        address_city: payload.address_city.trim() || null,
+        address_province: payload.address_province || null,
+        address_postal: payload.address_postal.trim().toUpperCase() || null,
+        emergency_contact_name: payload.emergency_contact_name.trim() || null,
+        emergency_contact_phone: payload.emergency_contact_phone.trim() || null,
+        emergency_contact_relation: payload.emergency_contact_relation.trim() || null,
+      } as any).eq("user_id", data!.userId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -138,11 +178,26 @@ export default function FieldProfile() {
   }
 
   const startEdit = () => {
-    setFormData({ full_name: data.fullName, phone: data.phone });
+    setFormData({
+      full_name: data.fullName,
+      phone: data.phone,
+      address_street: data.addressStreet,
+      address_city: data.addressCity,
+      address_province: data.addressProvince,
+      address_postal: data.addressPostal,
+      emergency_contact_name: data.emergencyName,
+      emergency_contact_phone: data.emergencyPhone,
+      emergency_contact_relation: data.emergencyRelation,
+    });
     setEditing(true);
   };
 
   const initials = getInitials(data.fullName, data.email);
+  const dobLabel = data.dateOfBirth
+    ? format(new Date(data.dateOfBirth), "d MMMM yyyy", { locale: fr })
+    : "Non renseigné";
+  const homeAddrLabel = [data.addressStreet, data.addressCity, data.addressProvince, data.addressPostal]
+    .filter(Boolean).join(", ") || "Non renseigné";
 
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-12">
@@ -178,7 +233,7 @@ export default function FieldProfile() {
                 placeholder="Nom complet"
               />
             ) : (
-              <p className="text-lg font-bold text-[#111827] truncate">{data.fullName || "—"}</p>
+              <p className="text-lg font-bold text-[#111827] truncate">{data.fullName || "Non renseigné"}</p>
             )}
             <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-[#EDE9FE] text-[#6D28D9] text-[10px] font-semibold">
               Agent terrain
@@ -189,7 +244,8 @@ export default function FieldProfile() {
         <div className="space-y-3 pt-3 border-t border-[#F3F4F6]">
           <div className="flex items-center gap-3">
             <Mail className="h-4 w-4 text-[#9CA3AF]" />
-            <span className="text-sm text-[#374151] truncate">{data.email || "—"}</span>
+            <span className="text-sm text-[#374151] truncate">{data.email || "Non renseigné"}</span>
+            <span className="ml-auto text-[9px] uppercase tracking-wider text-[#9CA3AF]">Lecture seule</span>
           </div>
           <div className="flex items-center gap-3">
             <Phone className="h-4 w-4 text-[#9CA3AF]" />
@@ -201,8 +257,16 @@ export default function FieldProfile() {
                 className="text-sm text-[#374151] border-b border-[#E5E7EB] bg-transparent outline-none focus:border-[#7C3AED] pb-0.5 flex-1"
               />
             ) : (
-              <span className="text-sm text-[#374151]">{data.phone || "—"}</span>
+              <span className="text-sm text-[#374151]">{data.phone || "Non renseigné"}</span>
             )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Calendar className="h-4 w-4 text-[#9CA3AF]" />
+            <div className="flex-1">
+              <p className="text-[10px] text-[#9CA3AF]">Date de naissance</p>
+              <p className="text-sm text-[#374151]">{dobLabel}</p>
+            </div>
+            <span className="text-[9px] uppercase tracking-wider text-[#9CA3AF]">Lecture seule</span>
           </div>
         </div>
 
@@ -227,16 +291,104 @@ export default function FieldProfile() {
         )}
       </section>
 
-      {/* SECTION 2 — Employment */}
+      {/* SECTION — Adresse domicile (editable) */}
       <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Emploi</h2>
+        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Adresse domicile</h2>
+        {editing ? (
+          <div className="space-y-3">
+            <input
+              value={formData.address_street}
+              onChange={(e) => setFormData({ ...formData, address_street: e.target.value })}
+              placeholder="Rue (adresse civique)"
+              className="w-full text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={formData.address_city}
+                onChange={(e) => setFormData({ ...formData, address_city: e.target.value })}
+                placeholder="Ville"
+                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              />
+              <select
+                value={formData.address_province}
+                onChange={(e) => setFormData({ ...formData, address_province: e.target.value })}
+                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              >
+                {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <input
+              value={formData.address_postal}
+              onChange={(e) => setFormData({ ...formData, address_postal: e.target.value.toUpperCase() })}
+              placeholder="Code postal (H1A 1A1)"
+              maxLength={7}
+              className="w-full text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+            />
+          </div>
+        ) : (
+          <div className="flex items-start gap-3">
+            <MapPin className="h-4 w-4 text-[#9CA3AF] mt-0.5" />
+            <p className="text-sm text-[#374151] flex-1">{homeAddrLabel}</p>
+          </div>
+        )}
+      </section>
+
+      {/* SECTION — Contact d'urgence (editable) */}
+      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Contact d'urgence</h2>
+        {editing ? (
+          <div className="space-y-3">
+            <input
+              value={formData.emergency_contact_name}
+              onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+              placeholder="Nom complet"
+              className="w-full text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={formData.emergency_contact_phone}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                placeholder="Téléphone"
+                type="tel"
+                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              />
+              <select
+                value={formData.emergency_contact_relation}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_relation: e.target.value })}
+                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              >
+                <option value="">Relation…</option>
+                {RELATION_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <User className="h-4 w-4 text-[#9CA3AF]" />
+              <span className="text-sm text-[#374151]">{data.emergencyName || "Non renseigné"}</span>
+              {data.emergencyRelation && (
+                <span className="text-[10px] text-[#6B7280]">({data.emergencyRelation})</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Phone className="h-4 w-4 text-[#9CA3AF]" />
+              <span className="text-sm text-[#374151]">{data.emergencyPhone || "Non renseigné"}</span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* SECTION 2 — Employment (read-only) */}
+      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Emploi <span className="text-[9px] font-normal normal-case tracking-normal text-[#9CA3AF]">— Lecture seule</span></h2>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <Calendar className="h-4 w-4 text-[#9CA3AF]" />
             <div className="flex-1">
               <p className="text-[10px] text-[#9CA3AF]">Date d'entrée</p>
               <p className="text-sm text-[#374151]">
-                {data.startDate ? format(new Date(data.startDate), "d MMMM yyyy", { locale: fr }) : "—"}
+                {data.startDate ? format(new Date(data.startDate), "d MMMM yyyy", { locale: fr }) : "Non renseigné"}
               </p>
             </div>
           </div>
@@ -244,7 +396,14 @@ export default function FieldProfile() {
             <MapPin className="h-4 w-4 text-[#9CA3AF]" />
             <div className="flex-1">
               <p className="text-[10px] text-[#9CA3AF]">Territoire assigné</p>
-              <p className="text-sm text-[#374151]">{data.territoryId || "Non assigné"}</p>
+              <p className="text-sm text-[#374151]">{data.territoryName || "Non assigné"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <DollarSign className="h-4 w-4 text-[#9CA3AF]" />
+            <div className="flex-1">
+              <p className="text-[10px] text-[#9CA3AF]">Méthode de paiement</p>
+              <p className="text-sm text-[#374151]">{PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod || "Non renseigné"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
