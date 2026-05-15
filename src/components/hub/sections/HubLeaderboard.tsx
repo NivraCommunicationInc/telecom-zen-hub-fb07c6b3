@@ -18,7 +18,12 @@ interface AgentRow {
   is_me: boolean;
 }
 
-const TIER_TARGET = 5000; // bonus tier target ($)
+interface BonusTier {
+  min_sales: number;
+  max_sales: number | null;
+  bonus_amount: number;
+  description?: string | null;
+}
 
 function startOf(period: Period): string {
   const d = new Date();
