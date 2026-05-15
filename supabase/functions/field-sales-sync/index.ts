@@ -14,12 +14,33 @@ import { computeTaxes } from "../_shared/tax-constants.ts";
  * - get_stats: Get synchronization statistics
  */
 
-import { getCorsHeaders } from "../_shared/cors.ts";
+// CORS — permissive for internal supabase.functions.invoke() calls.
+// origin may be empty (server-to-server) or a Lovable preview/prod domain.
+const ALLOWED_ORIGINS = [
+  'https://nivra-telecom.ca',
+  'https://www.nivra-telecom.ca',
+  'https://telecom-zen-hub.lovable.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://localhost:5173',
+];
 
-const buildCorsHeaders = (req: Request) => ({
-  ...getCorsHeaders(req.headers.get("origin")),
-  'Content-Type': 'application/json',
-});
+const buildCorsHeaders = (req: Request) => {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = !origin
+    || ALLOWED_ORIGINS.includes(origin)
+    || origin.endsWith('.lovable.app')
+    || origin.endsWith('.lovableproject.com');
+  console.log(`[field-sales-sync CORS] origin="${origin}" isAllowed=${isAllowed}`);
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? (origin || '*') : 'null',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+    'Content-Type': 'application/json',
+  };
+};
 
 // Generate order number from DB sequence — NO local generation
 async function generateOrderNumberFromDB(admin: any): Promise<string> {
