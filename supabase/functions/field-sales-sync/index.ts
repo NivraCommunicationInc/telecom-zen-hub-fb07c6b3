@@ -733,6 +733,20 @@ Deno.serve(async (req) => {
         }
 
         // Update field_sales_orders with converted_order_id and sync status
+        const { data: verifiedOrderAfterBilling, error: verifyOrderAfterBillingError } = await supabaseAdmin
+          .from("orders")
+          .select("id")
+          .eq("id", canonicalOrder.id)
+          .maybeSingle();
+
+        if (verifyOrderAfterBillingError || !verifiedOrderAfterBilling) {
+          throw new Error(`Order verification failed after billing: ${verifyOrderAfterBillingError?.message || "order not found"}`);
+        }
+
+        if (!invoiceId) {
+          throw new Error("Billing invoice creation failed: invoice id missing");
+        }
+
         const { error: updateError } = await supabaseAdmin
           .from('field_sales_orders')
           .update({
@@ -746,6 +760,7 @@ Deno.serve(async (req) => {
 
         if (updateError) {
           console.error(`[field-sales-sync] Error updating sale status:`, updateError);
+          throw new Error(`Sync status update failed: ${updateError.message}`);
         }
 
         // ═══ COMMISSION ENGINE — Base % + tier lookup ═══
