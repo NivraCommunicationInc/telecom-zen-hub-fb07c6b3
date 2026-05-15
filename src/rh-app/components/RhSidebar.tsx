@@ -59,6 +59,17 @@ const navGroups = [
       { label: "Notifications RH", href: `${RH_BASE}/notifications`, icon: Bell },
     ],
   },
+  {
+    label: "Nivra Source",
+    items: [
+      { label: "Annonces", href: `${RH_BASE}/hub/annonces`, icon: Megaphone },
+      { label: "Documents", href: `${RH_BASE}/hub/documents`, icon: FileText },
+      { label: "Boutique", href: `${RH_BASE}/hub/boutique`, icon: ShoppingBag },
+      { label: "Leaderboard", href: `${RH_BASE}/hub/leaderboard`, icon: Trophy },
+      { label: "Calendrier", href: `${RH_BASE}/hub/calendrier`, icon: Calendar },
+      { label: "Formulaires", href: `${RH_BASE}/hub/formulaires`, icon: ClipboardList },
+    ],
+  },
 ];
 
 export default function RhSidebar() {
