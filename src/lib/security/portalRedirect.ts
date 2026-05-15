@@ -43,8 +43,8 @@ export function landingPathForRole(
   if (role === "technician" && access.can_access_technician !== false) return "/staff/technician";
   if (role === "admin" && access.can_access_core !== false) return "/core";
 
-  // Employees and other staff roles default to RH portal when granted, otherwise Employee portal.
-  if (access.can_access_rh) return "/rh";
+  // Employees and other staff roles default to HR portal when granted, otherwise Employee portal.
+  if (access.can_access_rh) return "/hr";
   if (role === "employee" && access.can_access_employee !== false) return "/employee";
 
   // Fallback by role even when access flags are missing.
@@ -62,7 +62,7 @@ export function landingPathForRole(
     case "billing_admin":
     case "techops":
     case "support":
-      return "/rh";
+      return "/hr";
     default:
       return HUB_LOGIN_PATH;
   }

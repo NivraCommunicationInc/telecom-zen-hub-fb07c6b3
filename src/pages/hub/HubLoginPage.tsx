@@ -23,7 +23,7 @@ const PORTAL_CONFIG: Record<string, { label: string; icon: typeof Terminal; acce
   employee: { label: "Nivra Employee", icon: Briefcase, accessKey: "can_access_employee", href: "/employee" },
   field: { label: "Nivra Field", icon: MapPin, accessKey: "can_access_field", href: "/field" },
   technician: { label: "Nivra Technician", icon: Wrench, accessKey: "can_access_technician", href: "/staff/technician" },
-  rh: { label: "Nivra RH", icon: UserCheck, accessKey: "can_access_rh", href: "/rh" },
+  rh: { label: "Nivra HR", icon: UserCheck, accessKey: "can_access_rh", href: "/hr" },
   marketing: { label: "Marketing Hub", icon: Megaphone, accessKey: "can_access_core", href: "/marketing" },
 };
 

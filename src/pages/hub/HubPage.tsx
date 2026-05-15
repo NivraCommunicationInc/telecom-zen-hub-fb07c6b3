@@ -43,7 +43,7 @@ const PORTALS: PortalOption[] = [
   },
   {
     id: "rh",
-    label: "Nivra RH",
+    label: "Nivra HR",
     description: "Dossier employé — Fiches de paie, documents fiscaux, horaires, lettres d'emploi.",
     icon: UserCheck,
     iconColor: "text-foreground",

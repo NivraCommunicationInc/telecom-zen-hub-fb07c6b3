@@ -368,7 +368,7 @@ export default function HrRequestsPage() {
       await supabase.from("employee_notifications").insert({
         user_id: vars.req.employee_id,
         notification_type: "system",
-        title: "Demande d'information — RH",
+        title: "Demande d'information — HR",
         message: vars.message,
       });
       await supabase.from("hr_audit_log").insert({

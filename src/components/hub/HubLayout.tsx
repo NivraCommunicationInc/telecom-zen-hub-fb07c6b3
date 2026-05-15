@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Megaphone, BookOpen, ShoppingBag, Trophy, Calendar, ClipboardList } from "lucide-react";
 
 interface HubLayoutProps {
-  basePath: string; // e.g. "/field/hub" | "/employee/hub" | "/rh/hub"
+  basePath: string; // e.g. "/field/hub" | "/employee/hub" | "/hr/hub"
 }
 
 const TABS = [

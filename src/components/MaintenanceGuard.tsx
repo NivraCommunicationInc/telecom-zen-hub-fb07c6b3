@@ -68,6 +68,7 @@ const MaintenanceGuard = ({ children }: MaintenanceGuardProps) => {
     location.pathname.startsWith("/core") ||
     location.pathname.startsWith("/employee") ||
     location.pathname.startsWith("/field") ||
+    location.pathname.startsWith("/hr") ||
     location.pathname.startsWith("/rh") ||
     location.pathname.startsWith("/hub");
 

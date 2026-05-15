@@ -17,6 +17,7 @@ const INTERNAL_ROUTE_PREFIXES = [
   "/field",
   "/employee",
   "/staff",
+  "/hr",
   "/rh",
   "/hub",
   "/admin",

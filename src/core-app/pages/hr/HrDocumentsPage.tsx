@@ -88,7 +88,7 @@ export default function HrDocumentsPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary" />
-          Documents RH — Lettres d'emploi
+          Documents HR — Lettres d'emploi
         </h1>
         <p className="text-xs text-muted-foreground">Gestion des demandes de lettres, approbation et génération PDF</p>
       </div>

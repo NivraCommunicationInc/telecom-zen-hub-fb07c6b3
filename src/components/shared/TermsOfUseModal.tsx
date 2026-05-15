@@ -18,15 +18,15 @@ import { toast } from "sonner";
 
 export const TERMS_VERSION = "1.0-2026";
 
-const TERMS_TEXT = `CONDITIONS D'UTILISATION — PORTAIL NIVRA FIELD & RH
+const TERMS_TEXT = `CONDITIONS D'UTILISATION — PORTAIL NIVRA FIELD & HR
 Nivra Communications Inc.
 Version 1.0 — En vigueur à compter du 1er janvier 2026
 
 1. ACCEPTATION DES CONDITIONS
-En accédant aux portails Nivra Field et Nivra RH, vous reconnaissez avoir lu, compris et accepté l'intégralité des présentes conditions. Cette acceptation est enregistrée dans votre profil avec la date et l'heure exactes et est accessible par Nivra Communications Inc. en tout temps.
+En accédant aux portails Nivra Field et Nivra HR, vous reconnaissez avoir lu, compris et accepté l'intégralité des présentes conditions. Cette acceptation est enregistrée dans votre profil avec la date et l'heure exactes et est accessible par Nivra Communications Inc. en tout temps.
 
 2. NATURE DE VOTRE ACCÈS
-Votre accès aux portails Nivra Field et Nivra RH vous est accordé à titre personnel et professionnel uniquement. Cet accès est conditionnel au maintien de votre relation d'emploi ou de représentation avec Nivra Communications Inc. Tout accès non autorisé ou toute tentative de contournement des mesures de sécurité constitue une violation grave des présentes conditions.
+Votre accès aux portails Nivra Field et Nivra HR vous est accordé à titre personnel et professionnel uniquement. Cet accès est conditionnel au maintien de votre relation d'emploi ou de représentation avec Nivra Communications Inc. Tout accès non autorisé ou toute tentative de contournement des mesures de sécurité constitue une violation grave des présentes conditions.
 
 3. CONFIDENTIALITÉ DES INFORMATIONS CLIENTS
 Dans le cadre de vos fonctions, vous aurez accès à des renseignements personnels de clients de Nivra Telecom, incluant mais sans s'y limiter : noms, adresses, numéros de téléphone, adresses courriel, informations de paiement partielles et historique de services. Vous vous engagez formellement à ne jamais divulguer, partager, copier, transmettre ou utiliser ces informations à des fins autres que l'exécution de vos fonctions professionnelles chez Nivra Communications Inc. Cette obligation de confidentialité s'applique pendant et après la fin de votre relation avec Nivra, sans limite de durée.
