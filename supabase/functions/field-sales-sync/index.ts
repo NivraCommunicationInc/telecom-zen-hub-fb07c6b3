@@ -663,7 +663,28 @@ Deno.serve(async (req) => {
               }
             }
 
-            // Generate payment number
+            // Discount line (if applied at the door)
+            const discountData: any = (sale as any).discount_data;
+            if (discountData && Number(discountData.amount || 0) > 0) {
+              const dAmt = Number(discountData.amount);
+              const dDur = Number(discountData.duration_months || 0);
+              const dName = String(discountData.name || "Rabais agent");
+              const desc = dDur > 0
+                ? `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
+                : `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois`;
+              const { error: discLineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
+                invoice_id: invoiceId,
+                description: desc,
+                unit_price: -dAmt,
+                quantity: 1,
+                line_total: -dAmt,
+                line_type: "discount",
+              });
+              if (discLineErr) {
+                console.error("[field-sales-sync] discount line insert failed:", discLineErr);
+              }
+            }
+
             const { data: payNum, error: payNumErr } = await supabaseAdmin.rpc("generate_payment_number");
             const paymentNumber = payNumErr || !payNum ? `PAY-FS-${Date.now().toString(36).toUpperCase()}` : String(payNum);
 
