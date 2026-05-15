@@ -57,6 +57,18 @@ const navGroups = [
     label: "ADMIN",
     items: [
       { label: "Audit", href: `${EMP_BASE}/audit`, icon: ScrollText },
+      { label: "Envoyer un courriel", href: `${EMP_BASE}/email/compose`, icon: Mail },
+    ],
+  },
+  {
+    label: "NIVRA SOURCE",
+    items: [
+      { label: "Annonces", href: `${EMP_BASE}/hub/annonces`, icon: Megaphone },
+      { label: "Documents", href: `${EMP_BASE}/hub/documents`, icon: FileText },
+      { label: "Boutique", href: `${EMP_BASE}/hub/boutique`, icon: ShoppingBag },
+      { label: "Leaderboard", href: `${EMP_BASE}/hub/leaderboard`, icon: Trophy },
+      { label: "Calendrier", href: `${EMP_BASE}/hub/calendrier`, icon: Calendar },
+      { label: "Formulaires", href: `${EMP_BASE}/hub/formulaires`, icon: ClipboardList },
     ],
   },
 ];
