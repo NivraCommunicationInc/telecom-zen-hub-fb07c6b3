@@ -37,11 +37,32 @@ function getInitials(name?: string | null, email?: string | null) {
   return src.slice(0, 2).toUpperCase();
 }
 
+const PROVINCES = ["QC", "ON", "NB", "NS", "PE", "NL", "MB", "SK", "AB", "BC", "YT", "NT", "NU"];
+
+const PAYMENT_LABELS: Record<string, string> = {
+  interac: "Virement Interac",
+  direct_deposit: "Dépôt direct",
+  paypal: "PayPal",
+  cheque: "Chèque",
+};
+
+const RELATION_OPTIONS = ["Conjoint/e", "Parent", "Frère/Sœur", "Enfant", "Ami/e", "Autre"];
+
 export default function FieldProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({ full_name: "", phone: "" });
+  const [formData, setFormData] = useState({
+    full_name: "",
+    phone: "",
+    address_street: "",
+    address_city: "",
+    address_province: "QC",
+    address_postal: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_relation: "",
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-profile-pro"],
@@ -53,7 +74,7 @@ export default function FieldProfile() {
 
       const [profileRes, roleRes, territoryRes, commRes] = await Promise.all([
         supabase.from("profiles")
-          .select("full_name, email, phone, avatar_url")
+          .select("full_name, email, phone, avatar_url, address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, payment_method")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase.from("user_roles")
@@ -62,7 +83,7 @@ export default function FieldProfile() {
           .eq("role", "field_sales")
           .maybeSingle(),
         supabase.from("field_territory_assignments")
-          .select("territory_id, status, assigned_from")
+          .select("territory_id, status, assigned_from, field_territories(name, territory_code, city)")
           .eq("user_id", user.id)
           .eq("status", "active")
           .order("assigned_from", { ascending: false })
@@ -83,16 +104,28 @@ export default function FieldProfile() {
       const nextTier = BONUS_TIERS.find((t) => monthSales < t.count);
       const nextTierRemaining = nextTier ? nextTier.count - monthSales : 0;
 
+      const p: any = profileRes.data || {};
+      const terr: any = (territoryRes.data as any)?.field_territories || null;
+
       return {
         userId: user.id,
-        email: user.email || profileRes.data?.email || "",
-        fullName: profileRes.data?.full_name || "",
-        phone: profileRes.data?.phone || "",
-        avatarUrl: profileRes.data?.avatar_url || null,
+        email: user.email || p.email || "",
+        fullName: p.full_name || "",
+        phone: p.phone || "",
+        avatarUrl: p.avatar_url || null,
+        addressStreet: p.address_street || "",
+        addressCity: p.address_city || "",
+        addressProvince: p.address_province || "QC",
+        addressPostal: p.address_postal || "",
+        dateOfBirth: p.date_of_birth || null,
+        emergencyName: p.emergency_contact_name || "",
+        emergencyPhone: p.emergency_contact_phone || "",
+        emergencyRelation: p.emergency_contact_relation || "",
+        paymentMethod: p.payment_method || "",
         role: roleRes.data?.role || "field_sales",
         startDate: roleRes.data?.created_at || null,
         isActive: roleRes.data?.is_active ?? true,
-        territoryId: territoryRes.data?.territory_id || null,
+        territoryName: terr?.name || (terr?.territory_code ? `${terr.territory_code}${terr.city ? " — " + terr.city : ""}` : null),
         territoryFrom: territoryRes.data?.assigned_from || null,
         monthSales,
         totalAmount,
@@ -105,11 +138,18 @@ export default function FieldProfile() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: { full_name: string; phone: string }) => {
+    mutationFn: async (payload: typeof formData) => {
       const { error } = await supabase.from("profiles").update({
         full_name: payload.full_name.trim(),
         phone: payload.phone.trim() || null,
-      }).eq("user_id", data!.userId);
+        address_street: payload.address_street.trim() || null,
+        address_city: payload.address_city.trim() || null,
+        address_province: payload.address_province || null,
+        address_postal: payload.address_postal.trim().toUpperCase() || null,
+        emergency_contact_name: payload.emergency_contact_name.trim() || null,
+        emergency_contact_phone: payload.emergency_contact_phone.trim() || null,
+        emergency_contact_relation: payload.emergency_contact_relation.trim() || null,
+      } as any).eq("user_id", data!.userId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -138,11 +178,26 @@ export default function FieldProfile() {
   }
 
   const startEdit = () => {
-    setFormData({ full_name: data.fullName, phone: data.phone });
+    setFormData({
+      full_name: data.fullName,
+      phone: data.phone,
+      address_street: data.addressStreet,
+      address_city: data.addressCity,
+      address_province: data.addressProvince,
+      address_postal: data.addressPostal,
+      emergency_contact_name: data.emergencyName,
+      emergency_contact_phone: data.emergencyPhone,
+      emergency_contact_relation: data.emergencyRelation,
+    });
     setEditing(true);
   };
 
   const initials = getInitials(data.fullName, data.email);
+  const dobLabel = data.dateOfBirth
+    ? format(new Date(data.dateOfBirth), "d MMMM yyyy", { locale: fr })
+    : "Non renseigné";
+  const homeAddrLabel = [data.addressStreet, data.addressCity, data.addressProvince, data.addressPostal]
+    .filter(Boolean).join(", ") || "Non renseigné";
 
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-12">
