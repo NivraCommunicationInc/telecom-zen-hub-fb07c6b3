@@ -128,6 +128,17 @@ export default function FieldObjectives() {
         </div>
       </div>
 
+      {weeklyTarget > 0 && (
+        <div className="bg-[#EDE9FE] border border-[#7C3AED]/20 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-[#5B21B6]">
+            Objectif hebdomadaire : {weeklyTarget} vente{weeklyTarget > 1 ? "s" : ""}{" "}
+            <span className="text-[#7C3AED]/80 font-normal">
+              (mensuel ÷ 4 = {monthlyTarget} ÷ 4 → {weeklyTarget}/semaine)
+            </span>
+          </p>
+        </div>
+      )}
+
       {/* SECTION 4 — Objectif mensuel (if assigned) */}
       {data?.hasTargets && monthlyTarget > 0 ? (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
