@@ -504,41 +504,6 @@ export default function FieldNewSale() {
     }
   };
 
-  // Save installation appointment (FIX 6)
-  const saveAppointment = async () => {
-    if (!cardSuccess) return;
-    if (!apptDate) { toast.error("Date du rendez-vous requise."); return; }
-    setSavingAppt(true);
-    try {
-      const fee =
-        apptFeeType === "free" ? 0 :
-        apptFeeType === "waived" ? 0 :
-        apptFeeType === "custom" ? Number(apptFeeCustom || 0) :
-        10;
-      const { error } = await supabase.from("installation_appointments" as any).insert({
-        order_id: null,
-        appointment_date: new Date(apptDate).toISOString(),
-        appointment_window: apptWindow,
-        installation_fee: fee,
-        fee_type: apptFeeType,
-        fee_notes: apptFeeNotes || null,
-        notes: apptNotes
-          ? `${apptNotes} — Intent ${cardSuccess.intentId}`
-          : `Intent ${cardSuccess.intentId}`,
-        created_by: user?.id ?? null,
-      } as any);
-      if (error) throw error;
-      setApptSaved(true);
-      toast.success("Rendez-vous d'installation planifié.");
-    } catch (e: any) {
-      logger.warn("appointment insert failed", e);
-      toast.error(e?.message || "Échec de la planification");
-    } finally {
-      setSavingAppt(false);
-    }
-  };
-
-
   // ── Realtime: invoice paid → mark payment completed ──────
   useEffect(() => {
     if (!draft.payment.invoiceId) return;
@@ -582,13 +547,8 @@ export default function FieldNewSale() {
     };
   }, [draft.payment.invoiceId]);
 
-  // FIX 1 step 6 + FIX 5 + FIX 6 — Card success screen with install appointment + Nouvelle vente reset
+  // Card success screen.
   if (cardSuccess) {
-    const feeDisplay =
-      apptFeeType === "free" ? "0$" :
-      apptFeeType === "waived" ? "Exonéré" :
-      apptFeeType === "custom" ? `${apptFeeCustom || "0"}$` :
-      "10$";
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
         <div className="rounded-2xl border border-violet-500/30 bg-card p-6 md:p-8 shadow-xl">
