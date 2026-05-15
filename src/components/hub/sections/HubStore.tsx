@@ -190,13 +190,17 @@ function OrderSheet({ item, onClose }: { item: Item; onClose: () => void }) {
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, first_name, last_name, email, phone")
+        .select("full_name, first_name, last_name, email, phone, address_street, address_city, address_province, address_postal")
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
         setName(data.full_name || [data.first_name, data.last_name].filter(Boolean).join(" ") || "");
         setEmail(data.email || user.email || "");
-        setPhone(data.phone || "");
+        setPhone((data as any).phone || "");
+        if ((data as any).address_street) setAddress((data as any).address_street);
+        if ((data as any).address_city) setCity((data as any).address_city);
+        if ((data as any).address_province) setProvince((data as any).address_province);
+        if ((data as any).address_postal) setPostal((data as any).address_postal);
       } else {
         setEmail(user.email || "");
       }
