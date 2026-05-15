@@ -177,7 +177,7 @@ export default function StepRecap({
         {draft.discount && (monthlyDiscountAmount > 0 || installationDiscountAmount > 0 || firstMonthCredit > 0) && (
           <div className="pt-2 border-t border-[hsl(var(--field-border-subtle))] space-y-1">
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[hsl(var(--field-success))]">
-              <Sparkles className="h-3 w-3" /> Rabais — {draft.discount.name}
+              <Sparkles className="h-3 w-3" /> {formatDiscountLabel(draft.discount)}
             </div>
             {monthlyDiscountAmount > 0 && (
               <div className="flex justify-between text-sm">
