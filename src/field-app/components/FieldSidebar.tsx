@@ -13,6 +13,7 @@ import {
   DollarSign, User, Lock, LogOut, ShoppingCart,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
   ChevronLeft, ChevronRight,
+  Megaphone, FileText, ShoppingBag, Trophy, ClipboardList,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
