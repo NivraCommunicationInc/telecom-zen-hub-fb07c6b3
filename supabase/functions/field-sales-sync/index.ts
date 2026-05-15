@@ -933,7 +933,7 @@ Deno.serve(async (req) => {
       const { data: pendingSales, error: fetchError } = await supabaseAdmin
         .from('field_sales_orders')
         .select('*')
-        .or('sync_status.eq.pending,sync_status.eq.error,converted_order_id.is.null');
+        .or('sync_status.eq.pending,sync_status.eq.failed,sync_status.eq.error,converted_order_id.is.null');
 
       if (fetchError) {
         console.error('[field-sales-sync] Error fetching pending sales:', fetchError);
