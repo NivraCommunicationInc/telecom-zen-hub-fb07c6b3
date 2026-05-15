@@ -76,6 +76,16 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     },
   });
 
+  /* Realtime — keep agent profile, commissions and orders in sync. */
+  usePortalRealtime(
+    ["field_commissions", "orders", "sales_targets"],
+    [
+      ["core-field", "profile-full", userId],
+      ["core-field", "agent-commissions", userId],
+      ["core-field", "agent-orders", userId],
+    ],
+  );
+
   const ac = commissions;
 
   return (
