@@ -20,6 +20,9 @@ import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { Search, ShoppingCart, RefreshCw, Timer, AlertTriangle } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ── SLA badge ── */
 function getSlaBadge(
@@ -65,6 +68,26 @@ const STATUS_FILTERS = [
 
 const OrdersPage = () => {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  async function setOrderStatus(orderId: string, status: string, extra?: Record<string, any>) {
+    const { error } = await supabase.from("orders").update({ status, ...(extra || {}) }).eq("id", orderId);
+    if (error) { toast.error(error.message); return; }
+    toast.success(
+      status === "activated" ? "Service activé — commission approuvée"
+      : status === "on_hold" ? "Commande mise en attente"
+      : status === "cancelled" ? "Commande annulée — commission révoquée"
+      : "Statut mis à jour"
+    );
+    qc.invalidateQueries({ queryKey: ["admin-orders-v2"] });
+  }
+
+  async function cancelWithReason(orderId: string) {
+    const reason = window.prompt("Raison de l'annulation (obligatoire) :");
+    if (!reason || !reason.trim()) return;
+    await setOrderStatus(orderId, "cancelled", { cancellation_reason: reason.trim() });
+  }
+
   const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("live");
   const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
@@ -338,6 +361,52 @@ const OrdersPage = () => {
                   </span>
                 ) : (
                   <span className="shrink-0 text-[10px] text-core-muted-soft w-[60px] text-center">—</span>
+                )}
+
+                {o.source === "field_sales" && (
+                  <div className="shrink-0 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {o.status !== "activated" && (
+                      <button
+                        onClick={() => setOrderStatus(o.id, "activated")}
+                        className="rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1"
+                        title="Active le service et déclenche la commission"
+                      >
+                        Activer le service
+                      </button>
+                    )}
+                    {o.status !== "on_hold" && o.status !== "cancelled" && (
+                      <button
+                        onClick={() => setOrderStatus(o.id, "on_hold")}
+                        className="rounded-full bg-orange-500 hover:bg-orange-400 text-white text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Mettre en attente
+                      </button>
+                    )}
+                    {o.status !== "cancelled" && (
+                      <button
+                        onClick={() => cancelWithReason(o.id)}
+                        className="rounded-full bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Annuler
+                      </button>
+                    )}
+                    {o.user_id && (
+                      <button
+                        onClick={() => navigate(corePath(`/clients/${o.user_id}`))}
+                        className="rounded-full border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Voir le client
+                      </button>
+                    )}
+                    {o.created_by_agent_id && (
+                      <button
+                        onClick={() => navigate(corePath(`/field-agents/${o.created_by_agent_id}`))}
+                        className="rounded-full border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 text-[10px] font-bold px-2.5 py-1"
+                      >
+                        Contacter l'agent
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <Link

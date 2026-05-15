@@ -12842,6 +12842,7 @@ export type Database = {
           appointment_date: string | null
           appointment_notes: string | null
           audit_timeline: Json | null
+          cancellation_reason: string | null
           carrier: string | null
           category: string | null
           channel_assigned_by: string | null
@@ -12966,6 +12967,7 @@ export type Database = {
           appointment_date?: string | null
           appointment_notes?: string | null
           audit_timeline?: Json | null
+          cancellation_reason?: string | null
           carrier?: string | null
           category?: string | null
           channel_assigned_by?: string | null
@@ -13090,6 +13092,7 @@ export type Database = {
           appointment_date?: string | null
           appointment_notes?: string | null
           audit_timeline?: Json | null
+          cancellation_reason?: string | null
           carrier?: string | null
           category?: string | null
           channel_assigned_by?: string | null
@@ -21904,6 +21907,7 @@ export type Database = {
           appointment_date: string | null
           appointment_notes: string | null
           audit_timeline: Json | null
+          cancellation_reason: string | null
           carrier: string | null
           category: string | null
           channel_assigned_by: string | null

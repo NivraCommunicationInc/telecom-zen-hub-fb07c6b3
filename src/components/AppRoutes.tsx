@@ -42,6 +42,7 @@ const FieldLeadDetail = lazy(() => import("@/field-app/pages/FieldLeadDetail"));
 const FieldOffers = lazy(() => import("@/field-app/pages/FieldOffers"));
 const FieldSubmissions = lazy(() => import("@/field-app/pages/FieldSubmissions"));
 const FieldOrderDetail = lazy(() => import("@/field-app/pages/FieldOrderDetail"));
+const FieldOrders = lazy(() => import("@/field-app/pages/FieldOrders"));
 const FieldTracking = lazy(() => import("@/field-app/pages/FieldTracking"));
 const FieldTerritory = lazy(() => import("@/field-app/pages/FieldTerritory"));
 const FieldClients = lazy(() => import("@/field-app/pages/FieldClients"));
@@ -978,6 +979,7 @@ const AppRoutes = () => {
           <Route path="leads/:leadId" element={<Suspense fallback={null}><FieldLeadDetail /></Suspense>} />
           <Route path="offers" element={<Suspense fallback={null}><FieldOffers /></Suspense>} />
           <Route path="submissions" element={<Suspense fallback={null}><FieldSubmissions /></Suspense>} />
+          <Route path="orders" element={<Suspense fallback={null}><FieldOrders /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><FieldOrderDetail /></Suspense>} />
           <Route path="tracking" element={<Suspense fallback={null}><FieldTracking /></Suspense>} />
           <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />

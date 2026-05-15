@@ -811,10 +811,10 @@ function OrdersAdmin() {
                       {o.custom_info_text && <div className="text-violet-700 mt-0.5">✎ {o.custom_info_text}</div>}
                     </td>
                     <td className="p-3 text-xs">
-                      <div className="font-semibold">{o.delivery_name || "—"}</div>
-                      <div className="text-muted-foreground">{o.delivery_address}</div>
+                      <div className="font-semibold">{o.delivery_name || o.profiles?.full_name || "Non renseigné"}</div>
+                      <div className="text-muted-foreground">{o.delivery_address || "Adresse non renseignée"}</div>
                       <div className="text-muted-foreground">{[o.delivery_city, o.delivery_province, o.delivery_postal_code].filter(Boolean).join(", ")}</div>
-                      <div className="text-muted-foreground">{o.delivery_phone}</div>
+                      <div className="text-muted-foreground">{o.delivery_phone || "Téléphone non renseigné"}</div>
                     </td>
                     <td className="p-3 text-[11px] text-muted-foreground whitespace-nowrap">{new Date(o.created_at).toLocaleDateString("fr-CA")}</td>
                     <td className="p-3">
