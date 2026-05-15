@@ -96,6 +96,51 @@ export function fmtDate(d: unknown): string {
 // Backwards-compatible alias used throughout this file.
 const money = formatMoney;
 
+/**
+ * Universal safe-string helper — guarantees no user-facing placeholder
+ * characters (undefined, null, NaN, [object Object], empty) ever appear in
+ * an email. Apply to ALL dynamic text values rendered in templates.
+ */
+export const safe = (val: unknown, fallback = "Non disponible"): string => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "object") return fallback;
+  const str = String(val).trim();
+  if (
+    !str ||
+    str === "undefined" ||
+    str === "null" ||
+    str === "NaN" ||
+    str === "[object Object]"
+  ) {
+    return fallback;
+  }
+  return str;
+};
+
+/**
+ * Discount line formatter — ALWAYS includes label + amount + duration when
+ * known. Never renders a bare "-10,00 $" string. Use in every template that
+ * surfaces a discount/credit (payment_link_employee, order_confirmation,
+ * quote_client, payment_receipt, contract_generated, …).
+ */
+export const formatDiscount = (discount: any): string => {
+  if (!discount) return "";
+  const amount = money(
+    discount.amount ?? discount.monthly_amount ?? 0,
+  );
+  const months = Number(
+    discount.duration_months ?? discount.duration ?? discount.months_total ?? 0,
+  );
+  const remaining = Number(
+    discount.months_remaining ?? months ?? 0,
+  );
+  const label = safe(discount.name ?? discount.label ?? "Rabais", "Rabais");
+  if (months > 0) {
+    return `${label} — ${amount}/mois pendant ${months} mois (${remaining} mois restants)`;
+  }
+  return `${label} — ${amount}/mois`;
+};
+
 // ---------------------------------------------------------------------------
 // SVG icons (kept simple for email-client compatibility)
 // ---------------------------------------------------------------------------
