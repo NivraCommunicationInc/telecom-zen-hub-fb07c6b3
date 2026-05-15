@@ -149,7 +149,12 @@ export default function HrSidebar() {
                       )}
                     >
                       <item.icon className={cn("h-3.5 w-3.5 shrink-0", isActive(item.href) && "text-violet-600 dark:text-violet-400")} />
-                      {!collapsed && <span>{item.label}</span>}
+                      {!collapsed && <span className="flex-1">{item.label}</span>}
+                      {!collapsed && (item as any).badgeKey === "hub" && hubUnread > 0 && (
+                        <span className="rounded-full bg-violet-600 text-white px-1.5 py-0.5 text-[9px] font-bold min-w-[18px] text-center">
+                          {hubUnread > 99 ? "99+" : hubUnread}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>
