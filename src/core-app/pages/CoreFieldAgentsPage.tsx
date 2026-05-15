@@ -1938,7 +1938,7 @@ export default function CoreFieldAgentsPage() {
                   <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                   <SelectContent>
                     {territories.length === 0 ? <SelectItem value="__none__" disabled>Aucun territoire</SelectItem> : territories.map((t: any) => (
-                      <SelectItem key={t.id} value={t.territory_code || t.id}>{t.name}{t.city ? ` — ${t.city}` : ""}</SelectItem>
+                      <SelectItem key={t.id} value={t.id}>{t.name}{t.city ? ` — ${t.city}` : ""}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
