@@ -3,7 +3,7 @@
  * Tabs: 14 content sections + Tickets, Notifications, Analytics.
  * Bulk select / publish / unpublish / DELETE confirm / media upload.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -1399,21 +1399,38 @@ function TicketDetail({ ticket, onClose }: { ticket: any; onClose: () => void })
   const [internal, setInternal] = useState(false);
   const [status, setStatus] = useState(ticket.status);
   const [priority, setPriority] = useState(ticket.priority);
+  const [assignedTo, setAssignedTo] = useState<string>(ticket.assigned_to || "");
+  const replyRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: messages = [] } = useQuery({
     queryKey: ["admin-ticket-msgs", ticket.id],
     queryFn: async () => (await supabase.from("hub_ticket_messages").select("*").eq("ticket_id", ticket.id).order("created_at")).data || [],
   });
 
+  // Staff list for assignment (admins, employees, technicians)
+  const { data: staff = [] } = useQuery({
+    queryKey: ["admin-staff-assignable"],
+    queryFn: async () => {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("role", ["admin", "employee", "technician", "rh"]);
+      const ids = Array.from(new Set((roles || []).map((r: any) => r.user_id)));
+      if (!ids.length) return [];
+      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", ids);
+      return (profs || []).map((p: any) => ({ id: p.user_id, name: p.full_name || p.email || "Membre" }));
+    },
+  });
+
   const send = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("hub_ticket_messages").insert({
-        ticket_id: ticket.id, sender_id: user?.id, message: reply, is_internal_note: internal,
+        ticket_id: ticket.id, sender_id: user?.id, message: reply, is_internal: internal,
       });
       if (error) throw error;
     },
-    onSuccess: () => { setReply(""); qc.invalidateQueries({ queryKey: ["admin-ticket-msgs", ticket.id] }); },
+    onSuccess: () => { setReply(""); setInternal(false); qc.invalidateQueries({ queryKey: ["admin-ticket-msgs", ticket.id] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -1423,7 +1440,36 @@ function TicketDetail({ ticket, onClose }: { ticket: any; onClose: () => void })
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Mis à jour"); qc.invalidateQueries({ queryKey: ["admin-tickets"] }); },
+    onError: (e: any) => toast.error(e.message),
   });
+
+  // Minimal rich-text toolbar — wraps selection with markdown-style markers.
+  const wrap = (before: string, after = before) => {
+    const ta = replyRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? 0;
+    const end = ta.selectionEnd ?? 0;
+    const sel = reply.slice(start, end) || "texte";
+    const next = reply.slice(0, start) + before + sel + after + reply.slice(end);
+    setReply(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    });
+  };
+  const insertLink = () => {
+    const url = window.prompt("URL du lien:");
+    if (!url) return;
+    wrap("[", `](${url})`);
+  };
+  const insertList = (ordered = false) => {
+    const ta = replyRef.current;
+    if (!ta) return;
+    const prefix = ordered ? "1. " : "- ";
+    const start = ta.selectionStart ?? 0;
+    const next = reply.slice(0, start) + (start === 0 || reply[start - 1] === "\n" ? "" : "\n") + prefix + reply.slice(start);
+    setReply(next);
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 space-y-4 max-w-4xl">
@@ -1446,14 +1492,23 @@ function TicketDetail({ ticket, onClose }: { ticket: any; onClose: () => void })
           className="rounded-lg border border-border bg-background px-2 py-1">
           {["low","normal","high","urgent"].map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <span className="ml-2">Assigner à</span>
+        <select
+          value={assignedTo}
+          onChange={(e) => { setAssignedTo(e.target.value); update.mutate({ assigned_to: e.target.value || null }); }}
+          className="rounded-lg border border-border bg-background px-2 py-1 min-w-[180px]"
+        >
+          <option value="">— Non assigné —</option>
+          {(staff as any[]).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
       </div>
 
       <div className="rounded-xl bg-muted/40 p-3 text-sm whitespace-pre-wrap">{ticket.description}</div>
 
       <div className="space-y-2 max-h-[400px] overflow-y-auto">
         {messages.map((m: any) => (
-          <div key={m.id} className={`p-3 rounded-xl text-sm ${m.is_internal_note ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
-            {m.is_internal_note && <div className="text-[10px] uppercase font-bold text-amber-700 mb-1">Note interne</div>}
+          <div key={m.id} className={`p-3 rounded-xl text-sm ${m.is_internal ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
+            {m.is_internal && <div className="text-[10px] uppercase font-bold text-amber-700 mb-1">🔒 Note interne (non visible par l'agent)</div>}
             <p className="whitespace-pre-wrap">{m.message}</p>
             <div className="text-[10px] text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString("fr-CA")}</div>
           </div>
@@ -1461,14 +1516,28 @@ function TicketDetail({ ticket, onClose }: { ticket: any; onClose: () => void })
       </div>
 
       <div className="space-y-2 border-t border-border pt-3">
-        <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Répondre…" rows={3}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+        {/* Rich text toolbar */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <button type="button" onClick={() => wrap("**")} title="Gras" className="h-8 w-8 rounded border border-border bg-background text-sm font-bold hover:bg-muted">B</button>
+          <button type="button" onClick={() => wrap("*")} title="Italique" className="h-8 w-8 rounded border border-border bg-background text-sm italic hover:bg-muted">I</button>
+          <button type="button" onClick={() => insertList(false)} title="Liste à puces" className="h-8 px-2 rounded border border-border bg-background text-xs hover:bg-muted">• Liste</button>
+          <button type="button" onClick={() => insertList(true)} title="Liste numérotée" className="h-8 px-2 rounded border border-border bg-background text-xs hover:bg-muted">1. Liste</button>
+          <button type="button" onClick={insertLink} title="Lien" className="h-8 px-2 rounded border border-border bg-background text-xs hover:bg-muted">🔗 Lien</button>
+        </div>
+        <textarea
+          ref={replyRef}
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          placeholder="Répondre… (markdown supporté: **gras** *italique* [lien](url))"
+          rows={4}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+        />
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={internal} onCheckedChange={(v) => setInternal(!!v)} />
             Note interne (cachée à l'agent)
           </label>
-          <button onClick={() => send.mutate()} disabled={!reply || send.isPending}
+          <button onClick={() => send.mutate()} disabled={!reply.trim() || send.isPending}
             className="text-xs px-4 py-2 rounded-lg bg-violet-600 text-white disabled:opacity-50 min-h-[40px]">
             Envoyer
           </button>
