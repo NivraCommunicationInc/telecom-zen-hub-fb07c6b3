@@ -9,9 +9,9 @@ import {
   ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
-  Package, UserCheck, Wifi, Mail,
-  Megaphone, ShoppingBag, Trophy, ClipboardList,
+  Package, UserCheck, Wifi, Mail, LayoutGrid,
 } from "lucide-react";
+import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
@@ -63,12 +63,7 @@ const navGroups = [
   {
     label: "NIVRA SOURCE",
     items: [
-      { label: "Annonces", href: `${EMP_BASE}/hub/annonces`, icon: Megaphone },
-      { label: "Documents", href: `${EMP_BASE}/hub/documents`, icon: FileText },
-      { label: "Boutique", href: `${EMP_BASE}/hub/boutique`, icon: ShoppingBag },
-      { label: "Leaderboard", href: `${EMP_BASE}/hub/leaderboard`, icon: Trophy },
-      { label: "Calendrier", href: `${EMP_BASE}/hub/calendrier`, icon: Calendar },
-      { label: "Formulaires", href: `${EMP_BASE}/hub/formulaires`, icon: ClipboardList },
+      { label: "Nivra Source", href: `${EMP_BASE}/hub`, icon: LayoutGrid, badgeKey: "hub" as const },
     ],
   },
 ];

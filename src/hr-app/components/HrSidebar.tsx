@@ -8,9 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
-  Briefcase, Target, Inbox, Upload,
-  Megaphone, ShoppingBag, Trophy, Calendar, ClipboardList,
+  Briefcase, Target, Inbox, Upload, LayoutGrid,
 } from "lucide-react";
+import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
@@ -62,12 +62,7 @@ const navGroups = [
   {
     label: "Nivra Source",
     items: [
-      { label: "Annonces", href: `${HR_BASE}/hub/annonces`, icon: Megaphone },
-      { label: "Documents", href: `${HR_BASE}/hub/documents`, icon: FileText },
-      { label: "Boutique", href: `${HR_BASE}/hub/boutique`, icon: ShoppingBag },
-      { label: "Leaderboard", href: `${HR_BASE}/hub/leaderboard`, icon: Trophy },
-      { label: "Calendrier", href: `${HR_BASE}/hub/calendrier`, icon: Calendar },
-      { label: "Formulaires", href: `${HR_BASE}/hub/formulaires`, icon: ClipboardList },
+      { label: "Nivra Source", href: `${HR_BASE}/hub`, icon: LayoutGrid, badgeKey: "hub" as const },
     ],
   },
 ];
