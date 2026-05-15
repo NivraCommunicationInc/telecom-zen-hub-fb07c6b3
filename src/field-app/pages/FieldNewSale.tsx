@@ -446,6 +446,43 @@ export default function FieldNewSale() {
         }
       }
 
+      // FIX 2 — Create real order in Core via field_sales_orders + field-sales-sync
+      try {
+        const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+        const { data: fsRow, error: fsErr } = await supabase
+          .from("field_sales_orders")
+          .insert({
+            salesperson_id: user.id,
+            customer_name: customerName,
+            customer_email: draft.customer.email || null,
+            customer_phone: draft.customer.phone || "",
+            customer_address: draft.customer.address || "",
+            customer_city: draft.customer.city || null,
+            customer_postal_code: draft.customer.postal_code || null,
+            services: draft.services as any,
+            total_amount: total,
+            payment_method: "card_manual",
+            payment_reference: intentId,
+            payment_status: "pending",
+            sync_status: "pending",
+            internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}`,
+          } as any)
+          .select("id")
+          .single();
+        if (fsErr) throw fsErr;
+        const saleId = (fsRow as any)?.id;
+        if (saleId) {
+          const { error: syncError } = await supabase.functions.invoke("field-sales-sync", {
+            body: { action: "sync_single", sale_id: saleId },
+          });
+          if (syncError) {
+            logger.warn("[card-sync] field-sales-sync failed", syncError);
+          }
+        }
+      } catch (syncCatch: any) {
+        logger.warn("[card-sync] order creation failed (non-blocking)", syncCatch);
+      }
+
       setCardSuccess({ intentId, orderNumber, last4, amount: total, commission: commissionAmount });
       setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }

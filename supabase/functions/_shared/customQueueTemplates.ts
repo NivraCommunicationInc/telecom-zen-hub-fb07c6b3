@@ -232,7 +232,6 @@ export function renderQueueTemplate(
     // ORDERS
     // ===================================================================
     case "order_submitted":
-    case "order_confirmation":
     case "order_confirmed": {
       const planName = esc(v.plan_name || v.SERVICES_LIST || "Service Nivra");
       const total = money(v.monthly_total_tax_in ?? v.amount_paid_today ?? v.total ?? v.amount ?? v.MONTHLY_TOTAL);
@@ -255,6 +254,53 @@ export function renderQueueTemplate(
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Suivre ma commande",
+        }),
+      };
+    }
+
+    case "order_confirmation": {
+      const cClientName = esc(v.client_name || v.first_name || "Client");
+      const cOrderNum = esc(v.order_number || v.ORDER_NUMBER || "N/A");
+      const cServices = esc(v.services || "Voir détails de la commande");
+      const cEquipment = esc(v.equipment || "Aucun équipement");
+      const cDiscount = v.discount ? esc(String(v.discount)) : null;
+      const cSubtotal = money(v.subtotal || 0);
+      const cTps = money(v.tps || 0);
+      const cTvq = money(v.tvq || 0);
+      const cTotal = money(v.total || v.amount || 0);
+      const cPaymentStatus = esc(v.payment_status || "En attente de traitement");
+      const cAgentName = esc(v.agent_name || "Votre conseiller Nivra");
+
+      const cRows: Array<[string, string]> = [
+        ["Numéro de commande", `#${cOrderNum}`],
+        ["Préparé par", cAgentName],
+        ["Forfaits", cServices],
+        ["Équipement", cEquipment],
+      ];
+      if (cDiscount) cRows.push(["Rabais appliqué", cDiscount]);
+      cRows.push(
+        ["Sous-total", cSubtotal],
+        ["TPS (5%)", cTps],
+        ["TVQ (9,975%)", cTvq],
+        ["TOTAL", cTotal],
+        ["Statut paiement", cPaymentStatus],
+      );
+
+      return {
+        subject: `Confirmation de commande — Nivra Telecom`,
+        html: shell({
+          preheader: "Votre commande Nivra a été enregistrée.",
+          badge: "COMMANDE REÇUE",
+          heroTitle: "Votre commande a été enregistrée",
+          heroSub: `Commande #${cOrderNum}`,
+          icon: "check",
+          greeting: `Bonjour ${cClientName},`,
+          bodyText: `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
+          cardTitle: "Récapitulatif de votre commande",
+          cardRows: cRows,
+          ctaPrimaryUrl: "https://nivra-telecom.ca",
+          ctaPrimaryLabel: "Visiter notre site",
+          helpHtml: `Questions ? Contactez-nous à support@nivra-telecom.ca`,
         }),
       };
     }
