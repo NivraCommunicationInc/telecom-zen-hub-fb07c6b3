@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
 import { saveQuoteAndEmail } from "@/field-app/lib/fieldQuoteService";
+import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
 
 interface Props {
   draft: FieldSaleDraft;
