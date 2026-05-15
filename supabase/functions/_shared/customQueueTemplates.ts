@@ -96,6 +96,51 @@ export function fmtDate(d: unknown): string {
 // Backwards-compatible alias used throughout this file.
 const money = formatMoney;
 
+/**
+ * Universal safe-string helper — guarantees no user-facing placeholder
+ * characters (undefined, null, NaN, [object Object], empty) ever appear in
+ * an email. Apply to ALL dynamic text values rendered in templates.
+ */
+export const safe = (val: unknown, fallback = "Non disponible"): string => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "object") return fallback;
+  const str = String(val).trim();
+  if (
+    !str ||
+    str === "undefined" ||
+    str === "null" ||
+    str === "NaN" ||
+    str === "[object Object]"
+  ) {
+    return fallback;
+  }
+  return str;
+};
+
+/**
+ * Discount line formatter — ALWAYS includes label + amount + duration when
+ * known. Never renders a bare "-10,00 $" string. Use in every template that
+ * surfaces a discount/credit (payment_link_employee, order_confirmation,
+ * quote_client, payment_receipt, contract_generated, …).
+ */
+export const formatDiscount = (discount: any): string => {
+  if (!discount) return "";
+  const amount = money(
+    discount.amount ?? discount.monthly_amount ?? 0,
+  );
+  const months = Number(
+    discount.duration_months ?? discount.duration ?? discount.months_total ?? 0,
+  );
+  const remaining = Number(
+    discount.months_remaining ?? months ?? 0,
+  );
+  const label = safe(discount.name ?? discount.label ?? "Rabais", "Rabais");
+  if (months > 0) {
+    return `${label} — ${amount}/mois pendant ${months} mois (${remaining} mois restants)`;
+  }
+  return `${label} — ${amount}/mois`;
+};
+
 // ---------------------------------------------------------------------------
 // SVG icons (kept simple for email-client compatibility)
 // ---------------------------------------------------------------------------
@@ -2388,6 +2433,56 @@ export function renderQueueTemplate(
           ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
           ctaPrimaryLabel: "Répondre",
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a> · Québec, Canada`,
+        }),
+      };
+    }
+
+    case "discount_expiring_soon": {
+      const fullName = safe(
+        v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
+        "Client",
+      );
+      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountAmount = money(v.discount_amount ?? 0);
+      const fullPrice = money(v.full_price ?? v.next_amount ?? 0);
+      const endDate = fmtDate(v.end_date ?? v.next_invoice_date);
+      return {
+        subject: "Votre rabais Nivra expire bientôt",
+        html: shell({
+          preheader: "Votre rabais se termine après votre prochaine facture.",
+          badge: "AVIS IMPORTANT",
+          heroTitle: "Votre rabais se termine le mois prochain",
+          icon: "alert",
+          greeting: `Bonjour ${fullName},`,
+          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois se terminera après votre prochaine facture. À partir du ${endDate}, votre mensualité sera de <strong>${fullPrice}</strong>.`,
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
+        }),
+      };
+    }
+
+    case "discount_expired": {
+      const fullName = safe(
+        v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
+        "Client",
+      );
+      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountAmount = money(v.discount_amount ?? 0);
+      const months = safe(v.duration_months, "");
+      const newAmount = money(v.new_amount ?? v.full_price ?? 0);
+      return {
+        subject: "Votre rabais Nivra a expiré",
+        html: shell({
+          preheader: "Votre période de rabais est maintenant terminée.",
+          badge: "RABAIS EXPIRÉ",
+          heroTitle: "Votre période de rabais est terminée",
+          icon: "alert",
+          greeting: `Bonjour ${fullName},`,
+          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois${months ? ` pendant ${months} mois` : ""} est maintenant terminé. Votre prochain paiement sera de <strong>${newAmount}</strong>.`,
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
         }),
       };
     }
