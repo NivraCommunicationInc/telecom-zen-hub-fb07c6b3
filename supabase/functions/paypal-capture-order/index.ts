@@ -448,7 +448,7 @@ serve(async (req) => {
             await supabase.from("email_queue").insert({
               event_key: `paypal_payment_${captureId}`,
               to_email: normalizeEmail(customerEmail),
-              template_key: "payment_confirmed",
+              template_key: "payment_receipt",
               template_vars: {
                 client_name: customerName || "Client",
                 amount: amount.toFixed(2),
