@@ -101,9 +101,21 @@ function useLeaderboard(period: Period) {
   });
 }
 
-function MedalRow({ rank, row }: { rank: number; row: AgentRow }) {
+function tierProgress(salesCount: number, tiers: BonusTier[]) {
+  if (!tiers.length) return null;
+  const sorted = [...tiers].sort((a, b) => a.min_sales - b.min_sales);
+  const current = [...sorted].reverse().find((t) => salesCount >= t.min_sales) || null;
+  const next = sorted.find((t) => salesCount < t.min_sales) || null;
+  const baseMin = current?.min_sales ?? 0;
+  const target = next?.min_sales ?? current?.max_sales ?? baseMin;
+  const span = Math.max(1, target - baseMin);
+  const pct = next ? Math.min(100, ((salesCount - baseMin) / span) * 100) : 100;
+  return { current, next, pct };
+}
+
+function MedalRow({ rank, row, tiers }: { rank: number; row: AgentRow; tiers: BonusTier[] }) {
   const medal = rank === 0 ? "🥇" : rank === 1 ? "🥈" : "🥉";
-  const pct = Math.min(100, (row.total / TIER_TARGET) * 100);
+  const tp = tierProgress(row.sales_count, tiers);
   return (
     <Card
       className={cn(
@@ -123,12 +135,19 @@ function MedalRow({ rank, row }: { rank: number; row: AgentRow }) {
         <div className="text-xs text-muted-foreground">
           {row.sales_count} vente{row.sales_count > 1 ? "s" : ""} · ${row.total.toFixed(2)}
         </div>
-        <div className="mt-2">
-          <Progress value={pct} className="h-1.5" />
-          <div className="text-[10px] text-muted-foreground mt-1">
-            Palier bonus : {pct.toFixed(0)}% de ${TIER_TARGET}
+        {tp && (
+          <div className="mt-2">
+            <Progress value={tp.pct} className="h-1.5" />
+            <div className="text-[10px] text-muted-foreground mt-1">
+              {tp.current
+                ? <>Palier actuel : <span className="font-semibold">${tp.current.bonus_amount}</span> ({tp.current.min_sales}+ ventes)</>
+                : <>Aucun palier atteint</>}
+              {tp.next && (
+                <> · <span className="text-violet-500">{tp.next.min_sales - row.sales_count} vente{tp.next.min_sales - row.sales_count > 1 ? "s" : ""} pour atteindre ${tp.next.bonus_amount}</span></>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </Card>
   );
