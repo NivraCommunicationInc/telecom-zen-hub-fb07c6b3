@@ -184,8 +184,8 @@ export function renderQueueTemplate(
   );
   const greeting = `Bonjour ${clientName},`;
   const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
-  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "—");
-  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "—");
+  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "N/A");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "Non spécifié");
 
   switch (templateKey) {
     // ===================================================================
@@ -293,9 +293,9 @@ export function renderQueueTemplate(
     case "payment_confirmed":
     case "payment_receipt":
     case "payment_received": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
-      const reference = esc(v.reference || v.payment_reference || "—");
+      const reference = esc(v.reference || v.payment_reference || "Non disponible");
       const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       return {
@@ -323,7 +323,7 @@ export function renderQueueTemplate(
 
     case "invoice_created":
     case "billing_renewal": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
       const dueDate = fmtDate(v.due_date || v.DUE_DATE);
       return {
@@ -353,7 +353,7 @@ export function renderQueueTemplate(
     case "payment_reminder_3days":
     case "payment_reminder_1day":
     case "payment_due_today": {
-      const invoiceNum = esc(v.invoice_number || "—");
+      const invoiceNum = esc(v.invoice_number || "En cours");
       const total = money(v.total ?? v.amount);
       const dueDate = fmtDate(v.due_date);
       const labels: Record<string, string> = {
@@ -387,9 +387,9 @@ export function renderQueueTemplate(
 
     case "payment_overdue":
     case "invoice_overdue": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
-      const days = esc(v.days_overdue || v.DAYS_OVERDUE || "—");
+      const days = esc(v.days_overdue || v.DAYS_OVERDUE || "0");
       return {
         subject: `Facture en retard — ${invoiceNum}`,
         html: shell({
@@ -442,7 +442,7 @@ export function renderQueueTemplate(
     }
 
     case "invoice_voided": {
-      const invoiceNum = esc(v.invoice_number || "—");
+      const invoiceNum = esc(v.invoice_number || "En cours");
       return {
         subject: `Facture annulée — ${invoiceNum}`,
         html: shell({
@@ -462,7 +462,7 @@ export function renderQueueTemplate(
     }
 
     case "invoice_suspension_warning": {
-      const invoiceNum = esc(v.invoice_number || "—");
+      const invoiceNum = esc(v.invoice_number || "En cours");
       const total = money(v.total ?? v.amount);
       return {
         subject: `Avertissement — Risque de suspension`,
@@ -612,10 +612,10 @@ export function renderQueueTemplate(
     // SIM / MOBILE / PORT-IN
     // ===================================================================
     case "sim_activated": {
-      const phone = esc(v.phone_number || v.PHONE_NUMBER || "—");
-      const iccid = esc(v.iccid || v.ICCID || "—");
+      const phone = esc(v.phone_number || v.PHONE_NUMBER || "Non disponible");
+      const iccid = esc(v.iccid || v.ICCID || "Non disponible");
       const carrier = esc(v.carrier || v.CARRIER || "Nivra Telecom");
-      const plan = esc(v.plan || v.PLAN || "—");
+      const plan = esc(v.plan || v.PLAN || "Non disponible");
       return {
         subject: `Votre SIM Nivra est active — ${phone}`,
         html: shell({
@@ -639,8 +639,8 @@ export function renderQueueTemplate(
     }
 
     case "esim_ready": {
-      const phone = esc(v.phone_number || v.PHONE_NUMBER || "—");
-      const eid = esc(v.eid || v.EID || "—");
+      const phone = esc(v.phone_number || v.PHONE_NUMBER || "Non disponible");
+      const eid = esc(v.eid || v.EID || "Non disponible");
       return {
         subject: `Votre eSIM est prête à installer`,
         html: shell({
@@ -663,8 +663,8 @@ export function renderQueueTemplate(
     }
 
     case "portin_initiated": {
-      const phone = esc(v.phone_number || "—");
-      const currentOp = esc(v.current_operator || "—");
+      const phone = esc(v.phone_number || "Non disponible");
+      const currentOp = esc(v.current_operator || "Non disponible");
       return {
         subject: `Transfert de votre numéro en cours`,
         html: shell({
@@ -688,7 +688,7 @@ export function renderQueueTemplate(
     }
 
     case "portin_completed": {
-      const phone = esc(v.phone_number || "—");
+      const phone = esc(v.phone_number || "Non disponible");
       return {
         subject: `Votre numéro ${phone} a été transféré`,
         html: shell({
@@ -710,7 +710,7 @@ export function renderQueueTemplate(
     }
 
     case "portin_failed": {
-      const phone = esc(v.phone_number || "—");
+      const phone = esc(v.phone_number || "Non disponible");
       const reason = esc(v.reason || "Transfert refusé par l'opérateur d'origine");
       return {
         subject: `Problème avec le transfert de votre numéro`,
@@ -738,9 +738,9 @@ export function renderQueueTemplate(
     case "appointment_scheduled":
     case "appointment_confirmed": {
       const date = fmtDate(v.appointment_date || v.APPOINTMENT_DATE || v.date || v.scheduled_at);
-      const time = esc(v.appointment_time || v.APPOINTMENT_TIME || v.time || "—");
+      const time = esc(v.appointment_time || v.APPOINTMENT_TIME || v.time || "Non disponible");
       const tech = esc(v.technician_name || v.TECHNICIAN_NAME || "À confirmer");
-      const address = esc(v.address || v.APPOINTMENT_ADDRESS_LINE1 || "—");
+      const address = esc(v.address || v.APPOINTMENT_ADDRESS_LINE1 || "Non disponible");
       return {
         subject: `Installation confirmée — ${date}`,
         html: shell({
@@ -764,7 +764,7 @@ export function renderQueueTemplate(
     case "appointment_reminder":
     case "appointment_reminder_24h": {
       const date = fmtDate(v.appointment_date || v.date);
-      const time = esc(v.appointment_time || v.time || "—");
+      const time = esc(v.appointment_time || v.time || "Non disponible");
       const tech = esc(v.technician_name || "À confirmer");
       return {
         subject: `Rappel — Installation demain à ${time}`,
@@ -809,7 +809,7 @@ export function renderQueueTemplate(
 
     case "appointment_missed_by_client": {
       const date = fmtDate(v.date || v.appointment_date);
-      const time = esc(v.time || v.appointment_time || "—");
+      const time = esc(v.time || v.appointment_time || "Non disponible");
       const rebookingUrl = String(v.rebooking_url || `${portalUrl}/rendez-vous`);
       return {
         subject: `Rendez-vous manqué — Replanifiez votre installation`,
@@ -851,8 +851,8 @@ export function renderQueueTemplate(
     // EQUIPMENT / SHIPPING
     // ===================================================================
     case "equipment_shipped": {
-      const carrier = esc(v.carrier || v.shipping_carrier || "—");
-      const tracking = esc(v.tracking_number || "—");
+      const carrier = esc(v.carrier || v.shipping_carrier || "Non disponible");
+      const tracking = esc(v.tracking_number || "Non disponible");
       const trackingUrl = String(v.tracking_url || `${portalUrl}/livraison`);
       return {
         subject: `Votre équipement est en route`,
@@ -1040,7 +1040,7 @@ export function renderQueueTemplate(
     // QUOTES / TICKETS / MISC
     // ===================================================================
     case "quote_sent": {
-      const quoteNum = esc(v.quote_number || "—");
+      const quoteNum = esc(v.quote_number || "Non disponible");
       const total = money(v.total ?? v.amount);
       const quoteUrl = String(v.quote_url || `${APP_URL}/soumission/${esc(v.quote_id || "")}`);
       return {
@@ -1064,7 +1064,7 @@ export function renderQueueTemplate(
     }
 
     case "ticket_created": {
-      const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "—");
+      const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "Non disponible");
       const subject = esc(v.subject || v.SUBJECT || "Votre demande");
       return {
         subject: `Demande reçue — ${ticketNum}`,
@@ -1114,10 +1114,10 @@ export function renderQueueTemplate(
 
     case "ticket_assigned_notification":
     case "ticket_assigned": {
-      const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "—");
+      const ticketNum = esc(v.ticket_number || v.TICKET_NUMBER || "Non disponible");
       const subject = esc(v.subject || v.SUBJECT || "Nouveau ticket");
       const priority = esc(v.priority || "normal");
-      const clientLine = esc(v.client_label || v.client_name || v.client_email || "—");
+      const clientLine = esc(v.client_label || v.client_name || v.client_email || "Non disponible");
       const desc = String(v.description || v.DESCRIPTION || "").slice(0, 600);
       const assigneeName = String(v.assignee_name || v.client_name || "Agent");
       return {
@@ -1166,7 +1166,7 @@ export function renderQueueTemplate(
     // -------------------------------------------------------------------
     case "autopay_activated": {
       const subId = String(v.paypal_subscription_id || v.subscription_id || "");
-      const subRef = subId ? subId.slice(-8).toUpperCase() : "—";
+      const subRef = subId ? subId.slice(-8).toUpperCase() : "N/A";
       const activatedAt = fmtDate(v.activated_at || new Date().toISOString());
       const manageUrl = String(v.manage_url || `${portalUrl}/paiement`);
       const detailsBody =
@@ -1278,7 +1278,7 @@ export function renderQueueTemplate(
     // OVERDUE — Daily reminder (one email per unpaid invoice per day)
     // ===================================================================
     case "overdue_invoice_daily_reminder": {
-      const invoiceNumber = esc(v.invoice_number || "—");
+      const invoiceNumber = esc(v.invoice_number || "En cours");
       const invoiceBalance = money(v.invoice_balance ?? 0);
       const totalAccountBalance = money(v.total_account_balance ?? 0);
       const daysOverdue = Number(v.days_overdue ?? 0);
@@ -1320,8 +1320,8 @@ export function renderQueueTemplate(
     // PHONE SALES (hardware orders)
     // ===================================================================
     case "phone_order_confirmed": {
-      const brand = esc(v.brand || "—");
-      const model = esc(v.model || "—");
+      const brand = esc(v.brand || "Non disponible");
+      const model = esc(v.model || "Non disponible");
       const amount = money(v.amount ?? v.total ?? v.total_payable);
       const kycUrl = String(v.kyc_url || `${portalUrl}/identite`);
       return {
@@ -1365,7 +1365,7 @@ export function renderQueueTemplate(
 
     case "phone_approved_shipping": {
       const carrier = esc(v.carrier || "Postes Canada");
-      const tracking = esc(v.tracking_number || "—");
+      const tracking = esc(v.tracking_number || "Non disponible");
       const trackingUrl = String(v.tracking_url || `${portalUrl}/phones`);
       return {
         subject: `Votre appareil est en route 📦`,
@@ -1405,8 +1405,8 @@ export function renderQueueTemplate(
     }
 
     case "phone_return_requested_ack": {
-      const brand = esc(v.brand || "—");
-      const model = esc(v.model || "—");
+      const brand = esc(v.brand || "Non disponible");
+      const model = esc(v.model || "Non disponible");
       return {
         subject: `Demande de retour reçue — ${brand} ${model}`,
         html: shell({
@@ -1540,7 +1540,7 @@ export function renderQueueTemplate(
           bodyText: `Nous avons reçu une demande de réinitialisation du mot de passe associé à ${portalLabel}.<br/><br/>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. <strong style="color:#7c3aed;">Ce lien est valide 1 heure.</strong>`,
           cardTitle: "Détails de la demande",
           cardRows: [
-            ["Compte", esc(v.email || v.to_email || "—")],
+            ["Compte", esc(v.email || v.to_email || "Non disponible")],
             ["Type", audience === "staff" ? "Portail interne" : "Espace client"],
             ["Validité", "1 heure"],
           ],
@@ -1591,7 +1591,7 @@ export function renderQueueTemplate(
       const updatedFields = esc(
         Array.isArray(v.updated_fields)
           ? (v.updated_fields as unknown[]).join(", ")
-          : String(v.updated_fields || "—")
+          : String(v.updated_fields || "Non disponible")
       );
       const updatedAt = esc(v.updated_at || new Date().toISOString().slice(0, 10));
       return {
@@ -1790,8 +1790,8 @@ export function renderQueueTemplate(
     case "hr_schedule_created":
     case "hr_shift_created": {
       const shiftDate = fmtDate(v.shift_date || v.date);
-      const startTime = esc(v.start_time || "—");
-      const endTime = esc(v.end_time || "—");
+      const startTime = esc(v.start_time || "Non disponible");
+      const endTime = esc(v.end_time || "Non disponible");
       const location = esc(v.location || v.role || "Nivra");
       const rhPortal = String(v.portal_url || `${APP_URL}/rh/horaire`);
       return {
@@ -1820,8 +1820,8 @@ export function renderQueueTemplate(
     case "hr_schedule_updated":
     case "hr_shift_updated": {
       const shiftDate = fmtDate(v.shift_date || v.date);
-      const startTime = esc(v.start_time || "—");
-      const endTime = esc(v.end_time || "—");
+      const startTime = esc(v.start_time || "Non disponible");
+      const endTime = esc(v.end_time || "Non disponible");
       const rhPortal = String(v.portal_url || `${APP_URL}/rh/horaire`);
       return {
         subject: `Quart modifié — ${shiftDate}`,
@@ -2035,8 +2035,8 @@ export function renderQueueTemplate(
     // INVOICE SENT — Facture émise et disponible
     // ===================================================================
     case "invoice_sent": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
-      const period = esc(v.period || v.billing_period || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
+      const period = esc(v.period || v.billing_period || "Non disponible");
       const subtotal = money(v.subtotal);
       const tps = money(v.tps ?? v.gst);
       const tvq = money(v.tvq ?? v.qst);
@@ -2077,7 +2077,7 @@ export function renderQueueTemplate(
     // ORDER PROCESSING — Commande en traitement
     // ===================================================================
     case "order_processing": {
-      const services = esc(v.services_summary || v.SERVICES_LIST || v.plan_name || "—");
+      const services = esc(v.services_summary || v.SERVICES_LIST || v.plan_name || "Non disponible");
       const estActivation = fmtDate(v.estimated_activation_date || v.activation_date);
       const ordersUrl = `${String(v.portal_url || PORTAL_URL).replace(/\/$/, "")}/commandes`;
       return {
@@ -2108,7 +2108,7 @@ export function renderQueueTemplate(
     // ===================================================================
     case "shipment_created": {
       const carrier = esc(v.carrier || v.CARRIER || "Postes Canada");
-      const tracking = esc(v.tracking_number || v.TRACKING_NUMBER || "—");
+      const tracking = esc(v.tracking_number || v.TRACKING_NUMBER || "Non disponible");
       const pickupDate = fmtDate(v.pickup_date || v.created_at || new Date().toISOString());
       const deliveryWindow = esc(
         v.delivery_window || v.estimated_delivery || "3 à 5 jours ouvrables",
@@ -2148,7 +2148,7 @@ export function renderQueueTemplate(
     // ===================================================================
     case "order_shipped": {
       const carrier = esc(v.carrier || v.CARRIER || "Postes Canada");
-      const tracking = esc(v.tracking_number || v.TRACKING_NUMBER || "—");
+      const tracking = esc(v.tracking_number || v.TRACKING_NUMBER || "Non disponible");
       const estDelivery = fmtDate(
         v.estimated_delivery_date || v.estimated_delivery || v.delivery_date,
       );
@@ -2237,7 +2237,7 @@ export function renderQueueTemplate(
           cardTitle: "Récapitulatif",
           cardRows: [
             ["Raison", String(reason)],
-            ["Services à résilier", String(subsCount || "—")],
+            ["Services à résilier", String(subsCount || "Non disponible")],
             ["Remboursement estimé", refundRaw > 0 ? money(refundRaw) : "Aucun"],
             ["Délai de traitement", "3 à 5 jours ouvrables"],
           ],
