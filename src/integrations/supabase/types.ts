@@ -15749,8 +15749,8 @@ export type Database = {
             foreignKeyName: "sales_targets_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
-            referencedRelation: "employee_records"
-            referencedColumns: ["id"]
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
           },
         ]
       }

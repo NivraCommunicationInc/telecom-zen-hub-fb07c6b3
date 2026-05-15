@@ -1,0 +1,2 @@
+ALTER TABLE public.sales_targets DROP CONSTRAINT IF EXISTS sales_targets_employee_id_fkey;
+ALTER TABLE public.sales_targets ADD CONSTRAINT sales_targets_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES auth.users(id) ON DELETE CASCADE;
