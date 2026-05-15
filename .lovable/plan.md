@@ -1,91 +1,75 @@
-## Scope
+## Scope assessment
 
-These 6 fixes touch the entire Field→Core pipeline. Splitting into safe, reviewable chunks.
+This request mixes **small, surgical fixes** (FIX 1, FIX 2, parts of FIX 3) with **full feature rebuilds** (most of FIX 4, FIX 5). I want explicit approval before doing the heavy ones, because some sections (Leaderboard, Calendar, Contests, Training, FAQ, Directory, Tickets management) are 100–500 line implementations each and would require ~3000+ lines of new code plus possibly new tables/columns.
 
-## Confirmed blocker (from prior audit)
-- 7 `field_payment_intents` rows are stuck `pending`, none captured.
-- `field-payment-initiate` writes `custom_id = "fpi:<intent_id>"` to PayPal.
-- `paypal-capture-order` does NOT look at `custom_id` for the `fpi:` prefix → never bridges to `field-sales-sync` → no `orders` row → Core sees nothing.
-- No `field_submissions` table exists.
-- No `/payer/:intentId` public page exists.
+Below is what I'll do per fix. **I will execute FIX 1, FIX 2, and the form-additions part of FIX 3 immediately on approval.** For FIX 4 and FIX 5 I list what already exists vs what's truly missing, and ask you to confirm scope before I start.
 
-## Phase A — Pipeline (FIX 1) ⭐ unblocks everything
+---
 
-**Edit `supabase/functions/paypal-capture-order/index.ts`** (no rewrite, additive block right after capture validates ~line 197):
-1. Detect `custom_id` matching `^fpi:` → extract `intent_id`.
-2. If matched, branch into a Field-sale handler:
-   - Load `field_payment_intents` + linked `field_quotes`.
-   - Build a `field_sales_orders` row from quote (`services`, `client_info`, `total`, `salesperson_id=agent_id`, `payment_method='paypal'`, `payment_status='confirmed'`, `payment_reference=captureId`).
-   - `fetch` `field-sales-sync` with `{action:'sync_single', sale_id}` using service-role auth.
-   - On success: update `field_payment_intents` → `status='completed'`, `converted_field_order_id`, `converted_order_id`, `paid_at=now()`.
-   - Insert `field_commissions` row `status='pending'` (amount = quote.total × commission rule, or simple placeholder if rule lookup fails — match existing trigger behavior).
-   - Return early (skip the regular `billing_invoices` branch which would orphan-alert).
-3. If no `fpi:` prefix, original flow unchanged.
+## FIX 1 — Date of birth placeholder (small, ~6 lines)
 
-**Frontend (`FieldNewSale.tsx`)** — no change needed; the existing realtime poll on `field_payment_intents.status` already drives the UI. (Protected: do not touch StepPaymentPaypal timer.)
+- `Account360ProfileEditDialog.tsx` line 251: replace `{form.date_of_birth || "—"}` → `{form.date_of_birth || "Non renseignée"}`.
+- `Account360Sections.tsx` line 39: change `fmtDate(prof?.date_of_birth)` to `prof?.date_of_birth ? fmtDate(prof.date_of_birth) : "Non renseignée"` (helper currently returns "—" or "Date non disponible").
 
-## Phase B — Public payment page (FIX 2)
+## FIX 2 — Field agent profile completeness (~150 lines added to FieldProfile.tsx)
 
-**New file `src/pages/PayerCommande.tsx`**:
-- Loads `field_payment_intents` + nested `field_quotes` by `:intentId` (anon-readable; need RLS policy).
-- Renders Nivra-branded summary: client, services, equipment, discount, subtotal/TPS/TVQ/total.
-- Buttons:
-  - "Payer avec PayPal" → `window.location = intent.paypal_approval_url`.
-  - "Recevoir un nouveau lien" → invoke a new `field-payment-resend` edge function (or reuse email_queue insert with anon RLS — safer to add edge function).
-- States: `completed` → success card; `cancelled`/expired → contact card.
+Current query only selects `full_name, email, phone, avatar_url`. I'll extend to:
+- Add `address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, payment_method` to the `profiles` select.
+- Join `field_territories` for territory name (currently shows raw UUID).
+- Add new editable section "Adresse domicile" (street/city/province/postal).
+- Add new editable section "Contact d'urgence" (name/phone).
+- Add read-only "Date de naissance" formatted `15 janvier 1990`, "Méthode de paiement", improved territory name.
+- Replace all `"—"` placeholders with `"Non renseigné"`.
+- Update mutation to persist new editable fields.
 
-**Migration**: RLS policy on `field_payment_intents` + `field_quotes` allowing `SELECT` by `id` for anon (or via SECURITY DEFINER RPC `get_field_payment_intent_public(p_id)`). Prefer RPC to avoid broad RLS.
+## FIX 3 — Core agent creation form additions
 
-**Route**: add `<Route path="/payer/:intentId" element={<PayerCommande />} />` to `AppRoutes.tsx` outside of any auth guard.
+I'll read `CoreFieldAgentsPage.tsx` (2102 lines) and locate the existing creation dialog. I'll add the missing fields you listed (DOB, home address, emergency contact + relation, monthly target, payment method + interac/paypal email) into the existing form, organized as visual steps/sections (single dialog with grouped sections — not a wizard, to keep the change focused). On save: update profiles with all fields, upsert into `sales_targets` if monthly target > 0, upsert `field_territory_assignments` if territory selected, and invoke the existing invitation send (assuming one exists; otherwise I'll wire it via supabase admin invite).
 
-**FieldNewSale.tsx**: change `payment_url` in email payloads from `approvalUrl` to `https://nivra-telecom.ca/payer/${data.intent_id}` (2 places: initial send + resend callback).
+**Note**: "stored encrypted" for DOB — `profiles.date_of_birth` is currently a plain `date` column. True encryption requires pgcrypto + key management which is out of scope here. I'll store it as-is in the existing column unless you want a separate migration.
 
-## Phase C — Core orders UI (FIX 3)
+## FIX 4 — Nivra Source sections (LARGE — needs your call)
 
-**Edit `src/core-app/hooks/useAdminOrders.ts`**:
-- Extend `select` with `source, created_by_agent_id`.
-- After fetching profiles, also fetch `profiles` for `created_by_agent_id` set; expose `agent_full_name`, `source` on `AdminOrder`.
+Audit of current state:
 
-**Edit `src/core-app/pages/OrdersPage.tsx`**:
-- Add purple badge "Field Sales — Porte-à-porte" when `o.source === 'field_sales'`.
-- Show "Agent: {agent_full_name}" line under client name.
-- Add filter chip "Field Sales" that sets a new `sourceFilter`.
-- Add `usePortalRealtime(['orders','field_payment_intents'], [['admin-orders-v2', envFilter]])`.
+| Section | File | State |
+|---|---|---|
+| Annonces | `HubAnnouncements.tsx` (62 lines) | Basic list, no pinned/badges/reactions/view count |
+| Feed | `sections/HubFeed.tsx` (117 lines) | Basic list |
+| Documents | `HubDocuments.tsx` | Has category filter, basic |
+| Boutique | `sections/HubStore.tsx` | Already rebuilt ✅ |
+| Leaderboard | `HubLeaderboard.tsx` | Need to inspect |
+| Calendrier | `HubCalendar.tsx` | List view only — no monthly grid |
+| Concours | `sections/HubContests.tsx` | Basic |
+| Conseils | `sections/HubTips.tsx` | Basic |
+| Forfaits & Prix | `sections/HubPricing.tsx` | Basic |
+| Formulaires | `HubForms.tsx` | Need to inspect |
+| Mes tickets | `sections/HubMyTickets.tsx` | Need to inspect |
+| Formation | `sections/HubTraining.tsx` | Basic |
+| FAQ | `sections/HubFaq.tsx` | Basic |
+| Annuaire | `sections/HubDirectory.tsx` | Basic |
 
-## Phase D — Reminder template + cron (FIX 5)
+A full rebuild of all 13 sections to the level you described (monthly calendar grid, video player + quiz + certificates for training, voting on FAQ, real-time tickets, reaction system + view counter on every post, etc.) is **a multi-day, ~3000+ line undertaking** that likely needs new DB tables: `hub_post_reactions`, `hub_post_views`, `hub_faq_votes`, `hub_training_progress`, `hub_quiz_responses`, `hub_certificates`, `hub_bookmarks`.
 
-- Verify `field_payment_reminder` template exists in `customQueueTemplates.ts` (it does, line 1684) — confirm it uses `shell()` Violet Bold and add the `payment_url` pointing to `/payer/{intentId}`. If template body uses raw approval URL, update it to use `payment_url` var.
-- Update `payment-reminder/index.ts` so `payment_url` = `https://nivra-telecom.ca/payer/${intent.id}` (not raw PayPal URL).
-- Verify cron via `supabase--insert` if missing: `SELECT cron.schedule('daily-payment-reminder','0 10 * * *', ...)`.
+**My recommendation — ship in phases:**
+- **Phase 4A (this turn, ~400 lines)**: enrich Annonces (pinned + category badges + "Nouveau" badge), Feed (better media display + "Nouveau"), Documents ("Nouveau" badge), Calendar (add monthly grid view toggle), proper empty states everywhere. No new tables.
+- **Phase 4B (next request)**: reactions + view_count system (1 new table, RLS, increments on open).
+- **Phase 4C (later)**: training progress/quiz/certificates, FAQ voting, contest countdown, leaderboard tier-progress.
 
-## Phase E — Submission convert (FIX 4) — DEFERRED
+## FIX 5 — Core admin Hub management (LARGE — needs your call)
 
-`field_submissions` table does not exist. Creating it duplicates `field_payment_intents` + `field_quotes`. Recommend re-using `field_quotes` with `status='pending_client'` + extending `expires_at` to 7 days, instead of new table. This requires confirming with you before adding the table or repurposing existing data. **Will skip in this round** unless you confirm.
+`CoreHubManagementPage.tsx` is 1763 lines. I need to inspect what's already there before estimating. The features you listed (rich text editor, drag-and-drop multi-image upload, bulk select, internal notes on tickets, assign to staff) are individually substantial. Once I read the file I'll report back what exists vs what's missing and propose a phased delivery.
 
-## Phase F — 2FA bug (FIX 6) — DEFERRED
+---
 
-Need to first read `CoreLoginPage.tsx` MFA flow to identify the actual bug (challenge reuse vs. clock skew vs. wrong factor). Should be its own diagnostic round with logs, not blind code changes.
+## What I'll do right now on approval
 
-## What I will execute now
+1. **FIX 1** — 2 small edits, immediate.
+2. **FIX 2** — extend `FieldProfile.tsx` query + UI + mutation.
+3. **FIX 3** — add missing fields to existing creation dialog in `CoreFieldAgentsPage.tsx`.
+4. **FIX 4 Phase 4A** — pinned/badges/"Nouveau"/empty states + Calendar monthly grid.
+5. **FIX 5 audit** — read `CoreHubManagementPage.tsx` and report back with a concrete plan, no edits.
 
-Phases **A, B, C, D** in this loop. Phase E and F flagged as deferred with explicit reasons above.
+Then I'll run the proof commands you listed.
 
-## Files touched
-- `supabase/functions/paypal-capture-order/index.ts` (additive block)
-- `supabase/functions/payment-reminder/index.ts` (payment_url change)
-- `supabase/functions/_shared/customQueueTemplates.ts` (payment_url var only — protected from structural change)
-- New: `supabase/functions/field-payment-public/index.ts` (RPC-style read + resend)
-- New migration: SECURITY DEFINER `get_field_payment_intent_public`
-- `src/pages/PayerCommande.tsx` (new)
-- `src/components/AppRoutes.tsx` (add public route)
-- `src/field-app/pages/FieldNewSale.tsx` (payment_url string only — does NOT touch StepPaymentPaypal)
-- `src/core-app/hooks/useAdminOrders.ts` (add source + agent join)
-- `src/core-app/pages/OrdersPage.tsx` (badge + filter + realtime)
-
-## Protected — will not touch
-- `StepPaymentPaypal.tsx` timer/countdown
-- `FieldObjectives.tsx`, `RhObjectives.tsx`
-- `customQueueTemplates.ts` Violet Bold shell logic / commission trigger
-- Helmet imports / CancellationDialog
-
-Proceed with Phases A-D? Confirm and I'll execute, or tell me to also include E/F.
+**Confirm** if this phased approach is OK, or tell me to do everything in one shot and I'll proceed (warning: that will be a very large diff with higher regression risk on the protected files' neighbors).
