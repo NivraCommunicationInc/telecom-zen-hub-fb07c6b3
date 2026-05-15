@@ -39,6 +39,9 @@ const DRAFT_KEY_BASE = "field_sale_draft";
 
 export default function FieldNewSale() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
+  const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
   const { user } = useStaffUser();
   const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
   const [isSubmitting, setIsSubmitting] = useState(false);
