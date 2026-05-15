@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
         // Get salesperson profile for rep info
         const { data: repProfile } = await supabaseAdmin
           .from('profiles')
-          .select('full_name, email, phone')
+          .select('full_name, email, phone, agent_number, professional_email')
           .eq('user_id', sale.salesperson_id)
           .maybeSingle();
 
