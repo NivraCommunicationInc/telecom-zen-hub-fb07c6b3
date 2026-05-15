@@ -143,17 +143,19 @@ export default function FieldNewSale() {
     setRestoreDialogOpen(false);
   };
 
-  // ── Fetch agent full name (for emails) ──
+  // ── Fetch agent full name + agent number (for emails / documents) ──
   const [agentFullName, setAgentFullName] = useState<string>("");
+  const [agentNumber, setAgentNumber] = useState<string>("");
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
       const { data: agentProfile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, agent_number")
         .eq("user_id", user.id)
         .maybeSingle();
       setAgentFullName(((agentProfile as any)?.full_name as string) || "");
+      setAgentNumber(((agentProfile as any)?.agent_number as string) || "");
     })();
   }, [user?.id]);
   const agentName = agentFullName || user?.email || "votre conseiller Nivra";
