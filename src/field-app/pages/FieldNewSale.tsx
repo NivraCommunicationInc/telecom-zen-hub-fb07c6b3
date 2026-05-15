@@ -389,9 +389,11 @@ export default function FieldNewSale() {
       const last4: string = data.card_last4 || cardData.number.slice(-4);
       const orderNumber = `SUB-${String(intentId).slice(0, 8).toUpperCase()}`;
 
-      // Commission pending — visible immediately to agent
-      // Commission = 30% of monthly recurring after discount (canonical field-sales rate)
-      const commissionAmount = Math.max(0, Number((monthlyAfterDiscount * 0.30).toFixed(2)));
+      // Commission = 30% of FULL monthly recurring (before discount) + 5% of equipment
+      const commissionAmount = Math.max(
+        0,
+        Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)),
+      );
       try {
         await supabase.from("field_commissions").insert({
           agent_id: user.id,
@@ -470,17 +472,23 @@ export default function FieldNewSale() {
           } as any)
           .select("id")
           .single();
-        if (fsErr) throw fsErr;
+        if (fsErr) {
+          console.error("[field_sales_orders] insert failed", fsErr);
+          toast.error("Erreur création commande Core: " + (fsErr.message || "inconnue"));
+          throw fsErr;
+        }
         const saleId = (fsRow as any)?.id;
         if (saleId) {
           const { error: syncError } = await supabase.functions.invoke("field-sales-sync", {
             body: { action: "sync_single", sale_id: saleId },
           });
           if (syncError) {
+            console.error("[sync] field-sales-sync failed", syncError);
             logger.warn("[card-sync] field-sales-sync failed", syncError);
           }
         }
       } catch (syncCatch: any) {
+        console.error("[field_sales_orders] catch", syncCatch);
         logger.warn("[card-sync] order creation failed (non-blocking)", syncCatch);
       }
 
