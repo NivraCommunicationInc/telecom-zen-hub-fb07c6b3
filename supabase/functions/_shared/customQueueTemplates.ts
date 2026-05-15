@@ -2487,6 +2487,30 @@ export function renderQueueTemplate(
       };
     }
 
+    case "contract_generated": {
+      const fullName = safe(
+        v.client_full_name ??
+          `${v.customer_first_name ?? v.first_name ?? ""} ${v.customer_last_name ?? v.last_name ?? ""}`.trim(),
+        "Client",
+      );
+      const orderNumber = safe(v.order_number, "");
+      const agentName = safe(v.agent_name, "votre conseiller Nivra");
+      return {
+        subject: `Votre contrat de service Nivra${orderNumber ? ` — ${orderNumber}` : ""}`,
+        html: shell({
+          preheader: "Votre contrat de service est maintenant disponible.",
+          badge: "CONTRAT DE SERVICE",
+          heroTitle: "Votre contrat est prêt",
+          icon: "document",
+          greeting: `Bonjour ${fullName},`,
+          bodyText: `Votre contrat de service Nivra${orderNumber ? ` (commande <strong>${orderNumber}</strong>)` : ""} a été généré suite à votre rencontre avec ${agentName}. Vous pouvez le consulter en tout temps dans votre espace client.`,
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon contrat",
+          helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
