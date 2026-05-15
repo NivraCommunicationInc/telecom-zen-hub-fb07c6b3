@@ -152,10 +152,12 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
   const location = useLocation();
   const navigate = useNavigate();
   const { data: badges } = useBadges();
+  const { data: hubUnread = 0 } = useHubUnreadCount();
   const badgeCounts = {
     orders: badges?.orders ?? 0,
     leads: badges?.leads ?? 0,
     clients: badges?.clients ?? 0,
+    hub: hubUnread,
   };
 
   const isActive = (href: string) =>
