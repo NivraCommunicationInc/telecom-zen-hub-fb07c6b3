@@ -94,6 +94,8 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
 }
 
 const BILLABLE_ORDER_STATUSES = new Set([
+  "pending",
+  "pending_payment",
   "submitted",
   "pending_admin_review",
   "confirmed",
@@ -106,8 +108,9 @@ function isBillableOrderStatus(status?: string | null): boolean {
   return BILLABLE_ORDER_STATUSES.has(String(status || "").toLowerCase());
 }
 
-function deriveCanonicalOrderStatus(paymentStatus?: string | null): string {
-  return String(paymentStatus || "").toLowerCase() === "confirmed" ? "confirmed" : "submitted";
+function deriveCanonicalOrderStatus(paymentStatus?: string | null, paymentMethod?: string | null): string {
+  if (String(paymentMethod || "").toLowerCase() === "card_manual") return "pending_payment";
+  return String(paymentStatus || "").toLowerCase() === "confirmed" ? "activated" : "submitted";
 }
 
 function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
@@ -473,7 +476,7 @@ Deno.serve(async (req) => {
               tvq_amount: tvqAmount,
               total_amount: totalAmount,
 
-              status: deriveCanonicalOrderStatus(sale.payment_status),
+              status: deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method),
               payment_status: sale.payment_status || 'pending',
               payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
               payment_reference: sale.payment_reference || null,
@@ -492,7 +495,7 @@ Deno.serve(async (req) => {
               notes: `Vente terrain — Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
               internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
             })
-            .select('id, order_number')
+            .select('id, order_number, status')
             .single();
 
           if (orderError) {
@@ -514,7 +517,7 @@ Deno.serve(async (req) => {
             .eq('id', canonicalOrder.id);
         }
 
-        const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status);
+        const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method);
         if (!isBillableOrderStatus(canonicalOrder.status)) {
           const { error: promoteOrderError } = await supabaseAdmin
             .from("orders")
@@ -539,6 +542,18 @@ Deno.serve(async (req) => {
         // Field orders must enter the same billing pipeline as website orders
         let invoiceId: string | null = null;
         let paymentId: string | null = null;
+
+        const { data: verifiedOrder, error: verifyOrderBeforeBillingError } = await supabaseAdmin
+          .from("orders")
+          .select("id, status, source, payment_method")
+          .eq("id", canonicalOrder.id)
+          .maybeSingle();
+
+        if (verifyOrderBeforeBillingError || !verifiedOrder) {
+          throw new Error(`Order verification failed before billing: ${verifyOrderBeforeBillingError?.message || "order not found"}`);
+        }
+
+        canonicalOrder = { ...canonicalOrder, status: verifiedOrder.status };
 
         try {
           // Generate invoice number from DB sequence
@@ -718,6 +733,20 @@ Deno.serve(async (req) => {
         }
 
         // Update field_sales_orders with converted_order_id and sync status
+        const { data: verifiedOrderAfterBilling, error: verifyOrderAfterBillingError } = await supabaseAdmin
+          .from("orders")
+          .select("id")
+          .eq("id", canonicalOrder.id)
+          .maybeSingle();
+
+        if (verifyOrderAfterBillingError || !verifiedOrderAfterBilling) {
+          throw new Error(`Order verification failed after billing: ${verifyOrderAfterBillingError?.message || "order not found"}`);
+        }
+
+        if (!invoiceId) {
+          throw new Error("Billing invoice creation failed: invoice id missing");
+        }
+
         const { error: updateError } = await supabaseAdmin
           .from('field_sales_orders')
           .update({
@@ -731,6 +760,7 @@ Deno.serve(async (req) => {
 
         if (updateError) {
           console.error(`[field-sales-sync] Error updating sale status:`, updateError);
+          throw new Error(`Sync status update failed: ${updateError.message}`);
         }
 
         // ═══ COMMISSION ENGINE — Base % + tier lookup ═══
@@ -817,14 +847,15 @@ Deno.serve(async (req) => {
 
       } catch (error: any) {
         console.error(`[field-sales-sync] Error syncing sale ${sale.id}:`, error);
+        const exactErrorMessage = error?.message || String(error);
         
         // Mark as failed
         await supabaseAdmin
           .from('field_sales_orders')
-          .update({ sync_status: 'failed', sync_error: error?.message || String(error) })
+          .update({ sync_status: 'failed', sync_error: exactErrorMessage })
           .eq('id', sale.id);
 
-        return { success: false, error: error.message };
+        throw error;
       }
     }
 
@@ -902,7 +933,7 @@ Deno.serve(async (req) => {
       const { data: pendingSales, error: fetchError } = await supabaseAdmin
         .from('field_sales_orders')
         .select('*')
-        .or('sync_status.eq.pending,sync_status.eq.error,converted_order_id.is.null');
+        .or('sync_status.eq.pending,sync_status.eq.failed,sync_status.eq.error,converted_order_id.is.null');
 
       if (fetchError) {
         console.error('[field-sales-sync] Error fetching pending sales:', fetchError);
@@ -921,12 +952,12 @@ Deno.serve(async (req) => {
       const errors: string[] = [];
 
       for (const sale of pendingSales) {
-        const result = await syncSaleToOrders(sale);
-        if (result.success) {
+        try {
+          await syncSaleToOrders(sale);
           synced++;
-        } else {
+        } catch (error: any) {
           failed++;
-          errors.push(`Sale ${sale.id}: ${result.error}`);
+          errors.push(`Sale ${sale.id}: ${error?.message || String(error)}`);
         }
       }
 

@@ -21207,6 +21207,7 @@ export type Database = {
         Args: { p_decision: string; p_note?: string; p_session_id: string }
         Returns: Json
       }
+      backfill_field_sales_sync: { Args: never; Returns: undefined }
       book_slot: {
         Args: {
           p_installation_id: string
