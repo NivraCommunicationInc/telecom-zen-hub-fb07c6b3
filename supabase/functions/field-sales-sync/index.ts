@@ -952,12 +952,12 @@ Deno.serve(async (req) => {
       const errors: string[] = [];
 
       for (const sale of pendingSales) {
-        const result = await syncSaleToOrders(sale);
-        if (result.success) {
+        try {
+          await syncSaleToOrders(sale);
           synced++;
-        } else {
+        } catch (error: any) {
           failed++;
-          errors.push(`Sale ${sale.id}: ${result.error}`);
+          errors.push(`Sale ${sale.id}: ${error?.message || String(error)}`);
         }
       }
 
