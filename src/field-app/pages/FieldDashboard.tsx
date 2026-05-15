@@ -224,6 +224,44 @@ function useMonthlyTarget(userId?: string) {
   });
 }
 
+/* Field commissions — stats + recent rows for the current agent. */
+function useFieldCommissions(userId?: string) {
+  return useQuery({
+    queryKey: ["field-commissions-dashboard", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { data } = await supabase
+        .from("field_commissions")
+        .select("id, amount, status, earned_at, created_at, description, order_id")
+        .eq("agent_id", userId as string)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const rows = data || [];
+      const isThisMonth = (d: string | null) => d && new Date(d) >= monthStart;
+      const monthRows = rows.filter((r: any) => isThisMonth(r.earned_at || r.created_at));
+      const sales_count = monthRows.length;
+      const month_total = monthRows.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const pending_total = rows
+        .filter((r: any) => r.status === "pending")
+        .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const approved_total = rows
+        .filter((r: any) => r.status === "approved" || r.status === "paid")
+        .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      return {
+        sales_count,
+        month_total,
+        pending_total,
+        approved_total,
+        recent: rows.slice(0, 5),
+      };
+    },
+    staleTime: 60_000,
+  });
+}
+
 /* ─────────────────────────────────────────────────────────────
    Main dashboard
    ───────────────────────────────────────────────────────────── */
