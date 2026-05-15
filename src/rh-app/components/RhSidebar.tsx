@@ -9,6 +9,7 @@ import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
   Briefcase, Target, Inbox, Upload,
+  Megaphone, ShoppingBag, Trophy, Calendar, ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
