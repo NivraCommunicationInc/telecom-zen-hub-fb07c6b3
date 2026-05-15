@@ -284,7 +284,8 @@ function TotpFlow({
 
         const { data, error } = await supabase.auth.mfa.enroll({
           factorType: "totp",
-          friendlyName: `Nivra Portail ${new Date().toISOString().slice(0, 10)}`,
+          issuer: "Nivra Hub Secure",
+          friendlyName: "Nivra Hub Secure",
         });
         if (error) throw error;
         if (cancelled || !data) return;

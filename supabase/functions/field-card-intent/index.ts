@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
-    if (!authHeader) return new Response(JSON.stringify({ error: "Auth required" }), { status: 401, headers });
+    if (!authHeader) return new Response(JSON.stringify({ ok: false, error: "Auth required" }), { status: 200, headers });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     });
     const { data: userData } = await userClient.auth.getUser();
     const agentId = userData?.user?.id;
-    if (!agentId) return new Response(JSON.stringify({ error: "Auth invalide" }), { status: 401, headers });
+    if (!agentId) return new Response(JSON.stringify({ ok: false, error: "Auth invalide" }), { status: 200, headers });
 
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -130,18 +130,18 @@ Deno.serve(async (req) => {
     const quoteId: string | undefined = body.quote_id;
 
     // Validation
-    if (!quoteId) return new Response(JSON.stringify({ error: "quote_id requis" }), { status: 400, headers });
-    if (!luhn(cardNumber)) return new Response(JSON.stringify({ error: "Numéro de carte invalide" }), { status: 400, headers });
-    if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) return new Response(JSON.stringify({ error: "Date d'expiration invalide (MM/YY)" }), { status: 400, headers });
-    if (!/^\d{3,4}$/.test(cvv)) return new Response(JSON.stringify({ error: "CVV invalide" }), { status: 400, headers });
-    if (!cardName) return new Response(JSON.stringify({ error: "Nom sur la carte requis" }), { status: 400, headers });
-    if (!Number.isFinite(amount) || amount <= 0) return new Response(JSON.stringify({ error: "Montant invalide" }), { status: 400, headers });
+    if (!quoteId) return new Response(JSON.stringify({ ok: false, error: "quote_id requis" }), { status: 200, headers });
+    if (!luhn(cardNumber)) return new Response(JSON.stringify({ ok: false, error: "Numéro de carte invalide" }), { status: 200, headers });
+    if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) return new Response(JSON.stringify({ ok: false, error: "Date d'expiration invalide (MM/YY)" }), { status: 200, headers });
+    if (!/^\d{3,4}$/.test(cvv)) return new Response(JSON.stringify({ ok: false, error: "CVV invalide" }), { status: 200, headers });
+    if (!cardName) return new Response(JSON.stringify({ ok: false, error: "Nom sur la carte requis" }), { status: 200, headers });
+    if (!Number.isFinite(amount) || amount <= 0) return new Response(JSON.stringify({ ok: false, error: "Montant invalide" }), { status: 200, headers });
 
     // Verify quote ownership
     const { data: quote } = await admin
       .from("field_quotes").select("id, agent_id").eq("id", quoteId).maybeSingle();
     if (!quote || quote.agent_id !== agentId) {
-      return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
+      return new Response(JSON.stringify({ ok: false, error: "Soumission introuvable" }), { status: 200, headers });
     }
 
     // Create the field_payment_intent (so admin sees the order in the same place)
