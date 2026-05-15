@@ -74,7 +74,7 @@ export default function FieldProfile() {
 
       const [profileRes, roleRes, territoryRes, commRes] = await Promise.all([
         supabase.from("profiles")
-          .select("full_name, email, phone, avatar_url, address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, payment_method")
+          .select("full_name, email, phone, avatar_url, address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, payment_method, agent_number, professional_email")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase.from("user_roles")
