@@ -199,17 +199,23 @@ Deno.serve(async (req) => {
         }
 
         // ═══ SERVER-SIDE VALIDATION — Block incomplete submissions ═══
-        // For card_manual sales (in-person card), email/phone may be missing.
-        // Apply fallback for email; phone/address still required for shipping/install.
+        // For card_manual sales (in-person card), email/phone/address may be missing.
+        // Apply fallbacks before validation and before orders/account insertion.
         const isCardManual = sale.payment_method === "card_manual";
         if (isCardManual && !sale.customer_email?.trim()) {
           sale.customer_email = "noreply@nivra-telecom.ca";
         }
+        if (isCardManual && !sale.customer_phone?.trim()) {
+          sale.customer_phone = "000-000-0000";
+        }
+        if (isCardManual && !sale.customer_address?.trim()) {
+          sale.customer_address = "Non fournie";
+        }
         const validationErrors: string[] = [];
         if (!sale.customer_name?.trim()) validationErrors.push("Nom du client manquant");
         if (!sale.customer_email?.trim()) validationErrors.push("Courriel du client manquant");
-        if (!isCardManual && !sale.customer_phone?.trim()) validationErrors.push("Téléphone du client manquant");
-        if (!isCardManual && !sale.customer_address?.trim()) validationErrors.push("Adresse du client manquante");
+        if (!sale.customer_phone?.trim()) validationErrors.push("Téléphone du client manquant");
+        if (!sale.customer_address?.trim()) validationErrors.push("Adresse du client manquante");
         if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sélectionné");
         
         if (validationErrors.length > 0) {
