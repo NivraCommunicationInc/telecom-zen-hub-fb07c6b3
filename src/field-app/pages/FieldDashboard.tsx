@@ -308,6 +308,7 @@ export default function FieldDashboard() {
 
   const { data: commissionRules } = useCommissionRules(user?.id);
   const { data: monthlyTarget } = useMonthlyTarget(user?.id);
+  const { data: fieldComm } = useFieldCommissions(user?.id);
 
   /* Real-time subscriptions — Core RH ⇄ Field Sales sync.
      Tables: commission_rules, sales_targets, sales_commissions, orders.
