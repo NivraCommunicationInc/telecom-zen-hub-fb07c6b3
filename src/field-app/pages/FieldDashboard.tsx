@@ -20,6 +20,7 @@ import {
   Activity, Wifi, BarChart3,
 } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
