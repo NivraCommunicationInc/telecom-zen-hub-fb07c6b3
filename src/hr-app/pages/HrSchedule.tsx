@@ -1,5 +1,5 @@
 /**
- * RhSchedule — Employee punch in/out + today timeline + week summary.
+ * HrSchedule — Employee punch in/out + today timeline + week summary.
  * Big clock, real-time status, geolocation captured if available.
  */
 import { useState, useEffect } from "react";
@@ -40,7 +40,7 @@ function getCoords(): Promise<{ lat: number; lng: number } | null> {
   });
 }
 
-export default function RhSchedule() {
+export default function HrSchedule() {
   usePortalRealtime(["staff_schedules", "time_entries"], [["rh-schedule"], ["rh-time"]]);
   const qc = useQueryClient();
   const [now, setNow] = useState(new Date());

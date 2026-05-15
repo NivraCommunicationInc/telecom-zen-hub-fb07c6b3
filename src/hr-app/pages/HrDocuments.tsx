@@ -1,5 +1,5 @@
 /**
- * RhDocuments — 3 sections:
+ * HrDocuments — 3 sections:
  *  1) Documents reçus (employment_letters: offer, contract, attestation, etc.)
  *  2) Documents fiscaux (tax_documents: T4, RL-1…)
  *  3) Mes téléversements (hr_documents)
@@ -74,7 +74,7 @@ const STATUS_LABEL: Record<string, string> = {
   acknowledged: "Acquitté",
 };
 
-export default function RhDocuments() {
+export default function HrDocuments() {
   usePortalRealtime(["employment_letters", "tax_documents"], [["rh-documents"], ["rh-letters"]]);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);

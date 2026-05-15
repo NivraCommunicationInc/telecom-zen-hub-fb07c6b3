@@ -1,5 +1,5 @@
 /**
- * RhProtectedRoute — Guards all /rh/* routes.
+ * HrProtectedRoute — Guards all /hr/* routes.
  * Enforces: hub session → authenticated → active role → can_access_rh → MFA verified.
  * All employees, technicians, field_sales, and admins can access the RH portal.
  */
@@ -15,7 +15,7 @@ import { Loader2, ShieldAlert } from "lucide-react";
 
 type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify";
 
-export default function RhProtectedRoute() {
+export default function HrProtectedRoute() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>("loading");
   const [factorId, setFactorId] = useState<string | null>(null);

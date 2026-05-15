@@ -1,5 +1,5 @@
 /**
- * RhEmploymentLetters — Letters with request workflow + acknowledge + PDF.
+ * HrEmploymentLetters — Letters with request workflow + acknowledge + PDF.
  * Fixed: uses user_id (not employee_id).
  */
 import { useState } from "react";
@@ -48,7 +48,7 @@ const REQUESTABLE_TYPES = [
   { value: "reference", label: "Lettre de référence" },
 ];
 
-export default function RhEmploymentLetters() {
+export default function HrEmploymentLetters() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestType, setRequestType] = useState("");
   const [requestNotes, setRequestNotes] = useState("");

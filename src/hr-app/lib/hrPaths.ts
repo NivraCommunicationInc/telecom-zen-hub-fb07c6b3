@@ -1,3 +1,3 @@
-/** Utility to build Nivra RH portal paths */
-const BASE = "/rh";
-export const rhPath = (path: string) => `${BASE}${path}`;
+/** Utility to build Nivra HR portal paths */
+const BASE = "/hr";
+export const hrPath = (path: string) => `${BASE}${path}`;

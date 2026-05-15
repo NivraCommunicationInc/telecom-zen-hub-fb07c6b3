@@ -1,5 +1,5 @@
 /**
- * RhCommissions — Employee commission history with actions.
+ * HrCommissions — Employee commission history with actions.
  * Features: withdrawal requests, dispute, filters, KPI, sale link.
  */
 import { useState, useMemo, useCallback } from "react";
@@ -28,7 +28,7 @@ import {
 import { Link } from "react-router-dom";
 import CommissionGridTables from "@/components/commissions/CommissionGridTables";
 import { toast } from "sonner";
-import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
+import { useEmployeeWallet, fmtCAD } from "@/hr-app/hooks/useEmployeeWallet";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmt = (n: number) =>
@@ -63,7 +63,7 @@ interface UnifiedCommission {
   linkedToPayroll?: boolean;
 }
 
-export default function RhCommissions() {
+export default function HrCommissions() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -318,7 +318,7 @@ export default function RhCommissions() {
       <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
         <Receipt className="h-4 w-4 text-muted-foreground" />
         <p className="text-xs text-muted-foreground">Les commissions payées sont incluses dans vos fiches de paie.</p>
-        <Link to="/rh/paie" className="text-xs font-medium text-primary hover:underline ml-auto">Voir mes fiches →</Link>
+        <Link to="/hr/paie" className="text-xs font-medium text-primary hover:underline ml-auto">Voir mes fiches →</Link>
       </div>
 
       {/* Filters */}

@@ -1,5 +1,5 @@
 /**
- * RhSidebar — Navigation for the Nivra RH employee portal.
+ * HrSidebar — Navigation for the Nivra HR employee portal.
  * Clean professional design with indigo/violet accent.
  */
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -15,64 +15,64 @@ import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePortalBreakpoint } from "@/hooks/usePortalBreakpoint";
 
-const RH_BASE = "/rh";
+const HR_BASE = "/hr";
 
 const navGroups = [
   {
     label: "Mon dossier",
     items: [
-      { label: "Tableau de bord", href: `${RH_BASE}/dashboard`, icon: LayoutDashboard },
-      { label: "Mon profil", href: `${RH_BASE}/profil`, icon: User },
+      { label: "Tableau de bord", href: `${HR_BASE}/dashboard`, icon: LayoutDashboard },
+      { label: "Mon profil", href: `${HR_BASE}/profil`, icon: User },
     ],
   },
   {
     label: "Rémunération",
     items: [
-      { label: "Fiches de paie", href: `${RH_BASE}/paie`, icon: Receipt },
-      { label: "Commissions", href: `${RH_BASE}/commissions`, icon: DollarSign },
-      { label: "Objectifs", href: `${RH_BASE}/objectifs`, icon: Target },
+      { label: "Fiches de paie", href: `${HR_BASE}/paie`, icon: Receipt },
+      { label: "Commissions", href: `${HR_BASE}/commissions`, icon: DollarSign },
+      { label: "Objectifs", href: `${HR_BASE}/objectifs`, icon: Target },
     ],
   },
   {
     label: "Documents",
     items: [
-      { label: "Documents fiscaux", href: `${RH_BASE}/documents-fiscaux`, icon: FileText },
-      { label: "Mes documents RH", href: `${RH_BASE}/documents`, icon: Upload },
-      { label: "Lettres d'emploi", href: `${RH_BASE}/lettres`, icon: Mail },
+      { label: "Documents fiscaux", href: `${HR_BASE}/documents-fiscaux`, icon: FileText },
+      { label: "Mes documents RH", href: `${HR_BASE}/documents`, icon: Upload },
+      { label: "Lettres d'emploi", href: `${HR_BASE}/lettres`, icon: Mail },
     ],
   },
   {
     label: "Temps",
     items: [
-      { label: "Horaire & Punch", href: `${RH_BASE}/horaire`, icon: Clock },
+      { label: "Horaire & Punch", href: `${HR_BASE}/horaire`, icon: Clock },
     ],
   },
   {
     label: "Demandes",
     items: [
-      { label: "Mes demandes", href: `${RH_BASE}/demandes`, icon: Inbox },
+      { label: "Mes demandes", href: `${HR_BASE}/demandes`, icon: Inbox },
     ],
   },
   {
     label: "Communication",
     items: [
-      { label: "Notifications RH", href: `${RH_BASE}/notifications`, icon: Bell },
+      { label: "Notifications RH", href: `${HR_BASE}/notifications`, icon: Bell },
     ],
   },
   {
     label: "Nivra Source",
     items: [
-      { label: "Annonces", href: `${RH_BASE}/hub/annonces`, icon: Megaphone },
-      { label: "Documents", href: `${RH_BASE}/hub/documents`, icon: FileText },
-      { label: "Boutique", href: `${RH_BASE}/hub/boutique`, icon: ShoppingBag },
-      { label: "Leaderboard", href: `${RH_BASE}/hub/leaderboard`, icon: Trophy },
-      { label: "Calendrier", href: `${RH_BASE}/hub/calendrier`, icon: Calendar },
-      { label: "Formulaires", href: `${RH_BASE}/hub/formulaires`, icon: ClipboardList },
+      { label: "Annonces", href: `${HR_BASE}/hub/annonces`, icon: Megaphone },
+      { label: "Documents", href: `${HR_BASE}/hub/documents`, icon: FileText },
+      { label: "Boutique", href: `${HR_BASE}/hub/boutique`, icon: ShoppingBag },
+      { label: "Leaderboard", href: `${HR_BASE}/hub/leaderboard`, icon: Trophy },
+      { label: "Calendrier", href: `${HR_BASE}/hub/calendrier`, icon: Calendar },
+      { label: "Formulaires", href: `${HR_BASE}/hub/formulaires`, icon: ClipboardList },
     ],
   },
 ];
 
-export default function RhSidebar() {
+export default function HrSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isTablet, isDesktop } = usePortalBreakpoint();
@@ -106,7 +106,7 @@ export default function RhSidebar() {
         {/* Logo */}
         <div className="h-12 flex items-center justify-between px-2.5 border-b border-border">
           {!collapsed ? (
-            <Link to={`${RH_BASE}/dashboard`} className="flex items-center gap-2">
+            <Link to={`${HR_BASE}/dashboard`} className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-md bg-violet-600 flex items-center justify-center shrink-0">
                 <Briefcase className="h-3.5 w-3.5 text-white" />
               </div>
@@ -177,11 +177,11 @@ export default function RhSidebar() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card px-1 py-1 safe-bottom">
         <div className="flex items-center justify-around">
           {[
-            { href: `${RH_BASE}/dashboard`, icon: LayoutDashboard, label: "Accueil" },
-            { href: `${RH_BASE}/paie`, icon: Receipt, label: "Paie" },
-            { href: `${RH_BASE}/documents-fiscaux`, icon: FileText, label: "Fiscaux" },
-            { href: `${RH_BASE}/horaire`, icon: Clock, label: "Horaire" },
-            { href: `${RH_BASE}/profil`, icon: User, label: "Profil" },
+            { href: `${HR_BASE}/dashboard`, icon: LayoutDashboard, label: "Accueil" },
+            { href: `${HR_BASE}/paie`, icon: Receipt, label: "Paie" },
+            { href: `${HR_BASE}/documents-fiscaux`, icon: FileText, label: "Fiscaux" },
+            { href: `${HR_BASE}/horaire`, icon: Clock, label: "Horaire" },
+            { href: `${HR_BASE}/profil`, icon: User, label: "Profil" },
           ].map((item) => (
             <Link
               key={item.href}

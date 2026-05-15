@@ -1,5 +1,5 @@
 /**
- * RhDashboard — Employee RH home page.
+ * HrDashboard — Employee RH home page.
  * Header with greeting + status + punch quick action,
  * 4 metric cards, 3 sections (planning / commissions / notifications).
  */
@@ -18,7 +18,7 @@ import {
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
+import { fmtCAD } from "@/hr-app/hooks/useEmployeeWallet";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const DAY_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
@@ -43,7 +43,7 @@ function nextPayday(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth() + 1, 1);
 }
 
-export default function RhDashboard() {
+export default function HrDashboard() {
   usePortalRealtime(["sales_commissions", "field_commissions", "sales_targets", "staff_schedules", "time_entries"], [["rh-dashboard"], ["rh-commissions"], ["rh-targets"], ["rh-schedule"]]);
   const qc = useQueryClient();
   const [now, setNow] = useState(new Date());
@@ -280,7 +280,7 @@ export default function RhDashboard() {
 
       {/* ─── 4 METRICS ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Link to="/rh/horaire">
+        <Link to="/hr/horaire">
           <Card className="hover:border-violet-400 transition-colors cursor-pointer h-full">
             <CardContent className="pt-3 pb-3 px-3">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />Heures ce mois</p>
@@ -288,7 +288,7 @@ export default function RhDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/rh/commissions">
+        <Link to="/hr/commissions">
           <Card className="hover:border-violet-400 transition-colors cursor-pointer h-full">
             <CardContent className="pt-3 pb-3 px-3">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" />Commissions ce mois</p>
@@ -296,7 +296,7 @@ export default function RhDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/rh/paie">
+        <Link to="/hr/paie">
           <Card className="hover:border-violet-400 transition-colors cursor-pointer h-full">
             <CardContent className="pt-3 pb-3 px-3">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" />Prochaine paie</p>
@@ -306,7 +306,7 @@ export default function RhDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/rh/demandes">
+        <Link to="/hr/demandes">
           <Card className="hover:border-violet-400 transition-colors cursor-pointer h-full">
             <CardContent className="pt-3 pb-3 px-3">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Inbox className="h-3 w-3" />Demandes en attente</p>
@@ -322,7 +322,7 @@ export default function RhDashboard() {
         <Card>
           <CardHeader className="pb-3 flex-row items-center justify-between">
             <CardTitle className="text-sm">Planning cette semaine</CardTitle>
-            <Link to="/rh/horaire" className="text-xs text-violet-600 hover:underline">Voir →</Link>
+            <Link to="/hr/horaire" className="text-xs text-violet-600 hover:underline">Voir →</Link>
           </CardHeader>
           <CardContent className="space-y-1.5">
             {schedules.length === 0 ? (
@@ -351,7 +351,7 @@ export default function RhDashboard() {
         <Card>
           <CardHeader className="pb-3 flex-row items-center justify-between">
             <CardTitle className="text-sm">Commissions récentes</CardTitle>
-            <Link to="/rh/commissions" className="text-xs text-violet-600 hover:underline">Voir →</Link>
+            <Link to="/hr/commissions" className="text-xs text-violet-600 hover:underline">Voir →</Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {commMonth.recent.length === 0 ? (
@@ -377,7 +377,7 @@ export default function RhDashboard() {
         <Card>
           <CardHeader className="pb-3 flex-row items-center justify-between">
             <CardTitle className="text-sm">Notifications RH</CardTitle>
-            <Link to="/rh/notifications" className="text-xs text-violet-600 hover:underline">Voir →</Link>
+            <Link to="/hr/notifications" className="text-xs text-violet-600 hover:underline">Voir →</Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {notifications.length === 0 ? (

@@ -1,5 +1,5 @@
 /**
- * RhNotifications — Clickable notifications with deep-link routing.
+ * HrNotifications — Clickable notifications with deep-link routing.
  * Fixed: uses is_read (not read), supports link_url for deep links.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,15 +13,15 @@ import { Bell, CheckCheck, Loader2, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const TYPE_ROUTES: Record<string, string> = {
-  payroll: "/rh/paie",
-  commission: "/rh/commissions",
-  schedule: "/rh/horaires",
-  letter: "/rh/lettres-emploi",
-  tax_document: "/rh/documents-fiscaux",
-  general: "/rh/dashboard",
+  payroll: "/hr/paie",
+  commission: "/hr/commissions",
+  schedule: "/hr/horaires",
+  letter: "/hr/lettres-emploi",
+  tax_document: "/hr/documents-fiscaux",
+  general: "/hr/dashboard",
 };
 
-export default function RhNotifications() {
+export default function HrNotifications() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -82,7 +82,7 @@ export default function RhNotifications() {
       markOneRead.mutate(notif.id);
     }
     // Navigate to deep link
-    const route = notif.link_url || TYPE_ROUTES[notif.notification_type] || "/rh/dashboard";
+    const route = notif.link_url || TYPE_ROUTES[notif.notification_type] || "/hr/dashboard";
     navigate(route);
   };
 

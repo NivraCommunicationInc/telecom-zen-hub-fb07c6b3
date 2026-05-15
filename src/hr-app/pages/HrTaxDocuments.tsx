@@ -1,5 +1,5 @@
 /**
- * RhTaxDocuments — Employee's tax document summaries (read-only).
+ * HrTaxDocuments — Employee's tax document summaries (read-only).
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   acknowledged: { label: "Reçu", variant: "default" },
 };
 
-export default function RhTaxDocuments() {
+export default function HrTaxDocuments() {
   const { data: docs, isLoading } = useQuery({
     queryKey: ["rh-tax-documents"],
     queryFn: async () => {
