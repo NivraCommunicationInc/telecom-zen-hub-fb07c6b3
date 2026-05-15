@@ -315,10 +315,15 @@ export function renderQueueTemplate(
       const cTotal = money(v.total || v.amount || 0);
       const cPaymentStatus = esc(v.payment_status || "En attente de traitement");
       const cAgentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const cAgentNumber = esc(v.agent_number || "N/A");
+      const cAgentDisplay = v.agent_number
+        ? `${cAgentName} — ${cAgentNumber}`
+        : cAgentName;
+      const cPaymentUrl = String(v.payment_url || v.payer_url || `${PORTAL_URL}/facturation`);
 
       const cRows: Array<[string, string]> = [
         ["Numéro de commande", `#${cOrderNum}`],
-        ["Préparé par", cAgentName],
+        ["Votre représentant", cAgentDisplay],
         ["Forfaits", cServices],
         ["Équipement", cEquipment],
       ];
@@ -343,9 +348,9 @@ export function renderQueueTemplate(
           bodyText: `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
           cardTitle: "Récapitulatif de votre commande",
           cardRows: cRows,
-          ctaPrimaryUrl: "https://nivra-telecom.ca",
-          ctaPrimaryLabel: "Visiter notre site",
-          helpHtml: `Questions ? Contactez-nous à support@nivra-telecom.ca`,
+          ctaPrimaryUrl: cPaymentUrl,
+          ctaPrimaryLabel: "Voir ma commande",
+          helpHtml: `Questions ? Contactez-nous à ${SUPPORT_EMAIL}`,
         }),
       };
     }
@@ -2495,6 +2500,13 @@ export function renderQueueTemplate(
       );
       const orderNumber = safe(v.order_number, "");
       const agentName = safe(v.agent_name, "votre conseiller Nivra");
+      const agentNumber = safe(v.agent_number, "");
+      const agentDisplay = agentNumber && agentNumber !== "N/A"
+        ? `${agentName} — ${agentNumber}`
+        : agentName;
+      const cardRows: Array<[string, string]> = [];
+      if (orderNumber) cardRows.push(["Numéro de commande", `#${orderNumber}`]);
+      cardRows.push(["Votre représentant", agentDisplay]);
       return {
         subject: `Votre contrat de service Nivra${orderNumber ? ` — ${orderNumber}` : ""}`,
         html: shell({
@@ -2503,7 +2515,9 @@ export function renderQueueTemplate(
           heroTitle: "Votre contrat est prêt",
           icon: "document",
           greeting: `Bonjour ${fullName},`,
-          bodyText: `Votre contrat de service Nivra${orderNumber ? ` (commande <strong>${orderNumber}</strong>)` : ""} a été généré suite à votre rencontre avec ${agentName}. Vous pouvez le consulter en tout temps dans votre espace client.`,
+          bodyText: `Votre contrat de service Nivra${orderNumber ? ` (commande <strong>${orderNumber}</strong>)` : ""} a été généré suite à votre rencontre avec ${agentDisplay}. Vous pouvez le consulter en tout temps dans votre espace client.`,
+          cardTitle: "Détails",
+          cardRows,
           ctaPrimaryUrl: PORTAL_URL,
           ctaPrimaryLabel: "Voir mon contrat",
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,

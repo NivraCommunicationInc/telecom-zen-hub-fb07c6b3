@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
         // Get salesperson profile for rep info
         const { data: repProfile } = await supabaseAdmin
           .from('profiles')
-          .select('full_name, email, phone')
+          .select('full_name, email, phone, agent_number, professional_email')
           .eq('user_id', sale.salesperson_id)
           .maybeSingle();
 
@@ -439,6 +439,8 @@ Deno.serve(async (req) => {
         }
 
         const agentName = repProfile?.full_name || "Agent terrain";
+        const agentNumber = (repProfile as any)?.agent_number || "N/A";
+        const agentProEmail = (repProfile as any)?.professional_email || repProfile?.email || "";
 
         if (!canonicalOrder) {
           // Generate order number from DB sequence — Core is sole source of truth
@@ -623,13 +625,15 @@ Deno.serve(async (req) => {
               due_date: dueDate,
               paid_at: isConfirmedPayment ? now.toISOString() : null,
               environment: "production",
-              notes: `Commande terrain — Agent: ${agentName}`,
+              notes: `Commande terrain — Agent: ${agentName} (${agentNumber})`,
               billing_snapshot_client: {
                 first_name: customerFirstName || null,
                 last_name: customerLastName || null,
                 email: customerEmail,
                 phone: sale.customer_phone || null,
                 agent_name: agentName,
+                agent_number: agentNumber,
+                agent_email: agentProEmail,
                 agent_id: sale.salesperson_id,
                 source: "field_sales",
               },
@@ -659,7 +663,28 @@ Deno.serve(async (req) => {
               }
             }
 
-            // Generate payment number
+            // Discount line (if applied at the door)
+            const discountData: any = (sale as any).discount_data;
+            if (discountData && Number(discountData.amount || 0) > 0) {
+              const dAmt = Number(discountData.amount);
+              const dDur = Number(discountData.duration_months || 0);
+              const dName = String(discountData.name || "Rabais agent");
+              const desc = dDur > 0
+                ? `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
+                : `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois`;
+              const { error: discLineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
+                invoice_id: invoiceId,
+                description: desc,
+                unit_price: -dAmt,
+                quantity: 1,
+                line_total: -dAmt,
+                line_type: "discount",
+              });
+              if (discLineErr) {
+                console.error("[field-sales-sync] discount line insert failed:", discLineErr);
+              }
+            }
+
             const { data: payNum, error: payNumErr } = await supabaseAdmin.rpc("generate_payment_number");
             const paymentNumber = payNumErr || !payNum ? `PAY-FS-${Date.now().toString(36).toUpperCase()}` : String(payNum);
 
@@ -757,6 +782,7 @@ Deno.serve(async (req) => {
                     customer_first_name: customerFirstName,
                     customer_last_name: customerLastName,
                     agent_name: agentName,
+                    agent_number: agentNumber,
                   },
                   idempotency_key: `contract_generated:${canonicalOrder.id}`,
                 });

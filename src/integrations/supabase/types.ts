@@ -7990,6 +7990,7 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_postal_code: string | null
+          discount_data: Json | null
           gps_accuracy: number | null
           gps_captured_at: string | null
           gps_latitude: number | null
@@ -8028,6 +8029,7 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_postal_code?: string | null
+          discount_data?: Json | null
           gps_accuracy?: number | null
           gps_captured_at?: string | null
           gps_latitude?: number | null
@@ -8066,6 +8068,7 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           customer_postal_code?: string | null
+          discount_data?: Json | null
           gps_accuracy?: number | null
           gps_captured_at?: string | null
           gps_latitude?: number | null

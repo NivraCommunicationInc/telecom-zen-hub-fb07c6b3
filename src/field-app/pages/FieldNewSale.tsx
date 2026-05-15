@@ -11,7 +11,7 @@
  * map the new payment method enum to the engine's contract.
  */
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { submitNewSale } from "@/field-app/lib/fieldServices";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
@@ -39,6 +39,9 @@ const DRAFT_KEY_BASE = "field_sale_draft";
 
 export default function FieldNewSale() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
+  const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
   const { user } = useStaffUser();
   const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,20 +143,92 @@ export default function FieldNewSale() {
     setRestoreDialogOpen(false);
   };
 
-  // ── Fetch agent full name (for emails) ──
+  // ── Fetch agent full name + agent number (for emails / documents) ──
   const [agentFullName, setAgentFullName] = useState<string>("");
+  const [agentNumber, setAgentNumber] = useState<string>("");
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
       const { data: agentProfile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, agent_number")
         .eq("user_id", user.id)
         .maybeSingle();
       setAgentFullName(((agentProfile as any)?.full_name as string) || "");
+      setAgentNumber(((agentProfile as any)?.agent_number as string) || "");
     })();
   }, [user?.id]);
   const agentName = agentFullName || user?.email || "votre conseiller Nivra";
+
+  // ── Resume from existing payment intent (Reprendre button) ──
+  const hasResumedRef = useRef(false);
+  useEffect(() => {
+    if (!resumeIntentId || hasResumedRef.current) return;
+    hasResumedRef.current = true;
+    (async () => {
+      try {
+        const { data: intent } = await supabase
+          .from("field_payment_intents" as any)
+          .select("id, quote_id, customer_email, customer_name, paypal_approval_url, paypal_order_id, amount, status")
+          .eq("id", resumeIntentId)
+          .maybeSingle();
+        const quoteId = (intent as any)?.quote_id || resumeQuoteId;
+        if (!quoteId) {
+          toast.error("Soumission introuvable.");
+          return;
+        }
+        const { data: quote } = await supabase
+          .from("field_quotes" as any)
+          .select("id, client_info, services, equipment, discount")
+          .eq("id", quoteId)
+          .maybeSingle();
+        if (!quote) {
+          toast.error("Devis introuvable pour cette soumission.");
+          return;
+        }
+        const ci: any = (quote as any).client_info || {};
+        const restored: FieldSaleDraft = {
+          ...EMPTY_DRAFT,
+          agentId: user?.id ?? "",
+          createdAt: new Date().toISOString(),
+          customer: {
+            first_name: ci.first_name || ci.firstName || "",
+            last_name: ci.last_name || ci.lastName || "",
+            email: ci.email || (intent as any)?.customer_email || "",
+            phone: ci.phone || "",
+            address: ci.address || "",
+            city: ci.city || "",
+            postal_code: ci.postal_code || ci.postalCode || "",
+            date_of_birth: ci.date_of_birth || ci.dob || "",
+          } as any,
+          services: ((quote as any).services as any[]) || [],
+          equipment: ((quote as any).equipment as any[]) || [],
+          discount: ((quote as any).discount as any) || null,
+          payment: {
+            method: "paypal_email",
+            status: (intent as any)?.status === "completed" ? "completed" : "sent",
+            paypalApprovalUrl: (intent as any)?.paypal_approval_url ?? null,
+            paypalOrderId: (intent as any)?.paypal_order_id ?? null,
+            fieldOrderId: (intent as any)?.id ?? null,
+            invoiceId: null,
+            coreOrderId: null,
+            linkSentTo: ci.email || (intent as any)?.customer_email || null,
+          } as any,
+          step: "payment",
+        };
+        setDraft(restored);
+        setCompletedSteps(["customer", "services", "equipment", "discounts", "recap"] as FieldSaleStep[]);
+        // Skip the restore prompt — we just loaded fresh data
+        hasCheckedRestoreRef.current = true;
+        setRestoreDialogOpen(false);
+        setPendingRestore(null);
+        toast.success("Soumission rechargée — étape paiement.");
+      } catch (e: any) {
+        console.error("[resume]", e);
+        toast.error("Erreur de rechargement: " + (e?.message || "inconnue"));
+      }
+    })();
+  }, [resumeIntentId, resumeQuoteId, user?.id]);
 
   // ── Email payload helpers (services / equipment / discount) ──
   const buildServicesList = useCallback((d: FieldSaleDraft) => {
@@ -426,6 +501,8 @@ export default function FieldNewSale() {
             payment_status: "En attente de traitement (carte)",
             card_last4: last4,
             agent_name: agentName,
+            agent_number: agentNumber || "N/A",
+            payment_url: `https://nivra-telecom.ca/payer/${intentId}`,
             subject_override: "Confirmation de commande — Nivra Telecom",
             badge_override: "COMMANDE REÇUE",
             hero_override: "Votre commande a été enregistrée",
@@ -475,6 +552,13 @@ export default function FieldNewSale() {
             payment_reference: intentId,
             payment_status: "pending",
             sync_status: "pending",
+            discount_data: draft.discount ? {
+              name: (draft.discount as any).name || (draft.discount as any).label || "Rabais",
+              amount: Number(monthlyDiscountAmount || 0),
+              duration_months: Number((draft.discount as any).duration_months ?? (draft.discount as any).duration ?? 0),
+              monthly_amount: Number(monthlyDiscountAmount || 0),
+              type: (draft.discount as any).type || null,
+            } : null,
             internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}\nCommission: ${commissionAmount.toFixed(2)}$ = 30% récurrent (${monthlyBeforeDiscount.toFixed(2)}$) + 5% équipement (${equipmentTotal.toFixed(2)}$)`,
           } as any)
           .select("id")
