@@ -311,6 +311,17 @@ export default function FieldDashboard() {
   const { data: monthlyTarget } = useMonthlyTarget(user?.id);
   const { data: fieldComm } = useFieldCommissions(user?.id);
 
+  /* Portal-wide realtime — invalidates dashboard queries whenever any
+     field_commissions / orders / field_payment_intents row changes. */
+  usePortalRealtime(
+    ["field_commissions", "orders", "field_payment_intents"],
+    [
+      ["field-dashboard-summary"],
+      ["field-dashboard-activity"],
+      ["field-commissions", user?.id],
+    ],
+  );
+
   /* Real-time subscriptions — Core RH ⇄ Field Sales sync.
      Tables: commission_rules, sales_targets, sales_commissions, orders.
      Toast notifications keep agents aware of upstream changes. */
