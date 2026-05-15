@@ -50,6 +50,32 @@ export default function FieldNewSale() {
   });
 
   const [completedSteps, setCompletedSteps] = useState<FieldSaleStep[]>([]);
+
+  // FIX 1+5+6 — Card-saved success state (drives "Nouvelle vente" + install appt form)
+  const [cardSuccess, setCardSuccess] = useState<{
+    intentId: string;
+    orderNumber: string;
+    last4: string;
+    amount: number;
+    commission: number;
+  } | null>(null);
+  const [apptDate, setApptDate] = useState<string>("");
+  const [apptWindow, setApptWindow] = useState<"morning"|"afternoon"|"evening"|"flexible">("flexible");
+  const [apptFeeType, setApptFeeType] = useState<"standard"|"free"|"custom"|"waived">("standard");
+  const [apptFeeCustom, setApptFeeCustom] = useState<string>("");
+  const [apptFeeNotes, setApptFeeNotes] = useState<string>("");
+  const [apptNotes, setApptNotes] = useState<string>("");
+  const [apptSaved, setApptSaved] = useState<boolean>(false);
+  const [savingAppt, setSavingAppt] = useState<boolean>(false);
+
+  const resetForNewSale = useCallback(() => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    setDraft({ ...EMPTY_DRAFT, agentId: user?.id ?? "", createdAt: new Date().toISOString() });
+    setCompletedSteps([]);
+    setCardSuccess(null);
+    setApptDate(""); setApptWindow("flexible"); setApptFeeType("standard");
+    setApptFeeCustom(""); setApptFeeNotes(""); setApptNotes(""); setApptSaved(false);
+  }, [user?.id]);
   const { data: fieldConfig } = useFieldConfig();
 
   // ── Draft persistence (FIX: survive page refresh) ──

@@ -57,6 +57,7 @@ const STATUS_FILTERS = [
   { label: "Pending", value: "pending" },
   { label: "Validated", value: "validated" },
   { label: "Paid", value: "paid" },
+  { label: "Pending Payment", value: "pending_payment" },
   { label: "Processing", value: "processing" },
   { label: "Shipped", value: "shipped" },
   { label: "Delivered", value: "delivered" },
