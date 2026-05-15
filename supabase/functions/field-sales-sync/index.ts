@@ -439,6 +439,8 @@ Deno.serve(async (req) => {
         }
 
         const agentName = repProfile?.full_name || "Agent terrain";
+        const agentNumber = (repProfile as any)?.agent_number || "N/A";
+        const agentProEmail = (repProfile as any)?.professional_email || repProfile?.email || "";
 
         if (!canonicalOrder) {
           // Generate order number from DB sequence — Core is sole source of truth
