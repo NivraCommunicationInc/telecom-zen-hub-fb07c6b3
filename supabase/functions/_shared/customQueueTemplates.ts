@@ -315,10 +315,15 @@ export function renderQueueTemplate(
       const cTotal = money(v.total || v.amount || 0);
       const cPaymentStatus = esc(v.payment_status || "En attente de traitement");
       const cAgentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const cAgentNumber = esc(v.agent_number || "N/A");
+      const cAgentDisplay = v.agent_number
+        ? `${cAgentName} — ${cAgentNumber}`
+        : cAgentName;
+      const cPaymentUrl = String(v.payment_url || v.payer_url || `${PORTAL_URL}/facturation`);
 
       const cRows: Array<[string, string]> = [
         ["Numéro de commande", `#${cOrderNum}`],
-        ["Préparé par", cAgentName],
+        ["Votre représentant", cAgentDisplay],
         ["Forfaits", cServices],
         ["Équipement", cEquipment],
       ];
@@ -343,9 +348,9 @@ export function renderQueueTemplate(
           bodyText: `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
           cardTitle: "Récapitulatif de votre commande",
           cardRows: cRows,
-          ctaPrimaryUrl: "https://nivra-telecom.ca",
-          ctaPrimaryLabel: "Visiter notre site",
-          helpHtml: `Questions ? Contactez-nous à support@nivra-telecom.ca`,
+          ctaPrimaryUrl: cPaymentUrl,
+          ctaPrimaryLabel: "Voir ma commande",
+          helpHtml: `Questions ? Contactez-nous à ${SUPPORT_EMAIL}`,
         }),
       };
     }
