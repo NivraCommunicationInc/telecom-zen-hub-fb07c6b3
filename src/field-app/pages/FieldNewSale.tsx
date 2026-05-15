@@ -11,7 +11,7 @@
  * map the new payment method enum to the engine's contract.
  */
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { submitNewSale } from "@/field-app/lib/fieldServices";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
