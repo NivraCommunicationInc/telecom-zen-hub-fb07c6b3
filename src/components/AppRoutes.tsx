@@ -996,6 +996,13 @@ const AppRoutes = () => {
           <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
+          {/* Nivra Source Hub */}
+          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
+          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
+          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
+          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
+          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
+          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
