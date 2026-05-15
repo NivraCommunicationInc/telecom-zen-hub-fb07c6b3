@@ -224,6 +224,44 @@ function useMonthlyTarget(userId?: string) {
   });
 }
 
+/* Field commissions — stats + recent rows for the current agent. */
+function useFieldCommissions(userId?: string) {
+  return useQuery({
+    queryKey: ["field-commissions-dashboard", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { data } = await supabase
+        .from("field_commissions")
+        .select("id, amount, status, earned_at, created_at, description, order_id")
+        .eq("agent_id", userId as string)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const rows = data || [];
+      const isThisMonth = (d: string | null) => d && new Date(d) >= monthStart;
+      const monthRows = rows.filter((r: any) => isThisMonth(r.earned_at || r.created_at));
+      const sales_count = monthRows.length;
+      const month_total = monthRows.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const pending_total = rows
+        .filter((r: any) => r.status === "pending")
+        .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const approved_total = rows
+        .filter((r: any) => r.status === "approved" || r.status === "paid")
+        .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      return {
+        sales_count,
+        month_total,
+        pending_total,
+        approved_total,
+        recent: rows.slice(0, 5),
+      };
+    },
+    staleTime: 60_000,
+  });
+}
+
 /* ─────────────────────────────────────────────────────────────
    Main dashboard
    ───────────────────────────────────────────────────────────── */
@@ -270,6 +308,7 @@ export default function FieldDashboard() {
 
   const { data: commissionRules } = useCommissionRules(user?.id);
   const { data: monthlyTarget } = useMonthlyTarget(user?.id);
+  const { data: fieldComm } = useFieldCommissions(user?.id);
 
   /* Real-time subscriptions — Core RH ⇄ Field Sales sync.
      Tables: commission_rules, sales_targets, sales_commissions, orders.
@@ -401,6 +440,61 @@ export default function FieldDashboard() {
           <Plus className="h-4 w-4" /> Nouvelle vente
         </button>
       </div>
+
+      {/* KPI ROW 0 — Field commissions snapshot (field_commissions) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <KpiCard label="Ventes ce mois" value={`${fieldComm?.sales_count ?? 0}`} hint="Commissions générées" icon={ShoppingCart} accent="purple" />
+        <KpiCard label="Commission ce mois" value={`${(fieldComm?.month_total ?? 0).toFixed(2)} $`} hint="Total gagné" icon={DollarSign} accent="success" />
+        <KpiCard label="En attente" value={`${(fieldComm?.pending_total ?? 0).toFixed(2)} $`} hint="À approuver" icon={Clock} accent="warning" />
+        <KpiCard label="Approuvée" value={`${(fieldComm?.approved_total ?? 0).toFixed(2)} $`} hint="Validée / payée" icon={CheckCircle2} accent="info" />
+      </div>
+
+      {/* Bonus tier progress */}
+      {(() => {
+        const target = Number(monthlyTarget?.target_count ?? 0);
+        const achieved = fieldComm?.sales_count ?? 0;
+        if (target <= 0) return null;
+        const pct = Math.min(100, Math.round((achieved / target) * 100));
+        const nextTier = pct >= 100 ? Math.ceil(target * 1.2) : target;
+        const nextLabel = pct >= 100 ? `Palier 120% (${nextTier} ventes)` : `Palier 100% (${target} ventes)`;
+        return (
+          <Card>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[12px] font-bold uppercase tracking-wider text-white/80">Progression bonus</div>
+              <div className="text-[11px]" style={{ color: "hsl(var(--field-text-muted))" }}>{achieved} / {nextTier}</div>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--field-border) / 0.25)" }}>
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg, hsl(var(--field-accent)), hsl(var(--field-accent-glow)))" }} />
+            </div>
+            <div className="text-[11px] mt-2" style={{ color: "hsl(var(--field-text-dim))" }}>{nextLabel}</div>
+          </Card>
+        );
+      })()}
+
+      {/* Recent commissions list */}
+      {(fieldComm?.recent?.length ?? 0) > 0 && (
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[12px] font-bold uppercase tracking-wider text-white/80">Commissions récentes</div>
+            <button onClick={() => navigate(fieldPath("/commissions"))} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: "hsl(var(--field-accent-glow))" }}>
+              Tout voir <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+          <ul className="divide-y" style={{ borderColor: "hsl(var(--field-border) / 0.15)" }}>
+            {fieldComm!.recent.map((r: any) => (
+              <li key={r.id} className="flex items-center justify-between py-2">
+                <div>
+                  <div className="text-[12px] font-semibold text-white">{r.description || "Commission"}</div>
+                  <div className="text-[10px]" style={{ color: "hsl(var(--field-text-dim))" }}>
+                    {format(new Date(r.earned_at || r.created_at), "d MMM yyyy", { locale: fr })} · {r.status}
+                  </div>
+                </div>
+                <div className="text-[13px] font-bold" style={{ color: "hsl(var(--field-success))" }}>+{Number(r.amount || 0).toFixed(2)} $</div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* KPI ROW 1 — Goal + Revenue + Commissions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">

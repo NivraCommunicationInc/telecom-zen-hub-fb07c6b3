@@ -13,6 +13,7 @@ import {
   DollarSign, User, Lock, LogOut, ShoppingCart,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
   ChevronLeft, ChevronRight,
+  Megaphone, FileText, ShoppingBag, Trophy, ClipboardList,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -39,6 +40,15 @@ const toolsNav = [
   { label: "Catalogue offres", href: `${FIELD_BASE}/offers`, icon: Package },
   { label: "Objectifs & cibles", href: `${FIELD_BASE}/objectives`, icon: Target },
   { label: "Rapport du jour", href: `${FIELD_BASE}/daily-report`, icon: Calendar },
+];
+
+const hubNav = [
+  { label: "Annonces", href: `${FIELD_BASE}/hub/annonces`, icon: Megaphone },
+  { label: "Documents", href: `${FIELD_BASE}/hub/documents`, icon: FileText },
+  { label: "Boutique", href: `${FIELD_BASE}/hub/boutique`, icon: ShoppingBag },
+  { label: "Leaderboard", href: `${FIELD_BASE}/hub/leaderboard`, icon: Trophy },
+  { label: "Calendrier", href: `${FIELD_BASE}/hub/calendrier`, icon: Calendar },
+  { label: "Formulaires", href: `${FIELD_BASE}/hub/formulaires`, icon: ClipboardList },
 ];
 
 const bottomItems = [
@@ -218,6 +228,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
           <NavSection title="Prospection" items={prospectNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
           <NavSection title="Revenus" items={revenueNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
           <NavSection title="Outils" items={toolsNav} isActive={isActive} badges={{}} collapsed={collapsed} />
+          <NavSection title="Nivra Source" items={hubNav} isActive={isActive} badges={{}} collapsed={collapsed} />
         </ScrollArea>
 
         {/* Bottom — profile + logout */}

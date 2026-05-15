@@ -86,6 +86,17 @@ const EmployeeQuoteDetail = lazy(() => import("@/employee-app/pages/EmployeeQuot
 
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
+
+// Nivra Source Hub (shared across Field, Employee, RH)
+const HubAnnouncements = lazy(() => import("@/components/hub/HubAnnouncements"));
+const HubDocuments = lazy(() => import("@/components/hub/HubDocuments"));
+const HubStore = lazy(() => import("@/components/hub/HubStore"));
+const HubLeaderboard = lazy(() => import("@/components/hub/HubLeaderboard"));
+const HubCalendar = lazy(() => import("@/components/hub/HubCalendar"));
+const HubForms = lazy(() => import("@/components/hub/HubForms"));
+const CoreHubManagementPage = lazy(() => import("@/core-app/pages/CoreHubManagementPage"));
+const CoreEmailComposePage = lazy(() => import("@/core-app/pages/CoreEmailComposePage"));
+const EmployeeEmailComposePage = lazy(() => import("@/employee-app/pages/EmployeeEmailComposePage"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
 const CoreLoginPage = lazy(() => import("@/core-app/pages/CoreLoginPage"));
 // Dashboard
@@ -900,6 +911,9 @@ const AppRoutes = () => {
           <Route path="supplier-accounts" element={<Suspense fallback={null}><SupplierAccountsPage /></Suspense>} />
           <Route path="supplier-accounts/new" element={<Suspense fallback={null}><SupplierAccountNewPage /></Suspense>} />
           <Route path="supplier-accounts/:id" element={<Suspense fallback={null}><SupplierAccountDetailPage /></Suspense>} />
+          {/* Nivra Source Hub — admin */}
+          <Route path="hub" element={<Suspense fallback={null}><CoreHubManagementPage /></Suspense>} />
+          <Route path="email/compose" element={<Suspense fallback={null}><CoreEmailComposePage /></Suspense>} />
         </Route>
       </Route>
 
@@ -942,6 +956,15 @@ const AppRoutes = () => {
           <Route path="quotes" element={<Suspense fallback={null}><EmployeeQuotes /></Suspense>} />
           <Route path="quotes/new" element={<Suspense fallback={null}><EmployeeCreateQuote /></Suspense>} />
           <Route path="quotes/:quoteId" element={<Suspense fallback={null}><EmployeeQuoteDetail /></Suspense>} />
+          {/* Email composer */}
+          <Route path="email/compose" element={<Suspense fallback={null}><EmployeeEmailComposePage /></Suspense>} />
+          {/* Nivra Source Hub */}
+          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
+          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
+          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
+          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
+          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
+          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
         </Route>
       </Route>
 
@@ -973,6 +996,13 @@ const AppRoutes = () => {
           <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
+          {/* Nivra Source Hub */}
+          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
+          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
+          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
+          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
+          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
+          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
@@ -994,6 +1024,13 @@ const AppRoutes = () => {
           <Route path="objectifs" element={<Suspense fallback={null}><RhObjectives /></Suspense>} />
           <Route path="demandes" element={<Suspense fallback={null}><RhRequests /></Suspense>} />
           <Route path="documents" element={<Suspense fallback={null}><RhDocuments /></Suspense>} />
+          {/* Nivra Source Hub */}
+          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
+          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
+          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
+          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
+          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
+          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>

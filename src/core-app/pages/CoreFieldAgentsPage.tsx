@@ -498,7 +498,11 @@ export default function CoreFieldAgentsPage() {
 
       // 2. Update profile with extended onboarding info (best-effort)
       const profileUpdate: Record<string, any> = {};
-      if (repForm.territory) profileUpdate.sector_tags = [repForm.territory];
+      if (repForm.territory) {
+        // Look up territory_code for sector_tags backward compat
+        const tRow = territories.find((tt: any) => tt.id === repForm.territory);
+        if (tRow?.territory_code) profileUpdate.sector_tags = [tRow.territory_code];
+      }
       if (repForm.start_date) profileUpdate.hire_date = repForm.start_date;
       if (repForm.address_street) profileUpdate.address_street = repForm.address_street.trim();
       if (repForm.address_city) profileUpdate.address_city = repForm.address_city.trim();
@@ -520,6 +524,17 @@ export default function CoreFieldAgentsPage() {
       }
       if (Object.keys(profileUpdate).length > 0) {
         await supabase.from("profiles").update(profileUpdate as any).eq("user_id", newUserId);
+      }
+
+      // 2b. Assign field territory (UUID-based) — links agent to territory.
+      if (repForm.territory) {
+        const { error: terrErr } = await supabase.from("field_territory_assignments").insert({
+          user_id: newUserId,
+          territory_id: repForm.territory,
+          status: "active",
+          assigned_from: new Date().toISOString(),
+        } as any);
+        if (terrErr) console.warn("[createFieldRep] field_territory_assignments insert warning:", terrErr);
       }
 
       // 3. Provision sales_targets for each service type
@@ -1938,7 +1953,7 @@ export default function CoreFieldAgentsPage() {
                   <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                   <SelectContent>
                     {territories.length === 0 ? <SelectItem value="__none__" disabled>Aucun territoire</SelectItem> : territories.map((t: any) => (
-                      <SelectItem key={t.id} value={t.territory_code || t.id}>{t.name}{t.city ? ` — ${t.city}` : ""}</SelectItem>
+                      <SelectItem key={t.id} value={t.id}>{t.name}{t.city ? ` — ${t.city}` : ""}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

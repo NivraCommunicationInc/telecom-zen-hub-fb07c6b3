@@ -9,6 +9,7 @@ import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
   Briefcase, Target, Inbox, Upload,
+  Megaphone, ShoppingBag, Trophy, Calendar, ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,6 +57,17 @@ const navGroups = [
     label: "Communication",
     items: [
       { label: "Notifications RH", href: `${RH_BASE}/notifications`, icon: Bell },
+    ],
+  },
+  {
+    label: "Nivra Source",
+    items: [
+      { label: "Annonces", href: `${RH_BASE}/hub/annonces`, icon: Megaphone },
+      { label: "Documents", href: `${RH_BASE}/hub/documents`, icon: FileText },
+      { label: "Boutique", href: `${RH_BASE}/hub/boutique`, icon: ShoppingBag },
+      { label: "Leaderboard", href: `${RH_BASE}/hub/leaderboard`, icon: Trophy },
+      { label: "Calendrier", href: `${RH_BASE}/hub/calendrier`, icon: Calendar },
+      { label: "Formulaires", href: `${RH_BASE}/hub/formulaires`, icon: ClipboardList },
     ],
   },
 ];
