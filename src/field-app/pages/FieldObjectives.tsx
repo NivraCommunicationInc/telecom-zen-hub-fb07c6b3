@@ -22,6 +22,10 @@ const BONUS_TIERS: Array<{ count: number; bonus: number }> = [
 ];
 
 export default function FieldObjectives() {
+  usePortalRealtime(
+    ["sales_targets", "field_commissions"],
+    [["field-objectives-summary"]],
+  );
   const { data, isLoading } = useQuery({
     queryKey: ["field-objectives-summary"],
     queryFn: async () => {
