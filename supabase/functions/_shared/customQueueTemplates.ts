@@ -1554,6 +1554,8 @@ export function renderQueueTemplate(
     case "staff_invitation_field_sales": {
       const firstName = esc(v.first_name || v.FIRST_NAME || "");
       const inviteUrl = String(v.invite_url || v.INVITE_URL || v.setup_link || "#");
+      const agentNumber = esc(v.agent_number || v.AGENT_NUMBER || "En cours d'attribution");
+      const proEmail = esc(v.professional_email || v.PROFESSIONAL_EMAIL || "À venir");
       return {
         subject: "Invitation — Portail Nivra Field & RH",
         html: shell({
@@ -1567,6 +1569,8 @@ export function renderQueueTemplate(
           cardTitle: "Détails de votre accès",
           cardRows: [
             ["Rôle", "Représentant terrain — Field Sales"],
+            ["Numéro d'agent", agentNumber],
+            ["Courriel professionnel", `${proEmail} (à venir)`],
             ["Portails", "Nivra Field + Portail RH"],
             ["Lien valide", "72 heures"],
           ],
