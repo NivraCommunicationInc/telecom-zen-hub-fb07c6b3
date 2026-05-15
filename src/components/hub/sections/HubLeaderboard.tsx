@@ -179,8 +179,23 @@ function StandardRow({ rank, row }: { rank: number; row: AgentRow }) {
   );
 }
 
+function useBonusTiers(period: Period) {
+  return useQuery({
+    queryKey: ["bonus-tiers", period],
+    queryFn: async (): Promise<BonusTier[]> => {
+      const { data } = await supabase
+        .from("field_bonus_rules")
+        .select("min_sales, max_sales, bonus_amount, period, is_active, description")
+        .eq("is_active", true);
+      const filtered = (data || []).filter((t: any) => !t.period || t.period === period);
+      return filtered as BonusTier[];
+    },
+  });
+}
+
 function Board({ period }: { period: Period }) {
   const { data, isLoading } = useLeaderboard(period);
+  const { data: tiers = [] } = useBonusTiers(period);
   const rows = data?.rows ?? [];
 
   if (isLoading) {
@@ -202,7 +217,7 @@ function Board({ period }: { period: Period }) {
     <div className="space-y-4">
       <div className="grid gap-3">
         {top3.map((r, i) => (
-          <MedalRow key={r.agent_id} rank={i} row={r} />
+          <MedalRow key={r.agent_id} rank={i} row={r} tiers={tiers} />
         ))}
       </div>
       {rest.length > 0 && (
