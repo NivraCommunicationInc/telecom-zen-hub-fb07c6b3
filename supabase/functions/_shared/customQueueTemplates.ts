@@ -2500,6 +2500,13 @@ export function renderQueueTemplate(
       );
       const orderNumber = safe(v.order_number, "");
       const agentName = safe(v.agent_name, "votre conseiller Nivra");
+      const agentNumber = safe(v.agent_number, "");
+      const agentDisplay = agentNumber && agentNumber !== "N/A"
+        ? `${agentName} — ${agentNumber}`
+        : agentName;
+      const cardRows: Array<[string, string]> = [];
+      if (orderNumber) cardRows.push(["Numéro de commande", `#${orderNumber}`]);
+      cardRows.push(["Votre représentant", agentDisplay]);
       return {
         subject: `Votre contrat de service Nivra${orderNumber ? ` — ${orderNumber}` : ""}`,
         html: shell({
@@ -2508,7 +2515,9 @@ export function renderQueueTemplate(
           heroTitle: "Votre contrat est prêt",
           icon: "document",
           greeting: `Bonjour ${fullName},`,
-          bodyText: `Votre contrat de service Nivra${orderNumber ? ` (commande <strong>${orderNumber}</strong>)` : ""} a été généré suite à votre rencontre avec ${agentName}. Vous pouvez le consulter en tout temps dans votre espace client.`,
+          bodyText: `Votre contrat de service Nivra${orderNumber ? ` (commande <strong>${orderNumber}</strong>)` : ""} a été généré suite à votre rencontre avec ${agentDisplay}. Vous pouvez le consulter en tout temps dans votre espace client.`,
+          cardTitle: "Détails",
+          cardRows,
           ctaPrimaryUrl: PORTAL_URL,
           ctaPrimaryLabel: "Voir mon contrat",
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
