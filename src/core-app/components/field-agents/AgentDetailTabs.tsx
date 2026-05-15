@@ -67,7 +67,7 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version, mfa_method, mfa_configured_at, sector_tags" as any)
+        .select("first_name, last_name, full_name, email, phone, hire_date, date_of_birth, address_street, address_city, address_province, address_postal, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, payment_method, bank_institution, bank_transit, bank_account, interac_email, terms_accepted_at, terms_accepted_version, mfa_method, mfa_configured_at, sector_tags, agent_number, professional_email" as any)
         .eq("user_id", userId as any)
         .maybeSingle();
       if (error) throw error;
@@ -139,6 +139,23 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
 
       {/* === Profil complet (editable) === */}
       <TabsContent value="profile" className="space-y-4 mt-4">
+        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <h3 className="text-sm font-bold text-foreground mb-2">Identifiants Nivra (lecture seule)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div>
+              <p className="text-muted-foreground">Numéro d'agent</p>
+              <p className="font-mono font-semibold text-foreground">{profile?.agent_number || "En cours d'attribution"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Badge</p>
+              <p className="font-mono font-semibold text-foreground">{profile?.agent_number || "En cours d'attribution"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Courriel professionnel</p>
+              <p className="text-foreground">{profile?.professional_email ? `${profile.professional_email} (à venir)` : "À venir"}</p>
+            </div>
+          </div>
+        </div>
         <EditableProfileSection userId={userId} profile={profile} />
       </TabsContent>
 

@@ -74,7 +74,7 @@ export default function FieldProfile() {
 
       const [profileRes, roleRes, territoryRes, commRes] = await Promise.all([
         supabase.from("profiles")
-          .select("full_name, email, phone, avatar_url, address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, payment_method")
+          .select("full_name, email, phone, avatar_url, address_street, address_city, address_province, address_postal, date_of_birth, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, payment_method, agent_number, professional_email")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase.from("user_roles")
@@ -122,6 +122,8 @@ export default function FieldProfile() {
         emergencyPhone: p.emergency_contact_phone || "",
         emergencyRelation: p.emergency_contact_relation || "",
         paymentMethod: p.payment_method || "",
+        agentNumber: p.agent_number || "",
+        professionalEmail: p.professional_email || "",
         role: roleRes.data?.role || "field_sales",
         startDate: roleRes.data?.created_at || null,
         isActive: roleRes.data?.is_active ?? true,
@@ -291,7 +293,24 @@ export default function FieldProfile() {
         )}
       </section>
 
-      {/* SECTION — Adresse domicile (editable) */}
+      {/* SECTION — Identifiants Nivra (lecture seule) */}
+      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 space-y-3">
+        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Identifiants Nivra</h2>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[#6B7280]">Numéro d'agent</span>
+          <span className="text-sm font-mono font-semibold text-[#111827]">{data.agentNumber || "En cours d'attribution"}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[#6B7280]">Badge</span>
+          <span className="text-sm font-mono font-semibold text-[#111827]">{data.agentNumber || "En cours d'attribution"}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[#6B7280]">Courriel professionnel</span>
+          <span className="text-sm text-[#374151]">{data.professionalEmail ? `${data.professionalEmail} (à venir)` : "À venir"}</span>
+        </div>
+        <p className="text-[10px] uppercase tracking-wider text-[#9CA3AF] pt-1">Lecture seule — assigné par Nivra</p>
+      </section>
+
       <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Adresse domicile</h2>
         {editing ? (

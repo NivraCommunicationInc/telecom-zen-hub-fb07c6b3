@@ -189,6 +189,9 @@ export default function HrProfile() {
     { icon: Phone, label: "Téléphone", value: profile?.phone },
     { icon: Briefcase, label: "Poste", value: profile?.job_title },
     { icon: MapPin, label: "Adresse", value: profile?.address },
+    { icon: User, label: "Numéro d'agent", value: profile?.agent_number || "En cours d'attribution", readOnly: true },
+    { icon: User, label: "Badge", value: profile?.agent_number || "En cours d'attribution", readOnly: true },
+    { icon: Mail, label: "Courriel professionnel", value: profile?.professional_email ? `${profile.professional_email} (à venir)` : "À venir", readOnly: true },
   ];
 
   return (

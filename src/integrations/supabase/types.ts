@@ -14818,7 +14818,9 @@ export type Database = {
           address_postal: string | null
           address_province: string | null
           address_street: string | null
+          agent_number: string | null
           avatar_url: string | null
+          badge_number: string | null
           balance: number | null
           bank_account: string | null
           bank_institution: string | null
@@ -14877,6 +14879,7 @@ export type Database = {
           pin_is_default: boolean | null
           pin_lockout_until: string | null
           preferred_language: string | null
+          professional_email: string | null
           referral_code: string | null
           salary_type: string | null
           sector_tags: string[] | null
@@ -14904,7 +14907,9 @@ export type Database = {
           address_postal?: string | null
           address_province?: string | null
           address_street?: string | null
+          agent_number?: string | null
           avatar_url?: string | null
+          badge_number?: string | null
           balance?: number | null
           bank_account?: string | null
           bank_institution?: string | null
@@ -14963,6 +14968,7 @@ export type Database = {
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           preferred_language?: string | null
+          professional_email?: string | null
           referral_code?: string | null
           salary_type?: string | null
           sector_tags?: string[] | null
@@ -14990,7 +14996,9 @@ export type Database = {
           address_postal?: string | null
           address_province?: string | null
           address_street?: string | null
+          agent_number?: string | null
           avatar_url?: string | null
+          badge_number?: string | null
           balance?: number | null
           bank_account?: string | null
           bank_institution?: string | null
@@ -15049,6 +15057,7 @@ export type Database = {
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           preferred_language?: string | null
+          professional_email?: string | null
           referral_code?: string | null
           salary_type?: string | null
           sector_tags?: string[] | null
@@ -21507,6 +21516,7 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: Json
       }
+      generate_agent_number: { Args: { p_role: string }; Returns: string }
       generate_appointment_number: { Args: never; Returns: string }
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_billing_renewals: { Args: never; Returns: undefined }

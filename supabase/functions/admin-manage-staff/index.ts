@@ -1077,6 +1077,14 @@ serve(async (req: Request) => {
 
               // Field Sales — branded "Violet Bold" invitation via canonical template
               if (role === "field_sales") {
+                const { data: agentProfile } = await adminClient
+                  .from("profiles")
+                  .select("agent_number, professional_email")
+                  .eq("user_id", userId)
+                  .maybeSingle();
+                const agentNumber = (agentProfile as any)?.agent_number || "En cours d'attribution";
+                const proEmail = (agentProfile as any)?.professional_email || "À venir";
+
                 const { error: queueErr } = await adminClient.from("email_queue").insert({
                   event_key: `staff_invite_field_sales_${userId}`,
                   to_email: email,
@@ -1085,6 +1093,8 @@ serve(async (req: Request) => {
                     first_name: firstName,
                     invite_url: setupLink,
                     role: "field_sales",
+                    agent_number: agentNumber,
+                    professional_email: proEmail,
                   },
                   status: "queued",
                 } as any);
