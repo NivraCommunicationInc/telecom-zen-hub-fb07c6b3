@@ -2437,6 +2437,56 @@ export function renderQueueTemplate(
       };
     }
 
+    case "discount_expiring_soon": {
+      const fullName = safe(
+        v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
+        "Client",
+      );
+      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountAmount = money(v.discount_amount ?? 0);
+      const fullPrice = money(v.full_price ?? v.next_amount ?? 0);
+      const endDate = fmtDate(v.end_date ?? v.next_invoice_date);
+      return {
+        subject: "Votre rabais Nivra expire bientôt",
+        html: shell({
+          preheader: "Votre rabais se termine après votre prochaine facture.",
+          badge: "AVIS IMPORTANT",
+          heroTitle: "Votre rabais se termine le mois prochain",
+          icon: "alert",
+          greeting: `Bonjour ${fullName},`,
+          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois se terminera après votre prochaine facture. À partir du ${endDate}, votre mensualité sera de <strong>${fullPrice}</strong>.`,
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
+        }),
+      };
+    }
+
+    case "discount_expired": {
+      const fullName = safe(
+        v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
+        "Client",
+      );
+      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountAmount = money(v.discount_amount ?? 0);
+      const months = safe(v.duration_months, "");
+      const newAmount = money(v.new_amount ?? v.full_price ?? 0);
+      return {
+        subject: "Votre rabais Nivra a expiré",
+        html: shell({
+          preheader: "Votre période de rabais est maintenant terminée.",
+          badge: "RABAIS EXPIRÉ",
+          heroTitle: "Votre période de rabais est terminée",
+          icon: "alert",
+          greeting: `Bonjour ${fullName},`,
+          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois${months ? ` pendant ${months} mois` : ""} est maintenant terminé. Votre prochain paiement sera de <strong>${newAmount}</strong>.`,
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
