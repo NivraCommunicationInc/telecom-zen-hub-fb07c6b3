@@ -119,9 +119,9 @@ function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight — always return 204 with permissive headers.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: buildCorsHeaders(req) });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
   }
 
   try {
