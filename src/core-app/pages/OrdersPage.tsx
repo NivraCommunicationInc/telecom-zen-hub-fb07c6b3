@@ -68,6 +68,26 @@ const STATUS_FILTERS = [
 
 const OrdersPage = () => {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  async function setOrderStatus(orderId: string, status: string, extra?: Record<string, any>) {
+    const { error } = await supabase.from("orders").update({ status, ...(extra || {}) }).eq("id", orderId);
+    if (error) { toast.error(error.message); return; }
+    toast.success(
+      status === "activated" ? "Service activé — commission approuvée"
+      : status === "on_hold" ? "Commande mise en attente"
+      : status === "cancelled" ? "Commande annulée — commission révoquée"
+      : "Statut mis à jour"
+    );
+    qc.invalidateQueries({ queryKey: ["admin-orders-v2"] });
+  }
+
+  async function cancelWithReason(orderId: string) {
+    const reason = window.prompt("Raison de l'annulation (obligatoire) :");
+    if (!reason || !reason.trim()) return;
+    await setOrderStatus(orderId, "cancelled", { cancellation_reason: reason.trim() });
+  }
+
   const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("live");
   const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
