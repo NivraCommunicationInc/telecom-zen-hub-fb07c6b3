@@ -87,13 +87,8 @@ const EmployeeQuoteDetail = lazy(() => import("@/employee-app/pages/EmployeeQuot
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 
-// Nivra Source Hub (shared across Field, Employee, RH)
-const HubAnnouncements = lazy(() => import("@/components/hub/HubAnnouncements"));
-const HubDocuments = lazy(() => import("@/components/hub/HubDocuments"));
-const HubStore = lazy(() => import("@/components/hub/HubStore"));
-const HubLeaderboard = lazy(() => import("@/components/hub/HubLeaderboard"));
-const HubCalendar = lazy(() => import("@/components/hub/HubCalendar"));
-const HubForms = lazy(() => import("@/components/hub/HubForms"));
+// Nivra Source Hub (shared across Field, Employee, HR)
+const NivraSourceHub = lazy(() => import("@/components/hub/NivraSourceHub"));
 const CoreHubManagementPage = lazy(() => import("@/core-app/pages/CoreHubManagementPage"));
 const CoreEmailComposePage = lazy(() => import("@/core-app/pages/CoreEmailComposePage"));
 const EmployeeEmailComposePage = lazy(() => import("@/employee-app/pages/EmployeeEmailComposePage"));
@@ -958,13 +953,14 @@ const AppRoutes = () => {
           <Route path="quotes/:quoteId" element={<Suspense fallback={null}><EmployeeQuoteDetail /></Suspense>} />
           {/* Email composer */}
           <Route path="email/compose" element={<Suspense fallback={null}><EmployeeEmailComposePage /></Suspense>} />
-          {/* Nivra Source Hub */}
-          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
-          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
-          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
-          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
-          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
-          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
+          {/* Nivra Source Hub — unified */}
+          <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="employee" /></Suspense>} />
+          <Route path="hub/annonces" element={<Navigate to="/employee/hub?section=annonces" replace />} />
+          <Route path="hub/documents" element={<Navigate to="/employee/hub?section=documents" replace />} />
+          <Route path="hub/boutique" element={<Navigate to="/employee/hub?section=boutique" replace />} />
+          <Route path="hub/leaderboard" element={<Navigate to="/employee/hub?section=leaderboard" replace />} />
+          <Route path="hub/calendrier" element={<Navigate to="/employee/hub?section=calendrier" replace />} />
+          <Route path="hub/formulaires" element={<Navigate to="/employee/hub?section=formulaires" replace />} />
         </Route>
       </Route>
 
@@ -996,13 +992,14 @@ const AppRoutes = () => {
           <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
-          {/* Nivra Source Hub */}
-          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
-          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
-          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
-          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
-          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
-          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
+          {/* Nivra Source Hub — unified */}
+          <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="field" /></Suspense>} />
+          <Route path="hub/annonces" element={<Navigate to="/field/hub?section=annonces" replace />} />
+          <Route path="hub/documents" element={<Navigate to="/field/hub?section=documents" replace />} />
+          <Route path="hub/boutique" element={<Navigate to="/field/hub?section=boutique" replace />} />
+          <Route path="hub/leaderboard" element={<Navigate to="/field/hub?section=leaderboard" replace />} />
+          <Route path="hub/calendrier" element={<Navigate to="/field/hub?section=calendrier" replace />} />
+          <Route path="hub/formulaires" element={<Navigate to="/field/hub?section=formulaires" replace />} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
@@ -1027,13 +1024,14 @@ const AppRoutes = () => {
           <Route path="objectifs" element={<Suspense fallback={null}><HrObjectives /></Suspense>} />
           <Route path="demandes" element={<Suspense fallback={null}><HrRequests /></Suspense>} />
           <Route path="documents" element={<Suspense fallback={null}><HrDocuments /></Suspense>} />
-          {/* Nivra Source Hub */}
-          <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
-          <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />
-          <Route path="hub/boutique" element={<Suspense fallback={null}><HubStore /></Suspense>} />
-          <Route path="hub/leaderboard" element={<Suspense fallback={null}><HubLeaderboard /></Suspense>} />
-          <Route path="hub/calendrier" element={<Suspense fallback={null}><HubCalendar /></Suspense>} />
-          <Route path="hub/formulaires" element={<Suspense fallback={null}><HubForms /></Suspense>} />
+          {/* Nivra Source Hub — unified */}
+          <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="hr" /></Suspense>} />
+          <Route path="hub/annonces" element={<Navigate to="/hr/hub?section=annonces" replace />} />
+          <Route path="hub/documents" element={<Navigate to="/hr/hub?section=documents" replace />} />
+          <Route path="hub/boutique" element={<Navigate to="/hr/hub?section=boutique" replace />} />
+          <Route path="hub/leaderboard" element={<Navigate to="/hr/hub?section=leaderboard" replace />} />
+          <Route path="hub/calendrier" element={<Navigate to="/hr/hub?section=calendrier" replace />} />
+          <Route path="hub/formulaires" element={<Navigate to="/hr/hub?section=formulaires" replace />} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
