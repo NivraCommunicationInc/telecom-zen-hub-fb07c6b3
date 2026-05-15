@@ -42,6 +42,7 @@ const FieldLeadDetail = lazy(() => import("@/field-app/pages/FieldLeadDetail"));
 const FieldOffers = lazy(() => import("@/field-app/pages/FieldOffers"));
 const FieldSubmissions = lazy(() => import("@/field-app/pages/FieldSubmissions"));
 const FieldOrderDetail = lazy(() => import("@/field-app/pages/FieldOrderDetail"));
+const FieldOrders = lazy(() => import("@/field-app/pages/FieldOrders"));
 const FieldTracking = lazy(() => import("@/field-app/pages/FieldTracking"));
 const FieldTerritory = lazy(() => import("@/field-app/pages/FieldTerritory"));
 const FieldClients = lazy(() => import("@/field-app/pages/FieldClients"));
