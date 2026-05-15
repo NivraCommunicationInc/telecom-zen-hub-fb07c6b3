@@ -283,7 +283,7 @@ export default function HrCommissions() {
       </div>
 
       {/* Sections A/B/C — official commission grid, bonus grid, my targets */}
-      <RhGridsAndTargets userId={userId ?? undefined} />
+      <HrGridsAndTargets userId={userId ?? undefined} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -510,9 +510,9 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
 }
 
 /* ════════════════════════════════════════════════════════════════
-   RH GRIDS & TARGETS — Sections A, B, C (read-only)
+   HR GRIDS & TARGETS — Sections A, B, C (read-only)
    ════════════════════════════════════════════════════════════════ */
-function RhGridsAndTargets({ userId }: { userId?: string }) {
+function HrGridsAndTargets({ userId }: { userId?: string }) {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;

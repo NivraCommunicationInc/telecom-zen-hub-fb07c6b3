@@ -242,7 +242,7 @@ export default function HrProfile() {
               ))}
               <Separator />
               <p className="text-xs text-muted-foreground">
-                Pour modifier votre prénom, nom ou poste, contactez RH via une demande.
+                Pour modifier votre prénom, nom ou poste, contactez HR via une demande.
               </p>
             </CardContent>
           </Card>

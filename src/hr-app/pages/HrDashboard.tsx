@@ -1,5 +1,5 @@
 /**
- * HrDashboard — Employee RH home page.
+ * HrDashboard — Employee HR home page.
  * Header with greeting + status + punch quick action,
  * 4 metric cards, 3 sections (planning / commissions / notifications).
  */

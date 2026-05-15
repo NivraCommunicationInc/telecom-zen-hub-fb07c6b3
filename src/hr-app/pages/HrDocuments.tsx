@@ -88,7 +88,7 @@ export default function HrDocuments() {
     queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
   });
 
-  // ─── 1) Lettres / documents RH reçus ───
+  // ─── 1) Lettres / documents HR reçus ───
   const { data: letters = [], isLoading: lettersLoading } = useQuery({
     queryKey: ["rh-employment-letters", userId],
     queryFn: async () => {
@@ -164,7 +164,7 @@ export default function HrDocuments() {
       }
     },
     onSuccess: () => {
-      toast.success("Document téléversé. RH a été notifié.");
+      toast.success("Document téléversé. HR a été notifié.");
       setOpen(false);
       setFile(null);
       setTitle("");
@@ -233,7 +233,7 @@ export default function HrDocuments() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ─── Documents reçus de RH ─── */}
+        {/* ─── Documents reçus de HR ─── */}
         <TabsContent value="received" className="mt-4">
           <Card>
             <CardHeader className="pb-3">

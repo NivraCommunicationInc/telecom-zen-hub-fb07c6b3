@@ -1,7 +1,7 @@
 /**
  * HrProtectedRoute — Guards all /hr/* routes.
  * Enforces: hub session → authenticated → active role → can_access_rh → MFA verified.
- * All employees, technicians, field_sales, and admins can access the RH portal.
+ * All employees, technicians, field_sales, and admins can access the HR portal.
  */
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";

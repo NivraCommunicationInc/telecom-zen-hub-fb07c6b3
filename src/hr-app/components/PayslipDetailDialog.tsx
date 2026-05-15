@@ -1,5 +1,5 @@
 /**
- * PayslipDetailDialog — Detailed payslip view for RH portal.
+ * PayslipDetailDialog — Detailed payslip view for HR portal.
  * Shows full breakdown: revenues, deductions, adjustments, linked commissions, PDF download, acknowledgment.
  */
 import { useState, useCallback } from "react";

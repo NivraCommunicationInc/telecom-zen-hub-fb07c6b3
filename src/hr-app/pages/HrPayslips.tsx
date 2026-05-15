@@ -1,5 +1,5 @@
 /**
- * HrPayslips — Enterprise-grade payslip list for RH portal.
+ * HrPayslips — Enterprise-grade payslip list for HR portal.
  * Features: filters (year/period/status), detailed view dialog, PDF download,
  * acknowledgment, real data from payroll_entries + payroll_adjustments.
  */
