@@ -39,6 +39,11 @@ function todayStr(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+function formatMoneyServer(n: number): string {
+  const num = isFinite(n) ? n : 0;
+  return num.toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " $";
+}
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
