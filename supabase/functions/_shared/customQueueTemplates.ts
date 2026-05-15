@@ -189,6 +189,46 @@ export function renderQueueTemplate(
 
   switch (templateKey) {
     // ===================================================================
+    // HUB BOUTIQUE — order status update
+    // ===================================================================
+    case "hub_order_status_update": {
+      const hubOrderNum = esc(v.order_number || "ORD-XXXXX");
+      const product = esc(v.product_name || "Votre article");
+      const sizeLabel = esc(v.size || "");
+      const newStatus = esc(v.new_status || "Mis à jour");
+      const trackingNum = esc(v.tracking_number || "");
+      const trackingUrl = String(v.tracking_url || "");
+      const deliveryName = esc(v.delivery_name || "");
+      const deliveryAddress = esc(v.delivery_address || "");
+
+      const cardRows: [string, string][] = [
+        ["Numéro de commande", `#${String(hubOrderNum).replace(/^#/, "")}`],
+        ["Produit", sizeLabel ? `${product} — ${sizeLabel}` : product],
+        ["Statut", newStatus],
+      ];
+      if (trackingNum) cardRows.push(["Numéro de suivi", trackingNum]);
+      if (deliveryAddress) cardRows.push(["Livraison à", `${deliveryName ? deliveryName + " — " : ""}${deliveryAddress}`]);
+
+      return {
+        subject: `Mise à jour commande ${hubOrderNum} — Nivra Telecom`,
+        html: shell({
+          preheader: `Mise à jour de votre commande Nivra ${hubOrderNum}.`,
+          badge: "COMMANDE NIVRA",
+          heroTitle: "Statut de votre commande mis à jour",
+          heroSub: `Commande ${hubOrderNum}`,
+          icon: "check",
+          greeting: `Bonjour ${deliveryName || clientName},`,
+          bodyText: `Le statut de votre commande Nivra a été mis à jour.`,
+          cardTitle: "Détails de la commande",
+          cardRows,
+          ctaPrimaryUrl: trackingUrl || portalUrl,
+          ctaPrimaryLabel: trackingUrl ? "Suivre ma commande" : "Voir mon portail",
+          helpHtml: `Questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // ORDERS
     // ===================================================================
     case "order_submitted":
