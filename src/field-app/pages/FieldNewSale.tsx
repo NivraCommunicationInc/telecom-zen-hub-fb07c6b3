@@ -537,6 +537,136 @@ export default function FieldNewSale() {
     };
   }, [draft.payment.invoiceId]);
 
+  // FIX 1 step 6 + FIX 5 + FIX 6 — Card success screen with install appointment + Nouvelle vente reset
+  if (cardSuccess) {
+    const feeDisplay =
+      apptFeeType === "free" ? "0$" :
+      apptFeeType === "waived" ? "Exonéré" :
+      apptFeeType === "custom" ? `${apptFeeCustom || "0"}$` :
+      "10$";
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
+        <div className="rounded-2xl border border-violet-500/30 bg-card p-6 md:p-8 shadow-xl">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-violet-600/10 mb-3">
+              <span className="text-3xl">✅</span>
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Commande créée</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Numéro <span className="font-mono font-semibold text-foreground">#{cardSuccess.orderNumber}</span> · Carte ••{cardSuccess.last4}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm mb-6">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-xs text-muted-foreground">Total commande</div>
+              <div className="font-semibold text-foreground">{cardSuccess.amount.toFixed(2)} $</div>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-xs text-muted-foreground">Commission en attente</div>
+              <div className="font-semibold text-violet-400">{cardSuccess.commission.toFixed(2)} $</div>
+            </div>
+          </div>
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200 mb-6">
+            La commande est visible dans Core pour traitement. Le paiement sera traité par l'équipe sous 48h.
+          </div>
+
+          {/* Installation appointment */}
+          <div className="border-t border-border pt-5 mb-6">
+            <h2 className="text-base font-semibold text-foreground mb-3">Rendez-vous d'installation</h2>
+            {apptSaved ? (
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-300">
+                Rendez-vous planifié ✓
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Date</label>
+                  <input
+                    type="datetime-local"
+                    value={apptDate}
+                    onChange={(e) => setApptDate(e.target.value)}
+                    className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Créneau</label>
+                  <select
+                    value={apptWindow}
+                    onChange={(e) => setApptWindow(e.target.value as any)}
+                    className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  >
+                    <option value="morning">Matin</option>
+                    <option value="afternoon">Après-midi</option>
+                    <option value="evening">Soir</option>
+                    <option value="flexible">Flexible</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Frais d'installation ({feeDisplay})</label>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {([
+                      ["standard", "Standard — 10$"],
+                      ["free", "Gratuit — 0$"],
+                      ["custom", "Personnalisé"],
+                      ["waived", "Exonéré"],
+                    ] as const).map(([val, label]) => (
+                      <label key={val} className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer ${apptFeeType === val ? "border-violet-500 bg-violet-500/10" : "border-border"}`}>
+                        <input type="radio" name="feeType" value={val} checked={apptFeeType === val} onChange={() => setApptFeeType(val)} />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {apptFeeType === "custom" && (
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={apptFeeCustom}
+                      onChange={(e) => setApptFeeCustom(e.target.value)}
+                      placeholder="Montant ($)"
+                      className="mt-2 w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                    />
+                  )}
+                  {apptFeeType === "waived" && (
+                    <input
+                      type="text"
+                      value={apptFeeNotes}
+                      onChange={(e) => setApptFeeNotes(e.target.value)}
+                      placeholder="Raison de l'exonération"
+                      className="mt-2 w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Notes pour le technicien</label>
+                  <textarea
+                    value={apptNotes}
+                    onChange={(e) => setApptNotes(e.target.value)}
+                    rows={2}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <button
+                  onClick={saveAppointment}
+                  disabled={savingAppt || !apptDate}
+                  className="w-full h-11 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {savingAppt ? "Enregistrement…" : "Confirmer le rendez-vous"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Nouvelle vente — always available */}
+          <button
+            onClick={resetForNewSale}
+            className="w-full h-12 rounded-lg border border-violet-500/40 bg-violet-600/10 text-violet-200 text-sm font-semibold hover:bg-violet-600/20"
+          >
+            Nouvelle vente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-6">
       <div className="mb-5">
