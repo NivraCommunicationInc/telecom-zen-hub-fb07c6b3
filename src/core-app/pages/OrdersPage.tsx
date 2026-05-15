@@ -20,6 +20,9 @@ import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { Search, ShoppingCart, RefreshCw, Timer, AlertTriangle } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ── SLA badge ── */
 function getSlaBadge(
