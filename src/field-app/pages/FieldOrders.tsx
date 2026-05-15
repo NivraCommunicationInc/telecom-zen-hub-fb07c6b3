@@ -217,9 +217,10 @@ export default function FieldOrders() {
                           Reprendre <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
-                      {r.kind === "intent" && !r.paypal_approval_url && r.quote_id && (
+              {r.kind === "intent" && !r.paypal_approval_url && (
                         <Link
-                          to={`/commander?quote_id=${r.quote_id}`}
+                          to="/field/sale/new"
+                          state={{ resumeIntentId: r.id, resumeQuoteId: r.quote_id }}
                           className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 text-[11px] font-bold"
                         >
                           Reprendre
