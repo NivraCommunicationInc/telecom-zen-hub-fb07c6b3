@@ -951,7 +951,7 @@ Deno.serve(async (req) => {
 
       const pending = allSales?.filter((d: any) => d.sync_status === 'pending' || !d.converted_order_id).length || 0;
       const synced = allSales?.filter((d: any) => d.sync_status === 'synced' && d.converted_order_id).length || 0;
-      const failed = allSales?.filter((d: any) => d.sync_status === 'error').length || 0;
+      const failed = allSales?.filter((d: any) => d.sync_status === 'failed' || d.sync_status === 'error').length || 0;
 
       return new Response(
         JSON.stringify({ 
