@@ -342,16 +342,19 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
         { service_type: "revenue", target_count: 0, target_amount: parseFloat(form.target_revenue) || 0 },
       ];
       for (const t of targetsRows) {
-        const existing = targets.find((x: any) => x.service_type === t.service_type);
-        if (existing) {
-          await supabase.from("sales_targets").update({ target_count: t.target_count, target_amount: t.target_amount } as any).eq("id", existing.id);
-        } else if (t.target_count > 0 || t.target_amount > 0) {
-          await supabase.from("sales_targets").insert({
-            employee_id: userId, role: "field_sales", service_type: t.service_type,
-            target_count: t.target_count, target_amount: t.target_amount,
-            period_month: currentMonth, period_year: currentYear,
-          } as any);
-        }
+        if (t.target_count <= 0 && t.target_amount <= 0) continue;
+        await supabase.from("sales_targets").upsert(
+          {
+            employee_id: userId,
+            role: "field_sales",
+            service_type: t.service_type,
+            target_count: t.target_count,
+            target_amount: t.target_amount,
+            period_month: currentMonth,
+            period_year: currentYear,
+          } as any,
+          { onConflict: "employee_id,service_type,period_month,period_year" }
+        );
       }
     },
     onSuccess: () => {
