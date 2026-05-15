@@ -7078,6 +7078,7 @@ export type Database = {
         Row: {
           bonus_amount: number
           created_at: string
+          description: string | null
           id: string
           is_active: boolean
           max_sales: number | null
@@ -7087,6 +7088,7 @@ export type Database = {
         Insert: {
           bonus_amount: number
           created_at?: string
+          description?: string | null
           id?: string
           is_active?: boolean
           max_sales?: number | null
@@ -7096,6 +7098,7 @@ export type Database = {
         Update: {
           bonus_amount?: number
           created_at?: string
+          description?: string | null
           id?: string
           is_active?: boolean
           max_sales?: number | null
@@ -8848,6 +8851,38 @@ export type Database = {
         }
         Relationships: []
       }
+      hub_certificates: {
+        Row: {
+          certificate_number: string
+          id: string
+          issued_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          certificate_number?: string
+          id?: string
+          issued_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          certificate_number?: string
+          id?: string
+          issued_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_certificates_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "hub_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hub_contests: {
         Row: {
           created_at: string | null
@@ -9018,10 +9053,13 @@ export type Database = {
           category: string | null
           created_at: string | null
           created_by: string | null
+          downvotes: number
           id: string
           is_published: boolean | null
           order_index: number | null
           question: string
+          upvotes: number
+          view_count: number
           visible_to: string[] | null
         }
         Insert: {
@@ -9029,10 +9067,13 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           created_by?: string | null
+          downvotes?: number
           id?: string
           is_published?: boolean | null
           order_index?: number | null
           question: string
+          upvotes?: number
+          view_count?: number
           visible_to?: string[] | null
         }
         Update: {
@@ -9040,10 +9081,13 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           created_by?: string | null
+          downvotes?: number
           id?: string
           is_published?: boolean | null
           order_index?: number | null
           question?: string
+          upvotes?: number
+          view_count?: number
           visible_to?: string[] | null
         }
         Relationships: [
@@ -9060,6 +9104,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      hub_faq_votes: {
+        Row: {
+          created_at: string
+          faq_id: string
+          id: string
+          user_id: string
+          vote: string
+        }
+        Insert: {
+          created_at?: string
+          faq_id: string
+          id?: string
+          user_id: string
+          vote: string
+        }
+        Update: {
+          created_at?: string
+          faq_id?: string
+          id?: string
+          user_id?: string
+          vote?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_faq_votes_faq_id_fkey"
+            columns: ["faq_id"]
+            isOneToOne: false
+            referencedRelation: "hub_faq"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -9656,6 +9732,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      hub_training_progress: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          post_id: string
+          score: number | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          post_id: string
+          score?: number | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string
+          score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_training_progress_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "hub_posts"
+            referencedColumns: ["id"]
           },
         ]
       }
