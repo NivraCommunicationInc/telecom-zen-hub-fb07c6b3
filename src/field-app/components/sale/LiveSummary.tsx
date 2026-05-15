@@ -86,7 +86,7 @@ export default function LiveSummary({
             {(monthlyDiscountAmount > 0 || installationDiscountAmount > 0 || firstMonthCredit > 0) && draft.discount && (
               <div className="space-y-1 pt-2 border-t border-[hsl(var(--field-border-subtle))]">
                 <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--field-success))]">
-                  Rabais — {draft.discount.name}
+                  Rabais — {formatDiscountLabel(draft.discount)}
                 </p>
                 {monthlyDiscountAmount > 0 && (
                   <div className="flex justify-between text-[hsl(var(--field-success))]">
