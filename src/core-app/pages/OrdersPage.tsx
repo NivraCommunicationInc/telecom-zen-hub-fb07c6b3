@@ -409,6 +409,8 @@ const OrdersPage = () => {
                   </div>
                 )}
 
+                <Link
+                  to={corePath(`/orders/${o.id}`)}
                   onClick={(e) => e.stopPropagation()}
                   style={{ textDecoration: "none" }}
                 >
