@@ -94,6 +94,8 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
 }
 
 const BILLABLE_ORDER_STATUSES = new Set([
+  "pending",
+  "pending_payment",
   "submitted",
   "pending_admin_review",
   "confirmed",
@@ -106,8 +108,9 @@ function isBillableOrderStatus(status?: string | null): boolean {
   return BILLABLE_ORDER_STATUSES.has(String(status || "").toLowerCase());
 }
 
-function deriveCanonicalOrderStatus(paymentStatus?: string | null): string {
-  return String(paymentStatus || "").toLowerCase() === "confirmed" ? "confirmed" : "submitted";
+function deriveCanonicalOrderStatus(paymentStatus?: string | null, paymentMethod?: string | null): string {
+  if (String(paymentMethod || "").toLowerCase() === "card_manual") return "pending_payment";
+  return String(paymentStatus || "").toLowerCase() === "confirmed" ? "activated" : "submitted";
 }
 
 function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
