@@ -9,6 +9,7 @@ import { Loader2, Target, TrendingUp, Award, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(n || 0);
