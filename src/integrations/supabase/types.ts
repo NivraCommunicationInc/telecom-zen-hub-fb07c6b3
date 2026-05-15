@@ -8848,6 +8848,128 @@ export type Database = {
         }
         Relationships: []
       }
+      hub_contests: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          media_urls: string[] | null
+          prize: string | null
+          prize_value: number | null
+          rules: string | null
+          start_date: string
+          status: string | null
+          title: string
+          visible_to: string[] | null
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          media_urls?: string[] | null
+          prize?: string | null
+          prize_value?: number | null
+          rules?: string | null
+          start_date: string
+          status?: string | null
+          title: string
+          visible_to?: string[] | null
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          media_urls?: string[] | null
+          prize?: string | null
+          prize_value?: number | null
+          rules?: string | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          visible_to?: string[] | null
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_contests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_contests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "hub_contests_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_contests_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      hub_directory: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          department: string | null
+          email: string | null
+          extension: string | null
+          id: string
+          is_visible: boolean | null
+          name: string
+          order_index: number | null
+          phone: string | null
+          role: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          extension?: string | null
+          id?: string
+          is_visible?: boolean | null
+          name: string
+          order_index?: number | null
+          phone?: string | null
+          role: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          extension?: string | null
+          id?: string
+          is_visible?: boolean | null
+          name?: string
+          order_index?: number | null
+          phone?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
       hub_documents: {
         Row: {
           category: string
@@ -8890,6 +9012,57 @@ export type Database = {
         }
         Relationships: []
       }
+      hub_faq: {
+        Row: {
+          answer: string
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_published: boolean | null
+          order_index: number | null
+          question: string
+          visible_to: string[] | null
+        }
+        Insert: {
+          answer: string
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_published?: boolean | null
+          order_index?: number | null
+          question: string
+          visible_to?: string[] | null
+        }
+        Update: {
+          answer?: string
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_published?: boolean | null
+          order_index?: number | null
+          question?: string
+          visible_to?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_faq_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_faq_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
       hub_login_audit: {
         Row: {
           created_at: string
@@ -8922,6 +9095,288 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      hub_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read_by: string[] | null
+          message: string
+          sent_by: string | null
+          target_roles: string[] | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read_by?: string[] | null
+          message: string
+          sent_by?: string | null
+          target_roles?: string[] | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read_by?: string[] | null
+          message?: string
+          sent_by?: string | null
+          target_roles?: string[] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_notifications_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_notifications_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      hub_orders: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          custom_info: Json | null
+          delivery_address: string | null
+          id: string
+          item_id: string | null
+          order_number: string
+          quantity: number | null
+          size: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          custom_info?: Json | null
+          delivery_address?: string | null
+          id?: string
+          item_id?: string | null
+          order_number?: string
+          quantity?: number | null
+          size?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          custom_info?: Json | null
+          delivery_address?: string | null
+          id?: string
+          item_id?: string | null
+          order_number?: string
+          quantity?: number | null
+          size?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_orders_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_orders_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "hub_orders_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "hub_store_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hub_orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      hub_posts: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string | null
+          created_by: string | null
+          document_urls: string[] | null
+          expires_at: string | null
+          external_links: Json | null
+          id: string
+          is_featured: boolean | null
+          is_pinned: boolean | null
+          is_published: boolean | null
+          media_urls: string[] | null
+          published_at: string | null
+          rich_content: Json | null
+          section: string
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          updated_by: string | null
+          video_urls: string[] | null
+          view_count: number | null
+          visible_to: string[] | null
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_urls?: string[] | null
+          expires_at?: string | null
+          external_links?: Json | null
+          id?: string
+          is_featured?: boolean | null
+          is_pinned?: boolean | null
+          is_published?: boolean | null
+          media_urls?: string[] | null
+          published_at?: string | null
+          rich_content?: Json | null
+          section: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          updated_by?: string | null
+          video_urls?: string[] | null
+          view_count?: number | null
+          visible_to?: string[] | null
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_urls?: string[] | null
+          expires_at?: string | null
+          external_links?: Json | null
+          id?: string
+          is_featured?: boolean | null
+          is_pinned?: boolean | null
+          is_published?: boolean | null
+          media_urls?: string[] | null
+          published_at?: string | null
+          rich_content?: Json | null
+          section?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          video_urls?: string[] | null
+          view_count?: number | null
+          visible_to?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_posts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_posts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "hub_posts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_posts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      hub_reactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string | null
+          reaction: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reaction?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reaction?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "hub_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hub_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
       }
       hub_store_items: {
         Row: {
@@ -9000,6 +9455,147 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hub_store_items"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_ticket_messages: {
+        Row: {
+          created_at: string | null
+          document_urls: string[] | null
+          id: string
+          is_internal: boolean | null
+          media_urls: string[] | null
+          message: string
+          sender_id: string | null
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_urls?: string[] | null
+          id?: string
+          is_internal?: boolean | null
+          media_urls?: string[] | null
+          message: string
+          sender_id?: string | null
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string | null
+          document_urls?: string[] | null
+          id?: string
+          is_internal?: boolean | null
+          media_urls?: string[] | null
+          message?: string
+          sender_id?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_ticket_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_ticket_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "hub_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "hub_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_tickets: {
+        Row: {
+          assigned_to: string | null
+          created_at: string | null
+          description: string
+          document_urls: string[] | null
+          form_data: Json | null
+          id: string
+          media_urls: string[] | null
+          priority: string | null
+          resolved_at: string | null
+          section: string
+          status: string | null
+          subject: string
+          submitted_by: string | null
+          tags: string[] | null
+          ticket_number: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string | null
+          description: string
+          document_urls?: string[] | null
+          form_data?: Json | null
+          id?: string
+          media_urls?: string[] | null
+          priority?: string | null
+          resolved_at?: string | null
+          section: string
+          status?: string | null
+          subject: string
+          submitted_by?: string | null
+          tags?: string[] | null
+          ticket_number?: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string | null
+          description?: string
+          document_urls?: string[] | null
+          form_data?: Json | null
+          id?: string
+          media_urls?: string[] | null
+          priority?: string | null
+          resolved_at?: string | null
+          section?: string
+          status?: string | null
+          subject?: string
+          submitted_by?: string | null
+          tags?: string[] | null
+          ticket_number?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "hub_tickets_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hub_tickets_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
           },
         ]
       }
