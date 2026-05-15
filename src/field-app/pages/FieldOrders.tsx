@@ -225,6 +225,14 @@ export default function FieldOrders() {
                           Reprendre
                         </Link>
                       )}
+                      {r.kind === "order" && (r.status === "pending_payment" || r.status === "on_hold") && (
+                        <Link
+                          to={`/field/orders/${r.id}?resume=1`}
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 text-[11px] font-bold"
+                        >
+                          Reprendre
+                        </Link>
+                      )}
                       {r.kind === "order" && (
                         <Link
                           to={`/field/orders/${r.id}`}

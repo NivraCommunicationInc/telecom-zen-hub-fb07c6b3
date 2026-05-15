@@ -9,6 +9,7 @@ import { Loader2, Target, TrendingUp, Award, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(n || 0);
@@ -21,6 +22,10 @@ const BONUS_TIERS: Array<{ count: number; bonus: number }> = [
 ];
 
 export default function FieldObjectives() {
+  usePortalRealtime(
+    ["sales_targets", "field_commissions"],
+    [["field-objectives-summary"]],
+  );
   const { data, isLoading } = useQuery({
     queryKey: ["field-objectives-summary"],
     queryFn: async () => {
@@ -85,6 +90,7 @@ export default function FieldObjectives() {
   const monthlyTarget = data?.monthlyTarget ?? 0;
   const monthlyPct = monthlyTarget > 0 ? Math.min(100, Math.round((monthSales / monthlyTarget) * 100)) : 0;
   const monthlyRemaining = Math.max(0, monthlyTarget - monthSales);
+  const weeklyTarget = monthlyTarget > 0 ? Math.ceil(monthlyTarget / 4) : 0;
 
   // Bonus tier logic
   const currentTier = [...BONUS_TIERS].reverse().find((t) => monthSales >= t.count);
@@ -121,6 +127,17 @@ export default function FieldObjectives() {
           <p className="text-xs text-[#9CA3AF] mt-1">vente{weekSales !== 1 ? "s" : ""}</p>
         </div>
       </div>
+
+      {weeklyTarget > 0 && (
+        <div className="bg-[#EDE9FE] border border-[#7C3AED]/20 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-[#5B21B6]">
+            Objectif hebdomadaire : {weeklyTarget} vente{weeklyTarget > 1 ? "s" : ""}{" "}
+            <span className="text-[#7C3AED]/80 font-normal">
+              (mensuel ÷ 4 = {monthlyTarget} ÷ 4 → {weeklyTarget}/semaine)
+            </span>
+          </p>
+        </div>
+      )}
 
       {/* SECTION 4 — Objectif mensuel (if assigned) */}
       {data?.hasTargets && monthlyTarget > 0 ? (
