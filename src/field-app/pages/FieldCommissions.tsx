@@ -90,8 +90,8 @@ export default function FieldCommissions() {
         {
           event: "*",
           schema: "public",
-          table: "sales_commissions",
-          filter: `salesperson_id=eq.${user.id}`,
+          table: "field_commissions",
+          filter: `agent_id=eq.${user.id}`,
         },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["field-commission-summary"] });
@@ -533,7 +533,7 @@ function FieldGridsAndTargets({ userId }: { userId?: string }) {
       const { count } = await supabase
         .from("orders")
         .select("id", { count: "exact", head: true })
-        .eq("field_agent_id", userId)
+        .eq("created_by_agent_id", userId)
         .gte("created_at", monthStart)
         .lt("created_at", monthEnd)
         .in("status", ["activated", "completed", "active"]);
