@@ -42,6 +42,15 @@ const toolsNav = [
   { label: "Rapport du jour", href: `${FIELD_BASE}/daily-report`, icon: Calendar },
 ];
 
+const hubNav = [
+  { label: "Annonces", href: `${FIELD_BASE}/hub/annonces`, icon: Megaphone },
+  { label: "Documents", href: `${FIELD_BASE}/hub/documents`, icon: FileText },
+  { label: "Boutique", href: `${FIELD_BASE}/hub/boutique`, icon: ShoppingBag },
+  { label: "Leaderboard", href: `${FIELD_BASE}/hub/leaderboard`, icon: Trophy },
+  { label: "Calendrier", href: `${FIELD_BASE}/hub/calendrier`, icon: Calendar },
+  { label: "Formulaires", href: `${FIELD_BASE}/hub/formulaires`, icon: ClipboardList },
+];
+
 const bottomItems = [
   { label: "Mon profil", href: `${FIELD_BASE}/profile`, icon: User },
   { label: "Sécurité", href: `${FIELD_BASE}/security`, icon: Lock },
