@@ -170,6 +170,11 @@ export default function EmployeeSidebar() {
                   >
                     <item.icon className={cn("h-3.5 w-3.5 shrink-0", isActive(item.href) && "text-primary")} />
                     {!collapsed && <span className="flex-1">{item.label}</span>}
+                    {!collapsed && (item as any).badgeKey === "hub" && hubUnread > 0 && (
+                      <span className="rounded-full bg-violet-600 text-white px-1.5 py-0.5 text-[9px] font-bold min-w-[18px] text-center">
+                        {hubUnread > 99 ? "99+" : hubUnread}
+                      </span>
+                    )}
                     {!collapsed && (item as any).badge && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold text-primary">{(item as any).badge}</span>}
                   </Link>
                 ))}

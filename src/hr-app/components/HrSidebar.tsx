@@ -71,6 +71,7 @@ export default function HrSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isTablet, isDesktop } = usePortalBreakpoint();
+  const { data: hubUnread = 0 } = useHubUnreadCount();
   const [collapsed, setCollapsed] = useState<boolean>(() =>
     typeof window !== "undefined" && window.innerWidth < 1280
   );
