@@ -1166,7 +1166,7 @@ export function renderQueueTemplate(
     // -------------------------------------------------------------------
     case "autopay_activated": {
       const subId = String(v.paypal_subscription_id || v.subscription_id || "");
-      const subRef = subId ? subId.slice(-8).toUpperCase() : "—";
+      const subRef = subId ? subId.slice(-8).toUpperCase() : "N/A";
       const activatedAt = fmtDate(v.activated_at || new Date().toISOString());
       const manageUrl = String(v.manage_url || `${portalUrl}/paiement`);
       const detailsBody =
