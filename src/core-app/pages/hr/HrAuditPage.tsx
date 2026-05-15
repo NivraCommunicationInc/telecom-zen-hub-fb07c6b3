@@ -61,7 +61,7 @@ export default function HrAuditPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
           <History className="h-5 w-5 text-primary" />
-          Audit RH
+          Audit HR
         </h1>
         <p className="text-xs text-muted-foreground">{logs.length} entrée(s) d'audit</p>
       </div>

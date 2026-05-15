@@ -1,5 +1,5 @@
 /**
- * RhProfile — Employee profile + Sécurité (2FA TOTP, mot de passe, sessions, contact).
+ * HrProfile — Employee profile + Sécurité (2FA TOTP, mot de passe, sessions, contact).
  */
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 import QRCode from "qrcode";
 
-export default function RhProfile() {
+export default function HrProfile() {
   const qc = useQueryClient();
 
   // ─── Profile ───
@@ -124,7 +124,7 @@ export default function RhProfile() {
       }
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: `Nivra RH ${new Date().toISOString().slice(0, 10)}`,
+        friendlyName: `Nivra HR ${new Date().toISOString().slice(0, 10)}`,
       });
       if (error) throw error;
       setFactorId(data.id);
@@ -242,7 +242,7 @@ export default function RhProfile() {
               ))}
               <Separator />
               <p className="text-xs text-muted-foreground">
-                Pour modifier votre prénom, nom ou poste, contactez RH via une demande.
+                Pour modifier votre prénom, nom ou poste, contactez HR via une demande.
               </p>
             </CardContent>
           </Card>

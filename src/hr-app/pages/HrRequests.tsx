@@ -1,5 +1,5 @@
 /**
- * RhRequests — Employee leave / absence / personal requests.
+ * HrRequests — Employee leave / absence / personal requests.
  * Insert into hr_requests; list own submissions with status.
  */
 import { useState } from "react";
@@ -71,7 +71,7 @@ const emptyForm: RequestForm = {
   reason: "",
 };
 
-export default function RhRequests() {
+export default function HrRequests() {
   usePortalRealtime(["hr_requests", "employee_leave_requests"], [["rh-my-requests"], ["rh-requests"]]);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);

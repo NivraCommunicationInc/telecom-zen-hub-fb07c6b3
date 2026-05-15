@@ -18,22 +18,22 @@ const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/Empl
 // Field Portal (lazy-loaded, fully isolated)
 const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
 
-// RH Portal (lazy-loaded, fully isolated)
-const RhAppLayout = lazy(() => import("@/rh-app/RhAppLayout"));
-const RhProtectedRoute = lazy(() => import("@/rh-app/components/RhProtectedRoute"));
+// HR Portal (lazy-loaded, fully isolated)
+const HrAppLayout = lazy(() => import("@/hr-app/HrAppLayout"));
+const HrProtectedRoute = lazy(() => import("@/hr-app/components/HrProtectedRoute"));
 const MarketingAppLayout = lazy(() => import("@/marketing-app/MarketingAppLayout"));
 const MarketingProtectedRoute = lazy(() => import("@/marketing-app/components/MarketingProtectedRoute"));
-const RhDashboard = lazy(() => import("@/rh-app/pages/RhDashboard"));
-const RhPayslips = lazy(() => import("@/rh-app/pages/RhPayslips"));
-const RhTaxDocuments = lazy(() => import("@/rh-app/pages/RhTaxDocuments"));
-const RhEmploymentLetters = lazy(() => import("@/rh-app/pages/RhEmploymentLetters"));
-const RhSchedule = lazy(() => import("@/rh-app/pages/RhSchedule"));
-const RhCommissions = lazy(() => import("@/rh-app/pages/RhCommissions"));
-const RhNotifications = lazy(() => import("@/rh-app/pages/RhNotifications"));
-const RhProfile = lazy(() => import("@/rh-app/pages/RhProfile"));
-const RhObjectives = lazy(() => import("@/rh-app/pages/RhObjectives"));
-const RhRequests = lazy(() => import("@/rh-app/pages/RhRequests"));
-const RhDocuments = lazy(() => import("@/rh-app/pages/RhDocuments"));
+const HrDashboard = lazy(() => import("@/hr-app/pages/HrDashboard"));
+const HrPayslips = lazy(() => import("@/hr-app/pages/HrPayslips"));
+const HrTaxDocuments = lazy(() => import("@/hr-app/pages/HrTaxDocuments"));
+const HrEmploymentLetters = lazy(() => import("@/hr-app/pages/HrEmploymentLetters"));
+const HrSchedule = lazy(() => import("@/hr-app/pages/HrSchedule"));
+const HrCommissions = lazy(() => import("@/hr-app/pages/HrCommissions"));
+const HrNotifications = lazy(() => import("@/hr-app/pages/HrNotifications"));
+const HrProfile = lazy(() => import("@/hr-app/pages/HrProfile"));
+const HrObjectives = lazy(() => import("@/hr-app/pages/HrObjectives"));
+const HrRequests = lazy(() => import("@/hr-app/pages/HrRequests"));
+const HrDocuments = lazy(() => import("@/hr-app/pages/HrDocuments"));
 const FieldProtectedRoute = lazy(() => import("@/field-app/components/FieldProtectedRoute"));
 const FieldDashboard = lazy(() => import("@/field-app/pages/FieldDashboard"));
 const FieldLeads = lazy(() => import("@/field-app/pages/FieldLeads"));
@@ -1008,22 +1008,25 @@ const AppRoutes = () => {
       </Route>
 
       {/* ============================================ */}
-      {/* NIVRA RH — Employee HR Portal                 */}
+      {/* NIVRA HR — Employee HR Portal                 */}
       {/* ============================================ */}
-      <Route path="/rh" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense></AuthProvider>}>
-        <Route element={<Suspense fallback={null}><RhAppLayout /></Suspense>}>
+      {/* Backward-compat: redirect legacy /rh/* URLs (emails) → /hr/* */}
+      <Route path="/rh" element={<Navigate to="/hr" replace />} />
+      <Route path="/rh/*" element={<Navigate to="/hr" replace />} />
+      <Route path="/hr" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-background" />}><HrProtectedRoute /></Suspense></AuthProvider>}>
+        <Route element={<Suspense fallback={null}><HrAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Suspense fallback={null}><RhDashboard /></Suspense>} />
-          <Route path="paie" element={<Suspense fallback={null}><RhPayslips /></Suspense>} />
-          <Route path="documents-fiscaux" element={<Suspense fallback={null}><RhTaxDocuments /></Suspense>} />
-          <Route path="lettres" element={<Suspense fallback={null}><RhEmploymentLetters /></Suspense>} />
-          <Route path="horaire" element={<Suspense fallback={null}><RhSchedule /></Suspense>} />
-          <Route path="commissions" element={<Suspense fallback={null}><RhCommissions /></Suspense>} />
-          <Route path="notifications" element={<Suspense fallback={null}><RhNotifications /></Suspense>} />
-          <Route path="profil" element={<Suspense fallback={null}><RhProfile /></Suspense>} />
-          <Route path="objectifs" element={<Suspense fallback={null}><RhObjectives /></Suspense>} />
-          <Route path="demandes" element={<Suspense fallback={null}><RhRequests /></Suspense>} />
-          <Route path="documents" element={<Suspense fallback={null}><RhDocuments /></Suspense>} />
+          <Route path="dashboard" element={<Suspense fallback={null}><HrDashboard /></Suspense>} />
+          <Route path="paie" element={<Suspense fallback={null}><HrPayslips /></Suspense>} />
+          <Route path="documents-fiscaux" element={<Suspense fallback={null}><HrTaxDocuments /></Suspense>} />
+          <Route path="lettres" element={<Suspense fallback={null}><HrEmploymentLetters /></Suspense>} />
+          <Route path="horaire" element={<Suspense fallback={null}><HrSchedule /></Suspense>} />
+          <Route path="commissions" element={<Suspense fallback={null}><HrCommissions /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={null}><HrNotifications /></Suspense>} />
+          <Route path="profil" element={<Suspense fallback={null}><HrProfile /></Suspense>} />
+          <Route path="objectifs" element={<Suspense fallback={null}><HrObjectives /></Suspense>} />
+          <Route path="demandes" element={<Suspense fallback={null}><HrRequests /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={null}><HrDocuments /></Suspense>} />
           {/* Nivra Source Hub */}
           <Route path="hub/annonces" element={<Suspense fallback={null}><HubAnnouncements /></Suspense>} />
           <Route path="hub/documents" element={<Suspense fallback={null}><HubDocuments /></Suspense>} />

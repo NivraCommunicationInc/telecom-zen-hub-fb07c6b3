@@ -73,11 +73,11 @@ export default function FieldMyPay() {
       </div>
 
       <Link
-        to="/rh/dashboard"
+        to="/hr/dashboard"
         className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated"
       >
         <ExternalLink className="h-4 w-4" />
-        Accéder au portail RH complet
+        Accéder au portail HR complet
       </Link>
     </div>
   );

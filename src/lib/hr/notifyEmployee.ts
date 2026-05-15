@@ -61,7 +61,7 @@ export async function notifyEmployee(opts: NotifyEmployeeOptions): Promise<void>
     const templateVars: Record<string, unknown> = {
       ...opts.vars,
       client_name: clientName,
-      portal_url: opts.vars?.portal_url ?? "https://nivra-telecom.ca/rh",
+      portal_url: opts.vars?.portal_url ?? "https://nivra-telecom.ca/hr",
     };
 
     const { error } = await supabase.from("email_queue").insert({

@@ -1,5 +1,5 @@
 /**
- * RhObjectives — Reads canonical sales_targets (set by Core admin) for the
+ * HrObjectives — Reads canonical sales_targets (set by Core admin) for the
  * current period and counts the employee's actual sales this week / this
  * month from field_sales_orders. Shows weekly + monthly progress and next
  * bonus tier.
@@ -16,7 +16,7 @@ import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
 
-export default function RhObjectives() {
+export default function HrObjectives() {
   usePortalRealtime(["sales_targets", "field_sales_orders"], [["rh-objectives"]]);
 
   const { data, isLoading } = useQuery({

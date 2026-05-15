@@ -351,7 +351,7 @@ export default function HrCreateEmployeePage() {
           </p>
           <div className="flex flex-wrap gap-4">
             {[
-              { value: "employee", label: "Employé (Portail RH)", desc: "Accès au portail employé" },
+              { value: "employee", label: "Employé (Portail HR)", desc: "Accès au portail employé" },
               { value: "field_sales", label: "Ventes terrain", desc: "Accès au portail terrain" },
               { value: "admin", label: "Administrateur", desc: "Accès complet à Core" },
             ].map((role) => (

@@ -1163,7 +1163,7 @@ export default function CoreFieldAgentsPage() {
                 <DropdownMenuContent align="end">
                   {([
                     { label: "Accéder au portail Field", portal: "field" as const },
-                    { label: "Accéder au portail RH", portal: "rh" as const },
+                    { label: "Accéder au portail HR", portal: "rh" as const },
                     { label: "Accéder au portail Technicien", portal: "technician" as const },
                   ]).map((opt) => (
                     <DropdownMenuItem
@@ -1270,7 +1270,7 @@ export default function CoreFieldAgentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Vendeurs terrain — RH & Paie</h1>
+        <h1 className="text-xl font-bold text-foreground">Vendeurs terrain — HR & Paie</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Agents, commissions, grilles, paie, temps, horaires, documents fiscaux</p>
       </div>
 
