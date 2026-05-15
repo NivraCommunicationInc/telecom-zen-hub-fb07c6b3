@@ -248,7 +248,7 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
                 <div>
                   <Label className="text-[11px] text-muted-foreground">Date de naissance 🔒</Label>
                   <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-muted text-sm text-muted-foreground">
-                    {form.date_of_birth || "—"}
+                    {form.date_of_birth || "Non renseignée"}
                     <span className="text-[10px]" title="Modification réservée à admin_core">Verrouillé</span>
                   </div>
                 </div>
