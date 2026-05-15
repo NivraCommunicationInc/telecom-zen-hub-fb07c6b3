@@ -725,6 +725,44 @@ Deno.serve(async (req) => {
               if (contractErr) {
                 throw new Error(`Contract creation failed: ${contractErr.message}`);
               }
+
+              // Mirror into client_documents (visible in client portal documents list)
+              try {
+                await supabaseAdmin.from("client_documents").insert({
+                  user_id: clientUserId,
+                  uploaded_by: clientUserId,
+                  document_type: "service_contract",
+                  document_name: `Contrat de service — ${canonicalOrder.order_number || canonicalOrder.id.slice(0, 8)}`,
+                  document_url: "",
+                });
+              } catch (docErr: any) {
+                console.error("[field-sales-sync] client_documents mirror failed:", docErr?.message || docErr);
+              }
+
+              // Enqueue contract email to client (template resolved by email worker)
+              try {
+                await supabaseAdmin.from("email_queue").insert({
+                  event_key: `contract_generated:${canonicalOrder.id}`,
+                  to_email: customerEmail,
+                  template_key: "contract_generated",
+                  status: "pending",
+                  attempts: 0,
+                  max_attempts: 5,
+                  message_type: "transactional",
+                  entity_type: "contract",
+                  entity_id: canonicalOrder.id,
+                  subject: "Votre contrat de service Nivra",
+                  template_vars: {
+                    order_number: canonicalOrder.order_number,
+                    customer_first_name: customerFirstName,
+                    customer_last_name: customerLastName,
+                    agent_name: agentName,
+                  },
+                  idempotency_key: `contract_generated:${canonicalOrder.id}`,
+                });
+              } catch (mailErr: any) {
+                console.error("[field-sales-sync] contract_generated enqueue failed:", mailErr?.message || mailErr);
+              }
             }
           }
         } catch (billingErr: any) {

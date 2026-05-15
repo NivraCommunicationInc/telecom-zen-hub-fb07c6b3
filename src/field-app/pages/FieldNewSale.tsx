@@ -35,11 +35,12 @@ import { computeDiscountBreakdown } from "@/field-app/lib/fieldDiscountMath";
 
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
-const DRAFT_KEY = "field_sale_draft";
+const DRAFT_KEY_BASE = "field_sale_draft";
 
 export default function FieldNewSale() {
   const navigate = useNavigate();
   const { user } = useStaffUser();
+  const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
 
