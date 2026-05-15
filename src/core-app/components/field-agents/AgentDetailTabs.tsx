@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,16 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
       return data as any;
     },
   });
+
+  /* Realtime — keep agent profile, commissions and orders in sync. */
+  usePortalRealtime(
+    ["field_commissions", "orders", "sales_targets"],
+    [
+      ["core-field", "profile-full", userId],
+      ["core-field", "agent-commissions", userId],
+      ["core-field", "agent-orders", userId],
+    ],
+  );
 
   const ac = commissions;
 
