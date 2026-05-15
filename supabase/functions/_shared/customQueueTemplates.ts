@@ -184,8 +184,8 @@ export function renderQueueTemplate(
   );
   const greeting = `Bonjour ${clientName},`;
   const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
-  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "—");
-  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "—");
+  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "N/A");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "Non spécifié");
 
   switch (templateKey) {
     // ===================================================================
@@ -293,9 +293,9 @@ export function renderQueueTemplate(
     case "payment_confirmed":
     case "payment_receipt":
     case "payment_received": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
-      const reference = esc(v.reference || v.payment_reference || "—");
+      const reference = esc(v.reference || v.payment_reference || "Non disponible");
       const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       return {
@@ -323,7 +323,7 @@ export function renderQueueTemplate(
 
     case "invoice_created":
     case "billing_renewal": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
       const dueDate = fmtDate(v.due_date || v.DUE_DATE);
       return {
@@ -353,7 +353,7 @@ export function renderQueueTemplate(
     case "payment_reminder_3days":
     case "payment_reminder_1day":
     case "payment_due_today": {
-      const invoiceNum = esc(v.invoice_number || "—");
+      const invoiceNum = esc(v.invoice_number || "En cours");
       const total = money(v.total ?? v.amount);
       const dueDate = fmtDate(v.due_date);
       const labels: Record<string, string> = {
@@ -387,9 +387,9 @@ export function renderQueueTemplate(
 
     case "payment_overdue":
     case "invoice_overdue": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
-      const days = esc(v.days_overdue || v.DAYS_OVERDUE || "—");
+      const days = esc(v.days_overdue || v.DAYS_OVERDUE || "0");
       return {
         subject: `Facture en retard — ${invoiceNum}`,
         html: shell({
@@ -442,7 +442,7 @@ export function renderQueueTemplate(
     }
 
     case "invoice_voided": {
-      const invoiceNum = esc(v.invoice_number || "—");
+      const invoiceNum = esc(v.invoice_number || "En cours");
       return {
         subject: `Facture annulée — ${invoiceNum}`,
         html: shell({
@@ -462,7 +462,7 @@ export function renderQueueTemplate(
     }
 
     case "invoice_suspension_warning": {
-      const invoiceNum = esc(v.invoice_number || "—");
+      const invoiceNum = esc(v.invoice_number || "En cours");
       const total = money(v.total ?? v.amount);
       return {
         subject: `Avertissement — Risque de suspension`,
@@ -1278,7 +1278,7 @@ export function renderQueueTemplate(
     // OVERDUE — Daily reminder (one email per unpaid invoice per day)
     // ===================================================================
     case "overdue_invoice_daily_reminder": {
-      const invoiceNumber = esc(v.invoice_number || "—");
+      const invoiceNumber = esc(v.invoice_number || "En cours");
       const invoiceBalance = money(v.invoice_balance ?? 0);
       const totalAccountBalance = money(v.total_account_balance ?? 0);
       const daysOverdue = Number(v.days_overdue ?? 0);
@@ -2035,7 +2035,7 @@ export function renderQueueTemplate(
     // INVOICE SENT — Facture émise et disponible
     // ===================================================================
     case "invoice_sent": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "—");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
       const period = esc(v.period || v.billing_period || "—");
       const subtotal = money(v.subtotal);
       const tps = money(v.tps ?? v.gst);
