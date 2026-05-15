@@ -86,6 +86,17 @@ const EmployeeQuoteDetail = lazy(() => import("@/employee-app/pages/EmployeeQuot
 
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
+
+// Nivra Source Hub (shared across Field, Employee, RH)
+const HubAnnouncements = lazy(() => import("@/components/hub/HubAnnouncements"));
+const HubDocuments = lazy(() => import("@/components/hub/HubDocuments"));
+const HubStore = lazy(() => import("@/components/hub/HubStore"));
+const HubLeaderboard = lazy(() => import("@/components/hub/HubLeaderboard"));
+const HubCalendar = lazy(() => import("@/components/hub/HubCalendar"));
+const HubForms = lazy(() => import("@/components/hub/HubForms"));
+const CoreHubManagementPage = lazy(() => import("@/core-app/pages/CoreHubManagementPage"));
+const CoreEmailComposePage = lazy(() => import("@/core-app/pages/CoreEmailComposePage"));
+const EmployeeEmailComposePage = lazy(() => import("@/employee-app/pages/EmployeeEmailComposePage"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
 const CoreLoginPage = lazy(() => import("@/core-app/pages/CoreLoginPage"));
 // Dashboard
