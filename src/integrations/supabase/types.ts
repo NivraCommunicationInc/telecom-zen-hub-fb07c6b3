@@ -8770,6 +8770,126 @@ export type Database = {
           },
         ]
       }
+      hub_announcements: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_pinned: boolean | null
+          is_published: boolean | null
+          published_at: string | null
+          title: string
+          visible_to: string[] | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          is_published?: boolean | null
+          published_at?: string | null
+          title: string
+          visible_to?: string[] | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          is_published?: boolean | null
+          published_at?: string | null
+          title?: string
+          visible_to?: string[] | null
+        }
+        Relationships: []
+      }
+      hub_calendar_events: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          event_type: string | null
+          id: string
+          start_date: string
+          title: string
+          visible_to: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: string | null
+          id?: string
+          start_date: string
+          title: string
+          visible_to?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: string | null
+          id?: string
+          start_date?: string
+          title?: string
+          visible_to?: string[] | null
+        }
+        Relationships: []
+      }
+      hub_documents: {
+        Row: {
+          category: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_published: boolean | null
+          title: string
+          version: string | null
+          visible_to: string[] | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_published?: boolean | null
+          title: string
+          version?: string | null
+          visible_to?: string[] | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_published?: boolean | null
+          title?: string
+          version?: string | null
+          visible_to?: string[] | null
+        }
+        Relationships: []
+      }
       hub_login_audit: {
         Row: {
           created_at: string
@@ -8802,6 +8922,86 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      hub_store_items: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_available: boolean | null
+          name: string
+          requires_approval: boolean | null
+          sizes: string[] | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_available?: boolean | null
+          name: string
+          requires_approval?: boolean | null
+          sizes?: string[] | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_available?: boolean | null
+          name?: string
+          requires_approval?: boolean | null
+          sizes?: string[] | null
+        }
+        Relationships: []
+      }
+      hub_store_orders: {
+        Row: {
+          created_at: string | null
+          custom_info: Json | null
+          id: string
+          item_id: string | null
+          notes: string | null
+          quantity: number | null
+          size: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          custom_info?: Json | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          size?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          custom_info?: Json | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          size?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_store_orders_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "hub_store_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       identity_documents: {
         Row: {
@@ -20679,6 +20879,7 @@ export type Database = {
         Returns: boolean
       }
       is_influencer: { Args: { _user_id: string }; Returns: boolean }
+      is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
       is_marketing_staff: { Args: { _uid: string }; Returns: boolean }
       is_new_customer: {
         Args: { p_current_order_id: string; p_user_id: string }
