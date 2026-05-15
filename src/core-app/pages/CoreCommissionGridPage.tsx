@@ -54,17 +54,17 @@ export default function CoreCommissionGridPage() {
     queryFn: async () => {
       const { data: orders } = await supabase
         .from("orders")
-        .select("field_agent_id, status, created_at, activated_at, total")
+        .select("created_by_agent_id, status, created_at, activated_at, total")
         .gte("created_at", start)
         .lt("created_at", end);
       const counts = new Map<string, { count: number; revenue: number }>();
       (orders ?? []).forEach((o: any) => {
-        if (!o.field_agent_id) return;
+        if (!o.created_by_agent_id) return;
         if (o.status !== "activated" && o.status !== "completed" && o.status !== "active") return;
-        const cur = counts.get(o.field_agent_id) ?? { count: 0, revenue: 0 };
+        const cur = counts.get(o.created_by_agent_id) ?? { count: 0, revenue: 0 };
         cur.count += 1;
         cur.revenue += Number(o.total || 0);
-        counts.set(o.field_agent_id, cur);
+        counts.set(o.created_by_agent_id, cur);
       });
       const ids = Array.from(counts.keys());
       if (!ids.length) return [];

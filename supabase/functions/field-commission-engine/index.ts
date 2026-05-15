@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
 
     if (action === "summary" && req.method === "GET") {
       const [commissionsRes, withdrawalsRes] = await Promise.all([
-        admin.from("sales_commissions").select("commission_amount, status, bonus_amount").eq("salesperson_id", userId),
+        admin.from("field_commissions").select("amount, status").eq("agent_id", userId),
         admin.from("commission_withdrawal_requests").select("amount, status").eq("agent_id", userId),
       ]);
 
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       const countByStatus: Record<string, number> = {};
 
       for (const commission of commissions) {
-        const amount = Number(commission.commission_amount || 0) + Number(commission.bonus_amount || 0);
+        const amount = Number(commission.amount || 0);
         total += amount;
         const status = commission.status || "pending";
         countByStatus[status] = (countByStatus[status] || 0) + 1;
@@ -61,9 +61,9 @@ Deno.serve(async (req) => {
     if (action === "list" && req.method === "GET") {
       const status = url.searchParams.get("status");
       let query = admin
-        .from("sales_commissions")
-        .select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name, customer_email)")
-        .eq("salesperson_id", userId)
+        .from("field_commissions")
+        .select("*")
+        .eq("agent_id", userId)
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       const commissionId = url.searchParams.get("commission_id");
       if (!commissionId) return new Response(JSON.stringify({ error: "commission_id requis" }), { status: 400, headers });
 
-      const { data } = await admin.from("sales_commissions").select("*").eq("id", commissionId).eq("salesperson_id", userId).single();
+      const { data } = await admin.from("field_commissions").select("*").eq("id", commissionId).eq("agent_id", userId).single();
       if (!data) return new Response(JSON.stringify({ error: "Commission introuvable" }), { status: 404, headers });
 
       const { data: disputes } = await admin.from("commission_disputes").select("*").eq("commission_id", commissionId).order("created_at", { ascending: false });
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       const reason = sanitizeString(body.reason || "", 2000);
       if (!commissionId || !reason) return new Response(JSON.stringify({ error: "commission_id et reason requis" }), { status: 400, headers });
 
-      const { data: commission } = await admin.from("sales_commissions").select("id").eq("id", commissionId).eq("salesperson_id", userId).single();
+      const { data: commission } = await admin.from("field_commissions").select("id").eq("id", commissionId).eq("agent_id", userId).single();
       if (!commission) return new Response(JSON.stringify({ error: "Commission introuvable" }), { status: 404, headers });
 
       const { data: dispute, error } = await admin
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
         .single();
       if (error) throw error;
 
-      await admin.from("sales_commissions").update({ status: "disputed" as any, rejection_reason: `[CONTESTATION] ${reason}` }).eq("id", commissionId);
+      await admin.from("field_commissions").update({ status: "disputed" as any, clawback_reason: `[CONTESTATION] ${reason}` }).eq("id", commissionId);
 
       return new Response(JSON.stringify({ success: true, dispute }), { headers });
     }
@@ -148,9 +148,9 @@ Deno.serve(async (req) => {
       }
 
       const { data: commissionsRes, error: commissionsError } = await admin
-        .from("sales_commissions")
-        .select("commission_amount, bonus_amount, status")
-        .eq("salesperson_id", userId);
+        .from("field_commissions")
+        .select("amount, status")
+        .eq("agent_id", userId);
       if (commissionsError) throw commissionsError;
 
       const { data: withdrawalsRes, error: withdrawalsError } = await admin
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
 
       const approved = (commissionsRes || [])
         .filter((commission: any) => ["validated", "approved", "payable"].includes(commission.status))
-        .reduce((sum: number, commission: any) => sum + Number(commission.commission_amount || 0) + Number(commission.bonus_amount || 0), 0);
+        .reduce((sum: number, commission: any) => sum + Number(commission.amount || 0), 0);
 
       const pendingWithdrawals = (withdrawalsRes || [])
         .filter((withdrawal: any) => ["pending", "approved", "processing"].includes(withdrawal.status))
