@@ -390,7 +390,8 @@ export default function FieldNewSale() {
       const orderNumber = `SUB-${String(intentId).slice(0, 8).toUpperCase()}`;
 
       // Commission pending — visible immediately to agent
-      const commissionAmount = Math.max(0, Number((monthlyAfterDiscount * 0.1).toFixed(2)));
+      // Commission = 30% of monthly recurring after discount (canonical field-sales rate)
+      const commissionAmount = Math.max(0, Number((monthlyAfterDiscount * 0.30).toFixed(2)));
       try {
         await supabase.from("field_commissions").insert({
           agent_id: user.id,
@@ -605,91 +606,7 @@ export default function FieldNewSale() {
           </div>
           <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200 mb-6">
             La commande est visible dans Core pour traitement. Le paiement sera traité par l'équipe sous 48h.
-          </div>
-
-          {/* Installation appointment */}
-          <div className="border-t border-border pt-5 mb-6">
-            <h2 className="text-base font-semibold text-foreground mb-3">Rendez-vous d'installation</h2>
-            {apptSaved ? (
-              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-300">
-                Rendez-vous planifié ✓
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Date</label>
-                  <input
-                    type="datetime-local"
-                    value={apptDate}
-                    onChange={(e) => setApptDate(e.target.value)}
-                    className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Créneau</label>
-                  <select
-                    value={apptWindow}
-                    onChange={(e) => setApptWindow(e.target.value as any)}
-                    className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                  >
-                    <option value="morning">Matin</option>
-                    <option value="afternoon">Après-midi</option>
-                    <option value="evening">Soir</option>
-                    <option value="flexible">Flexible</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Frais d'installation ({feeDisplay})</label>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {([
-                      ["standard", "Standard — 10$"],
-                      ["free", "Gratuit — 0$"],
-                      ["custom", "Personnalisé"],
-                      ["waived", "Exonéré"],
-                    ] as const).map(([val, label]) => (
-                      <label key={val} className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer ${apptFeeType === val ? "border-violet-500 bg-violet-500/10" : "border-border"}`}>
-                        <input type="radio" name="feeType" value={val} checked={apptFeeType === val} onChange={() => setApptFeeType(val)} />
-                        <span>{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {apptFeeType === "custom" && (
-                    <input
-                      type="number" step="0.01" min="0"
-                      value={apptFeeCustom}
-                      onChange={(e) => setApptFeeCustom(e.target.value)}
-                      placeholder="Montant ($)"
-                      className="mt-2 w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
-                    />
-                  )}
-                  {apptFeeType === "waived" && (
-                    <input
-                      type="text"
-                      value={apptFeeNotes}
-                      onChange={(e) => setApptFeeNotes(e.target.value)}
-                      placeholder="Raison de l'exonération"
-                      className="mt-2 w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Notes pour le technicien</label>
-                  <textarea
-                    value={apptNotes}
-                    onChange={(e) => setApptNotes(e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-                <button
-                  onClick={saveAppointment}
-                  disabled={savingAppt || !apptDate}
-                  className="w-full h-11 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
-                >
-                  {savingAppt ? "Enregistrement…" : "Confirmer le rendez-vous"}
-                </button>
-              </div>
-            )}
+            Le rendez-vous d'installation sera planifié par l'admin depuis Core.
           </div>
 
           {/* Nouvelle vente — always available */}
