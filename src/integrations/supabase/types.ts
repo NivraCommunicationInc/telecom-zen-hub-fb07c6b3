@@ -9146,15 +9146,28 @@ export type Database = {
           admin_notes: string | null
           approved_at: string | null
           approved_by: string | null
+          cancelled_reason: string | null
           created_at: string | null
           custom_info: Json | null
+          custom_info_text: string | null
+          delivered_at: string | null
           delivery_address: string | null
+          delivery_city: string | null
+          delivery_email: string | null
+          delivery_name: string | null
+          delivery_phone: string | null
+          delivery_postal_code: string | null
+          delivery_province: string | null
           id: string
           item_id: string | null
+          notes: string | null
           order_number: string
           quantity: number | null
+          shipped_at: string | null
           size: string | null
           status: string | null
+          tracking_number: string | null
+          tracking_url: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -9162,15 +9175,28 @@ export type Database = {
           admin_notes?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          cancelled_reason?: string | null
           created_at?: string | null
           custom_info?: Json | null
+          custom_info_text?: string | null
+          delivered_at?: string | null
           delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_email?: string | null
+          delivery_name?: string | null
+          delivery_phone?: string | null
+          delivery_postal_code?: string | null
+          delivery_province?: string | null
           id?: string
           item_id?: string | null
+          notes?: string | null
           order_number?: string
           quantity?: number | null
+          shipped_at?: string | null
           size?: string | null
           status?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -9178,15 +9204,28 @@ export type Database = {
           admin_notes?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          cancelled_reason?: string | null
           created_at?: string | null
           custom_info?: Json | null
+          custom_info_text?: string | null
+          delivered_at?: string | null
           delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_email?: string | null
+          delivery_name?: string | null
+          delivery_phone?: string | null
+          delivery_postal_code?: string | null
+          delivery_province?: string | null
           id?: string
           item_id?: string | null
+          notes?: string | null
           order_number?: string
           quantity?: number | null
+          shipped_at?: string | null
           size?: string | null
           status?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -9382,35 +9421,56 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string | null
+          custom_info_label: string | null
           description: string | null
           id: string
           image_url: string | null
+          images: string[] | null
           is_available: boolean | null
+          is_featured: boolean | null
           name: string
+          order_index: number | null
+          price: number | null
           requires_approval: boolean | null
+          requires_custom_info: boolean | null
           sizes: string[] | null
+          stock_count: number | null
         }
         Insert: {
           category?: string | null
           created_at?: string | null
+          custom_info_label?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           is_available?: boolean | null
+          is_featured?: boolean | null
           name: string
+          order_index?: number | null
+          price?: number | null
           requires_approval?: boolean | null
+          requires_custom_info?: boolean | null
           sizes?: string[] | null
+          stock_count?: number | null
         }
         Update: {
           category?: string | null
           created_at?: string | null
+          custom_info_label?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           is_available?: boolean | null
+          is_featured?: boolean | null
           name?: string
+          order_index?: number | null
+          price?: number | null
           requires_approval?: boolean | null
+          requires_custom_info?: boolean | null
           sizes?: string[] | null
+          stock_count?: number | null
         }
         Relationships: []
       }

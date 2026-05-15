@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Plus, Loader2, Trash2, Pin, PinOff, Eye, EyeOff, Upload, X,
+  Plus, Loader2, Trash2, Pin, PinOff, Eye, EyeOff, Upload, X, Check,
   Megaphone, Rss, BookOpen, ShoppingBag, Trophy, Calendar, Target,
   Lightbulb, BarChart3, ClipboardList, Ticket, GraduationCap,
   HelpCircle, Phone, Bell, BarChart2,
@@ -670,102 +670,439 @@ function DocumentsAdmin() {
   );
 }
 
+// ───────────────── BoutiqueAdmin (full rebuild) ─────────────────
+const ORDER_STATUSES = ["pending","approved","processing","shipped","delivered","cancelled"] as const;
+const STATUS_FR: Record<string,string> = {
+  pending: "En attente", approved: "Approuvée", processing: "En traitement",
+  shipped: "Expédiée", delivered: "Livrée", cancelled: "Annulée",
+};
+const STATUS_CLS: Record<string,string> = {
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  approved: "bg-blue-100 text-blue-800 border-blue-200",
+  processing: "bg-purple-100 text-purple-800 border-purple-200",
+  shipped: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  cancelled: "bg-rose-100 text-rose-800 border-rose-200",
+};
+const ALL_SIZES = ["XS","S","M","L","XL","XXL"];
+
 function BoutiqueAdmin() {
+  const [view, setView] = useState<"orders" | "items">("orders");
+  return (
+    <div className="space-y-4 max-w-6xl">
+      <div className="inline-flex rounded-full border border-border bg-card p-1">
+        <button onClick={() => setView("orders")} className={`px-4 py-2 rounded-full text-sm font-semibold min-h-[40px] ${view === "orders" ? "bg-violet-600 text-white" : ""}`}>Commandes</button>
+        <button onClick={() => setView("items")} className={`px-4 py-2 rounded-full text-sm font-semibold min-h-[40px] ${view === "items" ? "bg-violet-600 text-white" : ""}`}>Articles</button>
+      </div>
+      {view === "orders" ? <OrdersAdmin /> : <ItemsAdmin />}
+    </div>
+  );
+}
+
+function OrdersAdmin() {
   const qc = useQueryClient();
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("apparel");
-  const [imgUrl, setImgUrl] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [trackEdits, setTrackEdits] = useState<Record<string, { num: string; url: string }>>({});
+  const [notesEdits, setNotesEdits] = useState<Record<string, string>>({});
 
-  const { data: items = [] } = useQuery({
-    queryKey: ["admin-hub-items"],
-    queryFn: async () => (await supabase.from("hub_store_items").select("*").order("name")).data || [],
-  });
-  const { data: orders = [] } = useQuery({
-    queryKey: ["admin-hub-orders"],
-    queryFn: async () => (await supabase.from("hub_store_orders").select("*").order("created_at", { ascending: false }).limit(50)).data || [],
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ["admin-hub-orders-v2"],
+    queryFn: async () => (await supabase
+      .from("hub_orders")
+      .select("*, hub_store_items(name,category), profiles!hub_orders_user_id_fkey(full_name,email,phone)")
+      .order("created_at", { ascending: false }).limit(200)).data || [],
   });
 
-  const create = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("hub_store_items").insert({ name, category, image_url: imgUrl, is_available: true });
+  const enqueueStatusEmail = async (o: any, newStatus: string, tracking?: { num?: string; url?: string }) => {
+    if (!o.delivery_email) return;
+    await supabase.from("email_queue").insert({
+      to_email: o.delivery_email,
+      to_name: o.delivery_name || "",
+      subject: `Mise à jour commande ${o.order_number} — Nivra Telecom`,
+      template_key: "hub_order_status_update",
+      template_data: {
+        order_number: o.order_number,
+        product_name: o.hub_store_items?.name || "Article",
+        size: o.size || "",
+        new_status: STATUS_FR[newStatus] || newStatus,
+        tracking_number: tracking?.num || o.tracking_number || "",
+        tracking_url: tracking?.url || o.tracking_url || "",
+        delivery_name: o.delivery_name || "",
+        delivery_address: [o.delivery_address, o.delivery_city, o.delivery_province, o.delivery_postal_code].filter(Boolean).join(", "),
+      },
+      priority: "normal",
+      event_key: `hub-order-${o.id}-${newStatus}-${Date.now()}`,
+    });
+  };
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ o, status }: { o: any; status: string }) => {
+      const patch: any = { status };
+      if (status === "shipped") patch.shipped_at = new Date().toISOString();
+      if (status === "delivered") patch.delivered_at = new Date().toISOString();
+      if (status === "approved") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) { patch.approved_by = user.id; patch.approved_at = new Date().toISOString(); }
+      }
+      const { error } = await supabase.from("hub_orders").update(patch).eq("id", o.id);
       if (error) throw error;
+      await enqueueStatusEmail(o, status);
     },
-    onSuccess: () => { toast.success("Article ajouté"); setName(""); setImgUrl(""); qc.invalidateQueries({ queryKey: ["admin-hub-items"] }); },
+    onSuccess: () => { toast.success("Statut mis à jour — courriel envoyé"); qc.invalidateQueries({ queryKey: ["admin-hub-orders-v2"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const updateOrder = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("hub_store_orders").update({ status }).eq("id", id);
+  const saveTracking = useMutation({
+    mutationFn: async ({ o, num, url }: { o: any; num: string; url: string }) => {
+      const { error } = await supabase.from("hub_orders").update({
+        tracking_number: num || null, tracking_url: url || null,
+        status: "shipped", shipped_at: new Date().toISOString(),
+      }).eq("id", o.id);
       if (error) throw error;
+      await enqueueStatusEmail(o, "shipped", { num, url });
     },
-    onSuccess: () => { toast.success("Statut mis à jour"); qc.invalidateQueries({ queryKey: ["admin-hub-orders"] }); },
+    onSuccess: () => { toast.success("Suivi enregistré — courriel envoyé"); qc.invalidateQueries({ queryKey: ["admin-hub-orders-v2"] }); },
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const removeItem = useMutation({
+  const saveNotes = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await supabase.from("hub_orders").update({ admin_notes: notes || null }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Notes enregistrées"); qc.invalidateQueries({ queryKey: ["admin-hub-orders-v2"] }); },
+  });
+
+  if (isLoading) return <div className="flex items-center justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div>
+      <h2 className="text-xs font-bold uppercase text-muted-foreground mb-2">Commandes ({orders.length})</h2>
+      <div className="rounded-xl border border-border bg-card overflow-x-auto">
+        <table className="w-full text-sm min-w-[900px]">
+          <thead className="bg-muted/40 text-[11px] uppercase text-muted-foreground">
+            <tr>
+              <th className="p-3 text-left">N°</th>
+              <th className="p-3 text-left">Agent</th>
+              <th className="p-3 text-left">Produit</th>
+              <th className="p-3 text-left">Livraison</th>
+              <th className="p-3 text-left">Date</th>
+              <th className="p-3 text-left">Statut</th>
+              <th className="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o: any) => {
+              const isOpen = expanded === o.id;
+              const tedit = trackEdits[o.id] || { num: o.tracking_number || "", url: o.tracking_url || "" };
+              const nedit = notesEdits[o.id] ?? (o.admin_notes || "");
+              return (
+                <>
+                  <tr key={o.id} className="border-t border-border align-top">
+                    <td className="p-3 font-mono text-[11px] font-bold">{o.order_number}</td>
+                    <td className="p-3 text-xs">
+                      <div className="font-semibold">{o.profiles?.full_name || "—"}</div>
+                      <div className="text-muted-foreground">{o.profiles?.email}</div>
+                      <div className="text-muted-foreground">{o.profiles?.phone}</div>
+                    </td>
+                    <td className="p-3 text-xs">
+                      <div className="font-semibold">{o.hub_store_items?.name || "Article"}</div>
+                      <div className="text-muted-foreground">{o.size ? `Taille ${o.size} · ` : ""}Qté {o.quantity}</div>
+                      {o.custom_info_text && <div className="text-violet-700 mt-0.5">✎ {o.custom_info_text}</div>}
+                    </td>
+                    <td className="p-3 text-xs">
+                      <div className="font-semibold">{o.delivery_name || "—"}</div>
+                      <div className="text-muted-foreground">{o.delivery_address}</div>
+                      <div className="text-muted-foreground">{[o.delivery_city, o.delivery_province, o.delivery_postal_code].filter(Boolean).join(", ")}</div>
+                      <div className="text-muted-foreground">{o.delivery_phone}</div>
+                    </td>
+                    <td className="p-3 text-[11px] text-muted-foreground whitespace-nowrap">{new Date(o.created_at).toLocaleDateString("fr-CA")}</td>
+                    <td className="p-3">
+                      <select
+                        value={o.status}
+                        onChange={(e) => updateStatus.mutate({ o, status: e.target.value })}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${STATUS_CLS[o.status] || ""}`}
+                      >
+                        {ORDER_STATUSES.map(s => <option key={s} value={s}>{STATUS_FR[s]}</option>)}
+                      </select>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button onClick={() => setExpanded(isOpen ? null : o.id)} className="text-xs font-semibold text-violet-700 hover:underline">
+                        {isOpen ? "Fermer" : "Détails"}
+                      </button>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="border-t border-border bg-muted/20">
+                      <td colSpan={7} className="p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-[11px] font-bold uppercase text-muted-foreground mb-2">Suivi de livraison</h4>
+                            <div className="space-y-2">
+                              <input
+                                placeholder="Numéro de suivi"
+                                value={tedit.num}
+                                onChange={(e) => setTrackEdits(s => ({ ...s, [o.id]: { ...tedit, num: e.target.value } }))}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                              <input
+                                placeholder="Lien de suivi (URL)"
+                                value={tedit.url}
+                                onChange={(e) => setTrackEdits(s => ({ ...s, [o.id]: { ...tedit, url: e.target.value } }))}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                              <button
+                                onClick={() => saveTracking.mutate({ o, num: tedit.num, url: tedit.url })}
+                                disabled={!tedit.num || saveTracking.isPending}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 text-white text-xs font-bold disabled:opacity-50 min-h-[40px]"
+                              >
+                                Enregistrer suivi & expédier
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="text-[11px] font-bold uppercase text-muted-foreground mb-2">Notes admin (interne)</h4>
+                            <textarea
+                              rows={4}
+                              value={nedit}
+                              onChange={(e) => setNotesEdits(s => ({ ...s, [o.id]: e.target.value }))}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <button
+                              onClick={() => saveNotes.mutate({ id: o.id, notes: nedit })}
+                              disabled={saveNotes.isPending}
+                              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-foreground text-background text-xs font-bold disabled:opacity-50 min-h-[40px]"
+                            >
+                              Enregistrer notes
+                            </button>
+                          </div>
+                          {o.notes && (
+                            <div className="md:col-span-2">
+                              <h4 className="text-[11px] font-bold uppercase text-muted-foreground mb-1">Note de l'agent</h4>
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{o.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ItemsAdmin() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<any | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["admin-hub-items-v2"],
+    queryFn: async () => (await supabase.from("hub_store_items").select("*").order("order_index").order("name")).data || [],
+  });
+
+  const remove = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("hub_store_items").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-hub-items"] }),
+    onSuccess: () => { toast.success("Article supprimé"); qc.invalidateQueries({ queryKey: ["admin-hub-items-v2"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const toggleAvail = useMutation({
+    mutationFn: async ({ id, val }: { id: string; val: boolean }) => {
+      const { error } = await supabase.from("hub_store_items").update({ is_available: val }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-hub-items-v2"] }),
   });
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div>
-        <h2 className="text-xs font-bold uppercase text-muted-foreground mb-2">Articles ({items.length})</h2>
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2 mb-3">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom de l'article"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Catégorie"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <input type="file" accept="image/*" onChange={async (e) => {
-            const f = e.target.files?.[0]; if (!f) return;
-            const url = await uploadToBucket(f, "boutique"); if (url) setImgUrl(url);
-          }} className="text-xs" />
-          {imgUrl && <img src={imgUrl} alt="" className="h-20 rounded-lg" />}
-          <button onClick={() => create.mutate()} disabled={!name || create.isPending}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold disabled:opacity-50 min-h-[44px]">
-            <Plus className="h-4 w-4" /> Ajouter
-          </button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {items.map((it: any) => (
-            <div key={it.id} className="rounded-xl border border-border bg-card p-3 text-sm flex items-center gap-2">
-              {it.image_url && <img src={it.image_url} alt="" className="h-12 w-12 rounded-lg object-cover" />}
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold truncate">{it.name}</div>
-                <div className="text-[11px] text-muted-foreground">{it.category}</div>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-bold uppercase text-muted-foreground">Articles ({items.length})</h2>
+        <button onClick={() => { setEditing(null); setShowForm(true); }} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-violet-600 text-white text-sm font-bold min-h-[40px]">
+          <Plus className="h-4 w-4" /> Nouvel article
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((it: any) => {
+          const img = it.image_url || (it.images?.[0] ?? null);
+          return (
+            <div key={it.id} className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+              <div className="aspect-video bg-violet-50 flex items-center justify-center">
+                {img ? <img src={img} alt="" className="h-full w-full object-cover" /> : <ShoppingBag className="h-10 w-10 text-violet-300" />}
               </div>
-              <ConfirmDelete onConfirm={() => removeItem.mutate(it.id)} label={it.name} />
+              <div className="p-3 flex flex-col flex-1">
+                <div className="font-bold text-sm">{it.name}</div>
+                <div className="text-[11px] text-muted-foreground">{it.category} {it.sizes?.length ? `· ${it.sizes.length} tailles` : ""}</div>
+                <div className="text-[11px] text-muted-foreground">{!it.price || Number(it.price) === 0 ? "Gratuit" : `${Number(it.price).toFixed(2)} $`}</div>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <label className="inline-flex items-center gap-1.5 text-[11px]">
+                    <input type="checkbox" checked={!!it.is_available} onChange={(e) => toggleAvail.mutate({ id: it.id, val: e.target.checked })} />
+                    Disponible
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { setEditing(it); setShowForm(true); }} className="text-xs text-violet-700 font-semibold hover:underline px-2 min-h-[36px]">Modifier</button>
+                    <ConfirmDelete onConfirm={() => remove.mutate(it.id)} label={it.name} />
+                  </div>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
+      {showForm && <ItemForm existing={editing} onClose={() => { setShowForm(false); setEditing(null); }} />}
+    </div>
+  );
+}
 
-      <div>
-        <h2 className="text-xs font-bold uppercase text-muted-foreground mb-2">Commandes récentes ({orders.length})</h2>
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-[11px] uppercase text-muted-foreground">
-              <tr><th className="p-3 text-left">#</th><th className="p-3">Qté</th><th className="p-3">Taille</th><th className="p-3">Statut</th><th className="p-3">Date</th></tr>
-            </thead>
-            <tbody>
-              {orders.map((o: any) => (
-                <tr key={o.id} className="border-t border-border">
-                  <td className="p-3 font-mono text-[10px] text-muted-foreground">{o.id.slice(0, 8)}</td>
-                  <td className="p-3 text-xs">{o.quantity}</td>
-                  <td className="p-3 text-xs">{o.size || "—"}</td>
-                  <td className="p-3">
-                    <select value={o.status} onChange={(e) => updateOrder.mutate({ id: o.id, status: e.target.value })}
-                      className="rounded-lg border border-border bg-background px-2 py-1 text-xs">
-                      {["pending","approved","processing","shipped","delivered","cancelled"].map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </td>
-                  <td className="p-3 text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleDateString("fr-CA")}</td>
-                </tr>
+function ItemForm({ existing, onClose }: { existing: any | null; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState(existing?.name || "");
+  const [category, setCategory] = useState(existing?.category || "uniform");
+  const [description, setDescription] = useState(existing?.description || "");
+  const [price, setPrice] = useState<number>(Number(existing?.price ?? 0));
+  const [sizes, setSizes] = useState<string[]>(existing?.sizes || []);
+  const [images, setImages] = useState<string[]>(existing?.images || (existing?.image_url ? [existing.image_url] : []));
+  const [requiresCustomInfo, setRequiresCustomInfo] = useState<boolean>(!!existing?.requires_custom_info);
+  const [customInfoLabel, setCustomInfoLabel] = useState(existing?.custom_info_label || "");
+  const [requiresApproval, setRequiresApproval] = useState<boolean>(existing?.requires_approval ?? true);
+  const [orderIndex, setOrderIndex] = useState<number>(Number(existing?.order_index ?? 0));
+  const [uploading, setUploading] = useState(false);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        name: name.trim(), category, description: description.trim() || null,
+        price, sizes: sizes.length ? sizes : null, images,
+        image_url: images[0] || null,
+        requires_custom_info: requiresCustomInfo,
+        custom_info_label: requiresCustomInfo ? (customInfoLabel || null) : null,
+        requires_approval: requiresApproval,
+        order_index: orderIndex,
+        is_available: true,
+      };
+      if (existing) {
+        const { error } = await supabase.from("hub_store_items").update(payload).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("hub_store_items").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { toast.success(existing ? "Article modifié" : "Article créé"); qc.invalidateQueries({ queryKey: ["admin-hub-items-v2"] }); onClose(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card rounded-2xl w-full max-w-xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-border bg-card">
+          <h2 className="text-base font-bold">{existing ? "Modifier l'article" : "Nouvel article"}</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-muted min-w-[40px] min-h-[40px]"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <FormRow label="Nom de l'article *">
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </FormRow>
+          <FormRow label="Catégorie">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="uniform">Vêtement</option>
+              <option value="badge">Identification</option>
+              <option value="card">Cartes</option>
+              <option value="accessory">Accessoire</option>
+            </select>
+          </FormRow>
+          <FormRow label="Description">
+            <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </FormRow>
+          <FormRow label="Prix ($) — 0 = gratuit">
+            <input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(Number(e.target.value) || 0)} className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </FormRow>
+          <FormRow label="Tailles disponibles">
+            <div className="flex flex-wrap gap-2">
+              {ALL_SIZES.map(s => (
+                <label key={s} className={`min-w-[44px] min-h-[40px] px-3 inline-flex items-center justify-center rounded-lg text-xs font-bold border cursor-pointer ${sizes.includes(s) ? "bg-violet-600 text-white border-violet-600" : "bg-background border-border"}`}>
+                  <input type="checkbox" className="sr-only" checked={sizes.includes(s)} onChange={(e) => setSizes(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))} />
+                  {s}
+                </label>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </FormRow>
+          <FormRow label="Images">
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {images.map((u, i) => (
+                  <div key={i} className="relative">
+                    <img src={u} alt="" className="h-20 w-20 rounded-lg object-cover border border-border" />
+                    <button onClick={() => setImages(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-600 text-white">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <input
+                type="file" accept="image/*" multiple
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (!files.length) return;
+                  setUploading(true);
+                  const urls: string[] = [];
+                  for (const f of files) {
+                    const url = await uploadToBucket(f, "boutique");
+                    if (url) urls.push(url);
+                  }
+                  setImages(prev => [...prev, ...urls]);
+                  setUploading(false);
+                  e.target.value = "";
+                }}
+                className="text-xs"
+              />
+              {uploading && <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Téléversement…</div>}
+            </div>
+          </FormRow>
+          <FormRow label="">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={requiresCustomInfo} onChange={(e) => setRequiresCustomInfo(e.target.checked)} />
+              Demande une information personnalisée
+            </label>
+          </FormRow>
+          {requiresCustomInfo && (
+            <FormRow label="Label du champ personnalisé">
+              <input value={customInfoLabel} onChange={(e) => setCustomInfoLabel(e.target.value)} placeholder="Ex: Titre sur le badge" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </FormRow>
+          )}
+          <FormRow label="">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
+              Approbation requise
+            </label>
+          </FormRow>
+          <FormRow label="Ordre d'affichage">
+            <input type="number" value={orderIndex} onChange={(e) => setOrderIndex(Number(e.target.value) || 0)} className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </FormRow>
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="flex-1 min-h-[44px] rounded-full border border-border text-sm font-bold">Annuler</button>
+            <button onClick={() => save.mutate()} disabled={!name || save.isPending} className="flex-1 min-h-[44px] rounded-full bg-violet-600 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
+              {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Enregistrer
+            </button>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      {label && <label className="block text-[11px] font-bold uppercase text-muted-foreground mb-1">{label}</label>}
+      {children}
     </div>
   );
 }
