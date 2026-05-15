@@ -158,6 +158,76 @@ export default function FieldNewSale() {
   }, [user?.id]);
   const agentName = agentFullName || user?.email || "votre conseiller Nivra";
 
+  // ── Resume from existing payment intent (Reprendre button) ──
+  const hasResumedRef = useRef(false);
+  useEffect(() => {
+    if (!resumeIntentId || hasResumedRef.current) return;
+    hasResumedRef.current = true;
+    (async () => {
+      try {
+        const { data: intent } = await supabase
+          .from("field_payment_intents" as any)
+          .select("id, quote_id, customer_email, customer_name, paypal_approval_url, paypal_order_id, amount, status")
+          .eq("id", resumeIntentId)
+          .maybeSingle();
+        const quoteId = (intent as any)?.quote_id || resumeQuoteId;
+        if (!quoteId) {
+          toast.error("Soumission introuvable.");
+          return;
+        }
+        const { data: quote } = await supabase
+          .from("field_quotes" as any)
+          .select("id, client_info, services, equipment, discount")
+          .eq("id", quoteId)
+          .maybeSingle();
+        if (!quote) {
+          toast.error("Devis introuvable pour cette soumission.");
+          return;
+        }
+        const ci: any = (quote as any).client_info || {};
+        const restored: FieldSaleDraft = {
+          ...EMPTY_DRAFT,
+          agentId: user?.id ?? "",
+          createdAt: new Date().toISOString(),
+          customer: {
+            first_name: ci.first_name || ci.firstName || "",
+            last_name: ci.last_name || ci.lastName || "",
+            email: ci.email || (intent as any)?.customer_email || "",
+            phone: ci.phone || "",
+            address: ci.address || "",
+            city: ci.city || "",
+            postal_code: ci.postal_code || ci.postalCode || "",
+            date_of_birth: ci.date_of_birth || ci.dob || "",
+          } as any,
+          services: ((quote as any).services as any[]) || [],
+          equipment: ((quote as any).equipment as any[]) || [],
+          discount: ((quote as any).discount as any) || null,
+          payment: {
+            method: "paypal_email",
+            status: (intent as any)?.status === "completed" ? "completed" : "sent",
+            paypalApprovalUrl: (intent as any)?.paypal_approval_url ?? null,
+            paypalOrderId: (intent as any)?.paypal_order_id ?? null,
+            fieldOrderId: (intent as any)?.id ?? null,
+            invoiceId: null,
+            coreOrderId: null,
+            linkSentTo: ci.email || (intent as any)?.customer_email || null,
+          } as any,
+          step: "payment",
+        };
+        setDraft(restored);
+        setCompletedSteps(["customer", "services", "equipment", "discounts", "recap"] as FieldSaleStep[]);
+        // Skip the restore prompt — we just loaded fresh data
+        hasCheckedRestoreRef.current = true;
+        setRestoreDialogOpen(false);
+        setPendingRestore(null);
+        toast.success("Soumission rechargée — étape paiement.");
+      } catch (e: any) {
+        console.error("[resume]", e);
+        toast.error("Erreur de rechargement: " + (e?.message || "inconnue"));
+      }
+    })();
+  }, [resumeIntentId, resumeQuoteId, user?.id]);
+
   // ── Email payload helpers (services / equipment / discount) ──
   const buildServicesList = useCallback((d: FieldSaleDraft) => {
     const list = (d.services || [])
