@@ -293,7 +293,24 @@ export default function FieldProfile() {
         )}
       </section>
 
-      {/* SECTION — Adresse domicile (editable) */}
+      {/* SECTION — Identifiants Nivra (lecture seule) */}
+      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 space-y-3">
+        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Identifiants Nivra</h2>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[#6B7280]">Numéro d'agent</span>
+          <span className="text-sm font-mono font-semibold text-[#111827]">{data.agentNumber || "En cours d'attribution"}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[#6B7280]">Badge</span>
+          <span className="text-sm font-mono font-semibold text-[#111827]">{data.agentNumber || "En cours d'attribution"}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[#6B7280]">Courriel professionnel</span>
+          <span className="text-sm text-[#374151]">{data.professionalEmail ? `${data.professionalEmail} (à venir)` : "À venir"}</span>
+        </div>
+        <p className="text-[10px] uppercase tracking-wider text-[#9CA3AF] pt-1">Lecture seule — assigné par Nivra</p>
+      </section>
+
       <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Adresse domicile</h2>
         {editing ? (
