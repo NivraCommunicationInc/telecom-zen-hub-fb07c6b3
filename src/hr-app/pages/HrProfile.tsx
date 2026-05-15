@@ -124,7 +124,8 @@ export default function HrProfile() {
       }
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: `Nivra HR ${new Date().toISOString().slice(0, 10)}`,
+        issuer: "Nivra Hub Secure",
+        friendlyName: "Nivra Hub Secure",
       });
       if (error) throw error;
       setFactorId(data.id);

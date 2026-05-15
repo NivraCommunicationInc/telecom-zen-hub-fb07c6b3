@@ -68,7 +68,8 @@ export async function enrollMfa() {
 
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: "totp",
-    friendlyName: "Nivra Internal Auth",
+    issuer: "Nivra Hub Secure",
+    friendlyName: "Nivra Hub Secure",
   });
 
   if (error) throw error;
