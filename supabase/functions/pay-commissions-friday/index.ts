@@ -86,20 +86,9 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // 3. Record payroll entry.
-    await supabase.from("payroll_entries").insert({
-      employee_id: agentId,
-      gross_amount: agg.total,
-      net_amount: agg.total,
-      pay_period_start: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
-      pay_period_end: now.toISOString().slice(0, 10),
-      paid_at: paidAt,
-      payment_method: "Dépôt direct",
-      source: "field_commissions",
-      commission_count: agg.ids.length,
-    } as any);
+    // 3. Payout summary lives on field_commissions.paid_at (set above).
+    //    A separate payroll_entries row would require a managed pay_period
+    //    record, which is owned by the HR payroll cycle — out of scope here.
 
     // 4. Resolve agent email + name.
     const { data: profile } = await supabase
