@@ -782,6 +782,7 @@ Deno.serve(async (req) => {
                     customer_first_name: customerFirstName,
                     customer_last_name: customerLastName,
                     agent_name: agentName,
+                    agent_number: agentNumber,
                   },
                   idempotency_key: `contract_generated:${canonicalOrder.id}`,
                 });
