@@ -36,6 +36,38 @@ const COMMISSION_CLS: Record<string, string> = {
   clawed_back: "bg-red-500/15 text-red-700 border-red-500/30",
 };
 
+const displayPrice = (item: any): string => {
+  const p = Number(
+    item?.price ?? item?.unit_price ??
+    item?.monthly_price ?? item?.amount ?? 0
+  );
+  return new Intl.NumberFormat('fr-CA', {
+    style: 'currency', currency: 'CAD'
+  }).format(Number.isFinite(p) ? p : 0);
+};
+
+const showDiscount = (d: any): string => {
+  if (!d) return 'Aucun rabais';
+  const name = d.name || d.label || 'Rabais';
+  const amount = Number(d.amount ||
+    d.monthly_amount || 0);
+  const months = Number(d.duration_months ||
+    d.duration || d.months_total || 0);
+
+  if (d.type === 'remove_fee' ||
+      name.toLowerCase().includes('installation')) {
+    return `${name} — Installation gratuite`;
+  }
+  if (months > 0) {
+    return `${name} — ${new Intl.NumberFormat(
+      'fr-CA',{style:'currency',currency:'CAD'}
+    ).format(amount)}/mois × ${months} mois`;
+  }
+  return `${name} — ${new Intl.NumberFormat(
+    'fr-CA',{style:'currency',currency:'CAD'}
+  ).format(amount)}`;
+};
+
 interface UnifiedRow {
   kind: "order" | "intent";
   id: string;
@@ -49,6 +81,8 @@ interface UnifiedRow {
   date: string;
   paypal_approval_url?: string | null;
   quote_id?: string | null;
+  services?: any[];
+  discount_data?: any;
 }
 
 export default function FieldOrders() {
@@ -61,7 +95,7 @@ export default function FieldOrders() {
       // Orders for this agent
       const { data: orders } = await supabase
         .from("orders")
-        .select("id, order_number, status, total_amount, created_at, user_id, source, created_by_agent_id")
+        .select("id, order_number, status, total_amount, created_at, user_id, source, created_by_agent_id, services, discount_data")
         .or(`created_by_agent_id.eq.${user.id},source.eq.field_sales`)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -102,13 +136,15 @@ export default function FieldOrders() {
           commission_amount: c?.amount || 0,
           commission_status: c?.status || null,
           date: o.created_at,
+          services: Array.isArray(o.services) ? o.services : [],
+          discount_data: o.discount_data,
         };
       });
 
       // Pending payment intents (not yet converted)
       const { data: intents } = await supabase
         .from("field_payment_intents")
-        .select("id, quote_id, paypal_approval_url, amount, status, customer_name, customer_email, created_at")
+        .select("id, quote_id, paypal_approval_url, amount, status, customer_name, customer_email, created_at, field_quotes(services, equipment, discount)")
         .eq("agent_id", user.id)
         .neq("status", "completed")
         .order("created_at", { ascending: false })
@@ -127,6 +163,11 @@ export default function FieldOrders() {
         date: i.created_at,
         paypal_approval_url: i.paypal_approval_url,
         quote_id: i.quote_id,
+        services: [
+          ...(((i as any).field_quotes?.services as any[]) || []),
+          ...(((i as any).field_quotes?.equipment as any[]) || []),
+        ],
+        discount_data: (i as any).field_quotes?.discount,
       }));
 
       return [...intentRows, ...orderRows].sort(
@@ -178,6 +219,7 @@ export default function FieldOrders() {
         <div className="space-y-2">
           {rows.map((r) => {
             const st = STATUS_FR[r.status] || { label: r.status, cls: "bg-slate-500/15 text-slate-300 border-slate-500/30" };
+            const previewItems = (r.services || []).slice(0, 3);
             return (
               <div key={`${r.kind}-${r.id}`} className="rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] transition-colors p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -194,15 +236,25 @@ export default function FieldOrders() {
                     <div className="mt-1.5 text-sm text-white font-semibold truncate">{r.client_name}</div>
                     <div className="text-[11px] text-white/60 truncate">{r.client_email}</div>
                     <div className="text-[11px] text-white/50 mt-1">{new Date(r.date).toLocaleDateString("fr-CA")}</div>
+                    {previewItems.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {previewItems.map((item: any, idx: number) => (
+                          <div key={idx} className="text-[11px] text-white/70 truncate">
+                            {item?.name || item?.label || "Article"} — {displayPrice(item)}{item?.type !== "equipment" && item?.category !== "Équipement" ? "/mois" : ""}
+                          </div>
+                        ))}
+                        <div className="text-[11px] text-white/60 truncate">{showDiscount(r.discount_data)}</div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="text-sm font-bold text-white">{r.amount.toFixed(2)} $</div>
+                    <div className="text-sm font-bold text-white">{displayPrice({ amount: r.amount })}</div>
                     {r.commission_amount > 0 && (
                       <div className="mt-1 inline-flex items-center gap-1.5">
                         <span className="text-[10px] text-white/60">Comm.</span>
                         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${COMMISSION_CLS[r.commission_status || "pending"] || COMMISSION_CLS.pending}`}>
-                          {r.commission_amount.toFixed(2)} $
+                          {displayPrice({ amount: r.commission_amount })}
                         </span>
                       </div>
                     )}

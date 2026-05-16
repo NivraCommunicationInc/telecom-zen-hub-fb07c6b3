@@ -46,6 +46,13 @@ const WITHDRAWAL_STATUS_LABELS: Record<string, string> = {
   rejected: "Rejeté",
 };
 
+const formatCommissionAmount = (amount: number | string | null | undefined) =>
+  new Intl.NumberFormat('fr-CA', {
+    style: 'currency',
+    currency: 'CAD',
+    minimumFractionDigits: 2
+  }).format(Number(amount || 0));
+
 type TabView = "commissions" | "withdrawals" | "disputes";
 
 export default function FieldCommissions() {
@@ -213,11 +220,11 @@ export default function FieldCommissions() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
             {[
-              { label: "Total gagné", value: `${Number(summary.total).toFixed(2)} $`, color: "text-white" },
-              { label: "En attente", value: `${Number(summary.pending).toFixed(2)} $`, color: "text-[hsl(var(--field-warning))]" },
-              { label: "Disponible", value: `${availableBalance.toFixed(2)} $`, color: "text-[hsl(var(--field-accent-glow))]" },
-              { label: "Total payé", value: `${Number(summary.paid).toFixed(2)} $`, color: "text-[hsl(var(--field-success))]" },
-              { label: "Retraits en cours", value: `${Number(summary.pendingWithdrawals).toFixed(2)} $`, color: "text-[hsl(var(--field-text-muted))]" },
+              { label: "Total gagné", value: formatCommissionAmount(summary.total), color: "text-white" },
+              { label: "En attente", value: formatCommissionAmount(summary.pending), color: "text-[hsl(var(--field-warning))]" },
+              { label: "Disponible", value: formatCommissionAmount(availableBalance), color: "text-[hsl(var(--field-accent-glow))]" },
+              { label: "Total payé", value: formatCommissionAmount(summary.paid), color: "text-[hsl(var(--field-success))]" },
+              { label: "Retraits en cours", value: formatCommissionAmount(summary.pendingWithdrawals), color: "text-[hsl(var(--field-text-muted))]" },
             ].map((item) => (
               <div key={item.label} className="bg-[hsl(var(--field-card))] border border-[hsl(var(--field-border-subtle))] rounded-xl p-4 md:p-5">
                 <p className="text-[11px] md:text-xs text-[hsl(var(--field-text-dim))] font-medium uppercase tracking-wider">{item.label}</p>
@@ -232,7 +239,7 @@ export default function FieldCommissions() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">Solde disponible au retrait</p>
-              <p className="text-2xl font-bold text-[hsl(var(--field-accent-glow))] mt-1">{availableBalance.toFixed(2)} $</p>
+              <p className="text-2xl font-bold text-[hsl(var(--field-accent-glow))] mt-1">{formatCommissionAmount(availableBalance)}</p>
               <p className="text-xs text-[hsl(var(--field-text-muted))] mt-1">
                 Disponible = commissions approuvées moins retraits en attente.
               </p>
@@ -251,7 +258,7 @@ export default function FieldCommissions() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-[hsl(var(--field-text-muted))] mb-1 block">
-                    Montant (max {availableBalance.toFixed(2)} $)
+                    Montant (max {formatCommissionAmount(availableBalance)})
                   </label>
                   <input
                     type="number"
@@ -368,7 +375,7 @@ export default function FieldCommissions() {
                   {commissions.map((commission: any) => {
                     const statusConfig = STATUS_CONFIG[commission.status] || STATUS_CONFIG.pending;
                     const Icon = statusConfig.icon;
-                    const amount = Number(commission.commission_amount || commission.amount || 0);
+                    const amount = commission.amount || commission.commission_amount || 0;
                     const canDispute = ["clawback", "rejected"].includes(commission.status);
 
                     return (
@@ -381,7 +388,7 @@ export default function FieldCommissions() {
                             <Icon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white">{amount.toFixed(2)} $</p>
+                            <p className="text-sm font-semibold text-white">{formatCommissionAmount(amount)}</p>
                             <p className="text-[10px] text-[hsl(var(--field-text-muted))] truncate">
                               {commission.field_sales_orders?.customer_name || "—"}
                             </p>
@@ -430,7 +437,7 @@ export default function FieldCommissions() {
                       className="p-4 rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] flex items-center justify-between gap-3"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white">{Number(withdrawal.amount || 0).toFixed(2)} $</p>
+                        <p className="text-sm font-semibold text-white">{formatCommissionAmount(withdrawal.amount)}</p>
                         <p className="text-[10px] text-[hsl(var(--field-text-muted))] mt-0.5 truncate">
                           {withdrawal.notes || "Retrait PayPal"}
                         </p>
@@ -459,7 +466,7 @@ export default function FieldCommissions() {
                     <div key={commission.id} className="p-4 rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))]">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-white">
-                          {Number(commission.commission_amount || 0).toFixed(2)} $
+                          {formatCommissionAmount(commission.amount || commission.commission_amount)}
                         </p>
                         <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", statusConfig.tone)}>
                           {statusConfig.label}

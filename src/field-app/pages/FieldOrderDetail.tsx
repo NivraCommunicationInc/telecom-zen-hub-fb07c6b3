@@ -31,6 +31,44 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "En attente", submitted: "Soumise", received: "Reçue", processing: "En traitement", confirmed: "Confirmée", shipped: "Expédiée", delivered: "Livrée", installed: "Installée", activated: "Activée", completed: "Complétée", cancelled: "Annulée",
 };
 
+const displayPrice = (item: any): string => {
+  const p = Number(
+    item?.price ?? item?.unit_price ??
+    item?.monthly_price ?? item?.price_monthly ?? item?.amount ?? 0
+  );
+  return new Intl.NumberFormat('fr-CA', {
+    style: 'currency', currency: 'CAD'
+  }).format(Number.isFinite(p) ? p : 0);
+};
+
+const showDiscount = (d: any): string => {
+  if (!d) return 'Aucun rabais';
+
+  const name = d.name || d.label || 'Rabais';
+  const amount = Number(d.amount ||
+    d.monthly_amount || 0);
+  const months = Number(d.duration_months ||
+    d.duration || d.months_total || 0);
+
+  if (d.type === 'remove_fee' ||
+      name.toLowerCase().includes('installation')) {
+    return `${name} — Installation gratuite`;
+  }
+  if (months > 0) {
+    return `${name} — ${new Intl.NumberFormat(
+      'fr-CA',{style:'currency',currency:'CAD'}
+    ).format(amount)}/mois × ${months} mois`;
+  }
+  return `${name} — ${new Intl.NumberFormat(
+    'fr-CA',{style:'currency',currency:'CAD'}
+  ).format(amount)}`;
+};
+
+const displayItemName = (item: any) => item?.name || item?.label || item?.title || "Article";
+
+const isMonthlyItem = (item: any) =>
+  item?.price_monthly !== undefined || item?.monthly_price !== undefined || item?.billing_cycle === "monthly" || item?.type === "service";
+
 function InfoRow({ label, value, mono, bold }: { label: string; value: string | undefined | null; mono?: boolean; bold?: boolean }) {
   return (
     <div><span className="text-[10px] text-[#9CA3AF] block">{label}</span><p className={cn("text-sm text-[#000000]", mono && "font-mono", bold && "font-bold")}>{value || "—"}</p></div>
@@ -70,6 +108,9 @@ export default function FieldOrderDetail() {
   const SyncIcon = sync.icon;
   const PaymentIcon = payment.icon;
   const services: any[] = Array.isArray(order.services) ? order.services : [];
+  const serviceItems = services.filter((item: any) => item?.type !== "equipment" && item?.category !== "Équipement");
+  const equipmentItems = services.filter((item: any) => item?.type === "equipment" || item?.category === "Équipement");
+  const discountData = order.discount_data || order.discount || null;
   const canRetrySync = order.sync_status === "error" || order.sync_status === "pending";
 
   const getPhaseLabel = () => {
@@ -94,7 +135,7 @@ export default function FieldOrderDetail() {
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[#374151] font-medium">{getPhaseLabel()}</span>
           </div>
         </div>
-        <span className="text-lg font-bold text-[#000000]">{order.total_amount?.toFixed(2)} $</span>
+        <span className="text-lg font-bold text-[#000000]">{displayPrice({ amount: order.total_amount })}</span>
       </div>
 
       <NextActionBanner paymentStatus={order.payment_status} syncStatus={order.sync_status} convertedOrderId={order.converted_order_id} canonicalOrderStatus={canonicalOrder?.status} hasAppointment={!!appointment} subscriptionStatus={subscription?.status} />
@@ -104,7 +145,7 @@ export default function FieldOrderDetail() {
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">
           <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5 mb-2"><CreditCard className="h-3.5 w-3.5" /> Commission</h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <InfoRow label="Montant" value={`${commission.amount?.toFixed(2)} $`} bold />
+            <InfoRow label="Montant" value={displayPrice({ amount: commission.amount })} bold />
             <InfoRow label="Statut" value={commission.status === "approved" ? "Approuvée" : commission.status === "paid" ? "Payée" : "En attente"} />
           </div>
         </div>
@@ -150,17 +191,34 @@ export default function FieldOrderDetail() {
         </div>
       </div>
 
-      {services.length > 0 && (
+      {serviceItems.length > 0 && (
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
           <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5"><Package className="h-3.5 w-3.5" /> Services</h3>
-          {services.map((s: any, i: number) => (
+          {serviceItems.map((s: any, i: number) => (
             <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#F3F4F6] last:border-0">
-              <span className="text-sm text-[#000000]">{s.name}</span>
-              <span className="text-sm font-semibold text-[#000000]">{s.price_monthly ? `${Number(s.price_monthly).toFixed(2)} $/mo` : "—"}</span>
+              <span className="text-sm text-[#000000]">{displayItemName(s)}</span>
+              <span className="text-sm font-semibold text-[#000000]">{displayPrice(s)}{isMonthlyItem(s) ? "/mois" : ""}</span>
             </div>
           ))}
         </div>
       )}
+
+      {equipmentItems.length > 0 && (
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5"><Package className="h-3.5 w-3.5" /> Équipement</h3>
+          {equipmentItems.map((e: any, i: number) => (
+            <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#F3F4F6] last:border-0">
+              <span className="text-sm text-[#000000]">{displayItemName(e)}</span>
+              <span className="text-sm font-semibold text-[#000000]">{displayPrice(e)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
+        <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Rabais</h3>
+        <p className="text-sm font-semibold text-[#000000]">{showDiscount(discountData)}</p>
+      </div>
 
       {(data?.status_history?.length ?? 0) > 0 && (
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">

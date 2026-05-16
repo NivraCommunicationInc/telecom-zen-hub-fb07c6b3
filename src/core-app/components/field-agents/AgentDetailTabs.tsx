@@ -28,7 +28,7 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   approved: { cls: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", label: "Approuvé" },
   pending: { cls: "border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300", label: "Attente" },
   validated: { cls: "border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300", label: "Validé" },
-  paid: { cls: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", label: "Payé" },
+  paid: { cls: "border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300", label: "Payé" },
   rejected: { cls: "border-red-300 bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300", label: "Rejeté" },
 };
 
@@ -45,7 +45,9 @@ const SERVICES: Array<{ key: string; label: string }> = [
   { key: "all", label: "Tous services" },
 ];
 
-const fmtMoney = (n: number) => `${(n || 0).toFixed(2)} $`;
+const fmtMoney = (amount: number | string | null | undefined) => new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: 2 }).format(Number(amount || 0));
+const fmtLongDate = (date?: string | null) => date ? new Intl.DateTimeFormat('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date)) : "Date non disponible";
+const commissionTypeLabel = (type?: string | null) => type === "equipment" ? "Équipement" : "Forfait";
 const maskAccount = (v?: string | null, keep: number = 3) => {
   if (!v) return "—";
   const s = String(v);
@@ -63,6 +65,7 @@ interface Props {
 }
 
 export default function AgentDetailTabs({ userId, assignments, rules, commissions, onDeleteAssignment, onMarkPaid }: Props) {
+  const agentUserId = userId;
   const { data: profile } = useQuery({
     queryKey: ["core-field", "profile-full", userId],
     queryFn: async () => {
@@ -86,7 +89,20 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     ],
   );
 
-  const ac = commissions;
+  const { data: agentCommissions = [] } = useQuery({
+    queryKey: ["core-field", "agent-commissions", agentUserId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('field_commissions')
+        .select('id, amount, status, commission_type, earned_at, order_id')
+        .eq('agent_id', agentUserId)
+        .order('earned_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const ac = agentCommissions.length > 0 ? agentCommissions : commissions;
 
   return (
     <Tabs defaultValue="grids" className="w-full">
@@ -129,13 +145,13 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
             return (
               <div key={c.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
                 <div>
-                  <span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span>
+                  <span className="text-sm font-semibold text-foreground">{fmtMoney(c.amount || c.commission_amount)}</span>
                   <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span>
-                  <p className="text-[10px] text-muted-foreground">{fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate) * 100).toFixed(0)}%</p>
+                  <p className="text-[10px] text-muted-foreground">{commissionTypeLabel(c.commission_type)}{c.order_id ? ` · Commande ${String(c.order_id).slice(0, 8)}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => onMarkPaid(c.id)}>Payer</Button>}
-                  <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yy")}</span>
+                  <span className="text-[10px] text-muted-foreground">{fmtLongDate(c.earned_at || c.created_at)}</span>
                 </div>
               </div>
             );
@@ -1033,6 +1049,7 @@ function Row({ label, value }: { label: string; value?: string | null }) {
    ════════════════════════════════════════════════════════════════ */
 function CommissionAndBonusTab({ userId, commissions }: { userId: string; commissions: any[] }) {
   const qc = useQueryClient();
+  const agentUserId = userId;
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -1045,9 +1062,9 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
     queryFn: async () => {
       const { data, error } = await supabase
         .from("field_commissions")
-        .select("id, amount, status, commission_type, description, order_id, created_at, paid_at")
-        .eq("agent_id", userId)
-        .order("created_at", { ascending: false })
+        .select("id, amount, status, commission_type, earned_at, order_id")
+        .eq("agent_id", agentUserId)
+        .order("earned_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       return data ?? [];
@@ -1151,6 +1168,12 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
   const weeklyT = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? 0;
   const monthlyT = targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0;
   const monthlyPct = monthlyT > 0 ? Math.min(100, Math.round((monthSales / monthlyT) * 100)) : 0;
+  const commissionTotals = {
+    month: fieldComms.filter((c: any) => c.earned_at && new Date(c.earned_at) >= new Date(monthStart)).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+    pending: fieldComms.filter((c: any) => c.status === "pending").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+    approved: fieldComms.filter((c: any) => c.status === "approved").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+    paid: fieldComms.filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+  };
 
   return (
     <div className="space-y-4">
@@ -1218,6 +1241,12 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
         <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-primary" /> Commissions de cet agent
         </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total ce mois</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.month)}</p></div>
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total en attente</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.pending)}</p></div>
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total approuvé</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.approved)}</p></div>
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total payé</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.paid)}</p></div>
+        </div>
         {fieldComms.length === 0 ? (
           <p className="text-xs text-muted-foreground py-6 text-center">Aucune commission</p>
         ) : (
@@ -1228,18 +1257,16 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
                 <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-foreground">{fmtMoney(Number(c.amount))}</span>
+                      <span className="text-sm font-bold text-foreground">{fmtMoney(c.amount)}</span>
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", b.cls)}>{b.label}</span>
-                      {c.commission_type && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">{c.commission_type}</span>
-                      )}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{commissionTypeLabel(c.commission_type)}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {c.description || (c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "—")}
+                      {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission sans commande liée"}
                     </p>
                   </div>
                   <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
-                    {format(new Date(c.created_at), "dd/MM/yy")}
+                    {fmtLongDate(c.earned_at)}
                   </span>
                 </div>
               );
