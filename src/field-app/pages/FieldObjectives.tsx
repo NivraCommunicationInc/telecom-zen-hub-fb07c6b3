@@ -23,7 +23,7 @@ const BONUS_TIERS: Array<{ count: number; bonus: number }> = [
 
 export default function FieldObjectives() {
   usePortalRealtime(
-    ["sales_targets", "field_commissions"],
+    ["sales_targets", "field_commissions", "orders"],
     [["field-objectives-summary"]],
   );
   const { data, isLoading } = useQuery({
@@ -50,22 +50,26 @@ export default function FieldObjectives() {
       const monthlyTarget = Number(totalRow?.target_count ?? 0);
       const targetBonusAmount = Number(totalRow?.bonus_amount ?? 0);
 
-      // 2) Sales counts from field_commissions (this agent)
+      // 2) Sales counts from orders (this agent, excluding cancelled)
       const [weekRes, monthRes] = await Promise.all([
         supabase
-          .from("field_commissions")
-          .select("id, amount", { count: "exact" })
-          .eq("agent_id", user.id)
-          .gte("earned_at", weekStart),
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", user.id)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", weekStart),
         supabase
-          .from("field_commissions")
-          .select("id, amount", { count: "exact" })
-          .eq("agent_id", user.id)
-          .gte("earned_at", monthStart),
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", user.id)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
       ]);
 
-      const weekSales = weekRes.count ?? (weekRes.data?.length || 0);
-      const monthSales = monthRes.count ?? (monthRes.data?.length || 0);
+      const weekSales = weekRes.count ?? 0;
+      const monthSales = monthRes.count ?? 0;
 
       return {
         weekSales,
