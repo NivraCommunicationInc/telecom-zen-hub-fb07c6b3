@@ -312,25 +312,38 @@ export function useAccountProfile(accountId: string | undefined) {
   ]));
 
   const equipment = useQuery({
-    queryKey: ["account-profile-equipment", accountId, equipmentOrderIds.join("|")],
+    queryKey: ["account-profile-equipment", accountId, clientId, equipmentOrderIds.join("|")],
     queryFn: async () => {
-      if (equipmentOrderIds.length === 0 && !orders.data?.length) return [];
+      // 0) Real inventory rows assigned to this account/orders — authoritative for status mgmt
+      const invFilters: string[] = [];
+      if (accountId) invFilters.push(`account_id.eq.${accountId}`);
+      if (equipmentOrderIds.length > 0) invFilters.push(`order_id.in.(${equipmentOrderIds.slice(0, 100).join(",")})`);
+      const inv = invFilters.length > 0
+        ? await supabase.from("equipment_inventory").select("*").or(invFilters.join(","))
+        : { data: [], error: null } as any;
+      if (inv.error) throw inv.error;
+      const inventoryRows = inv.data || [];
 
-      // 1) Canonical equipment_order_lines
-      const lines = equipmentOrderIds.length > 0
+      // 1) Snapshot from equipment_order_lines for orders that don't have inventory yet
+      const ordersWithInv = new Set(inventoryRows.map((r: any) => r.order_id).filter(Boolean));
+      const snapshotOrderIds = equipmentOrderIds.filter((id) => !ordersWithInv.has(id));
+      const lines = snapshotOrderIds.length > 0
         ? await supabase
             .from("equipment_order_lines")
             .select("*")
-            .in("order_id", equipmentOrderIds.slice(0, 100))
+            .in("order_id", snapshotOrderIds.slice(0, 100))
         : { data: [], error: null } as any;
       if (lines.error) throw lines.error;
 
-      const result: any[] = [...(lines.data || [])];
+      const result: any[] = [...inventoryRows, ...(lines.data || [])];
 
-      // 2) Fallback: legacy orders.equipment_details JSON when no lines exist for that order
-      const linesByOrder = new Set((lines.data || []).map((l: any) => l.order_id));
+      // 2) Fallback: legacy orders.equipment_details JSON when no lines or inventory exist for that order
+      const orderHasData = new Set([
+        ...inventoryRows.map((r: any) => r.order_id).filter(Boolean),
+        ...(lines.data || []).map((l: any) => l.order_id),
+      ]);
       for (const o of orders.data || []) {
-        if (linesByOrder.has(o.id)) continue;
+        if (orderHasData.has(o.id)) continue;
         const det = Array.isArray(o.equipment_details) ? o.equipment_details : [];
         det.forEach((eq: any, idx: number) => {
           result.push({
