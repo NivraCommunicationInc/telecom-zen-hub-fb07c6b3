@@ -1394,6 +1394,27 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
           </div>
         )}
       </div>
+
+      {rejectId && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl border border-border p-5 max-w-md w-full space-y-3">
+            <h3 className="text-sm font-bold text-foreground">Rejeter cette commission</h3>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              placeholder="Raison du rejet (clawback)..."
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => { setRejectId(null); setRejectReason(""); }}>Annuler</Button>
+              <Button size="sm" variant="destructive" onClick={() => rejectCommission.mutate()} disabled={!rejectReason.trim() || rejectCommission.isPending}>
+                Confirmer le rejet
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
