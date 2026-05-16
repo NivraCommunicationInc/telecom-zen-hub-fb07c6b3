@@ -809,6 +809,10 @@ Deno.serve(async (req) => {
                     customer_last_name: customerLastName,
                     agent_name: agentName,
                     agent_number: agentNumber,
+                    // Discount section — populated only when an agent rabais
+                    // was applied at the door (sale.discount_data).
+                    discount_data: discountData || null,
+                    discounts: discountData ? [discountData] : [],
                   },
                   idempotency_key: `contract_generated:${canonicalOrder.id}`,
                 });
