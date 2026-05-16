@@ -45,7 +45,9 @@ const SERVICES: Array<{ key: string; label: string }> = [
   { key: "all", label: "Tous services" },
 ];
 
-const fmtMoney = (n: number) => `${(n || 0).toFixed(2)} $`;
+const fmtMoney = (amount: number | string | null | undefined) => new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: 2 }).format(Number(amount || 0));
+const fmtLongDate = (date?: string | null) => date ? new Intl.DateTimeFormat('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date)) : "Date non disponible";
+const commissionTypeLabel = (type?: string | null) => type === "equipment" ? "Équipement" : "Forfait";
 const maskAccount = (v?: string | null, keep: number = 3) => {
   if (!v) return "—";
   const s = String(v);
@@ -63,6 +65,7 @@ interface Props {
 }
 
 export default function AgentDetailTabs({ userId, assignments, rules, commissions, onDeleteAssignment, onMarkPaid }: Props) {
+  const agentUserId = userId;
   const { data: profile } = useQuery({
     queryKey: ["core-field", "profile-full", userId],
     queryFn: async () => {
@@ -86,7 +89,20 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
     ],
   );
 
-  const ac = commissions;
+  const { data: agentCommissions = [] } = useQuery({
+    queryKey: ["core-field", "agent-commissions", agentUserId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('field_commissions')
+        .select('id, amount, status, commission_type, earned_at, order_id')
+        .eq('agent_id', agentUserId)
+        .order('earned_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const ac = agentCommissions.length > 0 ? agentCommissions : commissions;
 
   return (
     <Tabs defaultValue="grids" className="w-full">
