@@ -1,21 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-
-const PIN_SALT = "nivra_employee_salt_2025";
-
-// Simple hash function for PIN
-async function hashPin(pin: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin + PIN_SALT);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Generate random 4-digit PIN
-function generatePin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
+import { generateNumericPin, generateSalt, hashPbkdf2 } from "../_shared/pinHash.ts";
 
 serve(async (req) => {
   // Handle CORS preflight
