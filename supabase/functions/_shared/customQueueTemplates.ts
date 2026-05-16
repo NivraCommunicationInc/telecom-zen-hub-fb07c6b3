@@ -374,6 +374,15 @@ export function renderQueueTemplate(
         ["Équipement", cEquipment],
       ];
       if (cDiscount) cRows.push(["Rabais appliqué", cDiscount]);
+      // Per-line discounts from billing_invoice_lines (line_type='discount').
+      // Each renders as a negative-amount row so the client sees every rabais.
+      for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
+        cRows.push(r);
+      }
+      // Structured discount object (field-sales discount_data) — branded label.
+      if (v.discount_data) {
+        cRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+      }
       cRows.push(
         ["Sous-total", cSubtotal],
         ["TPS (5%)", cTps],
