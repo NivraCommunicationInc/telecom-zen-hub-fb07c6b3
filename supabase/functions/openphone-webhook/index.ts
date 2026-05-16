@@ -14,6 +14,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-openphone-signature",
 };
 
+// ── HMAC signature verification ────────────────────────────────────────────
+// OpenPhone signs requests with HMAC-SHA256 over the raw request body using a
+// per-webhook signing secret. Format may include version + timestamp; we accept
+// the raw hex/base64 digest in `x-openphone-signature` and compare in constant
+// time. If OPENPHONE_WEBHOOK_SECRET is not configured we reject everything to
+// avoid an open endpoint that triggers real outbound SMS.
+function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function hmacSha256Hex(secret: string, body: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(body));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyOpenPhoneSignature(req: Request, rawBody: string): Promise<boolean> {
+  const secret = Deno.env.get("OPENPHONE_WEBHOOK_SECRET");
+  if (!secret) {
+    console.error("[openphone-webhook] OPENPHONE_WEBHOOK_SECRET is not configured — rejecting request");
+    return false;
+  }
+  const provided = req.headers.get("x-openphone-signature");
+  if (!provided) return false;
+  const expected = await hmacSha256Hex(secret, rawBody);
+  // Accept either bare hex digest or `sha256=<hex>` / `v1=<hex>` style.
+  const candidate = provided.includes("=") ? provided.split("=").pop()!.trim() : provided.trim();
+  return timingSafeEqualStr(candidate.toLowerCase(), expected.toLowerCase());
+}
+
 type OpenPhoneEvent = {
   type: string;
   data: {
@@ -194,9 +231,28 @@ Deno.serve(async (req) => {
     }
 
     // ── Test connection (called from Marketing Settings page) ──
+    // Only allow when an authenticated staff JWT is present. Without auth we
+    // would leak whether OPENPHONE_API_KEY is configured.
     if (payload?.__test_connection) {
+      const authHeader = req.headers.get("Authorization") || "";
+      if (!authHeader.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: claims, error: claimsErr } = await supabase.auth.getClaims(authHeader.slice(7));
+      if (claimsErr || !claims?.claims?.sub) {
+        return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const apiKey = Deno.env.get("OPENPHONE_API_KEY");
       if (!apiKey) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "OPENPHONE_API_KEY non configurée dans les secrets" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
         return new Response(
           JSON.stringify({ ok: false, error: "OPENPHONE_API_KEY non configurée dans les secrets" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -226,6 +282,18 @@ Deno.serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+    }
+
+    // ── Signature verification (real OpenPhone events) ──────────────────────
+    // Reject any non-test request that lacks a valid HMAC signature so attackers
+    // can't forge `message.received` events to trigger real outbound SMS or
+    // poison conversation state.
+    const sigOk = await verifyOpenPhoneSignature(req, rawBody);
+    if (!sigOk) {
+      console.warn("[openphone-webhook] Rejected request: invalid or missing signature");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("OpenPhone webhook:", payload.type);

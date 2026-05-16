@@ -30,6 +30,58 @@ interface ResendWebhookEvent {
   };
 }
 
+// Verify Svix signature (Resend uses Svix). Header format:
+//   svix-signature: v1,<base64-hmac> [v1,<base64-hmac> ...]
+// Signed string: `${svix_id}.${svix_timestamp}.${rawBody}` with shared secret.
+function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function base64UrlToBytes(s: string): Uint8Array {
+  // Svix secrets are prefixed with `whsec_` then base64 (standard).
+  const cleaned = s.replace(/^whsec_/, "");
+  const bin = atob(cleaned.replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function hmacSha256B64(secretBytes: Uint8Array, msg: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
+  let bin = "";
+  const bytes = new Uint8Array(sig);
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+async function verifySvixSignature(req: Request, rawBody: string): Promise<boolean> {
+  const secret = Deno.env.get("RESEND_WEBHOOK_SECRET");
+  if (!secret) {
+    console.error("[resend-webhook] RESEND_WEBHOOK_SECRET not configured — rejecting");
+    return false;
+  }
+  const id = req.headers.get("svix-id");
+  const ts = req.headers.get("svix-timestamp");
+  const sigHeader = req.headers.get("svix-signature");
+  if (!id || !ts || !sigHeader) return false;
+  // Reject events older than 5 minutes (replay protection).
+  const tsMs = Number(ts) * 1000;
+  if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) return false;
+  let keyBytes: Uint8Array;
+  try { keyBytes = base64UrlToBytes(secret); } catch { return false; }
+  const expected = await hmacSha256B64(keyBytes, `${id}.${ts}.${rawBody}`);
+  return sigHeader.split(" ").some((part) => {
+    const [version, value] = part.split(",");
+    return version === "v1" && value && timingSafeEqualStr(value.trim(), expected);
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -40,7 +92,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const event: ResendWebhookEvent = await req.json();
+    const rawBody = await req.text();
+    if (!(await verifySvixSignature(req, rawBody))) {
+      console.warn("[resend-webhook] Rejected: invalid or missing Svix signature");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const event: ResendWebhookEvent = JSON.parse(rawBody);
     console.log(`[Resend Webhook] Event: ${event.type}, Email ID: ${event.data.email_id}`);
 
     const resendId = event.data.email_id;
