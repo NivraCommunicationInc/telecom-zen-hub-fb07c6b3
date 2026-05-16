@@ -145,13 +145,13 @@ export default function AgentDetailTabs({ userId, assignments, rules, commission
             return (
               <div key={c.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
                 <div>
-                  <span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span>
+                  <span className="text-sm font-semibold text-foreground">{fmtMoney(c.amount || c.commission_amount)}</span>
                   <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span>
-                  <p className="text-[10px] text-muted-foreground">{fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate) * 100).toFixed(0)}%</p>
+                  <p className="text-[10px] text-muted-foreground">{commissionTypeLabel(c.commission_type)}{c.order_id ? ` · Commande ${String(c.order_id).slice(0, 8)}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => onMarkPaid(c.id)}>Payer</Button>}
-                  <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yy")}</span>
+                  <span className="text-[10px] text-muted-foreground">{fmtLongDate(c.earned_at || c.created_at)}</span>
                 </div>
               </div>
             );
