@@ -66,6 +66,10 @@ export interface ReceiptData {
     line_total: number;
   }>;
 
+  // ADD-ONLY: payment status for unpaid card_manual flow
+  payment_status?: "paid" | "pending" | string;
+  total_due?: number;
+
   // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
