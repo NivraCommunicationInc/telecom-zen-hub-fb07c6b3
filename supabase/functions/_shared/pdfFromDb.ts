@@ -417,6 +417,10 @@ export async function buildInvoicePdfAttachment(
       order_number: orderNumber,
     };
 
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, orderId);
+    if (agentInfo) Object.assign(data, agentInfo);
+
     const result = generateInvoiceV3PDF(data);
     if (!result.success || !result.blob) {
       console.warn(`[pdfFromDb] generateInvoiceV3PDF failed: ${result.error}`);
@@ -744,6 +748,10 @@ export async function buildContractPdfAttachment(
       technician_name: tele.technician_name,
     };
 
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, orderId);
+    if (agentInfo) Object.assign(data, agentInfo);
+
     const result = generateContractV3PDF(data);
     if (!result.success || !result.blob) {
       console.warn(`[pdfFromDb] generateContractV3PDF failed: ${result.error}`);
@@ -928,6 +936,10 @@ export async function buildSummaryPdfAttachment(
       install_date: tele.install_date,
       technician_name: tele.technician_name,
     };
+
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, orderId);
+    if (agentInfo) Object.assign(data, agentInfo);
 
     const result = generateOrderSummaryPDF(data);
     if (!result.success || !result.blob) {
