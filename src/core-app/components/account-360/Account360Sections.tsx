@@ -21,6 +21,7 @@ import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActi
 import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/CorePayPalManualChargeDialog";
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
+import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
@@ -265,26 +266,35 @@ export const PaymentsSection = ({ data, customerId, customerUserId, profileEmail
 );
 
 /* ── Equipment ── */
-export const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
-  <Panel>
-    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
-      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
-    <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
-      {data.equipment.map((eq: any) => (
-        <tr key={eq.id} className={trClass}>
-          <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{eq.item_name}</td>
-          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.item_sku || "—"}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{eq.quantity}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-secondary text-[11px]">{fmtCAD(eq.unit_price)}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(eq.line_total)}</td>
-          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px] max-w-[120px] truncate">
-            {eq.serial_numbers ? (Array.isArray(eq.serial_numbers) ? (eq.serial_numbers as string[]).join(", ") : JSON.stringify(eq.serial_numbers)) : "—"}
-          </td>
-        </tr>
-      ))}
-    </MiniTable>
-  </Panel>
-);
+export const EquipmentSection = ({ data, accountId, onRefresh }: any) => {
+  const [selected, setSelected] = useState<any>(null);
+  return (
+    <Panel>
+      <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
+        actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
+      <MiniTable headers={["Article", "SKU", "Statut", "S/N", "MAC", "Assigné le", ""]} empty={data.equipment.length === 0}>
+        {data.equipment.map((eq: any) => (
+          <tr key={eq.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(eq)}>
+            <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{eq.catalog_name || eq.item_name}</td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.sku || eq.item_sku || "—"}</td>
+            <td className="px-3 py-1.5">
+              {eq.status
+                ? <StatusBadge label={label(eq.status)} variant={statusToVariant(eq.status)} size="sm" />
+                : <span className="text-core-text-disabled text-[10px]">—</span>}
+            </td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px] max-w-[120px] truncate">
+              {eq.serial_number || (Array.isArray(eq.serial_numbers) ? eq.serial_numbers.join(", ") : "—")}
+            </td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.mac_address || "—"}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(eq.assigned_at || eq.created_at)}</td>
+            <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Gérer →</td>
+          </tr>
+        ))}
+      </MiniTable>
+      <EquipmentDetailDialog item={selected} open={!!selected} onClose={() => setSelected(null)} onRefresh={onRefresh} />
+    </Panel>
+  );
+};
 
 /* ── Tickets ── */
 export const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
@@ -327,26 +337,31 @@ export const AppointmentsSection = ({ data, clientId, clientEmail, clientName, a
 );
 
 /* ── KYC ── */
-export const KycSection = ({ data }: any) => (
-  <Panel>
-    <PanelHeader icon={Shield} title="Vérification KYC / Identité" count={data.kycSessions.length} />
-    {data.kycSessions.length === 0 ? (
-      <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">Aucune session KYC enregistrée</div>
-    ) : (
-      <MiniTable headers={["#", "Statut", "Document", "Soumis", "Révisé"]}>
-        {data.kycSessions.map((k: any) => (
-          <tr key={k.id} className={trClass}>
-            <td className="px-3 py-1.5 font-mono text-core-text-secondary text-[10px]">{k.case_number || k.id.slice(0, 8)}</td>
-            <td className="px-3 py-1.5"><StatusBadge label={label(k.status)} variant={statusToVariant(k.status || "")} size="sm" /></td>
-            <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{k.document_type || "—"}</td>
-            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.submitted_at)}</td>
-            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.reviewed_at)}</td>
-          </tr>
-        ))}
-      </MiniTable>
-    )}
-  </Panel>
-);
+export const KycSection = ({ data }: any) => {
+  const [selected, setSelected] = useState<any>(null);
+  return (
+    <Panel>
+      <PanelHeader icon={Shield} title="Vérification KYC / Identité" count={data.kycSessions.length} />
+      {data.kycSessions.length === 0 ? (
+        <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">Aucune session KYC enregistrée</div>
+      ) : (
+        <MiniTable headers={["#", "Statut", "Document", "Soumis", "Révisé", ""]}>
+          {data.kycSessions.map((k: any) => (
+            <tr key={k.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(k)}>
+              <td className="px-3 py-1.5 font-mono text-core-text-secondary text-[10px]">{k.case_number || k.id.slice(0, 8)}</td>
+              <td className="px-3 py-1.5"><StatusBadge label={label(k.status)} variant={statusToVariant(k.status || "")} size="sm" /></td>
+              <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{k.id_type || k.document_type || "—"}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.submitted_at)}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.reviewed_at)}</td>
+              <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Voir →</td>
+            </tr>
+          ))}
+        </MiniTable>
+      )}
+      <KycDetailDialog session={selected} open={!!selected} onClose={() => setSelected(null)} />
+    </Panel>
+  );
+};
 
 /* ── Contracts & Documents ── */
 export const ContractsSection = ({ data }: any) => {
@@ -356,12 +371,16 @@ export const ContractsSection = ({ data }: any) => {
     document_name: c.contract_number ? `Contrat ${c.contract_number}` : `Contrat ${String(c.id).slice(0, 8)}`,
     document_type: c.status || "contract",
     created_at: c.created_at,
+    url: c.contract_pdf_url || c.contract_url || null,
+    signed_at: c.client_signed_at || c.signed_at || null,
+    signer: c.client_signer_name || null,
   }));
   (data.documents || []).forEach((d: any) => rows.push({
     id: `d-${d.id}`,
     document_name: d.document_name,
     document_type: d.document_type || "—",
     created_at: d.created_at,
+    url: d.document_url || null,
   }));
   return (
     <Panel>
@@ -371,12 +390,22 @@ export const ContractsSection = ({ data }: any) => {
           Aucun document enregistré pour ce client.
         </div>
       ) : (
-        <MiniTable headers={["Document", "Type", "Ajouté le"]}>
+        <MiniTable headers={["Document", "Type", "Signé / Ajouté", ""]}>
           {rows.map((d: any) => (
             <tr key={d.id} className={trClass}>
-              <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{d.document_name}</td>
+              <td className="px-3 py-1.5 text-core-text-primary text-[11px]">
+                {d.document_name}
+                {d.signer && <span className="block text-[10px] text-core-text-label">par {d.signer}</span>}
+              </td>
               <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
-              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.created_at)}</td>
+              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.signed_at || d.created_at)}</td>
+              <td className="px-3 py-1.5 text-[10px]">
+                {d.url ? (
+                  <a href={d.url} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">Ouvrir →</a>
+                ) : (
+                  <span className="text-core-text-disabled">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </MiniTable>
