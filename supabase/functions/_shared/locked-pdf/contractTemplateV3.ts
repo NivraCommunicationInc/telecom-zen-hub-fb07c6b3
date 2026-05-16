@@ -401,11 +401,16 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y += 3;
 
     y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
-    if (data.discount_amount > 0) {
+    if (data.has_discount && Array.isArray(data.discount_lines) && data.discount_lines.length > 0) {
+      for (const dl of data.discount_lines) {
+        y = bulletClause(doc, `${dl.description} — ${fmt(dl.unit_price)}/mois`, y);
+      }
+      y = bulletClause(doc, "Cette promotion s'applique uniquement aux elements et a la duree specifies dans l'offre.", y);
+    } else if (data.discount_amount > 0) {
       y = bulletClause(doc, `Promotion appliquee: ${data.discount_label || "Rabais promotionnel"} pour un montant de ${fmt(data.discount_amount)}.`, y);
       y = bulletClause(doc, "Cette promotion s'applique uniquement a la premiere facture ou aux elements specifies dans l'offre.", y);
     } else {
-      y = bulletClause(doc, "Aucune promotion n'est appliquee a cette commande.", y);
+      y = bulletClause(doc, "Aucun rabais applique a cette commande.", y);
     }
     y = bulletClause(doc, "Les promotions sont non cumulables sauf indication contraire expresse.", y);
     y = bulletClause(doc, "Nivra se reserve le droit de modifier ou retirer toute offre promotionnelle a tout moment.", y);
