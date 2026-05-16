@@ -129,7 +129,7 @@ export default function FieldOrders() {
           kind: "order",
           id: o.id,
           ref: o.order_number || o.id.slice(0, 8),
-          client_name: cli?.full_name || "—",
+          client_name: cli?.full_name || "Client",
           client_email: cli?.email || "",
           amount: Number(o.total_amount || 0),
           status: o.status || "pending",
