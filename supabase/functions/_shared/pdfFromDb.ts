@@ -247,6 +247,44 @@ function buildEnrichedDescription(
   return label || baseDescription;
 }
 
+/**
+ * Resolve field-sales agent attribution for an order.
+ * Returns null when order is not from field_sales (web/online).
+ * Only ADDS data, never blocks PDF generation.
+ */
+async function resolveAgentAttribution(
+  supabase: SupabaseClient,
+  orderId: string | null,
+): Promise<{ sale_source: string; agent_name?: string; agent_number?: string } | null> {
+  try {
+    if (!orderId) return null;
+    const { data: o } = await supabase
+      .from("orders")
+      .select("source, created_by_agent_id, agent_name")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!o || (o as any).source !== "field_sales") return null;
+    let agentName: string | undefined = (o as any).agent_name || undefined;
+    let agentNumber: string | undefined;
+    const agentId = (o as any).created_by_agent_id as string | null;
+    if (agentId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, agent_number, badge_number")
+        .eq("user_id", agentId)
+        .maybeSingle();
+      if (prof) {
+        agentName = agentName || (prof as any).full_name || undefined;
+        agentNumber = (prof as any).agent_number || (prof as any).badge_number || undefined;
+      }
+    }
+    return { sale_source: "field_sales", agent_name: agentName, agent_number: agentNumber };
+  } catch (e) {
+    console.warn("[pdfFromDb] resolveAgentAttribution error:", (e as any)?.message || e);
+    return null;
+  }
+}
+
 // ============================================================================
 // INVOICE — uses locked invoiceTemplateV3 (generateInvoiceV3PDF)
 // ============================================================================
@@ -379,6 +417,10 @@ export async function buildInvoicePdfAttachment(
       order_number: orderNumber,
     };
 
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, orderId);
+    if (agentInfo) Object.assign(data, agentInfo);
+
     const result = generateInvoiceV3PDF(data);
     if (!result.success || !result.blob) {
       console.warn(`[pdfFromDb] generateInvoiceV3PDF failed: ${result.error}`);
@@ -412,7 +454,7 @@ export async function buildReceiptPdfAttachment(
       .select(`
         id, invoice_number, created_at, paid_at, total, subtotal,
         tps_amount, tvq_amount, amount_paid, payment_method, balance_due,
-        billing_snapshot_account_number,
+        billing_snapshot_account_number, order_id,
         customer:billing_customers(email, first_name, last_name, phone, user_id),
         order:orders(order_number),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
@@ -487,6 +529,10 @@ export async function buildReceiptPdfAttachment(
       tps_amount: Number((invoice as any).tps_amount || 0),
       tvq_amount: Number((invoice as any).tvq_amount || 0),
     };
+
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, (invoice as any).order_id || null);
+    if (agentInfo) Object.assign(data, agentInfo);
 
     const result = generateReceiptPDF(data);
     if (!result.success || !result.blob) {
@@ -706,6 +752,10 @@ export async function buildContractPdfAttachment(
       technician_name: tele.technician_name,
     };
 
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, orderId);
+    if (agentInfo) Object.assign(data, agentInfo);
+
     const result = generateContractV3PDF(data);
     if (!result.success || !result.blob) {
       console.warn(`[pdfFromDb] generateContractV3PDF failed: ${result.error}`);
@@ -890,6 +940,10 @@ export async function buildSummaryPdfAttachment(
       install_date: tele.install_date,
       technician_name: tele.technician_name,
     };
+
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, orderId);
+    if (agentInfo) Object.assign(data, agentInfo);
 
     const result = generateOrderSummaryPDF(data);
     if (!result.success || !result.blob) {

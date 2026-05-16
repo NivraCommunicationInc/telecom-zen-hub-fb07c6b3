@@ -91,6 +91,11 @@ export interface OrderSummaryV3Data {
   mobile_activated_at?: string;
   install_date?: string;
   technician_name?: string;
+
+  // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
+  sale_source?: string;
+  agent_name?: string;
+  agent_number?: string;
 }
 
 // ============================================================================
@@ -161,6 +166,22 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.setFontSize(8);
     doc.text(`Compte: ${d.account_number}  |  Commande: ${d.order_number}`, 15, y);
     y += 10;
+
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional)
+    if (d.sale_source === "field_sales" && (d.agent_name || d.agent_number)) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(30, 64, 120);
+      doc.text("Representant commercial", 15, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Nom : ${d.agent_name || "—"}`, 17, y); y += 5;
+      doc.text(`Badge : ${d.agent_number || "—"}`, 17, y); y += 5;
+      doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 7;
+      doc.setTextColor(0, 0, 0);
+    }
 
     // VOTRE SELECTION
     doc.setFont("helvetica", "bold");
