@@ -215,23 +215,31 @@ export default function CoreFieldAgentsPage() {
       const { data: roles } = await supabase.from("user_roles").select("user_id, is_active, created_at, permissions").eq("role", "field_sales" as any);
       if (!roles?.length) return [];
       const userIds = roles.map((r: any) => r.user_id);
-      const [{ data: profiles }, { data: salesOrders }, { data: commissions }] = await Promise.all([
+      const [{ data: profiles }, { data: salesOrders }, { data: paymentIntents }, { data: commissions }, { data: fieldCommissions }] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name, email, phone").in("user_id", userIds),
         supabase.from("field_sales_orders").select("salesperson_id, total_amount").in("salesperson_id", userIds),
+        supabase.from("field_payment_intents").select("agent_id").in("agent_id", userIds),
         supabase.from("sales_commissions").select("salesperson_id, commission_amount, status").in("salesperson_id", userIds),
+        supabase.from("field_commissions").select("agent_id, amount, status").in("agent_id", userIds),
       ]);
       const pm = new Map((profiles || []).map((p: any) => [p.user_id, p]));
       const sm = new Map<string, number>();
       const cm = new Map<string, { total: number; pending: number; approved: number; paid: number }>();
       for (const s of salesOrders || []) sm.set(s.salesperson_id, (sm.get(s.salesperson_id) || 0) + 1);
-      for (const c of commissions || []) {
-        const e = cm.get(c.salesperson_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
-        e.total += Number(c.commission_amount);
-        if (c.status === "pending" || c.status === "pending_activation") e.pending += Number(c.commission_amount);
-        if (c.status === "approved" || c.status === "validated") e.approved += Number(c.commission_amount);
-        if (c.status === "paid") e.paid += Number(c.commission_amount);
-        cm.set(c.salesperson_id, e);
+      for (const i of paymentIntents || []) {
+        const aid = (i as any).agent_id;
+        if (aid) sm.set(aid, (sm.get(aid) || 0) + 1);
       }
+      const addCommission = (uid: string, amt: number, status: string) => {
+        const e = cm.get(uid) || { total: 0, pending: 0, approved: 0, paid: 0 };
+        e.total += amt;
+        if (status === "pending" || status === "pending_activation") e.pending += amt;
+        if (status === "approved" || status === "validated") e.approved += amt;
+        if (status === "paid") e.paid += amt;
+        cm.set(uid, e);
+      };
+      for (const c of commissions || []) addCommission((c as any).salesperson_id, Number((c as any).commission_amount || 0), (c as any).status);
+      for (const c of fieldCommissions || []) addCommission((c as any).agent_id, Number((c as any).amount || 0), (c as any).status);
       return roles.map((r: any): AgentRow => {
         const p = pm.get(r.user_id) as any;
         const c = cm.get(r.user_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
