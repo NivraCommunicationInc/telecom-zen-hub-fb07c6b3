@@ -22,6 +22,7 @@ import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
 import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
+import { InvoiceDetailDialog, PaymentDetailDialog, ContractDetailDialog } from "./Account360RowDialogs";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
