@@ -70,6 +70,13 @@ export interface ContractDataV3 {
 
   discount_label?: string;
 
+  // ADD-ONLY: real discount lines from billing_invoice_lines (line_type='discount')
+  has_discount?: boolean;
+  discount_lines?: Array<{
+    description: string;
+    unit_price: number;
+  }>;
+
   // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
