@@ -255,6 +255,22 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
     },
   });
 
+  // Monthly ventes count from orders (excluding cancelled)
+  const { data: monthVentes = 0 } = useQuery({
+    queryKey: ["agent-month-ventes", userId, currentYear, currentMonth],
+    queryFn: async () => {
+      const monthStart = new Date(currentYear, currentMonth - 1, 1).toISOString();
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("created_by_agent_id", userId)
+        .eq("source", "field_sales")
+        .neq("status", "cancelled")
+        .gte("created_at", monthStart);
+      return count ?? 0;
+    },
+  });
+
   useEffect(() => {
     if (!profile) return;
     const tMap = (svc: string) => targets.find((t: any) => t.service_type === svc);
