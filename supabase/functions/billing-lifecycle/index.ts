@@ -698,14 +698,23 @@ async function processLegacyRenewals(
                 const signedTotal = isCredit ? -amt : amt;
                 adjustmentDelta += signedTotal;
 
+                // RULE 5 — Clean label (no "Rabais Rabais" duplication).
+                const cleanAdjDesc = String(adj.description || "").trim();
+                const prefixedRabais = (suffix: string) =>
+                  /^rabais\b/i.test(cleanAdjDesc) ? `${cleanAdjDesc}${suffix}` : `Rabais ${cleanAdjDesc}${suffix}`;
+
                 let lineDescription: string;
                 if (isPermanent && isCredit) {
-                  lineDescription = `Rabais permanent — ${adj.description || formatMoneyServer(amt) + "/mois"}`;
+                  lineDescription = cleanAdjDesc
+                    ? prefixedRabais(" — permanent")
+                    : `Rabais permanent — ${formatMoneyServer(amt)}/mois`;
                 } else if (isCredit && totalMonths > 0) {
                   const nextRem = Math.max(0, prevRemaining - 1);
-                  lineDescription = `Rabais ${adj.description || ""} — ${formatMoneyServer(amt)}/mois (${nextRem} mois restants)`;
+                  lineDescription = cleanAdjDesc
+                    ? `${prefixedRabais("")} — ${formatMoneyServer(amt)}/mois (${nextRem} mois restants)`
+                    : `Rabais — ${formatMoneyServer(amt)}/mois (${nextRem} mois restants)`;
                 } else {
-                  lineDescription = adj.description || (isCredit ? "Crédit" : "Frais");
+                  lineDescription = cleanAdjDesc || (isCredit ? "Crédit" : "Frais");
                 }
 
                 adjLines.push({
