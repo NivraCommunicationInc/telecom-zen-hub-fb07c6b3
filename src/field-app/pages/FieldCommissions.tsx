@@ -53,6 +53,26 @@ const formatCommissionAmount = (amount: number | string | null | undefined) =>
     minimumFractionDigits: 2
   }).format(Number(amount || 0));
 
+const getCommissionLabel = (c: any): string => {
+  if (c.description && c.description !== '—' && c.description.trim()) return c.description;
+  if (c.order_number) return `Commande #${c.order_number}`;
+  if (c.field_sales_orders?.customer_name) return c.field_sales_orders.customer_name;
+  if (c.commission_type === 'forfait' || c.commission_type === 'sale') return 'Commission forfait';
+  if (c.commission_type === 'equipment') return 'Commission équipement';
+  if (c.commission_type === 'monthly_bonus') return 'Bonus mensuel';
+  return 'Commission vente';
+};
+
+const getCommissionDate = (c: any): string => {
+  const d = c.earned_at || c.created_at;
+  if (!d) return 'Date de vente';
+  return new Date(d).toLocaleDateString('fr-CA', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
 type TabView = "commissions" | "withdrawals" | "disputes";
 
 export default function FieldCommissions() {
@@ -431,8 +451,11 @@ export default function FieldCommissions() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-white">{formatCommissionAmount(amount)}</p>
-                            <p className="text-[10px] text-[hsl(var(--field-text-muted))] truncate">
-                              {commission.field_sales_orders?.customer_name || "—"}
+                            <p className="text-[11px] text-[hsl(var(--field-text-muted))] truncate">
+                              {getCommissionLabel(commission)}
+                            </p>
+                            <p className="text-[10px] text-[hsl(var(--field-text-dim))] mt-0.5">
+                              {getCommissionDate(commission)}
                             </p>
                             {commission.status_explanation && (
                               <p className="text-[10px] text-[hsl(var(--field-text-dim))] mt-0.5">

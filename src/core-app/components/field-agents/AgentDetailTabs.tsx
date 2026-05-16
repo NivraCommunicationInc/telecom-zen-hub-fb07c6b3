@@ -255,19 +255,27 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
     },
   });
 
-  // Monthly ventes count from orders (excluding cancelled)
+  // Monthly ventes count from orders + field_payment_intents (excluding cancelled)
   const { data: monthVentes = 0 } = useQuery({
     queryKey: ["agent-month-ventes", userId, currentYear, currentMonth],
     queryFn: async () => {
       const monthStart = new Date(currentYear, currentMonth - 1, 1).toISOString();
-      const { count } = await supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("created_by_agent_id", userId)
-        .eq("source", "field_sales")
-        .neq("status", "cancelled")
-        .gte("created_at", monthStart);
-      return count ?? 0;
+      const [ordersRes, intentsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", userId)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+        supabase
+          .from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", userId)
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+      ]);
+      return (ordersRes.count ?? 0) + (intentsRes.count ?? 0);
     },
   });
 
@@ -1093,18 +1101,28 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
     },
   });
 
-  // Count current month activated sales (for bonus progress)
+  // Count current month activated sales (for bonus progress) — orders + intents
   const { data: monthSales = 0 } = useQuery({
     queryKey: ["agent-month-sales", userId, currentYear, currentMonth],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("created_by_agent_id", userId)
-        .gte("created_at", monthStart)
-        .lt("created_at", monthEnd)
-        .in("status", ["activated", "completed", "active"]);
-      return count ?? 0;
+      const [ordersRes, intentsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", userId)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart)
+          .lt("created_at", monthEnd),
+        supabase
+          .from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", userId)
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart)
+          .lt("created_at", monthEnd),
+      ]);
+      return (ordersRes.count ?? 0) + (intentsRes.count ?? 0);
     },
   });
 
@@ -1182,10 +1200,82 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
     pending: { cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400", label: "En attente" },
     approved: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400", label: "Approuvée" },
     paid: { cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400", label: "Payée" },
+    on_hold: { cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400", label: "En attente (hold)" },
     clawback: { cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400", label: "Récupérée" },
     rejected: { cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400", label: "Rejetée" },
+    disputed: { cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400", label: "Contestée" },
     validated: { cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400", label: "Validée" },
   };
+
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const approveCommission = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("field_commissions")
+        .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id } as any)
+        .eq("id", id)
+        .eq("status", "pending");
+      if (error) throw error;
+      const { data: c } = await supabase.from("field_commissions").select("agent_id, amount").eq("id", id).single();
+      if (c) {
+        await supabase.from("employee_notifications").insert({
+          user_id: (c as any).agent_id,
+          notification_type: "system",
+          title: "Commission approuvée",
+          message: `Une commission de ${fmtMoney((c as any).amount)} a été approuvée.`,
+          is_read: false,
+        } as any);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Commission approuvée");
+      qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
+      qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur approbation"),
+  });
+
+  const holdCommission = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("field_commissions")
+        .update({ status: "on_hold" } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Commission mise en attente (hold)");
+      qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
+      qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur hold"),
+  });
+
+  const rejectCommission = useMutation({
+    mutationFn: async () => {
+      if (!rejectId || !rejectReason.trim()) throw new Error("Raison requise");
+      const { error } = await supabase
+        .from("field_commissions")
+        .update({
+          status: "clawback",
+          clawback_reason: rejectReason.trim(),
+          clawback_at: new Date().toISOString(),
+        } as any)
+        .eq("id", rejectId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Commission rejetée");
+      setRejectId(null);
+      setRejectReason("");
+      qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
+      qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur rejet"),
+  });
 
   const weeklyT = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? 0;
   const monthlyT = targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0;
@@ -1276,26 +1366,55 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
             {fieldComms.map((c: any) => {
               const b = STATUS_BADGE_LOCAL[c.status] || STATUS_BADGE_LOCAL.pending;
               return (
-                <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border">
-                  <div className="min-w-0">
+                <div key={c.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-foreground">{fmtMoney(c.amount)}</span>
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", b.cls)}>{b.label}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{commissionTypeLabel(c.commission_type)}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission sans commande liée"}
+                      {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission sans commande liée"} · {fmtLongDate(c.earned_at || c.created_at)}
                     </p>
                   </div>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
-                    {fmtLongDate(c.earned_at)}
-                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {c.status === "pending" && (
+                      <>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => approveCommission.mutate(c.id)} disabled={approveCommission.isPending}>Approuver</Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => holdCommission.mutate(c.id)} disabled={holdCommission.isPending}>Hold</Button>
+                      </>
+                    )}
+                    {!["paid", "clawback"].includes(c.status) && (
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-destructive" onClick={() => { setRejectId(c.id); setRejectReason(""); }}>Rejeter</Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {rejectId && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl border border-border p-5 max-w-md w-full space-y-3">
+            <h3 className="text-sm font-bold text-foreground">Rejeter cette commission</h3>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              placeholder="Raison du rejet (clawback)..."
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => { setRejectId(null); setRejectReason(""); }}>Annuler</Button>
+              <Button size="sm" variant="destructive" onClick={() => rejectCommission.mutate()} disabled={!rejectReason.trim() || rejectCommission.isPending}>
+                Confirmer le rejet
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

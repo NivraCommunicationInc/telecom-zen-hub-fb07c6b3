@@ -14183,6 +14183,51 @@ export type Database = {
           },
         ]
       }
+      payroll_records: {
+        Row: {
+          agent_id: string
+          bonus_amount: number
+          commission_ids: string[]
+          commissions_amount: number
+          created_at: string
+          id: string
+          is_last_friday_of_month: boolean
+          pay_date: string
+          period_end: string
+          period_start: string
+          status: string
+          total_amount: number
+        }
+        Insert: {
+          agent_id: string
+          bonus_amount?: number
+          commission_ids?: string[]
+          commissions_amount?: number
+          created_at?: string
+          id?: string
+          is_last_friday_of_month?: boolean
+          pay_date: string
+          period_end: string
+          period_start: string
+          status?: string
+          total_amount?: number
+        }
+        Update: {
+          agent_id?: string
+          bonus_amount?: number
+          commission_ids?: string[]
+          commissions_amount?: number
+          created_at?: string
+          id?: string
+          is_last_friday_of_month?: boolean
+          pay_date?: string
+          period_end?: string
+          period_start?: string
+          status?: string
+          total_amount?: number
+        }
+        Relationships: []
+      }
       pdf_generation_logs: {
         Row: {
           customer_email: string | null

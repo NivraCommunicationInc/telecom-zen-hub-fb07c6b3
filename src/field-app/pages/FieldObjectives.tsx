@@ -47,35 +47,61 @@ export default function FieldObjectives() {
         .eq("period_month", month);
 
       const totalRow = (targets || []).find((t: any) => t.service_type === "total_sales");
+      const revenueRow = (targets || []).find((t: any) => t.service_type === "revenue");
       const monthlyTarget = Number(totalRow?.target_count ?? 0);
       const targetBonusAmount = Number(totalRow?.bonus_amount ?? 0);
+      const monthlyRevenueTarget = Number(revenueRow?.target_amount ?? 0);
 
-      // 2) Sales counts from orders (this agent, excluding cancelled)
-      const [weekRes, monthRes] = await Promise.all([
-        supabase
-          .from("orders")
+      // 2) Counts: orders + field_payment_intents (both count as a sale)
+      const [
+        weekOrdersRes,
+        monthOrdersRes,
+        weekIntentsRes,
+        monthIntentsRes,
+        monthRevenueRes,
+      ] = await Promise.all([
+        supabase.from("orders")
           .select("id", { count: "exact", head: true })
           .eq("created_by_agent_id", user.id)
           .eq("source", "field_sales")
           .neq("status", "cancelled")
           .gte("created_at", weekStart),
-        supabase
-          .from("orders")
+        supabase.from("orders")
           .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", user.id)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+        supabase.from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", user.id)
+          .neq("status", "cancelled")
+          .gte("created_at", weekStart),
+        supabase.from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", user.id)
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+        supabase.from("orders")
+          .select("total_amount")
           .eq("created_by_agent_id", user.id)
           .eq("source", "field_sales")
           .neq("status", "cancelled")
           .gte("created_at", monthStart),
       ]);
 
-      const weekSales = weekRes.count ?? 0;
-      const monthSales = monthRes.count ?? 0;
+      const weekSales = (weekOrdersRes.count ?? 0) + (weekIntentsRes.count ?? 0);
+      const monthSales = (monthOrdersRes.count ?? 0) + (monthIntentsRes.count ?? 0);
+      const monthRevenue = (monthRevenueRes.data || [])
+        .reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
 
       return {
         weekSales,
         monthSales,
         monthlyTarget,
         targetBonusAmount,
+        monthRevenue,
+        monthlyRevenueTarget,
         hasTargets: (targets || []).length > 0,
       };
     },
@@ -95,6 +121,11 @@ export default function FieldObjectives() {
   const monthlyPct = monthlyTarget > 0 ? Math.min(100, Math.round((monthSales / monthlyTarget) * 100)) : 0;
   const monthlyRemaining = Math.max(0, monthlyTarget - monthSales);
   const weeklyTarget = monthlyTarget > 0 ? Math.ceil(monthlyTarget / 4) : 0;
+  const monthRevenue = data?.monthRevenue ?? 0;
+  const monthlyRevenueTarget = data?.monthlyRevenueTarget ?? 0;
+  const revenuePct = monthlyRevenueTarget > 0
+    ? Math.min(100, Math.round((monthRevenue / monthlyRevenueTarget) * 100))
+    : 0;
 
   // Bonus tier logic
   const currentTier = [...BONUS_TIERS].reverse().find((t) => monthSales >= t.count);
@@ -142,6 +173,35 @@ export default function FieldObjectives() {
           </p>
         </div>
       )}
+
+      {/* Revenu total généré ce mois (chiffre d'affaires) */}
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DCFCE7]">
+              <TrendingUp className="h-5 w-5 text-[#15803D]" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#000000]">Revenu total généré</p>
+              <p className="text-[10px] text-[#9CA3AF]">Chiffre d'affaires ce mois</p>
+            </div>
+          </div>
+          <p className="text-xl font-bold text-[#000000]">
+            {fmtMoney(monthRevenue)}
+            {monthlyRevenueTarget > 0 && (
+              <span className="text-xs font-normal text-[#6B7280]"> / {fmtMoney(monthlyRevenueTarget)}</span>
+            )}
+          </p>
+        </div>
+        {monthlyRevenueTarget > 0 && (
+          <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all duration-700", revenuePct >= 100 ? "bg-[#22C55E]" : "bg-[#15803D]")}
+              style={{ width: `${revenuePct}%` }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* SECTION 4 — Objectif mensuel (if assigned) */}
       {data?.hasTargets && monthlyTarget > 0 ? (
