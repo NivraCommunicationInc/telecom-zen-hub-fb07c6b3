@@ -40,12 +40,17 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "summary";
+    console.log('[commission-engine] userId:', userId);
+    console.log('[commission-engine] action:', action);
 
     if (action === "summary" && req.method === "GET") {
       const [commissionsRes, withdrawalsRes] = await Promise.all([
         admin.from("field_commissions").select("amount, status").eq("agent_id", userId),
         admin.from("commission_withdrawal_requests").select("amount, status").eq("agent_id", userId),
       ]);
+
+      console.log('[commission-engine] rows:', commissionsRes.data);
+      console.log('[commission-engine] error:', commissionsRes.error);
 
       const commissions = commissionsRes.data || [];
       const withdrawals = withdrawalsRes.data || [];

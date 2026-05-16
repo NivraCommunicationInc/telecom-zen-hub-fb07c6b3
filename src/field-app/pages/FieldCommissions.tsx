@@ -85,6 +85,22 @@ export default function FieldCommissions() {
     refetchInterval: 15000,
   });
 
+  // Direct DB fallback if edge function returns 0
+  const { data: directCommissions } = useQuery({
+    queryKey: ["field-commission-direct", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("field_commissions")
+        .select("amount, status")
+        .eq("agent_id", user.id);
+      console.log("[commission] direct rows:", data, "error:", error);
+      return data || [];
+    },
+    enabled: !!user?.id,
+    refetchInterval: 15000,
+  });
+
   /* Realtime — listen to sales_commissions for this agent.
      Insert  → "Nouvelle commission ajoutée"
      Update  → status change toast (validated / paid / rejected) */
@@ -129,7 +145,7 @@ export default function FieldCommissions() {
     };
   }, [user?.id, queryClient]);
 
-  const summary = summaryData?.summary || {
+  const edgeSummary = summaryData?.summary || {
     pending: 0,
     approved: 0,
     paid: 0,
@@ -137,6 +153,32 @@ export default function FieldCommissions() {
     effectiveAvailable: 0,
     pendingWithdrawals: 0,
     disputedCount: 0,
+  };
+
+  const directTotal = (directCommissions || []).reduce(
+    (sum: number, c: any) => sum + Number(c.amount || 0),
+    0
+  );
+  const directPending = (directCommissions || [])
+    .filter((c: any) => ["pending", "pending_activation"].includes(c.status))
+    .reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+  const directApproved = (directCommissions || [])
+    .filter((c: any) => ["validated", "approved", "payable"].includes(c.status))
+    .reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+  const directPaid = (directCommissions || [])
+    .filter((c: any) => ["paid", "included_in_payroll"].includes(c.status))
+    .reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+
+  const summary = {
+    ...edgeSummary,
+    total: Number(edgeSummary.total) > 0 ? edgeSummary.total : directTotal,
+    pending: Number(edgeSummary.pending) > 0 ? edgeSummary.pending : directPending,
+    approved: Number(edgeSummary.approved) > 0 ? edgeSummary.approved : directApproved,
+    paid: Number(edgeSummary.paid) > 0 ? edgeSummary.paid : directPaid,
+    effectiveAvailable:
+      Number(edgeSummary.effectiveAvailable) > 0
+        ? edgeSummary.effectiveAvailable
+        : Math.max(0, directApproved - Number(edgeSummary.pendingWithdrawals || 0)),
   };
 
   const commissions = commissionsData?.commissions || [];
