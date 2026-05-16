@@ -1212,60 +1212,41 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
 
   const approveCommission = useMutation({
     mutationFn: async (id: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from("field_commissions")
-        .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id } as any)
-        .eq("id", id)
-        .eq("status", "pending");
-      if (error) throw error;
-      const { data: c } = await supabase.from("field_commissions").select("agent_id, amount").eq("id", id).single();
-      if (c) {
-        await supabase.from("employee_notifications").insert({
-          user_id: (c as any).agent_id,
-          notification_type: "system",
-          title: "Commission approuvée",
-          message: `Une commission de ${fmtMoney((c as any).amount)} a été approuvée.`,
-          is_read: false,
-        } as any);
-      }
+      const { data, error } = await supabase.functions.invoke('admin-commission-update', {
+        body: { commission_id: id, action: 'approve' },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Erreur mise à jour');
     },
      onSuccess: () => {
       toast.success("Commission approuvée ✅");
       qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
       qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
     },
-    onError: () => toast.error("Erreur lors de la mise à jour. Contactez le support."),
+    onError: (e: any) => toast.error(e?.message || "Erreur lors de la mise à jour. Contactez le support."),
   });
 
   const holdCommission = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("field_commissions")
-        .update({ status: "on_hold" } as any)
-        .eq("id", id);
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke('admin-commission-update', {
+        body: { commission_id: id, action: 'hold' },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Erreur mise à jour');
     },
     onSuccess: () => {
       toast.success("Commission mise en attente");
       qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
       qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
     },
-    onError: () => toast.error("Erreur lors de la mise à jour. Contactez le support."),
+    onError: (e: any) => toast.error(e?.message || "Erreur lors de la mise à jour. Contactez le support."),
   });
 
   const rejectCommission = useMutation({
     mutationFn: async () => {
       if (!rejectId || !rejectReason.trim()) throw new Error("Raison requise");
-      const { error } = await supabase
-        .from("field_commissions")
-        .update({
-          status: "clawback",
-          clawback_reason: rejectReason.trim(),
-          clawback_at: new Date().toISOString(),
-        } as any)
-        .eq("id", rejectId);
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke('admin-commission-update', {
+        body: { commission_id: rejectId, action: 'reject', reason: rejectReason.trim() },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Erreur mise à jour');
     },
     onSuccess: () => {
       toast.success("Commission récupérée");

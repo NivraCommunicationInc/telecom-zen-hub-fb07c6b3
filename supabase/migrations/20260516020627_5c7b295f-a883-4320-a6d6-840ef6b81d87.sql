@@ -1,0 +1,2 @@
+ALTER TABLE public.field_commissions DROP CONSTRAINT IF EXISTS field_commissions_status_check;
+ALTER TABLE public.field_commissions ADD CONSTRAINT field_commissions_status_check CHECK (status IN ('pending','approved','paid','on_hold','clawback','disputed','rejected','cancelled'));
