@@ -122,7 +122,11 @@ export function useImpersonation() {
           /* ignore */
         }
       }
-      toast.error(err?.message || "Impossible de démarrer la session d'assistance", { id: toastId });
+      const rawMsg = err?.message || "";
+      const friendly = /personnel|staff|employé/i.test(rawMsg)
+        ? "Impossible de se connecter en tant qu'employé"
+        : rawMsg || "Impossible de démarrer la session d'assistance";
+      toast.error(friendly, { id: toastId });
     }
   };
 
