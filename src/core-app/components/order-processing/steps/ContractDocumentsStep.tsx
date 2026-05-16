@@ -11,6 +11,7 @@ import { generateOrderDocuments } from "@/lib/pdf";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { SignatureStatusBlock } from "./SignatureStatusBlock";
 import { StepCompletionCard } from "../StepCompletionCard";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props { proc: any; }
 
