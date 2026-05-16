@@ -216,7 +216,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!clientId) return [];
       const { data } = await supabase.from("contracts")
-        .select("id, contract_number, status, contract_pdf_url, created_at, signed_at, client_signed_at")
+        .select("id, contract_number, status, contract_pdf_url, created_at, signed_at, client_signed_at, admin_signed_at, signature_token, signature_token_expires_at")
         .eq("user_id", clientId!)
         .order("created_at", { ascending: false })
         .limit(20);
