@@ -32,6 +32,44 @@ interface CalendlyPayload {
   };
 }
 
+function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function hmacSha256Hex(secret: string, body: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(body));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Calendly header format: `t=<timestamp>,v1=<hex-hmac>`
+async function verifyCalendlySignature(req: Request, rawBody: string): Promise<boolean> {
+  const secret = Deno.env.get("CALENDLY_WEBHOOK_SIGNING_KEY");
+  if (!secret) {
+    console.error("[calendly-webhook] CALENDLY_WEBHOOK_SIGNING_KEY not configured — rejecting");
+    return false;
+  }
+  const header = req.headers.get("calendly-webhook-signature");
+  if (!header) return false;
+  const parts = Object.fromEntries(
+    header.split(",").map((p) => { const [k, v] = p.split("="); return [k?.trim(), v?.trim()]; }),
+  ) as Record<string, string>;
+  const t = parts["t"];
+  const v1 = parts["v1"];
+  if (!t || !v1) return false;
+  // Reject signatures older than 5 minutes to prevent replay.
+  const tsMs = Number(t) * 1000;
+  if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) return false;
+  const expected = await hmacSha256Hex(secret, `${t}.${rawBody}`);
+  return timingSafeEqualStr(v1.toLowerCase(), expected.toLowerCase());
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("Calendly webhook received");
   
@@ -47,7 +85,14 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: CalendlyPayload = await req.json();
+    const rawBody = await req.text();
+    if (!(await verifyCalendlySignature(req, rawBody))) {
+      console.warn("[calendly-webhook] Rejected: invalid or missing signature");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    const payload: CalendlyPayload = JSON.parse(rawBody);
     console.log("Calendly payload:", JSON.stringify(payload, null, 2));
 
     const eventType = payload.event;
