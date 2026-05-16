@@ -219,6 +219,7 @@ export default function FieldOrders() {
         <div className="space-y-2">
           {rows.map((r) => {
             const st = STATUS_FR[r.status] || { label: r.status, cls: "bg-slate-500/15 text-slate-300 border-slate-500/30" };
+            const previewItems = (r.services || []).slice(0, 3);
             return (
               <div key={`${r.kind}-${r.id}`} className="rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] transition-colors p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -235,15 +236,25 @@ export default function FieldOrders() {
                     <div className="mt-1.5 text-sm text-white font-semibold truncate">{r.client_name}</div>
                     <div className="text-[11px] text-white/60 truncate">{r.client_email}</div>
                     <div className="text-[11px] text-white/50 mt-1">{new Date(r.date).toLocaleDateString("fr-CA")}</div>
+                    {previewItems.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {previewItems.map((item: any, idx: number) => (
+                          <div key={idx} className="text-[11px] text-white/70 truncate">
+                            {item?.name || item?.label || "Article"} — {displayPrice(item)}{item?.type !== "equipment" && item?.category !== "Équipement" ? "/mois" : ""}
+                          </div>
+                        ))}
+                        <div className="text-[11px] text-white/60 truncate">{showDiscount(r.discount_data)}</div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="text-sm font-bold text-white">{r.amount.toFixed(2)} $</div>
+                    <div className="text-sm font-bold text-white">{displayPrice({ amount: r.amount })}</div>
                     {r.commission_amount > 0 && (
                       <div className="mt-1 inline-flex items-center gap-1.5">
                         <span className="text-[10px] text-white/60">Comm.</span>
                         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${COMMISSION_CLS[r.commission_status || "pending"] || COMMISSION_CLS.pending}`}>
-                          {r.commission_amount.toFixed(2)} $
+                          {displayPrice({ amount: r.commission_amount })}
                         </span>
                       </div>
                     )}
