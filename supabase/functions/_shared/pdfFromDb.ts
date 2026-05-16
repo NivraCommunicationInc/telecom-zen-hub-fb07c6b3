@@ -683,6 +683,28 @@ export async function buildContractPdfAttachment(
       equipment.reduce((acc, e) => acc + e.unit_price * e.quantity, 0)
       + oneTimeFees.reduce((acc, f) => acc + f.amount, 0);
 
+    // CANONICAL TAX SOURCE: billing_invoices is the source of truth (post-discount).
+    // orders.tps_amount/tvq_amount may reflect pre-discount taxes — never use for contract math.
+    const { data: invoiceForTaxes } = await supabase
+      .from("billing_invoices")
+      .select("subtotal, tps_amount, tvq_amount, total, discount_amount")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const taxGst = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).tps_amount || 0)
+      : Number(o.tps_amount || 0);
+    const taxQst = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).tvq_amount || 0)
+      : Number(o.tvq_amount || 0);
+    const totalDueToday = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).total || 0)
+      : Number(o.total_amount || 0);
+    const discountAmount = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).discount_amount || 0)
+      : 0;
+
     // Real billing vs service address (separate)
     const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
     const billingAddress = joinAddress(addr.billing) || o.client_full_address || "";
