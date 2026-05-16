@@ -294,7 +294,11 @@ export default function FieldNewSale() {
 
   const monthlyDiscountAmount = discountBreakdown.monthlyDiscountAmount;
   const installationDiscountAmount = discountBreakdown.installationDiscountAmount;
-  const firstMonthCredit = discountBreakdown.firstMonthCredit;
+  // RULE 1 — "Premier mois gratuit" is ALWAYS automatic when at least one
+  // forfait récurrent is selected. The agent cannot remove it. If the agent
+  // also picked a first_month_free discount, we keep a single credit (no double).
+  const autoFirstMonthCredit = draft.services.length > 0 ? monthlyBeforeDiscount : 0;
+  const firstMonthCredit = Math.max(autoFirstMonthCredit, discountBreakdown.firstMonthCredit);
 
   const monthlyAfterDiscount = Math.max(0, monthlyBeforeDiscount - monthlyDiscountAmount);
   const effectiveActivation = Math.max(0, activationFee - installationDiscountAmount);
