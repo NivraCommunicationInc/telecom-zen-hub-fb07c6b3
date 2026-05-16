@@ -1,129 +1,169 @@
 /**
- * Account360RowDialogs — Click-through detail dialogs for invoices, payments,
- * contracts, plus account-level Pause (temporary) and Cancel dialogs.
+ * Account360RowDialogs — Click-through PDF viewers + account ops dialogs.
+ *
+ * Invoices  → real invoice PDF (generateCanonicalInvoicePDF) + receipt button.
+ * Payments  → real receipt PDF (generateCanonicalReceiptPDF) for the paid invoice.
+ * Contracts → real contract PDF (generateCanonicalContractPDF), or the document_url
+ *             for non-contract documents.
+ * PauseAccountDialog / CancelAccountDialog — unchanged operations.
  */
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { corePath } from "@/core-app/lib/corePaths";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { fmtCAD, fmtDate, fmtDateTime } from "./Account360Helpers";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { fmtCAD } from "./Account360Helpers";
+import {
+  generateCanonicalInvoicePDF,
+  generateCanonicalContractPDF,
+  generateCanonicalReceiptPDF,
+} from "@/lib/pdf";
 
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary/50";
-const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40";
 const btnDanger = "rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40";
 const btnWarning = "rounded-md bg-amber-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-500 disabled:opacity-40";
 
-const Row = ({ label, value }: any) => (
-  <div className="flex justify-between gap-3 py-1 border-b border-border/40 last:border-0">
-    <span className="text-muted-foreground text-[11px]">{label}</span>
-    <span className="text-foreground text-[11px] text-right">{value ?? "—"}</span>
-  </div>
-);
+type PDFState = {
+  open: boolean;
+  blob: Blob | null;
+  title: string;
+  filename: string;
+  loading: boolean;
+  error: string | null;
+};
+const initialPdf: PDFState = { open: false, blob: null, title: "", filename: "", loading: false, error: null };
 
-/* ────────── Invoice Detail ────────── */
+function usePdfRunner() {
+  const [state, setState] = useState<PDFState>(initialPdf);
+
+  const run = async (title: string, filename: string, generator: () => Promise<any>) => {
+    setState({ open: true, blob: null, title, filename, loading: true, error: null });
+    try {
+      const result = await generator();
+      if (!result?.success || !result?.blob) {
+        const msg = result?.error || "Document indisponible";
+        setState((s) => ({ ...s, loading: false, error: msg }));
+        toast.error(msg);
+        return;
+      }
+      setState((s) => ({ ...s, loading: false, blob: result.blob, error: null }));
+    } catch (e: any) {
+      const msg = e?.message || "Erreur de génération";
+      setState((s) => ({ ...s, loading: false, error: msg }));
+      toast.error(msg);
+    }
+  };
+
+  const close = () => setState(initialPdf);
+
+  return { state, run, close };
+}
+
+/* ────────── Invoice → real invoice PDF ────────── */
 export function InvoiceDetailDialog({ invoice, open, onClose }: any) {
-  if (!invoice) return null;
+  const { state, run, close } = usePdfRunner();
+
+  useEffect(() => {
+    if (!open || !invoice?.id) return;
+    run(
+      `Facture ${invoice.invoice_number}`,
+      `facture-${invoice.invoice_number || invoice.id.slice(0, 8)}.pdf`,
+      () => generateCanonicalInvoicePDF(supabase as any, invoice.id),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, invoice?.id]);
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-sm font-mono">
-            Facture {invoice.invoice_number}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-1">
-          <Row label="Type" value={invoice.type} />
-          <Row label="Statut" value={invoice.status} />
-          <Row label="Sous-total" value={fmtCAD(invoice.subtotal)} />
-          <Row label="TPS" value={fmtCAD(invoice.tps_amount)} />
-          <Row label="TVQ" value={fmtCAD(invoice.tvq_amount)} />
-          <Row label="Total" value={<strong>{fmtCAD(invoice.total)}</strong>} />
-          <Row label="Payé" value={fmtCAD(invoice.amount_paid)} />
-          <Row label="Solde dû" value={<strong className={invoice.balance_due > 0 ? "text-red-400" : "text-emerald-400"}>{fmtCAD(invoice.balance_due)}</strong>} />
-          <Row label="Émise" value={fmtDate(invoice.created_at)} />
-          <Row label="Échéance" value={fmtDate(invoice.due_date)} />
-          <Row label="Payée le" value={fmtDate(invoice.paid_at)} />
-        </div>
-        <DialogFooter className="gap-2">
-          <button onClick={onClose} className={btnSecondary}>Fermer</button>
-          <Link to={corePath(`/invoices/${invoice.id}`)} className={btnPrimary}>Ouvrir la facture →</Link>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <PDFViewerDialog
+      open={open && state.open}
+      onOpenChange={(o) => { if (!o) { close(); onClose(); } }}
+      pdfBlob={state.blob}
+      title={state.title || "Facture"}
+      filename={state.filename || "facture.pdf"}
+      isLoading={state.loading}
+      error={state.error}
+    />
   );
 }
 
-/* ────────── Payment Detail ────────── */
-export function PaymentDetailDialog({ payment, invoices, open, onClose }: any) {
-  if (!payment) return null;
-  const linkedInvoice = invoices?.find((i: any) => i.id === payment.invoice_id);
+/* ────────── Payment → real receipt PDF for linked invoice ────────── */
+export function PaymentDetailDialog({ payment, open, onClose }: any) {
+  const { state, run, close } = usePdfRunner();
+
+  useEffect(() => {
+    if (!open || !payment) return;
+    const invoiceId = payment.invoice_id;
+    if (!invoiceId) {
+      // No linked invoice → cannot build a receipt
+      toast.error("Aucune facture liée à ce paiement — reçu indisponible.");
+      onClose();
+      return;
+    }
+    run(
+      `Reçu ${payment.payment_number || ""}`,
+      `recu-${payment.payment_number || payment.id?.slice(0, 8) || "paiement"}.pdf`,
+      () => generateCanonicalReceiptPDF(supabase as any, invoiceId),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, payment?.id]);
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-sm font-mono">
-            Paiement {payment.payment_number || payment.id?.slice(0, 8)}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-1">
-          <Row label="Montant" value={<strong className="text-emerald-400">{fmtCAD(payment.amount)}</strong>} />
-          <Row label="Méthode" value={payment.method} />
-          <Row label="Statut" value={payment.status} />
-          <Row label="Référence" value={<span className="font-mono">{payment.reference || "—"}</span>} />
-          <Row label="Fournisseur" value={payment.provider || "—"} />
-          <Row label="ID fournisseur" value={<span className="font-mono text-[10px]">{payment.provider_payment_id || "—"}</span>} />
-          <Row label="Reçu le" value={fmtDateTime(payment.received_at)} />
-          <Row label="Créé le" value={fmtDateTime(payment.created_at)} />
-          <Row label="Capturé le" value={fmtDateTime(payment.captured_at)} />
-          {payment.notes && <Row label="Notes" value={payment.notes} />}
-          {linkedInvoice && (
-            <Row label="Facture liée" value={
-              <Link to={corePath(`/invoices/${linkedInvoice.id}`)} className="text-emerald-400 hover:underline font-mono">
-                {linkedInvoice.invoice_number}
-              </Link>
-            } />
-          )}
-        </div>
-        <DialogFooter>
-          <button onClick={onClose} className={btnSecondary}>Fermer</button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <PDFViewerDialog
+      open={open && state.open}
+      onOpenChange={(o) => { if (!o) { close(); onClose(); } }}
+      pdfBlob={state.blob}
+      title={state.title || "Reçu"}
+      filename={state.filename || "recu.pdf"}
+      isLoading={state.loading}
+      error={state.error}
+    />
   );
 }
 
-/* ────────── Contract / Document Detail ────────── */
+/* ────────── Contract / Document → real PDF ────────── */
 export function ContractDetailDialog({ doc, open, onClose }: any) {
-  if (!doc) return null;
+  const { state, run, close } = usePdfRunner();
+
+  useEffect(() => {
+    if (!open || !doc) return;
+
+    // Generic document with an existing URL → open in a new tab and close
+    const rawId: string = doc.id || "";
+    const isContract = rawId.startsWith("c-");
+
+    if (!isContract) {
+      if (doc.url) {
+        window.open(doc.url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error("Aucun fichier PDF associé à ce document.");
+      }
+      onClose();
+      return;
+    }
+
+    const contractId = rawId.replace(/^c-/, "");
+    run(
+      doc.document_name || "Contrat",
+      `${(doc.contract_number || contractId).toString()}.pdf`,
+      () => generateCanonicalContractPDF(supabase as any, contractId, { source: "contract" }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, doc?.id]);
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-sm">{doc.document_name}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-1">
-          <Row label="Type" value={doc.document_type} />
-          <Row label="Signé / Ajouté" value={fmtDateTime(doc.signed_at || doc.created_at)} />
-          {doc.signer && <Row label="Signataire" value={doc.signer} />}
-          {doc.contract_number && <Row label="N° contrat" value={<span className="font-mono">{doc.contract_number}</span>} />}
-          {doc.status && <Row label="Statut" value={doc.status} />}
-        </div>
-        <DialogFooter className="gap-2">
-          <button onClick={onClose} className={btnSecondary}>Fermer</button>
-          {doc.url ? (
-            <a href={doc.url} target="_blank" rel="noreferrer" className={btnPrimary}>Ouvrir le document →</a>
-          ) : (
-            <span className="text-[11px] text-muted-foreground italic px-3 py-1.5">Aucun fichier PDF associé</span>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <PDFViewerDialog
+      open={open && state.open}
+      onOpenChange={(o) => { if (!o) { close(); onClose(); } }}
+      pdfBlob={state.blob}
+      title={state.title || "Contrat"}
+      filename={state.filename || "contrat.pdf"}
+      isLoading={state.loading}
+      error={state.error}
+    />
   );
 }
 
