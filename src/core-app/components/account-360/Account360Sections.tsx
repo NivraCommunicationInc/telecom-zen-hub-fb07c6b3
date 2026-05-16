@@ -376,6 +376,7 @@ export const KycSection = ({ data }: any) => {
 
 /* ── Contracts & Documents ── */
 export const ContractsSection = ({ data }: any) => {
+  const [selected, setSelected] = useState<any>(null);
   const rows: any[] = [];
   (data.contracts || []).forEach((c: any) => rows.push({
     id: `c-${c.id}`,
@@ -385,6 +386,8 @@ export const ContractsSection = ({ data }: any) => {
     url: c.contract_pdf_url || c.contract_url || null,
     signed_at: c.client_signed_at || c.signed_at || null,
     signer: c.client_signer_name || null,
+    contract_number: c.contract_number,
+    status: c.status,
   }));
   (data.documents || []).forEach((d: any) => rows.push({
     id: `d-${d.id}`,
@@ -403,24 +406,19 @@ export const ContractsSection = ({ data }: any) => {
       ) : (
         <MiniTable headers={["Document", "Type", "Signé / Ajouté", ""]}>
           {rows.map((d: any) => (
-            <tr key={d.id} className={trClass}>
+            <tr key={d.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(d)}>
               <td className="px-3 py-1.5 text-core-text-primary text-[11px]">
                 {d.document_name}
                 {d.signer && <span className="block text-[10px] text-core-text-label">par {d.signer}</span>}
               </td>
               <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
               <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.signed_at || d.created_at)}</td>
-              <td className="px-3 py-1.5 text-[10px]">
-                {d.url ? (
-                  <a href={d.url} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">Ouvrir →</a>
-                ) : (
-                  <span className="text-core-text-disabled">—</span>
-                )}
-              </td>
+              <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Voir →</td>
             </tr>
           ))}
         </MiniTable>
       )}
+      <ContractDetailDialog doc={selected} open={!!selected} onClose={() => setSelected(null)} />
     </Panel>
   );
 };
