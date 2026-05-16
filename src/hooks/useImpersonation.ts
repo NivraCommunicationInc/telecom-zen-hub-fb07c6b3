@@ -151,27 +151,6 @@ export function useImpersonation() {
 
     await ensureStaffTokenFallback();
 
-    if (!access.isAdmin) {
-      const token = `local-${crypto.randomUUID()}`;
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-      persistImpersonationHandoff({ token, expiresAt, clientId, clientName, clientEmail, localSession: true, targetWindow: win });
-      const url = `${window.location.origin}/portal`;
-      if (win && !win.closed) {
-        try {
-          win.location.replace(url);
-        } catch {
-          win.location.href = url;
-        }
-      } else {
-        window.location.assign(url);
-      }
-      toast.success(`Mode assistance activé pour ${clientName || clientEmail || "client"}`, {
-        id: toastId,
-        description: "Session valide 30 minutes — toutes les actions sont enregistrées.",
-      });
-      return;
-    }
-
     try {
       const { data, error } = await supabase.rpc("start_impersonation", {
         _client_id: clientId,
