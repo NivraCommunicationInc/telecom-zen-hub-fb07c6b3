@@ -254,3 +254,6 @@ verify_jwt = false
 
 [functions.track-email-click]
 verify_jwt = false
+
+[functions.audit-generate-pdfs]
+verify_jwt = false
