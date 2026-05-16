@@ -5433,6 +5433,7 @@ export type Database = {
           next_retry_at: string | null
           opened_at: string | null
           preview_text: string | null
+          priority: number
           provider_message_id: string | null
           provider_response: Json | null
           provider_status: string | null
@@ -5467,6 +5468,7 @@ export type Database = {
           next_retry_at?: string | null
           opened_at?: string | null
           preview_text?: string | null
+          priority?: number
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
@@ -5501,6 +5503,7 @@ export type Database = {
           next_retry_at?: string | null
           opened_at?: string | null
           preview_text?: string | null
+          priority?: number
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
