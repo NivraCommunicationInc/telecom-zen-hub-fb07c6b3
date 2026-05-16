@@ -247,8 +247,44 @@ function buildEnrichedDescription(
   return label || baseDescription;
 }
 
-// ============================================================================
-// INVOICE — uses locked invoiceTemplateV3 (generateInvoiceV3PDF)
+/**
+ * Resolve field-sales agent attribution for an order.
+ * Returns null when order is not from field_sales (web/online).
+ * Only ADDS data, never blocks PDF generation.
+ */
+async function resolveAgentAttribution(
+  supabase: SupabaseClient,
+  orderId: string | null,
+): Promise<{ sale_source: string; agent_name?: string; agent_number?: string } | null> {
+  try {
+    if (!orderId) return null;
+    const { data: o } = await supabase
+      .from("orders")
+      .select("source, created_by_agent_id, agent_name")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!o || (o as any).source !== "field_sales") return null;
+    let agentName: string | undefined = (o as any).agent_name || undefined;
+    let agentNumber: string | undefined;
+    const agentId = (o as any).created_by_agent_id as string | null;
+    if (agentId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, agent_number, badge_number")
+        .eq("user_id", agentId)
+        .maybeSingle();
+      if (prof) {
+        agentName = agentName || (prof as any).full_name || undefined;
+        agentNumber = (prof as any).agent_number || (prof as any).badge_number || undefined;
+      }
+    }
+    return { sale_source: "field_sales", agent_name: agentName, agent_number: agentNumber };
+  } catch (e) {
+    console.warn("[pdfFromDb] resolveAgentAttribution error:", (e as any)?.message || e);
+    return null;
+  }
+}
+
 // ============================================================================
 export async function buildInvoicePdfAttachment(
   invoiceId: string,
