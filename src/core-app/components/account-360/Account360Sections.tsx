@@ -349,26 +349,41 @@ export const KycSection = ({ data }: any) => (
 );
 
 /* ── Contracts & Documents ── */
-export const ContractsSection = ({ data }: any) => (
-  <Panel>
-    <PanelHeader icon={FileText} title="Contrats & Documents" count={data.documents?.length || 0} />
-    {(!data.documents || data.documents.length === 0) ? (
-      <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">
-        Aucun document enregistré pour ce client.
-      </div>
-    ) : (
-      <MiniTable headers={["Document", "Type", "Ajouté le"]}>
-        {data.documents.map((d: any) => (
-          <tr key={d.id} className={trClass}>
-            <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{d.document_name}</td>
-            <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
-            <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.created_at)}</td>
-          </tr>
-        ))}
-      </MiniTable>
-    )}
-  </Panel>
-);
+export const ContractsSection = ({ data }: any) => {
+  const rows: any[] = [];
+  (data.contracts || []).forEach((c: any) => rows.push({
+    id: `c-${c.id}`,
+    document_name: c.contract_number ? `Contrat ${c.contract_number}` : `Contrat ${String(c.id).slice(0, 8)}`,
+    document_type: c.status || "contract",
+    created_at: c.created_at,
+  }));
+  (data.documents || []).forEach((d: any) => rows.push({
+    id: `d-${d.id}`,
+    document_name: d.document_name,
+    document_type: d.document_type || "—",
+    created_at: d.created_at,
+  }));
+  return (
+    <Panel>
+      <PanelHeader icon={FileText} title="Contrats & Documents" count={rows.length} />
+      {rows.length === 0 ? (
+        <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">
+          Aucun document enregistré pour ce client.
+        </div>
+      ) : (
+        <MiniTable headers={["Document", "Type", "Ajouté le"]}>
+          {rows.map((d: any) => (
+            <tr key={d.id} className={trClass}>
+              <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{d.document_name}</td>
+              <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
+              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.created_at)}</td>
+            </tr>
+          ))}
+        </MiniTable>
+      )}
+    </Panel>
+  );
+};
 
 /* ── Financial Documents (Lot 1) ── */
 export const FinancialDocsSection = ({ data, acct, prof, clientName }: any) => {
