@@ -156,6 +156,21 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         onClose={() => setAdjustmentOpen(false)}
         onRefresh={onRefresh}
       />
+
+      <PauseAccountDialog
+        accountId={accountId}
+        monthlyRevenue={monthlyRevenue}
+        open={pauseOpen}
+        onClose={() => setPauseOpen(false)}
+        onRefresh={onRefresh}
+      />
+
+      <CancelAccountDialog
+        accountId={accountId}
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onRefresh={onRefresh}
+      />
     </>
   );
 }
