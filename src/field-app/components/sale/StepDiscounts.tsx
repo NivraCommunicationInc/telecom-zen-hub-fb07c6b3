@@ -108,6 +108,9 @@ export default function StepDiscounts({
 
       const now = Date.now();
       return (rows ?? []).filter((d) => {
+        // RULE 2 — first_month_free is applied AUTOMATICALLY by the sale flow,
+        // so the agent must never be able to pick it as an additional discount.
+        if (String(d.type) === "first_month_free") return false;
         const notExpired = !d.expires_at || new Date(d.expires_at).getTime() > now;
         const hasCapacity = d.max_uses == null || (d.uses_count ?? 0) < d.max_uses;
         return notExpired && hasCapacity;
