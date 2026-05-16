@@ -123,7 +123,76 @@ export function ContractDocumentsStep({ proc }: Props) {
   const handleSignContract = async () => {
     if (contracts.length === 0) { toast.error("Aucun contrat à signer"); return; }
     setLoading("sign");
-    try { await proc.signContract(contracts[0].id); }
+    try {
+      const contractId = contracts[0].id;
+      await proc.signContract(contractId);
+
+      // Queue contract_sign_request email to client now that Nivra has signed.
+      try {
+        const { data: freshContract } = await supabase
+          .from("contracts")
+          .select("id, signature_token, signature_token_expires_at, admin_signed_at")
+          .eq("id", contractId)
+          .maybeSingle();
+
+        const clientEmail =
+          proc?.profile?.email ||
+          order?.client_email ||
+          order?.email ||
+          null;
+        const signature_token = freshContract?.signature_token;
+
+        if (clientEmail && signature_token) {
+          const services =
+            order?.services_summary ||
+            order?.plan_name ||
+            (Array.isArray(order?.items)
+              ? order.items.map((i: any) => i.name || i.plan_name).filter(Boolean).join(", ")
+              : null) ||
+            "Vos services Nivra";
+
+          const agentName =
+            order?.agent_name ||
+            proc?.agent?.name ||
+            order?.created_by_name ||
+            "Votre conseiller Nivra";
+          const agentNumber =
+            order?.agent_number ||
+            proc?.agent?.agent_number ||
+            "";
+
+          const sign_url = `https://nivra-telecom.ca/signer/${signature_token}`;
+
+          const { error: qErr } = await supabase.from("email_queue").insert({
+            event_key: `contract_sign_request_${contractId}`,
+            to_email: clientEmail,
+            template_key: "contract_sign_request",
+            template_vars: {
+              client_first_name: order?.client_first_name || proc?.profile?.first_name || "",
+              client_last_name: order?.client_last_name || proc?.profile?.last_name || "",
+              client_name:
+                [order?.client_first_name || proc?.profile?.first_name, order?.client_last_name || proc?.profile?.last_name]
+                  .filter(Boolean).join(" ") || "Client",
+              order_number: order?.order_number || "",
+              services,
+              agent_name: agentName,
+              agent_number: agentNumber,
+              token_expires_at: freshContract?.signature_token_expires_at || null,
+              sign_url,
+              signature_url: sign_url,
+            },
+            status: "queued",
+          });
+          if (qErr) {
+            console.error("[ContractSignRequest] enqueue error:", qErr);
+          } else {
+            toast.success("Contrat signé par Nivra ✓ — Email envoyé au client pour signature");
+          }
+        }
+      } catch (mailErr) {
+        console.error("[ContractSignRequest] unexpected error:", mailErr);
+      }
+    }
     catch (err) {
       console.error("[Documents] Sign error:", err);
       toast.error("Erreur lors de la signature");
