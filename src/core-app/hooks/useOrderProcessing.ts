@@ -1905,6 +1905,27 @@ export function useOrderProcessing(orderId: string | undefined) {
           service_type: data?.order?.service_type || "",
         },
       });
+
+      const contract = data?.contracts?.[0];
+      if (contract?.signature_token) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "contract_sign_request",
+          event_key: `contract_sign_request_${orderId}_${contract.id}`,
+          idempotency_key: `contract_sign_request_${contract.id}`,
+          mode: "automatic",
+          subject: "Votre contrat est prêt à signer — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_id: orderId,
+            order_number: data?.order?.order_number || "",
+            service: data?.order?.service_type || "Service Nivra",
+            contract_number: contract.contract_number || contract.contract_url || "",
+            signature_url: `https://nivra-telecom.ca/signer/${contract.signature_token}`,
+          },
+        });
+      }
     }
 
     invalidateAll();
