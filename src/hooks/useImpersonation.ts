@@ -43,6 +43,31 @@ export function useImpersonation() {
       `Ouverture du portail de ${clientName || clientEmail || "client"}…`,
     );
 
+    // Pre-flight: block staff/admin targets with a clear message before opening RPC.
+    // This mirrors the server-side guard in start_impersonation() but provides
+    // a friendlier UX (no popup churn, explicit "employee" wording).
+    const STAFF_ROLES = [
+      "admin", "employee", "supervisor", "billing_admin", "sales",
+      "field_sales", "support", "techops", "kyc_agent", "technician", "hr",
+    ];
+    try {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", clientId);
+      const targetStaffRole = (roles || []).find((r: any) => STAFF_ROLES.includes(r.role));
+      if (targetStaffRole) {
+        if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
+        toast.error("Impossible de se connecter en tant qu'employé", {
+          id: toastId,
+          description: "La vue client n'est disponible que pour les comptes clients.",
+        });
+        return;
+      }
+    } catch {
+      /* fall through to RPC — server will still enforce */
+    }
+
     try {
       const { data, error } = await supabase.rpc("start_impersonation", {
         _client_id: clientId,
@@ -97,7 +122,11 @@ export function useImpersonation() {
           /* ignore */
         }
       }
-      toast.error(err?.message || "Impossible de démarrer la session d'assistance", { id: toastId });
+      const rawMsg = err?.message || "";
+      const friendly = /personnel|staff|employé/i.test(rawMsg)
+        ? "Impossible de se connecter en tant qu'employé"
+        : rawMsg || "Impossible de démarrer la session d'assistance";
+      toast.error(friendly, { id: toastId });
     }
   };
 
