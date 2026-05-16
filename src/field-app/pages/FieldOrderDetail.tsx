@@ -31,6 +31,44 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "En attente", submitted: "Soumise", received: "Reçue", processing: "En traitement", confirmed: "Confirmée", shipped: "Expédiée", delivered: "Livrée", installed: "Installée", activated: "Activée", completed: "Complétée", cancelled: "Annulée",
 };
 
+const displayPrice = (item: any): string => {
+  const p = Number(
+    item?.price ?? item?.unit_price ??
+    item?.monthly_price ?? item?.price_monthly ?? item?.amount ?? 0
+  );
+  return new Intl.NumberFormat('fr-CA', {
+    style: 'currency', currency: 'CAD'
+  }).format(Number.isFinite(p) ? p : 0);
+};
+
+const showDiscount = (d: any): string => {
+  if (!d) return 'Aucun rabais';
+
+  const name = d.name || d.label || 'Rabais';
+  const amount = Number(d.amount ||
+    d.monthly_amount || 0);
+  const months = Number(d.duration_months ||
+    d.duration || d.months_total || 0);
+
+  if (d.type === 'remove_fee' ||
+      name.toLowerCase().includes('installation')) {
+    return `${name} — Installation gratuite`;
+  }
+  if (months > 0) {
+    return `${name} — ${new Intl.NumberFormat(
+      'fr-CA',{style:'currency',currency:'CAD'}
+    ).format(amount)}/mois × ${months} mois`;
+  }
+  return `${name} — ${new Intl.NumberFormat(
+    'fr-CA',{style:'currency',currency:'CAD'}
+  ).format(amount)}`;
+};
+
+const displayItemName = (item: any) => item?.name || item?.label || item?.title || "Article";
+
+const isMonthlyItem = (item: any) =>
+  item?.price_monthly !== undefined || item?.monthly_price !== undefined || item?.billing_cycle === "monthly" || item?.type === "service";
+
 function InfoRow({ label, value, mono, bold }: { label: string; value: string | undefined | null; mono?: boolean; bold?: boolean }) {
   return (
     <div><span className="text-[10px] text-[#9CA3AF] block">{label}</span><p className={cn("text-sm text-[#000000]", mono && "font-mono", bold && "font-bold")}>{value || "—"}</p></div>
