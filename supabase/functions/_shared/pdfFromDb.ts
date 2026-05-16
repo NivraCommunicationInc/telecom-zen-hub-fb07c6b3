@@ -496,14 +496,33 @@ export async function buildReceiptPdfAttachment(
       return null;
     }
 
-    const addr = await resolveClientAddress(supabase, { userId: customer.user_id, orderId: null });
-    const clientAddress = joinAddress(addr.billing) || joinAddress(addr.service) || undefined;
+    const addr = await resolveClientAddress(supabase, {
+      userId: customer.user_id,
+      orderId: (invoice as any).order_id || null,
+    });
+    const clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || undefined;
+
+    // ADD-ONLY: detect unpaid card_manual flow → payment_status='pending'
+    let orderPaymentMethod: string | null = null;
+    if ((invoice as any).order_id) {
+      const { data: ord } = await supabase
+        .from("orders")
+        .select("payment_method")
+        .eq("id", (invoice as any).order_id)
+        .maybeSingle();
+      orderPaymentMethod = (ord as any)?.payment_method || null;
+    }
+    const hasConfirmedPayment = !!payment && Number(payment?.amount || 0) > 0;
+    const isCardManualPending = !hasConfirmedPayment && orderPaymentMethod === "card_manual";
+    const paymentStatus: "paid" | "pending" = isCardManualPending ? "pending" : "paid";
 
     const data: ReceiptData = {
       receipt_number: payment?.payment_number || `REC-${invoiceId.slice(0, 8)}`,
       payment_date: payment?.received_at || payment?.captured_at || (invoice as any).paid_at || new Date().toISOString(),
-      payment_method: payment?.method || (invoice as any).payment_method || "Inconnu",
-      amount_paid: Number(payment?.amount ?? (invoice as any).amount_paid ?? (invoice as any).total ?? 0),
+      payment_method: payment?.method || orderPaymentMethod || (invoice as any).payment_method || "Inconnu",
+      amount_paid: hasConfirmedPayment
+        ? Number(payment?.amount ?? (invoice as any).amount_paid ?? 0)
+        : 0,
       invoice_number: (invoice as any).invoice_number || "",
       invoice_total: Number((invoice as any).total || 0),
       order_number: order.order_number || undefined,
@@ -528,6 +547,8 @@ export async function buildReceiptPdfAttachment(
       subtotal: Number((invoice as any).subtotal || 0),
       tps_amount: Number((invoice as any).tps_amount || 0),
       tvq_amount: Number((invoice as any).tvq_amount || 0),
+      payment_status: paymentStatus,
+      total_due: Number((invoice as any).total || 0),
     };
 
     // ADD-ONLY: attach field-sales agent attribution
@@ -687,7 +708,7 @@ export async function buildContractPdfAttachment(
     // orders.tps_amount/tvq_amount may reflect pre-discount taxes — never use for contract math.
     const { data: invoiceForTaxes } = await supabase
       .from("billing_invoices")
-      .select("subtotal, tps_amount, tvq_amount, total")
+      .select("id, subtotal, tps_amount, tvq_amount, total")
       .eq("order_id", orderId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -701,7 +722,24 @@ export async function buildContractPdfAttachment(
     const totalDueToday = invoiceForTaxes
       ? Number((invoiceForTaxes as any).total || 0)
       : Number(o.total_amount || 0);
-    const discountAmount = Number(o.discount_amount || 0);
+
+    // ADD-ONLY: real discount lines from billing_invoice_lines (line_type='discount')
+    let contractDiscountLines: Array<{ description: string; unit_price: number }> = [];
+    if (invoiceForTaxes?.id) {
+      const { data: discountLines } = await supabase
+        .from("billing_invoice_lines")
+        .select("description, unit_price, line_type")
+        .eq("invoice_id", (invoiceForTaxes as any).id)
+        .eq("line_type", "discount");
+      contractDiscountLines = (discountLines || []).map((l: any) => ({
+        description: String(l.description || "Rabais"),
+        unit_price: Math.abs(Number(l.unit_price || 0)),
+      }));
+    }
+    const discountAmount = contractDiscountLines.length > 0
+      ? contractDiscountLines.reduce((s, l) => s + l.unit_price, 0)
+      : Number(o.discount_amount || 0);
+    const contractDiscountLabel = contractDiscountLines[0]?.description;
 
     // Real billing vs service address (separate)
     const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
@@ -756,6 +794,9 @@ export async function buildContractPdfAttachment(
       subtotal_monthly: subtotalMonthly,
       subtotal_one_time: subtotalOneTime,
       discount_amount: discountAmount,
+      discount_label: contractDiscountLabel,
+      has_discount: contractDiscountLines.length > 0,
+      discount_lines: contractDiscountLines,
       tax_gst: taxGst,
       tax_qst: taxQst,
       total_due_today: totalDueToday,
@@ -932,6 +973,41 @@ export async function buildSummaryPdfAttachment(
       equipment.reduce((acc: number, e: any) => acc + Number(e.unit_price || 0) * Number(e.quantity || 1), 0)
       + fees.reduce((acc: number, f: any) => acc + Number(f.amount || 0), 0);
 
+    // CANONICAL TOTALS — pull from billing_invoices (post-discount) when available
+    const { data: summaryInvoice } = await supabase
+      .from("billing_invoices")
+      .select("id, subtotal, tps_amount, tvq_amount, total")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let summaryDiscountAmount = 0;
+    let summaryDiscountLabel: string | undefined;
+    if (summaryInvoice?.id) {
+      const { data: discountLines } = await supabase
+        .from("billing_invoice_lines")
+        .select("description, unit_price, line_type")
+        .eq("invoice_id", (summaryInvoice as any).id)
+        .eq("line_type", "discount");
+      if (Array.isArray(discountLines) && discountLines.length > 0) {
+        summaryDiscountAmount = discountLines.reduce(
+          (s: number, l: any) => s + Math.abs(Number(l.unit_price || 0)), 0,
+        );
+        summaryDiscountLabel = String(discountLines[0]?.description || "Rabais");
+      }
+    }
+
+    const canonicalTaxGst = summaryInvoice
+      ? Number((summaryInvoice as any).tps_amount || 0)
+      : Number((o as any).tps_amount || 0);
+    const canonicalTaxQst = summaryInvoice
+      ? Number((summaryInvoice as any).tvq_amount || 0)
+      : Number((o as any).tvq_amount || 0);
+    const canonicalTotal = summaryInvoice
+      ? Number((summaryInvoice as any).total || 0)
+      : Number((o as any).total_amount || (o as any).subtotal || subtotalMonthly + subtotalOneTime);
+
     const data: OrderSummaryV3Data = {
       order_number: (o as any).order_number || orderId.slice(0, 8).toUpperCase(),
       order_date: (o as any).created_at,
@@ -946,11 +1022,11 @@ export async function buildSummaryPdfAttachment(
       fees,
       subtotal_monthly: subtotalMonthly,
       subtotal_onetime: subtotalOneTime,
-      discount_amount: 0,
-      tax_gst: Number((o as any).tps_amount || 0),
-      tax_qst: Number((o as any).tvq_amount || 0),
-      total_due:
-        Number((o as any).total_amount || (o as any).subtotal || subtotalMonthly + subtotalOneTime),
+      discount_amount: summaryDiscountAmount,
+      discount_label: summaryDiscountLabel,
+      tax_gst: canonicalTaxGst,
+      tax_qst: canonicalTaxQst,
+      total_due: canonicalTotal,
       estimated_activation: tele.install_date || (o as any).appointment_date || undefined,
       mobile_assigned_number: tele.mobile?.assigned_number,
       mobile_sim_iccid: tele.mobile?.sim_iccid,

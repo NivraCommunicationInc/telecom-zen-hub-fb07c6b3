@@ -66,6 +66,10 @@ export interface ReceiptData {
     line_total: number;
   }>;
 
+  // ADD-ONLY: payment status for unpaid card_manual flow
+  payment_status?: "paid" | "pending" | string;
+  total_due?: number;
+
   // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
@@ -139,12 +143,14 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setFontSize(8);
     doc.text(`Facture: ${data.invoice_number}`, pw - 15, 22, { align: "right" });
 
-    // WATERMARK (bottom area, light green)
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(60);
-    doc.setTextColor(200, 240, 200);
-    doc.text("P A Y E", 55, 240);
-    doc.setTextColor(0, 0, 0);
+    // WATERMARK (bottom area, light green) — only when payment is confirmed
+    if (data.payment_status !== "pending") {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(60);
+      doc.setTextColor(200, 240, 200);
+      doc.text("P A Y E", 55, 240);
+      doc.setTextColor(0, 0, 0);
+    }
 
     // CLIENT BLOCK
     let y = 50;
@@ -264,13 +270,27 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.text("TPS (5%)", tx, y); doc.text(fmt(tps), 185, y, { align: "right" }); y += 6;
     doc.text("TVQ (9,975%)", tx, y); doc.text(fmt(tvq), 185, y, { align: "right" }); y += 8;
 
-    // TOTAL PAID BOX
+    // TOTAL BOX — swap between PAYE (green) and EN TRAITEMENT (orange) per payment_status
+    const isPending = data.payment_status === "pending";
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.setFillColor(220, 255, 220);
-    doc.rect(tx, y, 65, 9, "F");
-    doc.setTextColor(0, 0, 0);
-    doc.text(`TOTAL PAYE: ${fmt(data.amount_paid)}`, tx + 32.5, y + 6.5, { align: "center" });
+    if (isPending) {
+      // Orange "PAIEMENT EN TRAITEMENT" badge with Montant du
+      doc.setFillColor(255, 230, 200);
+      doc.rect(tx, y, 65, 9, "F");
+      doc.setTextColor(180, 90, 0);
+      doc.text("PAIEMENT EN TRAITEMENT", tx + 32.5, y + 6.5, { align: "center" });
+      y += 12;
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      const due = Number(data.total_due ?? data.invoice_total ?? 0);
+      doc.text(`Montant du: ${fmt(due)}`, tx, y);
+    } else {
+      doc.setFillColor(220, 255, 220);
+      doc.rect(tx, y, 65, 9, "F");
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL PAYE: ${fmt(data.amount_paid)}`, tx + 32.5, y + 6.5, { align: "center" });
+    }
 
     // FOOTER — TPS/TVQ + adresse Nivra
     const ph = doc.internal.pageSize.getHeight();
