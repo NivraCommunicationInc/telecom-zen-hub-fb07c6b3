@@ -28,7 +28,7 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   approved: { cls: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", label: "Approuvé" },
   pending: { cls: "border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300", label: "Attente" },
   validated: { cls: "border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300", label: "Validé" },
-  paid: { cls: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", label: "Payé" },
+  paid: { cls: "border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300", label: "Payé" },
   rejected: { cls: "border-red-300 bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300", label: "Rejeté" },
 };
 
