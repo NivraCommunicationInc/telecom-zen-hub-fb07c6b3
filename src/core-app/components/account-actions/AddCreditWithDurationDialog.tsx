@@ -66,25 +66,29 @@ export function AddCreditWithDurationDialog({ accountId, customerId, clientName,
         ? null
         : new Date(Date.now() + durationMonths * 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const { error } = await supabase.from("account_promotions").insert({
+      const user = (await supabase.auth.getUser()).data.user;
+      const adjustmentType = promotionType === "credit" || promotionType === "discount" || promotionType === "promo"
+        ? "credit"
+        : "credit";
+      const descriptionParts = [label.trim()];
+      if (promoCode.trim()) descriptionParts.push(`(code: ${promoCode.trim()})`);
+      if (notes.trim()) descriptionParts.push(`— ${notes.trim()}`);
+
+      const { error } = await supabase.from("account_adjustments").insert({
         account_id: accountId,
-        customer_id: customerId || null,
-        label: label.trim(),
-        promotion_type: promotionType,
+        type: adjustmentType,
         amount: parsedAmount,
-        duration_months: isPermanent ? 9999 : durationMonths,
-        months_remaining: isPermanent ? 9999 : durationMonths,
-        promo_code: promoCode.trim() || null,
-        notes: notes.trim() || null,
-        is_active: true,
-        started_at: new Date().toISOString(),
+        description: descriptionParts.join(" "),
+        months_total: isPermanent ? null : durationMonths,
+        months_remaining: isPermanent ? null : durationMonths,
+        is_permanent: isPermanent,
+        status: "active",
+        created_by: user?.id || null,
         expires_at: expiresAt,
-        created_by_role: "admin",
       });
       if (error) throw error;
 
       // Log activity
-      const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
         user_id: user?.id || "system",
         entity_type: "account",

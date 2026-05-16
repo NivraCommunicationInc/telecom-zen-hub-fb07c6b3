@@ -81,6 +81,7 @@ export type Database = {
           description: string
           expires_at: string | null
           id: string
+          is_permanent: boolean
           last_applied_at: string | null
           months_remaining: number
           months_total: number
@@ -96,6 +97,7 @@ export type Database = {
           description: string
           expires_at?: string | null
           id?: string
+          is_permanent?: boolean
           last_applied_at?: string | null
           months_remaining: number
           months_total?: number
@@ -111,6 +113,7 @@ export type Database = {
           description?: string
           expires_at?: string | null
           id?: string
+          is_permanent?: boolean
           last_applied_at?: string | null
           months_remaining?: number
           months_total?: number
