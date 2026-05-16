@@ -85,6 +85,22 @@ export default function FieldCommissions() {
     refetchInterval: 15000,
   });
 
+  // Direct DB fallback if edge function returns 0
+  const { data: directCommissions } = useQuery({
+    queryKey: ["field-commission-direct", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("field_commissions")
+        .select("amount, status")
+        .eq("agent_id", user.id);
+      console.log("[commission] direct rows:", data, "error:", error);
+      return data || [];
+    },
+    enabled: !!user?.id,
+    refetchInterval: 15000,
+  });
+
   /* Realtime — listen to sales_commissions for this agent.
      Insert  → "Nouvelle commission ajoutée"
      Update  → status change toast (validated / paid / rejected) */
