@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +59,13 @@ serve(async (req: Request): Promise<Response> => {
   console.log(`[${requestId}] [${timestamp}] admin-secret-verify started`);
 
   try {
+    // ── IP-based rate limit (5 attempts / 15 min, 30 min lockout) ──
+    // Prevents brute-forcing the 6-digit MFA code by rotating session_id.
+    const rateCheck = await checkRateLimit({ key: `admin_secret_verify:${ip}`, ...RATE_LIMITS.LOGIN });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const body: RequestBody = await req.json();
     const { admin_user_id, code, session_id } = body;
 
@@ -84,7 +92,28 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check for existing attempts record
+    // ── Require a valid Supabase JWT that matches the claimed admin_user_id ──
+    // Without this, anyone with an admin UUID can call us; with the rate limit
+    // bypassed via session_id rotation, this is the difference between a hard
+    // MFA gate and an open brute-force endpoint.
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ ok: false, request_id: requestId, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(authHeader.slice(7));
+    if (claimsErr || !claims?.claims?.sub || claims.claims.sub !== admin_user_id) {
+      console.warn(`[${requestId}] JWT claim mismatch (claim sub=${claims?.claims?.sub}, requested=${admin_user_id})`);
+      return new Response(
+        JSON.stringify({ ok: false, request_id: requestId, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Check for existing attempts record — keyed on (admin_user_id, session_id)
+    // for backwards compat. The IP rate limit above blocks the rotation bypass.
     const { data: attemptRecord, error: attemptError } = await supabase
       .from("admin_secret_attempts")
       .select("*")
