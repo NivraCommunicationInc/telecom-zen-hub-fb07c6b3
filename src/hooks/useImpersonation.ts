@@ -20,8 +20,19 @@ export const IMPERSONATION_PENDING_KEY = "nivra_impersonation_pending_v1";
 export const IMPERSONATION_TOKEN_KEY = "nivra_impersonation_token";
 const IMPERSONATION_SESSION_KEY = "nivra_impersonation_v1";
 
-const STAFF_ROLES = ["field_sales", "employee", "admin", "hr", "technician"];
-const STAFF_ROLE_RPC_CHECKS = ["field_sales", "employee", "admin", "technician"];
+const STAFF_ROLES = [
+  "admin",
+  "employee",
+  "field_sales",
+  "technician",
+  "supervisor",
+  "billing_admin",
+  "sales",
+  "support",
+  "techops",
+  "kyc_agent",
+];
+const STAFF_ROLE_RPC_CHECKS = STAFF_ROLES;
 
 function getStaffAuthStorageKey() {
   return `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-staff-auth-token`;
@@ -102,14 +113,16 @@ async function currentUserCanViewClient(): Promise<{ canView: boolean; isAdmin: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { canView: false, isAdmin: false };
 
-  const [adminResult, employeeResult] = await Promise.all([
+  const [adminResult, employeeResult, fieldSalesResult] = await Promise.all([
     supabase.rpc("has_role", { _user_id: user.id, _role: "admin" as any }),
     supabase.rpc("has_role", { _user_id: user.id, _role: "employee" as any }),
+    supabase.rpc("has_role", { _user_id: user.id, _role: "field_sales" as any }),
   ]);
 
   const isAdmin = adminResult.data === true;
   const isEmployee = employeeResult.data === true;
-  return { canView: isAdmin || isEmployee, isAdmin };
+  const isFieldSales = fieldSalesResult.data === true;
+  return { canView: isAdmin || isEmployee || isFieldSales, isAdmin };
 }
 
 interface StartArgs {
