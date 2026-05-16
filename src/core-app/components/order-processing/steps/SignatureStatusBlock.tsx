@@ -39,6 +39,10 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
   const signed = !!contract?.client_signed_at;
   const token: string | null = contract?.signature_token || null;
   const signatureUrl = useMemo(() => (token ? `${SIGN_BASE_URL}/${encodeURIComponent(token)}` : null), [token]);
+  const clientName =
+    order?.client_full_name ||
+    [order?.client_first_name, order?.client_last_name].filter(Boolean).join(" ") ||
+    "Client";
 
   // ── One-click: generate token (if needed) + email link to client ──
   const handleGenerateAndSend = async () => {
@@ -70,15 +74,23 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
 
       // 2. Queue branded email through canonical pipeline
       const { error: qErr } = await supabase.from("email_queue").insert({
+        event_key: `contract_sign_request_${contract.id}_${Date.now()}`,
         to_email: clientEmail,
-        template_type: "contract_signature_request",
-        template_data: {
-          client_name: order?.client_full_name || "Client",
+        template_key: "contract_sign_request",
+        subject: "Votre contrat est prêt à signer — Nivra",
+        entity_type: "contract",
+        entity_id: contract.id,
+        message_type: "contract_signature_request",
+        template_vars: {
+          client_name: clientName,
+          client_first_name: order?.client_first_name || "",
+          client_last_name: order?.client_last_name || "",
           signature_url: url,
+          sign_url: url,
           order_number: order?.order_number || "",
           contract_number: contract?.contract_number || "",
         } as any,
-        priority: "high",
+        priority: 10,
         status: "queued",
       } as any);
       if (qErr) throw qErr;
@@ -154,15 +166,23 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
     try {
       // Queue email through canonical pipeline
       const { error } = await supabase.from("email_queue").insert({
+        event_key: `contract_sign_request_${contract.id}_${Date.now()}`,
         to_email: clientEmail,
-        template_type: "contract_signature_request",
-        template_data: {
-          client_name: order?.client_full_name || "Client",
+        template_key: "contract_sign_request",
+        subject: "Votre contrat est prêt à signer — Nivra",
+        entity_type: "contract",
+        entity_id: contract.id,
+        message_type: "contract_signature_request",
+        template_vars: {
+          client_name: clientName,
+          client_first_name: order?.client_first_name || "",
+          client_last_name: order?.client_last_name || "",
           signature_url: signatureUrl,
+          sign_url: signatureUrl,
           order_number: order?.order_number || "",
           contract_number: contract?.contract_number || "",
         } as any,
-        priority: "high",
+        priority: 10,
         status: "queued",
       } as any);
       if (error) throw error;
