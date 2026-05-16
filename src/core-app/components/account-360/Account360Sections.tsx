@@ -266,26 +266,35 @@ export const PaymentsSection = ({ data, customerId, customerUserId, profileEmail
 );
 
 /* ── Equipment ── */
-export const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
-  <Panel>
-    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
-      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
-    <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
-      {data.equipment.map((eq: any) => (
-        <tr key={eq.id} className={trClass}>
-          <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{eq.item_name}</td>
-          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.item_sku || "—"}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{eq.quantity}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-secondary text-[11px]">{fmtCAD(eq.unit_price)}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(eq.line_total)}</td>
-          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px] max-w-[120px] truncate">
-            {eq.serial_numbers ? (Array.isArray(eq.serial_numbers) ? (eq.serial_numbers as string[]).join(", ") : JSON.stringify(eq.serial_numbers)) : "—"}
-          </td>
-        </tr>
-      ))}
-    </MiniTable>
-  </Panel>
-);
+export const EquipmentSection = ({ data, accountId, onRefresh }: any) => {
+  const [selected, setSelected] = useState<any>(null);
+  return (
+    <Panel>
+      <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
+        actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
+      <MiniTable headers={["Article", "SKU", "Statut", "S/N", "MAC", "Assigné le", ""]} empty={data.equipment.length === 0}>
+        {data.equipment.map((eq: any) => (
+          <tr key={eq.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(eq)}>
+            <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{eq.catalog_name || eq.item_name}</td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.sku || eq.item_sku || "—"}</td>
+            <td className="px-3 py-1.5">
+              {eq.status
+                ? <StatusBadge label={label(eq.status)} variant={statusToVariant(eq.status)} size="sm" />
+                : <span className="text-core-text-disabled text-[10px]">—</span>}
+            </td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px] max-w-[120px] truncate">
+              {eq.serial_number || (Array.isArray(eq.serial_numbers) ? eq.serial_numbers.join(", ") : "—")}
+            </td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.mac_address || "—"}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(eq.assigned_at || eq.created_at)}</td>
+            <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Gérer →</td>
+          </tr>
+        ))}
+      </MiniTable>
+      <EquipmentDetailDialog item={selected} open={!!selected} onClose={() => setSelected(null)} onRefresh={onRefresh} />
+    </Panel>
+  );
+};
 
 /* ── Tickets ── */
 export const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
