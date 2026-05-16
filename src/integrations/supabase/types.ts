@@ -13025,6 +13025,7 @@ export type Database = {
           tps_rate: number | null
           tracking_number: string | null
           tracking_url: string | null
+          tv_channels_count: number
           tvq_amount: number | null
           tvq_rate: number | null
           updated_at: string
@@ -13150,6 +13151,7 @@ export type Database = {
           tps_rate?: number | null
           tracking_number?: string | null
           tracking_url?: string | null
+          tv_channels_count?: number
           tvq_amount?: number | null
           tvq_rate?: number | null
           updated_at?: string
@@ -13275,6 +13277,7 @@ export type Database = {
           tps_rate?: number | null
           tracking_number?: string | null
           tracking_url?: string | null
+          tv_channels_count?: number
           tvq_amount?: number | null
           tvq_rate?: number | null
           updated_at?: string
@@ -22146,6 +22149,7 @@ export type Database = {
           tps_rate: number | null
           tracking_number: string | null
           tracking_url: string | null
+          tv_channels_count: number
           tvq_amount: number | null
           tvq_rate: number | null
           updated_at: string

@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS tv_channels_count INTEGER NOT NULL DEFAULT 0;
