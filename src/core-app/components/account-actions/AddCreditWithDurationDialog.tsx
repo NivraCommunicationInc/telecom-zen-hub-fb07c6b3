@@ -89,7 +89,6 @@ export function AddCreditWithDurationDialog({ accountId, customerId, clientName,
       if (error) throw error;
 
       // Log activity
-      const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
         user_id: user?.id || "system",
         entity_type: "account",
