@@ -175,7 +175,27 @@ export default function StepRecap({
           </div>
         )}
 
-        {draft.discount && (monthlyDiscountAmount > 0 || installationDiscountAmount > 0 || firstMonthCredit > 0) && (
+        {/* RULE 1 — Automatic, mandatory, locked first-month-free credit. */}
+        {firstMonthCredit > 0 && (
+          <div className="pt-2 border-t border-[hsl(var(--field-border-subtle))] space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[hsl(var(--field-success))]">
+              <Sparkles className="h-3 w-3" /> 1er mois offert ✓ (automatique)
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[hsl(var(--field-success)/0.15)] text-[8px] tracking-wider">
+                VERROUILLÉ
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-[hsl(var(--field-success))]">
+                Premier mois gratuit (forfait)
+              </span>
+              <span className="text-[hsl(var(--field-success))] font-semibold">
+                −{formatCAD(firstMonthCredit)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {draft.discount && (monthlyDiscountAmount > 0 || installationDiscountAmount > 0) && (
           <div className="pt-2 border-t border-[hsl(var(--field-border-subtle))] space-y-1">
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[hsl(var(--field-success))]">
               <Sparkles className="h-3 w-3" /> {formatDiscountLabel(draft.discount)}
@@ -200,16 +220,6 @@ export default function StepRecap({
                 </span>
                 <span className="text-[hsl(var(--field-success))] font-semibold">
                   −{formatCAD(installationDiscountAmount)}
-                </span>
-              </div>
-            )}
-            {firstMonthCredit > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-[hsl(var(--field-success))]">
-                  Premier mois gratuit (forfait)
-                </span>
-                <span className="text-[hsl(var(--field-success))] font-semibold">
-                  −{formatCAD(firstMonthCredit)}
                 </span>
               </div>
             )}

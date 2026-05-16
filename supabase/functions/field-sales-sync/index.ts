@@ -663,8 +663,37 @@ Deno.serve(async (req) => {
               }
             }
 
-            // Discount line (if applied at the door)
+            // RULE 1 — Premier mois gratuit ALWAYS automatic when there is a
+            // recurring monthly base. The agent cannot remove it. Skipped only
+            // when the agent's selected discount IS itself first_month_free
+            // (existing block below will write that single line).
             const discountData: any = (sale as any).discount_data;
+            const agentDiscountIsFirstMonth =
+              discountData && String(discountData.type || "") === "first_month_free";
+
+            if (monthlyTotal > 0 && !agentDiscountIsFirstMonth) {
+              const { error: autoFmErr } = await supabaseAdmin
+                .from("billing_invoice_lines")
+                .insert({
+                  invoice_id: invoiceId,
+                  description: `1er mois offert ✓ (automatique) — ${monthlyTotal.toFixed(2)}$/mois`,
+                  unit_price: -monthlyTotal,
+                  quantity: 1,
+                  line_total: -monthlyTotal,
+                  line_type: "discount",
+                });
+              if (autoFmErr) {
+                console.error("[field-sales-sync] auto first-month line insert failed:", autoFmErr);
+              }
+            }
+
+            // RULE 5 — Clean discount label (no "Rabais Rabais" duplication).
+            const getDiscountLabel = (raw: string): string => {
+              const clean = String(raw || "Rabais").trim();
+              return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
+            };
+
+            // Discount line (if applied at the door — second/additional discount)
             if (discountData) {
               const dType = String(discountData.type || "");
               const dAppliesTo = String(discountData.applies_to || "");
@@ -686,13 +715,13 @@ Deno.serve(async (req) => {
                 desc = `1er mois offert — ${monthlyPrice.toFixed(2)}$/mois`;
                 unitPrice = -monthlyPrice;
               } else if (dType === "one_time" && dAmt > 0) {
-                desc = `Promotion unique — ${dAmt.toFixed(2)}$`;
+                desc = `${getDiscountLabel(dName)} — ${dAmt.toFixed(2)}$ (unique)`;
                 unitPrice = -dAmt;
               } else if (dAmt > 0) {
                 // fixed_monthly / credit — permanent or time-limited
                 desc = dDur > 0
-                  ? `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
-                  : `Rabais permanent ${dName} — ${dAmt.toFixed(2)}$/mois`;
+                  ? `${getDiscountLabel(dName)} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
+                  : `${getDiscountLabel(dName)} permanent — ${dAmt.toFixed(2)}$/mois`;
                 unitPrice = -dAmt;
               }
 
@@ -809,10 +838,21 @@ Deno.serve(async (req) => {
                     customer_last_name: customerLastName,
                     agent_name: agentName,
                     agent_number: agentNumber,
-                    // Discount section — populated only when an agent rabais
-                    // was applied at the door (sale.discount_data).
+                    // Discount section — RULE 4: always include automatic
+                    // first-month-free (when there are recurring services) +
+                    // the agent's optional additional discount.
                     discount_data: discountData || null,
-                    discounts: discountData ? [discountData] : [],
+                    discounts: [
+                      ...(monthlyTotal > 0 && !agentDiscountIsFirstMonth
+                        ? [{
+                            label: "1er mois offert ✓ (automatique)",
+                            amount: -monthlyTotal,
+                            type: "first_month_free",
+                            automatic: true,
+                          }]
+                        : []),
+                      ...(discountData ? [discountData] : []),
+                    ],
                   },
                   idempotency_key: `contract_generated:${canonicalOrder.id}`,
                 });
