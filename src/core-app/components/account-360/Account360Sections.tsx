@@ -371,12 +371,16 @@ export const ContractsSection = ({ data }: any) => {
     document_name: c.contract_number ? `Contrat ${c.contract_number}` : `Contrat ${String(c.id).slice(0, 8)}`,
     document_type: c.status || "contract",
     created_at: c.created_at,
+    url: c.contract_pdf_url || c.contract_url || null,
+    signed_at: c.client_signed_at || c.signed_at || null,
+    signer: c.client_signer_name || null,
   }));
   (data.documents || []).forEach((d: any) => rows.push({
     id: `d-${d.id}`,
     document_name: d.document_name,
     document_type: d.document_type || "—",
     created_at: d.created_at,
+    url: d.document_url || null,
   }));
   return (
     <Panel>
@@ -386,12 +390,22 @@ export const ContractsSection = ({ data }: any) => {
           Aucun document enregistré pour ce client.
         </div>
       ) : (
-        <MiniTable headers={["Document", "Type", "Ajouté le"]}>
+        <MiniTable headers={["Document", "Type", "Signé / Ajouté", ""]}>
           {rows.map((d: any) => (
             <tr key={d.id} className={trClass}>
-              <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{d.document_name}</td>
+              <td className="px-3 py-1.5 text-core-text-primary text-[11px]">
+                {d.document_name}
+                {d.signer && <span className="block text-[10px] text-core-text-label">par {d.signer}</span>}
+              </td>
               <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
-              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.created_at)}</td>
+              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.signed_at || d.created_at)}</td>
+              <td className="px-3 py-1.5 text-[10px]">
+                {d.url ? (
+                  <a href={d.url} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">Ouvrir →</a>
+                ) : (
+                  <span className="text-core-text-disabled">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </MiniTable>
