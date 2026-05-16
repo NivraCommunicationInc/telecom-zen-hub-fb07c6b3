@@ -496,14 +496,33 @@ export async function buildReceiptPdfAttachment(
       return null;
     }
 
-    const addr = await resolveClientAddress(supabase, { userId: customer.user_id, orderId: null });
-    const clientAddress = joinAddress(addr.billing) || joinAddress(addr.service) || undefined;
+    const addr = await resolveClientAddress(supabase, {
+      userId: customer.user_id,
+      orderId: (invoice as any).order_id || null,
+    });
+    const clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || undefined;
+
+    // ADD-ONLY: detect unpaid card_manual flow → payment_status='pending'
+    let orderPaymentMethod: string | null = null;
+    if ((invoice as any).order_id) {
+      const { data: ord } = await supabase
+        .from("orders")
+        .select("payment_method")
+        .eq("id", (invoice as any).order_id)
+        .maybeSingle();
+      orderPaymentMethod = (ord as any)?.payment_method || null;
+    }
+    const hasConfirmedPayment = !!payment && Number(payment?.amount || 0) > 0;
+    const isCardManualPending = !hasConfirmedPayment && orderPaymentMethod === "card_manual";
+    const paymentStatus: "paid" | "pending" = isCardManualPending ? "pending" : "paid";
 
     const data: ReceiptData = {
       receipt_number: payment?.payment_number || `REC-${invoiceId.slice(0, 8)}`,
       payment_date: payment?.received_at || payment?.captured_at || (invoice as any).paid_at || new Date().toISOString(),
-      payment_method: payment?.method || (invoice as any).payment_method || "Inconnu",
-      amount_paid: Number(payment?.amount ?? (invoice as any).amount_paid ?? (invoice as any).total ?? 0),
+      payment_method: payment?.method || orderPaymentMethod || (invoice as any).payment_method || "Inconnu",
+      amount_paid: hasConfirmedPayment
+        ? Number(payment?.amount ?? (invoice as any).amount_paid ?? 0)
+        : 0,
       invoice_number: (invoice as any).invoice_number || "",
       invoice_total: Number((invoice as any).total || 0),
       order_number: order.order_number || undefined,
@@ -528,6 +547,8 @@ export async function buildReceiptPdfAttachment(
       subtotal: Number((invoice as any).subtotal || 0),
       tps_amount: Number((invoice as any).tps_amount || 0),
       tvq_amount: Number((invoice as any).tvq_amount || 0),
+      payment_status: paymentStatus,
+      total_due: Number((invoice as any).total || 0),
     };
 
     // ADD-ONLY: attach field-sales agent attribution
