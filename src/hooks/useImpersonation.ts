@@ -45,6 +45,7 @@ function persistImpersonationHandoff(args: {
   clientName?: string | null;
   clientEmail?: string | null;
   localSession?: boolean;
+  targetWindow?: Window | null;
 }) {
   const state = {
     token: args.token,
@@ -62,6 +63,9 @@ function persistImpersonationHandoff(args: {
     );
     if (args.localSession) {
       sessionStorage.setItem(IMPERSONATION_SESSION_KEY, JSON.stringify(state));
+      if (args.targetWindow && !args.targetWindow.closed) {
+        args.targetWindow.sessionStorage.setItem(IMPERSONATION_SESSION_KEY, JSON.stringify(state));
+      }
     }
   } catch {
     /* localStorage/sessionStorage unavailable — URL token still flows when server-backed */
@@ -150,7 +154,7 @@ export function useImpersonation() {
     if (!access.isAdmin) {
       const token = `local-${crypto.randomUUID()}`;
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-      persistImpersonationHandoff({ token, expiresAt, clientId, clientName, clientEmail, localSession: true });
+      persistImpersonationHandoff({ token, expiresAt, clientId, clientName, clientEmail, localSession: true, targetWindow: win });
       const url = `${window.location.origin}/portal`;
       if (win && !win.closed) {
         try {
