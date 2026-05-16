@@ -143,12 +143,14 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setFontSize(8);
     doc.text(`Facture: ${data.invoice_number}`, pw - 15, 22, { align: "right" });
 
-    // WATERMARK (bottom area, light green)
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(60);
-    doc.setTextColor(200, 240, 200);
-    doc.text("P A Y E", 55, 240);
-    doc.setTextColor(0, 0, 0);
+    // WATERMARK (bottom area, light green) — only when payment is confirmed
+    if (data.payment_status !== "pending") {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(60);
+      doc.setTextColor(200, 240, 200);
+      doc.text("P A Y E", 55, 240);
+      doc.setTextColor(0, 0, 0);
+    }
 
     // CLIENT BLOCK
     let y = 50;
