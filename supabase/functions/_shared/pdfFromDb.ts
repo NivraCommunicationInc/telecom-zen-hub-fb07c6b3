@@ -569,7 +569,7 @@ export async function buildContractPdfAttachment(
         client_email, client_first_name, client_last_name, client_phone,
         client_full_address,
         shipping_address, shipping_city, shipping_province, shipping_postal_code,
-        subtotal, total_amount, tps_amount, tvq_amount,
+        subtotal, total_amount, tps_amount, tvq_amount, discount_amount,
         equipment_details, equipment_line_details,
         user_id
       `)
