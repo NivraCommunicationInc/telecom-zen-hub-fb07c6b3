@@ -351,6 +351,7 @@ export type Database = {
           billing_cycle_timezone: string | null
           billing_postal_code: string | null
           billing_province: string | null
+          cancellation_reason: string | null
           cancelled_at: string | null
           chargeback_last_interest_at: string | null
           chargeback_opened_at: string | null
@@ -367,6 +368,10 @@ export type Database = {
           number_lost_at: string | null
           number_lost_by: string | null
           number_lost_reason: string | null
+          pause_charge_pct: number | null
+          pause_reason: string | null
+          paused_at: string | null
+          paused_until: string | null
           primary_service_address: string | null
           primary_service_city: string | null
           primary_service_postal_code: string | null
@@ -385,6 +390,7 @@ export type Database = {
           billing_cycle_timezone?: string | null
           billing_postal_code?: string | null
           billing_province?: string | null
+          cancellation_reason?: string | null
           cancelled_at?: string | null
           chargeback_last_interest_at?: string | null
           chargeback_opened_at?: string | null
@@ -401,6 +407,10 @@ export type Database = {
           number_lost_at?: string | null
           number_lost_by?: string | null
           number_lost_reason?: string | null
+          pause_charge_pct?: number | null
+          pause_reason?: string | null
+          paused_at?: string | null
+          paused_until?: string | null
           primary_service_address?: string | null
           primary_service_city?: string | null
           primary_service_postal_code?: string | null
@@ -419,6 +429,7 @@ export type Database = {
           billing_cycle_timezone?: string | null
           billing_postal_code?: string | null
           billing_province?: string | null
+          cancellation_reason?: string | null
           cancelled_at?: string | null
           chargeback_last_interest_at?: string | null
           chargeback_opened_at?: string | null
@@ -435,6 +446,10 @@ export type Database = {
           number_lost_at?: string | null
           number_lost_by?: string | null
           number_lost_reason?: string | null
+          pause_charge_pct?: number | null
+          pause_reason?: string | null
+          paused_at?: string | null
+          paused_until?: string | null
           primary_service_address?: string | null
           primary_service_city?: string | null
           primary_service_postal_code?: string | null
