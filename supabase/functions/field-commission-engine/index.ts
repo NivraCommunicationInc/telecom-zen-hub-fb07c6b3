@@ -94,11 +94,35 @@ Deno.serve(async (req) => {
       const { data, error } = await query;
       if (error) throw error;
 
-      const enriched = (data || []).map((commission: any) => ({
-        ...commission,
-        status_explanation: getStatusExplanation(commission.status),
-        next_action: getNextAction(commission.status),
-      }));
+      // Enrich with order_number + first forfait service type
+      const orderIds = Array.from(
+        new Set((data || []).map((c: any) => c.order_id).filter(Boolean))
+      );
+      const ordersMap: Record<string, { order_number: string | null; service_type: string | null }> = {};
+      if (orderIds.length > 0) {
+        const { data: orders } = await admin
+          .from("orders")
+          .select("id, order_number, order_items(service_type)")
+          .in("id", orderIds);
+        for (const o of orders || []) {
+          const firstItem = Array.isArray((o as any).order_items) ? (o as any).order_items[0] : null;
+          ordersMap[(o as any).id] = {
+            order_number: (o as any).order_number || null,
+            service_type: firstItem?.service_type || null,
+          };
+        }
+      }
+
+      const enriched = (data || []).map((commission: any) => {
+        const oi = commission.order_id ? ordersMap[commission.order_id] : null;
+        return {
+          ...commission,
+          order_number: oi?.order_number || null,
+          order_service_type: oi?.service_type || null,
+          status_explanation: getStatusExplanation(commission.status),
+          next_action: getNextAction(commission.status),
+        };
+      });
 
       return new Response(JSON.stringify({ commissions: enriched }), { headers });
     }
