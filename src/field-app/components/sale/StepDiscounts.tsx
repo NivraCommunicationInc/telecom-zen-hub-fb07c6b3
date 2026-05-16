@@ -213,6 +213,24 @@ export default function StepDiscounts({
         </p>
       </div>
 
+      {/* RULE 1 — Automatic, mandatory, locked */}
+      {services.length > 0 && (
+        <div className="rounded-2xl border border-[hsl(var(--field-success)/0.4)] bg-[hsl(var(--field-success)/0.08)] p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[hsl(var(--field-success)/0.2)] flex items-center justify-center flex-shrink-0">
+            <Sparkles className="h-5 w-5 text-[hsl(var(--field-success))]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white">1er mois offert ✓ (automatique)</p>
+            <p className="text-xs text-[hsl(var(--field-text-muted))]">
+              Appliqué automatiquement à toute commande avec forfait — non modifiable.
+            </p>
+          </div>
+          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--field-success)/0.15)] text-[hsl(var(--field-success))] border border-[hsl(var(--field-success)/0.4)]">
+            Verrouillé
+          </span>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-[hsl(var(--field-warning)/0.1)] border border-[hsl(var(--field-warning)/0.4)]">
           <AlertCircle className="h-4 w-4 text-[hsl(var(--field-warning))] mt-0.5 flex-shrink-0" />
