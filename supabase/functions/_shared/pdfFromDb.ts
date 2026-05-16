@@ -687,7 +687,7 @@ export async function buildContractPdfAttachment(
     // orders.tps_amount/tvq_amount may reflect pre-discount taxes — never use for contract math.
     const { data: invoiceForTaxes } = await supabase
       .from("billing_invoices")
-      .select("subtotal, tps_amount, tvq_amount, total")
+      .select("id, subtotal, tps_amount, tvq_amount, total")
       .eq("order_id", orderId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -701,7 +701,24 @@ export async function buildContractPdfAttachment(
     const totalDueToday = invoiceForTaxes
       ? Number((invoiceForTaxes as any).total || 0)
       : Number(o.total_amount || 0);
-    const discountAmount = Number(o.discount_amount || 0);
+
+    // ADD-ONLY: real discount lines from billing_invoice_lines (line_type='discount')
+    let contractDiscountLines: Array<{ description: string; unit_price: number }> = [];
+    if (invoiceForTaxes?.id) {
+      const { data: discountLines } = await supabase
+        .from("billing_invoice_lines")
+        .select("description, unit_price, line_type")
+        .eq("invoice_id", (invoiceForTaxes as any).id)
+        .eq("line_type", "discount");
+      contractDiscountLines = (discountLines || []).map((l: any) => ({
+        description: String(l.description || "Rabais"),
+        unit_price: Math.abs(Number(l.unit_price || 0)),
+      }));
+    }
+    const discountAmount = contractDiscountLines.length > 0
+      ? contractDiscountLines.reduce((s, l) => s + l.unit_price, 0)
+      : Number(o.discount_amount || 0);
+    const contractDiscountLabel = contractDiscountLines[0]?.description;
 
     // Real billing vs service address (separate)
     const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
