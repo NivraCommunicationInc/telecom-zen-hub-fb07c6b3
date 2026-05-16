@@ -141,6 +141,52 @@ export const formatDiscount = (discount: any): string => {
   return `${label} — ${amount}/mois`;
 };
 
+/**
+ * Contract / official-document discount formatter. Branches by discount.type
+ * and applies_to to produce a single human-readable line. Use in
+ * contract_generated, order_confirmation, payment_receipt cards.
+ */
+export const formatDiscountForContract = (d: any): string => {
+  if (!d) return "";
+  const amt = Number(d.amount ?? d.monthly_amount ?? 0);
+  const months = Number(d.duration_months ?? d.months_total ?? 0);
+  const name = safe(d.name ?? d.label ?? "Rabais", "Rabais");
+  if (d.type === "remove_fee" && d.applies_to === "installation")
+    return "Installation gratuite ✓ (frais annulés)";
+  if (d.type === "remove_fee" && d.applies_to === "activation")
+    return "Activation gratuite ✓ (frais annulés)";
+  if (d.type === "first_month_free")
+    return `1er mois offert ✓ — ${amt.toFixed(2)} $/mois`;
+  if (d.type === "one_time")
+    return `Promotion unique — ${amt.toFixed(2)} $`;
+  if (d.is_permanent)
+    return `Rabais permanent ${name} — ${amt.toFixed(2)} $/mois`;
+  return months > 0
+    ? `${name} — ${amt.toFixed(2)} $/mois × ${months} mois`
+    : `${name} — ${amt.toFixed(2)} $/mois`;
+};
+
+/**
+ * Build cardRows entries from an array of billing_invoice_lines (or
+ * normalized discount objects). Each line with line_type === 'discount'
+ * renders as a negative amount row. Safe to pass empty/undefined.
+ */
+export const buildDiscountRowsFromInvoiceLines = (
+  lines: any[] | undefined | null,
+): Array<[string, string]> => {
+  if (!Array.isArray(lines)) return [];
+  return lines
+    .filter((l) => String(l?.line_type) === "discount")
+    .map((l) => {
+      const desc = safe(l?.description, "Rabais");
+      const amt = Number(l?.line_total ?? l?.unit_price ?? 0);
+      const formatted = amt === 0
+        ? "0,00 $ ✓"
+        : `-${money(Math.abs(amt))}`;
+      return [desc, formatted] as [string, string];
+    });
+};
+
 // ---------------------------------------------------------------------------
 // SVG icons (kept simple for email-client compatibility)
 // ---------------------------------------------------------------------------
@@ -328,6 +374,15 @@ export function renderQueueTemplate(
         ["Équipement", cEquipment],
       ];
       if (cDiscount) cRows.push(["Rabais appliqué", cDiscount]);
+      // Per-line discounts from billing_invoice_lines (line_type='discount').
+      // Each renders as a negative-amount row so the client sees every rabais.
+      for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
+        cRows.push(r);
+      }
+      // Structured discount object (field-sales discount_data) — branded label.
+      if (v.discount_data) {
+        cRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+      }
       cRows.push(
         ["Sous-total", cSubtotal],
         ["TPS (5%)", cTps],
@@ -434,6 +489,26 @@ export function renderQueueTemplate(
       const reference = esc(v.reference || v.payment_reference || "Non disponible");
       const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
+      const prRows: Array<[string, string]> = [
+        ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+        ["Facture", `#${invoiceNum}`],
+      ];
+      // Discount lines from billing_invoice_lines (each line_type='discount').
+      for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
+        prRows.push(r);
+      }
+      if (v.discount_data) {
+        prRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+      }
+      if (v.subtotal !== undefined && v.subtotal !== null) prRows.push(["Sous-total HT", money(v.subtotal)]);
+      if (v.tps !== undefined && v.tps !== null) prRows.push(["TPS (5%)", money(v.tps)]);
+      if (v.tvq !== undefined && v.tvq !== null) prRows.push(["TVQ (9,975%)", money(v.tvq)]);
+      prRows.push(
+        ["Montant payé", amount],
+        ["Méthode", String(method)],
+        ["Référence", String(reference)],
+        ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
+      );
       return {
         subject: `Paiement reçu — Merci`,
         html: shell({
@@ -444,13 +519,7 @@ export function renderQueueTemplate(
           greeting,
           bodyText: "Nous confirmons la réception de votre paiement.",
           cardTitle: "Détails",
-          cardRows: [
-            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Montant", amount],
-            ["Méthode", String(method)],
-            ["Référence", String(reference)],
-            ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
-          ],
+          cardRows: prRows,
           ctaPrimaryUrl: invoiceUrl,
           ctaPrimaryLabel: "Voir ma facture",
         }),
@@ -2507,6 +2576,26 @@ export function renderQueueTemplate(
       const cardRows: Array<[string, string]> = [];
       if (orderNumber) cardRows.push(["Numéro de commande", `#${orderNumber}`]);
       cardRows.push(["Votre représentant", agentDisplay]);
+      // Discount section — official contract document MUST list every rabais.
+      const contractDiscounts: any[] = Array.isArray(v.discounts)
+        ? v.discounts
+        : (v.discount_data ? [v.discount_data] : []);
+      for (const d of contractDiscounts) {
+        cardRows.push(["Rabais appliqué", formatDiscountForContract(d)]);
+        const months = Number(d?.duration_months ?? d?.months_total ?? 0);
+        const isPerm = !!d?.is_permanent;
+        cardRows.push([
+          "Durée du rabais",
+          isPerm ? "Permanent" : (months > 0 ? `${months} mois` : "Une fois"),
+        ]);
+        if (d?.monthly_price !== undefined && d?.monthly_price !== null) {
+          const monthlyAfter = Math.max(0, Number(d.monthly_price) - Number(d.amount || 0));
+          cardRows.push(["Prix mensuel après rabais", `${monthlyAfter.toFixed(2)} $/mois`]);
+        }
+      }
+      for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
+        cardRows.push(r);
+      }
       return {
         subject: `Votre contrat de service Nivra${orderNumber ? ` — ${orderNumber}` : ""}`,
         html: shell({
