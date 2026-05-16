@@ -28,14 +28,15 @@ import CommissionGridTables from "@/components/commissions/CommissionGridTables"
 import { Target } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; tone: string; icon: typeof Clock }> = {
-  pending: { label: "En attente", tone: "text-[hsl(var(--field-warning))] bg-[hsl(var(--field-warning)/0.15)]", icon: Clock },
-  pending_activation: { label: "Activation requise", tone: "text-[hsl(var(--field-accent-glow))] bg-[hsl(var(--field-accent)/0.18)]", icon: Clock },
-  validated: { label: "Validé", tone: "text-[hsl(var(--field-accent-glow))] bg-[hsl(var(--field-accent)/0.18)]", icon: Check },
-  approved: { label: "Approuvé", tone: "text-[hsl(var(--field-accent-glow))] bg-[hsl(var(--field-accent)/0.18)]", icon: Check },
-  paid: { label: "Payé", tone: "text-[hsl(var(--field-success))] bg-[hsl(var(--field-success)/0.15)]", icon: Check },
-  clawback: { label: "Récupéré", tone: "text-[hsl(var(--field-danger))] bg-[hsl(var(--field-danger)/0.15)]", icon: AlertTriangle },
-  rejected: { label: "Rejeté", tone: "text-[hsl(var(--field-danger))] bg-[hsl(var(--field-danger)/0.15)]", icon: X },
-  disputed: { label: "Contesté", tone: "text-[hsl(var(--field-warning))] bg-[hsl(var(--field-warning)/0.15)]", icon: MessageSquare },
+  pending: { label: "En attente", tone: "bg-amber-100 text-amber-800 border border-amber-300", icon: Clock },
+  pending_activation: { label: "Activation requise", tone: "bg-amber-100 text-amber-800 border border-amber-300", icon: Clock },
+  validated: { label: "Validé", tone: "bg-green-100 text-green-800 border border-green-300", icon: Check },
+  approved: { label: "Approuvé", tone: "bg-green-100 text-green-800 border border-green-300", icon: Check },
+  paid: { label: "Payé", tone: "bg-blue-100 text-blue-800 border border-blue-300", icon: Check },
+  on_hold: { label: "En attente", tone: "bg-orange-100 text-orange-800 border border-orange-300", icon: Clock },
+  clawback: { label: "Récupéré", tone: "bg-red-100 text-red-800 border border-red-300", icon: AlertTriangle },
+  rejected: { label: "Rejeté", tone: "bg-red-100 text-red-800 border border-red-300", icon: X },
+  disputed: { label: "Contesté", tone: "bg-amber-100 text-amber-800 border border-amber-300", icon: MessageSquare },
 };
 
 const WITHDRAWAL_STATUS_LABELS: Record<string, string> = {
