@@ -2393,7 +2393,7 @@ export function renderQueueTemplate(
     // ===================================================================
     case "commission_approved": {
       const agentName = String(v.agent_name || v.client_name || "Agent");
-      const orderNo = esc(v.order_number || "N/A");
+      const orderNo = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "Voir votre portail");
       const amount = money(v.amount);
       const statusLabel = esc(v.status_label || "Approuvée");
       return {
