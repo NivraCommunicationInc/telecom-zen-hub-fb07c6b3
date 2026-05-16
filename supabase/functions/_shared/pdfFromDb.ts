@@ -687,7 +687,7 @@ export async function buildContractPdfAttachment(
     // orders.tps_amount/tvq_amount may reflect pre-discount taxes — never use for contract math.
     const { data: invoiceForTaxes } = await supabase
       .from("billing_invoices")
-      .select("subtotal, tps_amount, tvq_amount, total, discount_amount")
+      .select("subtotal, tps_amount, tvq_amount, total")
       .eq("order_id", orderId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -701,9 +701,7 @@ export async function buildContractPdfAttachment(
     const totalDueToday = invoiceForTaxes
       ? Number((invoiceForTaxes as any).total || 0)
       : Number(o.total_amount || 0);
-    const discountAmount = invoiceForTaxes
-      ? Number((invoiceForTaxes as any).discount_amount || 0)
-      : 0;
+    const discountAmount = Number(o.discount_amount || 0);
 
     // Real billing vs service address (separate)
     const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
