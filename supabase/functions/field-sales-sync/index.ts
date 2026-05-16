@@ -715,13 +715,11 @@ Deno.serve(async (req) => {
                 desc = `1er mois offert — ${monthlyPrice.toFixed(2)}$/mois`;
                 unitPrice = -monthlyPrice;
               } else if (dType === "one_time" && dAmt > 0) {
-                desc = `${getDiscountLabel(dName)} — ${dAmt.toFixed(2)}$ (unique)`;
+                desc = getDiscountLabel(dName);
                 unitPrice = -dAmt;
               } else if (dAmt > 0) {
                 // fixed_monthly / credit — permanent or time-limited
-                desc = dDur > 0
-                  ? `${getDiscountLabel(dName)} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
-                  : `${getDiscountLabel(dName)} permanent — ${dAmt.toFixed(2)}$/mois`;
+                desc = getDiscountLabel(dName);
                 unitPrice = -dAmt;
               }
 
