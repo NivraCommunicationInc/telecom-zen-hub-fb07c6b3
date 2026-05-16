@@ -101,6 +101,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     warning: "text-amber-400 hover:text-amber-300 hover:border-amber-500/40",
     success: "text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40",
     danger: "text-red-400 hover:text-red-300 hover:border-red-500/40",
+    violet: "text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/10",
   };
 
   return (
