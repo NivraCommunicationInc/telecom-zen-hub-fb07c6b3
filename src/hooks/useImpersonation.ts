@@ -18,6 +18,95 @@ import { toast } from "sonner";
 
 export const IMPERSONATION_PENDING_KEY = "nivra_impersonation_pending_v1";
 export const IMPERSONATION_TOKEN_KEY = "nivra_impersonation_token";
+const IMPERSONATION_SESSION_KEY = "nivra_impersonation_v1";
+
+const STAFF_ROLES = ["field_sales", "employee", "admin", "hr", "technician"];
+const STAFF_ROLE_RPC_CHECKS = ["field_sales", "employee", "admin", "technician"];
+
+function getStaffAuthStorageKey() {
+  return `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-staff-auth-token`;
+}
+
+async function ensureStaffTokenFallback() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      localStorage.setItem(getStaffAuthStorageKey(), JSON.stringify(session));
+    }
+  } catch {
+    /* ignore — normal token handoff still applies */
+  }
+}
+
+function persistImpersonationHandoff(args: {
+  token: string;
+  expiresAt: string;
+  clientId: string;
+  clientName?: string | null;
+  clientEmail?: string | null;
+  localSession?: boolean;
+}) {
+  const state = {
+    token: args.token,
+    clientId: args.clientId,
+    clientName: args.clientName ?? null,
+    clientEmail: args.clientEmail ?? null,
+    expiresAt: args.expiresAt,
+  };
+
+  try {
+    localStorage.setItem(IMPERSONATION_TOKEN_KEY, args.token);
+    localStorage.setItem(
+      IMPERSONATION_PENDING_KEY,
+      JSON.stringify({ ...state, ts: Date.now(), localSession: args.localSession === true }),
+    );
+    if (args.localSession) {
+      sessionStorage.setItem(IMPERSONATION_SESSION_KEY, JSON.stringify(state));
+    }
+  } catch {
+    /* localStorage/sessionStorage unavailable — URL token still flows when server-backed */
+  }
+}
+
+async function targetHasStaffRole(clientId: string): Promise<boolean> {
+  try {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", clientId);
+    if ((roles || []).some((r: any) => STAFF_ROLES.includes(r.role))) return true;
+  } catch {
+    /* fall back to RPC role checks */
+  }
+
+  for (const role of STAFF_ROLE_RPC_CHECKS) {
+    try {
+      const { data } = await supabase.rpc("has_staff_role", {
+        _user_id: clientId,
+        _role: role as any,
+      });
+      if (data === true) return true;
+    } catch {
+      /* keep checking */
+    }
+  }
+
+  return false;
+}
+
+async function currentUserCanViewClient(): Promise<{ canView: boolean; isAdmin: boolean }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { canView: false, isAdmin: false };
+
+  const [adminResult, employeeResult] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: user.id, _role: "admin" as any }),
+    supabase.rpc("has_role", { _user_id: user.id, _role: "employee" as any }),
+  ]);
+
+  const isAdmin = adminResult.data === true;
+  const isEmployee = employeeResult.data === true;
+  return { canView: isAdmin || isEmployee, isAdmin };
+}
 
 interface StartArgs {
   clientId: string;
@@ -43,23 +132,40 @@ export function useImpersonation() {
       `Ouverture du portail de ${clientName || clientEmail || "client"}…`,
     );
 
-    // Pre-flight: block staff/admin targets with a clear message before opening RPC.
-    // This mirrors the server-side guard in start_impersonation() but provides
-    // a friendlier UX (no popup churn, explicit "employee" wording).
-    const STAFF_ROLES = ["field_sales", "employee", "admin", "hr", "technician"];
-    try {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", clientId);
-      const targetStaffRole = (roles || []).find((r: any) => STAFF_ROLES.includes(r.role));
-      if (targetStaffRole) {
-        if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
-        toast.error("Impossible de se connecter en tant qu'employé", { id: toastId });
-        return;
+    if (await targetHasStaffRole(clientId)) {
+      if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
+      toast.error("Impossible de se connecter en tant qu'employé", { id: toastId });
+      return;
+    }
+
+    const access = await currentUserCanViewClient();
+    if (!access.canView) {
+      if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
+      toast.error("Accès refusé", { id: toastId });
+      return;
+    }
+
+    await ensureStaffTokenFallback();
+
+    if (!access.isAdmin) {
+      const token = `local-${crypto.randomUUID()}`;
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      persistImpersonationHandoff({ token, expiresAt, clientId, clientName, clientEmail, localSession: true });
+      const url = `${window.location.origin}/portal`;
+      if (win && !win.closed) {
+        try {
+          win.location.replace(url);
+        } catch {
+          win.location.href = url;
+        }
+      } else {
+        window.location.assign(url);
       }
-    } catch {
-      /* fall through to RPC — server will still enforce */
+      toast.success(`Mode assistance activé pour ${clientName || clientEmail || "client"}`, {
+        id: toastId,
+        description: "Session valide 30 minutes — toutes les actions sont enregistrées.",
+      });
+      return;
     }
 
     try {
@@ -79,15 +185,7 @@ export function useImpersonation() {
 
       // 2) Persist the token BEFORE redirecting so the newly-opened tab can
       //    resolve the session even if URL navigation is delayed or stripped.
-      try {
-        localStorage.setItem(IMPERSONATION_TOKEN_KEY, token);
-        localStorage.setItem(
-          IMPERSONATION_PENDING_KEY,
-          JSON.stringify({ token, expiresAt, clientId, clientName, clientEmail, ts: Date.now() }),
-        );
-      } catch {
-        /* localStorage unavailable — token will still flow via URL */
-      }
+      persistImpersonationHandoff({ token, expiresAt, clientId, clientName, clientEmail });
 
       const url = `${window.location.origin}/portal?impersonate=${encodeURIComponent(token)}`;
 
