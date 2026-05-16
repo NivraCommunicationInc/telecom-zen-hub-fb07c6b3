@@ -454,7 +454,7 @@ export async function buildReceiptPdfAttachment(
       .select(`
         id, invoice_number, created_at, paid_at, total, subtotal,
         tps_amount, tvq_amount, amount_paid, payment_method, balance_due,
-        billing_snapshot_account_number,
+        billing_snapshot_account_number, order_id,
         customer:billing_customers(email, first_name, last_name, phone, user_id),
         order:orders(order_number),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
@@ -529,6 +529,10 @@ export async function buildReceiptPdfAttachment(
       tps_amount: Number((invoice as any).tps_amount || 0),
       tvq_amount: Number((invoice as any).tvq_amount || 0),
     };
+
+    // ADD-ONLY: attach field-sales agent attribution
+    const agentInfo = await resolveAgentAttribution(supabase, (invoice as any).order_id || null);
+    if (agentInfo) Object.assign(data, agentInfo);
 
     const result = generateReceiptPDF(data);
     if (!result.success || !result.blob) {
