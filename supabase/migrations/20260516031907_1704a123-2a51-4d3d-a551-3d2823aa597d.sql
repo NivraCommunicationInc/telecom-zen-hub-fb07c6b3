@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.generate_contract_signature_token(uuid);
