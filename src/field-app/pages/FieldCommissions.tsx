@@ -90,7 +90,7 @@ export default function FieldCommissions() {
   const { data: summaryData, isLoading: loadingSummary } = useQuery({
     queryKey: ["field-commission-summary"],
     queryFn: fetchCommissionSummary,
-    refetchInterval: 15000,
+    refetchInterval: 10000,
   });
 
   const { data: commissionsData, isLoading: loadingCommissions } = useQuery({
