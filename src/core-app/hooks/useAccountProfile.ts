@@ -239,7 +239,7 @@ export function useAccountProfile(accountId: string | undefined) {
           .limit(20),
         supabase
           .from("identity_verification_sessions")
-          .select("id, status, document_type, reviewed_at, created_at, submitted_at, order_id, case_number")
+          .select("id, status, document_type, id_type, id_province, document_front_path, document_back_path, selfie_path, review_reason, reviewed_by, result_payload, reviewed_at, created_at, submitted_at, order_id, case_number")
           .eq("user_id", clientId)
           .order("created_at", { ascending: false })
           .limit(20),
@@ -259,12 +259,21 @@ export function useAccountProfile(accountId: string | undefined) {
         document_type: r.requested_id_type || "—",
         submitted_at: r.created_at,
         reviewed_at: r.reviewed_at,
+        review_reason: r.reason,
       }));
       (sessions.data || []).forEach((r: any) => merged.push({
         id: `sess-${r.id}`,
         case_number: r.case_number || r.id.slice(0, 8),
         status: r.status,
         document_type: r.document_type,
+        id_type: r.id_type,
+        id_province: r.id_province,
+        document_front_path: r.document_front_path,
+        document_back_path: r.document_back_path,
+        selfie_path: r.selfie_path,
+        review_reason: r.review_reason,
+        reviewed_by: r.reviewed_by,
+        result_payload: r.result_payload,
         submitted_at: r.submitted_at || r.created_at,
         reviewed_at: r.reviewed_at,
       }));
