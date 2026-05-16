@@ -284,6 +284,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Signature verification (real OpenPhone events) ──────────────────────
+    // Reject any non-test request that lacks a valid HMAC signature so attackers
+    // can't forge `message.received` events to trigger real outbound SMS or
+    // poison conversation state.
+    const sigOk = await verifyOpenPhoneSignature(req, rawBody);
+    if (!sigOk) {
+      console.warn("[openphone-webhook] Rejected request: invalid or missing signature");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log("OpenPhone webhook:", payload.type);
     const data = payload.data?.object;
     if (!data) {
