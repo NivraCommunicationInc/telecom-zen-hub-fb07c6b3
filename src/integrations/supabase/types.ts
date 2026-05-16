@@ -18200,6 +18200,7 @@ export type Database = {
         Row: {
           attempts: number | null
           code_hash: string
+          code_salt: string | null
           created_at: string | null
           email: string
           expires_at: string
@@ -18211,6 +18212,7 @@ export type Database = {
         Insert: {
           attempts?: number | null
           code_hash: string
+          code_salt?: string | null
           created_at?: string | null
           email: string
           expires_at: string
@@ -18222,6 +18224,7 @@ export type Database = {
         Update: {
           attempts?: number | null
           code_hash?: string
+          code_salt?: string | null
           created_at?: string | null
           email?: string
           expires_at?: string
@@ -19950,6 +19953,7 @@ export type Database = {
       user_roles: {
         Row: {
           admin_pin_hash: string | null
+          admin_pin_salt: string | null
           can_access_core: boolean
           can_access_employee: boolean
           can_access_field: boolean
@@ -19983,6 +19987,7 @@ export type Database = {
         }
         Insert: {
           admin_pin_hash?: string | null
+          admin_pin_salt?: string | null
           can_access_core?: boolean
           can_access_employee?: boolean
           can_access_field?: boolean
@@ -20016,6 +20021,7 @@ export type Database = {
         }
         Update: {
           admin_pin_hash?: string | null
+          admin_pin_salt?: string | null
           can_access_core?: boolean
           can_access_employee?: boolean
           can_access_field?: boolean

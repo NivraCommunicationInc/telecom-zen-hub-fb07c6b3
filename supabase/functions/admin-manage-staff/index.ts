@@ -401,7 +401,10 @@ async function hashPinPBKDF2(pin: string, salt: string): Promise<string> {
     .join('');
 }
 
-// Legacy PIN hash for admin operations (backward compatible)
+// Legacy SHA-256 hash retained ONLY for one-shot migration verification of
+// pre-PBKDF2 admin PIN hashes (all live hashes have been cleared; this code
+// path is now effectively dead but kept for safety so old DB snapshots can be
+// rotated without breakage).
 const LEGACY_SALT = 'nivra_pin_salt_2026';
 async function hashPinLegacy(pin: string): Promise<string> {
   const data = new TextEncoder().encode(LEGACY_SALT + pin);
@@ -3091,7 +3094,7 @@ serve(async (req: Request) => {
         // Verify admin role
         const { data: roleData } = await adminClient
           .from("user_roles")
-          .select("role, admin_pin_hash, require_password_change, require_pin_change, status")
+          .select("role, admin_pin_hash, admin_pin_salt, require_password_change, require_pin_change, status")
           .eq("user_id", profile.user_id)
           .eq("role", "admin")
           .maybeSingle();
@@ -3113,10 +3116,15 @@ serve(async (req: Request) => {
           });
         }
 
-        // Verify PIN
-        const inputPinHash = await hashPinLegacy(pin);
-        
-        if (!roleData.admin_pin_hash || roleData.admin_pin_hash !== inputPinHash) {
+        // Verify PIN — PBKDF2 + per-user salt. If salt missing or hash null,
+        // the admin must reset their PIN via the recovery flow.
+        let pinOk = false;
+        if (roleData.admin_pin_hash && roleData.admin_pin_salt) {
+          const inputPinHash = await hashPinPBKDF2(pin, roleData.admin_pin_salt);
+          pinOk = inputPinHash === roleData.admin_pin_hash;
+        }
+
+        if (!pinOk) {
           await logAction("admin_pin_invalid", { request_id: requestId }, { type: "user", id: profile.user_id, email: normalizedEmail });
           return json(401, {
             ok: false,
@@ -3258,12 +3266,14 @@ serve(async (req: Request) => {
           });
         }
 
-        // Update PIN hash and clear change requirements
-        const pinHash = await hashPinLegacy(pin);
+        // Update PIN hash (PBKDF2 + per-user salt) and clear change requirements
+        const newPinSalt = generateSalt();
+        const pinHash = await hashPinPBKDF2(pin, newPinSalt);
         const { error: roleUpdateError } = await adminClient
           .from("user_roles")
           .update({
             admin_pin_hash: pinHash,
+            admin_pin_salt: newPinSalt,
             require_password_change: false,
             require_pin_change: false,
             status: "active",

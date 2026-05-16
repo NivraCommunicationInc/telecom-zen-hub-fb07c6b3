@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { generateSalt, hashPbkdf2 } from "../_shared/pinHash.ts";
 
 interface BootstrapRequest {
   action?: "bootstrap" | "recover";
@@ -9,15 +10,6 @@ interface BootstrapRequest {
   full_name?: string;
   pin?: string;
   bootstrap_token: string;
-}
-
-// PIN hashing function (must match client-side)
-const SALT = 'nivra_pin_salt_2026';
-async function hashPin(pin: string): Promise<string> {
-  const data = new TextEncoder().encode(SALT + pin);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 Deno.serve(async (req) => {
@@ -150,12 +142,14 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Update PIN hash and enforce credential change after next login
-      const pinHash = await hashPin(body.pin);
+      // Update PIN hash (PBKDF2 + per-user salt) and enforce credential change after next login
+      const pinSalt = generateSalt();
+      const pinHash = await hashPbkdf2(body.pin, pinSalt);
       const { error: roleUpdateError } = await supabaseAdmin
         .from("user_roles")
         .update({
           admin_pin_hash: pinHash,
+          admin_pin_salt: pinSalt,
           require_password_change: true,
           require_pin_change: true,
           status: "active",
