@@ -154,7 +154,7 @@ export default function FieldOrders() {
         kind: "intent",
         id: i.id,
         ref: `INT-${String(i.id).slice(0, 8).toUpperCase()}`,
-        client_name: i.customer_name || "—",
+        client_name: i.customer_name || "Client",
         client_email: i.customer_email || "",
         amount: Number(i.amount || 0),
         status: i.status === "pending" ? "pending_payment" : i.status,
