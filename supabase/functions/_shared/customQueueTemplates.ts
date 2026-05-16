@@ -489,6 +489,26 @@ export function renderQueueTemplate(
       const reference = esc(v.reference || v.payment_reference || "Non disponible");
       const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
+      const prRows: Array<[string, string]> = [
+        ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+        ["Facture", `#${invoiceNum}`],
+      ];
+      // Discount lines from billing_invoice_lines (each line_type='discount').
+      for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
+        prRows.push(r);
+      }
+      if (v.discount_data) {
+        prRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+      }
+      if (v.subtotal !== undefined && v.subtotal !== null) prRows.push(["Sous-total HT", money(v.subtotal)]);
+      if (v.tps !== undefined && v.tps !== null) prRows.push(["TPS (5%)", money(v.tps)]);
+      if (v.tvq !== undefined && v.tvq !== null) prRows.push(["TVQ (9,975%)", money(v.tvq)]);
+      prRows.push(
+        ["Montant payé", amount],
+        ["Méthode", String(method)],
+        ["Référence", String(reference)],
+        ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
+      );
       return {
         subject: `Paiement reçu — Merci`,
         html: shell({
@@ -499,13 +519,7 @@ export function renderQueueTemplate(
           greeting,
           bodyText: "Nous confirmons la réception de votre paiement.",
           cardTitle: "Détails",
-          cardRows: [
-            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Montant", amount],
-            ["Méthode", String(method)],
-            ["Référence", String(reference)],
-            ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
-          ],
+          cardRows: prRows,
           ctaPrimaryUrl: invoiceUrl,
           ctaPrimaryLabel: "Voir ma facture",
         }),
