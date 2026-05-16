@@ -838,10 +838,21 @@ Deno.serve(async (req) => {
                     customer_last_name: customerLastName,
                     agent_name: agentName,
                     agent_number: agentNumber,
-                    // Discount section — populated only when an agent rabais
-                    // was applied at the door (sale.discount_data).
+                    // Discount section — RULE 4: always include automatic
+                    // first-month-free (when there are recurring services) +
+                    // the agent's optional additional discount.
                     discount_data: discountData || null,
-                    discounts: discountData ? [discountData] : [],
+                    discounts: [
+                      ...(monthlyTotal > 0 && !agentDiscountIsFirstMonth
+                        ? [{
+                            label: "1er mois offert ✓ (automatique)",
+                            amount: -monthlyTotal,
+                            type: "first_month_free",
+                            automatic: true,
+                          }]
+                        : []),
+                      ...(discountData ? [discountData] : []),
+                    ],
                   },
                   idempotency_key: `contract_generated:${canonicalOrder.id}`,
                 });
