@@ -255,6 +255,22 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
     },
   });
 
+  // Monthly ventes count from orders (excluding cancelled)
+  const { data: monthVentes = 0 } = useQuery({
+    queryKey: ["agent-month-ventes", userId, currentYear, currentMonth],
+    queryFn: async () => {
+      const monthStart = new Date(currentYear, currentMonth - 1, 1).toISOString();
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("created_by_agent_id", userId)
+        .eq("source", "field_sales")
+        .neq("status", "cancelled")
+        .gte("created_at", monthStart);
+      return count ?? 0;
+    },
+  });
+
   useEffect(() => {
     if (!profile) return;
     const tMap = (svc: string) => targets.find((t: any) => t.service_type === svc);
@@ -462,6 +478,12 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
           </div>
           <div className="bg-card border border-border rounded-xl p-4 md:col-span-2">
             <h3 className="text-sm font-bold text-foreground mb-3">Objectifs ({currentMonth}/{currentYear})</h3>
+            <div className="mb-3 p-3 rounded-lg bg-[#EDE9FE] border border-[#7C3AED]/20">
+              <p className="text-xs text-[#5B21B6] font-medium">Ventes ce mois</p>
+              <p className="text-lg font-bold text-[#000000] mt-0.5">
+                {monthVentes} / {targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0} ventes ce mois
+              </p>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
               {[
                 { l: "Internet", v: targets.find((t: any) => t.service_type === "internet")?.target_count ?? 0 },
