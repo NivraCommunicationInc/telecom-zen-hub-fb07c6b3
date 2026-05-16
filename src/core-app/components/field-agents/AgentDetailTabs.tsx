@@ -1200,10 +1200,82 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
     pending: { cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400", label: "En attente" },
     approved: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400", label: "Approuvée" },
     paid: { cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400", label: "Payée" },
+    on_hold: { cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400", label: "En attente (hold)" },
     clawback: { cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400", label: "Récupérée" },
     rejected: { cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400", label: "Rejetée" },
+    disputed: { cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400", label: "Contestée" },
     validated: { cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400", label: "Validée" },
   };
+
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const approveCommission = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("field_commissions")
+        .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id } as any)
+        .eq("id", id)
+        .eq("status", "pending");
+      if (error) throw error;
+      const { data: c } = await supabase.from("field_commissions").select("agent_id, amount").eq("id", id).single();
+      if (c) {
+        await supabase.from("employee_notifications").insert({
+          user_id: (c as any).agent_id,
+          notification_type: "system",
+          title: "Commission approuvée",
+          message: `Une commission de ${fmtMoney((c as any).amount)} a été approuvée.`,
+          is_read: false,
+        } as any);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Commission approuvée");
+      qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
+      qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur approbation"),
+  });
+
+  const holdCommission = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("field_commissions")
+        .update({ status: "on_hold" } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Commission mise en attente (hold)");
+      qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
+      qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur hold"),
+  });
+
+  const rejectCommission = useMutation({
+    mutationFn: async () => {
+      if (!rejectId || !rejectReason.trim()) throw new Error("Raison requise");
+      const { error } = await supabase
+        .from("field_commissions")
+        .update({
+          status: "clawback",
+          clawback_reason: rejectReason.trim(),
+          clawback_at: new Date().toISOString(),
+        } as any)
+        .eq("id", rejectId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Commission rejetée");
+      setRejectId(null);
+      setRejectReason("");
+      qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
+      qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur rejet"),
+  });
 
   const weeklyT = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? 0;
   const monthlyT = targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0;
