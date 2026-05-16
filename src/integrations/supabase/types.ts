@@ -21574,9 +21574,10 @@ export type Database = {
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
-      generate_contract_signature_token:
-        | { Args: { p_contract_id: string }; Returns: string }
-        | { Args: { p_contract_id: string; p_role?: string }; Returns: string }
+      generate_contract_signature_token: {
+        Args: { p_contract_id: string; p_role?: string }
+        Returns: string
+      }
       generate_dispute_number: { Args: never; Returns: string }
       generate_etransfer_reference: { Args: never; Returns: string }
       generate_internal_ticket_number: { Args: never; Returns: string }
