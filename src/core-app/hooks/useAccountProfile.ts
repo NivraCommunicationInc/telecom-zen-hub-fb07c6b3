@@ -415,6 +415,7 @@ export function useAccountProfile(accountId: string | undefined) {
     authorizedUsers.refetch();
     serviceAddresses.refetch();
     documents.refetch();
+    contracts.refetch();
   };
 
   return {
@@ -434,6 +435,7 @@ export function useAccountProfile(accountId: string | undefined) {
     activityLogs: activityLogs.data || [],
     serviceAddresses: serviceAddresses.data || [],
     documents: documents.data || [],
+    contracts: contracts.data || [],
     customerId,
     clientId,
     isLoading,
