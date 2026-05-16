@@ -46,10 +46,7 @@ export function useImpersonation() {
     // Pre-flight: block staff/admin targets with a clear message before opening RPC.
     // This mirrors the server-side guard in start_impersonation() but provides
     // a friendlier UX (no popup churn, explicit "employee" wording).
-    const STAFF_ROLES = [
-      "admin", "employee", "supervisor", "billing_admin", "sales",
-      "field_sales", "support", "techops", "kyc_agent", "technician", "hr",
-    ];
+    const STAFF_ROLES = ["field_sales", "employee", "admin", "hr", "technician"];
     try {
       const { data: roles } = await supabase
         .from("user_roles")
