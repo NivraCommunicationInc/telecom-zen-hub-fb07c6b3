@@ -36,6 +36,38 @@ const COMMISSION_CLS: Record<string, string> = {
   clawed_back: "bg-red-500/15 text-red-700 border-red-500/30",
 };
 
+const displayPrice = (item: any): string => {
+  const p = Number(
+    item?.price ?? item?.unit_price ??
+    item?.monthly_price ?? item?.amount ?? 0
+  );
+  return new Intl.NumberFormat('fr-CA', {
+    style: 'currency', currency: 'CAD'
+  }).format(Number.isFinite(p) ? p : 0);
+};
+
+const showDiscount = (d: any): string => {
+  if (!d) return 'Aucun rabais';
+  const name = d.name || d.label || 'Rabais';
+  const amount = Number(d.amount ||
+    d.monthly_amount || 0);
+  const months = Number(d.duration_months ||
+    d.duration || d.months_total || 0);
+
+  if (d.type === 'remove_fee' ||
+      name.toLowerCase().includes('installation')) {
+    return `${name} — Installation gratuite`;
+  }
+  if (months > 0) {
+    return `${name} — ${new Intl.NumberFormat(
+      'fr-CA',{style:'currency',currency:'CAD'}
+    ).format(amount)}/mois × ${months} mois`;
+  }
+  return `${name} — ${new Intl.NumberFormat(
+    'fr-CA',{style:'currency',currency:'CAD'}
+  ).format(amount)}`;
+};
+
 interface UnifiedRow {
   kind: "order" | "intent";
   id: string;
@@ -49,6 +81,8 @@ interface UnifiedRow {
   date: string;
   paypal_approval_url?: string | null;
   quote_id?: string | null;
+  services?: any[];
+  discount_data?: any;
 }
 
 export default function FieldOrders() {
