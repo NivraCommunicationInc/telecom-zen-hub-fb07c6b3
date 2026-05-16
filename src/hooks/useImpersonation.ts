@@ -88,7 +88,9 @@ async function targetHasStaffRole(clientId: string): Promise<boolean> {
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", clientId);
+      .eq("user_id", clientId)
+      .eq("is_active", true)
+      .eq("status", "active");
     if ((roles || []).some((r: any) => STAFF_ROLES.includes(r.role))) return true;
   } catch {
     /* fall back to RPC role checks */
