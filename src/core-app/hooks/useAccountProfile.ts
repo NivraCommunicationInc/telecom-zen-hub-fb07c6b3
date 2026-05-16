@@ -185,7 +185,7 @@ export function useAccountProfile(accountId: string | undefined) {
       const { data, error } = await supabase
         .from("support_tickets")
         .select("*")
-        .eq("client_id", clientId)
+        .or(`user_id.eq.${clientId},owner_user_id.eq.${clientId}`)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
