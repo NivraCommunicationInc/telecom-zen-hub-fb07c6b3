@@ -47,35 +47,61 @@ export default function FieldObjectives() {
         .eq("period_month", month);
 
       const totalRow = (targets || []).find((t: any) => t.service_type === "total_sales");
+      const revenueRow = (targets || []).find((t: any) => t.service_type === "revenue");
       const monthlyTarget = Number(totalRow?.target_count ?? 0);
       const targetBonusAmount = Number(totalRow?.bonus_amount ?? 0);
+      const monthlyRevenueTarget = Number(revenueRow?.target_amount ?? 0);
 
-      // 2) Sales counts from orders (this agent, excluding cancelled)
-      const [weekRes, monthRes] = await Promise.all([
-        supabase
-          .from("orders")
+      // 2) Counts: orders + field_payment_intents (both count as a sale)
+      const [
+        weekOrdersRes,
+        monthOrdersRes,
+        weekIntentsRes,
+        monthIntentsRes,
+        monthRevenueRes,
+      ] = await Promise.all([
+        supabase.from("orders")
           .select("id", { count: "exact", head: true })
           .eq("created_by_agent_id", user.id)
           .eq("source", "field_sales")
           .neq("status", "cancelled")
           .gte("created_at", weekStart),
-        supabase
-          .from("orders")
+        supabase.from("orders")
           .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", user.id)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+        supabase.from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", user.id)
+          .neq("status", "cancelled")
+          .gte("created_at", weekStart),
+        supabase.from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", user.id)
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+        supabase.from("orders")
+          .select("total_amount")
           .eq("created_by_agent_id", user.id)
           .eq("source", "field_sales")
           .neq("status", "cancelled")
           .gte("created_at", monthStart),
       ]);
 
-      const weekSales = weekRes.count ?? 0;
-      const monthSales = monthRes.count ?? 0;
+      const weekSales = (weekOrdersRes.count ?? 0) + (weekIntentsRes.count ?? 0);
+      const monthSales = (monthOrdersRes.count ?? 0) + (monthIntentsRes.count ?? 0);
+      const monthRevenue = (monthRevenueRes.data || [])
+        .reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
 
       return {
         weekSales,
         monthSales,
         monthlyTarget,
         targetBonusAmount,
+        monthRevenue,
+        monthlyRevenueTarget,
         hasTargets: (targets || []).length > 0,
       };
     },
