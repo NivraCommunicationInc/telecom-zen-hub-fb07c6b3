@@ -151,18 +151,10 @@ export function useImpersonation() {
       `Ouverture du portail de ${clientName || clientEmail || "client"}…`,
     );
 
-    if (await targetHasStaffRole(clientId)) {
-      if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
-      toast.error("Impossible de se connecter en tant qu'employé", { id: toastId });
-      return;
-    }
-
-    const access = await currentUserCanViewClient();
-    if (!access.canView) {
-      if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
-      toast.error("Accès refusé", { id: toastId });
-      return;
-    }
+    // NOTE: server-side `start_impersonation` is the single source of truth for
+    // both authorization (admin/employee/field_sales) and target-is-staff blocking.
+    // We deliberately skip JS pre-checks here so RLS quirks on `user_roles` can
+    // never produce false "Impossible de se connecter en tant qu'employé" toasts.
 
     await ensureStaffTokenFallback();
 
