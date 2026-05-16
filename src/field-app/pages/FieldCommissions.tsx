@@ -451,8 +451,11 @@ export default function FieldCommissions() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-white">{formatCommissionAmount(amount)}</p>
-                            <p className="text-[10px] text-[hsl(var(--field-text-muted))] truncate">
-                              {commission.field_sales_orders?.customer_name || "—"}
+                            <p className="text-[11px] text-[hsl(var(--field-text-muted))] truncate">
+                              {getCommissionLabel(commission)}
+                            </p>
+                            <p className="text-[10px] text-[hsl(var(--field-text-dim))] mt-0.5">
+                              {getCommissionDate(commission)}
                             </p>
                             {commission.status_explanation && (
                               <p className="text-[10px] text-[hsl(var(--field-text-dim))] mt-0.5">
