@@ -37,14 +37,8 @@ function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
-// Same hash function as send
-async function hashOTP(otp: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode("nivra_otp_salt_2026" + otp);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+// PBKDF2 hash for OTP — salt is per-code, loaded from staff_otp_codes
+import { hashPbkdf2, timingSafeEqualHex } from "../_shared/pinHash.ts";
 
 Deno.serve(async (req) => {
   const requestId = generateRequestId();
@@ -105,9 +99,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Hash the submitted code
-    const codeHash = await hashOTP(code);
 
     // Find valid OTP for this user (not used, not expired)
     const { data: otpData, error: otpError } = await supabase
@@ -176,8 +167,15 @@ Deno.serve(async (req) => {
       .update({ attempts: newAttempts })
       .eq("id", otpData.id);
 
-    // Verify code hash
-    if (otpData.code_hash !== codeHash) {
+    // Verify code hash — salt is per-code, loaded from row.
+    // Rows without code_salt are legacy SHA-256 hashes that we invalidated
+    // during the PBKDF2 migration; treat them as invalid.
+    let codeOk = false;
+    if (otpData.code_salt) {
+      const codeHash = await hashPbkdf2(code, otpData.code_salt);
+      codeOk = timingSafeEqualHex(codeHash, otpData.code_hash);
+    }
+    if (!codeOk) {
       const remainingAttempts = maxAttempts - newAttempts;
       
       // Audit log failed attempt

@@ -50,14 +50,8 @@ function generateOTP(): string {
   return String(100000 + (arr[0] % 900000)).padStart(6, "0");
 }
 
-// SHA-256 hash for OTP
-async function hashOTP(otp: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode("nivra_otp_salt_2026" + otp);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+// PBKDF2 hash for OTP with a per-code random salt (caller supplies salt)
+import { hashPbkdf2, generateSalt } from "../_shared/pinHash.ts";
 
 Deno.serve(async (req) => {
   const requestId = generateRequestId();
@@ -193,9 +187,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate OTP
+    // Generate OTP with per-code salt + PBKDF2 hash
     const otp = generateOTP();
-    const otpHash = await hashOTP(otp);
+    const otpSalt = generateSalt();
+    const otpHash = await hashPbkdf2(otp, otpSalt);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Invalidate any existing unused OTPs for this user
@@ -212,6 +207,7 @@ Deno.serve(async (req) => {
         user_id,
         email: user.email,
         code_hash: otpHash,
+        code_salt: otpSalt,
         expires_at: expiresAt.toISOString(),
         attempts: 0,
         max_attempts: 5,
