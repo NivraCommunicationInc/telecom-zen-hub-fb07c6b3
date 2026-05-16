@@ -141,11 +141,16 @@ export function useImpersonation() {
       return;
     }
 
-    // 1) SYNCHRONOUSLY open the real portal route while we still have the
-    //    user gesture. The tab itself then receives the token via URL and
-    //    localStorage handoff once the RPC returns.
+    // Try to synchronously open a new tab while we still have the user gesture.
+    // If popups are blocked (common inside the Lovable preview iframe), we fall
+    // back to same-tab navigation once the RPC returns.
     const pendingUrl = `${window.location.origin}/portal?impersonation_pending=1`;
-    const win = window.open(pendingUrl, "_blank");
+    let win: Window | null = null;
+    try {
+      win = window.open(pendingUrl, "_blank");
+    } catch {
+      win = null;
+    }
 
     const toastId = toast.loading(
       `Ouverture du portail de ${clientName || clientEmail || "client"}…`,
@@ -181,20 +186,25 @@ export function useImpersonation() {
 
       // 3) Navigate the already-opened portal tab. If the popup was blocked,
       //    fall back to current-tab navigation after the token exists.
-      if (win && !win.closed) {
+      const popupBlocked = !win || win.closed;
+      if (!popupBlocked && win) {
         try {
           win.location.replace(url);
         } catch {
           win.location.href = url;
         }
+        toast.success(`Mode assistance activé pour ${clientName || clientEmail || "client"}`, {
+          id: toastId,
+          description: "Nouvel onglet — session valide 30 minutes, actions enregistrées.",
+        });
       } else {
+        toast.success(`Redirection vers le portail de ${clientName || clientEmail || "client"}…`, {
+          id: toastId,
+          description: "Session valide 30 minutes — toutes les actions sont enregistrées.",
+        });
+        // Same-tab fallback when popup was blocked (e.g. preview iframe).
         window.location.assign(url);
       }
-
-      toast.success(`Mode assistance activé pour ${clientName || clientEmail || "client"}`, {
-        id: toastId,
-        description: "Session valide 30 minutes — toutes les actions sont enregistrées.",
-      });
     } catch (err: any) {
       console.error("[Impersonation] start failed", err);
       if (win && !win.closed) {
