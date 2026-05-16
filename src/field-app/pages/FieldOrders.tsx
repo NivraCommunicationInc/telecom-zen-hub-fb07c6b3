@@ -95,7 +95,7 @@ export default function FieldOrders() {
       // Orders for this agent
       const { data: orders } = await supabase
         .from("orders")
-        .select("id, order_number, status, total_amount, created_at, user_id, source, created_by_agent_id")
+        .select("id, order_number, status, total_amount, created_at, user_id, source, created_by_agent_id, services, discount_data")
         .or(`created_by_agent_id.eq.${user.id},source.eq.field_sales`)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -136,13 +136,15 @@ export default function FieldOrders() {
           commission_amount: c?.amount || 0,
           commission_status: c?.status || null,
           date: o.created_at,
+          services: Array.isArray(o.services) ? o.services : [],
+          discount_data: o.discount_data,
         };
       });
 
       // Pending payment intents (not yet converted)
       const { data: intents } = await supabase
         .from("field_payment_intents")
-        .select("id, quote_id, paypal_approval_url, amount, status, customer_name, customer_email, created_at")
+        .select("id, quote_id, paypal_approval_url, amount, status, customer_name, customer_email, created_at, field_quotes(services, equipment, discount)")
         .eq("agent_id", user.id)
         .neq("status", "completed")
         .order("created_at", { ascending: false })
@@ -161,6 +163,11 @@ export default function FieldOrders() {
         date: i.created_at,
         paypal_approval_url: i.paypal_approval_url,
         quote_id: i.quote_id,
+        services: [
+          ...(((i as any).field_quotes?.services as any[]) || []),
+          ...(((i as any).field_quotes?.equipment as any[]) || []),
+        ],
+        discount_data: (i as any).field_quotes?.discount,
       }));
 
       return [...intentRows, ...orderRows].sort(
