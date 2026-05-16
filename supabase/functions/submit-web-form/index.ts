@@ -216,16 +216,16 @@ serve(async (req) => {
       <h1 style="margin: 0;">✓ Message reçu</h1>
     </div>
     <div class="content">
-      <p>Bonjour ${payload.fullName},</p>
+      <p>Bonjour ${escapeHtml(payload.fullName)},</p>
       <p>Nous avons bien reçu votre message. Notre équipe vous répondra sous peu.</p>
       
       <p><strong>Votre message:</strong></p>
       <div class="message-box">
-        ${payload.message.replace(/\n/g, "<br>")}
+        ${escapeHtml(payload.message).replace(/\n/g, "<br>")}
       </div>
       
       <p><strong>Numéro de référence:</strong></p>
-      <p class="ref">${thread.thread_number}</p>
+      <p class="ref">${escapeHtml(thread.thread_number)}</p>
       
       <p style="margin-top: 24px;">Vous pouvez répondre directement à cet email pour continuer la conversation.</p>
     </div>

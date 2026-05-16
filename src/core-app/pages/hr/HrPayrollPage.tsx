@@ -798,12 +798,13 @@ export default function HrPayrollPage() {
 
   // ─── PDF generation ──────────────────────────────────────────────────────
   const generatePayslipPDF = (entry: any) => {
+    const esc = (s: any) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const periodName = currentPeriod?.period_name || "Période";
     const fullName = entry._name;
     const email = entry._emp?.work_email || "";
     const ded = computeDeductions(entry.gross_pay || 0);
     const html = `
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8" /><title>Fiche de paie - ${fullName}</title>
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8" /><title>Fiche de paie - ${esc(fullName)}</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 40px; color: #1a1a1a; }
   .header { border-bottom: 3px solid #0066CC; padding-bottom: 16px; margin-bottom: 24px; }
@@ -820,12 +821,12 @@ export default function HrPayrollPage() {
   .net-row { background: #0066CC; color: white; font-weight: bold; font-size: 15px; }
   @media print { body { padding: 20px; } }
 </style></head><body>
-  <div class="header"><h1>Nivra Telecom</h1><p>Fiche de paie — ${periodName}</p></div>
+  <div class="header"><h1>Nivra Telecom</h1><p>Fiche de paie — ${esc(periodName)}</p></div>
   <div class="info-grid">
-    <div><strong>Employé</strong>${fullName}</div>
-    <div><strong>Email</strong>${email}</div>
-    <div><strong>Numéro de fiche</strong>${entry.payroll_number || "—"}</div>
-    <div><strong>Période</strong>${periodName}</div>
+    <div><strong>Employé</strong>${esc(fullName)}</div>
+    <div><strong>Email</strong>${esc(email)}</div>
+    <div><strong>Numéro de fiche</strong>${esc(entry.payroll_number || "—")}</div>
+    <div><strong>Période</strong>${esc(periodName)}</div>
   </div>
   <table>
     <thead><tr><th>Description</th><th style="text-align:right">Montant</th></tr></thead>

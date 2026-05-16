@@ -353,6 +353,7 @@ export default function HrTaxDocumentsPage() {
 
   function downloadDocPdf(doc: any, emp: any) {
     // Lightweight printable HTML (browser's "Save as PDF" handles conversion).
+    const esc = (s: any) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const d = doc.data_json || {};
     const kind = doc.document_type === "t4" ? "T4" : "RL-1";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${kind} ${year}</title>
@@ -361,7 +362,7 @@ table{border-collapse:collapse;margin-top:16px;width:100%}
 td,th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}
 .note{margin-top:24px;padding:8px;background:#fff7ed;border:1px solid #fed7aa;font-size:12px;color:#9a3412}</style></head><body>
 <h1>${kind} — Année ${year}</h1>
-<small>Employé : ${emp.first_name} ${emp.last_name} (${emp.employee_number || "—"})</small>
+<small>Employé : ${esc(emp.first_name)} ${esc(emp.last_name)} (${esc(emp.employee_number || "—")})</small>
 <table>
 <tr><th>Revenu d'emploi</th><td>${money(d.employment_income)}</td></tr>
 <tr><th>Commissions</th><td>${money(d.commissions)}</td></tr>

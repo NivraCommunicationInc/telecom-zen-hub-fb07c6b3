@@ -43,9 +43,11 @@ function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
-// Generate 6-digit OTP
+// Generate 6-digit OTP using a CSPRNG (avoid Math.random / Xorshift).
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return String(100000 + (arr[0] % 900000)).padStart(6, "0");
 }
 
 // SHA-256 hash for OTP
