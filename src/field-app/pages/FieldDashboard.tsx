@@ -509,6 +509,21 @@ export default function FieldDashboard() {
         <KpiCard label="Approuvée" value={`${(fieldComm?.approved_total ?? 0).toFixed(2)} $`} hint="Validée / payée" icon={CheckCircle2} accent="info" />
       </div>
 
+      {/* Rapport du jour — données réelles (orders + field_payment_intents + field_commissions) */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[12px] font-bold uppercase tracking-wider text-white/80">
+            Rapport du jour — {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <KpiCard label="Ventes" value={`${todayReport?.totalToday ?? 0}`} hint="Aujourd'hui" icon={ShoppingCart} accent="purple" />
+          <KpiCard label="Leads créés" value={`${todayReport?.todayLeads ?? 0}`} hint="En attente" icon={UserPlus} accent="warning" />
+          <KpiCard label="Revenu" value={`${(todayReport?.revenueToday ?? 0).toFixed(2)} $`} hint="Aujourd'hui" icon={TrendingUp} accent="success" />
+          <KpiCard label="Commissions" value={`${(todayReport?.commissionsToday ?? 0).toFixed(2)} $`} hint="Aujourd'hui" icon={DollarSign} accent="info" />
+        </div>
+      </Card>
+
       {/* Bonus tier progress */}
       {(() => {
         const target = Number(monthlyTarget?.target_count ?? 0);
