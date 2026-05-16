@@ -1366,20 +1366,28 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
             {fieldComms.map((c: any) => {
               const b = STATUS_BADGE_LOCAL[c.status] || STATUS_BADGE_LOCAL.pending;
               return (
-                <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border">
-                  <div className="min-w-0">
+                <div key={c.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-foreground">{fmtMoney(c.amount)}</span>
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", b.cls)}>{b.label}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{commissionTypeLabel(c.commission_type)}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission sans commande liée"}
+                      {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission sans commande liée"} · {fmtLongDate(c.earned_at || c.created_at)}
                     </p>
                   </div>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
-                    {fmtLongDate(c.earned_at)}
-                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {c.status === "pending" && (
+                      <>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => approveCommission.mutate(c.id)} disabled={approveCommission.isPending}>Approuver</Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => holdCommission.mutate(c.id)} disabled={holdCommission.isPending}>Hold</Button>
+                      </>
+                    )}
+                    {!["paid", "clawback"].includes(c.status) && (
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-destructive" onClick={() => { setRejectId(c.id); setRejectReason(""); }}>Rejeter</Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
