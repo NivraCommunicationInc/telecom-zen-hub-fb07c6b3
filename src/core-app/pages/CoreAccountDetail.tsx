@@ -188,6 +188,8 @@ const CoreAccountDetail = () => {
         accountStatus={acct.status}
         customerId={data.customerId}
         clientName={clientName}
+        clientEmail={data.profile?.email || data.billingCustomer?.email || null}
+        monthlyRevenue={Number(data.subscriptions?.reduce((sum: number, s: any) => sum + (s.status === "active" ? Number(s.plan_price || 0) : 0), 0) || 0)}
         subscriptions={data.subscriptions}
         onRefresh={data.refetch}
         onNavigateSection={(s) => setActiveSection(s as SectionId)}

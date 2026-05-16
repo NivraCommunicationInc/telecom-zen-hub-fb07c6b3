@@ -22,6 +22,7 @@ import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
 import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
+import { InvoiceDetailDialog, PaymentDetailDialog, ContractDetailDialog } from "./Account360RowDialogs";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
@@ -225,45 +226,55 @@ export const OrdersSection = ({ data, accountId, clientId, clientEmail, clientNa
 );
 
 /* ── Invoices ── */
-export const InvoicesSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
-  <Panel>
-    <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
-      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
-    <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
-      {data.invoices.slice(0, 50).map((inv: any) => (
-        <tr key={inv.id} className={trClass}>
-          <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-core-text-primary hover:text-emerald-400 text-[11px]">{inv.invoice_number}</Link></td>
-          <td className="px-3 py-1.5 text-core-text-label text-[11px] capitalize">{inv.type}</td>
-          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(inv.total)}</td>
-          <td className="px-3 py-1.5 tabular-nums text-emerald-400 text-[11px]">{fmtCAD(inv.amount_paid)}</td>
-          <td className="px-3 py-1.5"><span className={`tabular-nums text-[11px] font-medium ${(inv.balance_due ?? 0) > 0 ? "text-red-400" : "text-core-text-disabled"}`}>{fmtCAD(inv.balance_due)}</span></td>
-          <td className="px-3 py-1.5"><StatusBadge label={label(inv.status)} variant={statusToVariant(inv.status || "")} size="sm" /></td>
-          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(inv.due_date)}</td>
-        </tr>
-      ))}
-    </MiniTable>
-  </Panel>
-);
+export const InvoicesSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => {
+  const [selected, setSelected] = useState<any>(null);
+  return (
+    <Panel>
+      <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
+        actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
+      <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance", ""]} empty={data.invoices.length === 0}>
+        {data.invoices.slice(0, 50).map((inv: any) => (
+          <tr key={inv.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(inv)}>
+            <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{inv.invoice_number}</td>
+            <td className="px-3 py-1.5 text-core-text-label text-[11px] capitalize">{inv.type}</td>
+            <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(inv.total)}</td>
+            <td className="px-3 py-1.5 tabular-nums text-emerald-400 text-[11px]">{fmtCAD(inv.amount_paid)}</td>
+            <td className="px-3 py-1.5"><span className={`tabular-nums text-[11px] font-medium ${(inv.balance_due ?? 0) > 0 ? "text-red-400" : "text-core-text-disabled"}`}>{fmtCAD(inv.balance_due)}</span></td>
+            <td className="px-3 py-1.5"><StatusBadge label={label(inv.status)} variant={statusToVariant(inv.status || "")} size="sm" /></td>
+            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(inv.due_date)}</td>
+            <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Voir →</td>
+          </tr>
+        ))}
+      </MiniTable>
+      <InvoiceDetailDialog invoice={selected} open={!!selected} onClose={() => setSelected(null)} />
+    </Panel>
+  );
+};
 
 /* ── Payments ── */
-export const PaymentsSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
-  <Panel>
-    <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
-      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
-    <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
-      {data.payments.slice(0, 50).map((p: any) => (
-        <tr key={p.id} className={trClass}>
-          <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{p.payment_number || "—"}</td>
-          <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(p.amount)}</td>
-          <td className="px-3 py-1.5 text-core-text-secondary text-[11px] capitalize">{p.method}</td>
-          <td className="px-3 py-1.5"><StatusBadge label={label(p.status)} variant={statusToVariant(p.status || "")} size="sm" /></td>
-          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{p.reference || "—"}</td>
-          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(p.received_at)}</td>
-        </tr>
-      ))}
-    </MiniTable>
-  </Panel>
-);
+export const PaymentsSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => {
+  const [selected, setSelected] = useState<any>(null);
+  return (
+    <Panel>
+      <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
+        actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
+      <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le", ""]} empty={data.payments.length === 0}>
+        {data.payments.slice(0, 50).map((p: any) => (
+          <tr key={p.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(p)}>
+            <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{p.payment_number || "—"}</td>
+            <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(p.amount)}</td>
+            <td className="px-3 py-1.5 text-core-text-secondary text-[11px] capitalize">{p.method}</td>
+            <td className="px-3 py-1.5"><StatusBadge label={label(p.status)} variant={statusToVariant(p.status || "")} size="sm" /></td>
+            <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{p.reference || "—"}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(p.received_at)}</td>
+            <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Voir →</td>
+          </tr>
+        ))}
+      </MiniTable>
+      <PaymentDetailDialog payment={selected} invoices={data.invoices} open={!!selected} onClose={() => setSelected(null)} />
+    </Panel>
+  );
+};
 
 /* ── Equipment ── */
 export const EquipmentSection = ({ data, accountId, onRefresh }: any) => {
@@ -365,6 +376,7 @@ export const KycSection = ({ data }: any) => {
 
 /* ── Contracts & Documents ── */
 export const ContractsSection = ({ data }: any) => {
+  const [selected, setSelected] = useState<any>(null);
   const rows: any[] = [];
   (data.contracts || []).forEach((c: any) => rows.push({
     id: `c-${c.id}`,
@@ -374,6 +386,8 @@ export const ContractsSection = ({ data }: any) => {
     url: c.contract_pdf_url || c.contract_url || null,
     signed_at: c.client_signed_at || c.signed_at || null,
     signer: c.client_signer_name || null,
+    contract_number: c.contract_number,
+    status: c.status,
   }));
   (data.documents || []).forEach((d: any) => rows.push({
     id: `d-${d.id}`,
@@ -392,24 +406,19 @@ export const ContractsSection = ({ data }: any) => {
       ) : (
         <MiniTable headers={["Document", "Type", "Signé / Ajouté", ""]}>
           {rows.map((d: any) => (
-            <tr key={d.id} className={trClass}>
+            <tr key={d.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(d)}>
               <td className="px-3 py-1.5 text-core-text-primary text-[11px]">
                 {d.document_name}
                 {d.signer && <span className="block text-[10px] text-core-text-label">par {d.signer}</span>}
               </td>
               <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
               <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.signed_at || d.created_at)}</td>
-              <td className="px-3 py-1.5 text-[10px]">
-                {d.url ? (
-                  <a href={d.url} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">Ouvrir →</a>
-                ) : (
-                  <span className="text-core-text-disabled">—</span>
-                )}
-              </td>
+              <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Voir →</td>
             </tr>
           ))}
         </MiniTable>
       )}
+      <ContractDetailDialog doc={selected} open={!!selected} onClose={() => setSelected(null)} />
     </Panel>
   );
 };

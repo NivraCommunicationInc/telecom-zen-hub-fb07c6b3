@@ -11,12 +11,14 @@ import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
 import { AddCreditWithDurationDialog } from "@/core-app/components/account-actions/AddCreditWithDurationDialog";
 import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/AccountAdjustmentDialog";
+import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 interface Props {
   accountId: string | undefined;
@@ -24,19 +26,24 @@ interface Props {
   accountStatus: string | null;
   customerId?: string;
   clientName?: string;
+  clientEmail?: string | null;
+  monthlyRevenue?: number;
   subscriptions?: any[];
   onRefresh: () => void;
   onNavigateSection: (section: string) => void;
   onEditProfile: () => void;
 }
 
-export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
+export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", clientEmail, monthlyRevenue = 0, subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
   const navigate = useNavigate();
+  const { startImpersonation } = useImpersonation();
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
   const [pinResetOpen, setPinResetOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const updateStatus = async (newStatus: string) => {
     if (!accountId) return;
@@ -52,16 +59,30 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     finally { setLoading(false); }
   };
 
+  const handleImpersonate = async () => {
+    if (!clientId) return;
+    setLoading(true);
+    try { await startImpersonation({ clientId, clientEmail: clientEmail || null, clientName }); }
+    finally { setLoading(false); }
+  };
+
   const actions = [
+    { icon: Eye, label: "Voir comme client", onClick: handleImpersonate, color: "violet" as const },
     { icon: UserPen, label: "Modifier le profil", onClick: onEditProfile, color: "emerald" },
     { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "default" },
     { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices"), color: "default" },
     { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments"), color: "default" },
     { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
     { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
-    ...(accountStatus !== "suspended"
-      ? [{ icon: PauseCircle, label: "Suspendre", onClick: () => updateStatus("suspended"), color: "warning" as const }]
-      : [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
+    ...(accountStatus !== "suspended" && accountStatus !== "cancelled"
+      ? [{ icon: PauseCircle, label: "Pause temporaire", onClick: () => setPauseOpen(true), color: "warning" as const }]
+      : accountStatus === "suspended"
+        ? [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
+        : []
+    ),
+    ...(accountStatus !== "cancelled"
+      ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
+      : []
     ),
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
@@ -80,6 +101,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     warning: "text-amber-400 hover:text-amber-300 hover:border-amber-500/40",
     success: "text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40",
     danger: "text-red-400 hover:text-red-300 hover:border-red-500/40",
+    violet: "text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/10",
   };
 
   return (
@@ -132,6 +154,21 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         clientName={clientName}
         open={adjustmentOpen}
         onClose={() => setAdjustmentOpen(false)}
+        onRefresh={onRefresh}
+      />
+
+      <PauseAccountDialog
+        accountId={accountId}
+        monthlyRevenue={monthlyRevenue}
+        open={pauseOpen}
+        onClose={() => setPauseOpen(false)}
+        onRefresh={onRefresh}
+      />
+
+      <CancelAccountDialog
+        accountId={accountId}
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
         onRefresh={onRefresh}
       />
     </>
