@@ -952,6 +952,41 @@ export async function buildSummaryPdfAttachment(
       equipment.reduce((acc: number, e: any) => acc + Number(e.unit_price || 0) * Number(e.quantity || 1), 0)
       + fees.reduce((acc: number, f: any) => acc + Number(f.amount || 0), 0);
 
+    // CANONICAL TOTALS — pull from billing_invoices (post-discount) when available
+    const { data: summaryInvoice } = await supabase
+      .from("billing_invoices")
+      .select("id, subtotal, tps_amount, tvq_amount, total")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let summaryDiscountAmount = 0;
+    let summaryDiscountLabel: string | undefined;
+    if (summaryInvoice?.id) {
+      const { data: discountLines } = await supabase
+        .from("billing_invoice_lines")
+        .select("description, unit_price, line_type")
+        .eq("invoice_id", (summaryInvoice as any).id)
+        .eq("line_type", "discount");
+      if (Array.isArray(discountLines) && discountLines.length > 0) {
+        summaryDiscountAmount = discountLines.reduce(
+          (s: number, l: any) => s + Math.abs(Number(l.unit_price || 0)), 0,
+        );
+        summaryDiscountLabel = String(discountLines[0]?.description || "Rabais");
+      }
+    }
+
+    const canonicalTaxGst = summaryInvoice
+      ? Number((summaryInvoice as any).tps_amount || 0)
+      : Number((o as any).tps_amount || 0);
+    const canonicalTaxQst = summaryInvoice
+      ? Number((summaryInvoice as any).tvq_amount || 0)
+      : Number((o as any).tvq_amount || 0);
+    const canonicalTotal = summaryInvoice
+      ? Number((summaryInvoice as any).total || 0)
+      : Number((o as any).total_amount || (o as any).subtotal || subtotalMonthly + subtotalOneTime);
+
     const data: OrderSummaryV3Data = {
       order_number: (o as any).order_number || orderId.slice(0, 8).toUpperCase(),
       order_date: (o as any).created_at,
@@ -966,11 +1001,11 @@ export async function buildSummaryPdfAttachment(
       fees,
       subtotal_monthly: subtotalMonthly,
       subtotal_onetime: subtotalOneTime,
-      discount_amount: 0,
-      tax_gst: Number((o as any).tps_amount || 0),
-      tax_qst: Number((o as any).tvq_amount || 0),
-      total_due:
-        Number((o as any).total_amount || (o as any).subtotal || subtotalMonthly + subtotalOneTime),
+      discount_amount: summaryDiscountAmount,
+      discount_label: summaryDiscountLabel,
+      tax_gst: canonicalTaxGst,
+      tax_qst: canonicalTaxQst,
+      total_due: canonicalTotal,
       estimated_activation: tele.install_date || (o as any).appointment_date || undefined,
       mobile_assigned_number: tele.mobile?.assigned_number,
       mobile_sim_iccid: tele.mobile?.sim_iccid,
