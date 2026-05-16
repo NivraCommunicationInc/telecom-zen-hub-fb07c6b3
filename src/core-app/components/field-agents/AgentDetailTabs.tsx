@@ -255,19 +255,27 @@ function EditableProfileSection({ userId, profile }: { userId: string; profile: 
     },
   });
 
-  // Monthly ventes count from orders (excluding cancelled)
+  // Monthly ventes count from orders + field_payment_intents (excluding cancelled)
   const { data: monthVentes = 0 } = useQuery({
     queryKey: ["agent-month-ventes", userId, currentYear, currentMonth],
     queryFn: async () => {
       const monthStart = new Date(currentYear, currentMonth - 1, 1).toISOString();
-      const { count } = await supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("created_by_agent_id", userId)
-        .eq("source", "field_sales")
-        .neq("status", "cancelled")
-        .gte("created_at", monthStart);
-      return count ?? 0;
+      const [ordersRes, intentsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", userId)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+        supabase
+          .from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", userId)
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart),
+      ]);
+      return (ordersRes.count ?? 0) + (intentsRes.count ?? 0);
     },
   });
 
