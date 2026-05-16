@@ -2,8 +2,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
 };
 
 type Action = "approve" | "hold" | "reject";
@@ -14,13 +14,22 @@ interface Body {
   reason?: string;
 }
 
+function respond(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return json({ ok: false, error: "Unauthorized" }, 401);
+      return respond({ ok: false, error: "Unauthorized" });
     }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -34,27 +43,27 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
     if (claimsErr || !claimsData?.claims?.sub) {
-      return json({ ok: false, error: "Unauthorized" }, 401);
+      return respond({ ok: false, error: "Unauthorized" });
     }
     const adminId = claimsData.claims.sub as string;
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Authorization: must be admin or super_admin
+    // Authorization: must be admin/super_admin/owner
     const { data: roles, error: roleErr } = await admin
       .from("user_roles")
       .select("role")
       .eq("user_id", adminId);
-    if (roleErr) return json({ ok: false, error: roleErr.message }, 500);
+    if (roleErr) return respond({ ok: false, error: roleErr.message });
     const allowed = (roles || []).some((r: any) =>
       ["admin", "super_admin", "owner"].includes(String(r.role))
     );
-    if (!allowed) return json({ ok: false, error: "Forbidden" }, 403);
+    if (!allowed) return respond({ ok: false, error: "Forbidden" });
 
     const body = (await req.json().catch(() => ({}))) as Body;
     const { commission_id, action, reason } = body;
     if (!commission_id || !action) {
-      return json({ ok: false, error: "commission_id and action are required" }, 400);
+      return respond({ ok: false, error: "commission_id and action are required" });
     }
 
     let update: Record<string, unknown>;
@@ -71,7 +80,7 @@ Deno.serve(async (req) => {
         break;
       case "reject":
         if (!reason || !reason.trim()) {
-          return json({ ok: false, error: "reason required" }, 400);
+          return respond({ ok: false, error: "reason required" });
         }
         update = {
           status: "clawback",
@@ -80,7 +89,7 @@ Deno.serve(async (req) => {
         };
         break;
       default:
-        return json({ ok: false, error: "Invalid action" }, 400);
+        return respond({ ok: false, error: "Invalid action" });
     }
 
     const { data, error } = await admin
@@ -90,7 +99,7 @@ Deno.serve(async (req) => {
       .select("id, status, approved_at, approved_by, clawback_reason, clawback_at, agent_id, amount")
       .single();
 
-    if (error) return json({ ok: false, error: error.message }, 400);
+    if (error) return respond({ ok: false, error: error.message });
 
     if (action === "approve" && data) {
       await admin.from("employee_notifications").insert({
@@ -102,15 +111,8 @@ Deno.serve(async (req) => {
       } as any);
     }
 
-    return json({ ok: true, data });
+    return respond({ ok: true, data });
   } catch (e: any) {
-    return json({ ok: false, error: e?.message || "Internal error" }, 500);
+    return respond({ ok: false, error: e?.message || "Internal error" });
   }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
