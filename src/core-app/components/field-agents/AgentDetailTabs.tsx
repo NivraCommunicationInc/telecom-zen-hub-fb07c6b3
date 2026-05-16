@@ -1101,18 +1101,28 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
     },
   });
 
-  // Count current month activated sales (for bonus progress)
+  // Count current month activated sales (for bonus progress) — orders + intents
   const { data: monthSales = 0 } = useQuery({
     queryKey: ["agent-month-sales", userId, currentYear, currentMonth],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("created_by_agent_id", userId)
-        .gte("created_at", monthStart)
-        .lt("created_at", monthEnd)
-        .in("status", ["activated", "completed", "active"]);
-      return count ?? 0;
+      const [ordersRes, intentsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("created_by_agent_id", userId)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart)
+          .lt("created_at", monthEnd),
+        supabase
+          .from("field_payment_intents")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", userId)
+          .neq("status", "cancelled")
+          .gte("created_at", monthStart)
+          .lt("created_at", monthEnd),
+      ]);
+      return (ordersRes.count ?? 0) + (intentsRes.count ?? 0);
     },
   });
 
