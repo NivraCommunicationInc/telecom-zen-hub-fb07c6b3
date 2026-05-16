@@ -141,6 +141,52 @@ export const formatDiscount = (discount: any): string => {
   return `${label} — ${amount}/mois`;
 };
 
+/**
+ * Contract / official-document discount formatter. Branches by discount.type
+ * and applies_to to produce a single human-readable line. Use in
+ * contract_generated, order_confirmation, payment_receipt cards.
+ */
+export const formatDiscountForContract = (d: any): string => {
+  if (!d) return "";
+  const amt = Number(d.amount ?? d.monthly_amount ?? 0);
+  const months = Number(d.duration_months ?? d.months_total ?? 0);
+  const name = safe(d.name ?? d.label ?? "Rabais", "Rabais");
+  if (d.type === "remove_fee" && d.applies_to === "installation")
+    return "Installation gratuite ✓ (frais annulés)";
+  if (d.type === "remove_fee" && d.applies_to === "activation")
+    return "Activation gratuite ✓ (frais annulés)";
+  if (d.type === "first_month_free")
+    return `1er mois offert ✓ — ${amt.toFixed(2)} $/mois`;
+  if (d.type === "one_time")
+    return `Promotion unique — ${amt.toFixed(2)} $`;
+  if (d.is_permanent)
+    return `Rabais permanent ${name} — ${amt.toFixed(2)} $/mois`;
+  return months > 0
+    ? `${name} — ${amt.toFixed(2)} $/mois × ${months} mois`
+    : `${name} — ${amt.toFixed(2)} $/mois`;
+};
+
+/**
+ * Build cardRows entries from an array of billing_invoice_lines (or
+ * normalized discount objects). Each line with line_type === 'discount'
+ * renders as a negative amount row. Safe to pass empty/undefined.
+ */
+export const buildDiscountRowsFromInvoiceLines = (
+  lines: any[] | undefined | null,
+): Array<[string, string]> => {
+  if (!Array.isArray(lines)) return [];
+  return lines
+    .filter((l) => String(l?.line_type) === "discount")
+    .map((l) => {
+      const desc = safe(l?.description, "Rabais");
+      const amt = Number(l?.line_total ?? l?.unit_price ?? 0);
+      const formatted = amt === 0
+        ? "0,00 $ ✓"
+        : `-${money(Math.abs(amt))}`;
+      return [desc, formatted] as [string, string];
+    });
+};
+
 // ---------------------------------------------------------------------------
 // SVG icons (kept simple for email-client compatibility)
 // ---------------------------------------------------------------------------
