@@ -55,10 +55,7 @@ export function useImpersonation() {
       const targetStaffRole = (roles || []).find((r: any) => STAFF_ROLES.includes(r.role));
       if (targetStaffRole) {
         if (win && !win.closed) { try { win.close(); } catch { /* noop */ } }
-        toast.error("Impossible de se connecter en tant qu'employé", {
-          id: toastId,
-          description: "La vue client n'est disponible que pour les comptes clients.",
-        });
+        toast.error("Impossible de se connecter en tant qu'employé", { id: toastId });
         return;
       }
     } catch {
