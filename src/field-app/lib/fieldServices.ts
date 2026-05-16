@@ -239,7 +239,16 @@ export async function fetchOrderList(filters?: { status?: string; payment_status
 // ═══════════════════════════════════════
 
 export async function fetchCommissionSummary() {
-  return callFieldFunction("field-commission-engine", { action: "summary" });
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.functions.invoke("field-commission-engine", {
+    method: "GET",
+  });
+
+  console.log('[commission] userId:', user?.id);
+  console.log('[commission] response:', data);
+
+  if (error) throw error;
+  return data;
 }
 
 export async function fetchCommissionList(status?: string) {
