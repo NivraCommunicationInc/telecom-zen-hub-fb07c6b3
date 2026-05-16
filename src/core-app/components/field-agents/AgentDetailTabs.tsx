@@ -1241,6 +1241,12 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
         <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-primary" /> Commissions de cet agent
         </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total ce mois</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.month)}</p></div>
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total en attente</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.pending)}</p></div>
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total approuvé</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.approved)}</p></div>
+          <div className="rounded-lg border border-border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">Total payé</p><p className="text-sm font-bold text-foreground">{fmtMoney(commissionTotals.paid)}</p></div>
+        </div>
         {fieldComms.length === 0 ? (
           <p className="text-xs text-muted-foreground py-6 text-center">Aucune commission</p>
         ) : (
@@ -1251,18 +1257,16 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
                 <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-foreground">{fmtMoney(Number(c.amount))}</span>
+                      <span className="text-sm font-bold text-foreground">{fmtMoney(c.amount)}</span>
                       <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", b.cls)}>{b.label}</span>
-                      {c.commission_type && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">{c.commission_type}</span>
-                      )}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{commissionTypeLabel(c.commission_type)}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {c.description || (c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "—")}
+                      {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission sans commande liée"}
                     </p>
                   </div>
                   <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
-                    {format(new Date(c.created_at), "dd/MM/yy")}
+                    {fmtLongDate(c.earned_at)}
                   </span>
                 </div>
               );
