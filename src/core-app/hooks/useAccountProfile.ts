@@ -229,12 +229,67 @@ export function useAccountProfile(accountId: string | undefined) {
     queryKey: ["account-profile-kyc", clientId],
     queryFn: async () => {
       if (!clientId) return [];
+      // Read from both canonical KYC tables and identity_verification_sessions
+      const [verifs, sessions, requests] = await Promise.all([
+        supabase
+          .from("kyc_verifications")
+          .select("id, status, reason, requested_id_type, reviewed_at, created_at")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("identity_verification_sessions")
+          .select("id, status, document_type, reviewed_at, created_at, submitted_at, order_id, case_number")
+          .eq("user_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("kyc_requests")
+          .select("id, status, document_path, approved_at, completed_at, created_at, order_id")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
+
+      const merged: any[] = [];
+      (verifs.data || []).forEach((r: any) => merged.push({
+        id: `verif-${r.id}`,
+        case_number: r.id.slice(0, 8),
+        status: r.status,
+        document_type: r.requested_id_type || "—",
+        submitted_at: r.created_at,
+        reviewed_at: r.reviewed_at,
+      }));
+      (sessions.data || []).forEach((r: any) => merged.push({
+        id: `sess-${r.id}`,
+        case_number: r.case_number || r.id.slice(0, 8),
+        status: r.status,
+        document_type: r.document_type,
+        submitted_at: r.submitted_at || r.created_at,
+        reviewed_at: r.reviewed_at,
+      }));
+      (requests.data || []).forEach((r: any) => merged.push({
+        id: `req-${r.id}`,
+        case_number: r.id.slice(0, 8),
+        status: r.status,
+        document_type: r.document_path ? "Document" : "—",
+        submitted_at: r.completed_at || r.created_at,
+        reviewed_at: r.approved_at,
+      }));
+      return merged.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
+    },
+    enabled: !!clientId,
+  });
+
+  const contracts = useQuery({
+    queryKey: ["account-profile-contracts", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
       const { data, error } = await supabase
-        .from("identity_verification_sessions")
-        .select("id, status, document_type, reviewed_at, created_at, submitted_at, order_id, case_number")
-        .eq("user_id", clientId)
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .from("contracts")
+        .select("*")
+        .or(`user_id.eq.${clientId},owner_user_id.eq.${clientId}`)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -250,15 +305,40 @@ export function useAccountProfile(accountId: string | undefined) {
   const equipment = useQuery({
     queryKey: ["account-profile-equipment", accountId, equipmentOrderIds.join("|")],
     queryFn: async () => {
-      if (equipmentOrderIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("equipment_order_lines")
-        .select("*")
-        .in("order_id", equipmentOrderIds.slice(0, 100));
-      if (error) throw error;
-      return data || [];
+      if (equipmentOrderIds.length === 0 && !orders.data?.length) return [];
+
+      // 1) Canonical equipment_order_lines
+      const lines = equipmentOrderIds.length > 0
+        ? await supabase
+            .from("equipment_order_lines")
+            .select("*")
+            .in("order_id", equipmentOrderIds.slice(0, 100))
+        : { data: [], error: null } as any;
+      if (lines.error) throw lines.error;
+
+      const result: any[] = [...(lines.data || [])];
+
+      // 2) Fallback: legacy orders.equipment_details JSON when no lines exist for that order
+      const linesByOrder = new Set((lines.data || []).map((l: any) => l.order_id));
+      for (const o of orders.data || []) {
+        if (linesByOrder.has(o.id)) continue;
+        const det = Array.isArray(o.equipment_details) ? o.equipment_details : [];
+        det.forEach((eq: any, idx: number) => {
+          result.push({
+            id: `${o.id}-jsoneq-${idx}`,
+            order_id: o.id,
+            item_name: eq.label || eq.type || eq.name || "Équipement",
+            item_sku: eq.type || eq.sku || o.equipment_id || "—",
+            quantity: eq.quantity || 1,
+            unit_price: eq.unit_price ?? null,
+            line_total: eq.line_total ?? null,
+            serial_numbers: eq.serial_number ? [eq.serial_number] : (eq.serial_numbers || null),
+          });
+        });
+      }
+      return result;
     },
-    enabled: equipmentOrderIds.length > 0,
+    enabled: !!orders.data,
   });
 
   const activityLogs = useQuery({
