@@ -286,6 +286,8 @@ async function resolveAgentAttribution(
 }
 
 // ============================================================================
+// INVOICE — uses locked invoiceTemplateV3 (generateInvoiceV3PDF)
+// ============================================================================
 export async function buildInvoicePdfAttachment(
   invoiceId: string,
   filenamePrefix: string = "Facture",
