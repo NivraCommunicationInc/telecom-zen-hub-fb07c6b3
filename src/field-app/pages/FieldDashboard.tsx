@@ -311,6 +311,53 @@ export default function FieldDashboard() {
   const { data: monthlyTarget } = useMonthlyTarget(user?.id);
   const { data: fieldComm } = useFieldCommissions(user?.id);
 
+  /* Today report — ventes, leads, revenu, commissions du jour (real data) */
+  const { data: todayReport } = useQuery({
+    queryKey: ["field-today-report", user?.id],
+    enabled: !!user?.id,
+    staleTime: 1000 * 30,
+    queryFn: async () => {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayISO = todayStart.toISOString();
+
+      const [ordersRes, intentsRes, commissionsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id, total_amount", { count: "exact" })
+          .eq("created_by_agent_id", user!.id)
+          .eq("source", "field_sales")
+          .neq("status", "cancelled")
+          .gte("created_at", todayISO),
+        supabase
+          .from("field_payment_intents")
+          .select("id, status", { count: "exact" })
+          .eq("agent_id", user!.id)
+          .neq("status", "cancelled")
+          .gte("created_at", todayISO),
+        supabase
+          .from("field_commissions")
+          .select("amount")
+          .eq("agent_id", user!.id)
+          .gte("earned_at", todayISO),
+      ]);
+
+      const todaySales = ordersRes.count ?? 0;
+      const todayIntents = intentsRes.count ?? 0;
+      const todayLeads = (intentsRes.data ?? []).filter((i: any) => i.status === "pending").length;
+      const totalToday = todaySales + todayIntents;
+      const revenueToday = (ordersRes.data ?? []).reduce(
+        (sum: number, o: any) => sum + Number(o.total_amount || 0),
+        0,
+      );
+      const commissionsToday = (commissionsRes.data ?? []).reduce(
+        (sum: number, c: any) => sum + Number(c.amount || 0),
+        0,
+      );
+      return { todaySales, todayIntents, todayLeads, totalToday, revenueToday, commissionsToday };
+    },
+  });
+
   /* Portal-wide realtime — invalidates dashboard queries whenever any
      field_commissions / orders / field_payment_intents row changes. */
   usePortalRealtime(
@@ -319,6 +366,7 @@ export default function FieldDashboard() {
       ["field-dashboard-summary"],
       ["field-dashboard-activity"],
       ["field-commissions", user?.id],
+      ["field-today-report", user?.id],
     ],
   );
 
