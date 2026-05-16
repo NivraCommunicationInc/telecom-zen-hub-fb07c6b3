@@ -174,6 +174,35 @@ export default function FieldObjectives() {
         </div>
       )}
 
+      {/* Revenu total généré ce mois (chiffre d'affaires) */}
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DCFCE7]">
+              <TrendingUp className="h-5 w-5 text-[#15803D]" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#000000]">Revenu total généré</p>
+              <p className="text-[10px] text-[#9CA3AF]">Chiffre d'affaires ce mois</p>
+            </div>
+          </div>
+          <p className="text-xl font-bold text-[#000000]">
+            {fmtMoney(monthRevenue)}
+            {monthlyRevenueTarget > 0 && (
+              <span className="text-xs font-normal text-[#6B7280]"> / {fmtMoney(monthlyRevenueTarget)}</span>
+            )}
+          </p>
+        </div>
+        {monthlyRevenueTarget > 0 && (
+          <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all duration-700", revenuePct >= 100 ? "bg-[#22C55E]" : "bg-[#15803D]")}
+              style={{ width: `${revenuePct}%` }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* SECTION 4 — Objectif mensuel (if assigned) */}
       {data?.hasTargets && monthlyTarget > 0 ? (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
