@@ -3,7 +3,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { requireAuth, checkBodySize, sanitizeString } from "../_shared/security.ts";
+import { checkBodySize, sanitizeString } from "../_shared/security.ts";
 
 Deno.serve(async (req) => {
   const cors = handleCorsPreflightRequest(req);
@@ -14,7 +14,24 @@ Deno.serve(async (req) => {
 
   try {
     checkBodySize(req);
-    const { userId } = await requireAuth(req);
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      throw { status: 401, message: "Non authentifié" };
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw { status: 401, message: "Session invalide" };
+    }
+
+    const userId = user.id;
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
