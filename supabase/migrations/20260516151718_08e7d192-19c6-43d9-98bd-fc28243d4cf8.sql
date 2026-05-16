@@ -1,0 +1,3 @@
+ALTER FUNCTION public.create_supplier_account(uuid,text,text,date,text,text,text,text,numeric,date,text,text) SET search_path = public, extensions, pg_temp;
+ALTER FUNCTION public.update_supplier_account(uuid,uuid,text,text,date,text,text,text,text,numeric,date,text,text) SET search_path = public, extensions, pg_temp;
+ALTER FUNCTION public.reveal_supplier_password(uuid) SET search_path = public, extensions, pg_temp;
