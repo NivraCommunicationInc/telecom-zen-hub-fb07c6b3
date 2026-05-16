@@ -2576,6 +2576,26 @@ export function renderQueueTemplate(
       const cardRows: Array<[string, string]> = [];
       if (orderNumber) cardRows.push(["Numéro de commande", `#${orderNumber}`]);
       cardRows.push(["Votre représentant", agentDisplay]);
+      // Discount section — official contract document MUST list every rabais.
+      const contractDiscounts: any[] = Array.isArray(v.discounts)
+        ? v.discounts
+        : (v.discount_data ? [v.discount_data] : []);
+      for (const d of contractDiscounts) {
+        cardRows.push(["Rabais appliqué", formatDiscountForContract(d)]);
+        const months = Number(d?.duration_months ?? d?.months_total ?? 0);
+        const isPerm = !!d?.is_permanent;
+        cardRows.push([
+          "Durée du rabais",
+          isPerm ? "Permanent" : (months > 0 ? `${months} mois` : "Une fois"),
+        ]);
+        if (d?.monthly_price !== undefined && d?.monthly_price !== null) {
+          const monthlyAfter = Math.max(0, Number(d.monthly_price) - Number(d.amount || 0));
+          cardRows.push(["Prix mensuel après rabais", `${monthlyAfter.toFixed(2)} $/mois`]);
+        }
+      }
+      for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
+        cardRows.push(r);
+      }
       return {
         subject: `Votre contrat de service Nivra${orderNumber ? ` — ${orderNumber}` : ""}`,
         html: shell({
