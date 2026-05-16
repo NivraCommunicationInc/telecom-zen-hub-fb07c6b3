@@ -216,7 +216,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!clientId) return [];
       const { data } = await supabase.from("contracts")
-        .select("id, contract_number, status, contract_pdf_url, created_at, signed_at, client_signed_at")
+        .select("id, contract_number, status, contract_pdf_url, created_at, signed_at, client_signed_at, admin_signed_at, signature_token, signature_token_expires_at")
         .eq("user_id", clientId!)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -563,22 +563,44 @@ const CoreClientProfile = () => {
         {contracts.length > 0 ? (
           <div className="space-y-2">
             {contracts.map((c: any) => {
-              const isSigned = c.status === "signed" || c.client_signed_at;
-              const isCancelled = c.status === "cancelled";
-              const awaitingSig = !isSigned && !isCancelled;
+              const status = String(c.status || "").toLowerCase();
+              const expired = c.signature_token_expires_at && new Date(c.signature_token_expires_at) < new Date() && !c.client_signed_at;
+              const isFullySigned = status === "signed" || status === "completed" || !!c.client_signed_at;
+              const awaitingClient = status === "signed_by_admin" || (!!c.admin_signed_at && !c.client_signed_at && !expired);
+              const isDraft = status === "draft" || (!c.admin_signed_at && !c.client_signed_at && !expired);
+
+              let badge: JSX.Element;
+              if (isFullySigned) {
+                badge = <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">✓ Signé</Badge>;
+              } else if (expired) {
+                badge = <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[9px]">Expiré</Badge>;
+              } else if (awaitingClient) {
+                badge = <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[9px]">En attente de la signature client</Badge>;
+              } else if (isDraft) {
+                badge = <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Brouillon</Badge>;
+              } else {
+                badge = <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">{c.status || "—"}</Badge>;
+              }
+
               return (
-                <div key={c.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                <div key={c.id} className="flex flex-wrap items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
                   <FileSignature className="h-4 w-4 text-purple-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-medium text-white truncate font-mono">{c.contract_number || c.id.slice(0, 8)}</p>
                     <p className="text-[10px] text-[#A1A1AA]">
                       Créé le {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
-                      {c.client_signed_at && <> · Signé le {format(new Date(c.client_signed_at), "d MMM yyyy", { locale: fr })}</>}
+                      {" · "}Nivra: {c.admin_signed_at ? format(new Date(c.admin_signed_at), "d MMM yyyy", { locale: fr }) : "—"}
+                      {" · "}Client: {c.client_signed_at ? format(new Date(c.client_signed_at), "d MMM yyyy", { locale: fr }) : "En attente"}
                     </p>
                   </div>
-                  {isSigned && <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Signé</Badge>}
-                  {awaitingSig && <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[9px]">En attente signature</Badge>}
-                  {isCancelled && <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[9px]">Annulé</Badge>}
+                  {badge}
+                  {awaitingClient && c.signature_token && (
+                    <a href={`/signer/${c.signature_token}`} target="_blank" rel="noreferrer">
+                      <button className="h-6 px-2 rounded border border-amber-500/30 text-[10px] text-amber-400 hover:bg-amber-500/10 flex items-center gap-1">
+                        Signer maintenant →
+                      </button>
+                    </a>
+                  )}
                   {c.contract_pdf_url ? (
                     <a href={c.contract_pdf_url} target="_blank" rel="noreferrer">
                       <button className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1">

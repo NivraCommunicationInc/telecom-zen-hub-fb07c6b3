@@ -1166,25 +1166,44 @@ export function renderQueueTemplate(
     case "contract_sign_request":
     case "contract_ready_to_sign":
     case "contract_signature_request": {
-      const contractUrl = String(v.signature_url || v.SIGNATURE_URL || v.contract_url || v.CONTRACT_URL || "https://nivra-telecom.ca/portal/contracts");
-      const service = esc(v.service || v.plan_name || "Service Nivra");
+      const contractUrl = String(
+        v.sign_url || v.SIGN_URL ||
+        v.signature_url || v.SIGNATURE_URL ||
+        v.contract_url || v.CONTRACT_URL ||
+        "https://nivra-telecom.ca/portal/contracts"
+      );
+      const services = safe(
+        v.services || v.service || v.plan_name || v.services_summary,
+        "Vos services Nivra"
+      );
+      const agentName = safe(v.agent_name, "Votre conseiller Nivra");
+      const agentNumber = safe(v.agent_number, "");
+      const agentDisplay = agentNumber && agentNumber !== "Non disponible"
+        ? `${agentName} — ${agentNumber}`
+        : agentName;
+      const validUntil = v.token_expires_at
+        ? fmtDate(v.token_expires_at)
+        : "7 jours";
       return {
-        subject: `Votre contrat est prêt à signer`,
+        subject: `Signez votre contrat Nivra Telecom`,
         html: shell({
-          preheader: `Votre contrat Nivra est disponible.`,
+          preheader: `Votre contrat est prêt à signer.`,
           badge: "SIGNATURE REQUISE",
           heroTitle: "Votre contrat est prêt à signer",
+          heroSub: `Commande #${String(orderNum).replace(/^#/, "")}`,
           icon: "pen",
           greeting,
-          bodyText: "Votre contrat de service Nivra est disponible.",
-          cardTitle: "Détails",
+          bodyText: "Nivra Communication Inc. a signé sa partie du contrat. Il ne reste qu'à apposer votre signature pour finaliser votre entente de service.",
+          cardTitle: "Détails de votre contrat",
           cardRows: [
-            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Service", String(service)],
-            ["Expire dans", "7 jours"],
+            ["Numéro de commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Services", services],
+            ["Votre représentant", agentDisplay],
+            ["Valide jusqu'au", validUntil],
           ],
           ctaPrimaryUrl: contractUrl,
           ctaPrimaryLabel: "Signer mon contrat",
+          helpHtml: `Questions ? Contactez-nous à <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
         }),
       };
     }
