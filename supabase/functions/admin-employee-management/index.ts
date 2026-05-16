@@ -82,8 +82,9 @@ serve(async (req) => {
           return new Response(JSON.stringify({ error: "Un employé avec ce courriel existe déjà" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        const tempPin = params.pin || generatePin();
-        const pinHash = await hashPin(tempPin);
+        const tempPin = params.pin || generateNumericPin(4);
+        const pinSalt = generateSalt();
+        const pinHash = await hashPbkdf2(tempPin, pinSalt);
 
         const { data: newEmployee, error: createError } = await supabase
           .from("employees")
@@ -92,6 +93,8 @@ serve(async (req) => {
             full_name: params.full_name,
             phone: params.phone || null,
             pin_hash: pinHash,
+            pin_salt: pinSalt,
+            require_pin_change: true,
             permissions_json: params.permissions || {
               can_view_orders: true,
               can_edit_orders_status: false,
@@ -161,13 +164,16 @@ serve(async (req) => {
         break;
 
       case "reset_pin":
-        const newPin = generatePin();
-        const newPinHash = await hashPin(newPin);
+        const newPin = generateNumericPin(4);
+        const newPinSalt = generateSalt();
+        const newPinHash = await hashPbkdf2(newPin, newPinSalt);
 
         const { error: resetError } = await supabase
           .from("employees")
           .update({ 
             pin_hash: newPinHash,
+            pin_salt: newPinSalt,
+            require_pin_change: true,
             failed_login_attempts: 0,
             lockout_until: null,
           })
