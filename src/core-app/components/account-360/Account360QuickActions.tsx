@@ -59,16 +59,30 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     finally { setLoading(false); }
   };
 
+  const handleImpersonate = async () => {
+    if (!clientId) return;
+    setLoading(true);
+    try { await startImpersonation({ clientId, clientEmail: clientEmail || null, clientName }); }
+    finally { setLoading(false); }
+  };
+
   const actions = [
+    { icon: Eye, label: "Voir comme client", onClick: handleImpersonate, color: "violet" as const },
     { icon: UserPen, label: "Modifier le profil", onClick: onEditProfile, color: "emerald" },
     { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "default" },
     { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices"), color: "default" },
     { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments"), color: "default" },
     { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
     { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
-    ...(accountStatus !== "suspended"
-      ? [{ icon: PauseCircle, label: "Suspendre", onClick: () => updateStatus("suspended"), color: "warning" as const }]
-      : [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
+    ...(accountStatus !== "suspended" && accountStatus !== "cancelled"
+      ? [{ icon: PauseCircle, label: "Pause temporaire", onClick: () => setPauseOpen(true), color: "warning" as const }]
+      : accountStatus === "suspended"
+        ? [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
+        : []
+    ),
+    ...(accountStatus !== "cancelled"
+      ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
+      : []
     ),
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
