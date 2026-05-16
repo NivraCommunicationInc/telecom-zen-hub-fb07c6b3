@@ -375,7 +375,7 @@ export default function FieldCommissions() {
                   {commissions.map((commission: any) => {
                     const statusConfig = STATUS_CONFIG[commission.status] || STATUS_CONFIG.pending;
                     const Icon = statusConfig.icon;
-                    const amount = Number(commission.commission_amount || commission.amount || 0);
+                    const amount = commission.amount || commission.commission_amount || 0;
                     const canDispute = ["clawback", "rejected"].includes(commission.status);
 
                     return (
@@ -388,7 +388,7 @@ export default function FieldCommissions() {
                             <Icon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white">{amount.toFixed(2)} $</p>
+                            <p className="text-sm font-semibold text-white">{formatCommissionAmount(amount)}</p>
                             <p className="text-[10px] text-[hsl(var(--field-text-muted))] truncate">
                               {commission.field_sales_orders?.customer_name || "—"}
                             </p>
@@ -437,7 +437,7 @@ export default function FieldCommissions() {
                       className="p-4 rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] flex items-center justify-between gap-3"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white">{Number(withdrawal.amount || 0).toFixed(2)} $</p>
+                        <p className="text-sm font-semibold text-white">{formatCommissionAmount(withdrawal.amount)}</p>
                         <p className="text-[10px] text-[hsl(var(--field-text-muted))] mt-0.5 truncate">
                           {withdrawal.notes || "Retrait PayPal"}
                         </p>
@@ -466,7 +466,7 @@ export default function FieldCommissions() {
                     <div key={commission.id} className="p-4 rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))]">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-white">
-                          {Number(commission.commission_amount || 0).toFixed(2)} $
+                          {formatCommissionAmount(commission.amount || commission.commission_amount)}
                         </p>
                         <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", statusConfig.tone)}>
                           {statusConfig.label}
