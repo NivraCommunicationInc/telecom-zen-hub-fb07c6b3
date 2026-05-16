@@ -665,23 +665,49 @@ Deno.serve(async (req) => {
 
             // Discount line (if applied at the door)
             const discountData: any = (sale as any).discount_data;
-            if (discountData && Number(discountData.amount || 0) > 0) {
-              const dAmt = Number(discountData.amount);
+            if (discountData) {
+              const dType = String(discountData.type || "");
+              const dAppliesTo = String(discountData.applies_to || "");
+              const dAmt = Number(discountData.amount || 0);
               const dDur = Number(discountData.duration_months || 0);
               const dName = String(discountData.name || "Rabais agent");
-              const desc = dDur > 0
-                ? `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
-                : `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois`;
-              const { error: discLineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
-                invoice_id: invoiceId,
-                description: desc,
-                unit_price: -dAmt,
-                quantity: 1,
-                line_total: -dAmt,
-                line_type: "discount",
-              });
-              if (discLineErr) {
-                console.error("[field-sales-sync] discount line insert failed:", discLineErr);
+              const monthlyPrice = Number(discountData.monthly_price || subtotal || 0);
+
+              let desc: string | null = null;
+              let unitPrice = 0;
+
+              if (dType === "remove_fee" && dAppliesTo === "installation") {
+                desc = "Installation gratuite ✓";
+                unitPrice = 0;
+              } else if (dType === "remove_fee" && dAppliesTo === "activation") {
+                desc = "Activation gratuite ✓";
+                unitPrice = 0;
+              } else if (dType === "first_month_free") {
+                desc = `1er mois offert — ${monthlyPrice.toFixed(2)}$/mois`;
+                unitPrice = -monthlyPrice;
+              } else if (dType === "one_time" && dAmt > 0) {
+                desc = `Promotion unique — ${dAmt.toFixed(2)}$`;
+                unitPrice = -dAmt;
+              } else if (dAmt > 0) {
+                // fixed_monthly / credit — permanent or time-limited
+                desc = dDur > 0
+                  ? `Rabais ${dName} — ${dAmt.toFixed(2)}$/mois × ${dDur} mois`
+                  : `Rabais permanent ${dName} — ${dAmt.toFixed(2)}$/mois`;
+                unitPrice = -dAmt;
+              }
+
+              if (desc !== null) {
+                const { error: discLineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
+                  invoice_id: invoiceId,
+                  description: desc,
+                  unit_price: unitPrice,
+                  quantity: 1,
+                  line_total: unitPrice,
+                  line_type: "discount",
+                });
+                if (discLineErr) {
+                  console.error("[field-sales-sync] discount line insert failed:", discLineErr);
+                }
               }
             }
 

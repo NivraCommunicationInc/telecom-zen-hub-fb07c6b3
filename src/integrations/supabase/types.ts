@@ -76,6 +76,8 @@ export type Database = {
           account_id: string
           amount: number
           applied_count: number
+          applies_to: string | null
+          conditions: string | null
           created_at: string
           created_by: string | null
           description: string
@@ -85,6 +87,7 @@ export type Database = {
           last_applied_at: string | null
           months_remaining: number
           months_total: number
+          source_discount_id: string | null
           status: string
           type: string
         }
@@ -92,6 +95,8 @@ export type Database = {
           account_id: string
           amount: number
           applied_count?: number
+          applies_to?: string | null
+          conditions?: string | null
           created_at?: string
           created_by?: string | null
           description: string
@@ -101,6 +106,7 @@ export type Database = {
           last_applied_at?: string | null
           months_remaining: number
           months_total?: number
+          source_discount_id?: string | null
           status?: string
           type: string
         }
@@ -108,6 +114,8 @@ export type Database = {
           account_id?: string
           amount?: number
           applied_count?: number
+          applies_to?: string | null
+          conditions?: string | null
           created_at?: string
           created_by?: string | null
           description?: string
@@ -117,6 +125,7 @@ export type Database = {
           last_applied_at?: string | null
           months_remaining?: number
           months_total?: number
+          source_discount_id?: string | null
           status?: string
           type?: string
         }
@@ -141,6 +150,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "account_adjustments_source_discount_id_fkey"
+            columns: ["source_discount_id"]
+            isOneToOne: false
+            referencedRelation: "agent_discounts"
+            referencedColumns: ["id"]
           },
         ]
       }

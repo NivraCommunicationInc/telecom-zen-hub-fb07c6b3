@@ -554,10 +554,15 @@ export default function FieldNewSale() {
             sync_status: "pending",
             discount_data: draft.discount ? {
               name: (draft.discount as any).name || (draft.discount as any).label || "Rabais",
-              amount: Number(monthlyDiscountAmount || 0),
-              duration_months: Number((draft.discount as any).duration_months ?? (draft.discount as any).duration ?? 0),
-              monthly_amount: Number(monthlyDiscountAmount || 0),
               type: (draft.discount as any).type || null,
+              amount: Number((draft.discount as any).value ?? monthlyDiscountAmount ?? 0),
+              applies_to: (draft.discount as any).applies_to || null,
+              conditions: (draft.discount as any).applies_to || null,
+              duration_months: Number((draft.discount as any).duration_months ?? (draft.discount as any).duration ?? 0),
+              min_plan_price: (draft.discount as any).min_plan_price ?? null,
+              source_discount_id: (draft.discount as any).id || null,
+              monthly_amount: Number(monthlyDiscountAmount || 0),
+              monthly_price: Number(monthlyBeforeDiscount || 0),
             } : null,
             internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}\nCommission: ${commissionAmount.toFixed(2)}$ = 30% récurrent (${monthlyBeforeDiscount.toFixed(2)}$) + 5% équipement (${equipmentTotal.toFixed(2)}$)`,
           } as any)
