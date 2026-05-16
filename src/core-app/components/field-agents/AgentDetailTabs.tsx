@@ -1230,12 +1230,12 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
         } as any);
       }
     },
-    onSuccess: () => {
-      toast.success("Commission approuvée");
+     onSuccess: () => {
+      toast.success("Commission approuvée ✅");
       qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
       qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
     },
-    onError: (e: any) => toast.error(e?.message || "Erreur approbation"),
+    onError: () => toast.error("Erreur lors de la mise à jour. Contactez le support."),
   });
 
   const holdCommission = useMutation({
@@ -1247,11 +1247,11 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Commission mise en attente (hold)");
+      toast.success("Commission mise en attente");
       qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
       qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
     },
-    onError: (e: any) => toast.error(e?.message || "Erreur hold"),
+    onError: () => toast.error("Erreur lors de la mise à jour. Contactez le support."),
   });
 
   const rejectCommission = useMutation({
@@ -1268,13 +1268,13 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Commission rejetée");
+      toast.success("Commission récupérée");
       setRejectId(null);
       setRejectReason("");
       qc.invalidateQueries({ queryKey: ["agent-field-commissions", userId] });
       qc.invalidateQueries({ queryKey: ["core-field", "agent-commissions", userId] });
     },
-    onError: (e: any) => toast.error(e?.message || "Erreur rejet"),
+    onError: () => toast.error("Erreur lors de la mise à jour. Contactez le support."),
   });
 
   const weeklyT = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? 0;
