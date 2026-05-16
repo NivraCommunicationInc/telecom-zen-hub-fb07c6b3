@@ -11,12 +11,14 @@ import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
 import { AddCreditWithDurationDialog } from "@/core-app/components/account-actions/AddCreditWithDurationDialog";
 import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/AccountAdjustmentDialog";
+import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 interface Props {
   accountId: string | undefined;
