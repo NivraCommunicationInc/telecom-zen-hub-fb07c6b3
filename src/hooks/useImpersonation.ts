@@ -141,11 +141,16 @@ export function useImpersonation() {
       return;
     }
 
-    // 1) SYNCHRONOUSLY open the real portal route while we still have the
-    //    user gesture. The tab itself then receives the token via URL and
-    //    localStorage handoff once the RPC returns.
+    // Try to synchronously open a new tab while we still have the user gesture.
+    // If popups are blocked (common inside the Lovable preview iframe), we fall
+    // back to same-tab navigation once the RPC returns.
     const pendingUrl = `${window.location.origin}/portal?impersonation_pending=1`;
-    const win = window.open(pendingUrl, "_blank");
+    let win: Window | null = null;
+    try {
+      win = window.open(pendingUrl, "_blank");
+    } catch {
+      win = null;
+    }
 
     const toastId = toast.loading(
       `Ouverture du portail de ${clientName || clientEmail || "client"}…`,
