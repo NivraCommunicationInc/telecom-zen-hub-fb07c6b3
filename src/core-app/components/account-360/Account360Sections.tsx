@@ -337,26 +337,31 @@ export const AppointmentsSection = ({ data, clientId, clientEmail, clientName, a
 );
 
 /* ── KYC ── */
-export const KycSection = ({ data }: any) => (
-  <Panel>
-    <PanelHeader icon={Shield} title="Vérification KYC / Identité" count={data.kycSessions.length} />
-    {data.kycSessions.length === 0 ? (
-      <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">Aucune session KYC enregistrée</div>
-    ) : (
-      <MiniTable headers={["#", "Statut", "Document", "Soumis", "Révisé"]}>
-        {data.kycSessions.map((k: any) => (
-          <tr key={k.id} className={trClass}>
-            <td className="px-3 py-1.5 font-mono text-core-text-secondary text-[10px]">{k.case_number || k.id.slice(0, 8)}</td>
-            <td className="px-3 py-1.5"><StatusBadge label={label(k.status)} variant={statusToVariant(k.status || "")} size="sm" /></td>
-            <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{k.document_type || "—"}</td>
-            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.submitted_at)}</td>
-            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.reviewed_at)}</td>
-          </tr>
-        ))}
-      </MiniTable>
-    )}
-  </Panel>
-);
+export const KycSection = ({ data }: any) => {
+  const [selected, setSelected] = useState<any>(null);
+  return (
+    <Panel>
+      <PanelHeader icon={Shield} title="Vérification KYC / Identité" count={data.kycSessions.length} />
+      {data.kycSessions.length === 0 ? (
+        <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">Aucune session KYC enregistrée</div>
+      ) : (
+        <MiniTable headers={["#", "Statut", "Document", "Soumis", "Révisé", ""]}>
+          {data.kycSessions.map((k: any) => (
+            <tr key={k.id} className={`${trClass} cursor-pointer`} onClick={() => setSelected(k)}>
+              <td className="px-3 py-1.5 font-mono text-core-text-secondary text-[10px]">{k.case_number || k.id.slice(0, 8)}</td>
+              <td className="px-3 py-1.5"><StatusBadge label={label(k.status)} variant={statusToVariant(k.status || "")} size="sm" /></td>
+              <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{k.id_type || k.document_type || "—"}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.submitted_at)}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.reviewed_at)}</td>
+              <td className="px-3 py-1.5 text-core-text-label hover:text-emerald-400 text-[10px]">Voir →</td>
+            </tr>
+          ))}
+        </MiniTable>
+      )}
+      <KycDetailDialog session={selected} open={!!selected} onClose={() => setSelected(null)} />
+    </Panel>
+  );
+};
 
 /* ── Contracts & Documents ── */
 export const ContractsSection = ({ data }: any) => {
