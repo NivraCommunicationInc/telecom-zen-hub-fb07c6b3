@@ -171,6 +171,23 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     }
     y += 4;
 
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional, additive optional fields on InvoiceDataV2)
+    const fsData = data as any;
+    if (fsData.sale_source === "field_sales" && (fsData.agent_name || fsData.agent_number)) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(30, 64, 120);
+      doc.text("Representant commercial", 15, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Nom : ${fsData.agent_name || "—"}`, 17, y); y += 5;
+      doc.text(`Badge : ${fsData.agent_number || "—"}`, 17, y); y += 5;
+      doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
+      doc.setTextColor(0, 0, 0);
+    }
+
     // Items table
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);

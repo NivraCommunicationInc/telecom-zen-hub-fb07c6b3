@@ -70,6 +70,11 @@ export interface ContractDataV3 {
 
   discount_label?: string;
 
+  // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
+  sale_source?: string;
+  agent_name?: string;
+  agent_number?: string;
+
   // Optional activation/install details (telecom)
   mobile_assigned_number?: string;
   mobile_sim_iccid?: string;
@@ -229,6 +234,22 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     const svcParts = doc.splitTextToSize(data.service_address || "—", 85);
     doc.text(svcParts, col2, y);
     y += Math.max(billParts.length, svcParts.length) * 4 + 6;
+
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional)
+    if (data.sale_source === "field_sales" && (data.agent_name || data.agent_number)) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(30, 64, 120);
+      doc.text("Representant commercial", 15, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Nom : ${data.agent_name || "—"}`, 17, y); y += 4;
+      doc.text(`Badge : ${data.agent_number || "—"}`, 17, y); y += 4;
+      doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
+      doc.setTextColor(0, 0, 0);
+    }
 
     // SOMMAIRE FINANCIER
     y = sectionTitle(doc, "B", "SOMMAIRE FINANCIER", y);

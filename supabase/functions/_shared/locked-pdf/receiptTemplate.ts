@@ -65,6 +65,11 @@ export interface ReceiptData {
     unit_price: number;
     line_total: number;
   }>;
+
+  // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
+  sale_source?: string;
+  agent_name?: string;
+  agent_number?: string;
 }
 
 // ============================================================================
@@ -184,6 +189,22 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       y += 5;
     }
     y += 5;
+
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional)
+    if (data.sale_source === "field_sales" && (data.agent_name || data.agent_number)) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(30, 64, 120);
+      doc.text("Representant commercial", 15, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Nom : ${data.agent_name || "—"}`, 17, y); y += 5;
+      doc.text(`Badge : ${data.agent_number || "—"}`, 17, y); y += 5;
+      doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
+      doc.setTextColor(0, 0, 0);
+    }
 
     // BILLED ITEMS SUMMARY — header row when detailed_items available
     doc.setFont("helvetica", "bold");
