@@ -590,7 +590,7 @@ async function processLegacyRenewals(
               .select("*")
               .eq("account_id", accountId)
               .eq("status", "active")
-              .gt("months_remaining", 0);
+              .or("is_permanent.eq.true,months_remaining.gt.0");
 
             if (adjustments && adjustments.length > 0) {
               let adjustmentDelta = 0;
@@ -599,14 +599,21 @@ async function processLegacyRenewals(
               for (const adj of adjustments as any[]) {
                 const amt = Number(adj.amount);
                 const isCredit = adj.type === "credit";
+                const isPermanent = adj.is_permanent === true;
                 const signedTotal = isCredit ? -amt : amt;
                 adjustmentDelta += signedTotal;
 
                 const prevRemaining = Number(adj.months_remaining || 0);
                 const totalMonths = Number(adj.duration_months || adj.months_total || prevRemaining);
-                const lineDescription = isCredit && totalMonths > 0
-                  ? `${adj.description || "Rabais promotionnel"} — ${formatMoneyServer(amt)}/mois (${prevRemaining} mois restants sur ${totalMonths} mois)`
-                  : adj.description;
+
+                let lineDescription: string;
+                if (isPermanent && isCredit) {
+                  lineDescription = `${adj.description || "Rabais permanent"} — ${formatMoneyServer(amt)}/mois`;
+                } else if (isCredit && totalMonths > 0) {
+                  lineDescription = `${adj.description || "Rabais promotionnel"} — ${formatMoneyServer(amt)}/mois (${prevRemaining} mois restants sur ${totalMonths} mois)`;
+                } else {
+                  lineDescription = adj.description;
+                }
 
                 adjLines.push({
                   invoice_id: invoice.id,
@@ -617,66 +624,75 @@ async function processLegacyRenewals(
                   line_type: isCredit ? "credit" : "fee",
                 });
 
-                const nextRemaining = Math.max(0, prevRemaining - 1);
-                await supabase
-                  .from("account_adjustments")
-                  .update({
-                    months_remaining: nextRemaining,
-                    applied_count: (adj.applied_count || 0) + 1,
-                    last_applied_at: new Date().toISOString(),
-                    status: nextRemaining <= 0 ? "completed" : "active",
-                  })
-                  .eq("id", adj.id);
+                if (isPermanent) {
+                  // Permanent: never decrement, never complete
+                  await supabase
+                    .from("account_adjustments")
+                    .update({
+                      applied_count: (adj.applied_count || 0) + 1,
+                      last_applied_at: new Date().toISOString(),
+                    })
+                    .eq("id", adj.id);
+                } else {
+                  const nextRemaining = Math.max(0, prevRemaining - 1);
+                  await supabase
+                    .from("account_adjustments")
+                    .update({
+                      months_remaining: nextRemaining,
+                      applied_count: (adj.applied_count || 0) + 1,
+                      last_applied_at: new Date().toISOString(),
+                      status: nextRemaining <= 0 ? "completed" : "active",
+                    })
+                    .eq("id", adj.id);
 
-                // ─── Lifecycle emails (credit/discount only) ────────
-                if (isCredit) {
-                  try {
-                    const { data: clientProfile } = await supabase
-                      .from("profiles")
-                      .select("email, first_name, last_name, full_name")
-                      .eq("user_id", userId)
-                      .maybeSingle();
-                    const toEmail = (clientProfile as any)?.email;
-                    if (toEmail) {
-                      const fullName = (clientProfile as any)?.full_name
-                        || [(clientProfile as any)?.first_name, (clientProfile as any)?.last_name].filter(Boolean).join(" ")
-                        || "Client";
-                      const planPrice = Number(sub.plan_price || 0);
-                      // J-30 warning: this invoice consumed the second-to-last month
-                      if (nextRemaining === 1) {
-                        await supabase.from("email_queue").insert({
-                          to_email: toEmail,
-                          template_key: "discount_expiring_soon",
-                          event_key: `discount_expiring_soon:${adj.id}`,
-                          status: "queued",
-                          variables: {
-                            client_full_name: fullName,
-                            discount_label: adj.description || "Rabais promotionnel",
-                            discount_amount: amt,
-                            full_price: planPrice,
-                            end_date: newCycleEnd,
-                          },
-                        });
+                  // ─── Lifecycle emails (credit/discount only, non-permanent) ────────
+                  if (isCredit) {
+                    try {
+                      const { data: clientProfile } = await supabase
+                        .from("profiles")
+                        .select("email, first_name, last_name, full_name")
+                        .eq("user_id", userId)
+                        .maybeSingle();
+                      const toEmail = (clientProfile as any)?.email;
+                      if (toEmail) {
+                        const fullName = (clientProfile as any)?.full_name
+                          || [(clientProfile as any)?.first_name, (clientProfile as any)?.last_name].filter(Boolean).join(" ")
+                          || "Client";
+                        const planPrice = Number(sub.plan_price || 0);
+                        if (nextRemaining === 1) {
+                          await supabase.from("email_queue").insert({
+                            to_email: toEmail,
+                            template_key: "discount_expiring_soon",
+                            event_key: `discount_expiring_soon:${adj.id}`,
+                            status: "queued",
+                            variables: {
+                              client_full_name: fullName,
+                              discount_label: adj.description || "Rabais promotionnel",
+                              discount_amount: amt,
+                              full_price: planPrice,
+                              end_date: newCycleEnd,
+                            },
+                          });
+                        }
+                        if (nextRemaining === 0) {
+                          await supabase.from("email_queue").insert({
+                            to_email: toEmail,
+                            template_key: "discount_expired",
+                            event_key: `discount_expired:${adj.id}`,
+                            status: "queued",
+                            variables: {
+                              client_full_name: fullName,
+                              discount_label: adj.description || "Rabais promotionnel",
+                              discount_amount: amt,
+                              duration_months: totalMonths,
+                              new_amount: planPrice,
+                            },
+                          });
+                        }
                       }
-                      // Expired: this was the final month
-                      if (nextRemaining === 0) {
-                        await supabase.from("email_queue").insert({
-                          to_email: toEmail,
-                          template_key: "discount_expired",
-                          event_key: `discount_expired:${adj.id}`,
-                          status: "queued",
-                          variables: {
-                            client_full_name: fullName,
-                            discount_label: adj.description || "Rabais promotionnel",
-                            discount_amount: amt,
-                            duration_months: totalMonths,
-                            new_amount: planPrice,
-                          },
-                        });
-                      }
+                    } catch (mailErr) {
+                      console.error(`[lifecycle] discount lifecycle email failed for adj ${adj.id}:`, mailErr);
                     }
-                  } catch (mailErr) {
-                    console.error(`[lifecycle] discount lifecycle email failed for adj ${adj.id}:`, mailErr);
                   }
                 }
               }
