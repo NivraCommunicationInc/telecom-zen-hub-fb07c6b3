@@ -1049,6 +1049,7 @@ function Row({ label, value }: { label: string; value?: string | null }) {
    ════════════════════════════════════════════════════════════════ */
 function CommissionAndBonusTab({ userId, commissions }: { userId: string; commissions: any[] }) {
   const qc = useQueryClient();
+  const agentUserId = userId;
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -1061,9 +1062,9 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
     queryFn: async () => {
       const { data, error } = await supabase
         .from("field_commissions")
-        .select("id, amount, status, commission_type, description, order_id, created_at, paid_at")
-        .eq("agent_id", userId)
-        .order("created_at", { ascending: false })
+        .select("id, amount, status, commission_type, earned_at, order_id")
+        .eq("agent_id", agentUserId)
+        .order("earned_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       return data ?? [];
@@ -1167,6 +1168,12 @@ function CommissionAndBonusTab({ userId, commissions }: { userId: string; commis
   const weeklyT = targets.find((t: any) => t.service_type === "weekly_sales")?.target_count ?? 0;
   const monthlyT = targets.find((t: any) => t.service_type === "total_sales")?.target_count ?? 0;
   const monthlyPct = monthlyT > 0 ? Math.min(100, Math.round((monthSales / monthlyT) * 100)) : 0;
+  const commissionTotals = {
+    month: fieldComms.filter((c: any) => c.earned_at && new Date(c.earned_at) >= new Date(monthStart)).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+    pending: fieldComms.filter((c: any) => c.status === "pending").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+    approved: fieldComms.filter((c: any) => c.status === "approved").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+    paid: fieldComms.filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+  };
 
   return (
     <div className="space-y-4">
