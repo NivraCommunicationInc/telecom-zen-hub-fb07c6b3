@@ -21,6 +21,7 @@ import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActi
 import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/CorePayPalManualChargeDialog";
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
+import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
 
 /* ── Profile ── */
 export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
