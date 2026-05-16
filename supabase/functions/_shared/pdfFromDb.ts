@@ -569,7 +569,7 @@ export async function buildContractPdfAttachment(
         client_email, client_first_name, client_last_name, client_phone,
         client_full_address,
         shipping_address, shipping_city, shipping_province, shipping_postal_code,
-        subtotal, total_amount, tps_amount, tvq_amount,
+        subtotal, total_amount, tps_amount, tvq_amount, discount_amount,
         equipment_details, equipment_line_details,
         user_id
       `)
@@ -683,6 +683,26 @@ export async function buildContractPdfAttachment(
       equipment.reduce((acc, e) => acc + e.unit_price * e.quantity, 0)
       + oneTimeFees.reduce((acc, f) => acc + f.amount, 0);
 
+    // CANONICAL TAX SOURCE: billing_invoices is the source of truth (post-discount).
+    // orders.tps_amount/tvq_amount may reflect pre-discount taxes — never use for contract math.
+    const { data: invoiceForTaxes } = await supabase
+      .from("billing_invoices")
+      .select("subtotal, tps_amount, tvq_amount, total")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const taxGst = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).tps_amount || 0)
+      : Number(o.tps_amount || 0);
+    const taxQst = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).tvq_amount || 0)
+      : Number(o.tvq_amount || 0);
+    const totalDueToday = invoiceForTaxes
+      ? Number((invoiceForTaxes as any).total || 0)
+      : Number(o.total_amount || 0);
+    const discountAmount = Number(o.discount_amount || 0);
+
     // Real billing vs service address (separate)
     const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
     const billingAddress = joinAddress(addr.billing) || o.client_full_address || "";
@@ -735,10 +755,10 @@ export async function buildContractPdfAttachment(
       one_time_fees: oneTimeFees,
       subtotal_monthly: subtotalMonthly,
       subtotal_one_time: subtotalOneTime,
-      discount_amount: 0,
-      tax_gst: Number(o.tps_amount || 0),
-      tax_qst: Number(o.tvq_amount || 0),
-      total_due_today: Number(o.total_amount || 0),
+      discount_amount: discountAmount,
+      tax_gst: taxGst,
+      tax_qst: taxQst,
+      total_due_today: totalDueToday,
       signature_name: signature.signature_name,
       signature_date: signature.signature_date,
       signature_ip: signature.signature_ip,
