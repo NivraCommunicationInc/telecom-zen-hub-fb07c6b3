@@ -26,19 +26,24 @@ interface Props {
   accountStatus: string | null;
   customerId?: string;
   clientName?: string;
+  clientEmail?: string | null;
+  monthlyRevenue?: number;
   subscriptions?: any[];
   onRefresh: () => void;
   onNavigateSection: (section: string) => void;
   onEditProfile: () => void;
 }
 
-export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
+export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", clientEmail, monthlyRevenue = 0, subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
   const navigate = useNavigate();
+  const { startImpersonation } = useImpersonation();
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
   const [pinResetOpen, setPinResetOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const updateStatus = async (newStatus: string) => {
     if (!accountId) return;
