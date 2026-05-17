@@ -2710,6 +2710,40 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // TRAINING — Certificate issued
+    // ===================================================================
+    case "training_certificate": {
+      const agentName = esc(v.agent_name || clientName);
+      const agentNumber = esc(v.agent_number || "N/A");
+      const dateFr = esc(v.date_fr || fmtDate(v.issued_at) || fmtDate(new Date().toISOString()));
+      const totalPoints = esc(v.total_points ?? 0);
+      const badgeLevel = esc(v.badge_level || "Agent Certifié");
+      const modulesCount = esc(v.modules_completed || "8/8");
+      return {
+        subject: "🏆 Votre certificat de formation Nivra",
+        html: shell({
+          preheader: "Félicitations — votre certificat de formation Nivra est prêt.",
+          badge: "CERTIFICAT OFFICIEL",
+          heroTitle: "Formation complétée avec succès!",
+          heroSub: "Agent certifié Nivra Telecom",
+          greeting: `Félicitations ${agentName}!`,
+          bodyText: "Vous avez complété avec succès la formation officielle Nivra Telecom. Votre certificat est disponible en téléchargement ci-dessous.",
+          cardTitle: "Détails de la certification",
+          cardRows: [
+            ["Agent", `${agentName} · ${agentNumber}`],
+            ["Date de certification", dateFr],
+            ["Modules complétés", String(modulesCount)],
+            ["Points totaux", `${totalPoints} pts`],
+            ["Niveau", badgeLevel],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Voir mon certificat",
+          helpHtml: `Questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
