@@ -211,6 +211,10 @@ Deno.serve(async (req) => {
     const excludedCommissionIds: Set<string> = new Set(
       Array.isArray(body.excluded_commission_ids) ? body.excluded_commission_ids.map((x: any) => String(x)) : []
     );
+    const selectedEmployeeIds: Set<string> | null = Array.isArray(body.employee_ids) && body.employee_ids.length
+      ? new Set(body.employee_ids.map((x: any) => String(x)))
+      : null;
+    const previewEmployeeId: string | null = body.preview_employee_id ? String(body.preview_employee_id) : null;
 
     const now = new Date();
     const cutoff = explicitCutoff ?? lastThursdayCutoffUTC(now);
