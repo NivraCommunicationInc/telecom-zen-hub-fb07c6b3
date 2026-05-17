@@ -333,27 +333,42 @@ Deno.serve(async (req) => {
         quebec_claim_amount: Number(b.settings.quebec_claim_amount ?? QC_BPA_DEFAULT),
         disability_insurance_rate: Number(b.settings.disability_insurance_rate ?? DISABILITY_RATE_DEFAULT),
       };
-      const bonus = lastFriday ? Number(body.bonus_overrides?.[previewEmployeeId] || 0) : 0;
+      const bonus = Number(body.bonus_overrides?.[previewEmployeeId] || 0);
       const taxableGross = round2(b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus);
       const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
       const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
       const netPay = round2(totalGrossAgent - ded.total_deductions);
       const prevYtd = await fetchYtd(previewEmployeeId, year);
+      const hRate = Number(b.settings.hourly_rate || 0);
+      const hReg = (tsByEmp.get(previewEmployeeId)?.reg || 0);
+      const hOt = (tsByEmp.get(previewEmployeeId)?.ot || 0);
       const pdf = buildPaystubPdf({
         paystub_number: `APERÇU-${previewEmployeeId.slice(0, 6)}`,
         pay_date: payDate,
         period_start: pStart.toISOString().slice(0, 10),
         period_end: pEnd.toISOString().slice(0, 10),
         employee_name: profile?.full_name || profile?.email || "Employé",
+        employee_email: profile?.email ?? null,
         agent_number: profile?.agent_number ?? null,
         employee_role: b.settings.employee_role ?? null,
         payment_method: b.settings.payment_method ?? "interac",
         commission_gross: round2(b.commissionGross),
         regular_hours_pay: round2(b.regularPay),
         overtime_hours_pay: round2(b.overtimePay),
+        hours_regular: hReg, hours_overtime: hOt, hourly_rate: hRate,
         allocation_total: round2(b.taxableAdjustments + b.nonTaxableAdjustments),
         bonus_amount: round2(bonus),
         total_gross: totalGrossAgent,
+        commission_lines: b.commissionLines.map((c) => ({
+          label: c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : (c.commission_type || "Commission"),
+          detail: [c.description, c.earned_at ? new Date(c.earned_at).toLocaleDateString("fr-CA") : null].filter(Boolean).join(" · ") || null,
+          amount: c.amount,
+        })),
+        adjustment_lines: b.adjustmentLines.map((a) => ({
+          label: a.adjustment_type.charAt(0).toUpperCase() + a.adjustment_type.slice(1),
+          detail: a.description + (a.is_taxable ? "" : " (non imposable)"),
+          amount: a.amount,
+        })),
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
         disability_insurance: ded.disability_insurance,
