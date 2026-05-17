@@ -568,6 +568,7 @@ export default function HrPayrollPage2() {
                 previewingStub={previewingStub === emp.employee_id}
                 emailingStub={emailingStub === latestPaystubs?.get(emp.employee_id)?.id}
                 hasProcessedPaystub={!!latestPaystubs?.get(emp.employee_id)?.id}
+                latestPaystub={latestPaystubs?.get(emp.employee_id) ?? null}
                 bonus={bonusOverrides.get(emp.employee_id) || 0}
                 onBonusChange={(v) => setBonusFor(emp.employee_id, v)}
               />
@@ -858,7 +859,7 @@ function BreakdownBox({ title, rows, positive }: { title: string; rows: any[]; p
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
   onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
-  selected, onToggleSelected, onPreviewStub, onEmailPaystub, previewingStub, emailingStub, hasProcessedPaystub, bonus, onBonusChange,
+  selected, onToggleSelected, onPreviewStub, onEmailPaystub, previewingStub, emailingStub, hasProcessedPaystub, latestPaystub, bonus, onBonusChange,
 }: {
   emp: EmployeeRow;
   summary: any;
@@ -877,6 +878,7 @@ function EmployeeCard({
   previewingStub: boolean;
   emailingStub: boolean;
   hasProcessedPaystub: boolean;
+  latestPaystub: any | null;
   bonus: number;
   onBonusChange: (v: number) => void;
 }) {
