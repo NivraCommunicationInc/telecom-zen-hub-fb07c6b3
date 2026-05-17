@@ -191,14 +191,6 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: "training",
-    label: "Formation & Développement",
-    icon: GraduationCap,
-    items: [
-      { icon: GraduationCap, label: "Formation agents", href: "/training" },
-    ],
-  },
-  {
     id: "hr",
     label: "HR & Payroll",
     icon: Briefcase,
