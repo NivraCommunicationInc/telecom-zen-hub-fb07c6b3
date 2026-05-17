@@ -16,7 +16,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -191,23 +191,24 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "hr",
-    label: "HR & Payroll",
+    label: "Nivra HR & Payroll",
     icon: Briefcase,
     items: [
-      { icon: LayoutDashboard, label: "Dashboard RH", href: "/hr" },
+      { icon: LayoutDashboard, label: "Tableau de bord HR", href: "/hr" },
       { icon: Users, label: "Employés", href: "/hr/employees" },
       { icon: UserPlus, label: "Onboarding", href: "/hr/onboarding" },
       { icon: DollarSign, label: "Paie & Salaires", href: "/hr/payroll-runs" },
+      { icon: Banknote, label: "Paiements émis", href: "/hr/paiements" },
       { icon: Tag, label: "Commissions", href: "/hr/commissions" },
       { icon: Activity, label: "Temps & Punch", href: "/hr/time" },
       { icon: Calendar, label: "Horaires", href: "/hr/schedules" },
-      { icon: FileText, label: "Documents RH", href: "/hr/documents" },
+      { icon: FileText, label: "Documents HR", href: "/hr/documents" },
       { icon: FileText, label: "Docs fiscaux", href: "/hr/tax-documents" },
-      { icon: MessageSquare, label: "Demandes RH", href: "/hr/requests" },
+      { icon: MessageSquare, label: "Demandes HR", href: "/hr/requests" },
       { icon: Briefcase, label: "Recrutement (postes)", href: "/hr/careers", badgeKey: "careers" },
       { icon: UserPlus, label: "Candidatures", href: "/hr/applications", badgeKey: "careers" },
       { icon: Mail, label: "Templates emails", href: "/hr/email-templates" },
-      { icon: History, label: "Audit RH", href: "/hr/audit" },
+      { icon: History, label: "Audit HR", href: "/hr/audit" },
     ],
   },
   {

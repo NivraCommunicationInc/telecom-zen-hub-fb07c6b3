@@ -176,6 +176,7 @@ const HrCreateEmployeePage = lazy(() => import("@/core-app/pages/hr/HrCreateEmpl
 const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage"));
 const HrPayrollPage = lazy(() => import("@/core-app/pages/hr/HrPayrollPage"));
 const HrPayrollPage2 = lazy(() => import("@/core-app/pages/hr/HrPayrollPage2"));
+const HrPaymentsPage = lazy(() => import("@/core-app/pages/hr/HrPaymentsPage"));
 const HrCommissionsPage = lazy(() => import("@/core-app/pages/hr/HrCommissionsPage"));
 const HrTimePage = lazy(() => import("@/core-app/pages/hr/HrTimePage"));
 const HrSchedulesPage = lazy(() => import("@/core-app/pages/hr/HrSchedulesPage"));
@@ -874,6 +875,8 @@ const AppRoutes = () => {
           <Route path="hr/onboarding" element={<Suspense fallback={null}><HrOnboardingPage /></Suspense>} />
           <Route path="hr/payroll" element={<Suspense fallback={null}><HrPayrollPage /></Suspense>} />
           <Route path="hr/payroll-runs" element={<Suspense fallback={null}><HrPayrollPage2 /></Suspense>} />
+          <Route path="hr/paiements" element={<Suspense fallback={null}><HrPaymentsPage /></Suspense>} />
+          <Route path="hr/payments" element={<Suspense fallback={null}><HrPaymentsPage /></Suspense>} />
           <Route path="hr/commissions" element={<Suspense fallback={null}><HrCommissionsPage /></Suspense>} />
           <Route path="hr/time" element={<Suspense fallback={null}><HrTimePage /></Suspense>} />
           <Route path="hr/schedules" element={<Suspense fallback={null}><HrSchedulesPage /></Suspense>} />

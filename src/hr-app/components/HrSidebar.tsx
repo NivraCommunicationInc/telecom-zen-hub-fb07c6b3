@@ -38,7 +38,7 @@ const navGroups = [
     label: "Documents",
     items: [
       { label: "Documents fiscaux", href: `${HR_BASE}/documents-fiscaux`, icon: FileText },
-      { label: "Mes documents RH", href: `${HR_BASE}/documents`, icon: Upload },
+      { label: "Mes documents HR", href: `${HR_BASE}/documents`, icon: Upload },
       { label: "Lettres d'emploi", href: `${HR_BASE}/lettres`, icon: Mail },
     ],
   },
@@ -57,7 +57,7 @@ const navGroups = [
   {
     label: "Communication",
     items: [
-      { label: "Notifications RH", href: `${HR_BASE}/notifications`, icon: Bell },
+      { label: "Notifications HR", href: `${HR_BASE}/notifications`, icon: Bell },
     ],
   },
   {
@@ -109,7 +109,7 @@ export default function HrSidebar() {
               </div>
               <div className="leading-tight">
                 <span className="font-bold text-[11px] text-foreground tracking-tight block">NIVRA</span>
-                <span className="text-[9px] text-muted-foreground font-medium tracking-widest">RH</span>
+                <span className="text-[9px] text-muted-foreground font-medium tracking-widest">HR</span>
               </div>
             </Link>
           ) : (
