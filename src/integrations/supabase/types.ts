@@ -14334,8 +14334,12 @@ export type Database = {
           overtime_hours: number
           paid_at: string | null
           pay_period_id: string | null
+          payment_confirmation_pdf_url: string | null
           payment_date: string | null
+          payment_marked_by: string | null
           payment_method: string | null
+          payment_notes: string | null
+          payment_notified_at: string | null
           payment_reference: string | null
           payment_status: string | null
           payroll_number: string | null
@@ -14394,8 +14398,12 @@ export type Database = {
           overtime_hours?: number
           paid_at?: string | null
           pay_period_id?: string | null
+          payment_confirmation_pdf_url?: string | null
           payment_date?: string | null
+          payment_marked_by?: string | null
           payment_method?: string | null
+          payment_notes?: string | null
+          payment_notified_at?: string | null
           payment_reference?: string | null
           payment_status?: string | null
           payroll_number?: string | null
@@ -14454,8 +14462,12 @@ export type Database = {
           overtime_hours?: number
           paid_at?: string | null
           pay_period_id?: string | null
+          payment_confirmation_pdf_url?: string | null
           payment_date?: string | null
+          payment_marked_by?: string | null
           payment_method?: string | null
+          payment_notes?: string | null
+          payment_notified_at?: string | null
           payment_reference?: string | null
           payment_status?: string | null
           payroll_number?: string | null
