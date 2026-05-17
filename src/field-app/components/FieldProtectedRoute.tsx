@@ -172,5 +172,3 @@ export default function FieldProtectedRoute() {
 
   return <Outlet />;
 }
-// Note: <Navigate /> kept available for future use; suppress unused-import.
-void Navigate;
