@@ -893,40 +893,59 @@ Deno.serve(async (req) => {
           throw new Error("Billing invoice creation failed: invoice id missing");
         }
 
-        // ═══ ENSURE A RECURRING SUBSCRIPTION EXISTS (pending) ═══
-        // Activation trigger will flip it to active once the order reaches
-        // delivered/activated/completed. Without this row, no monthly billing.
+        // ═══ ENSURE A RECURRING SUBSCRIPTION EXISTS ═══
+        // Field orders must leave the sync with a real billing subscription.
+        // If Core already activated the order, the subscription must be active
+        // with cycle dates now — never a blank/pending orphan.
         try {
           if (monthlyTotal > 0) {
             const { data: existingSubRow } = await supabaseAdmin
               .from("billing_subscriptions")
-              .select("id")
+              .select("id, status, plan_price")
               .eq("order_id", canonicalOrder.id)
               .maybeSingle();
 
-            if (!existingSubRow) {
-              const todayISO = new Date().toISOString().split("T")[0];
-              const nextRenewalISO = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
-              const primaryRecurring = lineItems.find((li) => li.period === "monthly");
+            const today = new Date();
+            const todayISO = today.toISOString().split("T")[0];
+            const nextRenewal = new Date(today);
+            nextRenewal.setMonth(nextRenewal.getMonth() + 1);
+            const nextRenewalISO = nextRenewal.toISOString().split("T")[0];
+            const primaryRecurring = lineItems.find((li) => li.period === "monthly");
+            const orderIsActivated = ["activated", "completed", "delivered"].includes(String(canonicalOrder.status || "").toLowerCase());
+            const subscriptionPayload = {
+              customer_id: billingCustomerId,
+              order_id: canonicalOrder.id,
+              plan_code: primaryRecurring?.type || services?.[0]?.category || "service",
+              plan_name: primaryRecurring?.name || services?.[0]?.name || "Service",
+              plan_price: primaryRecurring?.unit_price ?? monthlyTotal,
+              status: orderIsActivated ? "active" : "pending",
+              cycle_start_date: orderIsActivated ? todayISO : null,
+              cycle_end_date: orderIsActivated ? nextRenewalISO : null,
+              billing_cycle_anchor: orderIsActivated ? today.toISOString() : null,
+              next_renewal_at: orderIsActivated ? nextRenewal.toISOString() : null,
+              auto_billing_enabled: orderIsActivated,
+              environment: "live",
+              source_type: "field_sales",
+            };
+
+            if (existingSubRow) {
+              const { error: subUpdErr } = await supabaseAdmin
+                .from("billing_subscriptions")
+                .update(subscriptionPayload)
+                .eq("id", existingSubRow.id);
+              if (subUpdErr) {
+                console.error("[field-sales-sync] subscription repair failed:", subUpdErr.message);
+              } else {
+                console.log(`[field-sales-sync] Subscription repaired for order ${canonicalOrder.order_number}`);
+              }
+            } else {
               const { error: subInsErr } = await supabaseAdmin
                 .from("billing_subscriptions")
-                .insert({
-                  customer_id: billingCustomerId,
-                  order_id: canonicalOrder.id,
-                  plan_code: primaryRecurring?.type || services?.[0]?.category || "service",
-                  plan_name: primaryRecurring?.name || services?.[0]?.name || "Service",
-                  plan_price: primaryRecurring?.unit_price ?? monthlyTotal,
-                  status: "pending",
-                  cycle_start_date: todayISO,
-                  cycle_end_date: nextRenewalISO,
-                  auto_billing_enabled: false,
-                  environment: "production",
-                  source_type: "field_sales",
-                });
+                .insert(subscriptionPayload);
               if (subInsErr) {
                 console.error("[field-sales-sync] subscription pre-create failed:", subInsErr.message);
               } else {
-                console.log(`[field-sales-sync] Pending subscription created for order ${canonicalOrder.order_number}`);
+                console.log(`[field-sales-sync] Subscription created for order ${canonicalOrder.order_number}`);
               }
             }
           }

@@ -22652,6 +22652,19 @@ export type Database = {
         Args: { p_subscription_id: string }
         Returns: Json
       }
+      fn_repair_activated_order_canonical_chain: {
+        Args: { _order_id: string }
+        Returns: Json
+      }
+      fn_resolve_order_monthly_service: {
+        Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
+        Returns: {
+          plan_code: string
+          plan_name: string
+          plan_price: number
+          service_category: string
+        }[]
+      }
       fn_run_subscription_renewals: {
         Args: { p_lookahead_days?: number }
         Returns: Json
