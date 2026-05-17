@@ -15,6 +15,7 @@ const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatu
 
 // Operations
 const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
+const CoreSLAPage = lazy(() => import("@/core-app/pages/CoreSLAPage"));
 const OrdersPage = lazy(() => import("@/core-app/pages/OrdersPage"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
@@ -126,6 +127,7 @@ export const coreRoutes: RouteObject = {
     { path: "system-status", element: <CoreSystemStatusPage /> },
     // Operations
     { path: "work-queue", element: <WorkQueuePage /> },
+    { path: "sla", element: <CoreSLAPage /> },
     { path: "orders", element: <OrdersPage /> },
     { path: "orders/:orderId", element: <CoreOrderDetail /> },
     { path: "pos", element: <CorePOSPage /> },

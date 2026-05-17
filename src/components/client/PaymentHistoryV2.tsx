@@ -6,6 +6,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { 
   ArrowDownCircle, 
   ArrowUpCircle, 
@@ -13,6 +14,7 @@ import {
   CreditCard,
   FileText,
   Banknote,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -135,13 +137,45 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
     );
   };
 
+  const exportCSV = () => {
+    const headers = ['Date', 'Type', 'Description', 'Montant', 'Statut', 'No. Facture', 'Méthode'];
+    const escape = (s: any) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+    const rows = (entries || []).map((e) => [
+      new Date(e.date).toLocaleDateString('fr-CA'),
+      e.type === 'credit' ? 'Paiement' : 'Facture',
+      e.description,
+      e.amount.toFixed(2),
+      e.status,
+      e.reference ?? '',
+      e.method ? getPaymentMethodLabel(e.method) : '',
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-nivra-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card className="bg-card border-border">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Banknote className="w-5 h-5 text-primary" />
           Historique des transactions
         </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportCSV}
+          disabled={!entries || entries.length === 0}
+          className="gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Exporter CSV
+        </Button>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="all" className="w-full">
