@@ -118,6 +118,7 @@ export default function HrPayrollPage2() {
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("all");
   const [historyEmail, setHistoryEmail] = useState("all");
+  const [entryDetails, setEntryDetails] = useState<any | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRow | null>(null);
   const [adjustmentFor, setAdjustmentFor] = useState<EmployeeRow | null>(null);
   // Per-employee live overrides (real-time recompute before saving / running)
@@ -705,6 +706,9 @@ export default function HrPayrollPage2() {
                           }}>
                           <Mail className="h-4 w-4" /> Courriel
                         </Button>
+                        <Button size="sm" variant="outline" title="Voir tous les détails" onClick={() => setEntryDetails(e)}>
+                          <FileText className="h-4 w-4" /> Détail
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -714,6 +718,8 @@ export default function HrPayrollPage2() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PayrollEntryDetailDialog entry={entryDetails} onClose={() => setEntryDetails(null)} />
 
       {/* Settings drawer */}
       <EmployeeSettingsSheet
