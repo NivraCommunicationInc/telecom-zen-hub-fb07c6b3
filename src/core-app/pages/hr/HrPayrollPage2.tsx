@@ -95,6 +95,18 @@ const ADJUSTMENT_TYPES = [
   { value: "other", label: "Autre" },
 ];
 
+const ADJUSTMENT_PRESETS = [
+  { type: "allocation", description: "Kilométrage", amount: 0, taxable: false },
+  { type: "allocation", description: "Repas", amount: 0, taxable: false },
+  { type: "allocation", description: "Équipement / téléphone", amount: 0, taxable: false },
+  { type: "bonus", description: "Bonus de performance", amount: 0, taxable: true },
+  { type: "bonus", description: "Prime de signature", amount: 0, taxable: true },
+  { type: "reimbursement", description: "Remboursement frais", amount: 0, taxable: false },
+  { type: "advance", description: "Avance sur salaire", amount: 0, taxable: true },
+  { type: "deduction", description: "Retenue / correction", amount: 0, taxable: true },
+  { type: "other", description: "Vacances / congé férié payé", amount: 0, taxable: true },
+];
+
 // ─────────────── Page ───────────────
 export default function HrPayrollPage2() {
   const qc = useQueryClient();
@@ -110,6 +122,7 @@ export default function HrPayrollPage2() {
   // Employee multi-select for payroll processing
   const [selectedEmps, setSelectedEmps] = useState<Set<string>>(new Set());
   const [previewingStub, setPreviewingStub] = useState<string | null>(null);
+  const [bonusOverrides, setBonusOverrides] = useState<Map<string, number>>(new Map());
   function toggleExcludedComm(id: string) {
     setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
@@ -118,6 +131,9 @@ export default function HrPayrollPage2() {
   }
   function setLocalHoursFor(empId: string, h: number, ot: number) {
     setLocalHours((prev) => { const n = new Map(prev); n.set(empId, { h, ot }); return n; });
+  }
+  function setBonusFor(empId: string, amount: number) {
+    setBonusOverrides((prev) => { const n = new Map(prev); if (amount > 0) n.set(empId, amount); else n.delete(empId); return n; });
   }
 
   // Period boundaries
@@ -251,14 +267,15 @@ export default function HrPayrollPage2() {
     const commTotal = includedComm.reduce((s: number, c: any) => s + Number(c.amount || 0), 0);
     const adj = getAdjustments(emp.employee_id);
     const adjTotal = adj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
-    const gross = hourly + overtime + commTotal + adjTotal;
+    const bonus = bonusOverrides.get(emp.employee_id) || 0;
+    const gross = hourly + overtime + commTotal + adjTotal + bonus;
 
     // Estimated deductions (simplified preview — actual computed by edge function)
     const fedRate = 0.15, qcRate = 0.15, rrqRate = 0.059, aeRate = 0.0166, rqapRate = 0.00494;
     const disRate = Number(emp.disability_insurance_rate || 0.02);
     const ded = gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0;
     const net = gross - ded;
-    return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
+    return { hourly, overtime, commTotal, adjTotal, bonus, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
   // Aggregate totals — based on SELECTED employees (fallback: all visible)
@@ -273,14 +290,18 @@ export default function HrPayrollPage2() {
       t.gross += s.gross;
       t.ded += s.ded;
       t.net += s.net;
+      t.bonus += s.bonus;
       t.count += 1;
     }
     return t;
-  }, [selectionList, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
+  }, [selectionList, periodCommissions, timesheets, adjustments, excludedComm, localHours, bonusOverrides]);
 
   function buildRunBody(extra: Record<string, unknown> = {}) {
+    const bonusObj: Record<string, number> = {};
+    bonusOverrides.forEach((v, k) => { if (v > 0) bonusObj[k] = v; });
     const body: Record<string, unknown> = {
       excluded_commission_ids: Array.from(excludedComm),
+      bonus_overrides: bonusObj,
       ...extra,
     };
     if (selectedEmps.size > 0) body.employee_ids = Array.from(selectedEmps);
@@ -327,7 +348,7 @@ export default function HrPayrollPage2() {
     mutationFn: async (employeeId: string) => {
       setPreviewingStub(employeeId);
       const { data, error } = await supabase.functions.invoke("process-payroll", {
-        body: { dry_run: true, preview_employee_id: employeeId, excluded_commission_ids: Array.from(excludedComm) },
+        body: { dry_run: true, preview_employee_id: employeeId, excluded_commission_ids: Array.from(excludedComm), bonus_overrides: Object.fromEntries(bonusOverrides) },
       });
       if (error) throw error;
       return data;
@@ -436,6 +457,8 @@ export default function HrPayrollPage2() {
                 onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
                 onPreviewStub={() => stubPreviewMutation.mutate(emp.employee_id)}
                 previewingStub={previewingStub === emp.employee_id}
+                bonus={bonusOverrides.get(emp.employee_id) || 0}
+                onBonusChange={(v) => setBonusFor(emp.employee_id, v)}
               />
             ))}
           </TabsContent>
@@ -495,18 +518,26 @@ export default function HrPayrollPage2() {
         </DialogContent>
       </Dialog>
 
-      {/* Drill-in dialog */}
+      {/* Drill-in dialog — full breakdown */}
       <Dialog open={!!drillIn} onOpenChange={(o) => !o && setDrillIn(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl">
           <DialogHeader><DialogTitle>Détails de la paie</DialogTitle></DialogHeader>
-          <div className="max-h-[60vh] overflow-auto">
+          <div className="max-h-[70vh] overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Employé</TableHead>
-                  <TableHead>Brut</TableHead>
-                  <TableHead>Déductions</TableHead>
-                  <TableHead>Net</TableHead>
+                  <TableHead className="text-right">Heures</TableHead>
+                  <TableHead className="text-right">Commissions</TableHead>
+                  <TableHead className="text-right">Bonus</TableHead>
+                  <TableHead className="text-right">Brut</TableHead>
+                  <TableHead className="text-right">Fed</TableHead>
+                  <TableHead className="text-right">QC</TableHead>
+                  <TableHead className="text-right">RRQ/AE/RQAP</TableHead>
+                  <TableHead className="text-right">Déductions</TableHead>
+                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>Méthode</TableHead>
+                  <TableHead>Statut</TableHead>
                   <TableHead>Talon</TableHead>
                 </TableRow>
               </TableHeader>
@@ -515,15 +546,23 @@ export default function HrPayrollPage2() {
                   <TableRow key={e.id}>
                     <TableCell>
                       <div className="font-medium">{e.profile?.full_name ?? "—"}</div>
-                      <div className="text-xs text-muted-foreground">{e.profile?.agent_number ?? ""}</div>
+                      <div className="text-xs text-muted-foreground">{e.profile?.agent_number ?? e.profile?.email ?? ""}</div>
                     </TableCell>
-                    <TableCell>{fmtMoney(e.total_gross)}</TableCell>
-                    <TableCell className="text-destructive">{fmtMoney(e.deductions_total)}</TableCell>
-                    <TableCell className="font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
+                    <TableCell className="text-right text-xs">{Number(e.hours_worked || 0)}h + {Number(e.overtime_hours || 0)}h</TableCell>
+                    <TableCell className="text-right">{fmtMoney(e.commission_gross)}</TableCell>
+                    <TableCell className="text-right">{fmtMoney(e.bonus_amount)}</TableCell>
+                    <TableCell className="text-right font-medium">{fmtMoney(e.total_gross)}</TableCell>
+                    <TableCell className="text-right text-xs text-destructive">-{fmtMoney(e.federal_tax)}</TableCell>
+                    <TableCell className="text-right text-xs text-destructive">-{fmtMoney(e.quebec_tax)}</TableCell>
+                    <TableCell className="text-right text-xs text-destructive">-{fmtMoney(Number(e.rrq||0)+Number(e.ae||0)+Number(e.rqap||0))}</TableCell>
+                    <TableCell className="text-right text-destructive">-{fmtMoney(e.deductions_total)}</TableCell>
+                    <TableCell className="text-right font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
+                    <TableCell className="text-xs capitalize">{e.payment_method ?? "—"}</TableCell>
+                    <TableCell><Badge variant={e.payment_status === "paid" ? "default" : "secondary"}>{e.payment_status ?? e.status}</Badge></TableCell>
                     <TableCell>
                       {e.paystub_pdf_url ? (
                         <a href={e.paystub_pdf_url} target="_blank" rel="noreferrer">
-                          <Button size="sm" variant="ghost"><Download className="h-4 w-4" /> PDF</Button>
+                          <Button size="sm" variant="ghost"><Download className="h-4 w-4" /></Button>
                         </a>
                       ) : "—"}
                     </TableCell>
@@ -571,7 +610,7 @@ export default function HrPayrollPage2() {
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
   onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
-  selected, onToggleSelected, onPreviewStub, previewingStub,
+  selected, onToggleSelected, onPreviewStub, previewingStub, bonus, onBonusChange,
 }: {
   emp: EmployeeRow;
   summary: any;
@@ -587,6 +626,8 @@ function EmployeeCard({
   onToggleSelected: () => void;
   onPreviewStub: () => void;
   previewingStub: boolean;
+  bonus: number;
+  onBonusChange: (v: number) => void;
 }) {
   const isHourly = emp.pay_type === "hourly" || emp.pay_type === "hourly_commission";
   const isCommission = emp.pay_type === "commission" || emp.pay_type === "hourly_commission";
@@ -772,6 +813,25 @@ function EmployeeCard({
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Bonus ponctuel */}
+        <div className="rounded-md border bg-amber-50/50 p-3 space-y-2">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-xs font-semibold uppercase text-muted-foreground">Bonus ponctuel</div>
+              <div className="text-xs text-muted-foreground">Ajouté au brut imposable de cette paie</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" step="0.01" min="0" placeholder="0.00"
+                className="w-28 text-right"
+                value={bonus > 0 ? String(bonus) : ""}
+                onChange={(e) => onBonusChange(Number(e.target.value) || 0)}
+              />
+              <span className="text-sm font-semibold">$</span>
+            </div>
+          </div>
         </div>
 
         {/* Deductions preview */}

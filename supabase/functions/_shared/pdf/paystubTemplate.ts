@@ -1,13 +1,25 @@
 /**
  * Paystub PDF — TALON DE PAIE / PAY STUB (Nivra)
  * Professional carrier-grade layout (Bell/Telus class).
- * Supports commissions, hourly+overtime, bonuses, allocations.
+ * - Company identity block (NIVRA address + tax registrations)
+ * - Employee block with email, role, agent number, payment method
+ * - Full breakdown of commissions (per line) + adjustments (per line)
+ * - Hours × rate detail
+ * - Deductions split with annualized totals
+ * - YTD section
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
   NAVY, GREEN, GREY_BG, GREY_BORDER,
-  fmtCAD, fmtDate, drawHeader, drawFooter,
+  fmtCAD, fmtDate, drawFooter,
 } from "./_baseTemplate.ts";
+import { NIVRA } from "./companyInfo.ts";
+
+export interface PaystubLineItem {
+  label: string;
+  detail?: string | null;     // e.g. "Cmd a1b2c3 — 15 mai 2026"
+  amount: number;
+}
 
 export interface PaystubData {
   paystub_number: string;
@@ -15,17 +27,25 @@ export interface PaystubData {
   period_start: string;
   period_end: string;
   employee_name: string;
+  employee_email?: string | null;
   agent_number: string | null;
   employee_role?: string | null;
   payment_method: string;
 
-  // Earnings
+  // Earnings — totals (rolled up)
   commission_gross: number;
   regular_hours_pay?: number;
   overtime_hours_pay?: number;
+  hours_regular?: number;
+  hours_overtime?: number;
+  hourly_rate?: number;
   allocation_total?: number;
   bonus_amount: number;
   total_gross: number;
+
+  // Optional detail lists (when present, rendered as line items)
+  commission_lines?: PaystubLineItem[];
+  adjustment_lines?: PaystubLineItem[];
 
   // Deductions
   federal_tax: number;
@@ -50,18 +70,56 @@ const PAY_METHOD_LABEL: Record<string, string> = {
   paypal: "PayPal",
 };
 
+const ROLE_LABEL: Record<string, string> = {
+  field_sales: "Représentant terrain",
+  employee: "Employé",
+  technician: "Technicien",
+  admin: "Administrateur",
+  hr: "Ressources humaines",
+};
+
 export function buildPaystubPdf(data: PaystubData): Uint8Array {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
 
-  drawHeader(doc, "Talon de paie / Pay stub", data.paystub_number);
+  // ───────── Header (navy band) ─────────
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(0, 0, pw, 42, "F");
 
-  let y = 52;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text("NIVRA TELECOM", 15, 16);
 
-  // Two-column info band: Employé | Période
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(NIVRA.legalName, 15, 22);
+  doc.setFontSize(8);
+  doc.text(NIVRA.address, 15, 27);
+  doc.text(`${NIVRA.tpsLabel}   ·   ${NIVRA.tvqLabel}`, 15, 31);
+  doc.text(`${NIVRA.email}   ·   ${NIVRA.website}`, 15, 35);
+
+  // Right-side title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("TALON DE PAIE", pw - 15, 14, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("PAY STUB", pw - 15, 19, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(`No ${data.paystub_number}`, pw - 15, 26, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Date de paie : ${fmtDate(data.pay_date)}`, pw - 15, 31, { align: "right" });
+
+  let y = 50;
+
+  // ───────── Employee + Period info card ─────────
   doc.setFillColor(GREY_BG[0], GREY_BG[1], GREY_BG[2]);
   doc.setDrawColor(GREY_BORDER[0], GREY_BORDER[1], GREY_BORDER[2]);
-  doc.roundedRect(15, y, pw - 30, 32, 1.5, 1.5, "FD");
+  doc.roundedRect(15, y, pw - 30, 36, 1.5, 1.5, "FD");
 
   const midX = pw / 2;
   doc.setFont("helvetica", "bold");
@@ -74,30 +132,79 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
   let yL = y + 10;
-  doc.text(`Nom : ${data.employee_name}`, 18, yL); yL += 5;
-  if (data.agent_number) { doc.text(`N° agent : ${data.agent_number}`, 18, yL); yL += 5; }
-  if (data.employee_role) { doc.text(`Rôle : ${data.employee_role}`, 18, yL); yL += 5; }
+  doc.text(`Nom : ${data.employee_name}`, 18, yL); yL += 4.5;
+  if (data.employee_email) { doc.text(`Courriel : ${data.employee_email}`, 18, yL); yL += 4.5; }
+  if (data.agent_number) { doc.text(`N° agent : ${data.agent_number}`, 18, yL); yL += 4.5; }
+  if (data.employee_role) {
+    const lbl = ROLE_LABEL[data.employee_role] || data.employee_role;
+    doc.text(`Rôle : ${lbl}`, 18, yL); yL += 4.5;
+  }
   doc.text(`Méthode : ${PAY_METHOD_LABEL[data.payment_method] || data.payment_method}`, 18, yL);
 
   let yR = y + 10;
-  doc.text(`Du : ${fmtDate(data.period_start)}`, midX + 2, yR); yR += 5;
-  doc.text(`Au : ${fmtDate(data.period_end)}`, midX + 2, yR); yR += 5;
-  doc.text(`Date de paie : ${fmtDate(data.pay_date)}`, midX + 2, yR); yR += 5;
+  doc.text(`Du : ${fmtDate(data.period_start)}`, midX + 2, yR); yR += 4.5;
+  doc.text(`Au : ${fmtDate(data.period_end)}`, midX + 2, yR); yR += 4.5;
+  doc.text(`Date de paie : ${fmtDate(data.pay_date)}`, midX + 2, yR); yR += 4.5;
   doc.text(`N° talon : ${data.paystub_number}`, midX + 2, yR);
 
-  y += 38;
+  y += 42;
 
-  // REVENUS
+  // ───────── REVENUS ─────────
   y = drawSection(doc, "REVENUS", y);
-  if (data.commission_gross > 0)       y = drawRow(doc, "Commissions", fmtCAD(data.commission_gross), y);
-  if ((data.regular_hours_pay ?? 0) > 0) y = drawRow(doc, "Heures régulières", fmtCAD(data.regular_hours_pay!), y);
-  if ((data.overtime_hours_pay ?? 0) > 0) y = drawRow(doc, "Heures supplémentaires", fmtCAD(data.overtime_hours_pay!), y);
-  if (data.bonus_amount > 0)           y = drawRow(doc, "Bonus mensuel", fmtCAD(data.bonus_amount), y);
-  if ((data.allocation_total ?? 0) !== 0) y = drawRow(doc, "Allocations / ajustements", fmtCAD(data.allocation_total!), y);
+
+  // Hours (with rate detail)
+  if ((data.regular_hours_pay ?? 0) > 0) {
+    const hrs = data.hours_regular ?? 0;
+    const rate = data.hourly_rate ?? 0;
+    const detail = hrs > 0 && rate > 0 ? `${hrs.toFixed(2)} h × ${fmtCAD(rate)}/h` : null;
+    y = drawDetailedRow(doc, "Heures régulières", detail, fmtCAD(data.regular_hours_pay!), y);
+  }
+  if ((data.overtime_hours_pay ?? 0) > 0) {
+    const oth = data.hours_overtime ?? 0;
+    const rate = data.hourly_rate ?? 0;
+    const detail = oth > 0 && rate > 0 ? `${oth.toFixed(2)} h × ${fmtCAD(rate * 1.5)}/h (1,5×)` : null;
+    y = drawDetailedRow(doc, "Heures supplémentaires", detail, fmtCAD(data.overtime_hours_pay!), y);
+  }
+
+  // Commissions — show per-line breakdown if available
+  if (data.commission_gross > 0) {
+    if (data.commission_lines && data.commission_lines.length > 0) {
+      y = drawSubheader(doc, `Commissions (${data.commission_lines.length})`, y);
+      for (const line of data.commission_lines) {
+        y = ensurePage(doc, y, 6);
+        y = drawDetailedRow(doc, `  • ${line.label}`, line.detail ?? null, fmtCAD(line.amount), y, true);
+      }
+      y = drawSubtotalRow(doc, "Sous-total commissions", fmtCAD(data.commission_gross), y);
+    } else {
+      y = drawDetailedRow(doc, "Commissions", null, fmtCAD(data.commission_gross), y);
+    }
+  }
+
+  // Bonus
+  if (data.bonus_amount > 0) {
+    y = drawDetailedRow(doc, "Bonus mensuel", "Versé le dernier vendredi du mois", fmtCAD(data.bonus_amount), y);
+  }
+
+  // Adjustments — show per-line
+  if ((data.allocation_total ?? 0) !== 0) {
+    if (data.adjustment_lines && data.adjustment_lines.length > 0) {
+      y = drawSubheader(doc, `Allocations & ajustements (${data.adjustment_lines.length})`, y);
+      for (const line of data.adjustment_lines) {
+        y = ensurePage(doc, y, 6);
+        const sign = line.amount < 0 ? "- " : "";
+        y = drawDetailedRow(doc, `  • ${line.label}`, line.detail ?? null, `${sign}${fmtCAD(Math.abs(line.amount))}`, y, true);
+      }
+      y = drawSubtotalRow(doc, "Sous-total allocations", fmtCAD(data.allocation_total!), y);
+    } else {
+      y = drawDetailedRow(doc, "Allocations / ajustements", null, fmtCAD(data.allocation_total!), y);
+    }
+  }
+
   y = drawTotalRow(doc, "TOTAL BRUT", fmtCAD(data.total_gross), y, NAVY);
   y += 4;
 
-  // DÉDUCTIONS
+  // ───────── DÉDUCTIONS ─────────
+  y = ensurePage(doc, y, 60);
   y = drawSection(doc, "DÉDUCTIONS", y);
   y = drawRow(doc, "Impôt fédéral", `- ${fmtCAD(data.federal_tax)}`, y);
   y = drawRow(doc, "Impôt provincial (Québec)", `- ${fmtCAD(data.quebec_tax)}`, y);
@@ -108,7 +215,8 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   y = drawTotalRow(doc, "TOTAL DÉDUCTIONS", `- ${fmtCAD(data.total_deductions)}`, y, [180, 50, 50]);
   y += 6;
 
-  // NET À PAYER — large emerald block
+  // ───────── NET À PAYER ─────────
+  y = ensurePage(doc, y, 28);
   doc.setFillColor(232, 248, 240);
   doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2]);
   doc.setLineWidth(0.5);
@@ -122,7 +230,8 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   doc.setTextColor(0, 0, 0);
   y += 26;
 
-  // YTD
+  // ───────── YTD ─────────
+  y = ensurePage(doc, y, 25);
   y = drawSection(doc, "CUMUL ANNUEL (Year-to-date)", y);
   y = drawRow(doc, "Brut YTD", fmtCAD(data.ytd_gross), y);
   y = drawRow(doc, "Déductions YTD", `- ${fmtCAD(data.ytd_deductions)}`, y);
@@ -133,12 +242,26 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
-  doc.text("Nivra Communication Inc. — Document confidentiel généré automatiquement.", pw / 2, y, { align: "center" });
+  doc.text(
+    "Document confidentiel généré automatiquement par Nivra Communications Inc.",
+    pw / 2, Math.min(y, ph - 25), { align: "center" },
+  );
 
   drawFooter(doc);
 
   const ab = doc.output("arraybuffer");
   return new Uint8Array(ab);
+}
+
+// ──────── Layout helpers ────────
+function ensurePage(doc: jsPDF, y: number, needed: number): number {
+  const ph = doc.internal.pageSize.getHeight();
+  if (y + needed > ph - 25) {
+    doc.addPage();
+    drawFooter(doc);
+    return 20;
+  }
+  return y;
 }
 
 function drawSection(doc: jsPDF, title: string, y: number): number {
@@ -153,6 +276,15 @@ function drawSection(doc: jsPDF, title: string, y: number): number {
   return y + 6;
 }
 
+function drawSubheader(doc: jsPDF, title: string, y: number): number {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(80, 80, 80);
+  doc.text(title.toUpperCase(), 15, y);
+  doc.setTextColor(0, 0, 0);
+  return y + 4.5;
+}
+
 function drawRow(doc: jsPDF, label: string, value: string, y: number): number {
   const pw = doc.internal.pageSize.getWidth();
   doc.setFont("helvetica", "normal");
@@ -162,6 +294,45 @@ function drawRow(doc: jsPDF, label: string, value: string, y: number): number {
   doc.setTextColor(0, 0, 0);
   doc.text(value, pw - 15, y, { align: "right" });
   return y + 5;
+}
+
+function drawDetailedRow(
+  doc: jsPDF,
+  label: string,
+  detail: string | null,
+  value: string,
+  y: number,
+  small = false,
+): number {
+  const pw = doc.internal.pageSize.getWidth();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(small ? 8.5 : 9);
+  doc.setTextColor(40, 40, 40);
+  doc.text(label, 15, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text(value, pw - 15, y, { align: "right" });
+  if (detail) {
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    doc.text(detail, 17, y + 3.5);
+    doc.setTextColor(0, 0, 0);
+    return y + 8;
+  }
+  return y + (small ? 4.5 : 5);
+}
+
+function drawSubtotalRow(doc: jsPDF, label: string, value: string, y: number): number {
+  const pw = doc.internal.pageSize.getWidth();
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.15);
+  doc.line(15, y - 0.5, pw - 15, y - 0.5);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(80, 80, 80);
+  doc.text(label, 15, y + 2.5);
+  doc.text(value, pw - 15, y + 2.5, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+  return y + 7;
 }
 
 function drawTotalRow(doc: jsPDF, label: string, value: string, y: number, color: [number, number, number]): number {
