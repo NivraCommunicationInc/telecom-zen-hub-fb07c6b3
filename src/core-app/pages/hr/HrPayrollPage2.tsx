@@ -753,6 +753,53 @@ export default function HrPayrollPage2() {
   );
 }
 
+function PayrollEntryDetailDialog({ entry, onClose }: { entry: any | null; onClose: () => void }) {
+  if (!entry) return null;
+  const earnings = Array.isArray(entry.earnings_breakdown) ? entry.earnings_breakdown : [];
+  const deductions = Array.isArray(entry.deduction_breakdown) ? entry.deduction_breakdown : [];
+  const commissions = Array.isArray(entry.commission_breakdown) ? entry.commission_breakdown : [];
+  const adjustments = Array.isArray(entry.adjustment_breakdown) ? entry.adjustment_breakdown : [];
+  return (
+    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-auto">
+        <DialogHeader><DialogTitle>Détail complet du talon — {entry.payroll_number}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Stat label="Brut" value={fmtMoney(entry.total_gross)} />
+          <Stat label="Fed" value={fmtMoney(entry.federal_tax)} />
+          <Stat label="QC" value={fmtMoney(entry.quebec_tax)} />
+          <Stat label="Déductions" value={fmtMoney(entry.deductions_total)} />
+          <Stat label="Net" value={fmtMoney(entry.net_pay)} accent />
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <BreakdownBox title="Revenus sur le talon" rows={earnings} positive />
+          <BreakdownBox title="Déductions sur le talon" rows={deductions} />
+          <BreakdownBox title="Commissions liées" rows={commissions.map((c: any) => ({ label: c.label || c.description || "Commission", detail: c.order_id || c.id, amount: c.amount }))} positive />
+          <BreakdownBox title="Bonus / allocations / suppléments" rows={adjustments.map((a: any) => ({ label: a.label || a.type, detail: `${a.description || ""}${a.taxable === false ? " · non imposable" : ""}`, amount: a.amount }))} positive />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BreakdownBox({ title, rows, positive }: { title: string; rows: any[]; positive?: boolean }) {
+  return (
+    <div className="rounded-md border bg-muted/20 p-3">
+      <div className="text-sm font-semibold mb-2">{title}</div>
+      {!rows.length ? <div className="text-xs text-muted-foreground">Aucun détail</div> : rows.map((r: any, i: number) => (
+        <div key={`${r.label}-${i}`} className="flex items-start justify-between gap-3 border-b py-2 last:border-0 text-sm">
+          <div className="min-w-0">
+            <div className="font-medium truncate">{r.label || "Ligne"}</div>
+            {r.detail ? <div className="text-xs text-muted-foreground truncate">{r.detail}</div> : null}
+          </div>
+          <div className={positive ? "font-semibold text-emerald-700" : "font-semibold text-destructive"}>
+            {positive ? "+ " : "- "}{fmtMoney(Math.abs(Number(r.amount || 0)))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─────────────── EmployeeCard ───────────────
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
