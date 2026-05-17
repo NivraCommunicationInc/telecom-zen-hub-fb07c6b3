@@ -405,7 +405,6 @@ Deno.serve(async (req) => {
       .from("pay_adjustments")
       .select("id, employee_id, amount, is_taxable, adjustment_type, description")
       .is("payroll_run_id", null);
-    type AdjLine = { id: string; amount: number; is_taxable: boolean; adjustment_type: string; description: string };
     const adjByEmp = new Map<string, AdjLine[]>();
     for (const a of pendingAdj ?? []) {
       const arr = adjByEmp.get(a.employee_id) || [];
@@ -443,8 +442,9 @@ Deno.serve(async (req) => {
       const taxAdj = earningAdj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
       const ntAdj = earningAdj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
       const manualDeductions = deductionAdj.reduce((sum, a) => sum + Math.abs(a.amount), 0);
+      const pendingBonus = Number(body.bonus_overrides?.[s.employee_id] || 0);
 
-      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj + manualDeductions;
+      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj + manualDeductions + pendingBonus;
       if (totalSource === 0 && !previewEmployeeId) continue; // skip employees with nothing to pay
 
       bundle.set(s.employee_id, {
