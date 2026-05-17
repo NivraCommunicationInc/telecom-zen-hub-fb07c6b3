@@ -290,14 +290,18 @@ export default function HrPayrollPage2() {
       t.gross += s.gross;
       t.ded += s.ded;
       t.net += s.net;
+      t.bonus += s.bonus;
       t.count += 1;
     }
     return t;
-  }, [selectionList, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
+  }, [selectionList, periodCommissions, timesheets, adjustments, excludedComm, localHours, bonusOverrides]);
 
   function buildRunBody(extra: Record<string, unknown> = {}) {
+    const bonusObj: Record<string, number> = {};
+    bonusOverrides.forEach((v, k) => { if (v > 0) bonusObj[k] = v; });
     const body: Record<string, unknown> = {
       excluded_commission_ids: Array.from(excludedComm),
+      bonus_overrides: bonusObj,
       ...extra,
     };
     if (selectedEmps.size > 0) body.employee_ids = Array.from(selectedEmps);
