@@ -105,10 +105,25 @@ export default function HrPaymentsPage() {
       const { data: existing } = await supabase.from("payroll_payments").select("payroll_entry_id");
       const usedIds = new Set((existing || []).map((r: any) => r.payroll_entry_id).filter(Boolean));
       const { data, error } = await supabase
-        .from("payroll_entries").select("id, payroll_number, user_id, net_pay, payment_method, status, created_at")
-        .in("status", ["approved", "paid"]).order("created_at", { ascending: false }).limit(200);
+        .from("payroll_entries")
+        .select("id, payroll_number, user_id, employee_id, agent_number, net_pay, gross_pay, total_gross, deductions_total, federal_tax, quebec_tax, rrq, ae, rqap, disability_insurance, ytd_gross, ytd_net, payment_method, status, payment_status, pay_period_id, created_at")
+        .in("status", ["approved", "paid"]).order("created_at", { ascending: false }).limit(500);
       if (error) throw error;
-      return (data || []).filter((e: any) => !usedIds.has(e.id));
+      const entries = (data || []).filter((e: any) => !usedIds.has(e.id));
+      // Hydrate profile + period info
+      const uids = [...new Set(entries.map((e: any) => e.employee_id || e.user_id).filter(Boolean))];
+      const pids = [...new Set(entries.map((e: any) => e.pay_period_id).filter(Boolean))];
+      const [{ data: profs }, { data: periods }] = await Promise.all([
+        uids.length ? supabase.from("profiles").select("user_id, full_name, email, agent_number").in("user_id", uids) : Promise.resolve({ data: [] as any[] }),
+        pids.length ? supabase.from("pay_periods").select("id, period_name, start_date, end_date").in("id", pids) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const pmap = new Map((profs || []).map((p: any) => [p.user_id, p]));
+      const permap = new Map((periods || []).map((p: any) => [p.id, p]));
+      return entries.map((e: any) => ({
+        ...e,
+        _profile: pmap.get(e.employee_id || e.user_id) || null,
+        _period: permap.get(e.pay_period_id) || null,
+      }));
     },
     enabled: createOpen,
   });
@@ -429,11 +444,30 @@ export default function HrPaymentsPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         entries={entriesWithoutPayment}
-        onCreate={(body) => {
-          invokeAction.mutate(
-            { action: "create", ...body },
-            { onSuccess: () => { toast.success("Paiement créé"); setCreateOpen(false); qc.invalidateQueries({ queryKey: ["payroll-entries-without-payment"] }); } },
-          );
+        onCreate={async ({ initial_status, bank_reference, transaction_id, recipient_bank_name, recipient_account_last4, client_visible_notes, ...createBody }: any) => {
+          try {
+            const created = await invokeAction.mutateAsync({ action: "create", ...createBody });
+            const paymentId = created?.payment?.id || created?.payment_id;
+            if (paymentId) {
+              const updates: any = {};
+              if (bank_reference) updates.bank_reference = bank_reference;
+              if (transaction_id) updates.transaction_id = transaction_id;
+              if (recipient_bank_name) updates.recipient_bank_name = recipient_bank_name;
+              if (recipient_account_last4) updates.recipient_account_last4 = recipient_account_last4;
+              if (client_visible_notes) updates.client_visible_notes = client_visible_notes;
+              if (Object.keys(updates).length) {
+                await invokeAction.mutateAsync({ action: "update", payment_id: paymentId, ...updates });
+              }
+              if (initial_status && !["draft", "pending_approval"].includes(initial_status)) {
+                await invokeAction.mutateAsync({ action: "transition", payment_id: paymentId, next_status: initial_status });
+              }
+            }
+            toast.success("Paiement créé");
+            setCreateOpen(false);
+            qc.invalidateQueries({ queryKey: ["payroll-entries-without-payment"] });
+          } catch (e: any) {
+            toast.error(e?.message || "Échec de création");
+          }
         }}
       />
     </div>
@@ -597,62 +631,277 @@ function FailDialog({ payment, onClose, onConfirm }: any) {
 }
 
 function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
+  const [employeeId, setEmployeeId] = useState("");
   const [entryId, setEntryId] = useState("");
   const [method, setMethod] = useState("interac");
+  const [initialStatus, setInitialStatus] = useState("scheduled");
   const [scheduled, setScheduled] = useState("");
-  const [notes, setNotes] = useState("");
-  useEffect(() => { if (!open) { setEntryId(""); setMethod("interac"); setScheduled(""); setNotes(""); } }, [open]);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [bankRef, setBankRef] = useState("");
+  const [txnId, setTxnId] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountLast4, setAccountLast4] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
+  const [clientNotes, setClientNotes] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setEmployeeId(""); setEntryId(""); setMethod("interac"); setInitialStatus("scheduled");
+      setScheduled(""); setRequiresApproval(false); setBankRef(""); setTxnId("");
+      setBankName(""); setAccountLast4(""); setInternalNotes(""); setClientNotes("");
+      setEmployeeSearch(""); setSubmitting(false);
+    }
+  }, [open]);
+
+  // Group entries by employee
+  const employees = useMemo(() => {
+    const m = new Map<string, { uid: string; name: string; email: string; number: string; entries: any[] }>();
+    for (const e of entries) {
+      const uid = e.employee_id || e.user_id;
+      if (!uid) continue;
+      const existing = m.get(uid);
+      if (existing) existing.entries.push(e);
+      else m.set(uid, {
+        uid,
+        name: e._profile?.full_name || e._profile?.email || "Employé",
+        email: e._profile?.email || "",
+        number: e._profile?.agent_number || e.agent_number || "",
+        entries: [e],
+      });
+    }
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [entries]);
+
+  const filteredEmployees = useMemo(() => {
+    const q = employeeSearch.toLowerCase().trim();
+    if (!q) return employees;
+    return employees.filter(e =>
+      e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q) || e.number.toLowerCase().includes(q),
+    );
+  }, [employees, employeeSearch]);
+
+  const selectedEmp = employees.find(e => e.uid === employeeId);
+  const employeeEntries = selectedEmp?.entries || [];
+  const selectedEntry = employeeEntries.find(e => e.id === entryId);
+
+  // Auto-suggest approval if > 5000$
+  useEffect(() => {
+    if (selectedEntry) {
+      const net = Number(selectedEntry.net_pay || 0);
+      setRequiresApproval(net > 5000);
+      if (selectedEntry.payment_method && !method) setMethod(selectedEntry.payment_method);
+    }
+  }, [entryId]); // eslint-disable-line
+
+  const periodLabel = (e: any) => {
+    if (e?._period?.start_date && e?._period?.end_date) {
+      return `${fmtDateShort(e._period.start_date)} → ${fmtDateShort(e._period.end_date)}`;
+    }
+    return e?.created_at ? fmtDateShort(e.created_at) : "—";
+  };
+
+  const handleSubmit = async () => {
+    if (!entryId) return;
+    setSubmitting(true);
+    try {
+      await onCreate({
+        payroll_entry_id: entryId,
+        payment_method: method,
+        scheduled_date: scheduled || null,
+        internal_notes: internalNotes || null,
+        client_visible_notes: clientNotes || null,
+        bank_reference: bankRef || null,
+        transaction_id: txnId || null,
+        recipient_bank_name: bankName || null,
+        recipient_account_last4: accountLast4 ? accountLast4.replace(/\D/g, "").slice(-4) : null,
+        requires_approval: requiresApproval,
+        initial_status: initialStatus,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Nouveau paiement de paie</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Entrée de paie (talon)</Label>
-            <Select value={entryId} onValueChange={setEntryId}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {entries.length === 0 ? (
-                  <div className="p-2 text-xs text-muted-foreground">Aucune entrée disponible</div>
-                ) : entries.map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.payroll_number || e.id.slice(0, 8)} — {fmtMoney(e.net_pay)}
-                  </SelectItem>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-violet-500" />
+            Nouveau paiement de paie
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Sélectionnez un employé, choisissez le talon de paie à régler, configurez la méthode et la programmation.
+          </p>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ─── LEFT: Employee + Payslip ─── */}
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">1. Employé</Label>
+              <div className="mt-1.5 flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
+                <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  value={employeeSearch}
+                  onChange={(e) => setEmployeeSearch(e.target.value)}
+                  placeholder="Rechercher nom, email, #employé…"
+                  className="flex-1 bg-transparent text-xs outline-none"
+                />
+              </div>
+              <div className="mt-1.5 max-h-[200px] overflow-y-auto border border-border rounded-md bg-card divide-y divide-border">
+                {filteredEmployees.length === 0 ? (
+                  <div className="p-3 text-xs text-muted-foreground text-center">
+                    {entries.length === 0 ? "Aucun talon approuvé en attente de paiement." : "Aucun employé correspondant."}
+                  </div>
+                ) : filteredEmployees.map(emp => (
+                  <button
+                    key={emp.uid}
+                    onClick={() => { setEmployeeId(emp.uid); setEntryId(emp.entries[0]?.id || ""); }}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/40 transition ${employeeId === emp.uid ? "bg-violet-500/10 border-l-2 border-violet-500" : ""}`}
+                  >
+                    <div className="font-medium text-foreground">{emp.name}</div>
+                    <div className="text-muted-foreground text-[11px]">
+                      {emp.email || "—"} {emp.number && `· #${emp.number}`}
+                    </div>
+                    <div className="text-[10px] text-violet-400 mt-0.5">
+                      {emp.entries.length} talon(s) · {fmtMoney(emp.entries.reduce((a, e) => a + Number(e.net_pay || 0), 0))}
+                    </div>
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            </div>
+
+            {selectedEmp && (
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">2. Talon de paie</Label>
+                <div className="mt-1.5 space-y-1.5 max-h-[180px] overflow-y-auto">
+                  {employeeEntries.map(e => (
+                    <button
+                      key={e.id}
+                      onClick={() => setEntryId(e.id)}
+                      className={`w-full text-left rounded-md border px-2.5 py-2 transition ${entryId === e.id ? "border-violet-500 bg-violet-500/10" : "border-border hover:bg-muted/40"}`}
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono">{e.payroll_number || e.id.slice(0, 8)}</span>
+                        <span className="font-bold text-emerald-400">{fmtMoney(e.net_pay)}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        Période: {periodLabel(e)} · Brut: {fmtMoney(e.total_gross || e.gross_pay)} · Statut: {e.status}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedEntry && (
+              <div className="rounded-md border border-violet-500/30 bg-violet-500/5 p-3 space-y-1.5">
+                <div className="text-[10px] uppercase tracking-wider text-violet-300 font-semibold">Aperçu du talon</div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">Brut</span><span className="text-right font-mono">{fmtMoney(selectedEntry.total_gross || selectedEntry.gross_pay)}</span>
+                  <span className="text-muted-foreground">Impôt fédéral</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.federal_tax)}</span>
+                  <span className="text-muted-foreground">Impôt QC</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.quebec_tax)}</span>
+                  <span className="text-muted-foreground">RRQ</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.rrq)}</span>
+                  <span className="text-muted-foreground">AE</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.ae)}</span>
+                  <span className="text-muted-foreground">RQAP</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.rqap)}</span>
+                  {Number(selectedEntry.disability_insurance) > 0 && (
+                    <><span className="text-muted-foreground">Inv.</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.disability_insurance)}</span></>
+                  )}
+                  <span className="text-muted-foreground border-t border-violet-500/20 pt-1 mt-1">Total déductions</span>
+                  <span className="text-right font-mono border-t border-violet-500/20 pt-1 mt-1">−{fmtMoney(selectedEntry.deductions_total)}</span>
+                  <span className="font-semibold text-emerald-300 border-t border-violet-500/20 pt-1">NET À VERSER</span>
+                  <span className="text-right font-bold text-emerald-400 font-mono border-t border-violet-500/20 pt-1">{fmtMoney(selectedEntry.net_pay)}</span>
+                </div>
+                {(Number(selectedEntry.ytd_gross) > 0 || Number(selectedEntry.ytd_net) > 0) && (
+                  <div className="text-[10px] text-muted-foreground pt-1 border-t border-violet-500/20">
+                    YTD: brut {fmtMoney(selectedEntry.ytd_gross)} · net {fmtMoney(selectedEntry.ytd_net)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Méthode</Label>
-            <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(METHOD_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Date programmée</Label>
-            <Input type="date" value={scheduled} onChange={(e) => setScheduled(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Notes internes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+
+          {/* ─── RIGHT: Method, Schedule, Banking ─── */}
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">3. Méthode de paiement</Label>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(METHOD_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">4. Date programmée</Label>
+                <Input type="date" value={scheduled} onChange={(e) => setScheduled(e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">5. Statut initial</Label>
+                <Select value={initialStatus} onValueChange={setInitialStatus}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Brouillon</SelectItem>
+                    <SelectItem value="scheduled">Programmé</SelectItem>
+                    <SelectItem value="approved">Approuvé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border p-2.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Approbation requise</Label>
+                <Checkbox checked={requiresApproval} onCheckedChange={(v) => setRequiresApproval(!!v)} />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Activé automatiquement si le montant net dépasse 5 000 $.
+              </p>
+            </div>
+
+            <div className="rounded-md border border-border p-2.5 space-y-2">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Informations bancaires (optionnel)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Banque destinataire" className="h-8 text-xs" />
+                <Input value={accountLast4} onChange={(e) => setAccountLast4(e.target.value)} placeholder="Compte (4 derniers)" maxLength={4} className="h-8 text-xs" />
+                <Input value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="Référence bancaire" className="h-8 text-xs" />
+                <Input value={txnId} onChange={(e) => setTxnId(e.target.value)} placeholder="ID transaction" className="h-8 text-xs" />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Notes internes</Label>
+              <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} className="mt-1.5 text-xs" placeholder="Visible uniquement par l'équipe interne…" />
+            </div>
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Note pour l'employé</Label>
+              <Textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} rows={2} className="mt-1.5 text-xs" placeholder="Affichée dans le portail employé…" />
+            </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button disabled={!entryId} onClick={() => onCreate({
-            payroll_entry_id: entryId, payment_method: method,
-            scheduled_date: scheduled || null, internal_notes: notes || null,
-          })}>
-            Créer
+
+        <DialogFooter className="border-t border-border pt-3 mt-2">
+          <div className="flex-1 text-xs text-muted-foreground">
+            {selectedEntry ? (
+              <>Net à verser : <span className="font-bold text-emerald-400">{fmtMoney(selectedEntry.net_pay)}</span> · {METHOD_LABEL[method]}</>
+            ) : "Sélectionnez un employé et un talon pour continuer"}
+          </div>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Annuler</Button>
+          <Button disabled={!entryId || submitting} onClick={handleSubmit}>
+            {submitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <DollarSign className="w-4 h-4 mr-1.5" />}
+            Créer le paiement
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function PaymentDetailDrawer({ paymentId, onClose, onAction }: any) {
   const { data: payment } = useQuery({
