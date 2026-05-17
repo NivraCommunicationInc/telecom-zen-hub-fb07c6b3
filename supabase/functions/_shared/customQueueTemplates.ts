@@ -2815,6 +2815,64 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // PAYMENT CONFIRMATION (HR — paystub disbursement)
+    // ===================================================================
+    case "payment_confirmation": {
+      const agentName = esc(v.agent_name || clientName);
+      const agentNumber = esc(v.agent_number || "");
+      const payDate = fmtDate(v.pay_date);
+      const paymentDate = fmtDate(v.payment_date);
+      const periodStart = fmtDate(v.period_start);
+      const periodEnd = fmtDate(v.period_end);
+      const netAmount = formatMoney(v.net_amount);
+      const totalGross = formatMoney(v.total_gross);
+      const totalDeductions = formatMoney(v.total_deductions);
+      const methodLabelMap: Record<string, string> = {
+        interac: "Virement Interac e-Transfer",
+        direct_deposit: "Dépôt direct bancaire",
+        paypal: "PayPal",
+        cheque: "Chèque papier",
+        cash: "Comptant",
+        other: "Autre",
+      };
+      const method = methodLabelMap[String(v.payment_method || "interac")] || String(v.payment_method || "Interac");
+      const reference = esc(v.payment_reference || "");
+      const confirmationNumber = esc(v.confirmation_number || "");
+      const portalUrl = String(v.portal_url || PORTAL_URL);
+
+      const cardRows: [string, string][] = [
+        ["N° avis", confirmationNumber || "—"],
+        ["Agent", agentNumber ? `${agentName} — ${agentNumber}` : agentName],
+        ["Période", `${periodStart} au ${periodEnd}`],
+        ["Date de paie", payDate],
+        ["Date du versement", paymentDate],
+        ["Méthode", method],
+        ...(reference ? ([["Référence", reference]] as [string, string][]) : []),
+        ["Salaire brut", totalGross],
+        ["Total déductions", totalDeductions],
+        ["MONTANT VERSÉ (NET)", netAmount],
+      ];
+
+      return {
+        subject: `Confirmation de paiement Nivra — ${paymentDate} (${netAmount})`,
+        html: shell({
+          preheader: `Votre paie nette de ${netAmount} a été versée par ${method}.`,
+          badge: "PAIEMENT EFFECTUÉ",
+          heroTitle: "Votre paie a été versée",
+          heroSub: `${netAmount} versé(s) le ${paymentDate}`,
+          greeting: `Bonjour ${agentName},`,
+          bodyText: `Nous confirmons que votre paie nette pour la période du ${periodStart} au ${periodEnd} a été versée le ${paymentDate} par ${method}. Vous trouverez en pièce jointe votre avis de paiement officiel et votre talon de paie correspondant.`,
+          cardTitle: "Détails du versement",
+          cardRows,
+          cardEmphasizeLast: true,
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Voir mes paies",
+          helpHtml: `Une question sur ce versement ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
