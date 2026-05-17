@@ -57,6 +57,22 @@ serve(async (req) => {
     
     for (const sub of subscriptions || []) {
       try {
+        // ═══ GUARD: NULL next_renewal_at ═══
+        // If next_renewal_at is null on an active subscription, this is a data
+        // integrity issue. Log and create an alert, but DO continue using
+        // cycle_end_date which is the canonical scheduling column here.
+        if (sub.next_renewal_at == null) {
+          console.error(
+            `[billing-generate-renewals] ALERT: subscription ${sub.id} has null next_renewal_at — proceeding with cycle_end_date but flagging for repair`
+          );
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "null_next_renewal_at",
+            entity_type: "billing_subscription",
+            entity_id: sub.id,
+            details: { cycle_end_date: sub.cycle_end_date, status: sub.status },
+          });
+        }
+
         // Check if renewal invoice already exists for this cycle
         const newCycleStart = new Date(sub.cycle_end_date);
         const newCycleEnd = new Date(sub.cycle_end_date);
