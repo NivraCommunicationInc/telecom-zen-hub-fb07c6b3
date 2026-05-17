@@ -2744,6 +2744,59 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // PAYSTUB NOTIFICATION (weekly Friday payroll)
+    // ===================================================================
+    case "paystub_notification": {
+      const agentName = esc(v.agent_name || clientName);
+      const agentNumber = esc(v.agent_number || "");
+      const periodStart = fmtDate(v.period_start);
+      const periodEnd = fmtDate(v.period_end);
+      const payDate = fmtDate(v.pay_date);
+      const commissionGross = formatMoney(v.commission_gross);
+      const bonusAmount = formatMoney(v.bonus_amount);
+      const totalGross = formatMoney(v.total_gross);
+      const totalDeductions = formatMoney(v.total_deductions);
+      const netPay = formatMoney(v.net_pay);
+      const payMethodMap: Record<string, string> = {
+        interac: "Virement Interac",
+        direct_deposit: "Dépôt direct",
+        paypal: "PayPal",
+      };
+      const payMethod = payMethodMap[String(v.payment_method || "interac")] || String(v.payment_method || "Interac");
+      const paystubUrl = String(v.paystub_url || v.portal_url || PORTAL_URL);
+
+      const cardRows: [string, string][] = [
+        ["Agent", agentNumber ? `${agentName} — ${agentNumber}` : agentName],
+        ["Période", `${periodStart} au ${periodEnd}`],
+        ["Date de paie", payDate],
+        ["Commissions brutes", commissionGross],
+        ["Bonus", bonusAmount],
+        ["Total brut", totalGross],
+        ["Total déductions", totalDeductions],
+        ["NET À PAYER", netPay],
+        ["Méthode", payMethod],
+      ];
+
+      return {
+        subject: `Votre paie Nivra — ${payDate}`,
+        html: shell({
+          preheader: `Votre paie pour la période du ${periodStart} au ${periodEnd}.`,
+          badge: "PAIE DISPONIBLE",
+          heroTitle: "Votre paie a été traitée",
+          heroSub: `Période du ${periodStart} au ${periodEnd}`,
+          greeting: `Bonjour ${agentName},`,
+          bodyText: `Votre paie pour la période du ${periodStart} au ${periodEnd} a été traitée. Votre talon de paie est disponible ci-dessous avec le détail des gains et des déductions.`,
+          cardTitle: "Détails de votre paie",
+          cardRows,
+          cardEmphasizeLast: true,
+          ctaPrimaryUrl: paystubUrl,
+          ctaPrimaryLabel: "Voir mon talon de paie",
+          helpHtml: `Questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
