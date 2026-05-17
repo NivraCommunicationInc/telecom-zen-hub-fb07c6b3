@@ -30,7 +30,13 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   draft: { label: "Brouillon", variant: "secondary", cls: "bg-muted text-muted-foreground" },
   approved: { label: "Approuvé", variant: "default", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400" },
   processing: { label: "En traitement", variant: "outline", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
+  scheduled: { label: "Programmé", variant: "outline", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400" },
+  pending: { label: "En attente", variant: "outline", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
+  sent: { label: "Envoyé", variant: "default", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
   paid: { label: "Payé", variant: "default", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
+  confirmed: { label: "Confirmé", variant: "default", cls: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300" },
+  failed: { label: "Échoué", variant: "destructive", cls: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" },
+  cancelled: { label: "Annulé", variant: "secondary", cls: "bg-muted text-muted-foreground" },
 };
 
 const fmtMoney = (n: number) =>
