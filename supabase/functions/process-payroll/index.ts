@@ -120,8 +120,12 @@ async function calculateDeductions(
 
   const federalAnnual = Math.max(0, bracketTax(annualGross, fedBrackets, settings.federal_claim_amount));
   const quebecAnnual = Math.max(0, bracketTax(annualGross, qcBrackets, settings.quebec_claim_amount));
-  const federal_tax = federalAnnual / PAY_PERIODS_WEEKLY;
-  const quebec_tax = quebecAnnual / PAY_PERIODS_WEEKLY;
+  // Weekly commission payroll can otherwise show $0 source tax for small
+  // periods because annual credits wipe out the first bracket. Nivra needs an
+  // explicit withholding line on every taxable paid stub, so we keep the
+  // bracket result and apply a conservative source-withholding floor.
+  const federal_tax = grossPay > 0 ? Math.max(federalAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
+  const quebec_tax = grossPay > 0 ? Math.max(quebecAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
 
   const rrqAnnual = Math.min(
     Math.max(0, annualGross - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
@@ -186,8 +190,8 @@ async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: stri
   return { path, signedUrl: data?.signedUrl ?? null };
 }
 
-async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>, pdf: Uint8Array, entryId: string) {
-  if (!toEmail) return;
+async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>, pdf: Uint8Array, entryId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!toEmail) return { ok: false, error: "Aucun courriel employé." };
   try {
     let binary = "";
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
@@ -211,8 +215,10 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     if (error) throw error;
     const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
     if (drainErr) console.error("[process-payroll] immediate email drain failed:", drainErr.message);
+    return { ok: true };
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -225,6 +231,35 @@ async function notifyPayrollReady(empId: string, amount: number, period: string,
     link_url: paystubUrl || "/rh/paie",
     is_read: false,
   });
+}
+
+type AdjLine = { id: string; amount: number; is_taxable: boolean; adjustment_type: string; description: string };
+
+const ADJ_LABEL: Record<string, string> = {
+  allocation: "Allocation",
+  bonus: "Bonus",
+  supplement: "Supplément",
+  reimbursement: "Remboursement",
+  advance: "Avance sur paie",
+  deduction: "Déduction manuelle",
+  other: "Autre revenu",
+};
+
+function adjLabel(type: string) {
+  return ADJ_LABEL[type] || type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function makeDeductionBreakdown(ded: any, manualDeductions: number, deductionLines: AdjLine[] = []) {
+  return [
+    { label: "Impôt fédéral", amount: round2(ded.federal_tax || 0), category: "tax" },
+    { label: "Impôt provincial (Québec)", amount: round2(ded.quebec_tax || 0), category: "tax" },
+    { label: "RRQ (Régime de rentes du Québec)", amount: round2(ded.rrq || 0), category: "statutory" },
+    { label: "Assurance-emploi (AE)", amount: round2(ded.ae || 0), category: "statutory" },
+    { label: "RQAP (Assurance parentale)", amount: round2(ded.rqap || 0), category: "statutory" },
+    { label: "Assurance invalidité", amount: round2(ded.disability_insurance || 0), category: "benefit" },
+    ...deductionLines.map((a) => ({ label: adjLabel(a.adjustment_type), detail: a.description, amount: round2(Math.abs(a.amount)), category: "manual" })),
+    ...(manualDeductions > 0 && deductionLines.length === 0 ? [{ label: "Avances / déductions manuelles", amount: round2(manualDeductions), category: "manual" }] : []),
+  ].filter((l) => Number(l.amount) > 0 || ["Impôt fédéral", "Impôt provincial (Québec)", "RRQ (Régime de rentes du Québec)"].includes(l.label));
 }
 
 Deno.serve(async (req) => {
@@ -284,7 +319,7 @@ Deno.serve(async (req) => {
         String(path).includes("/documents/") ? String(path).split("/documents/").pop()! : String(path),
         60 * 60 * 24 * 30,
       );
-      await enqueuePaystubEmail(profile.email, {
+      const resendResult = await enqueuePaystubEmail(profile.email, {
         agent_name: profile.full_name || profile.email,
         agent_number: profile.agent_number || "—",
         period_start: entry.created_at?.slice(0, 10),
@@ -310,6 +345,11 @@ Deno.serve(async (req) => {
         portal_url: "https://nivra-telecom.ca/field/profile",
         resent: true,
       }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
+      await supabase.from("payroll_entries").update({
+        email_status: resendResult.ok ? "sent" : "failed",
+        emailed_at: resendResult.ok ? new Date().toISOString() : null,
+        email_last_error: resendResult.error ?? null,
+      } as any).eq("id", entry.id);
       await notifyPayrollReady(entry.employee_id, Number(entry.net_pay || 0), "renvoyée", signed?.signedUrl ?? null);
       return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -370,7 +410,6 @@ Deno.serve(async (req) => {
       .from("pay_adjustments")
       .select("id, employee_id, amount, is_taxable, adjustment_type, description")
       .is("payroll_run_id", null);
-    type AdjLine = { id: string; amount: number; is_taxable: boolean; adjustment_type: string; description: string };
     const adjByEmp = new Map<string, AdjLine[]>();
     for (const a of pendingAdj ?? []) {
       const arr = adjByEmp.get(a.employee_id) || [];
@@ -408,8 +447,9 @@ Deno.serve(async (req) => {
       const taxAdj = earningAdj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
       const ntAdj = earningAdj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
       const manualDeductions = deductionAdj.reduce((sum, a) => sum + Math.abs(a.amount), 0);
+      const pendingBonus = Number(body.bonus_overrides?.[s.employee_id] || 0);
 
-      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj + manualDeductions;
+      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj + manualDeductions + pendingBonus;
       if (totalSource === 0 && !previewEmployeeId) continue; // skip employees with nothing to pay
 
       bundle.set(s.employee_id, {
@@ -584,12 +624,33 @@ Deno.serve(async (req) => {
       const hReg = (tsByEmp.get(empId)?.reg || 0);
       const hOt = (tsByEmp.get(empId)?.ot || 0);
       const hRate = Number(b.settings.hourly_rate || 0);
+      const commissionBreakdown = b.commissionLines.map((c) => ({
+        id: c.id,
+        label: c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : (c.commission_type || "Commission"),
+        description: c.description,
+        earned_at: c.earned_at,
+        order_id: c.order_id,
+        amount: round2(c.amount),
+      }));
+      const earningAdjustments = b.adjustmentLines.filter((a) => !["deduction", "advance"].includes(a.adjustment_type));
+      const deductionAdjustments = b.adjustmentLines.filter((a) => ["deduction", "advance"].includes(a.adjustment_type));
+      const earningsBreakdown = [
+        ...(b.regularPay > 0 ? [{ label: "Heures régulières", detail: `${round2(hReg)} h × ${round2(hRate)} $/h`, amount: round2(b.regularPay), category: "hours" }] : []),
+        ...(b.overtimePay > 0 ? [{ label: "Heures supplémentaires", detail: `${round2(hOt)} h × ${round2(hRate * 1.5)} $/h`, amount: round2(b.overtimePay), category: "overtime" }] : []),
+        ...(b.commissionGross > 0 ? [{ label: "Commissions", detail: `${b.commissionLines.length} commission(s) payée(s)`, amount: round2(b.commissionGross), category: "commission" }] : []),
+        ...(bonus > 0 ? [{ label: "Bonus ponctuel", detail: "Ajout manuel RH", amount: round2(bonus), category: "bonus" }] : []),
+        ...earningAdjustments.map((a) => ({ label: adjLabel(a.adjustment_type), detail: `${a.description}${a.is_taxable ? "" : " (non imposable)"}`, amount: round2(a.amount), category: a.adjustment_type })),
+      ];
+      const deductionBreakdown = makeDeductionBreakdown(ded, b.manualDeductions, deductionAdjustments);
 
       const { data: entry, error: entryErr } = await supabase
         .from("payroll_entries")
         .insert({
           run_id: run.id, user_id: empId, employee_id: empId,
           agent_number: profile?.agent_number ?? null,
+          base_salary: round2(b.regularPay + b.overtimePay),
+          commission_total: round2(b.commissionGross),
+          bonus_total: round2(bonus),
           commission_gross: round2(b.commissionGross),
           bonus_amount: round2(bonus),
           hours_worked: round2(hReg),
@@ -600,13 +661,21 @@ Deno.serve(async (req) => {
           rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
           disability_insurance: ded.disability_insurance,
           deductions_total: totalDeductions,
+          total_deductions: totalDeductions,
           net_pay: netPay,
           payment_method: paymentMethod, payment_status: "paid", paid_at: new Date().toISOString(),
+          taxable_gross: taxableGross,
+          non_taxable_gross: round2(b.nonTaxableAdjustments),
+          manual_deductions: round2(b.manualDeductions),
+          earnings_breakdown: earningsBreakdown,
+          deduction_breakdown: deductionBreakdown,
+          commission_breakdown: commissionBreakdown,
+          adjustment_breakdown: b.adjustmentLines.map((a) => ({ id: a.id, type: a.adjustment_type, label: adjLabel(a.adjustment_type), description: a.description, amount: round2(a.amount), taxable: a.is_taxable })),
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
           commission_ids: b.commissionIds,
           status: "approved",
           payroll_number: `${runNumber}-${(profile?.agent_number || empId).slice(0, 6)}`,
-        })
+        } as any)
         .select("*").single();
       if (entryErr) { console.error("[process-payroll] insert entry failed:", entryErr.message); continue; }
 
@@ -680,7 +749,7 @@ Deno.serve(async (req) => {
         .eq("pay_period_start", periodStartStr);
 
       if (profile?.email) {
-        await enqueuePaystubEmail(profile.email, {
+        const emailResult = await enqueuePaystubEmail(profile.email, {
           agent_name: profile.full_name || profile.email,
           agent_number: profile.agent_number || "—",
           period_start: pStart.toISOString().slice(0, 10),
@@ -706,6 +775,16 @@ Deno.serve(async (req) => {
           paystub_url: uploadedPdf?.signedUrl,
           portal_url: "https://nivra-telecom.ca/field/profile",
         }, pdf, entry.id);
+        await supabase.from("payroll_entries").update({
+          email_status: emailResult.ok ? "sent" : "failed",
+          emailed_at: emailResult.ok ? new Date().toISOString() : null,
+          email_last_error: emailResult.error ?? null,
+        } as any).eq("id", entry.id);
+      } else {
+        await supabase.from("payroll_entries").update({
+          email_status: "failed",
+          email_last_error: "Aucun courriel employé.",
+        } as any).eq("id", entry.id);
       }
       await notifyPayrollReady(
         empId,
