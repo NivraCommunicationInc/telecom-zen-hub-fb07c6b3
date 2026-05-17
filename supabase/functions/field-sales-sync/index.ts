@@ -395,6 +395,20 @@ Deno.serve(async (req) => {
         if (existingAccount) {
           accountId = existingAccount.id;
           console.log(`[field-sales-sync] Found existing account ${accountId} for client ${clientUserId}`);
+
+          // Always keep profile.account_number in sync with the active account
+          const { data: acctRow } = await supabaseAdmin
+            .from("accounts")
+            .select("account_number")
+            .eq("id", accountId)
+            .maybeSingle();
+          if (acctRow?.account_number) {
+            await supabaseAdmin
+              .from("profiles")
+              .update({ account_number: String(acctRow.account_number) })
+              .eq("user_id", clientUserId!)
+              .neq("account_number", String(acctRow.account_number));
+          }
         } else {
           // 2) Create new account with generated account_number
           const { data: acctNum, error: acctNumErr } = await supabaseAdmin.rpc("generate_account_number");
@@ -877,6 +891,47 @@ Deno.serve(async (req) => {
 
         if (!invoiceId) {
           throw new Error("Billing invoice creation failed: invoice id missing");
+        }
+
+        // ═══ ENSURE A RECURRING SUBSCRIPTION EXISTS (pending) ═══
+        // Activation trigger will flip it to active once the order reaches
+        // delivered/activated/completed. Without this row, no monthly billing.
+        try {
+          if (monthlyTotal > 0) {
+            const { data: existingSubRow } = await supabaseAdmin
+              .from("billing_subscriptions")
+              .select("id")
+              .eq("order_id", canonicalOrder.id)
+              .maybeSingle();
+
+            if (!existingSubRow) {
+              const todayISO = new Date().toISOString().split("T")[0];
+              const nextRenewalISO = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+              const primaryRecurring = lineItems.find((li) => li.period === "monthly");
+              const { error: subInsErr } = await supabaseAdmin
+                .from("billing_subscriptions")
+                .insert({
+                  customer_id: billingCustomerId,
+                  order_id: canonicalOrder.id,
+                  plan_code: primaryRecurring?.type || services?.[0]?.category || "service",
+                  plan_name: primaryRecurring?.name || services?.[0]?.name || "Service",
+                  plan_price: primaryRecurring?.unit_price ?? monthlyTotal,
+                  status: "pending",
+                  cycle_start_date: todayISO,
+                  cycle_end_date: nextRenewalISO,
+                  auto_billing_enabled: false,
+                  environment: "production",
+                  source_type: "field_sales",
+                });
+              if (subInsErr) {
+                console.error("[field-sales-sync] subscription pre-create failed:", subInsErr.message);
+              } else {
+                console.log(`[field-sales-sync] Pending subscription created for order ${canonicalOrder.order_number}`);
+              }
+            }
+          }
+        } catch (subErr: any) {
+          console.error("[field-sales-sync] subscription creation error:", subErr?.message || subErr);
         }
 
         const { error: updateError } = await supabaseAdmin
