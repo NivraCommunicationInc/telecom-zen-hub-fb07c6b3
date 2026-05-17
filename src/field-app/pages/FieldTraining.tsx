@@ -1,5 +1,9 @@
-import { Navigate } from "react-router-dom";
+import HubTraining from "@/components/hub/sections/HubTraining";
 
 export default function FieldTraining() {
-  return <Navigate to="/field/hub?section=formation" replace />;
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-6xl">
+      <HubTraining />
+    </div>
+  );
 }
