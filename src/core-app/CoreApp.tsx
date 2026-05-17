@@ -81,6 +81,7 @@ const HrDashboardPage = lazy(() => import("./pages/hr/HrDashboardPage"));
 const HrEmployeesPage = lazy(() => import("./pages/hr/HrEmployeesPage"));
 const HrOnboardingPage = lazy(() => import("./pages/hr/HrOnboardingPage"));
 const HrPayrollPage = lazy(() => import("./pages/hr/HrPayrollPage"));
+const HrPayrollRunsPage = lazy(() => import("./pages/hr/HrPayrollRunsPage"));
 const HrCommissionsPage = lazy(() => import("./pages/hr/HrCommissionsPage"));
 const HrTimePage = lazy(() => import("./pages/hr/HrTimePage"));
 const HrCreateEmployeePage = lazy(() => import("./pages/hr/HrCreateEmployeePage"));
@@ -215,6 +216,7 @@ const CoreApp = () => {
                 <Route path="hr/employees/:id" element={<S><CoreEmployee360 /></S>} />
                 <Route path="hr/onboarding" element={<S><HrOnboardingPage /></S>} />
                 <Route path="hr/payroll" element={<S><HrPayrollPage /></S>} />
+                <Route path="hr/payroll-runs" element={<S><HrPayrollRunsPage /></S>} />
                 <Route path="hr/commissions" element={<S><HrCommissionsPage /></S>} />
                 <Route path="hr/time" element={<S><HrTimePage /></S>} />
                 <Route path="hr/schedules" element={<S><HrSchedulesPage /></S>} />

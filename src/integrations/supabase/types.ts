@@ -6135,6 +6135,45 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_payroll_settings: {
+        Row: {
+          created_at: string
+          disability_insurance_rate: number
+          employee_id: string
+          federal_claim_amount: number
+          id: string
+          is_active: boolean
+          payment_details: Json | null
+          payment_method: string
+          quebec_claim_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          disability_insurance_rate?: number
+          employee_id: string
+          federal_claim_amount?: number
+          id?: string
+          is_active?: boolean
+          payment_details?: Json | null
+          payment_method?: string
+          quebec_claim_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          disability_insurance_rate?: number
+          employee_id?: string
+          federal_claim_amount?: number
+          id?: string
+          is_active?: boolean
+          payment_details?: Json | null
+          payment_method?: string
+          quebec_claim_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employee_pin_attempts: {
         Row: {
           account_id: string
@@ -14176,13 +14215,21 @@ export type Database = {
       payroll_entries: {
         Row: {
           acknowledged_at: string | null
+          ae: number | null
+          agent_number: string | null
           approved_at: string | null
           approved_by: string | null
           base_salary: number
+          bonus_amount: number | null
           bonus_total: number
+          commission_gross: number | null
+          commission_ids: string[] | null
           commission_total: number
           created_at: string
           deductions_total: number
+          disability_insurance: number | null
+          employee_id: string | null
+          federal_tax: number | null
           gross_pay: number
           hours_worked: number
           id: string
@@ -14190,22 +14237,48 @@ export type Database = {
           notes: string | null
           overtime_hours: number
           paid_at: string | null
-          pay_period_id: string
+          pay_period_id: string | null
+          payment_date: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string | null
           payroll_number: string | null
+          paystub_pdf_url: string | null
           pdf_url: string | null
+          quebec_tax: number | null
+          rqap: number | null
+          rrq: number | null
+          run_id: string | null
           status: string
+          total_gross: number | null
           updated_at: string
           user_id: string
+          ytd_ae: number | null
+          ytd_disability: number | null
+          ytd_federal_tax: number | null
+          ytd_gross: number | null
+          ytd_net: number | null
+          ytd_quebec_tax: number | null
+          ytd_rqap: number | null
+          ytd_rrq: number | null
         }
         Insert: {
           acknowledged_at?: string | null
+          ae?: number | null
+          agent_number?: string | null
           approved_at?: string | null
           approved_by?: string | null
           base_salary?: number
+          bonus_amount?: number | null
           bonus_total?: number
+          commission_gross?: number | null
+          commission_ids?: string[] | null
           commission_total?: number
           created_at?: string
           deductions_total?: number
+          disability_insurance?: number | null
+          employee_id?: string | null
+          federal_tax?: number | null
           gross_pay?: number
           hours_worked?: number
           id?: string
@@ -14213,22 +14286,48 @@ export type Database = {
           notes?: string | null
           overtime_hours?: number
           paid_at?: string | null
-          pay_period_id: string
+          pay_period_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
           payroll_number?: string | null
+          paystub_pdf_url?: string | null
           pdf_url?: string | null
+          quebec_tax?: number | null
+          rqap?: number | null
+          rrq?: number | null
+          run_id?: string | null
           status?: string
+          total_gross?: number | null
           updated_at?: string
           user_id: string
+          ytd_ae?: number | null
+          ytd_disability?: number | null
+          ytd_federal_tax?: number | null
+          ytd_gross?: number | null
+          ytd_net?: number | null
+          ytd_quebec_tax?: number | null
+          ytd_rqap?: number | null
+          ytd_rrq?: number | null
         }
         Update: {
           acknowledged_at?: string | null
+          ae?: number | null
+          agent_number?: string | null
           approved_at?: string | null
           approved_by?: string | null
           base_salary?: number
+          bonus_amount?: number | null
           bonus_total?: number
+          commission_gross?: number | null
+          commission_ids?: string[] | null
           commission_total?: number
           created_at?: string
           deductions_total?: number
+          disability_insurance?: number | null
+          employee_id?: string | null
+          federal_tax?: number | null
           gross_pay?: number
           hours_worked?: number
           id?: string
@@ -14236,12 +14335,30 @@ export type Database = {
           notes?: string | null
           overtime_hours?: number
           paid_at?: string | null
-          pay_period_id?: string
+          pay_period_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
           payroll_number?: string | null
+          paystub_pdf_url?: string | null
           pdf_url?: string | null
+          quebec_tax?: number | null
+          rqap?: number | null
+          rrq?: number | null
+          run_id?: string | null
           status?: string
+          total_gross?: number | null
           updated_at?: string
           user_id?: string
+          ytd_ae?: number | null
+          ytd_disability?: number | null
+          ytd_federal_tax?: number | null
+          ytd_gross?: number | null
+          ytd_net?: number | null
+          ytd_quebec_tax?: number | null
+          ytd_rqap?: number | null
+          ytd_rrq?: number | null
         }
         Relationships: [
           {
@@ -14249,6 +14366,13 @@ export type Database = {
             columns: ["pay_period_id"]
             isOneToOne: false
             referencedRelation: "pay_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_entries_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -14295,6 +14419,66 @@ export type Database = {
           period_start?: string
           status?: string
           total_amount?: number
+        }
+        Relationships: []
+      }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          cutoff_date: string
+          employee_count: number
+          id: string
+          is_last_friday_of_month: boolean
+          notes: string | null
+          pay_date: string
+          period_end: string
+          period_start: string
+          processed_at: string | null
+          processed_by: string | null
+          run_number: string
+          status: string
+          total_bonus: number
+          total_deductions: number
+          total_gross: number
+          total_net: number
+        }
+        Insert: {
+          created_at?: string
+          cutoff_date: string
+          employee_count?: number
+          id?: string
+          is_last_friday_of_month?: boolean
+          notes?: string | null
+          pay_date: string
+          period_end: string
+          period_start: string
+          processed_at?: string | null
+          processed_by?: string | null
+          run_number: string
+          status?: string
+          total_bonus?: number
+          total_deductions?: number
+          total_gross?: number
+          total_net?: number
+        }
+        Update: {
+          created_at?: string
+          cutoff_date?: string
+          employee_count?: number
+          id?: string
+          is_last_friday_of_month?: boolean
+          notes?: string | null
+          pay_date?: string
+          period_end?: string
+          period_start?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          run_number?: string
+          status?: string
+          total_bonus?: number
+          total_deductions?: number
+          total_gross?: number
+          total_net?: number
         }
         Relationships: []
       }
@@ -19207,6 +19391,66 @@ export type Database = {
           status_type?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tax_brackets_federal: {
+        Row: {
+          constant: number
+          created_at: string
+          id: string
+          max_income: number | null
+          min_income: number
+          rate: number
+          year: number
+        }
+        Insert: {
+          constant?: number
+          created_at?: string
+          id?: string
+          max_income?: number | null
+          min_income: number
+          rate: number
+          year?: number
+        }
+        Update: {
+          constant?: number
+          created_at?: string
+          id?: string
+          max_income?: number | null
+          min_income?: number
+          rate?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      tax_brackets_quebec: {
+        Row: {
+          constant: number
+          created_at: string
+          id: string
+          max_income: number | null
+          min_income: number
+          rate: number
+          year: number
+        }
+        Insert: {
+          constant?: number
+          created_at?: string
+          id?: string
+          max_income?: number | null
+          min_income: number
+          rate: number
+          year?: number
+        }
+        Update: {
+          constant?: number
+          created_at?: string
+          id?: string
+          max_income?: number | null
+          min_income?: number
+          rate?: number
+          year?: number
         }
         Relationships: []
       }

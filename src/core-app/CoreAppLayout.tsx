@@ -198,6 +198,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Users, label: "Employés", href: "/hr/employees" },
       { icon: UserPlus, label: "Onboarding", href: "/hr/onboarding" },
       { icon: DollarSign, label: "Paie", href: "/hr/payroll" },
+      { icon: DollarSign, label: "Paie hebdo (vendredis)", href: "/hr/payroll-runs" },
       { icon: Tag, label: "Commissions", href: "/hr/commissions" },
       { icon: Activity, label: "Temps & Punch", href: "/hr/time" },
       { icon: Calendar, label: "Horaires", href: "/hr/schedules" },
