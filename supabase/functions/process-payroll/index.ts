@@ -120,8 +120,12 @@ async function calculateDeductions(
 
   const federalAnnual = Math.max(0, bracketTax(annualGross, fedBrackets, settings.federal_claim_amount));
   const quebecAnnual = Math.max(0, bracketTax(annualGross, qcBrackets, settings.quebec_claim_amount));
-  const federal_tax = federalAnnual / PAY_PERIODS_WEEKLY;
-  const quebec_tax = quebecAnnual / PAY_PERIODS_WEEKLY;
+  // Weekly commission payroll can otherwise show $0 source tax for small
+  // periods because annual credits wipe out the first bracket. Nivra needs an
+  // explicit withholding line on every taxable paid stub, so we keep the
+  // bracket result and apply a conservative source-withholding floor.
+  const federal_tax = grossPay > 0 ? Math.max(federalAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
+  const quebec_tax = grossPay > 0 ? Math.max(quebecAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
 
   const rrqAnnual = Math.min(
     Math.max(0, annualGross - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
@@ -186,8 +190,8 @@ async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: stri
   return { path, signedUrl: data?.signedUrl ?? null };
 }
 
-async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>, pdf: Uint8Array, entryId: string) {
-  if (!toEmail) return;
+async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>, pdf: Uint8Array, entryId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!toEmail) return { ok: false, error: "Aucun courriel employé." };
   try {
     let binary = "";
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
@@ -211,8 +215,10 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     if (error) throw error;
     const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
     if (drainErr) console.error("[process-payroll] immediate email drain failed:", drainErr.message);
+    return { ok: true };
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
