@@ -224,6 +224,62 @@ Deno.serve(async (req) => {
       ? new Set(body.employee_ids.map((x: any) => String(x)))
       : null;
     const previewEmployeeId: string | null = body.preview_employee_id ? String(body.preview_employee_id) : null;
+    const resendEntryId: string | null = body.resend_email_for_entry_id ? String(body.resend_email_for_entry_id) : null;
+
+    // ─── Manual resend of paystub email for an existing payroll entry ───
+    if (resendEntryId) {
+      const { data: entry, error: eErr } = await supabase
+        .from("payroll_entries")
+        .select("*")
+        .eq("id", resendEntryId)
+        .maybeSingle();
+      if (eErr || !entry) {
+        return new Response(JSON.stringify({ error: "Talon introuvable." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: profile } = await supabase
+        .from("profiles").select("user_id, full_name, email, agent_number")
+        .eq("user_id", entry.employee_id).maybeSingle();
+      if (!profile?.email) {
+        return new Response(JSON.stringify({ error: "Cet employé n'a pas de courriel." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // Download existing PDF from storage
+      let pdfBytes: Uint8Array | null = null;
+      const path = entry.paystub_pdf_url || entry.pdf_url;
+      if (path) {
+        const cleanPath = String(path).includes("/documents/") ? String(path).split("/documents/").pop()! : String(path);
+        const { data: dl } = await supabase.storage.from("documents").download(cleanPath);
+        if (dl) pdfBytes = new Uint8Array(await dl.arrayBuffer());
+      }
+      if (!pdfBytes) {
+        return new Response(JSON.stringify({ error: "PDF du talon introuvable dans le stockage." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: signed } = await supabase.storage.from("documents").createSignedUrl(
+        String(path).includes("/documents/") ? String(path).split("/documents/").pop()! : String(path),
+        60 * 60 * 24 * 30,
+      );
+      await enqueuePaystubEmail(profile.email, {
+        agent_name: profile.full_name || profile.email,
+        agent_number: profile.agent_number || "—",
+        period_start: entry.created_at?.slice(0, 10),
+        period_end: entry.created_at?.slice(0, 10),
+        pay_date: entry.created_at?.slice(0, 10),
+        commission_gross: Number(entry.commission_gross || 0),
+        bonus_amount: Number(entry.bonus_amount || 0),
+        total_gross: Number(entry.total_gross || 0),
+        total_deductions: Number(entry.deductions_total || 0),
+        net_pay: Number(entry.net_pay || 0),
+        payment_method: entry.payment_method || "interac",
+        payroll_number: entry.payroll_number,
+        paystub_url: signed?.signedUrl,
+        portal_url: "https://nivra-telecom.ca/field/profile",
+        resent: true,
+      }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
+      return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const now = new Date();
     const cutoff = explicitCutoff ?? lastThursdayCutoffUTC(now);
