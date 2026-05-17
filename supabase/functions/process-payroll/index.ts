@@ -202,10 +202,12 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
     const content = btoa(binary);
     const eventKey = `paystub_notification_${entryId}`;
-    const rendered = renderPaystubEmail(vars);
+    const rendered = renderQueueTemplate("paystub_notification", vars);
+    if (!rendered) throw new Error("Template courriel système paystub_notification introuvable.");
     const direct = await enqueueEmail({
       to: toEmail,
       templateKey: "paystub_notification",
+      templateVars: vars,
       subject: rendered.subject,
       html: rendered.html,
       eventKey,
@@ -215,21 +217,6 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
       attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
     });
     if (!direct.success) throw new Error(direct.error || "Échec d'envoi courriel.");
-    await supabase.from("email_queue").upsert({
-      event_key: eventKey,
-      template_key: "paystub_notification",
-      to_email: toEmail,
-      template_vars: vars,
-      message_type: "paystub_notification",
-      entity_type: "payroll_entry",
-      entity_id: entryId,
-      attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
-      status: "sent",
-      attempts: 1,
-      last_error: null,
-      sent_at: new Date().toISOString(),
-      next_retry_at: new Date().toISOString(),
-    } as any, { onConflict: "event_key" });
     await supabase.functions.invoke("process-email-queue", { body: { drain_now: true } });
     return { ok: true };
   } catch (e) {
