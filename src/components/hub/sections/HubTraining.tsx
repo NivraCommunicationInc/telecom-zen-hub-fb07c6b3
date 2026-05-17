@@ -4,7 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, GraduationCap, PlayCircle, FileText, Award, CheckCircle2, X, BookOpen, Lock } from "lucide-react";
+import { Loader2, GraduationCap, PlayCircle, FileText, Award, CheckCircle2, X, BookOpen, Lock, Trophy, Medal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
