@@ -24,7 +24,9 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
 // ─────────── Constants 2026 ───────────
-const PAY_PERIODS_BIWEEKLY = 26;
+// Paie Nivra = cycle hebdomadaire du vendredi. Les retenues doivent donc être
+// annualisées sur 52 périodes, pas 26.
+const PAY_PERIODS_WEEKLY = 52;
 const FED_BPA_DEFAULT = 15705;
 const QC_BPA_DEFAULT = 17183;
 
@@ -85,17 +87,21 @@ async function getBrackets(table: string, year: number) {
 }
 
 function bracketTax(annualIncome: number, brackets: Awaited<ReturnType<typeof getBrackets>>, claimAmount: number): number {
-  const taxable = Math.max(0, annualIncome - claimAmount);
+  const taxable = Math.max(0, annualIncome);
   for (const b of brackets) {
     const max = b.max_income ?? Infinity;
     if (taxable > Number(b.min_income) && taxable <= max) {
-      return taxable * Number(b.rate) - Number(b.constant ?? 0);
+      const baseTax = taxable * Number(b.rate) - Number(b.constant ?? 0);
+      const creditRate = Number(brackets[0]?.rate || 0);
+      return baseTax - Math.max(0, claimAmount) * creditRate;
     }
   }
   // Above highest bracket — use last
   const last = brackets[brackets.length - 1];
   if (!last) return 0;
-  return taxable * Number(last.rate) - Number(last.constant ?? 0);
+  const baseTax = taxable * Number(last.rate) - Number(last.constant ?? 0);
+  const creditRate = Number(brackets[0]?.rate || 0);
+  return baseTax - Math.max(0, claimAmount) * creditRate;
 }
 
 interface DeductionSettings {
@@ -110,24 +116,24 @@ async function calculateDeductions(
   fedBrackets: Awaited<ReturnType<typeof getBrackets>>,
   qcBrackets: Awaited<ReturnType<typeof getBrackets>>,
 ) {
-  const annualGross = grossPay * PAY_PERIODS_BIWEEKLY;
+  const annualGross = grossPay * PAY_PERIODS_WEEKLY;
 
   const federalAnnual = Math.max(0, bracketTax(annualGross, fedBrackets, settings.federal_claim_amount));
   const quebecAnnual = Math.max(0, bracketTax(annualGross, qcBrackets, settings.quebec_claim_amount));
-  const federal_tax = federalAnnual / PAY_PERIODS_BIWEEKLY;
-  const quebec_tax = quebecAnnual / PAY_PERIODS_BIWEEKLY;
+  const federal_tax = federalAnnual / PAY_PERIODS_WEEKLY;
+  const quebec_tax = quebecAnnual / PAY_PERIODS_WEEKLY;
 
   const rrqAnnual = Math.min(
     Math.max(0, annualGross - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
     (RRQ_MAX_PENSIONABLE - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
   );
-  const rrq = rrqAnnual / PAY_PERIODS_BIWEEKLY;
+  const rrq = rrqAnnual / PAY_PERIODS_WEEKLY;
 
   const aeAnnual = Math.min(annualGross * AE_RATE, AE_MAX_INSURABLE * AE_RATE);
-  const ae = aeAnnual / PAY_PERIODS_BIWEEKLY;
+  const ae = aeAnnual / PAY_PERIODS_WEEKLY;
 
   const rqapAnnual = Math.min(annualGross * RQAP_RATE, RQAP_MAX_INSURABLE * RQAP_RATE);
-  const rqap = rqapAnnual / PAY_PERIODS_BIWEEKLY;
+  const rqap = rqapAnnual / PAY_PERIODS_WEEKLY;
 
   const disability = grossPay * (settings.disability_insurance_rate ?? DISABILITY_RATE_DEFAULT);
 
@@ -186,8 +192,9 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     let binary = "";
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
     const content = btoa(binary);
-    const { error } = await supabase.from("email_queue").insert({
-      event_key: `paystub_notification_${entryId}`,
+    const eventKey = `paystub_notification_${entryId}`;
+    const { error } = await supabase.from("email_queue").upsert({
+      event_key: eventKey,
       template_key: "paystub_notification",
       to_email: toEmail,
       template_vars: vars,
@@ -196,11 +203,28 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
       entity_id: entryId,
       attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
       status: "queued",
-    });
+      attempts: 0,
+      last_error: null,
+      sent_at: null,
+      next_retry_at: new Date().toISOString(),
+    }, { onConflict: "event_key" });
     if (error) throw error;
+    const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
+    if (drainErr) console.error("[process-payroll] immediate email drain failed:", drainErr.message);
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
   }
+}
+
+async function notifyPayrollReady(empId: string, amount: number, period: string, paystubUrl?: string | null) {
+  await supabase.from("employee_notifications").insert({
+    user_id: empId,
+    notification_type: "payroll",
+    title: "Talon de paie disponible",
+    message: `Votre paie ${period} est prête. Net à payer : ${round2(amount).toFixed(2)} $.`,
+    link_url: paystubUrl || "/rh/paie",
+    is_read: false,
+  });
 }
 
 Deno.serve(async (req) => {
@@ -266,9 +290,18 @@ Deno.serve(async (req) => {
         period_start: entry.created_at?.slice(0, 10),
         period_end: entry.created_at?.slice(0, 10),
         pay_date: entry.created_at?.slice(0, 10),
+        regular_hours_pay: Number(entry.base_salary || 0),
+        overtime_hours_pay: 0,
         commission_gross: Number(entry.commission_gross || 0),
         bonus_amount: Number(entry.bonus_amount || 0),
+        allocation_total: Math.max(0, Number(entry.total_gross || 0) - Number(entry.commission_gross || 0) - Number(entry.bonus_amount || 0) - Number(entry.base_salary || 0)),
         total_gross: Number(entry.total_gross || 0),
+        federal_tax: Number(entry.federal_tax || 0),
+        quebec_tax: Number(entry.quebec_tax || 0),
+        rrq: Number(entry.rrq || 0),
+        ae: Number(entry.ae || 0),
+        rqap: Number(entry.rqap || 0),
+        disability_insurance: Number(entry.disability_insurance || 0),
         total_deductions: Number(entry.deductions_total || 0),
         net_pay: Number(entry.net_pay || 0),
         payment_method: entry.payment_method || "interac",
@@ -277,6 +310,7 @@ Deno.serve(async (req) => {
         portal_url: "https://nivra-telecom.ca/field/profile",
         resent: true,
       }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
+      await notifyPayrollReady(entry.employee_id, Number(entry.net_pay || 0), "renvoyée", signed?.signedUrl ?? null);
       return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -298,10 +332,17 @@ Deno.serve(async (req) => {
     // 2. Approved commissions are payable immediately (for commission/hourly_commission types)
     const { data: approvedRaw, error: cmErr } = await supabase
       .from("field_commissions")
-      .select("id, agent_id, amount, commission_type, description, earned_at, order_id")
+      .select("id, agent_id, amount, commission_type, description, earned_at, order_id, paid_in_run_id, paid_in_entry_id")
       .eq("status", "approved");
     if (cmErr) throw cmErr;
-    const approved = (approvedRaw ?? []).filter((c: any) => !excludedCommissionIds.has(c.id));
+    const approvedIds = (approvedRaw ?? []).map((c: any) => c.id);
+    const { data: linkedRows } = approvedIds.length
+      ? await supabase.from("payroll_commission_links").select("commission_id").in("commission_id", approvedIds)
+      : { data: [] as any[] };
+    const alreadyLinked = new Set((linkedRows ?? []).map((r: any) => String(r.commission_id)));
+    const approved = (approvedRaw ?? []).filter((c: any) =>
+      !excludedCommissionIds.has(c.id) && !alreadyLinked.has(String(c.id)) && !c.paid_in_run_id && !c.paid_in_entry_id
+    );
 
     type CommLine = { id: string; amount: number; description: string | null; earned_at: string | null; order_id: string | null; commission_type: string | null };
     const commByAgent = new Map<string, { ids: string[]; gross: number; lines: CommLine[] }>();
@@ -347,6 +388,7 @@ Deno.serve(async (req) => {
       overtimePay: number;
       taxableAdjustments: number;
       nonTaxableAdjustments: number;
+      manualDeductions: number;
       adjustmentIds: string[];
       adjustmentLines: AdjLine[];
     };
@@ -361,10 +403,13 @@ Deno.serve(async (req) => {
       const overtimePay = isHourly && ts ? ts.ot * rate * 1.5 : 0;
       const c = isCommission ? (commByAgent.get(s.employee_id) || { ids: [], gross: 0, lines: [] }) : { ids: [], gross: 0, lines: [] as CommLine[] };
       const adj = adjByEmp.get(s.employee_id) || [];
-      const taxAdj = adj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
-      const ntAdj = adj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
+      const earningAdj = adj.filter((a) => !["deduction", "advance"].includes(a.adjustment_type));
+      const deductionAdj = adj.filter((a) => ["deduction", "advance"].includes(a.adjustment_type));
+      const taxAdj = earningAdj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
+      const ntAdj = earningAdj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
+      const manualDeductions = deductionAdj.reduce((sum, a) => sum + Math.abs(a.amount), 0);
 
-      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj;
+      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj + manualDeductions;
       if (totalSource === 0 && !previewEmployeeId) continue; // skip employees with nothing to pay
 
       bundle.set(s.employee_id, {
@@ -376,6 +421,7 @@ Deno.serve(async (req) => {
         overtimePay,
         taxableAdjustments: taxAdj,
         nonTaxableAdjustments: ntAdj,
+        manualDeductions,
         adjustmentIds: adj.map((a) => a.id),
         adjustmentLines: adj,
       });
@@ -402,7 +448,8 @@ Deno.serve(async (req) => {
       const taxableGross = round2(b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus);
       const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
       const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-      const netPay = round2(totalGrossAgent - ded.total_deductions);
+      const totalDeductions = round2(ded.total_deductions + b.manualDeductions);
+      const netPay = round2(totalGrossAgent - totalDeductions);
       const prevYtd = await fetchYtd(previewEmployeeId, year);
       const hRate = Number(b.settings.hourly_rate || 0);
       const hReg = (tsByEmp.get(previewEmployeeId)?.reg || 0);
@@ -437,10 +484,11 @@ Deno.serve(async (req) => {
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
         disability_insurance: ded.disability_insurance,
-        total_deductions: ded.total_deductions,
+        manual_deductions: round2(b.manualDeductions),
+        total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross: round2(prevYtd.ytd_gross + totalGrossAgent),
-        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + ded.total_deductions),
+        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + totalDeductions),
         ytd_net: round2(prevYtd.ytd_net + netPay),
       });
       // base64 encode
@@ -465,7 +513,8 @@ Deno.serve(async (req) => {
         const taxableGross = b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus;
         const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
         const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-        employees.push({ employee_id: empId, gross: totalGrossAgent, bonus: round2(bonus), ...ded, net_pay: round2(totalGrossAgent - ded.total_deductions) });
+        const totalDeductions = round2(ded.total_deductions + b.manualDeductions);
+        employees.push({ employee_id: empId, gross: totalGrossAgent, bonus: round2(bonus), manual_deductions: round2(b.manualDeductions), ...ded, total_deductions: totalDeductions, net_pay: round2(totalGrossAgent - totalDeductions) });
       }
       const totalGross = round2(employees.reduce((s, e: any) => s + Number(e.gross || 0), 0));
       const totalDed = round2(employees.reduce((s, e: any) => s + Number(e.total_deductions || 0), 0));
@@ -519,7 +568,8 @@ Deno.serve(async (req) => {
       const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
 
       const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-      const netPay = round2(totalGrossAgent - ded.total_deductions);
+      const totalDeductions = round2(ded.total_deductions + b.manualDeductions);
+      const netPay = round2(totalGrossAgent - totalDeductions);
       const prevYtd = await fetchYtd(empId, year);
 
       const ytd_gross = round2(prevYtd.ytd_gross + totalGrossAgent);
@@ -549,7 +599,7 @@ Deno.serve(async (req) => {
           federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
           rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
           disability_insurance: ded.disability_insurance,
-          deductions_total: ded.total_deductions,
+          deductions_total: totalDeductions,
           net_pay: netPay,
           payment_method: paymentMethod, payment_status: "paid", paid_at: new Date().toISOString(),
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
@@ -589,10 +639,11 @@ Deno.serve(async (req) => {
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
         disability_insurance: ded.disability_insurance,
-        total_deductions: ded.total_deductions,
+        manual_deductions: round2(b.manualDeductions),
+        total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross,
-        ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability),
+        ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability + b.manualDeductions),
         ytd_net,
       });
       const uploadedPdf = await uploadPaystubPdf(pdf, run.id, empId);
@@ -635,10 +686,20 @@ Deno.serve(async (req) => {
           period_start: pStart.toISOString().slice(0, 10),
           period_end: pEnd.toISOString().slice(0, 10),
           pay_date: payDate,
+          regular_hours_pay: round2(b.regularPay),
+          overtime_hours_pay: round2(b.overtimePay),
           commission_gross: round2(b.commissionGross),
           bonus_amount: round2(bonus),
+          allocation_total: round2(b.taxableAdjustments + b.nonTaxableAdjustments),
           total_gross: totalGrossAgent,
-          total_deductions: ded.total_deductions,
+          federal_tax: ded.federal_tax,
+          quebec_tax: ded.quebec_tax,
+          rrq: ded.rrq,
+          ae: ded.ae,
+          rqap: ded.rqap,
+          disability_insurance: ded.disability_insurance,
+          manual_deductions: round2(b.manualDeductions),
+          total_deductions: totalDeductions,
           net_pay: netPay,
           payment_method: paymentMethod,
           payroll_number: entry.payroll_number,
@@ -646,9 +707,15 @@ Deno.serve(async (req) => {
           portal_url: "https://nivra-telecom.ca/field/profile",
         }, pdf, entry.id);
       }
+      await notifyPayrollReady(
+        empId,
+        netPay,
+        `du ${pStart.toISOString().slice(0, 10)} au ${pEnd.toISOString().slice(0, 10)}`,
+        uploadedPdf?.signedUrl ?? null,
+      );
 
       totalGross += totalGrossAgent;
-      totalDed += ded.total_deductions;
+      totalDed += totalDeductions;
       totalNet += netPay;
       totalBonus += bonus;
     }

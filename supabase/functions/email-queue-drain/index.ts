@@ -76,18 +76,22 @@ Deno.serve(async (req) => {
 
   // Determine batch size from query string (manual drain can request larger)
   const url = new URL(req.url);
+  const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  const requestedEventKey = typeof body?.event_key === "string" ? body.event_key : url.searchParams.get("event_key");
   const batchSize = Math.min(
     parseInt(url.searchParams.get("limit") || "20", 10) || 20,
     MAX_BATCH,
   );
 
   // 1. Fetch eligible queued rows
-  const { data: rows, error: fetchErr } = await supabase
+  let q = supabase
     .from("email_queue")
     .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id, attachments")
     .in("status", ["queued", "failed"])
     .order("created_at", { ascending: true })
     .limit(batchSize);
+  if (requestedEventKey) q = q.eq("event_key", requestedEventKey);
+  const { data: rows, error: fetchErr } = await q;
 
   if (fetchErr) {
     console.error("[email-queue-drain] fetch error:", fetchErr.message);

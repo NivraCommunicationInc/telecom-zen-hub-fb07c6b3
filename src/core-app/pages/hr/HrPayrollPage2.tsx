@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  Calendar, DollarSign, Download, History, Loader2, Play, Plus, Settings, Trash2, Users,
+  Calendar, DollarSign, Download, History, Loader2, Mail, Play, Plus, Settings, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -509,7 +509,7 @@ export default function HrPayrollPage2() {
 
       {/* History dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-7xl">
           <DialogHeader><DialogTitle>Historique des paies</DialogTitle></DialogHeader>
           <div className="max-h-[60vh] overflow-auto">
             <Table>
@@ -537,7 +537,7 @@ export default function HrPayrollPage2() {
                     <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{r.status}</Badge></TableCell>
                     <TableCell className="flex gap-1">
                       <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}>Détails</Button>
-                      <Button size="sm" variant="ghost" title="Envoyer les talons par courriel à tous les employés de cette paie"
+                      <Button size="sm" variant="outline" title="Envoyer les talons par courriel à tous les employés de cette paie"
                         onClick={async () => {
                           const { data: entries } = await supabase.from("payroll_entries").select("id").eq("run_id", r.id);
                           if (!entries?.length) { toast.error("Aucun talon"); return; }
@@ -549,7 +549,7 @@ export default function HrPayrollPage2() {
                           }
                           toast.dismiss(t);
                           toast.success(`${sent} envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
-                        }}>📧 Tous</Button>
+                        }}><Mail className="h-4 w-4" /> Envoyer courriels</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -622,7 +622,7 @@ export default function HrPayrollPage2() {
                             if (error || data?.error) toast.error(error?.message || data?.error || "Erreur");
                             else toast.success(`Courriel envoyé à ${data?.to ?? "l'employé"}`);
                           }}>
-                          📧
+                          <Mail className="h-4 w-4" /> Courriel
                         </Button>
                       </div>
                     </TableCell>
