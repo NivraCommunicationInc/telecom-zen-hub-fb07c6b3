@@ -192,7 +192,8 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     let binary = "";
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
     const content = btoa(binary);
-    const { error } = await supabase.from("email_queue").insert({
+    const eventKey = `paystub_notification_${entryId}`;
+    const { error } = await supabase.from("email_queue").upsert({
       event_key: `paystub_notification_${entryId}`,
       template_key: "paystub_notification",
       to_email: toEmail,
@@ -202,11 +203,28 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
       entity_id: entryId,
       attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
       status: "queued",
-    });
+      attempts: 0,
+      last_error: null,
+      sent_at: null,
+      next_retry_at: new Date().toISOString(),
+    }, { onConflict: "event_key" });
     if (error) throw error;
+    const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
+    if (drainErr) console.error("[process-payroll] immediate email drain failed:", drainErr.message);
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
   }
+}
+
+async function notifyPayrollReady(empId: string, amount: number, period: string, paystubUrl?: string | null) {
+  await supabase.from("employee_notifications").insert({
+    user_id: empId,
+    notification_type: "payroll",
+    title: "Talon de paie disponible",
+    message: `Votre paie ${period} est prête. Net à payer : ${round2(amount).toFixed(2)} $.`,
+    link_url: paystubUrl || "/rh/paie",
+    is_read: false,
+  });
 }
 
 Deno.serve(async (req) => {
