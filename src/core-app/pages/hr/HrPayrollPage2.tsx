@@ -535,8 +535,21 @@ export default function HrPayrollPage2() {
                     <TableCell>{fmtMoney(r.total_gross)}</TableCell>
                     <TableCell className="font-semibold">{fmtMoney(r.total_net)}</TableCell>
                     <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{r.status}</Badge></TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}>Voir les détails</Button>
+                    <TableCell className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}>Détails</Button>
+                      <Button size="sm" variant="ghost" title="Envoyer les talons par courriel à tous les employés de cette paie"
+                        onClick={async () => {
+                          const { data: entries } = await supabase.from("payroll_entries").select("id").eq("run_id", r.id);
+                          if (!entries?.length) { toast.error("Aucun talon"); return; }
+                          const t = toast.loading(`Envoi de ${entries.length} courriel(s)...`);
+                          let sent = 0, failed = 0;
+                          for (const en of entries) {
+                            const { data, error } = await supabase.functions.invoke("process-payroll", { body: { resend_email_for_entry_id: en.id } });
+                            if (error || data?.error) failed++; else sent++;
+                          }
+                          toast.dismiss(t);
+                          toast.success(`${sent} envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
+                        }}>📧 Tous</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -588,11 +601,30 @@ export default function HrPayrollPage2() {
                     <TableCell className="text-xs capitalize">{e.payment_method ?? "—"}</TableCell>
                     <TableCell><Badge variant={e.payment_status === "paid" ? "default" : "secondary"}>{e.payment_status ?? e.status}</Badge></TableCell>
                     <TableCell>
-                      {e.paystub_pdf_url ? (
-                        <a href={e.paystub_pdf_url} target="_blank" rel="noreferrer">
-                          <Button size="sm" variant="ghost"><Download className="h-4 w-4" /></Button>
-                        </a>
-                      ) : "—"}
+                      <div className="flex items-center gap-1">
+                        {e.paystub_pdf_url ? (
+                          <Button size="sm" variant="ghost" title="Voir le talon"
+                            onClick={async () => {
+                              const p = String(e.paystub_pdf_url).includes("/documents/") ? String(e.paystub_pdf_url).split("/documents/").pop()! : String(e.paystub_pdf_url);
+                              const { data } = await supabase.storage.from("documents").createSignedUrl(p, 300);
+                              if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+                            }}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        <Button size="sm" variant="ghost" title="Renvoyer par courriel"
+                          onClick={async () => {
+                            const t = toast.loading("Envoi du courriel...");
+                            const { data, error } = await supabase.functions.invoke("process-payroll", {
+                              body: { resend_email_for_entry_id: e.id },
+                            });
+                            toast.dismiss(t);
+                            if (error || data?.error) toast.error(error?.message || data?.error || "Erreur");
+                            else toast.success(`Courriel envoyé à ${data?.to ?? "l'employé"}`);
+                          }}>
+                          📧
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
