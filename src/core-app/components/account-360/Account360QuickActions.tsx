@@ -32,7 +32,6 @@ interface Props {
 }
 
 export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", clientEmail, monthlyRevenue = 0, subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
-  const navigate = useNavigate();
   const { startImpersonation } = useImpersonation();
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
