@@ -60,6 +60,7 @@ const categoryConfig: Record<string, string> = {
 
 export default function CoreSupportPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   // Realtime: refresh ticket lists and conversations on any DB change
   usePortalRealtime(
     ["support_tickets", "ticket_replies"],
