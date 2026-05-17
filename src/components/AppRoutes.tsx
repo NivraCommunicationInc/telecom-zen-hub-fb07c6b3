@@ -58,6 +58,8 @@ const FieldDailyReport = lazy(() => import("@/field-app/pages/FieldDailyReport")
 const FieldNotifications = lazy(() => import("@/field-app/pages/FieldNotifications"));
 const FieldClientLookup = lazy(() => import("@/field-app/pages/FieldClientLookup"));
 const FieldResources = lazy(() => import("@/field-app/pages/FieldResources"));
+const FieldTraining = lazy(() => import("@/field-app/pages/FieldTraining"));
+const CoreTrainingPage = lazy(() => import("@/core-app/pages/CoreTrainingPage"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
