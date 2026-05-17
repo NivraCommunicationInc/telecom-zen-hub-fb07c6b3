@@ -970,6 +970,10 @@ function EmployeeCard({
               {previewingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Voir le talon
             </Button>
+            <Button size="sm" variant="outline" onClick={onEmailPaystub} disabled={!hasProcessedPaystub || emailingStub}>
+              {emailingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Envoyer courriel
+            </Button>
             <Button size="sm" variant="ghost" onClick={onEditSettings}><Settings className="h-4 w-4" /></Button>
           </div>
         </div>
