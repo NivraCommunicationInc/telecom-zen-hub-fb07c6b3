@@ -33,11 +33,23 @@ interface Props {
   totalDue: number;
   monthlyRevenue: number;
   unpaidCount: number;
+  subscriptions?: any[];
   onRefresh: () => void;
 }
 
-export function Account360Header({ account, profile, clientName, latestKyc, totalDue, monthlyRevenue, unpaidCount, onRefresh }: Props) {
+export function Account360Header({ account, profile, clientName, latestKyc, totalDue, monthlyRevenue, unpaidCount, subscriptions = [], onRefresh }: Props) {
   const acct = account;
+  // Fallback: derive cycle day from active subscription anchor when account column is empty.
+  let effectiveCycleDay: number | null = acct?.billing_cycle_day ?? null;
+  if (effectiveCycleDay == null) {
+    const sub = subscriptions.find((s: any) => s?.status === "active" && (s?.billing_cycle_anchor || s?.cycle_start_date))
+      || subscriptions.find((s: any) => s?.billing_cycle_anchor || s?.cycle_start_date);
+    const anchor = sub?.billing_cycle_anchor || sub?.cycle_start_date;
+    if (anchor) {
+      const d = new Date(anchor).getUTCDate();
+      if (Number.isFinite(d) && d > 0) effectiveCycleDay = d;
+    }
+  }
   const hasRisk = totalDue > 0 || acct.status === "suspended";
 
   return (
