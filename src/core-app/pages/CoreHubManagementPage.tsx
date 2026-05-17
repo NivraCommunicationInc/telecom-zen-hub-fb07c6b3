@@ -467,8 +467,14 @@ function PostForm({ section, existing, onClose }: { section: string; existing: a
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (requis)"
         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold" />
 
+      {isTraining && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 text-xs text-violet-900">
+          Une formation professionnelle doit contenir une leçon complète avant le quiz: contexte, étapes, exemples terrain, documents ou vidéo. Le quiz sert seulement à valider la compréhension.
+        </div>
+      )}
+
       <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Contenu (Markdown supporté)"
-        rows={8} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
+        rows={isTraining ? 12 : 8} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Catégorie"
@@ -550,6 +556,62 @@ function PostForm({ section, existing, onClose }: { section: string; existing: a
           </div>
         ))}
       </div>
+
+      {isTraining && (
+        <div className="rounded-xl border border-border p-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label className="block text-xs font-semibold">Quiz de validation</label>
+              <p className="text-[11px] text-muted-foreground">Ajoutez le quiz après le contenu de formation.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setQuiz([...quiz, { question: "", options: ["", "", "", ""], answer: 0 }])}
+              className="text-xs px-3 py-2 rounded-lg bg-violet-600 text-white font-semibold"
+            >
+              Ajouter une question
+            </button>
+          </div>
+          {quiz.map((q, qi) => (
+            <div key={qi} className="rounded-lg border border-border bg-background p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  value={q.question}
+                  onChange={(e) => setQuiz(quiz.map((item, i) => i === qi ? { ...item, question: e.target.value } : item))}
+                  placeholder={`Question ${qi + 1}`}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs"
+                />
+                <button type="button" onClick={() => setQuiz(quiz.filter((_, i) => i !== qi))} className="text-red-600 p-2">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {q.options.map((opt, oi) => (
+                  <label key={oi} className="flex items-center gap-2 text-xs">
+                    <input
+                      type="radio"
+                      name={`answer-${qi}`}
+                      checked={q.answer === oi}
+                      onChange={() => setQuiz(quiz.map((item, i) => i === qi ? { ...item, answer: oi } : item))}
+                    />
+                    <input
+                      value={opt}
+                      onChange={(e) => setQuiz(quiz.map((item, i) => {
+                        if (i !== qi) return item;
+                        const options = [...item.options];
+                        options[oi] = e.target.value;
+                        return { ...item, options };
+                      }))}
+                      placeholder={`Choix ${oi + 1}`}
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-xl border border-border p-3 space-y-2">
         <label className="block text-xs font-semibold">Audience cible</label>
