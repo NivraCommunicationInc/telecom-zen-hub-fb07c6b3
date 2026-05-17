@@ -46,6 +46,7 @@ export interface PaystubData {
   // Optional detail lists (when present, rendered as line items)
   commission_lines?: PaystubLineItem[];
   adjustment_lines?: PaystubLineItem[];
+  manual_deduction_lines?: PaystubLineItem[];
 
   // Deductions
   federal_tax: number;
@@ -187,7 +188,7 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   }
 
   // Adjustments — show per-line
-  if ((data.allocation_total ?? 0) !== 0) {
+  if ((data.allocation_total ?? 0) !== 0 || (data.adjustment_lines && data.adjustment_lines.length > 0)) {
     if (data.adjustment_lines && data.adjustment_lines.length > 0) {
       y = drawSubheader(doc, `Allocations & ajustements (${data.adjustment_lines.length})`, y);
       for (const line of data.adjustment_lines) {
@@ -195,7 +196,7 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
         const sign = line.amount < 0 ? "- " : "";
         y = drawDetailedRow(doc, `  • ${line.label}`, line.detail ?? null, `${sign}${fmtCAD(Math.abs(line.amount))}`, y, true);
       }
-      y = drawSubtotalRow(doc, "Sous-total allocations", fmtCAD(data.allocation_total!), y);
+      y = drawSubtotalRow(doc, "Sous-total allocations / suppléments", fmtCAD(data.allocation_total ?? 0), y);
     } else {
       y = drawDetailedRow(doc, "Allocations / ajustements", null, fmtCAD(data.allocation_total!), y);
     }
@@ -213,8 +214,17 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   y = drawRow(doc, "Assurance-emploi (AE)", `- ${fmtCAD(data.ae)}`, y);
   y = drawRow(doc, "RQAP (Assurance parentale)", `- ${fmtCAD(data.rqap)}`, y);
   y = drawRow(doc, "Assurance invalidité", `- ${fmtCAD(data.disability_insurance)}`, y);
+  if (data.manual_deduction_lines && data.manual_deduction_lines.length > 0) {
+    y = drawSubheader(doc, `Déductions manuelles (${data.manual_deduction_lines.length})`, y);
+    for (const line of data.manual_deduction_lines) {
+      y = ensurePage(doc, y, 6);
+      y = drawDetailedRow(doc, `  • ${line.label}`, line.detail ?? null, `- ${fmtCAD(Math.abs(line.amount))}`, y, true);
+    }
+  }
   if ((data.manual_deductions ?? 0) > 0) {
-    y = drawRow(doc, "Avances / déductions manuelles", `- ${fmtCAD(data.manual_deductions!)}`, y);
+    if (!data.manual_deduction_lines || data.manual_deduction_lines.length === 0) {
+      y = drawRow(doc, "Avances / déductions manuelles", `- ${fmtCAD(data.manual_deductions!)}`, y);
+    }
   }
   y = drawTotalRow(doc, "TOTAL DÉDUCTIONS", `- ${fmtCAD(data.total_deductions)}`, y, [180, 50, 50]);
   y += 6;
