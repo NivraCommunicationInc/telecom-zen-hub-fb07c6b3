@@ -10,6 +10,17 @@ const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 // Keep this stable across deployments; different from the default client storage key.
 const PORTAL_STORAGE_KEY = `sb-${PROJECT_ID}-portal-auth-token`;
 
+const readAccessToken = (storageKey: string): string | null => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.access_token || parsed?.currentSession?.access_token || null;
+  } catch {
+    return null;
+  }
+};
+
 export const portalClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
   auth: {
     storageKey: PORTAL_STORAGE_KEY,
@@ -37,11 +48,9 @@ export const portalClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
           if (stillValid && !isEdgeFunctionRequest) {
             const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
             const adminStorageKey = `sb-${projectId}-staff-auth-token`;
-            const adminRaw = localStorage.getItem(adminStorageKey);
-            const adminSession = adminRaw ? JSON.parse(adminRaw) : null;
-            const adminAccessToken = adminSession?.access_token;
+            const adminAccessToken = readAccessToken(adminStorageKey);
 
-            if (adminAccessToken && !headers.has("Authorization")) {
+            if (adminAccessToken) {
               headers.set("Authorization", `Bearer ${adminAccessToken}`);
             }
           }
