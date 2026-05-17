@@ -1108,6 +1108,7 @@ function EmployeeCard({
         <div className="rounded-md border bg-muted/30 p-3 space-y-1 text-sm">
           <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Déductions estimées (calcul exact au traitement)</div>
           <div className="flex justify-between"><span>Total brut</span><span className="font-semibold">{fmtMoney(summary.gross)}</span></div>
+          {summary.manualDed > 0 ? <div className="flex justify-between text-destructive"><span>Avances / déductions manuelles</span><span>-{fmtMoney(summary.manualDed)}</span></div> : null}
           <div className="flex justify-between text-destructive"><span>Déductions estimées (~)</span><span>-{fmtMoney(summary.ded)}</span></div>
         </div>
 
