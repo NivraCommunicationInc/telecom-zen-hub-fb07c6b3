@@ -34,7 +34,6 @@ export function ReactivateAccountDialog({ accountId, customerId, accountStatus, 
       const nowIso = new Date().toISOString();
       const { error } = await supabase.from("accounts").update({
         status: "active",
-        reactivated_at: nowIso,
         cancelled_at: null,
         cancellation_reason: null,
         updated_at: nowIso,
