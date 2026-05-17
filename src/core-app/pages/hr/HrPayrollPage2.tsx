@@ -236,6 +236,22 @@ export default function HrPayrollPage2() {
     },
   });
 
+  const { data: latestPaystubs } = useQuery({
+    queryKey: ["hr-payroll2-latest-paystubs", employees?.map((e) => e.employee_id).join(",")],
+    enabled: !!employees?.length,
+    queryFn: async () => {
+      const ids = (employees ?? []).map((e) => e.employee_id);
+      const { data } = await supabase
+        .from("payroll_entries")
+        .select("id, employee_id, payroll_number, paystub_pdf_url, pdf_url, created_at, total_gross, commission_gross, deductions_total, net_pay")
+        .in("employee_id", ids)
+        .order("created_at", { ascending: false });
+      const byEmp = new Map<string, any>();
+      for (const row of data ?? []) if (!byEmp.has((row as any).employee_id)) byEmp.set((row as any).employee_id, row);
+      return byEmp;
+    },
+  });
+
   // Filter by tab
   const filteredEmployees = useMemo(() => {
     const group = ROLE_GROUPS.find((g) => g.key === tab) ?? ROLE_GROUPS[0];
@@ -364,6 +380,18 @@ export default function HrPayrollPage2() {
     onError: (e: any) => { setPreviewingStub(null); toast.error(e.message || "Erreur"); },
   });
 
+  async function openPaystubOrPreview(empId: string) {
+    const existing = latestPaystubs?.get(empId);
+    const pdfPath = existing?.paystub_pdf_url || existing?.pdf_url;
+    if (pdfPath) {
+      const path = String(pdfPath).includes("/documents/") ? String(pdfPath).split("/documents/").pop()! : String(pdfPath);
+      const directUrl = String(pdfPath).startsWith("http") && !String(pdfPath).includes("/documents/") ? String(pdfPath) : null;
+      const { data } = directUrl ? { data: { signedUrl: directUrl } } : await supabase.storage.from("documents").createSignedUrl(path, 300);
+      if (data?.signedUrl) { window.open(data.signedUrl, "_blank", "noopener,noreferrer"); return; }
+    }
+    stubPreviewMutation.mutate(empId);
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* SECTION 1 — Header */}
@@ -455,8 +483,9 @@ export default function HrPayrollPage2() {
                 onAdjustmentDeleted={() => qc.invalidateQueries({ queryKey: ["hr-payroll2-adjustments"] })}
                 selected={selectedEmps.has(emp.employee_id)}
                 onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
-                onPreviewStub={() => stubPreviewMutation.mutate(emp.employee_id)}
+                onPreviewStub={() => openPaystubOrPreview(emp.employee_id)}
                 previewingStub={previewingStub === emp.employee_id}
+                latestPaystub={latestPaystubs?.get(emp.employee_id)}
                 bonus={bonusOverrides.get(emp.employee_id) || 0}
                 onBonusChange={(v) => setBonusFor(emp.employee_id, v)}
               />
