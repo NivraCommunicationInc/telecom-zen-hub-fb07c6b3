@@ -14509,6 +14509,205 @@ export type Database = {
           },
         ]
       }
+      payroll_payment_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          payment_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          id?: string
+          payment_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payments: {
+        Row: {
+          approval_threshold_amount: number | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          attachments: Json
+          bank_reference: string | null
+          bounced_date: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          client_visible_notes: string | null
+          confirmation_number: string | null
+          confirmed_by: string | null
+          confirmed_by_name: string | null
+          confirmed_date: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          deductions_total: number
+          email_bounced_at: string | null
+          email_opened_at: string | null
+          email_sent_at: string | null
+          employee_email: string | null
+          employee_name: string | null
+          employee_number: string | null
+          employee_user_id: string
+          failure_code: string | null
+          failure_reason: string | null
+          gross_amount: number
+          id: string
+          internal_notes: string | null
+          net_amount: number
+          payment_method: string
+          payment_number: string | null
+          payment_status: string
+          payroll_entry_id: string | null
+          pdf_avis_url: string | null
+          pdf_paystub_url: string | null
+          recipient_account_last4: string | null
+          recipient_bank_name: string | null
+          requires_approval: boolean
+          retry_count: number
+          scheduled_date: string | null
+          sent_by: string | null
+          sent_by_name: string | null
+          sent_date: string | null
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_threshold_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          attachments?: Json
+          bank_reference?: string | null
+          bounced_date?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_visible_notes?: string | null
+          confirmation_number?: string | null
+          confirmed_by?: string | null
+          confirmed_by_name?: string | null
+          confirmed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          deductions_total?: number
+          email_bounced_at?: string | null
+          email_opened_at?: string | null
+          email_sent_at?: string | null
+          employee_email?: string | null
+          employee_name?: string | null
+          employee_number?: string | null
+          employee_user_id: string
+          failure_code?: string | null
+          failure_reason?: string | null
+          gross_amount?: number
+          id?: string
+          internal_notes?: string | null
+          net_amount?: number
+          payment_method?: string
+          payment_number?: string | null
+          payment_status?: string
+          payroll_entry_id?: string | null
+          pdf_avis_url?: string | null
+          pdf_paystub_url?: string | null
+          recipient_account_last4?: string | null
+          recipient_bank_name?: string | null
+          requires_approval?: boolean
+          retry_count?: number
+          scheduled_date?: string | null
+          sent_by?: string | null
+          sent_by_name?: string | null
+          sent_date?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_threshold_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          attachments?: Json
+          bank_reference?: string | null
+          bounced_date?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_visible_notes?: string | null
+          confirmation_number?: string | null
+          confirmed_by?: string | null
+          confirmed_by_name?: string | null
+          confirmed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          deductions_total?: number
+          email_bounced_at?: string | null
+          email_opened_at?: string | null
+          email_sent_at?: string | null
+          employee_email?: string | null
+          employee_name?: string | null
+          employee_number?: string | null
+          employee_user_id?: string
+          failure_code?: string | null
+          failure_reason?: string | null
+          gross_amount?: number
+          id?: string
+          internal_notes?: string | null
+          net_amount?: number
+          payment_method?: string
+          payment_number?: string | null
+          payment_status?: string
+          payroll_entry_id?: string | null
+          pdf_avis_url?: string | null
+          pdf_paystub_url?: string | null
+          recipient_account_last4?: string | null
+          recipient_bank_name?: string | null
+          requires_approval?: boolean
+          retry_count?: number
+          scheduled_date?: string | null
+          sent_by?: string | null
+          sent_by_name?: string | null
+          sent_date?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payments_payroll_entry_id_fkey"
+            columns: ["payroll_entry_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_records: {
         Row: {
           agent_id: string

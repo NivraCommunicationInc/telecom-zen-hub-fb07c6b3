@@ -29,6 +29,7 @@ const navGroups = [
     label: "Rémunération",
     items: [
       { label: "Fiches de paie", href: `${HR_BASE}/paie`, icon: Receipt },
+      { label: "Mes paiements", href: `${HR_BASE}/paiements`, icon: DollarSign },
       { label: "Commissions", href: `${HR_BASE}/commissions`, icon: DollarSign },
       { label: "Objectifs", href: `${HR_BASE}/objectifs`, icon: Target },
     ],

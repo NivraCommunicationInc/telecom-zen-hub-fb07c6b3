@@ -25,6 +25,7 @@ const MarketingAppLayout = lazy(() => import("@/marketing-app/MarketingAppLayout
 const MarketingProtectedRoute = lazy(() => import("@/marketing-app/components/MarketingProtectedRoute"));
 const HrDashboard = lazy(() => import("@/hr-app/pages/HrDashboard"));
 const HrPayslips = lazy(() => import("@/hr-app/pages/HrPayslips"));
+const HrPayments = lazy(() => import("@/hr-app/pages/HrPayments"));
 const HrTaxDocuments = lazy(() => import("@/hr-app/pages/HrTaxDocuments"));
 const HrEmploymentLetters = lazy(() => import("@/hr-app/pages/HrEmploymentLetters"));
 const HrSchedule = lazy(() => import("@/hr-app/pages/HrSchedule"));
@@ -1021,6 +1022,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><HrDashboard /></Suspense>} />
           <Route path="paie" element={<Suspense fallback={null}><HrPayslips /></Suspense>} />
+          <Route path="paiements" element={<Suspense fallback={null}><HrPayments /></Suspense>} />
           <Route path="documents-fiscaux" element={<Suspense fallback={null}><HrTaxDocuments /></Suspense>} />
           <Route path="lettres" element={<Suspense fallback={null}><HrEmploymentLetters /></Suspense>} />
           <Route path="horaire" element={<Suspense fallback={null}><HrSchedule /></Suspense>} />
