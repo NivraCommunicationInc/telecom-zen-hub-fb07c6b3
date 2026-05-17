@@ -155,6 +155,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Headphones,
     items: [
       { icon: Ticket, label: "Customer Tickets", href: "/support" },
+      { icon: MessageCircle, label: "Live Chat", href: "/support/live-chat" },
       { icon: MessageSquare, label: "Internal Tickets", href: "/internal-tickets" },
       { icon: Mail, label: "Web Forms", href: "/web-forms" },
       { icon: Headphones, label: "Telephony", href: "/telephony" },
@@ -169,7 +170,6 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: MessageSquare, label: "Conversations IA", href: "/marketing/conversations" },
       { icon: Zap, label: "Agent IA Config", href: "/marketing/ai-config" },
       { icon: Send, label: "Campagnes SMS", href: "/marketing/sms-campaigns" },
-      { icon: MessageCircle, label: "Live Chat", href: "/marketing/live-chat" },
       { icon: Mail, label: "Campagnes Email", href: "/marketing/email-campaigns" },
       { icon: Settings, label: "Paramètres Marketing", href: "/marketing/settings" },
       { icon: Tag, label: "Promotions", href: "/promotions" },
