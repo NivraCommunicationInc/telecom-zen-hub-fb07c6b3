@@ -250,6 +250,7 @@ const CoreAccountDetail = () => {
           unpaidCount={unpaidInvoices.length}
           accountId={accountId}
           clientId={data.clientId}
+          subscriptions={data.subscriptions}
           onRefresh={data.refetch}
         />
       </div>
