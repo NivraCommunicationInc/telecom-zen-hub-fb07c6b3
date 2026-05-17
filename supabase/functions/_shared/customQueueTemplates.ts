@@ -2753,9 +2753,18 @@ export function renderQueueTemplate(
       const periodStart = fmtDate(v.period_start);
       const periodEnd = fmtDate(v.period_end);
       const payDate = fmtDate(v.pay_date);
+      const regularPay = formatMoney(v.regular_hours_pay);
+      const overtimePay = formatMoney(v.overtime_hours_pay);
       const commissionGross = formatMoney(v.commission_gross);
       const bonusAmount = formatMoney(v.bonus_amount);
+      const allocationTotal = formatMoney(v.allocation_total);
       const totalGross = formatMoney(v.total_gross);
+      const federalTax = formatMoney(v.federal_tax);
+      const quebecTax = formatMoney(v.quebec_tax);
+      const rrq = formatMoney(v.rrq);
+      const ae = formatMoney(v.ae);
+      const rqap = formatMoney(v.rqap);
+      const disability = formatMoney(v.disability_insurance);
       const totalDeductions = formatMoney(v.total_deductions);
       const netPay = formatMoney(v.net_pay);
       const payMethodMap: Record<string, string> = {
@@ -2770,12 +2779,21 @@ export function renderQueueTemplate(
         ["Agent", agentNumber ? `${agentName} — ${agentNumber}` : agentName],
         ["Période", `${periodStart} au ${periodEnd}`],
         ["Date de paie", payDate],
+        ["Heures régulières", regularPay],
+        ["Heures supplémentaires", overtimePay],
         ["Commissions brutes", commissionGross],
         ["Bonus", bonusAmount],
+        ["Allocations / suppléments", allocationTotal],
         ["Total brut", totalGross],
+        ["Impôt fédéral", federalTax],
+        ["Impôt provincial QC", quebecTax],
+        ["RRQ", rrq],
+        ["AE", ae],
+        ["RQAP", rqap],
+        ["Assurance invalidité", disability],
         ["Total déductions", totalDeductions],
-        ["NET À PAYER", netPay],
         ["Méthode", payMethod],
+        ["NET À PAYER", netPay],
       ];
 
       return {
