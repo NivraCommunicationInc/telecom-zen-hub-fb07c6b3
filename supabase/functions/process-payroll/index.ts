@@ -166,7 +166,7 @@ async function fetchYtd(employeeId: string, year: number) {
   };
 }
 
-async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: string): Promise<string | null> {
+async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: string): Promise<{ path: string; signedUrl: string | null } | null> {
   const path = `paystubs/${runId}/${employeeId}.pdf`;
   const { error } = await supabase.storage.from("documents").upload(path, pdf, {
     contentType: "application/pdf",
@@ -176,19 +176,28 @@ async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: stri
     console.error("[process-payroll] upload paystub failed:", error.message);
     return null;
   }
-  const { data } = supabase.storage.from("documents").getPublicUrl(path);
-  return data?.publicUrl ?? null;
+  const { data } = await supabase.storage.from("documents").createSignedUrl(path, 60 * 60 * 24 * 30);
+  return { path, signedUrl: data?.signedUrl ?? null };
 }
 
-async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>) {
+async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>, pdf: Uint8Array, entryId: string) {
   if (!toEmail) return;
   try {
-    await supabase.from("email_queue").insert({
+    let binary = "";
+    for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
+    const content = btoa(binary);
+    const { error } = await supabase.from("email_queue").insert({
+      event_key: `paystub_notification_${entryId}`,
       template_key: "paystub_notification",
       to_email: toEmail,
-      vars,
+      template_vars: vars,
+      message_type: "paystub_notification",
+      entity_type: "payroll_entry",
+      entity_id: entryId,
+      attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
       status: "queued",
     });
+    if (error) throw error;
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
   }
