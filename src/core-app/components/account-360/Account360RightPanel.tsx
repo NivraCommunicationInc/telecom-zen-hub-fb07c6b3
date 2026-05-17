@@ -18,14 +18,16 @@ interface Props {
   unpaidCount: number;
   accountId: string | undefined;
   clientId: string | undefined;
+  subscriptions?: any[];
   onRefresh: () => void;
 }
 
 export function Account360RightPanel({
   account, profile, clientName, latestKyc, totalDue, totalPaid,
-  monthlyRevenue, unpaidCount, clientId, onRefresh,
+  monthlyRevenue, unpaidCount, clientId, subscriptions = [], onRefresh,
 }: Props) {
   const acct = account;
+  const cycle = resolveAccountCycle(acct, subscriptions);
 
   return (
     <div className="space-y-3 self-start lg:sticky lg:top-4">
@@ -44,8 +46,8 @@ export function Account360RightPanel({
       <Panel>
         <PanelHeader icon={Clock} title="Cycle facturation" />
         <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
-          <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ? `Le ${acct.billing_cycle_day}` : "—"} accent />
-          <InfoLine label="Prochaine fact." value={fmtDate(acct.next_invoice_date)} accent />
+          <InfoLine label="Jour de cycle" value={cycle.cycleDay ? `Le ${cycle.cycleDay}` : "—"} accent />
+          <InfoLine label="Prochaine fact." value={fmtDate(cycle.nextInvoiceDate)} accent />
           <InfoLine label="Montant mensuel" value={fmtCAD(monthlyRevenue)} accent />
           <InfoLine label="Solde impayé" value={
             <span className={totalDue > 0 ? "text-red-400 font-semibold" : "text-emerald-400"}>{fmtCAD(totalDue)}</span>
