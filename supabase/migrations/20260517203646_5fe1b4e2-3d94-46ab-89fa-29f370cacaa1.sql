@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.fn_canonicalize_order_client_identity() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.repair_order_client_portal_links() FROM PUBLIC, anon, authenticated;
