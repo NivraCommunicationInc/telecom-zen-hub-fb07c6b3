@@ -224,38 +224,6 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
   }
 }
 
-function renderPaystubEmail(vars: Record<string, unknown>): { subject: string; html: string } {
-  const money = (v: unknown) => `${(Number(v) || 0).toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
-  const date = (v: unknown) => v ? new Date(String(v)).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }) : "—";
-  const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
-  const rows: Array<[string, string]> = [
-    ["Employé", `${esc(vars.agent_name)}${vars.agent_number ? ` — ${esc(vars.agent_number)}` : ""}`],
-    ["Période", `${date(vars.period_start)} au ${date(vars.period_end)}`],
-    ["Date de paie", date(vars.pay_date)],
-    ["Heures régulières", money(vars.regular_hours_pay)],
-    ["Heures supplémentaires", money(vars.overtime_hours_pay)],
-    ["Commissions", money(vars.commission_gross)],
-    ["Bonus", money(vars.bonus_amount)],
-    ["Allocations / suppléments", money(vars.allocation_total)],
-    ["Total brut", money(vars.total_gross)],
-    ["Impôt fédéral", `-${money(vars.federal_tax)}`],
-    ["Impôt provincial Québec", `-${money(vars.quebec_tax)}`],
-    ["RRQ", `-${money(vars.rrq)}`],
-    ["AE", `-${money(vars.ae)}`],
-    ["RQAP", `-${money(vars.rqap)}`],
-    ["Assurance invalidité", `-${money(vars.disability_insurance)}`],
-    ["Déductions manuelles", `-${money(vars.manual_deductions)}`],
-    ["Total déductions", `-${money(vars.total_deductions)}`],
-    ["Net à payer", money(vars.net_pay)],
-  ];
-  const paystubUrl = esc(vars.paystub_url || vars.portal_url || "https://nivra-telecom.ca/rh/paie");
-  const htmlRows = rows.map(([k, v], idx) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #ede9fe;color:#4b5563;">${k}</td><td style="padding:10px 12px;border-bottom:1px solid #ede9fe;text-align:right;font-weight:${idx === rows.length - 1 ? 800 : 600};color:${idx === rows.length - 1 ? "#047857" : "#1e1b4b"};">${v}</td></tr>`).join("");
-  return {
-    subject: `Votre paie Nivra — ${date(vars.pay_date)}`,
-    html: `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:Arial,sans-serif;color:#1e1b4b;"><div style="max-width:680px;margin:0 auto;padding:28px 18px;"><div style="background:#1e1b4b;color:#fff;padding:24px;border-radius:12px 12px 0 0;"><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;">Paie disponible</div><h1 style="margin:8px 0 0;font-size:26px;">Votre paie a été traitée</h1><p style="margin:8px 0 0;color:#ddd6fe;">Votre talon de paie PDF est joint à ce courriel et disponible dans votre section RH.</p></div><div style="border:1px solid #ede9fe;border-top:0;padding:22px;border-radius:0 0 12px 12px;"><p>Bonjour ${esc(vars.agent_name || "")},</p><p>Voici le détail de votre paie. Le même PDF est synchronisé dans votre historique RH.</p><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #ede9fe;border-radius:8px;overflow:hidden;">${htmlRows}</table><p style="text-align:center;margin:24px 0;"><a href="${paystubUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700;">Voir mon talon de paie</a></p><p style="font-size:12px;color:#6b7280;">Questions ? Écrivez à support@nivra-telecom.ca</p></div></div></body></html>`,
-  };
-}
-
 async function notifyPayrollReady(empId: string, amount: number, period: string, paystubUrl?: string | null) {
   await supabase.from("employee_notifications").insert({
     user_id: empId,
