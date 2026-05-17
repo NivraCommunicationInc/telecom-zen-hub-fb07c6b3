@@ -22185,6 +22185,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_training_leaderboard: {
+        Args: { _limit?: number }
+        Returns: {
+          avg_score: number
+          certificate_count: number
+          completed_count: number
+          display_name: string
+          user_id: string
+        }[]
+      }
       get_user_staff_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
