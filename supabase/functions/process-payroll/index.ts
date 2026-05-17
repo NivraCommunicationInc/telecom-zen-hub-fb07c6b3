@@ -264,10 +264,11 @@ Deno.serve(async (req) => {
       .from("pay_adjustments")
       .select("id, employee_id, amount, is_taxable, adjustment_type, description")
       .is("payroll_run_id", null);
-    const adjByEmp = new Map<string, Array<{ id: string; amount: number; is_taxable: boolean }>>();
+    type AdjLine = { id: string; amount: number; is_taxable: boolean; adjustment_type: string; description: string };
+    const adjByEmp = new Map<string, AdjLine[]>();
     for (const a of pendingAdj ?? []) {
       const arr = adjByEmp.get(a.employee_id) || [];
-      arr.push({ id: a.id, amount: Number(a.amount || 0), is_taxable: Boolean(a.is_taxable) });
+      arr.push({ id: a.id, amount: Number(a.amount || 0), is_taxable: Boolean(a.is_taxable), adjustment_type: a.adjustment_type, description: a.description });
       adjByEmp.set(a.employee_id, arr);
     }
 
@@ -276,11 +277,13 @@ Deno.serve(async (req) => {
       settings: any;
       commissionIds: string[];
       commissionGross: number;
+      commissionLines: CommLine[];
       regularPay: number;
       overtimePay: number;
       taxableAdjustments: number;
       nonTaxableAdjustments: number;
       adjustmentIds: string[];
+      adjustmentLines: AdjLine[];
     };
     const bundle = new Map<string, AgentBundle>();
     for (const s of settingsAll ?? []) {
@@ -291,7 +294,7 @@ Deno.serve(async (req) => {
       const rate = Number(s.hourly_rate || 0);
       const regularPay = isHourly && ts ? ts.reg * rate : 0;
       const overtimePay = isHourly && ts ? ts.ot * rate * 1.5 : 0;
-      const c = isCommission ? (commByAgent.get(s.employee_id) || { ids: [], gross: 0 }) : { ids: [], gross: 0 };
+      const c = isCommission ? (commByAgent.get(s.employee_id) || { ids: [], gross: 0, lines: [] }) : { ids: [], gross: 0, lines: [] as CommLine[] };
       const adj = adjByEmp.get(s.employee_id) || [];
       const taxAdj = adj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
       const ntAdj = adj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
@@ -303,11 +306,13 @@ Deno.serve(async (req) => {
         settings: s,
         commissionIds: c.ids,
         commissionGross: c.gross,
+        commissionLines: c.lines,
         regularPay,
         overtimePay,
         taxableAdjustments: taxAdj,
         nonTaxableAdjustments: ntAdj,
         adjustmentIds: adj.map((a) => a.id),
+        adjustmentLines: adj,
       });
     }
 
