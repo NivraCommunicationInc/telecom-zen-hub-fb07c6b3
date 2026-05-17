@@ -104,6 +104,15 @@ export default function HrPayrollPage2() {
   const [drillIn, setDrillIn] = useState<string | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRow | null>(null);
   const [adjustmentFor, setAdjustmentFor] = useState<EmployeeRow | null>(null);
+  // Per-employee live overrides (real-time recompute before saving / running)
+  const [excludedComm, setExcludedComm] = useState<Set<string>>(new Set());
+  const [localHours, setLocalHours] = useState<Map<string, { h: number; ot: number }>>(new Map());
+  function toggleExcludedComm(id: string) {
+    setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function setLocalHoursFor(empId: string, h: number, ot: number) {
+    setLocalHours((prev) => { const n = new Map(prev); n.set(empId, { h, ot }); return n; });
+  }
 
   // Period boundaries
   const now = new Date();
@@ -148,9 +157,10 @@ export default function HrPayrollPage2() {
     queryFn: async () => {
       const { data } = await supabase
         .from("field_commissions")
-        .select("id, agent_id, amount, description, commission_type, earned_at, order_id")
+        .select("id, agent_id, amount, description, commission_type, earned_at, order_id, orders:order_id(order_number)")
         .eq("status", "approved")
-        .lte("earned_at", cutoff.toISOString());
+        .lte("earned_at", cutoff.toISOString())
+        .order("earned_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -225,11 +235,14 @@ export default function HrPayrollPage2() {
     const isCommission = emp.pay_type === "commission" || emp.pay_type === "hourly_commission";
     const ts = getTimesheet(emp.employee_id);
     const rate = Number(emp.hourly_rate || 0);
-    const hourly = isHourly && ts ? Number(ts.hours_worked || 0) * rate : 0;
-    const overtime = isHourly && ts ? Number(ts.overtime_hours || 0) * rate * 1.5 : 0;
-    const commTotal = isCommission
-      ? getCommissions(emp.employee_id).reduce((s: number, c: any) => s + Number(c.amount || 0), 0)
-      : 0;
+    const lh = localHours.get(emp.employee_id);
+    const hWorked = lh ? lh.h : Number(ts?.hours_worked || 0);
+    const otWorked = lh ? lh.ot : Number(ts?.overtime_hours || 0);
+    const hourly = isHourly ? hWorked * rate : 0;
+    const overtime = isHourly ? otWorked * rate * 1.5 : 0;
+    const allComm = isCommission ? getCommissions(emp.employee_id) : [];
+    const includedComm = allComm.filter((c: any) => !excludedComm.has(c.id));
+    const commTotal = includedComm.reduce((s: number, c: any) => s + Number(c.amount || 0), 0);
     const adj = getAdjustments(emp.employee_id);
     const adjTotal = adj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
     const gross = hourly + overtime + commTotal + adjTotal;
@@ -237,11 +250,9 @@ export default function HrPayrollPage2() {
     // Estimated deductions (simplified preview — actual computed by edge function)
     const fedRate = 0.15, qcRate = 0.15, rrqRate = 0.059, aeRate = 0.0166, rqapRate = 0.00494;
     const disRate = Number(emp.disability_insurance_rate || 0.02);
-    const ded = gross > 0
-      ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate)
-      : 0;
+    const ded = gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0;
     const net = gross - ded;
-    return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, commCount: getCommissions(emp.employee_id).length };
+    return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
   // Aggregate totals
@@ -255,7 +266,7 @@ export default function HrPayrollPage2() {
       t.count += 1;
     }
     return t;
-  }, [filteredEmployees, periodCommissions, timesheets, adjustments]);
+  }, [filteredEmployees, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
 
   // Mutations
   const previewMutation = useMutation({
@@ -270,7 +281,9 @@ export default function HrPayrollPage2() {
 
   const runMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("process-payroll", { body: {} });
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { excluded_commission_ids: Array.from(excludedComm) },
+      });
       if (error) throw error;
       return data;
     },
@@ -342,6 +355,9 @@ export default function HrPayrollPage2() {
                 key={emp.employee_id}
                 emp={emp}
                 summary={computeSummary(emp)}
+                excludedComm={excludedComm}
+                onToggleComm={toggleExcludedComm}
+                onLocalHoursChange={(h, ot) => setLocalHoursFor(emp.employee_id, h, ot)}
                 onEditSettings={() => setEditingEmployee(emp)}
                 onAddAdjustment={() => setAdjustmentFor(emp)}
                 periodStart={pStart}
@@ -481,15 +497,19 @@ export default function HrPayrollPage2() {
 
 // ─────────────── EmployeeCard ───────────────
 function EmployeeCard({
-  emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd, onSavedTimesheet, onAdjustmentDeleted,
+  emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
+  onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
 }: {
   emp: EmployeeRow;
-  summary: ReturnType<typeof useSummary>;
+  summary: any;
   onEditSettings: () => void;
   onAddAdjustment: () => void;
   periodStart: Date; periodEnd: Date;
   onSavedTimesheet: () => void;
   onAdjustmentDeleted: () => void;
+  excludedComm: Set<string>;
+  onToggleComm: (id: string) => void;
+  onLocalHoursChange: (h: number, ot: number) => void;
 }) {
   const isHourly = emp.pay_type === "hourly" || emp.pay_type === "hourly_commission";
   const isCommission = emp.pay_type === "commission" || emp.pay_type === "hourly_commission";
@@ -498,6 +518,15 @@ function EmployeeCard({
   const [hours, setHours] = useState<string>(summary.ts ? String(summary.ts.hours_worked ?? 0) : "");
   const [overtime, setOvertime] = useState<string>(summary.ts ? String(summary.ts.overtime_hours ?? 0) : "");
   const [savingTs, setSavingTs] = useState(false);
+
+  function handleHoursChange(v: string) {
+    setHours(v);
+    onLocalHoursChange(Number(v) || 0, Number(overtime) || 0);
+  }
+  function handleOvertimeChange(v: string) {
+    setOvertime(v);
+    onLocalHoursChange(Number(hours) || 0, Number(v) || 0);
+  }
 
   async function saveTimesheet() {
     setSavingTs(true);
@@ -533,8 +562,13 @@ function EmployeeCard({
   }
 
   const role = emp.employee_role || "—";
-  const initials = (emp.profile?.full_name || emp.profile?.email || "?").split(" ").map(s => s[0]).slice(0, 2).join("").toUpperCase();
-  const periodCommissionList = (window as any).__hrPayrollCommissions ?? []; // placeholder
+  const initials = (emp.profile?.full_name || emp.profile?.email || "?").split(" ").map((s: string) => s[0]).slice(0, 2).join("").toUpperCase();
+  const rate = Number(emp.hourly_rate || 0);
+  const hNum = Number(hours) || 0;
+  const otNum = Number(overtime) || 0;
+  const liveRegular = hNum * rate;
+  const liveOvertime = otNum * rate * 1.5;
+  const liveHourlySubtotal = liveRegular + liveOvertime;
 
   return (
     <Card>
@@ -561,39 +595,75 @@ function EmployeeCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Earnings */}
-        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-          <div className="text-xs font-semibold uppercase text-muted-foreground">Revenus</div>
-          {isCommission && (
-            <div className="flex justify-between text-sm">
-              <span>Commissions approuvées ({summary.commCount})</span>
-              <span className="font-medium">{fmtMoney(summary.commTotal)}</span>
+        {/* Commissions — detailed list with include/exclude checkboxes */}
+        {isCommission && (
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Commissions approuvées</div>
+            {summary.commissions.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic">Aucune commission approuvée pour cette période</div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  {summary.commissions.map((c: any) => {
+                    const included = !excludedComm.has(c.id);
+                    return (
+                      <label key={c.id} className={`flex items-center gap-2 text-sm rounded px-2 py-1 cursor-pointer hover:bg-muted ${included ? "" : "opacity-50 line-through"}`}>
+                        <input
+                          type="checkbox"
+                          checked={included}
+                          onChange={() => onToggleComm(c.id)}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">
+                            {c.orders?.order_number ? `Cmd #${c.orders.order_number}` : "Commission"}
+                            {c.description ? <span className="text-muted-foreground"> — {c.description}</span> : null}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{shortDate(c.earned_at)}</div>
+                        </div>
+                        <div className="font-semibold">{fmtMoney(c.amount)}</div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-sm pt-2 border-t">
+                  <span>
+                    {summary.includedComm.length} / {summary.commissions.length} commission(s) approuvée(s) — Total
+                  </span>
+                  <span className="font-semibold">{fmtMoney(summary.commTotal)}</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Hourly input */}
+        {isHourly && (
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Heures travaillées</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Heures régulières × {fmtMoney(rate)}/h</Label>
+                <Input type="number" step="0.25" value={hours} onChange={(e) => handleHoursChange(e.target.value)} placeholder="0" />
+                <div className="text-xs text-muted-foreground mt-1">= {fmtMoney(liveRegular)}</div>
+              </div>
+              <div>
+                <Label className="text-xs">Heures supp × {fmtMoney(rate * 1.5)}/h</Label>
+                <Input type="number" step="0.25" value={overtime} onChange={(e) => handleOvertimeChange(e.target.value)} placeholder="0" />
+                <div className="text-xs text-muted-foreground mt-1">= {fmtMoney(liveOvertime)}</div>
+              </div>
             </div>
-          )}
-          {isHourly && (
-            <>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-xs">Heures régulières × {fmtMoney(emp.hourly_rate)}/h</Label>
-                  <Input type="number" step="0.25" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" />
-                </div>
-                <div>
-                  <Label className="text-xs">Heures supp × {fmtMoney(Number(emp.hourly_rate) * 1.5)}/h</Label>
-                  <Input type="number" step="0.25" value={overtime} onChange={(e) => setOvertime(e.target.value)} placeholder="0" />
-                </div>
+            <div className="flex justify-between items-center text-sm pt-2 border-t">
+              <span>Total : {hNum + otNum} h — Sous-total horaire</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{fmtMoney(liveHourlySubtotal)}</span>
+                <Button size="sm" variant="outline" onClick={saveTimesheet} disabled={savingTs}>
+                  {savingTs ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enregistrer"}
+                </Button>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span>Sous-total horaire</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{fmtMoney(summary.hourly + summary.overtime)}</span>
-                  <Button size="sm" variant="outline" onClick={saveTimesheet} disabled={savingTs}>
-                    {savingTs ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enregistrer"}
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
 
         {/* Adjustments */}
         <div className="rounded-md border bg-muted/30 p-3 space-y-2">
@@ -651,7 +721,7 @@ type EmployeeRow = {
   is_active: boolean;
   profile: any | null;
 };
-function useSummary(){ return null as any; }
+
 
 // ─────────────── Stat ───────────────
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {

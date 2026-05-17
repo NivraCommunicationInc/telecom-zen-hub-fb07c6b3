@@ -208,6 +208,9 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const dryRun = Boolean(body.dry_run);
     const explicitCutoff = body.cutoff_date ? new Date(body.cutoff_date) : null;
+    const excludedCommissionIds: Set<string> = new Set(
+      Array.isArray(body.excluded_commission_ids) ? body.excluded_commission_ids.map((x: any) => String(x)) : []
+    );
 
     const now = new Date();
     const cutoff = explicitCutoff ?? lastThursdayCutoffUTC(now);
@@ -224,12 +227,13 @@ Deno.serve(async (req) => {
       .eq("is_active", true);
 
     // 2. Approved commissions before cutoff (for commission/hourly_commission types)
-    const { data: approved, error: cmErr } = await supabase
+    const { data: approvedRaw, error: cmErr } = await supabase
       .from("field_commissions")
       .select("id, agent_id, amount, commission_type")
       .eq("status", "approved")
       .lte("earned_at", cutoff.toISOString());
     if (cmErr) throw cmErr;
+    const approved = (approvedRaw ?? []).filter((c: any) => !excludedCommissionIds.has(c.id));
 
     const commByAgent = new Map<string, { ids: string[]; gross: number }>();
     for (const c of approved ?? []) {
@@ -443,6 +447,11 @@ Deno.serve(async (req) => {
           .update({ payroll_run_id: run.id })
           .in("id", b.adjustmentIds);
       }
+      // Mark this employee's timesheet for the period as approved (idempotent)
+      await supabase.from("timesheet_entries")
+        .update({ status: "approved" })
+        .eq("employee_id", empId)
+        .eq("pay_period_start", periodStartStr);
 
       if (profile?.email) {
         await enqueuePaystubEmail(profile.email, {
