@@ -45,6 +45,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [reactivateOpen, setReactivateOpen] = useState(false);
 
   const updateStatus = async (newStatus: string) => {
     if (!accountId) return;
