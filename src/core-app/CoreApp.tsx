@@ -215,6 +215,7 @@ const CoreApp = () => {
                 <Route path="hr/employees/:id" element={<S><CoreEmployee360 /></S>} />
                 <Route path="hr/onboarding" element={<S><HrOnboardingPage /></S>} />
                 <Route path="hr/payroll" element={<S><HrPayrollPage /></S>} />
+                <Route path="hr/payroll-runs" element={<S><HrPayrollRunsPage /></S>} />
                 <Route path="hr/commissions" element={<S><HrCommissionsPage /></S>} />
                 <Route path="hr/time" element={<S><HrTimePage /></S>} />
                 <Route path="hr/schedules" element={<S><HrSchedulesPage /></S>} />
