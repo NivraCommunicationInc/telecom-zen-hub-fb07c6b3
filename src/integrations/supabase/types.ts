@@ -6140,9 +6140,12 @@ export type Database = {
           created_at: string
           disability_insurance_rate: number
           employee_id: string
+          employee_role: string | null
           federal_claim_amount: number
+          hourly_rate: number | null
           id: string
           is_active: boolean
+          pay_type: string | null
           payment_details: Json | null
           payment_method: string
           quebec_claim_amount: number
@@ -6152,9 +6155,12 @@ export type Database = {
           created_at?: string
           disability_insurance_rate?: number
           employee_id: string
+          employee_role?: string | null
           federal_claim_amount?: number
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean
+          pay_type?: string | null
           payment_details?: Json | null
           payment_method?: string
           quebec_claim_amount?: number
@@ -6164,9 +6170,12 @@ export type Database = {
           created_at?: string
           disability_insurance_rate?: number
           employee_id?: string
+          employee_role?: string | null
           federal_claim_amount?: number
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean
+          pay_type?: string | null
           payment_details?: Json | null
           payment_method?: string
           quebec_claim_amount?: number
@@ -13516,6 +13525,78 @@ export type Database = {
         }
         Relationships: []
       }
+      pay_adjustments: {
+        Row: {
+          adjustment_type: string
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          description: string
+          employee_id: string | null
+          id: string
+          is_taxable: boolean | null
+          payroll_run_id: string | null
+        }
+        Insert: {
+          adjustment_type: string
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          employee_id?: string | null
+          id?: string
+          is_taxable?: boolean | null
+          payroll_run_id?: string | null
+        }
+        Update: {
+          adjustment_type?: string
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          employee_id?: string | null
+          id?: string
+          is_taxable?: boolean | null
+          payroll_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pay_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "pay_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pay_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "pay_adjustments_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pay_periods: {
         Row: {
           closed_at: string | null
@@ -20016,6 +20097,91 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      timesheet_entries: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          employee_id: string | null
+          entered_by: string | null
+          hours_worked: number | null
+          id: string
+          notes: string | null
+          overtime_hours: number | null
+          pay_period_end: string
+          pay_period_start: string
+          status: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          entered_by?: string | null
+          hours_worked?: number | null
+          id?: string
+          notes?: string | null
+          overtime_hours?: number | null
+          pay_period_end: string
+          pay_period_start: string
+          status?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          entered_by?: string | null
+          hours_worked?: number | null
+          id?: string
+          notes?: string | null
+          overtime_hours?: number | null
+          pay_period_end?: string
+          pay_period_start?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_entries_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_entered_by_fkey"
+            columns: ["entered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_entered_by_fkey"
+            columns: ["entered_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
       }
       training_answers: {
         Row: {

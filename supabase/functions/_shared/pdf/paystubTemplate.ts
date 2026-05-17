@@ -1,6 +1,7 @@
 /**
  * Paystub PDF — TALON DE PAIE / PAY STUB (Nivra)
- * Built on the standard base template (navy header + canonical footer).
+ * Professional carrier-grade layout (Bell/Telus class).
+ * Supports commissions, hourly+overtime, bonuses, allocations.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
@@ -15,12 +16,18 @@ export interface PaystubData {
   period_end: string;
   employee_name: string;
   agent_number: string | null;
+  employee_role?: string | null;
   payment_method: string;
 
+  // Earnings
   commission_gross: number;
+  regular_hours_pay?: number;
+  overtime_hours_pay?: number;
+  allocation_total?: number;
   bonus_amount: number;
   total_gross: number;
 
+  // Deductions
   federal_tax: number;
   quebec_tax: number;
   rrq: number;
@@ -31,6 +38,7 @@ export interface PaystubData {
 
   net_pay: number;
 
+  // YTD
   ytd_gross: number;
   ytd_deductions: number;
   ytd_net: number;
@@ -46,54 +54,51 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
 
-  // Header
   drawHeader(doc, "Talon de paie / Pay stub", data.paystub_number);
 
   let y = 52;
 
-  // Period + pay date band
+  // Two-column info band: Employé | Période
   doc.setFillColor(GREY_BG[0], GREY_BG[1], GREY_BG[2]);
   doc.setDrawColor(GREY_BORDER[0], GREY_BORDER[1], GREY_BORDER[2]);
-  doc.roundedRect(15, y, pw - 30, 14, 1.5, 1.5, "FD");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
-  doc.text("Période de paie", 18, y + 5.5);
-  doc.text("Date de paie", pw - 18, y + 5.5, { align: "right" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`Du ${fmtDate(data.period_start)} au ${fmtDate(data.period_end)}`, 18, y + 11);
-  doc.text(fmtDate(data.pay_date), pw - 18, y + 11, { align: "right" });
-  y += 20;
+  doc.roundedRect(15, y, pw - 30, 32, 1.5, 1.5, "FD");
 
-  // Employee block
+  const midX = pw / 2;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.text("Employé", 15, y);
-  doc.setTextColor(0, 0, 0);
-  y += 5;
+  doc.text("EMPLOYÉ", 18, y + 5);
+  doc.text("PÉRIODE DE PAIE", midX + 2, y + 5);
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(data.employee_name, 15, y);
-  y += 4.5;
-  if (data.agent_number) {
-    doc.text(`Numéro d'agent : ${data.agent_number}`, 15, y);
-    y += 4.5;
-  }
-  doc.text(`Méthode de paiement : ${PAY_METHOD_LABEL[data.payment_method] || data.payment_method}`, 15, y);
-  y += 8;
+  doc.setTextColor(0, 0, 0);
+  let yL = y + 10;
+  doc.text(`Nom : ${data.employee_name}`, 18, yL); yL += 5;
+  if (data.agent_number) { doc.text(`N° agent : ${data.agent_number}`, 18, yL); yL += 5; }
+  if (data.employee_role) { doc.text(`Rôle : ${data.employee_role}`, 18, yL); yL += 5; }
+  doc.text(`Méthode : ${PAY_METHOD_LABEL[data.payment_method] || data.payment_method}`, 18, yL);
 
-  // Earnings table
-  y = drawSection(doc, "Gains (Earnings)", y);
-  y = drawRow(doc, "Commissions", fmtCAD(data.commission_gross), y);
-  if (data.bonus_amount > 0) y = drawRow(doc, "Bonus mensuel", fmtCAD(data.bonus_amount), y);
+  let yR = y + 10;
+  doc.text(`Du : ${fmtDate(data.period_start)}`, midX + 2, yR); yR += 5;
+  doc.text(`Au : ${fmtDate(data.period_end)}`, midX + 2, yR); yR += 5;
+  doc.text(`Date de paie : ${fmtDate(data.pay_date)}`, midX + 2, yR); yR += 5;
+  doc.text(`N° talon : ${data.paystub_number}`, midX + 2, yR);
+
+  y += 38;
+
+  // REVENUS
+  y = drawSection(doc, "REVENUS", y);
+  if (data.commission_gross > 0)       y = drawRow(doc, "Commissions", fmtCAD(data.commission_gross), y);
+  if ((data.regular_hours_pay ?? 0) > 0) y = drawRow(doc, "Heures régulières", fmtCAD(data.regular_hours_pay!), y);
+  if ((data.overtime_hours_pay ?? 0) > 0) y = drawRow(doc, "Heures supplémentaires", fmtCAD(data.overtime_hours_pay!), y);
+  if (data.bonus_amount > 0)           y = drawRow(doc, "Bonus mensuel", fmtCAD(data.bonus_amount), y);
+  if ((data.allocation_total ?? 0) !== 0) y = drawRow(doc, "Allocations / ajustements", fmtCAD(data.allocation_total!), y);
   y = drawTotalRow(doc, "TOTAL BRUT", fmtCAD(data.total_gross), y, NAVY);
   y += 4;
 
-  // Deductions
-  y = drawSection(doc, "Déductions", y);
+  // DÉDUCTIONS
+  y = drawSection(doc, "DÉDUCTIONS", y);
   y = drawRow(doc, "Impôt fédéral", `- ${fmtCAD(data.federal_tax)}`, y);
   y = drawRow(doc, "Impôt provincial (Québec)", `- ${fmtCAD(data.quebec_tax)}`, y);
   y = drawRow(doc, "RRQ (Régime de rentes du Québec)", `- ${fmtCAD(data.rrq)}`, y);
@@ -103,34 +108,32 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   y = drawTotalRow(doc, "TOTAL DÉDUCTIONS", `- ${fmtCAD(data.total_deductions)}`, y, [180, 50, 50]);
   y += 6;
 
-  // NET PAY block — large green
+  // NET À PAYER — large emerald block
   doc.setFillColor(232, 248, 240);
   doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2]);
-  doc.roundedRect(15, y, pw - 30, 18, 2, 2, "FD");
+  doc.setLineWidth(0.5);
+  doc.roundedRect(15, y, pw - 30, 20, 2, 2, "FD");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
-  doc.text("NET À PAYER", 18, y + 11.5);
-  doc.setFontSize(16);
-  doc.text(fmtCAD(data.net_pay), pw - 18, y + 11.5, { align: "right" });
+  doc.text("NET À PAYER", 18, y + 12.5);
+  doc.setFontSize(18);
+  doc.text(fmtCAD(data.net_pay), pw - 18, y + 12.5, { align: "right" });
   doc.setTextColor(0, 0, 0);
-  y += 24;
+  y += 26;
 
-  // YTD section
-  y = drawSection(doc, "Cumul annuel (Year-to-date)", y);
-  y = drawRow(doc, "Cumul brut", fmtCAD(data.ytd_gross), y);
-  y = drawRow(doc, "Cumul déductions", fmtCAD(data.ytd_deductions), y);
-  y = drawRow(doc, "Cumul net", fmtCAD(data.ytd_net), y);
+  // YTD
+  y = drawSection(doc, "CUMUL ANNUEL (Year-to-date)", y);
+  y = drawRow(doc, "Brut YTD", fmtCAD(data.ytd_gross), y);
+  y = drawRow(doc, "Déductions YTD", `- ${fmtCAD(data.ytd_deductions)}`, y);
+  y = drawRow(doc, "Net YTD", fmtCAD(data.ytd_net), y);
 
   // Disclosure
   y += 6;
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
-  doc.text(
-    "Ce talon de paie est généré automatiquement par Nivra Communication Inc.",
-    pw / 2, y, { align: "center" }
-  );
+  doc.text("Nivra Communication Inc. — Document confidentiel généré automatiquement.", pw / 2, y, { align: "center" });
 
   drawFooter(doc);
 
