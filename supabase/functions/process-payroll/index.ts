@@ -495,7 +495,7 @@ Deno.serve(async (req) => {
           disability_insurance: ded.disability_insurance,
           deductions_total: ded.total_deductions,
           net_pay: netPay,
-          payment_method: paymentMethod, payment_status: "processing",
+          payment_method: paymentMethod, payment_status: "paid", paid_at: new Date().toISOString(),
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
           commission_ids: b.commissionIds,
           status: "approved",
@@ -539,8 +539,15 @@ Deno.serve(async (req) => {
         ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability),
         ytd_net,
       });
-      const pdfUrl = await uploadPaystubPdf(pdf, run.id, empId);
-      if (pdfUrl) await supabase.from("payroll_entries").update({ paystub_pdf_url: pdfUrl, pdf_url: pdfUrl }).eq("id", entry.id);
+      const uploadedPdf = await uploadPaystubPdf(pdf, run.id, empId);
+      if (uploadedPdf) await supabase.from("payroll_entries").update({ paystub_pdf_url: uploadedPdf.path, pdf_url: uploadedPdf.path }).eq("id", entry.id);
+
+      if (b.commissionIds.length) {
+        await supabase.from("payroll_commission_links").upsert(
+          b.commissionLines.map((c) => ({ payroll_entry_id: entry.id, commission_id: c.id, commission_source: "field", amount: c.amount })),
+          { onConflict: "commission_id,commission_source" },
+        );
+      }
 
       // Flip commissions to paid + record which run/entry paid them
       if (b.commissionIds.length) {
@@ -578,9 +585,10 @@ Deno.serve(async (req) => {
           total_deductions: ded.total_deductions,
           net_pay: netPay,
           payment_method: paymentMethod,
-          paystub_url: pdfUrl,
+          payroll_number: entry.payroll_number,
+          paystub_url: uploadedPdf?.signedUrl,
           portal_url: "https://nivra-telecom.ca/field/profile",
-        });
+        }, pdf, entry.id);
       }
 
       totalGross += totalGrossAgent;
