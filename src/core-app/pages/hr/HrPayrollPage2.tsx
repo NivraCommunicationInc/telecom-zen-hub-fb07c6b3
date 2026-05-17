@@ -510,6 +510,10 @@ export default function HrPayrollPage2() {
                 {emailingStub === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                 Envoyer courriels sélectionnés
               </Button>
+              <Button variant="ghost" onClick={() => setPaymentsOpen(true)}>
+                <DollarSign className="h-4 w-4" />
+                Paiements
+              </Button>
               <Button variant="ghost" onClick={() => setHistoryOpen(true)}>
                 <History className="h-4 w-4" />
                 Historique
