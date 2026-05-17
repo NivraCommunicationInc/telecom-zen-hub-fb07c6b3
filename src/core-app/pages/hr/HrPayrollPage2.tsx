@@ -1066,18 +1066,21 @@ function EmployeeCard({
             <Button size="sm" variant="outline" onClick={onAddAdjustment}><Plus className="h-3 w-3" /> Ajouter</Button>
           </div>
           {summary.adj.length === 0 && <div className="text-xs text-muted-foreground">Aucun ajustement pour cette période</div>}
-          {summary.adj.map((a: any) => (
+          {summary.adj.map((a: any) => {
+            const meta = ADJUSTMENT_TYPES.find((t) => t.value === a.adjustment_type);
+            return (
             <div key={a.id} className="flex justify-between items-center text-sm">
               <div>
-                <span className="font-medium capitalize">{a.adjustment_type}</span>
+                <span className="font-medium">{meta?.label ?? a.adjustment_type}</span>
                 <span className="text-muted-foreground"> — {a.description}</span>
+                <Badge variant="outline" className="ml-2 text-[10px]">{a.is_taxable ? "imposable" : "non imposable"}</Badge>
               </div>
               <div className="flex items-center gap-2">
                 <span className={Number(a.amount) >= 0 ? "text-emerald-700" : "text-destructive"}>{fmtMoney(a.amount)}</span>
                 <Button size="sm" variant="ghost" onClick={() => deleteAdjustment(a.id)}><Trash2 className="h-3 w-3" /></Button>
               </div>
             </div>
-          ))}
+          );})}
         </div>
 
         {/* Bonus ponctuel */}
