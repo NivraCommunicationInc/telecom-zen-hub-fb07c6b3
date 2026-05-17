@@ -619,12 +619,33 @@ Deno.serve(async (req) => {
       const hReg = (tsByEmp.get(empId)?.reg || 0);
       const hOt = (tsByEmp.get(empId)?.ot || 0);
       const hRate = Number(b.settings.hourly_rate || 0);
+      const commissionBreakdown = b.commissionLines.map((c) => ({
+        id: c.id,
+        label: c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : (c.commission_type || "Commission"),
+        description: c.description,
+        earned_at: c.earned_at,
+        order_id: c.order_id,
+        amount: round2(c.amount),
+      }));
+      const earningAdjustments = b.adjustmentLines.filter((a) => !["deduction", "advance"].includes(a.adjustment_type));
+      const deductionAdjustments = b.adjustmentLines.filter((a) => ["deduction", "advance"].includes(a.adjustment_type));
+      const earningsBreakdown = [
+        ...(b.regularPay > 0 ? [{ label: "Heures régulières", detail: `${round2(hReg)} h × ${round2(hRate)} $/h`, amount: round2(b.regularPay), category: "hours" }] : []),
+        ...(b.overtimePay > 0 ? [{ label: "Heures supplémentaires", detail: `${round2(hOt)} h × ${round2(hRate * 1.5)} $/h`, amount: round2(b.overtimePay), category: "overtime" }] : []),
+        ...(b.commissionGross > 0 ? [{ label: "Commissions", detail: `${b.commissionLines.length} commission(s) payée(s)`, amount: round2(b.commissionGross), category: "commission" }] : []),
+        ...(bonus > 0 ? [{ label: "Bonus ponctuel", detail: "Ajout manuel RH", amount: round2(bonus), category: "bonus" }] : []),
+        ...earningAdjustments.map((a) => ({ label: adjLabel(a.adjustment_type), detail: `${a.description}${a.is_taxable ? "" : " (non imposable)"}`, amount: round2(a.amount), category: a.adjustment_type })),
+      ];
+      const deductionBreakdown = makeDeductionBreakdown(ded, b.manualDeductions, deductionAdjustments);
 
       const { data: entry, error: entryErr } = await supabase
         .from("payroll_entries")
         .insert({
           run_id: run.id, user_id: empId, employee_id: empId,
           agent_number: profile?.agent_number ?? null,
+          base_salary: round2(b.regularPay + b.overtimePay),
+          commission_total: round2(b.commissionGross),
+          bonus_total: round2(bonus),
           commission_gross: round2(b.commissionGross),
           bonus_amount: round2(bonus),
           hours_worked: round2(hReg),
@@ -635,8 +656,16 @@ Deno.serve(async (req) => {
           rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
           disability_insurance: ded.disability_insurance,
           deductions_total: totalDeductions,
+          total_deductions: totalDeductions,
           net_pay: netPay,
           payment_method: paymentMethod, payment_status: "paid", paid_at: new Date().toISOString(),
+          taxable_gross: taxableGross,
+          non_taxable_gross: round2(b.nonTaxableAdjustments),
+          manual_deductions: round2(b.manualDeductions),
+          earnings_breakdown: earningsBreakdown,
+          deduction_breakdown: deductionBreakdown,
+          commission_breakdown: commissionBreakdown,
+          adjustment_breakdown: b.adjustmentLines.map((a) => ({ id: a.id, type: a.adjustment_type, label: adjLabel(a.adjustment_type), description: a.description, amount: round2(a.amount), taxable: a.is_taxable })),
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
           commission_ids: b.commissionIds,
           status: "approved",
