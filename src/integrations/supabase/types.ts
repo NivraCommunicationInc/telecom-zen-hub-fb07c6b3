@@ -14347,6 +14347,7 @@ export type Database = {
           run_id: string | null
           status: string
           taxable_gross: number | null
+          total_deductions: number | null
           total_gross: number | null
           updated_at: string
           user_id: string
@@ -14406,6 +14407,7 @@ export type Database = {
           run_id?: string | null
           status?: string
           taxable_gross?: number | null
+          total_deductions?: number | null
           total_gross?: number | null
           updated_at?: string
           user_id: string
@@ -14465,6 +14467,7 @@ export type Database = {
           run_id?: string | null
           status?: string
           taxable_gross?: number | null
+          total_deductions?: number | null
           total_gross?: number | null
           updated_at?: string
           user_id?: string
