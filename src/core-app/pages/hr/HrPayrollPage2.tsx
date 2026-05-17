@@ -979,6 +979,11 @@ function EmployeeCard({
               {emailingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Envoyer courriel
             </Button>
+            {latestPaystub ? (
+              <Badge variant={latestPaystub.email_status === "sent" ? "default" : latestPaystub.email_status === "failed" ? "destructive" : "secondary"}>
+                Courriel : {latestPaystub.email_status ?? "not_sent"}
+              </Badge>
+            ) : null}
             <Button size="sm" variant="ghost" onClick={onEditSettings}><Settings className="h-4 w-4" /></Button>
           </div>
         </div>
