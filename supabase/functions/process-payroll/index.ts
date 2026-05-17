@@ -233,6 +233,8 @@ async function notifyPayrollReady(empId: string, amount: number, period: string,
   });
 }
 
+type AdjLine = { id: string; amount: number; is_taxable: boolean; adjustment_type: string; description: string };
+
 const ADJ_LABEL: Record<string, string> = {
   allocation: "Allocation",
   bonus: "Bonus",
