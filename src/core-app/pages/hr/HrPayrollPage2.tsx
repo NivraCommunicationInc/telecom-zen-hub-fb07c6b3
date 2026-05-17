@@ -721,7 +721,7 @@ type EmployeeRow = {
   is_active: boolean;
   profile: any | null;
 };
-function useSummary(){ return null as any; }
+
 
 // ─────────────── Stat ───────────────
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
