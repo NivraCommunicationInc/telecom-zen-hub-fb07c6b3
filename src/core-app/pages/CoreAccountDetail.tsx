@@ -166,6 +166,7 @@ const CoreAccountDetail = () => {
         totalDue={totalDue}
         monthlyRevenue={monthlyRevenue}
         unpaidCount={unpaidInvoices.length}
+        subscriptions={data.subscriptions}
         onRefresh={data.refetch}
       />
 
