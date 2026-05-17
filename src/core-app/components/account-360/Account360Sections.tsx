@@ -82,6 +82,7 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
   );
   const isPreAuth = !!paypalSub;
   const [chargeOpen, setChargeOpen] = useState(false);
+  const cycle = resolveAccountCycle(acct, data.subscriptions || []);
 
   return (
   <div className="space-y-3">
