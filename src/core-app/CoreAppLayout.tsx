@@ -17,7 +17,6 @@ import {
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw,
-  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -188,14 +187,6 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Users, label: "Agents terrain", href: "/field-agents" },
       { icon: Send, label: "Soumissions terrain", href: "/field-submissions" },
       { icon: DollarSign, label: "Grille de commission", href: "/commissions/grille" },
-    ],
-  },
-  {
-    id: "training",
-    label: "Formation & Développement",
-    icon: GraduationCap,
-    items: [
-      { icon: GraduationCap, label: "Formation agents", href: "/training" },
     ],
   },
   {
