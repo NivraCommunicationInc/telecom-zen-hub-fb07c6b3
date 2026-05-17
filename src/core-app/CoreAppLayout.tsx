@@ -88,6 +88,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: ListTodo,
     items: [
       { icon: ListTodo, label: "Work Queue", href: "/work-queue" },
+      { icon: AlertTriangle, label: "Suivi SLA", href: "/sla" },
       { icon: Package, label: "Orders", href: "/orders" },
       { icon: Receipt, label: "POS", href: "/pos" },
       { icon: Shield, label: "KYC", href: "/kyc" },
