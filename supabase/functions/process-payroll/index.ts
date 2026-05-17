@@ -24,7 +24,9 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
 // ─────────── Constants 2026 ───────────
-const PAY_PERIODS_BIWEEKLY = 26;
+// Paie Nivra = cycle hebdomadaire du vendredi. Les retenues doivent donc être
+// annualisées sur 52 périodes, pas 26.
+const PAY_PERIODS_WEEKLY = 52;
 const FED_BPA_DEFAULT = 15705;
 const QC_BPA_DEFAULT = 17183;
 
@@ -85,17 +87,21 @@ async function getBrackets(table: string, year: number) {
 }
 
 function bracketTax(annualIncome: number, brackets: Awaited<ReturnType<typeof getBrackets>>, claimAmount: number): number {
-  const taxable = Math.max(0, annualIncome - claimAmount);
+  const taxable = Math.max(0, annualIncome);
   for (const b of brackets) {
     const max = b.max_income ?? Infinity;
     if (taxable > Number(b.min_income) && taxable <= max) {
-      return taxable * Number(b.rate) - Number(b.constant ?? 0);
+      const baseTax = taxable * Number(b.rate) - Number(b.constant ?? 0);
+      const creditRate = Number(brackets[0]?.rate || 0);
+      return baseTax - Math.max(0, claimAmount) * creditRate;
     }
   }
   // Above highest bracket — use last
   const last = brackets[brackets.length - 1];
   if (!last) return 0;
-  return taxable * Number(last.rate) - Number(last.constant ?? 0);
+  const baseTax = taxable * Number(last.rate) - Number(last.constant ?? 0);
+  const creditRate = Number(brackets[0]?.rate || 0);
+  return baseTax - Math.max(0, claimAmount) * creditRate;
 }
 
 interface DeductionSettings {
@@ -110,24 +116,24 @@ async function calculateDeductions(
   fedBrackets: Awaited<ReturnType<typeof getBrackets>>,
   qcBrackets: Awaited<ReturnType<typeof getBrackets>>,
 ) {
-  const annualGross = grossPay * PAY_PERIODS_BIWEEKLY;
+  const annualGross = grossPay * PAY_PERIODS_WEEKLY;
 
   const federalAnnual = Math.max(0, bracketTax(annualGross, fedBrackets, settings.federal_claim_amount));
   const quebecAnnual = Math.max(0, bracketTax(annualGross, qcBrackets, settings.quebec_claim_amount));
-  const federal_tax = federalAnnual / PAY_PERIODS_BIWEEKLY;
-  const quebec_tax = quebecAnnual / PAY_PERIODS_BIWEEKLY;
+  const federal_tax = federalAnnual / PAY_PERIODS_WEEKLY;
+  const quebec_tax = quebecAnnual / PAY_PERIODS_WEEKLY;
 
   const rrqAnnual = Math.min(
     Math.max(0, annualGross - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
     (RRQ_MAX_PENSIONABLE - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
   );
-  const rrq = rrqAnnual / PAY_PERIODS_BIWEEKLY;
+  const rrq = rrqAnnual / PAY_PERIODS_WEEKLY;
 
   const aeAnnual = Math.min(annualGross * AE_RATE, AE_MAX_INSURABLE * AE_RATE);
-  const ae = aeAnnual / PAY_PERIODS_BIWEEKLY;
+  const ae = aeAnnual / PAY_PERIODS_WEEKLY;
 
   const rqapAnnual = Math.min(annualGross * RQAP_RATE, RQAP_MAX_INSURABLE * RQAP_RATE);
-  const rqap = rqapAnnual / PAY_PERIODS_BIWEEKLY;
+  const rqap = rqapAnnual / PAY_PERIODS_WEEKLY;
 
   const disability = grossPay * (settings.disability_insurance_rate ?? DISABILITY_RATE_DEFAULT);
 
