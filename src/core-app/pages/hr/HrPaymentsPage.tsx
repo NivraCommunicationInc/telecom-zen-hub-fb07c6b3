@@ -105,10 +105,25 @@ export default function HrPaymentsPage() {
       const { data: existing } = await supabase.from("payroll_payments").select("payroll_entry_id");
       const usedIds = new Set((existing || []).map((r: any) => r.payroll_entry_id).filter(Boolean));
       const { data, error } = await supabase
-        .from("payroll_entries").select("id, payroll_number, user_id, net_pay, payment_method, status, created_at")
-        .in("status", ["approved", "paid"]).order("created_at", { ascending: false }).limit(200);
+        .from("payroll_entries")
+        .select("id, payroll_number, user_id, employee_id, agent_number, net_pay, gross_pay, total_gross, deductions_total, federal_tax, quebec_tax, rrq, ae, rqap, disability_insurance, ytd_gross, ytd_net, payment_method, status, payment_status, pay_period_id, created_at")
+        .in("status", ["approved", "paid"]).order("created_at", { ascending: false }).limit(500);
       if (error) throw error;
-      return (data || []).filter((e: any) => !usedIds.has(e.id));
+      const entries = (data || []).filter((e: any) => !usedIds.has(e.id));
+      // Hydrate profile + period info
+      const uids = [...new Set(entries.map((e: any) => e.employee_id || e.user_id).filter(Boolean))];
+      const pids = [...new Set(entries.map((e: any) => e.pay_period_id).filter(Boolean))];
+      const [{ data: profs }, { data: periods }] = await Promise.all([
+        uids.length ? supabase.from("profiles").select("user_id, full_name, email, agent_number").in("user_id", uids) : Promise.resolve({ data: [] as any[] }),
+        pids.length ? supabase.from("pay_periods").select("id, period_start, period_end, pay_date").in("id", pids) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const pmap = new Map((profs || []).map((p: any) => [p.user_id, p]));
+      const permap = new Map((periods || []).map((p: any) => [p.id, p]));
+      return entries.map((e: any) => ({
+        ...e,
+        _profile: pmap.get(e.employee_id || e.user_id) || null,
+        _period: permap.get(e.pay_period_id) || null,
+      }));
     },
     enabled: createOpen,
   });
