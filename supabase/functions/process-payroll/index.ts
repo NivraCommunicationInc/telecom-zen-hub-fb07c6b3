@@ -388,6 +388,7 @@ Deno.serve(async (req) => {
       overtimePay: number;
       taxableAdjustments: number;
       nonTaxableAdjustments: number;
+      manualDeductions: number;
       adjustmentIds: string[];
       adjustmentLines: AdjLine[];
     };
@@ -402,10 +403,13 @@ Deno.serve(async (req) => {
       const overtimePay = isHourly && ts ? ts.ot * rate * 1.5 : 0;
       const c = isCommission ? (commByAgent.get(s.employee_id) || { ids: [], gross: 0, lines: [] }) : { ids: [], gross: 0, lines: [] as CommLine[] };
       const adj = adjByEmp.get(s.employee_id) || [];
-      const taxAdj = adj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
-      const ntAdj = adj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
+      const earningAdj = adj.filter((a) => !["deduction", "advance"].includes(a.adjustment_type));
+      const deductionAdj = adj.filter((a) => ["deduction", "advance"].includes(a.adjustment_type));
+      const taxAdj = earningAdj.filter((a) => a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
+      const ntAdj = earningAdj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
+      const manualDeductions = deductionAdj.reduce((sum, a) => sum + Math.abs(a.amount), 0);
 
-      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj;
+      const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj + manualDeductions;
       if (totalSource === 0 && !previewEmployeeId) continue; // skip employees with nothing to pay
 
       bundle.set(s.employee_id, {
@@ -417,6 +421,7 @@ Deno.serve(async (req) => {
         overtimePay,
         taxableAdjustments: taxAdj,
         nonTaxableAdjustments: ntAdj,
+        manualDeductions,
         adjustmentIds: adj.map((a) => a.id),
         adjustmentLines: adj,
       });
