@@ -282,6 +282,7 @@ Deno.serve(async (req) => {
     };
     const bundle = new Map<string, AgentBundle>();
     for (const s of settingsAll ?? []) {
+      if (selectedEmployeeIds && !selectedEmployeeIds.has(s.employee_id)) continue;
       const isHourly = s.pay_type === "hourly" || s.pay_type === "hourly_commission";
       const isCommission = s.pay_type === "commission" || s.pay_type === "hourly_commission";
       const ts = tsByEmp.get(s.employee_id);
@@ -294,7 +295,7 @@ Deno.serve(async (req) => {
       const ntAdj = adj.filter((a) => !a.is_taxable).reduce((sum, a) => sum + a.amount, 0);
 
       const totalSource = regularPay + overtimePay + c.gross + taxAdj + ntAdj;
-      if (totalSource === 0) continue; // skip employees with nothing to pay
+      if (totalSource === 0 && !previewEmployeeId) continue; // skip employees with nothing to pay
 
       bundle.set(s.employee_id, {
         settings: s,
@@ -306,6 +307,61 @@ Deno.serve(async (req) => {
         nonTaxableAdjustments: ntAdj,
         adjustmentIds: adj.map((a) => a.id),
       });
+    }
+
+    // ─── Single-employee paystub preview (returns base64 PDF) ───
+    if (previewEmployeeId) {
+      const b = bundle.get(previewEmployeeId);
+      if (!b) {
+        return new Response(JSON.stringify({ error: "Aucune donnée payable pour cet employé." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: profile } = await supabase
+        .from("profiles").select("user_id, full_name, email, agent_number")
+        .eq("user_id", previewEmployeeId).maybeSingle();
+      const fedBrackets = await getBrackets("tax_brackets_federal", year);
+      const qcBrackets = await getBrackets("tax_brackets_quebec", year);
+      const eff: DeductionSettings = {
+        federal_claim_amount: Number(b.settings.federal_claim_amount ?? FED_BPA_DEFAULT),
+        quebec_claim_amount: Number(b.settings.quebec_claim_amount ?? QC_BPA_DEFAULT),
+        disability_insurance_rate: Number(b.settings.disability_insurance_rate ?? DISABILITY_RATE_DEFAULT),
+      };
+      const bonus = lastFriday ? Number(body.bonus_overrides?.[previewEmployeeId] || 0) : 0;
+      const taxableGross = round2(b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus);
+      const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
+      const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
+      const netPay = round2(totalGrossAgent - ded.total_deductions);
+      const prevYtd = await fetchYtd(previewEmployeeId, year);
+      const pdf = buildPaystubPdf({
+        paystub_number: `APERÇU-${previewEmployeeId.slice(0, 6)}`,
+        pay_date: payDate,
+        period_start: pStart.toISOString().slice(0, 10),
+        period_end: pEnd.toISOString().slice(0, 10),
+        employee_name: profile?.full_name || profile?.email || "Employé",
+        agent_number: profile?.agent_number ?? null,
+        employee_role: b.settings.employee_role ?? null,
+        payment_method: b.settings.payment_method ?? "interac",
+        commission_gross: round2(b.commissionGross),
+        regular_hours_pay: round2(b.regularPay),
+        overtime_hours_pay: round2(b.overtimePay),
+        allocation_total: round2(b.taxableAdjustments + b.nonTaxableAdjustments),
+        bonus_amount: round2(bonus),
+        total_gross: totalGrossAgent,
+        federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
+        rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
+        disability_insurance: ded.disability_insurance,
+        total_deductions: ded.total_deductions,
+        net_pay: netPay,
+        ytd_gross: round2(prevYtd.ytd_gross + totalGrossAgent),
+        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + ded.total_deductions),
+        ytd_net: round2(prevYtd.ytd_net + netPay),
+      });
+      // base64 encode
+      let binary = "";
+      for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
+      const b64 = btoa(binary);
+      return new Response(JSON.stringify({ preview: true, pdf_base64: b64, filename: `apercu-paie-${previewEmployeeId.slice(0,6)}.pdf` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (dryRun) {
