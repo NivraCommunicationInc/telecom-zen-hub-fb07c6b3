@@ -2634,6 +2634,82 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // SUPPORT — AI assistant reply (sent to the client)
+    // ===================================================================
+    case "support_ai_reply": {
+      const ticketNumber = esc(v.ticket_number || "TKT-XXXXXXXX");
+      const accountNumber = esc(v.account_number || "Inconnu");
+      const originalSubject = esc(v.original_subject || v.subject || "votre demande");
+      const aiResponse = String(v.ai_response || "");
+      // Convert plain-text AI response into safe HTML paragraphs
+      const bodyHtml = aiResponse
+        .split(/\n{2,}/)
+        .map((para) =>
+          `<p style="margin:0 0 12px 0; line-height:1.55; color:${BRAND_TEXT_BODY};">${esc(para).replace(/\n/g, "<br>")}</p>`,
+        )
+        .join("");
+      return {
+        subject: `RE: ${originalSubject} - Ticket ${ticketNumber}`,
+        html: shell({
+          preheader: `Réponse à votre demande de support (ticket ${ticketNumber}).`,
+          badge: "SUPPORT NIVRA",
+          heroTitle: "Réponse à votre demande",
+          heroSub: `Ticket ${ticketNumber}`,
+          icon: "info",
+          greeting: `Bonjour ${esc(clientName)},`,
+          bodyText: bodyHtml,
+          cardTitle: "Détails du ticket",
+          cardRows: [
+            ["Numéro de ticket", ticketNumber],
+            ["Compte", accountNumber],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/support`,
+          ctaPrimaryLabel: "Voir mon dossier",
+          helpHtml: `Pour répondre, écrivez simplement à cet email. Notre équipe est là pour vous: <strong style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</strong>`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // SUPPORT — escalation alert (sent to admin)
+    // ===================================================================
+    case "support_escalation": {
+      const ticketNumber = esc(v.ticket_number || "TKT-XXXXXXXX");
+      const clientNameEsc = esc(v.client_name || "Client inconnu");
+      const clientEmail = esc(v.client_email || "");
+      const accountNumber = esc(v.account_number || "Inconnu");
+      const subjectEsc = esc(v.subject || "(sans objet)");
+      const rawBody = String(v.body || "");
+      const bodyTrunc = esc(rawBody.length > 500 ? rawBody.slice(0, 500) + "..." : rawBody);
+      const aiReason = esc(v.ai_reason || "Aucune analyse disponible");
+      return {
+        subject: `[ESCALADE] Ticket ${ticketNumber} - ${clientEmail}`,
+        html: shell({
+          preheader: `Nouvelle escalade support à traiter: ${clientEmail}`,
+          badge: "ESCALADE SUPPORT",
+          heroTitle: "Nouveau ticket à traiter",
+          heroSub: `Ticket ${ticketNumber}`,
+          icon: "alert",
+          greeting: `Bonjour équipe,`,
+          bodyText: `Un ticket support a été escaladé par l'agent IA et requiert une intervention humaine.`,
+          cardTitle: "Détails du ticket",
+          cardRows: [
+            ["Ticket", ticketNumber],
+            ["Client", clientNameEsc],
+            ["Courriel", clientEmail],
+            ["Compte", accountNumber],
+            ["Sujet", subjectEsc],
+            ["Message", bodyTrunc],
+            ["Analyse IA", aiReason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/support`,
+          ctaPrimaryLabel: "Voir le ticket dans Core",
+          helpHtml: `Délai de réponse cible: 2 heures. Connexion via <a href="${APP_URL}/hub" style="color:${BRAND_PRIMARY};">${APP_URL}/hub</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }

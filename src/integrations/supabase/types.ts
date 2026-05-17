@@ -18861,18 +18861,27 @@ export type Database = {
       }
       support_tickets: {
         Row: {
+          account_id: string | null
+          ai_confidence: number | null
+          ai_responded_at: string | null
+          ai_response: string | null
+          ai_scheduled_at: string | null
           assigned_department: string | null
           assigned_to: string | null
           assigned_to_user_id: string | null
           attachments: Json | null
+          body: string | null
           category: string | null
           cc_user_ids: string[] | null
           client_email: string | null
+          client_name: string | null
           created_at: string
           created_by_role: string | null
           created_by_user_id: string | null
           description: string
           equipment_serial: string | null
+          escalated_at: string | null
+          escalated_reason: string | null
           id: string
           id_files: Json | null
           id_verification_status: string | null
@@ -18885,8 +18894,10 @@ export type Database = {
           related_order_id: string | null
           related_order_reference: string | null
           requires_id_upload: boolean | null
+          resolved_at: string | null
           route_to: string | null
           service_address: string | null
+          source: string | null
           status: string
           subject: string
           ticket_number: string | null
@@ -18894,18 +18905,27 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          account_id?: string | null
+          ai_confidence?: number | null
+          ai_responded_at?: string | null
+          ai_response?: string | null
+          ai_scheduled_at?: string | null
           assigned_department?: string | null
           assigned_to?: string | null
           assigned_to_user_id?: string | null
           attachments?: Json | null
+          body?: string | null
           category?: string | null
           cc_user_ids?: string[] | null
           client_email?: string | null
+          client_name?: string | null
           created_at?: string
           created_by_role?: string | null
           created_by_user_id?: string | null
           description: string
           equipment_serial?: string | null
+          escalated_at?: string | null
+          escalated_reason?: string | null
           id?: string
           id_files?: Json | null
           id_verification_status?: string | null
@@ -18918,8 +18938,10 @@ export type Database = {
           related_order_id?: string | null
           related_order_reference?: string | null
           requires_id_upload?: boolean | null
+          resolved_at?: string | null
           route_to?: string | null
           service_address?: string | null
+          source?: string | null
           status?: string
           subject: string
           ticket_number?: string | null
@@ -18927,18 +18949,27 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          account_id?: string | null
+          ai_confidence?: number | null
+          ai_responded_at?: string | null
+          ai_response?: string | null
+          ai_scheduled_at?: string | null
           assigned_department?: string | null
           assigned_to?: string | null
           assigned_to_user_id?: string | null
           attachments?: Json | null
+          body?: string | null
           category?: string | null
           cc_user_ids?: string[] | null
           client_email?: string | null
+          client_name?: string | null
           created_at?: string
           created_by_role?: string | null
           created_by_user_id?: string | null
           description?: string
           equipment_serial?: string | null
+          escalated_at?: string | null
+          escalated_reason?: string | null
           id?: string
           id_files?: Json | null
           id_verification_status?: string | null
@@ -18951,8 +18982,10 @@ export type Database = {
           related_order_id?: string | null
           related_order_reference?: string | null
           requires_id_upload?: boolean | null
+          resolved_at?: string | null
           route_to?: string | null
           service_address?: string | null
+          source?: string | null
           status?: string
           subject?: string
           ticket_number?: string | null
@@ -18960,6 +18993,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "support_tickets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "support_tickets_point_of_contact_id_fkey"
             columns: ["point_of_contact_id"]
@@ -19579,11 +19619,15 @@ export type Database = {
           attachments: Json | null
           content: string
           created_at: string
+          email_message_id: string | null
           id: string
           is_admin: boolean
           is_internal_note: boolean | null
+          sender_email: string | null
           sender_name: string | null
           sender_role: string
+          sender_type: string | null
+          subject: string | null
           ticket_id: string
           user_id: string
         }
@@ -19591,11 +19635,15 @@ export type Database = {
           attachments?: Json | null
           content: string
           created_at?: string
+          email_message_id?: string | null
           id?: string
           is_admin?: boolean
           is_internal_note?: boolean | null
+          sender_email?: string | null
           sender_name?: string | null
           sender_role?: string
+          sender_type?: string | null
+          subject?: string | null
           ticket_id: string
           user_id: string
         }
@@ -19603,11 +19651,15 @@ export type Database = {
           attachments?: Json | null
           content?: string
           created_at?: string
+          email_message_id?: string | null
           id?: string
           is_admin?: boolean
           is_internal_note?: boolean | null
+          sender_email?: string | null
           sender_name?: string | null
           sender_role?: string
+          sender_type?: string | null
+          subject?: string | null
           ticket_id?: string
           user_id?: string
         }

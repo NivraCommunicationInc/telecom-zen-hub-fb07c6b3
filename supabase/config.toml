@@ -257,3 +257,9 @@ verify_jwt = false
 
 [functions.audit-generate-pdfs]
 verify_jwt = false
+
+[functions.support-email-inbound]
+verify_jwt = false
+
+[functions.support-ai-responder]
+verify_jwt = false

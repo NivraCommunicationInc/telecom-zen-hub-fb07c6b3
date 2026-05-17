@@ -14,12 +14,16 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "En attente", color: "bg-[#64748B]/20 text-[#94A3B8]" },
   open: { label: "Ouvert", color: "bg-blue-500/15 text-blue-400" },
   in_progress: { label: "En cours", color: "bg-amber-500/15 text-amber-400" },
   on_hold: { label: "En pause", color: "bg-purple-500/15 text-purple-400" },
+  ai_replied: { label: "IA a répondu", color: "bg-sky-500/15 text-sky-400" },
+  escalated: { label: "Escalade — Action requise", color: "bg-red-500/15 text-red-400" },
+  human_replied: { label: "Répondu", color: "bg-emerald-500/15 text-emerald-400" },
   resolved: { label: "Résolu", color: "bg-emerald-500/15 text-emerald-400" },
   closed: { label: "Fermé", color: "bg-[#64748B]/20 text-[#64748B]" },
   cancelled: { label: "Annulé", color: "bg-red-500/15 text-red-400" },
@@ -55,6 +59,11 @@ const categoryConfig: Record<string, string> = {
 
 export default function CoreSupportPage() {
   const queryClient = useQueryClient();
+  // Realtime: refresh ticket lists and conversations on any DB change
+  usePortalRealtime(
+    ["support_tickets", "ticket_replies"],
+    [["core-support-tickets"], ["core-ticket-replies"], ["core-ticket-messages"]],
+  );
   const [ticketScope, setTicketScope] = useState<"client" | "internal">("client");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
