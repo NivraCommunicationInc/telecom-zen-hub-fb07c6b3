@@ -47,20 +47,6 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reactivateOpen, setReactivateOpen] = useState(false);
 
-  const updateStatus = async (newStatus: string) => {
-    if (!accountId) return;
-    setLoading(true);
-    try {
-      const { error } = await supabase.from("accounts").update({
-        status: newStatus, updated_at: new Date().toISOString(),
-      }).eq("id", accountId);
-      if (error) throw error;
-      toast.success(`Compte ${newStatus === "suspended" ? "suspendu" : "réactivé"}`);
-      onRefresh();
-    } catch (e: any) { toast.error(e.message || "Erreur"); }
-    finally { setLoading(false); }
-  };
-
   const handleImpersonate = async () => {
     if (!clientId) return;
     setLoading(true);
