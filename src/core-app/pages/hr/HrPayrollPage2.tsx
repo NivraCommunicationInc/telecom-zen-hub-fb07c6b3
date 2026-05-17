@@ -787,6 +787,20 @@ export default function HrPayrollPage2() {
 
       <PayrollEntryDetailDialog entry={entryDetails} onClose={() => setEntryDetails(null)} />
 
+      <PaymentsCenterDialog
+        open={paymentsOpen}
+        onClose={() => setPaymentsOpen(false)}
+        onMarkPayment={(e) => setMarkPaymentFor(e)}
+      />
+      <MarkPaymentDialog
+        entry={markPaymentFor}
+        onClose={() => setMarkPaymentFor(null)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ["hr-payroll2-payments"] });
+          qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
+        }}
+      />
+
       {/* Settings drawer */}
       <EmployeeSettingsSheet
         emp={editingEmployee}
