@@ -153,9 +153,9 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
     <Panel>
       <PanelHeader icon={Clock} title="Cycle de facturation" />
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
-        <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ? `Le ${acct.billing_cycle_day} de chaque mois` : "—"} accent />
-        <InfoLine label="Prochaine facture" value={fmtDate(acct.next_invoice_date)} accent />
-        <InfoLine label="Date d'ancrage" value={fmtDate(acct.billing_anchor_date)} />
+        <InfoLine label="Jour de cycle" value={cycle.cycleDay ? `Le ${cycle.cycleDay} de chaque mois` : "—"} accent />
+        <InfoLine label="Prochaine facture" value={fmtDate(cycle.nextInvoiceDate)} accent />
+        <InfoLine label="Date d'ancrage" value={fmtDate(cycle.anchorDate)} />
         <InfoLine label="Fuseau horaire" value={acct.billing_cycle_timezone || "America/Toronto"} />
       </div>
     </Panel>
