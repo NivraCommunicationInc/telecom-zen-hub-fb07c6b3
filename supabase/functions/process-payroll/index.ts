@@ -397,7 +397,7 @@ Deno.serve(async (req) => {
           federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
           rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
           disability_insurance: ded.disability_insurance,
-          total_deductions: ded.total_deductions, deductions_total: ded.total_deductions,
+          deductions_total: ded.total_deductions,
           net_pay: netPay,
           payment_method: paymentMethod, payment_status: "processing",
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
