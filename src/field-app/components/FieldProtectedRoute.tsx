@@ -138,5 +138,39 @@ export default function FieldProtectedRoute() {
     );
   }
 
+  if (state === "training_required") {
+    // Allow ONLY the training route through; everything else is blocked.
+    if (location.pathname.startsWith("/field/training")) {
+      return <Outlet />;
+    }
+    return (
+      <div className="internal-ui min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full bg-card border rounded-2xl shadow-lg p-8 text-center">
+          <div className="h-14 w-14 rounded-2xl mx-auto bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-md mb-4">
+            <GraduationCap className="h-7 w-7 text-white" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">⚠️ Formation obligatoire requise</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Vous devez compléter la formation Nivra avant d'accéder au portail de vente.
+          </p>
+          <div className="text-xs text-muted-foreground mb-5">
+            Progression : <span className="font-semibold text-foreground">{trainingDone}/{trainingTotal} modules complétés</span>
+          </div>
+          <button
+            onClick={() => navigate("/field/training", { replace: true })}
+            className="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg py-3 transition-colors"
+          >
+            Commencer ma formation →
+          </button>
+          <p className="text-xs text-muted-foreground mt-4">
+            Questions ? <a href="mailto:support@nivra-telecom.ca" className="text-violet-600 hover:underline">support@nivra-telecom.ca</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return <Outlet />;
 }
+// Note: <Navigate /> kept available for future use; suppress unused-import.
+void Navigate;
