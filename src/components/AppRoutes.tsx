@@ -25,6 +25,7 @@ const MarketingAppLayout = lazy(() => import("@/marketing-app/MarketingAppLayout
 const MarketingProtectedRoute = lazy(() => import("@/marketing-app/components/MarketingProtectedRoute"));
 const HrDashboard = lazy(() => import("@/hr-app/pages/HrDashboard"));
 const HrPayslips = lazy(() => import("@/hr-app/pages/HrPayslips"));
+const HrPayments = lazy(() => import("@/hr-app/pages/HrPayments"));
 const HrTaxDocuments = lazy(() => import("@/hr-app/pages/HrTaxDocuments"));
 const HrEmploymentLetters = lazy(() => import("@/hr-app/pages/HrEmploymentLetters"));
 const HrSchedule = lazy(() => import("@/hr-app/pages/HrSchedule"));
