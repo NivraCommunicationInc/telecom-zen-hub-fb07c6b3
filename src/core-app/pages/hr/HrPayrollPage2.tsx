@@ -122,6 +122,7 @@ export default function HrPayrollPage2() {
   // Employee multi-select for payroll processing
   const [selectedEmps, setSelectedEmps] = useState<Set<string>>(new Set());
   const [previewingStub, setPreviewingStub] = useState<string | null>(null);
+  const [bonusOverrides, setBonusOverrides] = useState<Map<string, number>>(new Map());
   function toggleExcludedComm(id: string) {
     setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
@@ -130,6 +131,9 @@ export default function HrPayrollPage2() {
   }
   function setLocalHoursFor(empId: string, h: number, ot: number) {
     setLocalHours((prev) => { const n = new Map(prev); n.set(empId, { h, ot }); return n; });
+  }
+  function setBonusFor(empId: string, amount: number) {
+    setBonusOverrides((prev) => { const n = new Map(prev); if (amount > 0) n.set(empId, amount); else n.delete(empId); return n; });
   }
 
   // Period boundaries
