@@ -780,7 +780,6 @@ const AppRoutes = () => {
           <Route path="conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
           <Route path="ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
           <Route path="sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
-          <Route path="live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
         </Route>
@@ -842,7 +841,6 @@ const AppRoutes = () => {
           <Route path="marketing/conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
           <Route path="marketing/ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
           <Route path="marketing/sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
-          <Route path="marketing/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="marketing/email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
           <Route path="marketing/settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
@@ -861,6 +859,7 @@ const AppRoutes = () => {
           <Route path="referral-terms" element={<Suspense fallback={null}><CoreReferralTermsPage /></Suspense>} />
           {/* Support */}
           <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
+          <Route path="support/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="internal-tickets" element={<Suspense fallback={null}><CoreInternalTicketsPage /></Suspense>} />
           <Route path="web-forms" element={<Suspense fallback={null}><CoreWebFormsPage /></Suspense>} />
           <Route path="telephony" element={<Suspense fallback={null}><CoreTelephonyPage /></Suspense>} />
