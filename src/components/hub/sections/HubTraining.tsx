@@ -4,7 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, GraduationCap, PlayCircle, FileText, Award, CheckCircle2, X } from "lucide-react";
+import { Loader2, GraduationCap, PlayCircle, FileText, Award, CheckCircle2, X, BookOpen, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +17,15 @@ type QuizQ = { question: string; options: string[]; answer: number };
 function readTime(text?: string) {
   const words = (text || "").trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
+}
+
+function hasLessonContent(post: any) {
+  return Boolean(
+    (post?.content || "").trim() ||
+    (post?.video_urls?.length ?? 0) > 0 ||
+    (post?.document_urls?.length ?? 0) > 0 ||
+    (post?.external_links?.length ?? 0) > 0
+  );
 }
 
 export default function HubTraining({ search = "" }: { search?: string }) {
@@ -136,6 +145,8 @@ export default function HubTraining({ search = "" }: { search?: string }) {
     setScore(sc);
     markComplete.mutate({ postId: active.id, scoreValue: sc });
   }
+
+  const canStartActiveQuiz = active ? hasLessonContent(active) : false;
 
   function closeDialog() {
     setActive(null);
