@@ -599,7 +599,7 @@ Deno.serve(async (req) => {
           federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
           rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
           disability_insurance: ded.disability_insurance,
-          deductions_total: ded.total_deductions,
+          deductions_total: totalDeductions,
           net_pay: netPay,
           payment_method: paymentMethod, payment_status: "paid", paid_at: new Date().toISOString(),
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
@@ -639,10 +639,11 @@ Deno.serve(async (req) => {
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
         disability_insurance: ded.disability_insurance,
-        total_deductions: ded.total_deductions,
+        manual_deductions: round2(b.manualDeductions),
+        total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross,
-        ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability),
+        ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability + b.manualDeductions),
         ytd_net,
       });
       const uploadedPdf = await uploadPaystubPdf(pdf, run.id, empId);
@@ -697,7 +698,8 @@ Deno.serve(async (req) => {
           ae: ded.ae,
           rqap: ded.rqap,
           disability_insurance: ded.disability_insurance,
-          total_deductions: ded.total_deductions,
+          manual_deductions: round2(b.manualDeductions),
+          total_deductions: totalDeductions,
           net_pay: netPay,
           payment_method: paymentMethod,
           payroll_number: entry.payroll_number,
@@ -713,7 +715,7 @@ Deno.serve(async (req) => {
       );
 
       totalGross += totalGrossAgent;
-      totalDed += ded.total_deductions;
+      totalDed += totalDeductions;
       totalNet += netPay;
       totalBonus += bonus;
     }
