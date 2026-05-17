@@ -57,6 +57,22 @@ serve(async (req) => {
     
     for (const sub of subscriptions || []) {
       try {
+        // ═══ GUARD: NULL next_renewal_at ═══
+        // If next_renewal_at is null on an active subscription, this is a data
+        // integrity issue. Log and create an alert, but DO continue using
+        // cycle_end_date which is the canonical scheduling column here.
+        if (sub.next_renewal_at == null) {
+          console.error(
+            `[billing-generate-renewals] ALERT: subscription ${sub.id} has null next_renewal_at — proceeding with cycle_end_date but flagging for repair`
+          );
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "null_next_renewal_at",
+            entity_type: "billing_subscription",
+            entity_id: sub.id,
+            details: { cycle_end_date: sub.cycle_end_date, status: sub.status },
+          });
+        }
+
         // Check if renewal invoice already exists for this cycle
         const newCycleStart = new Date(sub.cycle_end_date);
         const newCycleEnd = new Date(sub.cycle_end_date);
@@ -226,24 +242,43 @@ serve(async (req) => {
           .from("billing_invoice_lines")
           .insert(invoiceLines);
         
-        // Create pending payment with appropriate method
-        const { data: payNumData } = await supabase.rpc("generate_payment_number");
-        const paymentNumber = payNumData || `PAY-${Date.now()}`;
-        
-        await supabase
+        // ═══ IDEMPOTENCY: never create a duplicate pending payment ═══
+        // Check if a non-failed/cancelled payment already exists for this
+        // invoice (which is itself unique per subscription+cycle thanks to
+        // the existingInvoice guard above). Belt-and-suspenders against
+        // double-billing for PayPal-driven retries.
+        const { data: existingPayment } = await supabase
           .from("billing_payments")
-          .insert({
-            invoice_id: invoice.id,
-            customer_id: sub.customer_id,
-            method: paymentMethod,
-            provider: isAutopayEligible ? 'stripe' : (hasPayPalSubscription ? 'paypal' : 'interac'),
-            amount: total,
-            status: 'pending',
-            payment_number: paymentNumber,
-            source: 'live',
-            created_by_name: 'billing_renewal',
-            created_by_role: 'system',
-          });
+          .select("id, status")
+          .eq("invoice_id", invoice.id)
+          .not("status", "in", '("failed","cancelled")')
+          .limit(1)
+          .maybeSingle();
+
+        if (existingPayment) {
+          console.log(
+            `[billing-generate-renewals] Skipping payment insert — already exists (${existingPayment.id}, status=${existingPayment.status}) for invoice ${invoice.id}`
+          );
+        } else {
+          // Create pending payment with appropriate method
+          const { data: payNumData } = await supabase.rpc("generate_payment_number");
+          const paymentNumber = payNumData || `PAY-${Date.now()}`;
+
+          await supabase
+            .from("billing_payments")
+            .insert({
+              invoice_id: invoice.id,
+              customer_id: sub.customer_id,
+              method: paymentMethod,
+              provider: isAutopayEligible ? 'stripe' : (hasPayPalSubscription ? 'paypal' : 'interac'),
+              amount: total,
+              status: 'pending',
+              payment_number: paymentNumber,
+              source: 'live',
+              created_by_name: 'billing_renewal',
+              created_by_role: 'system',
+            });
+        }
         
         // ═══ STRIPE AUTOPAY: DISABLED — 2026-03-21 ═══
         // Stripe autopay is permanently disabled. PayPal handles recurring billing.
