@@ -13,8 +13,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
-import { enqueueEmail } from "../_shared/ResendProxy.ts";
-import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -202,22 +200,23 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
     const content = btoa(binary);
     const eventKey = `paystub_notification_${entryId}`;
-    const rendered = renderQueueTemplate("paystub_notification", vars);
-    if (!rendered) throw new Error("Template courriel système paystub_notification introuvable.");
-    const direct = await enqueueEmail({
-      to: toEmail,
-      templateKey: "paystub_notification",
-      templateVars: vars,
-      subject: rendered.subject,
-      html: rendered.html,
-      eventKey,
-      messageType: "paystub_notification",
-      entityType: "payroll_entry",
-      entityId: entryId,
+    const { error: qErr } = await supabase.from("email_queue").upsert({
+      event_key: eventKey,
+      template_key: "paystub_notification",
+      to_email: toEmail,
+      template_vars: vars,
+      message_type: "paystub_notification",
+      entity_type: "payroll_entry",
+      entity_id: entryId,
       attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
-    });
-    if (!direct.success) throw new Error(direct.error || "Échec d'envoi courriel.");
-    await supabase.functions.invoke("process-email-queue", { body: { drain_now: true } });
+      status: "queued",
+      attempts: 0,
+      last_error: null,
+      next_retry_at: new Date().toISOString(),
+    } as any, { onConflict: "event_key" });
+    if (qErr) throw qErr;
+    const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
+    if (drainErr) throw drainErr;
     return { ok: true };
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
