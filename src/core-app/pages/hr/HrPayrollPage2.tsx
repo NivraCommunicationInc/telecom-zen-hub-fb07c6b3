@@ -115,6 +115,8 @@ export default function HrPayrollPage2() {
   const [preview, setPreview] = useState<any | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [drillIn, setDrillIn] = useState<string | null>(null);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
+  const [markPaymentFor, setMarkPaymentFor] = useState<any | null>(null);
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("all");
   const [historyEmail, setHistoryEmail] = useState("all");
