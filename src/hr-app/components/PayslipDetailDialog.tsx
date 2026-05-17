@@ -25,7 +25,13 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   draft: { label: "Brouillon", cls: "bg-muted text-muted-foreground" },
   approved: { label: "Approuvé", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400" },
   processing: { label: "En traitement", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
+  scheduled: { label: "Programmé", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400" },
+  pending: { label: "En attente", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
+  sent: { label: "Envoyé", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
   paid: { label: "Payé", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
+  confirmed: { label: "Confirmé", cls: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300" },
+  failed: { label: "Échoué", cls: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" },
+  cancelled: { label: "Annulé", cls: "bg-muted text-muted-foreground" },
 };
 
 const ADJ_LABELS: Record<string, string> = {
@@ -261,21 +267,53 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
             </div>
           )}
 
-          {/* RETENUES */}
+          {/* RETENUES — Détail canonique (synchronisé avec Nivra Core) */}
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-3">
               <TrendingDown className="h-4 w-4 text-destructive" />
-              Retenues
+              Retenues légales et déductions
             </h3>
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <tbody>
                   <Row
-                    label="Total des retenues"
-                    value={`- ${fmtMoney(Number(entry.deductions_total))}`}
-                    icon={<DollarSign className="h-3.5 w-3.5" />}
+                    label="Impôt fédéral"
+                    value={`- ${fmtMoney(Number(entry.federal_tax || 0))}`}
+                    icon={<FileText className="h-3.5 w-3.5" />}
                     destructive
                   />
+                  <Row
+                    label="Impôt provincial (Québec)"
+                    value={`- ${fmtMoney(Number(entry.quebec_tax || 0))}`}
+                    icon={<FileText className="h-3.5 w-3.5" />}
+                    destructive
+                  />
+                  <Row
+                    label="RRQ (Régime de rentes du Québec)"
+                    value={`- ${fmtMoney(Number(entry.rrq || 0))}`}
+                    icon={<FileText className="h-3.5 w-3.5" />}
+                    destructive
+                  />
+                  <Row
+                    label="AE (Assurance-emploi)"
+                    value={`- ${fmtMoney(Number(entry.ae || 0))}`}
+                    icon={<FileText className="h-3.5 w-3.5" />}
+                    destructive
+                  />
+                  <Row
+                    label="RQAP (Régime québécois d'assurance parentale)"
+                    value={`- ${fmtMoney(Number(entry.rqap || 0))}`}
+                    icon={<FileText className="h-3.5 w-3.5" />}
+                    destructive
+                  />
+                  {Number(entry.disability_insurance || 0) > 0 && (
+                    <Row
+                      label="Assurance invalidité"
+                      value={`- ${fmtMoney(Number(entry.disability_insurance))}`}
+                      icon={<FileText className="h-3.5 w-3.5" />}
+                      destructive
+                    />
+                  )}
                   {deductionAdjs.map((adj) => (
                     <Row
                       key={adj.id}
@@ -286,13 +324,15 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
                       sublabel={adj.notes || undefined}
                     />
                   ))}
-                  {deductionAdjs.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-2 text-xs text-muted-foreground text-center">
-                        Aucun ajustement détaillé
-                      </td>
-                    </tr>
-                  )}
+                  <tr className="bg-muted/30 border-t-2 border-border">
+                    <td className="px-4 py-2.5 w-8 text-muted-foreground">
+                      <DollarSign className="h-3.5 w-3.5" />
+                    </td>
+                    <td className="py-2.5 font-bold text-foreground">Total des retenues</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-destructive">
+                      - {fmtMoney(Number(entry.deductions_total))}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
