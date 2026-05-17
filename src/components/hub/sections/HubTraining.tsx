@@ -168,6 +168,7 @@ export default function HubTraining({ search = "" }: { search?: string }) {
         <TabsList>
           <TabsTrigger value="catalog">Catalogue</TabsTrigger>
           <TabsTrigger value="certs">Mes certificats {certificates?.length ? `(${certificates.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="leaderboard"><Trophy className="h-3.5 w-3.5 mr-1" />Classement</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="mt-4">
