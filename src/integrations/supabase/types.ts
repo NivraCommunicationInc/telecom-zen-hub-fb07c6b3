@@ -22400,6 +22400,7 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: Json
       }
+      check_billing_health: { Args: never; Returns: undefined }
       check_lockdown_status: { Args: never; Returns: Json }
       check_overdue_invoices: { Args: never; Returns: undefined }
       check_portal_access: {
