@@ -2873,6 +2873,145 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // ORDER STATUS — generic update (Feature 1)
+    // ===================================================================
+    case "order_status_update": {
+      const oNum = esc(v.order_number || "N/A");
+      const sLabel = esc(v.status_label || v.status || "Mise à jour");
+      const tracking = esc(v.tracking_number || "");
+      const carrier = esc(v.carrier || "");
+      const rows: [string, string][] = [
+        ["Numéro de commande", `#${String(oNum).replace(/^#/, "")}`],
+        ["Statut", String(sLabel)],
+      ];
+      if (tracking) rows.push(["Numéro de suivi", tracking]);
+      if (carrier) rows.push(["Transporteur", carrier]);
+      return {
+        subject: `Commande ${oNum} : ${sLabel}`,
+        html: shell({
+          preheader: `Statut mis à jour : ${sLabel}.`,
+          badge: "MISE À JOUR DE COMMANDE",
+          heroTitle: String(sLabel),
+          heroSub: `Commande ${oNum}`,
+          icon: "check",
+          greeting,
+          bodyText: `Le statut de votre commande Nivra vient d'être mis à jour.`,
+          cardTitle: "Détails",
+          cardRows: rows,
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Voir ma commande",
+          helpHtml: `Une question ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // OUTAGE REPORT — client confirmation (Feature 2)
+    // ===================================================================
+    case "outage_report_confirmation": {
+      const tNum = esc(v.ticket_number || "N/A");
+      const type = esc(v.incident_type || "Panne signalée");
+      const svc = esc(v.service_name || "Votre service");
+      return {
+        subject: `Signalement reçu — Ticket ${tNum}`,
+        html: shell({
+          preheader: `Nous avons reçu votre signalement de panne.`,
+          badge: "SIGNALEMENT REÇU",
+          heroTitle: "Votre signalement a été reçu",
+          heroSub: `Ticket ${tNum}`,
+          icon: "check",
+          greeting,
+          bodyText: `Notre équipe vérifie le problème signalé. Vous serez notifié dès qu'il sera résolu.`,
+          cardTitle: "Détails du signalement",
+          cardRows: [
+            ["Numéro de ticket", tNum],
+            ["Service concerné", String(svc)],
+            ["Type de problème", String(type)],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/tickets`,
+          ctaPrimaryLabel: "Suivre mon ticket",
+          helpHtml: `Urgent ? Écrivez à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "outage_report_admin": {
+      const cName = esc(v.client_name || "Client");
+      const cAcc = esc(v.account_number || v.client_account_id || "—");
+      const tNum = esc(v.ticket_number || "N/A");
+      const type = esc(v.incident_type || "Panne");
+      const desc = esc(v.description || "(aucune description)");
+      const svc = esc(v.service_name || "—");
+      return {
+        subject: `ALERTE: Signalement client ${cName} (${tNum})`,
+        html: shell({
+          preheader: `Nouveau signalement client à traiter.`,
+          badge: "ALERTE INTERNE",
+          heroTitle: "Nouveau signalement client",
+          heroSub: `Ticket ${tNum}`,
+          icon: "warning",
+          greeting: `Bonjour équipe Nivra,`,
+          bodyText: `Un client vient de signaler un problème. Détails ci-dessous.`,
+          cardTitle: "Signalement",
+          cardRows: [
+            ["Client", String(cName)],
+            ["Compte", String(cAcc)],
+            ["Service", String(svc)],
+            ["Type", String(type)],
+            ["Description", String(desc)],
+            ["Ticket", String(tNum)],
+          ],
+          helpVariant: "warning",
+          ctaPrimaryUrl: `${APP_URL}/core/support`,
+          ctaPrimaryLabel: "Ouvrir dans Core",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // SLA alerts (Feature 4)
+    // ===================================================================
+    case "sla_breach_alert":
+    case "sla_warning": {
+      const isBreach = templateKey === "sla_breach_alert";
+      const itemType = esc(v.item_type || "Tâche");
+      const itemRef = esc(v.item_reference || "—");
+      const cName = esc(v.client_name || "—");
+      const empName = esc(v.employee_name || "Équipe");
+      const deadlineRaw = v.sla_deadline ? new Date(String(v.sla_deadline)) : null;
+      const deadline = deadlineRaw && !isNaN(deadlineRaw.getTime())
+        ? deadlineRaw.toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" })
+        : "—";
+      return {
+        subject: isBreach
+          ? `ALERTE SLA dépassé — ${itemType} ${itemRef}`
+          : `SLA bientôt expiré — ${itemType} ${itemRef}`,
+        html: shell({
+          preheader: isBreach ? "SLA dépassé, action requise." : "SLA expire bientôt.",
+          badge: isBreach ? "SLA DÉPASSÉ" : "SLA BIENTÔT EXPIRÉ",
+          heroTitle: isBreach ? "SLA dépassé" : "Attention : SLA bientôt expiré",
+          heroSub: `${itemType} ${itemRef}`,
+          icon: "warning",
+          greeting: `Bonjour ${empName},`,
+          bodyText: isBreach
+            ? `Le délai SLA pour cette tâche a été dépassé. Une action immédiate est requise.`
+            : `Le délai SLA pour cette tâche approche. Veuillez agir rapidement.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Type", String(itemType)],
+            ["Référence", String(itemRef)],
+            ["Client", String(cName)],
+            ["Assigné à", String(empName)],
+            ["Échéance SLA", deadline],
+          ],
+          helpVariant: "warning",
+          ctaPrimaryUrl: `${APP_URL}/core/sla`,
+          ctaPrimaryLabel: "Ouvrir le tableau SLA",
+        }),
+      };
+    }
+
     default:
       return null;
   }
