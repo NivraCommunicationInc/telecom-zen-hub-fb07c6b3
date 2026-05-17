@@ -648,10 +648,17 @@ function EmployeeCard({
   const liveHourlySubtotal = liveRegular + liveOvertime;
 
   return (
-    <Card>
+    <Card className={selected ? "ring-2 ring-primary/60" : ""}>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-input"
+              checked={selected}
+              onChange={onToggleSelected}
+              aria-label="Inclure dans la paie"
+            />
             {emp.profile?.avatar_url ? (
               <img src={emp.profile.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover" />
             ) : (
@@ -667,6 +674,10 @@ function EmployeeCard({
           <div className="flex items-center gap-2">
             <Badge className={ROLE_BADGE_CLS[role] ?? ""}>{role}</Badge>
             <Badge variant="outline" className={payBadge.cls}>{payBadge.label}</Badge>
+            <Button size="sm" variant="outline" onClick={onPreviewStub} disabled={previewingStub}>
+              {previewingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Voir le talon
+            </Button>
             <Button size="sm" variant="ghost" onClick={onEditSettings}><Settings className="h-4 w-4" /></Button>
           </div>
         </div>
