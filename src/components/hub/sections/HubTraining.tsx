@@ -82,6 +82,16 @@ export default function HubTraining({ search = "" }: { search?: string }) {
     },
   });
 
+  const { data: leaderboard } = useQuery({
+    queryKey: ["hub-training-leaderboard"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_training_leaderboard", { _limit: 20 });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+    staleTime: 60_000,
+  });
+
   const markComplete = useMutation({
     mutationFn: async ({ postId, scoreValue }: { postId: string; scoreValue?: number }) => {
       if (!userId) throw new Error("Non connecté");
