@@ -457,6 +457,8 @@ export default function HrPayrollPage2() {
                 onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
                 onPreviewStub={() => stubPreviewMutation.mutate(emp.employee_id)}
                 previewingStub={previewingStub === emp.employee_id}
+                bonus={bonusOverrides.get(emp.employee_id) || 0}
+                onBonusChange={(v) => setBonusFor(emp.employee_id, v)}
               />
             ))}
           </TabsContent>
