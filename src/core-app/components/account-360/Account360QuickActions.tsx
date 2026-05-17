@@ -78,9 +78,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
     ...(accountStatus !== "suspended" && accountStatus !== "cancelled"
       ? [{ icon: PauseCircle, label: "Pause temporaire", onClick: () => setPauseOpen(true), color: "warning" as const }]
-      : accountStatus === "suspended"
-        ? [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
-        : []
+      : [{ icon: PlayCircle, label: "Réactiver le compte", onClick: () => setReactivateOpen(true), color: "success" as const }]
     ),
     ...(accountStatus !== "cancelled"
       ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
