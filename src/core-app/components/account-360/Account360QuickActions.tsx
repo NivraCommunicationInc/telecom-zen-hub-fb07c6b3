@@ -4,8 +4,6 @@
  * Now includes: restrictions, PIN reset, credits with duration.
  */
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
