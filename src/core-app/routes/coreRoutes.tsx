@@ -127,6 +127,7 @@ export const coreRoutes: RouteObject = {
     { path: "system-status", element: <CoreSystemStatusPage /> },
     // Operations
     { path: "work-queue", element: <WorkQueuePage /> },
+    { path: "sla", element: <CoreSLAPage /> },
     { path: "orders", element: <OrdersPage /> },
     { path: "orders/:orderId", element: <CoreOrderDetail /> },
     { path: "pos", element: <CorePOSPage /> },
