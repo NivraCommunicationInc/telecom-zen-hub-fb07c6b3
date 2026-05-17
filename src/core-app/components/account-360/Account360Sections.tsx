@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import {
-  Panel, PanelHeader, InfoLine, MiniTable, trClass, fmtCAD, fmtDate, fmtDateTime, label,
+  Panel, PanelHeader, InfoLine, MiniTable, trClass, fmtCAD, fmtDate, fmtDateTime, label, resolveAccountCycle,
 } from "./Account360Helpers";
 import {
   Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare,
@@ -82,6 +82,7 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
   );
   const isPreAuth = !!paypalSub;
   const [chargeOpen, setChargeOpen] = useState(false);
+  const cycle = resolveAccountCycle(acct, data.subscriptions || []);
 
   return (
   <div className="space-y-3">
@@ -152,9 +153,9 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
     <Panel>
       <PanelHeader icon={Clock} title="Cycle de facturation" />
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
-        <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ? `Le ${acct.billing_cycle_day} de chaque mois` : "—"} accent />
-        <InfoLine label="Prochaine facture" value={fmtDate(acct.next_invoice_date)} accent />
-        <InfoLine label="Date d'ancrage" value={fmtDate(acct.billing_anchor_date)} />
+        <InfoLine label="Jour de cycle" value={cycle.cycleDay ? `Le ${cycle.cycleDay} de chaque mois` : "—"} accent />
+        <InfoLine label="Prochaine facture" value={fmtDate(cycle.nextInvoiceDate)} accent />
+        <InfoLine label="Date d'ancrage" value={fmtDate(cycle.anchorDate)} />
         <InfoLine label="Fuseau horaire" value={acct.billing_cycle_timezone || "America/Toronto"} />
       </div>
     </Panel>

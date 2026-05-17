@@ -27,6 +27,38 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 export const label = (s: string | null | undefined) => STATUS_LABELS[s || ""] || s || "—";
 
+/* ── Canonical billing cycle resolver ──
+ * Falls back to active subscription dates when account columns are empty,
+ * so UI never shows "—" while a real subscription exists.
+ */
+export function resolveAccountCycle(account: any, subscriptions: any[] = []): {
+  cycleDay: number | null;
+  nextInvoiceDate: string | null;
+  anchorDate: string | null;
+} {
+  const subs = Array.isArray(subscriptions) ? subscriptions : [];
+  const active = subs.find((s: any) => s?.status === "active" && (s?.cycle_start_date || s?.cycle_end_date))
+    || subs.find((s: any) => s?.cycle_start_date || s?.cycle_end_date);
+
+  const anchor = account?.billing_anchor_date
+    || active?.billing_cycle_anchor
+    || active?.cycle_start_date
+    || null;
+
+  let cycleDay: number | null = account?.billing_cycle_day ?? null;
+  if (cycleDay == null && anchor) {
+    const d = new Date(anchor).getUTCDate();
+    if (Number.isFinite(d) && d > 0) cycleDay = d;
+  }
+
+  const nextInvoiceDate = account?.next_invoice_date
+    || active?.next_renewal_at
+    || active?.cycle_end_date
+    || null;
+
+  return { cycleDay, nextInvoiceDate, anchorDate: anchor };
+}
+
 /* ── Micro components ── */
 export const Panel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] ${className}`}>{children}</div>
