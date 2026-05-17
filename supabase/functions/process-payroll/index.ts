@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
         email_status: resendResult.ok ? "sent" : "failed",
         emailed_at: resendResult.ok ? new Date().toISOString() : null,
         email_last_error: resendResult.error ?? null,
-      }).eq("id", entry.id);
+      } as any).eq("id", entry.id);
       await notifyPayrollReady(entry.employee_id, Number(entry.net_pay || 0), "renvoyée", signed?.signedUrl ?? null);
       return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -675,7 +675,7 @@ Deno.serve(async (req) => {
           commission_ids: b.commissionIds,
           status: "approved",
           payroll_number: `${runNumber}-${(profile?.agent_number || empId).slice(0, 6)}`,
-        })
+        } as any)
         .select("*").single();
       if (entryErr) { console.error("[process-payroll] insert entry failed:", entryErr.message); continue; }
 
@@ -779,12 +779,12 @@ Deno.serve(async (req) => {
           email_status: emailResult.ok ? "sent" : "failed",
           emailed_at: emailResult.ok ? new Date().toISOString() : null,
           email_last_error: emailResult.error ?? null,
-        }).eq("id", entry.id);
+        } as any).eq("id", entry.id);
       } else {
         await supabase.from("payroll_entries").update({
           email_status: "failed",
           email_last_error: "Aucun courriel employé.",
-        }).eq("id", entry.id);
+        } as any).eq("id", entry.id);
       }
       await notifyPayrollReady(
         empId,
