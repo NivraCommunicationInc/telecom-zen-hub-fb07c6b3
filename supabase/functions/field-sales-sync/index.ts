@@ -395,6 +395,20 @@ Deno.serve(async (req) => {
         if (existingAccount) {
           accountId = existingAccount.id;
           console.log(`[field-sales-sync] Found existing account ${accountId} for client ${clientUserId}`);
+
+          // Always keep profile.account_number in sync with the active account
+          const { data: acctRow } = await supabaseAdmin
+            .from("accounts")
+            .select("account_number")
+            .eq("id", accountId)
+            .maybeSingle();
+          if (acctRow?.account_number) {
+            await supabaseAdmin
+              .from("profiles")
+              .update({ account_number: String(acctRow.account_number) })
+              .eq("user_id", clientUserId!)
+              .neq("account_number", String(acctRow.account_number));
+          }
         } else {
           // 2) Create new account with generated account_number
           const { data: acctNum, error: acctNumErr } = await supabaseAdmin.rpc("generate_account_number");
