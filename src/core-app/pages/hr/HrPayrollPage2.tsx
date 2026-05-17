@@ -455,6 +455,7 @@ export default function HrPayrollPage2() {
     const selected = filteredEmployees.filter((e) => selectedEmps.has(e.employee_id));
     const entries = selected.map((e) => latestPaystubs?.get(e.employee_id)?.id).filter(Boolean) as string[];
     if (!entries.length) { toast.error("Aucun talon déjà traité pour les employés sélectionnés."); return; }
+    setEmailingStub("bulk");
     const t = toast.loading(`Envoi de ${entries.length} courriel(s) de paie...`);
     let sent = 0, failed = 0;
     for (const entryId of entries) {
@@ -462,6 +463,7 @@ export default function HrPayrollPage2() {
       if (error || data?.error) failed++; else sent++;
     }
     toast.dismiss(t);
+    setEmailingStub(null);
     toast.success(`${sent} courriel(s) envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
     qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
   }
@@ -856,7 +858,7 @@ function BreakdownBox({ title, rows, positive }: { title: string; rows: any[]; p
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
   onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
-  selected, onToggleSelected, onPreviewStub, previewingStub, bonus, onBonusChange,
+  selected, onToggleSelected, onPreviewStub, onEmailPaystub, previewingStub, emailingStub, hasProcessedPaystub, bonus, onBonusChange,
 }: {
   emp: EmployeeRow;
   summary: any;
@@ -871,7 +873,10 @@ function EmployeeCard({
   selected: boolean;
   onToggleSelected: () => void;
   onPreviewStub: () => void;
+  onEmailPaystub: () => void;
   previewingStub: boolean;
+  emailingStub: boolean;
+  hasProcessedPaystub: boolean;
   bonus: number;
   onBonusChange: (v: number) => void;
 }) {
