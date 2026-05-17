@@ -2,6 +2,7 @@ import ClientLayout from "@/components/client/ClientLayout";
 import ClientMyServices from "@/components/client/ClientMyServices";
 import ClientOrdersInProgress from "@/components/client/ClientOrdersInProgress";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
+import { ClientOutageReportButton } from "@/components/client/ClientOutageReportButton";
 import { useClientAuth } from "@/hooks/useClientAuth";
 
 const ClientServices = () => {
@@ -10,9 +11,12 @@ const ClientServices = () => {
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Utilisation et services</h1>
-          <p className="text-slate-500 mt-1">Gérez vos services, équipements et forfaits</p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Utilisation et services</h1>
+            <p className="text-slate-500 mt-1">Gérez vos services, équipements et forfaits</p>
+          </div>
+          <ClientOutageReportButton />
         </div>
 
         {/* Live tracking of orders not yet activated */}
