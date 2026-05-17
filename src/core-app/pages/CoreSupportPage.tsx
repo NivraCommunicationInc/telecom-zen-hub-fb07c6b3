@@ -109,6 +109,23 @@ export default function CoreSupportPage() {
     },
   });
 
+  // Auto-open ticket if ?ticket=<id> is present in the URL (deep-link from Account 360, etc.)
+  const ticketParam = searchParams.get("ticket");
+  useEffect(() => {
+    if (!ticketParam || tickets.length === 0) return;
+    const found = (tickets as any[]).find((t: any) => t.id === ticketParam || t.ticket_number === ticketParam);
+    if (found) {
+      setSelectedTicket(found);
+      // Auto-switch scope so the ticket is visible in its list when user closes it.
+      const isInternal = found.internal_notes?.startsWith("[TICKET INTERNE]") || ["internal", "operations", "hr", "it"].includes(found.category);
+      setTicketScope(isInternal ? "internal" : "client");
+      // Clear param so refresh doesn't re-trigger.
+      const next = new URLSearchParams(searchParams);
+      next.delete("ticket");
+      setSearchParams(next, { replace: true });
+    }
+  }, [ticketParam, tickets, searchParams, setSearchParams]);
+
   // Staff list for assignment
   const { data: staffList = [] } = useQuery({
     queryKey: ["core-staff-list"],
