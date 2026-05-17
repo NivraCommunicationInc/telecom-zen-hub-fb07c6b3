@@ -15015,6 +15015,7 @@ export type Database = {
           terms_accepted_at: string | null
           terms_accepted_ip: string | null
           terms_accepted_version: string | null
+          training_override: boolean
           updated_at: string
           user_id: string
         }
@@ -15104,6 +15105,7 @@ export type Database = {
           terms_accepted_at?: string | null
           terms_accepted_ip?: string | null
           terms_accepted_version?: string | null
+          training_override?: boolean
           updated_at?: string
           user_id: string
         }
@@ -15193,6 +15195,7 @@ export type Database = {
           terms_accepted_at?: string | null
           terms_accepted_ip?: string | null
           terms_accepted_version?: string | null
+          training_override?: boolean
           updated_at?: string
           user_id?: string
         }

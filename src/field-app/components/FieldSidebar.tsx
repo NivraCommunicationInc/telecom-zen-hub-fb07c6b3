@@ -12,7 +12,7 @@ import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
   DollarSign, User, Lock, LogOut, ShoppingCart,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
-  ChevronLeft, ChevronRight, LayoutGrid,
+  ChevronLeft, ChevronRight, LayoutGrid, GraduationCap,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,6 +41,7 @@ const toolsNav = [
   { label: "Catalogue offres", href: `${FIELD_BASE}/offers`, icon: Package },
   { label: "Objectifs & cibles", href: `${FIELD_BASE}/objectives`, icon: Target },
   { label: "Rapport du jour", href: `${FIELD_BASE}/daily-report`, icon: Calendar },
+  { label: "Ma Formation", href: `${FIELD_BASE}/training`, icon: GraduationCap },
 ];
 
 const hubNav = [

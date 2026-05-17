@@ -58,6 +58,8 @@ const FieldDailyReport = lazy(() => import("@/field-app/pages/FieldDailyReport")
 const FieldNotifications = lazy(() => import("@/field-app/pages/FieldNotifications"));
 const FieldClientLookup = lazy(() => import("@/field-app/pages/FieldClientLookup"));
 const FieldResources = lazy(() => import("@/field-app/pages/FieldResources"));
+const FieldTraining = lazy(() => import("@/field-app/pages/FieldTraining"));
+const CoreTrainingPage = lazy(() => import("@/core-app/pages/CoreTrainingPage"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
@@ -861,6 +863,8 @@ const AppRoutes = () => {
           <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
           <Route path="support/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="internal-tickets" element={<Suspense fallback={null}><CoreInternalTicketsPage /></Suspense>} />
+          {/* Formation & Développement */}
+          <Route path="training" element={<Suspense fallback={null}><CoreTrainingPage /></Suspense>} />
           <Route path="web-forms" element={<Suspense fallback={null}><CoreWebFormsPage /></Suspense>} />
           <Route path="telephony" element={<Suspense fallback={null}><CoreTelephonyPage /></Suspense>} />
           {/* HR & Payroll */}
@@ -993,6 +997,7 @@ const AppRoutes = () => {
           <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
+          <Route path="training" element={<Suspense fallback={null}><FieldTraining /></Suspense>} />
           {/* Nivra Source Hub — unified */}
           <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="field" /></Suspense>} />
           <Route path="hub/annonces" element={<Navigate to="/field/hub?section=annonces" replace />} />
