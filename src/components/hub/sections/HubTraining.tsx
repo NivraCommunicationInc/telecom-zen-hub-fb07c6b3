@@ -262,10 +262,23 @@ export default function HubTraining({ search = "" }: { search?: string }) {
                       ▶ Ouvrir la vidéo
                     </a>
                   )}
-                  <div className="text-sm whitespace-pre-line">{active.content}</div>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <BookOpen className="h-4 w-4 text-violet-600" />
+                      Contenu de formation
+                    </div>
+                    {hasLessonContent(active) ? (
+                      <div className="text-sm leading-6 whitespace-pre-line">{active.content || "Consultez la vidéo, les documents ou les liens associés avant de passer au quiz."}</div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        Cette formation n'a pas encore de contenu publié. Ajoutez une leçon, une vidéo, un document ou un lien dans Nivra Source avant d'activer le quiz.
+                      </div>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2 pt-2">
                     {quiz ? (
-                      <Button onClick={() => setQuizMode(true)} className="bg-violet-600 hover:bg-violet-700">
+                      <Button onClick={() => setQuizMode(true)} disabled={!canStartActiveQuiz} className="bg-violet-600 hover:bg-violet-700">
+                        {!canStartActiveQuiz && <Lock className="h-4 w-4 mr-2" />}
                         Passer le quiz ({quiz.length} questions)
                       </Button>
                     ) : (
