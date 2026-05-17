@@ -115,7 +115,7 @@ export default function HrPaymentsPage() {
       const pids = [...new Set(entries.map((e: any) => e.pay_period_id).filter(Boolean))];
       const [{ data: profs }, { data: periods }] = await Promise.all([
         uids.length ? supabase.from("profiles").select("user_id, full_name, email, agent_number").in("user_id", uids) : Promise.resolve({ data: [] as any[] }),
-        pids.length ? supabase.from("pay_periods").select("id, period_start, period_end, pay_date").in("id", pids) : Promise.resolve({ data: [] as any[] }),
+        pids.length ? supabase.from("pay_periods").select("id, period_name, start_date, end_date").in("id", pids) : Promise.resolve({ data: [] as any[] }),
       ]);
       const pmap = new Map((profs || []).map((p: any) => [p.user_id, p]));
       const permap = new Map((periods || []).map((p: any) => [p.id, p]));
