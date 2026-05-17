@@ -752,8 +752,8 @@ Deno.serve(async (req) => {
       const ytd_disability = round2(prevYtd.ytd_disability + ded.disability_insurance);
       const ytd_net = round2(prevYtd.ytd_net + netPay);
 
-      const hReg = (tsByEmp.get(empId)?.reg || 0);
-      const hOt = (tsByEmp.get(empId)?.ot || 0);
+      const hReg = b.hoursRegular;
+      const hOt = b.hoursOvertime;
       const hRate = Number(b.settings.hourly_rate || 0);
       const commissionBreakdown = b.commissionLines.map((c) => ({
         id: c.id,
