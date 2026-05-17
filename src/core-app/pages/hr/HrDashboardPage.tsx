@@ -151,7 +151,7 @@ export default function HrDashboardPage() {
   const cards = [
     { label: "Employés actifs", value: stats?.active ?? 0, icon: Users, color: "text-primary", href: "/hr/employees", isMoney: false },
     { label: "Heures ce mois", value: stats?.hoursMonth ?? 0, icon: Clock, color: "text-emerald-600", href: "/hr/time", isMoney: false, suffix: " h" },
-    { label: "Masse salariale (mois)", value: stats?.payrollMass ?? 0, icon: DollarSign, color: "text-violet-600", href: "/hr/payroll", isMoney: true },
+    { label: "Masse salariale (mois)", value: stats?.payrollMass ?? 0, icon: DollarSign, color: "text-violet-600", href: "/hr/payroll-runs", isMoney: true },
     { label: "Commissions à payer", value: stats?.pendingComm ?? 0, icon: Coins, color: "text-amber-600", href: "/hr/commissions", isMoney: true },
     { label: "Demandes en attente", value: stats?.pendingReq ?? 0, icon: Inbox, color: "text-orange-600", href: "/hr/requests", isMoney: false },
     { label: "Postes ouverts", value: stats?.openJobs ?? 0, icon: Briefcase, color: "text-blue-600", href: "/hr/careers", isMoney: false },
@@ -273,7 +273,7 @@ export default function HrDashboardPage() {
                       </TableCell>
                       <TableCell className="w-24">
                         <Button asChild size="sm" variant="outline" className="h-6 text-[10px] gap-1">
-                          <Link to={corePath("/hr/payroll")}>
+                          <Link to={corePath("/hr/payroll-runs")}>
                             Traiter <ArrowRight className="h-3 w-3" />
                           </Link>
                         </Button>
