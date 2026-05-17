@@ -1022,6 +1022,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><HrDashboard /></Suspense>} />
           <Route path="paie" element={<Suspense fallback={null}><HrPayslips /></Suspense>} />
+          <Route path="paiements" element={<Suspense fallback={null}><HrPayments /></Suspense>} />
           <Route path="documents-fiscaux" element={<Suspense fallback={null}><HrTaxDocuments /></Suspense>} />
           <Route path="lettres" element={<Suspense fallback={null}><HrEmploymentLetters /></Suspense>} />
           <Route path="horaire" element={<Suspense fallback={null}><HrSchedule /></Suspense>} />
