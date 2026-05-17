@@ -696,8 +696,8 @@ function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
   }, [entryId]); // eslint-disable-line
 
   const periodLabel = (e: any) => {
-    if (e?._period?.period_start && e?._period?.period_end) {
-      return `${fmtDateShort(e._period.period_start)} → ${fmtDateShort(e._period.period_end)}`;
+    if (e?._period?.start_date && e?._period?.end_date) {
+      return `${fmtDateShort(e._period.start_date)} → ${fmtDateShort(e._period.end_date)}`;
     }
     return e?.created_at ? fmtDateShort(e.created_at) : "—";
   };
