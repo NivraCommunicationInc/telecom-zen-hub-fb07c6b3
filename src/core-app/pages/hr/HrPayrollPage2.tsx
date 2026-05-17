@@ -602,7 +602,7 @@ function EmployeeCard({
           <div className="rounded-md border bg-muted/30 p-3 space-y-2">
             <div className="text-xs font-semibold uppercase text-muted-foreground">Commissions approuvées</div>
             {summary.commissions.length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">Aucune commission approuvée pour cette période</div>
+              <div className="text-xs text-muted-foreground italic">Aucune commission approuvée disponible</div>
             ) : (
               <>
                 <div className="space-y-1">
