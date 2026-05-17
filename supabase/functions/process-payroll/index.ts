@@ -448,7 +448,8 @@ Deno.serve(async (req) => {
       const taxableGross = round2(b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus);
       const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
       const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-      const netPay = round2(totalGrossAgent - ded.total_deductions);
+      const totalDeductions = round2(ded.total_deductions + b.manualDeductions);
+      const netPay = round2(totalGrossAgent - totalDeductions);
       const prevYtd = await fetchYtd(previewEmployeeId, year);
       const hRate = Number(b.settings.hourly_rate || 0);
       const hReg = (tsByEmp.get(previewEmployeeId)?.reg || 0);
@@ -483,10 +484,11 @@ Deno.serve(async (req) => {
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
         disability_insurance: ded.disability_insurance,
-        total_deductions: ded.total_deductions,
+        manual_deductions: round2(b.manualDeductions),
+        total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross: round2(prevYtd.ytd_gross + totalGrossAgent),
-        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + ded.total_deductions),
+        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + totalDeductions),
         ytd_net: round2(prevYtd.ytd_net + netPay),
       });
       // base64 encode
@@ -511,7 +513,8 @@ Deno.serve(async (req) => {
         const taxableGross = b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus;
         const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
         const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-        employees.push({ employee_id: empId, gross: totalGrossAgent, bonus: round2(bonus), ...ded, net_pay: round2(totalGrossAgent - ded.total_deductions) });
+        const totalDeductions = round2(ded.total_deductions + b.manualDeductions);
+        employees.push({ employee_id: empId, gross: totalGrossAgent, bonus: round2(bonus), manual_deductions: round2(b.manualDeductions), ...ded, total_deductions: totalDeductions, net_pay: round2(totalGrossAgent - totalDeductions) });
       }
       const totalGross = round2(employees.reduce((s, e: any) => s + Number(e.gross || 0), 0));
       const totalDed = round2(employees.reduce((s, e: any) => s + Number(e.total_deductions || 0), 0));
@@ -565,7 +568,8 @@ Deno.serve(async (req) => {
       const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
 
       const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-      const netPay = round2(totalGrossAgent - ded.total_deductions);
+      const totalDeductions = round2(ded.total_deductions + b.manualDeductions);
+      const netPay = round2(totalGrossAgent - totalDeductions);
       const prevYtd = await fetchYtd(empId, year);
 
       const ytd_gross = round2(prevYtd.ytd_gross + totalGrossAgent);
