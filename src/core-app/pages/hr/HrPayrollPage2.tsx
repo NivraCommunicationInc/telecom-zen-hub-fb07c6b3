@@ -799,6 +799,25 @@ function EmployeeCard({
           ))}
         </div>
 
+        {/* Bonus ponctuel */}
+        <div className="rounded-md border bg-amber-50/50 p-3 space-y-2">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-xs font-semibold uppercase text-muted-foreground">Bonus ponctuel</div>
+              <div className="text-xs text-muted-foreground">Ajouté au brut imposable de cette paie</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" step="0.01" min="0" placeholder="0.00"
+                className="w-28 text-right"
+                value={bonus > 0 ? String(bonus) : ""}
+                onChange={(e) => onBonusChange(Number(e.target.value) || 0)}
+              />
+              <span className="text-sm font-semibold">$</span>
+            </div>
+          </div>
+        </div>
+
         {/* Deductions preview */}
         <div className="rounded-md border bg-muted/30 p-3 space-y-1 text-sm">
           <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Déductions estimées (calcul exact au traitement)</div>
