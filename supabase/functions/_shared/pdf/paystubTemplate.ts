@@ -54,6 +54,7 @@ export interface PaystubData {
   ae: number;
   rqap: number;
   disability_insurance: number;
+  manual_deductions?: number;
   total_deductions: number;
 
   net_pay: number;
@@ -212,6 +213,9 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   y = drawRow(doc, "Assurance-emploi (AE)", `- ${fmtCAD(data.ae)}`, y);
   y = drawRow(doc, "RQAP (Assurance parentale)", `- ${fmtCAD(data.rqap)}`, y);
   y = drawRow(doc, "Assurance invalidité", `- ${fmtCAD(data.disability_insurance)}`, y);
+  if ((data.manual_deductions ?? 0) > 0) {
+    y = drawRow(doc, "Avances / déductions manuelles", `- ${fmtCAD(data.manual_deductions!)}`, y);
+  }
   y = drawTotalRow(doc, "TOTAL DÉDUCTIONS", `- ${fmtCAD(data.total_deductions)}`, y, [180, 50, 50]);
   y += 6;
 
