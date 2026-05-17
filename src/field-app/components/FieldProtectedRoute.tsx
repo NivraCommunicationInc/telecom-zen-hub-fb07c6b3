@@ -14,7 +14,7 @@ import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 import { Loader2, ShieldAlert } from "lucide-react";
 
-type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify";
+type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify" | "training_required";
 
 export default function FieldProtectedRoute() {
   const navigate = useNavigate();
