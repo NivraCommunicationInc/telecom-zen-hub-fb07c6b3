@@ -328,6 +328,7 @@ Deno.serve(async (req) => {
     const selectedEmployeeIds: Set<string> | null = Array.isArray(body.employee_ids) && body.employee_ids.length
       ? new Set(body.employee_ids.map((x: any) => String(x)))
       : null;
+    const hoursOverrides = (body.hours_overrides && typeof body.hours_overrides === "object") ? body.hours_overrides as Record<string, any> : {};
     const previewEmployeeId: string | null = body.preview_employee_id ? String(body.preview_employee_id) : null;
     const resendEntryId: string | null = body.resend_email_for_entry_id ? String(body.resend_email_for_entry_id) : null;
     const regenerateEntryId: string | null = body.regenerate_entry_id ? String(body.regenerate_entry_id) : null;
@@ -555,9 +556,12 @@ Deno.serve(async (req) => {
       const isHourly = s.pay_type === "hourly" || s.pay_type === "hourly_commission";
       const isCommission = s.pay_type === "commission" || s.pay_type === "hourly_commission";
       const ts = tsByEmp.get(s.employee_id);
+      const hOverride = hoursOverrides[s.employee_id];
       const rate = Number(s.hourly_rate || 0);
-      const regularPay = isHourly && ts ? ts.reg * rate : 0;
-      const overtimePay = isHourly && ts ? ts.ot * rate * 1.5 : 0;
+      const hoursReg = hOverride ? Number(hOverride.hours_worked || 0) : Number(ts?.reg || 0);
+      const hoursOt = hOverride ? Number(hOverride.overtime_hours || 0) : Number(ts?.ot || 0);
+      const regularPay = isHourly ? hoursReg * rate : 0;
+      const overtimePay = isHourly ? hoursOt * rate * 1.5 : 0;
       const c = isCommission ? (commByAgent.get(s.employee_id) || { ids: [], gross: 0, lines: [] }) : { ids: [], gross: 0, lines: [] as CommLine[] };
       const adj = adjByEmp.get(s.employee_id) || [];
       const earningAdj = adj.filter((a) => !["deduction", "advance"].includes(a.adjustment_type));
