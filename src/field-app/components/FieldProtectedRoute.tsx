@@ -4,11 +4,12 @@
  * Redirects to /hub if not entered through the hub.
  */
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import { hasValidHubSession } from "@/lib/security/hubSession";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
+import { GraduationCap } from "lucide-react";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 import { Loader2, ShieldAlert } from "lucide-react";
