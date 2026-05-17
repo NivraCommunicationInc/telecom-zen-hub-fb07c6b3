@@ -273,7 +273,7 @@ export default function HrPayrollPage2() {
       const ids = (employees ?? []).map((e) => e.employee_id);
       const { data } = await supabase
         .from("payroll_entries")
-        .select("id, employee_id, payroll_number, paystub_pdf_url, pdf_url, created_at, total_gross, commission_gross, deductions_total, net_pay")
+        .select("id, employee_id, payroll_number, paystub_pdf_url, pdf_url, created_at, total_gross, commission_gross, deductions_total, total_deductions, net_pay, federal_tax, quebec_tax, rrq, ae, rqap, email_status, emailed_at, email_last_error")
         .in("employee_id", ids)
         .order("created_at", { ascending: false });
       const byEmp = new Map<string, any>();
@@ -345,9 +345,12 @@ export default function HrPayrollPage2() {
   function buildRunBody(extra: Record<string, unknown> = {}) {
     const bonusObj: Record<string, number> = {};
     bonusOverrides.forEach((v, k) => { if (v > 0) bonusObj[k] = v; });
+    const hoursObj: Record<string, { hours_worked: number; overtime_hours: number }> = {};
+    localHours.forEach((v, k) => { hoursObj[k] = { hours_worked: v.h, overtime_hours: v.ot }; });
     const body: Record<string, unknown> = {
       excluded_commission_ids: Array.from(excludedComm),
       bonus_overrides: bonusObj,
+      hours_overrides: hoursObj,
       ...extra,
     };
     if (selectedEmps.size > 0) body.employee_ids = Array.from(selectedEmps);
