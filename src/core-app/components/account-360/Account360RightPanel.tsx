@@ -3,7 +3,7 @@
  * Shows account info, billing cycle, financial summary, KYC, and notes.
  */
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
-import { Panel, PanelHeader, InfoLine, fmtCAD, fmtDate, label } from "./Account360Helpers";
+import { Panel, PanelHeader, InfoLine, fmtCAD, fmtDate, label, resolveAccountCycle } from "./Account360Helpers";
 import { CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin } from "lucide-react";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
