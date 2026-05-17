@@ -14302,6 +14302,7 @@ export type Database = {
       payroll_entries: {
         Row: {
           acknowledged_at: string | null
+          adjustment_breakdown: Json | null
           ae: number | null
           agent_number: string | null
           approved_at: string | null
@@ -14309,18 +14310,26 @@ export type Database = {
           base_salary: number
           bonus_amount: number | null
           bonus_total: number
+          commission_breakdown: Json | null
           commission_gross: number | null
           commission_ids: string[] | null
           commission_total: number
           created_at: string
+          deduction_breakdown: Json | null
           deductions_total: number
           disability_insurance: number | null
+          earnings_breakdown: Json | null
+          email_last_error: string | null
+          email_status: string | null
+          emailed_at: string | null
           employee_id: string | null
           federal_tax: number | null
           gross_pay: number
           hours_worked: number
           id: string
+          manual_deductions: number | null
           net_pay: number
+          non_taxable_gross: number | null
           notes: string | null
           overtime_hours: number
           paid_at: string | null
@@ -14337,6 +14346,7 @@ export type Database = {
           rrq: number | null
           run_id: string | null
           status: string
+          taxable_gross: number | null
           total_gross: number | null
           updated_at: string
           user_id: string
@@ -14351,6 +14361,7 @@ export type Database = {
         }
         Insert: {
           acknowledged_at?: string | null
+          adjustment_breakdown?: Json | null
           ae?: number | null
           agent_number?: string | null
           approved_at?: string | null
@@ -14358,18 +14369,26 @@ export type Database = {
           base_salary?: number
           bonus_amount?: number | null
           bonus_total?: number
+          commission_breakdown?: Json | null
           commission_gross?: number | null
           commission_ids?: string[] | null
           commission_total?: number
           created_at?: string
+          deduction_breakdown?: Json | null
           deductions_total?: number
           disability_insurance?: number | null
+          earnings_breakdown?: Json | null
+          email_last_error?: string | null
+          email_status?: string | null
+          emailed_at?: string | null
           employee_id?: string | null
           federal_tax?: number | null
           gross_pay?: number
           hours_worked?: number
           id?: string
+          manual_deductions?: number | null
           net_pay?: number
+          non_taxable_gross?: number | null
           notes?: string | null
           overtime_hours?: number
           paid_at?: string | null
@@ -14386,6 +14405,7 @@ export type Database = {
           rrq?: number | null
           run_id?: string | null
           status?: string
+          taxable_gross?: number | null
           total_gross?: number | null
           updated_at?: string
           user_id: string
@@ -14400,6 +14420,7 @@ export type Database = {
         }
         Update: {
           acknowledged_at?: string | null
+          adjustment_breakdown?: Json | null
           ae?: number | null
           agent_number?: string | null
           approved_at?: string | null
@@ -14407,18 +14428,26 @@ export type Database = {
           base_salary?: number
           bonus_amount?: number | null
           bonus_total?: number
+          commission_breakdown?: Json | null
           commission_gross?: number | null
           commission_ids?: string[] | null
           commission_total?: number
           created_at?: string
+          deduction_breakdown?: Json | null
           deductions_total?: number
           disability_insurance?: number | null
+          earnings_breakdown?: Json | null
+          email_last_error?: string | null
+          email_status?: string | null
+          emailed_at?: string | null
           employee_id?: string | null
           federal_tax?: number | null
           gross_pay?: number
           hours_worked?: number
           id?: string
+          manual_deductions?: number | null
           net_pay?: number
+          non_taxable_gross?: number | null
           notes?: string | null
           overtime_hours?: number
           paid_at?: string | null
@@ -14435,6 +14464,7 @@ export type Database = {
           rrq?: number | null
           run_id?: string | null
           status?: string
+          taxable_gross?: number | null
           total_gross?: number | null
           updated_at?: string
           user_id?: string
