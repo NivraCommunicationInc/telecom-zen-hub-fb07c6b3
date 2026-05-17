@@ -50,6 +50,7 @@ export function Account360Header({ account, profile, clientName, latestKyc, tota
       if (Number.isFinite(d) && d > 0) effectiveCycleDay = d;
     }
   }
+  const cycleLabel = effectiveCycleDay ? `Cycle: jour ${effectiveCycleDay}` : "Cycle à régénérer";
   const hasRisk = totalDue > 0 || acct.status === "suspended";
 
   return (
@@ -134,7 +135,7 @@ export function Account360Header({ account, profile, clientName, latestKyc, tota
                   <Calendar className="h-3 w-3" /> Créé le {fmtDate(acct.created_at)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Cycle: jour {effectiveCycleDay ?? "—"}
+                  <Clock className="h-3 w-3" /> {cycleLabel}
                 </span>
                 <span>Classe: {acct.credit_class || "C"}</span>
                 {acct.recouvrement_reminder_sent_at && (
