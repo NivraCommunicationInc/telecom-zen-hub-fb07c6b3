@@ -103,7 +103,9 @@ export default function HrPayslips() {
   const handleDownload = async (e: React.MouseEvent, pdfUrl: string, payrollNumber: string) => {
     e.stopPropagation();
     if (!pdfUrl) return;
-    const { data } = await supabase.storage.from("payslips").createSignedUrl(pdfUrl, 300);
+    const path = pdfUrl.includes("/documents/") ? pdfUrl.split("/documents/").pop()! : pdfUrl;
+    const directUrl = pdfUrl.startsWith("http") && !pdfUrl.includes("/documents/") ? pdfUrl : null;
+    const { data } = directUrl ? { data: { signedUrl: directUrl } } : await supabase.storage.from("documents").createSignedUrl(path, 300);
     if (data?.signedUrl) {
       const link = document.createElement("a");
       link.href = data.signedUrl;
@@ -209,10 +211,12 @@ export default function HrPayslips() {
       ) : (
         <div className="space-y-2">
           {filtered.map((p: any) => {
-            const status = STATUS_MAP[p.status] || { label: p.status, variant: "secondary" as const, cls: "bg-muted text-muted-foreground" };
+            const statusKey = p.payment_status || p.status;
+            const status = STATUS_MAP[statusKey] || { label: statusKey, variant: "secondary" as const, cls: "bg-muted text-muted-foreground" };
             const periodDates = p.pay_periods
               ? `${format(new Date(p.pay_periods.start_date), "d MMM", { locale: fr })} — ${format(new Date(p.pay_periods.end_date), "d MMM yyyy", { locale: fr })}`
-              : "";
+              : p.run_id ? "Période traitée par lot de paie" : "";
+            const pdfPath = p.paystub_pdf_url || p.pdf_url;
 
             return (
               <Card
@@ -232,14 +236,14 @@ export default function HrPayslips() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {p.pay_periods?.period_name || "Période inconnue"}
+                      {p.pay_periods?.period_name || p.payroll_number || "Période inconnue"}
                       {periodDates && <span className="ml-2 text-muted-foreground/70">· {periodDates}</span>}
                     </p>
                     <div className="flex gap-4 text-xs text-muted-foreground mt-0.5">
-                      <span>Brut: {fmtMoney(Number(p.gross_pay))}</span>
+                      <span>Brut: {fmtMoney(Number(p.total_gross ?? p.gross_pay))}</span>
                       <span>Retenues: {fmtMoney(Number(p.deductions_total))}</span>
-                      {Number(p.commission_total) > 0 && (
-                        <span className="text-blue-600">Comm: {fmtMoney(Number(p.commission_total))}</span>
+                      {Number(p.commission_gross ?? p.commission_total) > 0 && (
+                        <span className="text-blue-600">Comm: {fmtMoney(Number(p.commission_gross ?? p.commission_total))}</span>
                       )}
                     </div>
                   </div>
@@ -259,12 +263,12 @@ export default function HrPayslips() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {p.pdf_url && (
+                      {pdfPath && (
                         <Button
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8"
-                          onClick={(e) => handleDownload(e, p.pdf_url, p.payroll_number)}
+                          onClick={(e) => handleDownload(e, pdfPath, p.payroll_number)}
                           title="Télécharger PDF"
                         >
                           <Download className="h-4 w-4" />

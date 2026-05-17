@@ -51,6 +51,17 @@ interface PayslipEntry {
   net_pay: number;
   notes: string | null;
   pdf_url: string | null;
+  paystub_pdf_url?: string | null;
+  commission_gross?: number;
+  bonus_amount?: number;
+  federal_tax?: number;
+  quebec_tax?: number;
+  rrq?: number;
+  ae?: number;
+  rqap?: number;
+  disability_insurance?: number;
+  payment_status?: string | null;
+  total_gross?: number;
   created_at: string;
   paid_at: string | null;
   acknowledged_at: string | null;
@@ -94,12 +105,15 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
   });
 
   const handleDownload = useCallback(async () => {
-    if (!entry?.pdf_url) return;
+    const pdfPath = entry?.paystub_pdf_url || entry?.pdf_url;
+    if (!pdfPath) return;
     setDownloading(true);
     try {
-      const { data, error } = await supabase.storage
-        .from("payslips")
-        .createSignedUrl(entry.pdf_url, 300);
+      const path = pdfPath.includes("/documents/") ? pdfPath.split("/documents/").pop()! : pdfPath;
+      const directUrl = pdfPath.startsWith("http") && !pdfPath.includes("/documents/") ? pdfPath : null;
+      const { data, error } = directUrl
+        ? { data: { signedUrl: directUrl }, error: null }
+        : await supabase.storage.from("documents").createSignedUrl(path, 300);
       if (error || !data?.signedUrl) throw new Error("Erreur de téléchargement");
       const link = document.createElement("a");
       link.href = data.signedUrl;
@@ -137,7 +151,8 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
 
   if (!entry) return null;
 
-  const status = STATUS_MAP[entry.status] || { label: entry.status, cls: "bg-muted text-muted-foreground" };
+  const effectiveStatus = entry.payment_status || entry.status;
+  const status = STATUS_MAP[effectiveStatus] || { label: effectiveStatus, cls: "bg-muted text-muted-foreground" };
   const adjustments = entry.payroll_adjustments || [];
   const deductionAdjs = adjustments.filter(
     (a) => ["deduction", "clawback", "tax_withholding"].includes(a.adjustment_type)

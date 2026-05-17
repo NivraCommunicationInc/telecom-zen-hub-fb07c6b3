@@ -166,7 +166,7 @@ async function fetchYtd(employeeId: string, year: number) {
   };
 }
 
-async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: string): Promise<string | null> {
+async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: string): Promise<{ path: string; signedUrl: string | null } | null> {
   const path = `paystubs/${runId}/${employeeId}.pdf`;
   const { error } = await supabase.storage.from("documents").upload(path, pdf, {
     contentType: "application/pdf",
@@ -176,19 +176,28 @@ async function uploadPaystubPdf(pdf: Uint8Array, runId: string, employeeId: stri
     console.error("[process-payroll] upload paystub failed:", error.message);
     return null;
   }
-  const { data } = supabase.storage.from("documents").getPublicUrl(path);
-  return data?.publicUrl ?? null;
+  const { data } = await supabase.storage.from("documents").createSignedUrl(path, 60 * 60 * 24 * 30);
+  return { path, signedUrl: data?.signedUrl ?? null };
 }
 
-async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>) {
+async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown>, pdf: Uint8Array, entryId: string) {
   if (!toEmail) return;
   try {
-    await supabase.from("email_queue").insert({
+    let binary = "";
+    for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
+    const content = btoa(binary);
+    const { error } = await supabase.from("email_queue").insert({
+      event_key: `paystub_notification_${entryId}`,
       template_key: "paystub_notification",
       to_email: toEmail,
-      vars,
+      template_vars: vars,
+      message_type: "paystub_notification",
+      entity_type: "payroll_entry",
+      entity_id: entryId,
+      attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
       status: "queued",
     });
+    if (error) throw error;
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
   }
@@ -486,7 +495,7 @@ Deno.serve(async (req) => {
           disability_insurance: ded.disability_insurance,
           deductions_total: ded.total_deductions,
           net_pay: netPay,
-          payment_method: paymentMethod, payment_status: "processing",
+          payment_method: paymentMethod, payment_status: "paid", paid_at: new Date().toISOString(),
           ytd_gross, ytd_federal_tax, ytd_quebec_tax, ytd_rrq, ytd_ae, ytd_rqap, ytd_disability, ytd_net,
           commission_ids: b.commissionIds,
           status: "approved",
@@ -530,8 +539,15 @@ Deno.serve(async (req) => {
         ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability),
         ytd_net,
       });
-      const pdfUrl = await uploadPaystubPdf(pdf, run.id, empId);
-      if (pdfUrl) await supabase.from("payroll_entries").update({ paystub_pdf_url: pdfUrl, pdf_url: pdfUrl }).eq("id", entry.id);
+      const uploadedPdf = await uploadPaystubPdf(pdf, run.id, empId);
+      if (uploadedPdf) await supabase.from("payroll_entries").update({ paystub_pdf_url: uploadedPdf.path, pdf_url: uploadedPdf.path }).eq("id", entry.id);
+
+      if (b.commissionIds.length) {
+        await supabase.from("payroll_commission_links").upsert(
+          b.commissionLines.map((c) => ({ payroll_entry_id: entry.id, commission_id: c.id, commission_source: "field", amount: c.amount })),
+          { onConflict: "commission_id,commission_source" },
+        );
+      }
 
       // Flip commissions to paid + record which run/entry paid them
       if (b.commissionIds.length) {
@@ -569,9 +585,10 @@ Deno.serve(async (req) => {
           total_deductions: ded.total_deductions,
           net_pay: netPay,
           payment_method: paymentMethod,
-          paystub_url: pdfUrl,
+          payroll_number: entry.payroll_number,
+          paystub_url: uploadedPdf?.signedUrl,
           portal_url: "https://nivra-telecom.ca/field/profile",
-        });
+        }, pdf, entry.id);
       }
 
       totalGross += totalGrossAgent;
