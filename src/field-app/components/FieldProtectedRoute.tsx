@@ -18,8 +18,11 @@ type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_ver
 
 export default function FieldProtectedRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState<State>("loading");
   const [factorId, setFactorId] = useState<string | null>(null);
+  const [trainingDone, setTrainingDone] = useState<number>(0);
+  const [trainingTotal, setTrainingTotal] = useState<number>(8);
 
   useEffect(() => {
     let mounted = true;
