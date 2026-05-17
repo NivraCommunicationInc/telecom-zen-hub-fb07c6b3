@@ -4,7 +4,7 @@
  * Redirects to /hub if not entered through the hub.
  */
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import { hasValidHubSession } from "@/lib/security/hubSession";
