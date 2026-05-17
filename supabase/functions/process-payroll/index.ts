@@ -13,6 +13,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,7 @@ async function getBrackets(table: string, year: number) {
 
 function bracketTax(annualIncome: number, brackets: Awaited<ReturnType<typeof getBrackets>>, claimAmount: number): number {
   const taxable = Math.max(0, annualIncome);
+  if (!brackets.length) return 0;
   for (const b of brackets) {
     const max = b.max_income ?? Infinity;
     if (taxable > Number(b.min_income) && taxable <= max) {
@@ -159,7 +161,7 @@ async function calculateDeductions(
 async function fetchYtd(employeeId: string, year: number) {
   const { data } = await supabase
     .from("payroll_entries")
-    .select("total_gross, federal_tax, quebec_tax, rrq, ae, rqap, disability_insurance, net_pay")
+    .select("total_gross, federal_tax, quebec_tax, rrq, ae, rqap, disability_insurance, deductions_total, total_deductions, net_pay")
     .eq("employee_id", employeeId)
     .gte("created_at", `${year}-01-01T00:00:00Z`)
     .lte("created_at", `${year}-12-31T23:59:59Z`);
@@ -172,6 +174,7 @@ async function fetchYtd(employeeId: string, year: number) {
     ytd_ae: round2(rows.reduce((s, r) => s + Number(r.ae || 0), 0)),
     ytd_rqap: round2(rows.reduce((s, r) => s + Number(r.rqap || 0), 0)),
     ytd_disability: round2(rows.reduce((s, r) => s + Number(r.disability_insurance || 0), 0)),
+    ytd_deductions: round2(rows.reduce((s, r) => s + Number((r as any).total_deductions ?? (r as any).deductions_total ?? 0), 0)),
     ytd_net: round2(rows.reduce((s, r) => s + Number(r.net_pay || 0), 0)),
   };
 }
@@ -197,7 +200,20 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
     const content = btoa(binary);
     const eventKey = `paystub_notification_${entryId}`;
-    const { error } = await supabase.from("email_queue").upsert({
+    const rendered = renderPaystubEmail(vars);
+    const direct = await enqueueEmail({
+      to: toEmail,
+      templateKey: "paystub_notification",
+      subject: rendered.subject,
+      html: rendered.html,
+      eventKey,
+      messageType: "paystub_notification",
+      entityType: "payroll_entry",
+      entityId: entryId,
+      attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
+    });
+    if (!direct.success) throw new Error(direct.error || "Échec d'envoi courriel.");
+    await supabase.from("email_queue").upsert({
       event_key: eventKey,
       template_key: "paystub_notification",
       to_email: toEmail,
@@ -206,20 +222,50 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
       entity_type: "payroll_entry",
       entity_id: entryId,
       attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
-      status: "queued",
-      attempts: 0,
+      status: "sent",
+      attempts: 1,
       last_error: null,
-      sent_at: null,
+      sent_at: new Date().toISOString(),
       next_retry_at: new Date().toISOString(),
-    }, { onConflict: "event_key" });
-    if (error) throw error;
-    const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
-    if (drainErr) console.error("[process-payroll] immediate email drain failed:", drainErr.message);
+    } as any, { onConflict: "event_key" });
+    await supabase.functions.invoke("process-email-queue", { body: { drain_now: true } });
     return { ok: true };
   } catch (e) {
     console.error("[process-payroll] enqueue email failed:", e);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+function renderPaystubEmail(vars: Record<string, unknown>): { subject: string; html: string } {
+  const money = (v: unknown) => `${(Number(v) || 0).toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+  const date = (v: unknown) => v ? new Date(String(v)).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }) : "—";
+  const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+  const rows: Array<[string, string]> = [
+    ["Employé", `${esc(vars.agent_name)}${vars.agent_number ? ` — ${esc(vars.agent_number)}` : ""}`],
+    ["Période", `${date(vars.period_start)} au ${date(vars.period_end)}`],
+    ["Date de paie", date(vars.pay_date)],
+    ["Heures régulières", money(vars.regular_hours_pay)],
+    ["Heures supplémentaires", money(vars.overtime_hours_pay)],
+    ["Commissions", money(vars.commission_gross)],
+    ["Bonus", money(vars.bonus_amount)],
+    ["Allocations / suppléments", money(vars.allocation_total)],
+    ["Total brut", money(vars.total_gross)],
+    ["Impôt fédéral", `-${money(vars.federal_tax)}`],
+    ["Impôt provincial Québec", `-${money(vars.quebec_tax)}`],
+    ["RRQ", `-${money(vars.rrq)}`],
+    ["AE", `-${money(vars.ae)}`],
+    ["RQAP", `-${money(vars.rqap)}`],
+    ["Assurance invalidité", `-${money(vars.disability_insurance)}`],
+    ["Déductions manuelles", `-${money(vars.manual_deductions)}`],
+    ["Total déductions", `-${money(vars.total_deductions)}`],
+    ["Net à payer", money(vars.net_pay)],
+  ];
+  const paystubUrl = esc(vars.paystub_url || vars.portal_url || "https://nivra-telecom.ca/rh/paie");
+  const htmlRows = rows.map(([k, v], idx) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #ede9fe;color:#4b5563;">${k}</td><td style="padding:10px 12px;border-bottom:1px solid #ede9fe;text-align:right;font-weight:${idx === rows.length - 1 ? 800 : 600};color:${idx === rows.length - 1 ? "#047857" : "#1e1b4b"};">${v}</td></tr>`).join("");
+  return {
+    subject: `Votre paie Nivra — ${date(vars.pay_date)}`,
+    html: `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:Arial,sans-serif;color:#1e1b4b;"><div style="max-width:680px;margin:0 auto;padding:28px 18px;"><div style="background:#1e1b4b;color:#fff;padding:24px;border-radius:12px 12px 0 0;"><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;">Paie disponible</div><h1 style="margin:8px 0 0;font-size:26px;">Votre paie a été traitée</h1><p style="margin:8px 0 0;color:#ddd6fe;">Votre talon de paie PDF est joint à ce courriel et disponible dans votre section RH.</p></div><div style="border:1px solid #ede9fe;border-top:0;padding:22px;border-radius:0 0 12px 12px;"><p>Bonjour ${esc(vars.agent_name || "")},</p><p>Voici le détail de votre paie. Le même PDF est synchronisé dans votre historique RH.</p><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #ede9fe;border-radius:8px;overflow:hidden;">${htmlRows}</table><p style="text-align:center;margin:24px 0;"><a href="${paystubUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700;">Voir mon talon de paie</a></p><p style="font-size:12px;color:#6b7280;">Questions ? Écrivez à support@nivra-telecom.ca</p></div></div></body></html>`,
+  };
 }
 
 async function notifyPayrollReady(empId: string, amount: number, period: string, paystubUrl?: string | null) {
@@ -516,10 +562,15 @@ Deno.serve(async (req) => {
           detail: [c.description, c.earned_at ? new Date(c.earned_at).toLocaleDateString("fr-CA") : null].filter(Boolean).join(" · ") || null,
           amount: c.amount,
         })),
-        adjustment_lines: b.adjustmentLines.map((a) => ({
-          label: a.adjustment_type.charAt(0).toUpperCase() + a.adjustment_type.slice(1),
+        adjustment_lines: b.adjustmentLines.filter((a) => !["deduction", "advance"].includes(a.adjustment_type)).map((a) => ({
+          label: adjLabel(a.adjustment_type),
           detail: a.description + (a.is_taxable ? "" : " (non imposable)"),
           amount: a.amount,
+        })),
+        manual_deduction_lines: b.adjustmentLines.filter((a) => ["deduction", "advance"].includes(a.adjustment_type)).map((a) => ({
+          label: adjLabel(a.adjustment_type),
+          detail: a.description,
+          amount: Math.abs(a.amount),
         })),
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
@@ -528,7 +579,7 @@ Deno.serve(async (req) => {
         total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross: round2(prevYtd.ytd_gross + totalGrossAgent),
-        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + totalDeductions),
+        ytd_deductions: round2(prevYtd.ytd_deductions + totalDeductions),
         ytd_net: round2(prevYtd.ytd_net + netPay),
       });
       // base64 encode
@@ -700,10 +751,15 @@ Deno.serve(async (req) => {
           detail: [c.description, c.earned_at ? new Date(c.earned_at).toLocaleDateString("fr-CA") : null].filter(Boolean).join(" · ") || null,
           amount: c.amount,
         })),
-        adjustment_lines: b.adjustmentLines.map((a) => ({
-          label: a.adjustment_type.charAt(0).toUpperCase() + a.adjustment_type.slice(1),
+        adjustment_lines: b.adjustmentLines.filter((a) => !["deduction", "advance"].includes(a.adjustment_type)).map((a) => ({
+          label: adjLabel(a.adjustment_type),
           detail: a.description + (a.is_taxable ? "" : " (non imposable)"),
           amount: a.amount,
+        })),
+        manual_deduction_lines: b.adjustmentLines.filter((a) => ["deduction", "advance"].includes(a.adjustment_type)).map((a) => ({
+          label: adjLabel(a.adjustment_type),
+          detail: a.description,
+          amount: Math.abs(a.amount),
         })),
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
@@ -712,7 +768,7 @@ Deno.serve(async (req) => {
         total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross,
-        ytd_deductions: round2(ytd_federal_tax + ytd_quebec_tax + ytd_rrq + ytd_ae + ytd_rqap + ytd_disability + b.manualDeductions),
+        ytd_deductions: round2(prevYtd.ytd_deductions + totalDeductions),
         ytd_net,
       });
       const uploadedPdf = await uploadPaystubPdf(pdf, run.id, empId);

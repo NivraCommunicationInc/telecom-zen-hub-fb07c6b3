@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  Calendar, DollarSign, Download, History, Loader2, Mail, Play, Plus, Settings, Trash2, Users,
+  Calendar, DollarSign, Download, Eye, FileText, History, Loader2, Mail, Play, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -115,6 +115,10 @@ export default function HrPayrollPage2() {
   const [preview, setPreview] = useState<any | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [drillIn, setDrillIn] = useState<string | null>(null);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("all");
+  const [historyEmail, setHistoryEmail] = useState("all");
+  const [entryDetails, setEntryDetails] = useState<any | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRow | null>(null);
   const [adjustmentFor, setAdjustmentFor] = useState<EmployeeRow | null>(null);
   // Per-employee live overrides (real-time recompute before saving / running)
@@ -225,6 +229,23 @@ export default function HrPayrollPage2() {
     },
   });
 
+  const filteredRuns = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    return (runs ?? []).filter((r: any) => {
+      if (historyStatus !== "all" && String(r.status) !== historyStatus) return false;
+      if (term && !String(r.run_number || "").toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [runs, historySearch, historyStatus]);
+
+  const historyStats = useMemo(() => ({
+    runs: filteredRuns.length,
+    employees: filteredRuns.reduce((s: number, r: any) => s + Number(r.employee_count || 0), 0),
+    gross: filteredRuns.reduce((s: number, r: any) => s + Number(r.total_gross || 0), 0),
+    deductions: filteredRuns.reduce((s: number, r: any) => s + Number(r.total_deductions || 0), 0),
+    net: filteredRuns.reduce((s: number, r: any) => s + Number(r.total_net || 0), 0),
+  }), [filteredRuns]);
+
   const { data: drillEntries } = useQuery({
     queryKey: ["hr-payroll2-entries", drillIn],
     enabled: !!drillIn,
@@ -236,6 +257,13 @@ export default function HrPayrollPage2() {
       return data ?? [];
     },
   });
+
+  const filteredDrillEntries = useMemo(() => {
+    return (drillEntries ?? []).filter((e: any) => {
+      if (historyEmail !== "all" && String(e.email_status || "not_sent") !== historyEmail) return false;
+      return true;
+    });
+  }, [drillEntries, historyEmail]);
 
   const { data: latestPaystubs } = useQuery({
     queryKey: ["hr-payroll2-latest-paystubs", employees?.map((e) => e.employee_id).join(",")],
@@ -512,7 +540,26 @@ export default function HrPayrollPage2() {
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-7xl">
           <DialogHeader><DialogTitle>Historique des paies</DialogTitle></DialogHeader>
-          <div className="max-h-[60vh] overflow-auto">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Stat label="Runs" value={String(historyStats.runs)} />
+            <Stat label="Employés payés" value={String(historyStats.employees)} />
+            <Stat label="Brut" value={fmtMoney(historyStats.gross)} />
+            <Stat label="Déductions" value={fmtMoney(historyStats.deductions)} />
+            <Stat label="Net" value={fmtMoney(historyStats.net)} accent />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Input className="max-w-xs" placeholder="Rechercher un run..." value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
+            <Select value={historyStatus} onValueChange={setHistoryStatus}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="completed">Complété</SelectItem>
+                <SelectItem value="processing">En traitement</SelectItem>
+                <SelectItem value="cancelled">Annulé</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="max-h-[60vh] overflow-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -527,7 +574,7 @@ export default function HrPayrollPage2() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(runs ?? []).map((r: any) => (
+                {filteredRuns.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.run_number}</TableCell>
                     <TableCell>{shortDate(r.pay_date)}</TableCell>
@@ -537,7 +584,7 @@ export default function HrPayrollPage2() {
                     <TableCell className="font-semibold">{fmtMoney(r.total_net)}</TableCell>
                     <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{r.status}</Badge></TableCell>
                     <TableCell className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}>Détails</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}><Eye className="h-4 w-4" /> Détails</Button>
                       <Button size="sm" variant="outline" title="Envoyer les talons par courriel à tous les employés de cette paie"
                         onClick={async () => {
                           const { data: entries } = await supabase.from("payroll_entries").select("id").eq("run_id", r.id);
@@ -564,6 +611,38 @@ export default function HrPayrollPage2() {
       <Dialog open={!!drillIn} onOpenChange={(o) => !o && setDrillIn(null)}>
         <DialogContent className="max-w-6xl">
           <DialogHeader><DialogTitle>Détails de la paie</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <Stat label="Talons" value={String(filteredDrillEntries.length)} />
+            <Stat label="Brut" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.total_gross || 0), 0))} />
+            <Stat label="Fed/QC" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.federal_tax || 0) + Number(e.quebec_tax || 0), 0))} />
+            <Stat label="RRQ/AE/RQAP" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.rrq || 0) + Number(e.ae || 0) + Number(e.rqap || 0), 0))} />
+            <Stat label="Déductions" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.deductions_total || 0), 0))} />
+            <Stat label="Net" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.net_pay || 0), 0))} accent />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Select value={historyEmail} onValueChange={setHistoryEmail}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les courriels</SelectItem>
+                <SelectItem value="sent">Courriel envoyé</SelectItem>
+                <SelectItem value="failed">Courriel échoué</SelectItem>
+                <SelectItem value="not_sent">Non envoyé</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" onClick={async () => {
+              const entries = filteredDrillEntries;
+              if (!entries.length) { toast.error("Aucun talon à envoyer"); return; }
+              const t = toast.loading(`Envoi de ${entries.length} courriel(s)...`);
+              let sent = 0, failed = 0;
+              for (const en of entries) {
+                const { data, error } = await supabase.functions.invoke("process-payroll", { body: { resend_email_for_entry_id: en.id } });
+                if (error || data?.error) failed++; else sent++;
+              }
+              toast.dismiss(t);
+              toast.success(`${sent} envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
+              qc.invalidateQueries({ queryKey: ["hr-payroll2-entries", drillIn] });
+            }}><Mail className="h-4 w-4" /> Envoyer aux employés affichés</Button>
+          </div>
           <div className="max-h-[70vh] overflow-auto">
             <Table>
               <TableHeader>
@@ -585,7 +664,7 @@ export default function HrPayrollPage2() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(drillEntries ?? []).map((e: any) => (
+                {filteredDrillEntries.map((e: any) => (
                   <TableRow key={e.id}>
                     <TableCell>
                       <div className="font-medium">{e.profile?.full_name ?? "—"}</div>
@@ -627,6 +706,9 @@ export default function HrPayrollPage2() {
                           }}>
                           <Mail className="h-4 w-4" /> Courriel
                         </Button>
+                        <Button size="sm" variant="outline" title="Voir tous les détails" onClick={() => setEntryDetails(e)}>
+                          <FileText className="h-4 w-4" /> Détail
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -636,6 +718,8 @@ export default function HrPayrollPage2() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PayrollEntryDetailDialog entry={entryDetails} onClose={() => setEntryDetails(null)} />
 
       {/* Settings drawer */}
       <EmployeeSettingsSheet
@@ -665,6 +749,53 @@ export default function HrPayrollPage2() {
           </DialogContent>
         </Dialog>
       )}
+    </div>
+  );
+}
+
+function PayrollEntryDetailDialog({ entry, onClose }: { entry: any | null; onClose: () => void }) {
+  if (!entry) return null;
+  const earnings = Array.isArray(entry.earnings_breakdown) ? entry.earnings_breakdown : [];
+  const deductions = Array.isArray(entry.deduction_breakdown) ? entry.deduction_breakdown : [];
+  const commissions = Array.isArray(entry.commission_breakdown) ? entry.commission_breakdown : [];
+  const adjustments = Array.isArray(entry.adjustment_breakdown) ? entry.adjustment_breakdown : [];
+  return (
+    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-auto">
+        <DialogHeader><DialogTitle>Détail complet du talon — {entry.payroll_number}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Stat label="Brut" value={fmtMoney(entry.total_gross)} />
+          <Stat label="Fed" value={fmtMoney(entry.federal_tax)} />
+          <Stat label="QC" value={fmtMoney(entry.quebec_tax)} />
+          <Stat label="Déductions" value={fmtMoney(entry.deductions_total)} />
+          <Stat label="Net" value={fmtMoney(entry.net_pay)} accent />
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <BreakdownBox title="Revenus sur le talon" rows={earnings} positive />
+          <BreakdownBox title="Déductions sur le talon" rows={deductions} />
+          <BreakdownBox title="Commissions liées" rows={commissions.map((c: any) => ({ label: c.label || c.description || "Commission", detail: c.order_id || c.id, amount: c.amount }))} positive />
+          <BreakdownBox title="Bonus / allocations / suppléments" rows={adjustments.map((a: any) => ({ label: a.label || a.type, detail: `${a.description || ""}${a.taxable === false ? " · non imposable" : ""}`, amount: a.amount }))} positive />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BreakdownBox({ title, rows, positive }: { title: string; rows: any[]; positive?: boolean }) {
+  return (
+    <div className="rounded-md border bg-muted/20 p-3">
+      <div className="text-sm font-semibold mb-2">{title}</div>
+      {!rows.length ? <div className="text-xs text-muted-foreground">Aucun détail</div> : rows.map((r: any, i: number) => (
+        <div key={`${r.label}-${i}`} className="flex items-start justify-between gap-3 border-b py-2 last:border-0 text-sm">
+          <div className="min-w-0">
+            <div className="font-medium truncate">{r.label || "Ligne"}</div>
+            {r.detail ? <div className="text-xs text-muted-foreground truncate">{r.detail}</div> : null}
+          </div>
+          <div className={positive ? "font-semibold text-emerald-700" : "font-semibold text-destructive"}>
+            {positive ? "+ " : "- "}{fmtMoney(Math.abs(Number(r.amount || 0)))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
