@@ -539,7 +539,26 @@ export default function HrPayrollPage2() {
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-7xl">
           <DialogHeader><DialogTitle>Historique des paies</DialogTitle></DialogHeader>
-          <div className="max-h-[60vh] overflow-auto">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Stat label="Runs" value={String(historyStats.runs)} />
+            <Stat label="Employés payés" value={String(historyStats.employees)} />
+            <Stat label="Brut" value={fmtMoney(historyStats.gross)} />
+            <Stat label="Déductions" value={fmtMoney(historyStats.deductions)} />
+            <Stat label="Net" value={fmtMoney(historyStats.net)} accent />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Input className="max-w-xs" placeholder="Rechercher un run..." value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
+            <Select value={historyStatus} onValueChange={setHistoryStatus}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="completed">Complété</SelectItem>
+                <SelectItem value="processing">En traitement</SelectItem>
+                <SelectItem value="cancelled">Annulé</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="max-h-[60vh] overflow-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -554,7 +573,7 @@ export default function HrPayrollPage2() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(runs ?? []).map((r: any) => (
+                {filteredRuns.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.run_number}</TableCell>
                     <TableCell>{shortDate(r.pay_date)}</TableCell>
@@ -564,7 +583,7 @@ export default function HrPayrollPage2() {
                     <TableCell className="font-semibold">{fmtMoney(r.total_net)}</TableCell>
                     <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{r.status}</Badge></TableCell>
                     <TableCell className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}>Détails</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setDrillIn(r.id)}><Eye className="h-4 w-4" /> Détails</Button>
                       <Button size="sm" variant="outline" title="Envoyer les talons par courriel à tous les employés de cette paie"
                         onClick={async () => {
                           const { data: entries } = await supabase.from("payroll_entries").select("id").eq("run_id", r.id);
