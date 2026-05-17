@@ -151,7 +151,7 @@ export default function HrPayrollPage2() {
     },
   });
 
-  // Period commissions (approved before cutoff)
+  // Payable commissions: once approved, Field commissions can be paid at any payroll run.
   const { data: periodCommissions } = useQuery({
     queryKey: ["hr-payroll2-commissions", cutoff.toISOString()],
     queryFn: async () => {
@@ -159,7 +159,6 @@ export default function HrPayrollPage2() {
         .from("field_commissions")
         .select("id, agent_id, amount, description, commission_type, earned_at, order_id, orders:order_id(order_number)")
         .eq("status", "approved")
-        .lte("earned_at", cutoff.toISOString())
         .order("earned_at", { ascending: false });
       return data ?? [];
     },
@@ -271,7 +270,9 @@ export default function HrPayrollPage2() {
   // Mutations
   const previewMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("process-payroll", { body: { dry_run: true } });
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { dry_run: true, excluded_commission_ids: Array.from(excludedComm) },
+      });
       if (error) throw error;
       return data;
     },
