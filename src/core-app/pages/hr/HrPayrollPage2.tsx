@@ -312,16 +312,18 @@ export default function HrPayrollPage2() {
     const includedComm = allComm.filter((c: any) => !excludedComm.has(c.id));
     const commTotal = includedComm.reduce((s: number, c: any) => s + Number(c.amount || 0), 0);
     const adj = getAdjustments(emp.employee_id);
-    const adjTotal = adj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
+    const earningAdj = adj.filter((a: any) => !["deduction", "advance"].includes(a.adjustment_type));
+    const manualDed = adj.filter((a: any) => ["deduction", "advance"].includes(a.adjustment_type)).reduce((s: number, a: any) => s + Math.abs(Number(a.amount || 0)), 0);
+    const adjTotal = earningAdj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
     const bonus = bonusOverrides.get(emp.employee_id) || 0;
     const gross = hourly + overtime + commTotal + adjTotal + bonus;
 
     // Estimated deductions (simplified preview — actual computed by edge function)
     const fedRate = 0.15, qcRate = 0.15, rrqRate = 0.059, aeRate = 0.0166, rqapRate = 0.00494;
     const disRate = Number(emp.disability_insurance_rate || 0.02);
-    const ded = gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0;
+    const ded = (gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0) + manualDed;
     const net = gross - ded;
-    return { hourly, overtime, commTotal, adjTotal, bonus, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
+    return { hourly, overtime, commTotal, adjTotal, manualDed, bonus, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
   // Aggregate totals — based on SELECTED employees (fallback: all visible)
