@@ -1272,8 +1272,28 @@ function AdjustmentDialog({ emp, onClose, onSaved }: { emp: EmployeeRow | null; 
         <DialogHeader><DialogTitle>Nouvel ajustement</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
+            <Label>Raccourcis RH</Label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ADJUSTMENT_PRESETS.map((preset) => (
+                <Button
+                  key={`${preset.type}-${preset.description}`}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setType(preset.type); setDescription(preset.description); setTaxable(preset.taxable); if (preset.amount > 0) setAmount(String(preset.amount)); }}
+                >
+                  {preset.description}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
             <Label>Type</Label>
-            <Select value={type} onValueChange={setType}>
+            <Select value={type} onValueChange={(v) => {
+              setType(v);
+              if (["allocation", "reimbursement"].includes(v)) setTaxable(false);
+              if (["bonus", "supplement", "other", "advance", "deduction"].includes(v)) setTaxable(true);
+            }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ADJUSTMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -1281,7 +1301,7 @@ function AdjustmentDialog({ emp, onClose, onSaved }: { emp: EmployeeRow | null; 
             </Select>
           </div>
           <div><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-          <div><Label>Montant (négatif pour déduction)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+          <div><Label>Montant (positif — avance/déduction sera retenue)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           <div className="flex items-center gap-2"><Switch checked={taxable} onCheckedChange={setTaxable} /><Label>Imposable</Label></div>
         </div>
         <DialogFooter>
