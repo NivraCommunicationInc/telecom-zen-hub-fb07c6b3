@@ -107,8 +107,14 @@ export default function HrPayrollPage2() {
   // Per-employee live overrides (real-time recompute before saving / running)
   const [excludedComm, setExcludedComm] = useState<Set<string>>(new Set());
   const [localHours, setLocalHours] = useState<Map<string, { h: number; ot: number }>>(new Map());
+  // Employee multi-select for payroll processing
+  const [selectedEmps, setSelectedEmps] = useState<Set<string>>(new Set());
+  const [previewingStub, setPreviewingStub] = useState<string | null>(null);
   function toggleExcludedComm(id: string) {
     setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function toggleSelectedEmp(id: string) {
+    setSelectedEmps((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function setLocalHoursFor(empId: string, h: number, ot: number) {
     setLocalHours((prev) => { const n = new Map(prev); n.set(empId, { h, ot }); return n; });
@@ -255,10 +261,14 @@ export default function HrPayrollPage2() {
     return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
-  // Aggregate totals
+  // Aggregate totals — based on SELECTED employees (fallback: all visible)
+  const selectionList = useMemo(
+    () => filteredEmployees.filter((e) => selectedEmps.size === 0 || selectedEmps.has(e.employee_id)),
+    [filteredEmployees, selectedEmps],
+  );
   const totals = useMemo(() => {
     const t = { gross: 0, ded: 0, net: 0, count: 0, bonus: 0 };
-    for (const e of filteredEmployees) {
+    for (const e of selectionList) {
       const s = computeSummary(e);
       t.gross += s.gross;
       t.ded += s.ded;
@@ -266,13 +276,22 @@ export default function HrPayrollPage2() {
       t.count += 1;
     }
     return t;
-  }, [filteredEmployees, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
+  }, [selectionList, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
+
+  function buildRunBody(extra: Record<string, unknown> = {}) {
+    const body: Record<string, unknown> = {
+      excluded_commission_ids: Array.from(excludedComm),
+      ...extra,
+    };
+    if (selectedEmps.size > 0) body.employee_ids = Array.from(selectedEmps);
+    return body;
+  }
 
   // Mutations
   const previewMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("process-payroll", {
-        body: { dry_run: true, excluded_commission_ids: Array.from(excludedComm) },
+        body: buildRunBody({ dry_run: true }),
       });
       if (error) throw error;
       return data;
@@ -283,8 +302,11 @@ export default function HrPayrollPage2() {
 
   const runMutation = useMutation({
     mutationFn: async () => {
+      if (selectedEmps.size === 0) {
+        throw new Error("Sélectionnez au moins un employé à payer.");
+      }
       const { data, error } = await supabase.functions.invoke("process-payroll", {
-        body: { excluded_commission_ids: Array.from(excludedComm) },
+        body: buildRunBody(),
       });
       if (error) throw error;
       return data;
@@ -292,11 +314,33 @@ export default function HrPayrollPage2() {
     onSuccess: (d: any) => {
       toast.success(`Paie traitée — ${d.employee_count} employé(s), net ${fmtMoney(d.total_net)}`);
       setPreview(null);
+      setSelectedEmps(new Set());
       qc.invalidateQueries({ queryKey: ["hr-payroll2-runs"] });
       qc.invalidateQueries({ queryKey: ["hr-payroll2-commissions"] });
       qc.invalidateQueries({ queryKey: ["hr-payroll2-adjustments"] });
     },
     onError: (e: any) => toast.error(e.message || "Erreur de traitement"),
+  });
+
+  // Paystub preview (per employee — opens generated PDF in new tab)
+  const stubPreviewMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      setPreviewingStub(employeeId);
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { dry_run: true, preview_employee_id: employeeId, excluded_commission_ids: Array.from(excludedComm) },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      setPreviewingStub(null);
+      if (!d?.pdf_base64) { toast.error("Aperçu indisponible"); return; }
+      const bytes = Uint8Array.from(atob(d.pdf_base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e: any) => { setPreviewingStub(null); toast.error(e.message || "Erreur"); },
   });
 
   return (
@@ -352,6 +396,28 @@ export default function HrPayrollPage2() {
             {filteredEmployees.length === 0 && (
               <Card><CardContent className="py-8 text-center text-muted-foreground">Aucun employé dans ce groupe</CardContent></Card>
             )}
+            {filteredEmployees.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={filteredEmployees.every((e) => selectedEmps.has(e.employee_id))}
+                    onChange={(e) => {
+                      const next = new Set(selectedEmps);
+                      if (e.target.checked) filteredEmployees.forEach((emp) => next.add(emp.employee_id));
+                      else filteredEmployees.forEach((emp) => next.delete(emp.employee_id));
+                      setSelectedEmps(next);
+                    }}
+                  />
+                  <span className="font-medium">Tout sélectionner</span>
+                  <Badge variant="secondary">{selectedEmps.size} sélectionné(s)</Badge>
+                </div>
+                {selectedEmps.size > 0 && (
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedEmps(new Set())}>Désélectionner tout</Button>
+                )}
+              </div>
+            )}
             {filteredEmployees.map((emp) => (
               <EmployeeCard
                 key={emp.employee_id}
@@ -366,6 +432,10 @@ export default function HrPayrollPage2() {
                 periodEnd={cutoff}
                 onSavedTimesheet={() => qc.invalidateQueries({ queryKey: ["hr-payroll2-timesheets"] })}
                 onAdjustmentDeleted={() => qc.invalidateQueries({ queryKey: ["hr-payroll2-adjustments"] })}
+                selected={selectedEmps.has(emp.employee_id)}
+                onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
+                onPreviewStub={() => stubPreviewMutation.mutate(emp.employee_id)}
+                previewingStub={previewingStub === emp.employee_id}
               />
             ))}
           </TabsContent>
@@ -501,6 +571,7 @@ export default function HrPayrollPage2() {
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
   onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
+  selected, onToggleSelected, onPreviewStub, previewingStub,
 }: {
   emp: EmployeeRow;
   summary: any;
@@ -512,6 +583,10 @@ function EmployeeCard({
   excludedComm: Set<string>;
   onToggleComm: (id: string) => void;
   onLocalHoursChange: (h: number, ot: number) => void;
+  selected: boolean;
+  onToggleSelected: () => void;
+  onPreviewStub: () => void;
+  previewingStub: boolean;
 }) {
   const isHourly = emp.pay_type === "hourly" || emp.pay_type === "hourly_commission";
   const isCommission = emp.pay_type === "commission" || emp.pay_type === "hourly_commission";
@@ -573,10 +648,17 @@ function EmployeeCard({
   const liveHourlySubtotal = liveRegular + liveOvertime;
 
   return (
-    <Card>
+    <Card className={selected ? "ring-2 ring-primary/60" : ""}>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-input"
+              checked={selected}
+              onChange={onToggleSelected}
+              aria-label="Inclure dans la paie"
+            />
             {emp.profile?.avatar_url ? (
               <img src={emp.profile.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover" />
             ) : (
@@ -592,6 +674,10 @@ function EmployeeCard({
           <div className="flex items-center gap-2">
             <Badge className={ROLE_BADGE_CLS[role] ?? ""}>{role}</Badge>
             <Badge variant="outline" className={payBadge.cls}>{payBadge.label}</Badge>
+            <Button size="sm" variant="outline" onClick={onPreviewStub} disabled={previewingStub}>
+              {previewingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Voir le talon
+            </Button>
             <Button size="sm" variant="ghost" onClick={onEditSettings}><Settings className="h-4 w-4" /></Button>
           </div>
         </div>

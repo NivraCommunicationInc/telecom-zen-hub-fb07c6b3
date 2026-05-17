@@ -7314,6 +7314,8 @@ export type Database = {
           notes: string | null
           order_id: string | null
           paid_at: string | null
+          paid_in_entry_id: string | null
+          paid_in_run_id: string | null
           status: string
           updated_at: string
         }
@@ -7334,6 +7336,8 @@ export type Database = {
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          paid_in_entry_id?: string | null
+          paid_in_run_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -7354,6 +7358,8 @@ export type Database = {
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          paid_in_entry_id?: string | null
+          paid_in_run_id?: string | null
           status?: string
           updated_at?: string
         }
