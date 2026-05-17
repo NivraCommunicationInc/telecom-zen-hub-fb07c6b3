@@ -107,8 +107,14 @@ export default function HrPayrollPage2() {
   // Per-employee live overrides (real-time recompute before saving / running)
   const [excludedComm, setExcludedComm] = useState<Set<string>>(new Set());
   const [localHours, setLocalHours] = useState<Map<string, { h: number; ot: number }>>(new Map());
+  // Employee multi-select for payroll processing
+  const [selectedEmps, setSelectedEmps] = useState<Set<string>>(new Set());
+  const [previewingStub, setPreviewingStub] = useState<string | null>(null);
   function toggleExcludedComm(id: string) {
     setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function toggleSelectedEmp(id: string) {
+    setSelectedEmps((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function setLocalHoursFor(empId: string, h: number, ot: number) {
     setLocalHours((prev) => { const n = new Map(prev); n.set(empId, { h, ot }); return n; });
