@@ -396,6 +396,28 @@ export default function HrPayrollPage2() {
             {filteredEmployees.length === 0 && (
               <Card><CardContent className="py-8 text-center text-muted-foreground">Aucun employé dans ce groupe</CardContent></Card>
             )}
+            {filteredEmployees.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={filteredEmployees.every((e) => selectedEmps.has(e.employee_id))}
+                    onChange={(e) => {
+                      const next = new Set(selectedEmps);
+                      if (e.target.checked) filteredEmployees.forEach((emp) => next.add(emp.employee_id));
+                      else filteredEmployees.forEach((emp) => next.delete(emp.employee_id));
+                      setSelectedEmps(next);
+                    }}
+                  />
+                  <span className="font-medium">Tout sélectionner</span>
+                  <Badge variant="secondary">{selectedEmps.size} sélectionné(s)</Badge>
+                </div>
+                {selectedEmps.size > 0 && (
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedEmps(new Set())}>Désélectionner tout</Button>
+                )}
+              </div>
+            )}
             {filteredEmployees.map((emp) => (
               <EmployeeCard
                 key={emp.employee_id}
@@ -410,6 +432,10 @@ export default function HrPayrollPage2() {
                 periodEnd={cutoff}
                 onSavedTimesheet={() => qc.invalidateQueries({ queryKey: ["hr-payroll2-timesheets"] })}
                 onAdjustmentDeleted={() => qc.invalidateQueries({ queryKey: ["hr-payroll2-adjustments"] })}
+                selected={selectedEmps.has(emp.employee_id)}
+                onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
+                onPreviewStub={() => stubPreviewMutation.mutate(emp.employee_id)}
+                previewingStub={previewingStub === emp.employee_id}
               />
             ))}
           </TabsContent>
