@@ -95,6 +95,18 @@ const ADJUSTMENT_TYPES = [
   { value: "other", label: "Autre" },
 ];
 
+const ADJUSTMENT_PRESETS = [
+  { type: "allocation", description: "Kilométrage", amount: 0, taxable: false },
+  { type: "allocation", description: "Repas", amount: 0, taxable: false },
+  { type: "allocation", description: "Équipement / téléphone", amount: 0, taxable: false },
+  { type: "bonus", description: "Bonus de performance", amount: 0, taxable: true },
+  { type: "bonus", description: "Prime de signature", amount: 0, taxable: true },
+  { type: "reimbursement", description: "Remboursement frais", amount: 0, taxable: false },
+  { type: "advance", description: "Avance sur salaire", amount: 0, taxable: true },
+  { type: "deduction", description: "Retenue / correction", amount: 0, taxable: true },
+  { type: "other", description: "Vacances / congé férié payé", amount: 0, taxable: true },
+];
+
 // ─────────────── Page ───────────────
 export default function HrPayrollPage2() {
   const qc = useQueryClient();
