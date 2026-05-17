@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  Calendar, DollarSign, Download, History, Loader2, Mail, Play, Plus, Settings, Trash2, Users,
+  Calendar, DollarSign, Download, Eye, FileText, History, Loader2, Mail, Play, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -115,6 +115,9 @@ export default function HrPayrollPage2() {
   const [preview, setPreview] = useState<any | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [drillIn, setDrillIn] = useState<string | null>(null);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("all");
+  const [historyEmail, setHistoryEmail] = useState("all");
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRow | null>(null);
   const [adjustmentFor, setAdjustmentFor] = useState<EmployeeRow | null>(null);
   // Per-employee live overrides (real-time recompute before saving / running)
@@ -225,6 +228,23 @@ export default function HrPayrollPage2() {
     },
   });
 
+  const filteredRuns = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    return (runs ?? []).filter((r: any) => {
+      if (historyStatus !== "all" && String(r.status) !== historyStatus) return false;
+      if (term && !String(r.run_number || "").toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [runs, historySearch, historyStatus]);
+
+  const historyStats = useMemo(() => ({
+    runs: filteredRuns.length,
+    employees: filteredRuns.reduce((s: number, r: any) => s + Number(r.employee_count || 0), 0),
+    gross: filteredRuns.reduce((s: number, r: any) => s + Number(r.total_gross || 0), 0),
+    deductions: filteredRuns.reduce((s: number, r: any) => s + Number(r.total_deductions || 0), 0),
+    net: filteredRuns.reduce((s: number, r: any) => s + Number(r.total_net || 0), 0),
+  }), [filteredRuns]);
+
   const { data: drillEntries } = useQuery({
     queryKey: ["hr-payroll2-entries", drillIn],
     enabled: !!drillIn,
@@ -236,6 +256,13 @@ export default function HrPayrollPage2() {
       return data ?? [];
     },
   });
+
+  const filteredDrillEntries = useMemo(() => {
+    return (drillEntries ?? []).filter((e: any) => {
+      if (historyEmail !== "all" && String(e.email_status || "not_sent") !== historyEmail) return false;
+      return true;
+    });
+  }, [drillEntries, historyEmail]);
 
   const { data: latestPaystubs } = useQuery({
     queryKey: ["hr-payroll2-latest-paystubs", employees?.map((e) => e.employee_id).join(",")],
