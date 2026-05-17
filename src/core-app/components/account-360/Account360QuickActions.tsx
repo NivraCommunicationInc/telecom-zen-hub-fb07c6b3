@@ -18,6 +18,7 @@ import { ResetClientPinDialog } from "@/core-app/components/account-actions/Rese
 import { AddCreditWithDurationDialog } from "@/core-app/components/account-actions/AddCreditWithDurationDialog";
 import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/AccountAdjustmentDialog";
 import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
+import { ReactivateAccountDialog } from "@/core-app/components/account-360/ReactivateAccountDialog";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 interface Props {
