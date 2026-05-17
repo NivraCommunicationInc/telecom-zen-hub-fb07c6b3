@@ -995,6 +995,7 @@ const AppRoutes = () => {
           <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
+          <Route path="training" element={<Suspense fallback={null}><FieldTraining /></Suspense>} />
           {/* Nivra Source Hub — unified */}
           <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="field" /></Suspense>} />
           <Route path="hub/annonces" element={<Navigate to="/field/hub?section=annonces" replace />} />
