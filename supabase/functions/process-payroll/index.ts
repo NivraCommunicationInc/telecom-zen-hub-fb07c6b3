@@ -42,6 +42,8 @@ const RQAP_RATE = 0.00494;
 const RQAP_MAX_INSURABLE = 94000;
 
 const DISABILITY_RATE_DEFAULT = 0.02;
+const FEDERAL_WITHHOLDING_FLOOR_RATE = 0.03;
+const QUEBEC_WITHHOLDING_FLOOR_RATE = 0.03;
 
 // ─────────── Helpers ───────────
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -126,14 +128,12 @@ async function calculateDeductions(
   // periods because annual credits wipe out the first bracket. Nivra needs an
   // explicit withholding line on every taxable paid stub, so we keep the
   // bracket result and apply a conservative source-withholding floor.
-  const federal_tax = grossPay > 0 ? Math.max(federalAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
-  const quebec_tax = grossPay > 0 ? Math.max(quebecAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
+  const federal_tax = grossPay > 0 ? Math.max(federalAnnual / PAY_PERIODS_WEEKLY, grossPay * FEDERAL_WITHHOLDING_FLOOR_RATE) : 0;
+  const quebec_tax = grossPay > 0 ? Math.max(quebecAnnual / PAY_PERIODS_WEEKLY, grossPay * QUEBEC_WITHHOLDING_FLOOR_RATE) : 0;
 
-  const rrqAnnual = Math.min(
-    Math.max(0, annualGross - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
-    (RRQ_MAX_PENSIONABLE - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
-  );
-  const rrq = rrqAnnual / PAY_PERIODS_WEEKLY;
+  const rrqPeriodExemption = RRQ_BASIC_EXEMPTION / PAY_PERIODS_WEEKLY;
+  const rrqPensionableThisPay = Math.min(Math.max(0, grossPay - rrqPeriodExemption), RRQ_MAX_PENSIONABLE / PAY_PERIODS_WEEKLY);
+  const rrq = rrqPensionableThisPay * RRQ_RATE;
 
   const aeAnnual = Math.min(annualGross * AE_RATE, AE_MAX_INSURABLE * AE_RATE);
   const ae = aeAnnual / PAY_PERIODS_WEEKLY;
