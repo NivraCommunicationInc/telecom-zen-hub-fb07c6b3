@@ -13,6 +13,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
+import { buildPaymentConfirmationPdf } from "../_shared/pdf/paymentConfirmationTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -288,6 +289,188 @@ Deno.serve(async (req) => {
     const previewEmployeeId: string | null = body.preview_employee_id ? String(body.preview_employee_id) : null;
     const resendEntryId: string | null = body.resend_email_for_entry_id ? String(body.resend_email_for_entry_id) : null;
     const regenerateEntryId: string | null = body.regenerate_entry_id ? String(body.regenerate_entry_id) : null;
+    const markPaymentEntryId: string | null = body.mark_payment_sent_for_entry_id ? String(body.mark_payment_sent_for_entry_id) : null;
+
+    // ─── Mark a payroll entry as PAID and notify the employee ───
+    if (markPaymentEntryId) {
+      const paymentMethod = String(body.payment_method || "interac");
+      const paymentStatus = String(body.payment_status || "paid");
+      const paymentReference = body.payment_reference ? String(body.payment_reference) : null;
+      const paymentDate = body.payment_date ? String(body.payment_date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const paymentNotes = body.payment_notes ? String(body.payment_notes) : null;
+      const shouldSendEmail = body.send_email !== false; // default true
+
+      const { data: entry, error: eErr } = await supabase
+        .from("payroll_entries").select("*").eq("id", markPaymentEntryId).maybeSingle();
+      if (eErr || !entry) {
+        return new Response(JSON.stringify({ error: "Talon de paie introuvable." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles").select("user_id, full_name, email, agent_number")
+        .eq("user_id", entry.employee_id).maybeSingle();
+
+      const { data: run } = entry.run_id
+        ? await supabase.from("payroll_runs").select("period_start, period_end, pay_date").eq("id", entry.run_id).maybeSingle()
+        : { data: null } as any;
+
+      const periodStartStr = String(run?.period_start || entry.created_at).slice(0, 10);
+      const periodEndStr = String(run?.period_end || entry.created_at).slice(0, 10);
+      const payDateStr = String(run?.pay_date || entry.payment_date || entry.created_at).slice(0, 10);
+
+      const confirmationNumber = `PAY-CONF-${payDateStr.replace(/-/g, "")}-${String(entry.id).slice(0, 8).toUpperCase()}`;
+
+      // Generate the payment confirmation PDF
+      const pdfBytes = buildPaymentConfirmationPdf({
+        confirmation_number: confirmationNumber,
+        payroll_number: entry.payroll_number,
+        pay_date: payDateStr,
+        period_start: periodStartStr,
+        period_end: periodEndStr,
+        employee_name: profile?.full_name || profile?.email || "Employé",
+        employee_email: profile?.email ?? null,
+        agent_number: profile?.agent_number ?? entry.agent_number ?? null,
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        payment_reference: paymentReference,
+        payment_date: paymentDate,
+        net_amount: Number(entry.net_pay || 0),
+        total_gross: Number(entry.total_gross || 0),
+        total_deductions: Number(entry.total_deductions || entry.deductions_total || 0),
+        notes: paymentNotes,
+      });
+
+      // Upload PDF
+      const pdfPath = `payment-confirmations/${entry.run_id || "manual"}/${entry.employee_id || entry.user_id || "unknown"}-${entry.id}.pdf`;
+      const { error: upErr } = await supabase.storage.from("documents").upload(pdfPath, pdfBytes, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      if (upErr) console.error("[process-payroll] upload payment confirmation failed:", upErr.message);
+      const { data: signed } = await supabase.storage.from("documents").createSignedUrl(pdfPath, 60 * 60 * 24 * 30);
+
+      const isFinal = ["paid", "sent"].includes(paymentStatus);
+
+      await supabase.from("payroll_entries").update({
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        payment_reference: paymentReference,
+        payment_date: paymentDate,
+        payment_notes: paymentNotes,
+        payment_confirmation_pdf_url: pdfPath,
+        payment_marked_by: processedBy,
+        paid_at: isFinal ? new Date().toISOString() : entry.paid_at,
+        status: isFinal ? "paid" : entry.status,
+      } as any).eq("id", entry.id);
+
+      let emailResult: { ok: boolean; error?: string } = { ok: false, error: "Email not sent" };
+      if (shouldSendEmail && profile?.email) {
+        try {
+          let binary = "";
+          for (let i = 0; i < pdfBytes.length; i++) binary += String.fromCharCode(pdfBytes[i]);
+          const content = btoa(binary);
+
+          const attachments: any[] = [
+            { filename: `avis-paiement-${confirmationNumber}.pdf`, content, contentType: "application/pdf" },
+          ];
+
+          // Also attach the paystub PDF if available
+          if (entry.paystub_pdf_url) {
+            const paystubPath = String(entry.paystub_pdf_url).includes("/documents/")
+              ? String(entry.paystub_pdf_url).split("/documents/").pop()!
+              : String(entry.paystub_pdf_url);
+            const { data: stubBlob } = await supabase.storage.from("documents").download(paystubPath);
+            if (stubBlob) {
+              const buf = new Uint8Array(await stubBlob.arrayBuffer());
+              let b = "";
+              for (let i = 0; i < buf.length; i++) b += String.fromCharCode(buf[i]);
+              attachments.push({
+                filename: `talon-paie-${entry.payroll_number || entry.id}.pdf`,
+                content: btoa(b),
+                contentType: "application/pdf",
+              });
+            }
+          }
+
+          const eventKey = `payment_confirmation_${entry.id}_${Date.now()}`;
+          const { error: qErr } = await supabase.from("email_queue").upsert({
+            event_key: eventKey,
+            template_key: "payment_confirmation",
+            to_email: profile.email,
+            template_vars: {
+              agent_name: profile.full_name || profile.email,
+              agent_number: profile.agent_number || entry.agent_number || "—",
+              confirmation_number: confirmationNumber,
+              payroll_number: entry.payroll_number,
+              period_start: periodStartStr,
+              period_end: periodEndStr,
+              pay_date: payDateStr,
+              payment_date: paymentDate,
+              payment_method: paymentMethod,
+              payment_reference: paymentReference,
+              net_amount: Number(entry.net_pay || 0),
+              total_gross: Number(entry.total_gross || 0),
+              total_deductions: Number(entry.total_deductions || entry.deductions_total || 0),
+              portal_url: "https://nivra-telecom.ca/hr/paie",
+            },
+            message_type: "payment_confirmation",
+            entity_type: "payroll_entry",
+            entity_id: entry.id,
+            attachments,
+            status: "queued",
+            attempts: 0,
+            last_error: null,
+            next_retry_at: new Date().toISOString(),
+          } as any, { onConflict: "event_key" });
+          if (qErr) throw qErr;
+          const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
+          if (drainErr) throw drainErr;
+          emailResult = { ok: true };
+          await supabase.from("payroll_entries").update({
+            payment_notified_at: new Date().toISOString(),
+          } as any).eq("id", entry.id);
+        } catch (e) {
+          console.error("[process-payroll] payment_confirmation email failed:", e);
+          emailResult = { ok: false, error: e instanceof Error ? e.message : String(e) };
+        }
+      }
+
+      // Notify in-app
+      await supabase.from("employee_notifications").insert({
+        user_id: entry.employee_id,
+        notification_type: "payroll",
+        title: "Paiement effectué",
+        message: `Votre paie nette de ${round2(Number(entry.net_pay || 0)).toFixed(2)} $ a été versée par ${paymentMethod}.`,
+        link_url: signed?.signedUrl || "/rh/paie",
+        is_read: false,
+      });
+
+      // Audit log
+      await supabase.from("activity_logs").insert({
+        user_id: processedBy,
+        entity_type: "payroll_entry",
+        entity_id: entry.id,
+        action: `payment_marked_${paymentStatus}`,
+        actor_role: "hr_admin",
+        details: {
+          payment_method: paymentMethod,
+          payment_reference: paymentReference,
+          payment_date: paymentDate,
+          net_amount: Number(entry.net_pay || 0),
+          email_sent: emailResult.ok,
+        },
+      } as any);
+
+      return new Response(JSON.stringify({
+        ok: true,
+        confirmation_number: confirmationNumber,
+        signed_url: signed?.signedUrl ?? null,
+        email_sent: emailResult.ok,
+        email_error: emailResult.error,
+        to: profile?.email,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // ─── Regenerate an existing paystub PDF and optionally resend its email ───
     if (resendEntryId || regenerateEntryId) {

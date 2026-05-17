@@ -115,6 +115,8 @@ export default function HrPayrollPage2() {
   const [preview, setPreview] = useState<any | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [drillIn, setDrillIn] = useState<string | null>(null);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
+  const [markPaymentFor, setMarkPaymentFor] = useState<any | null>(null);
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("all");
   const [historyEmail, setHistoryEmail] = useState("all");
@@ -508,6 +510,10 @@ export default function HrPayrollPage2() {
                 {emailingStub === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                 Envoyer courriels sélectionnés
               </Button>
+              <Button variant="ghost" onClick={() => setPaymentsOpen(true)}>
+                <DollarSign className="h-4 w-4" />
+                Paiements
+              </Button>
               <Button variant="ghost" onClick={() => setHistoryOpen(true)}>
                 <History className="h-4 w-4" />
                 Historique
@@ -780,6 +786,20 @@ export default function HrPayrollPage2() {
       </Dialog>
 
       <PayrollEntryDetailDialog entry={entryDetails} onClose={() => setEntryDetails(null)} />
+
+      <PaymentsCenterDialog
+        open={paymentsOpen}
+        onClose={() => setPaymentsOpen(false)}
+        onMarkPayment={(e) => setMarkPaymentFor(e)}
+      />
+      <MarkPaymentDialog
+        entry={markPaymentFor}
+        onClose={() => setMarkPaymentFor(null)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ["hr-payroll2-payments"] });
+          qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
+        }}
+      />
 
       {/* Settings drawer */}
       <EmployeeSettingsSheet
@@ -1310,6 +1330,394 @@ function AdjustmentDialog({ emp, onClose, onSaved }: { emp: EmployeeRow | null; 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
           <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// PaymentsCenterDialog — full disbursement console
+// ──────────────────────────────────────────────────────────────────────
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  interac: "Interac",
+  direct_deposit: "Dépôt direct",
+  paypal: "PayPal",
+  cheque: "Chèque",
+  cash: "Comptant",
+  other: "Autre",
+};
+
+function PaymentsCenterDialog({ open, onClose, onMarkPayment }: { open: boolean; onClose: () => void; onMarkPayment: (entry: any) => void }) {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [methodFilter, setMethodFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ["hr-payroll2-payments", dateFrom, dateTo],
+    enabled: open,
+    queryFn: async () => {
+      let q = supabase.from("payroll_entries").select("*").order("created_at", { ascending: false }).limit(500);
+      if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00Z`);
+      if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59Z`);
+      const { data, error } = await q;
+      if (error) throw error;
+      const ids = Array.from(new Set((data || []).map((e: any) => e.employee_id).filter(Boolean)));
+      if (ids.length) {
+        const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email, agent_number").in("user_id", ids);
+        const map = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+        return (data || []).map((e: any) => ({ ...e, profile: map.get(e.employee_id) || null }));
+      }
+      return data || [];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return entries.filter((e: any) => {
+      if (statusFilter !== "all" && (e.payment_status || "pending") !== statusFilter) return false;
+      if (methodFilter !== "all" && (e.payment_method || "interac") !== methodFilter) return false;
+      if (!q) return true;
+      return (
+        (e.profile?.full_name || "").toLowerCase().includes(q) ||
+        (e.profile?.email || "").toLowerCase().includes(q) ||
+        (e.profile?.agent_number || "").toLowerCase().includes(q) ||
+        (e.payroll_number || "").toLowerCase().includes(q) ||
+        (e.payment_reference || "").toLowerCase().includes(q)
+      );
+    });
+  }, [entries, search, statusFilter, methodFilter]);
+
+  const stats = useMemo(() => {
+    const s = { total: filtered.length, paid: 0, pending: 0, failed: 0, totalNet: 0, paidNet: 0, pendingNet: 0 };
+    for (const e of filtered) {
+      const st = String(e.payment_status || "pending");
+      const net = Number(e.net_pay || 0);
+      s.totalNet += net;
+      if (st === "paid" || st === "sent") { s.paid++; s.paidNet += net; }
+      else if (st === "failed") s.failed++;
+      else { s.pending++; s.pendingNet += net; }
+    }
+    return s;
+  }, [filtered]);
+
+  async function resendConfirmation(e: any) {
+    const t = toast.loading("Renvoi du courriel de confirmation...");
+    const { data, error } = await supabase.functions.invoke("process-payroll", {
+      body: {
+        mark_payment_sent_for_entry_id: e.id,
+        payment_method: e.payment_method || "interac",
+        payment_status: e.payment_status || "paid",
+        payment_reference: e.payment_reference,
+        payment_date: e.payment_date || new Date().toISOString().slice(0, 10),
+        payment_notes: e.payment_notes,
+        send_email: true,
+      },
+    });
+    toast.dismiss(t);
+    if (error || data?.error) toast.error(error?.message || data?.error || "Erreur");
+    else toast.success(`Confirmation envoyée à ${data?.to ?? "l'employé"}`);
+    qc.invalidateQueries({ queryKey: ["hr-payroll2-payments"] });
+  }
+
+  async function openConfirmationPdf(e: any) {
+    if (!e.payment_confirmation_pdf_url) { toast.error("Aucun avis de paiement généré"); return; }
+    const p = String(e.payment_confirmation_pdf_url).includes("/documents/") ? String(e.payment_confirmation_pdf_url).split("/documents/").pop()! : String(e.payment_confirmation_pdf_url);
+    const { data } = await supabase.storage.from("documents").createSignedUrl(p, 300);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function toggleAll() {
+    if (filtered.every((e: any) => selected.has(e.id))) {
+      const n = new Set(selected); filtered.forEach((e: any) => n.delete(e.id)); setSelected(n);
+    } else {
+      const n = new Set(selected); filtered.forEach((e: any) => n.add(e.id)); setSelected(n);
+    }
+  }
+
+  async function bulkResendConfirmations() {
+    const list = filtered.filter((e: any) => selected.has(e.id) && ["paid", "sent"].includes(String(e.payment_status)));
+    if (!list.length) { toast.error("Sélectionnez des paiements déjà marqués payés."); return; }
+    const t = toast.loading(`Renvoi de ${list.length} confirmation(s)...`);
+    let sent = 0, failed = 0;
+    for (const e of list) {
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: {
+          mark_payment_sent_for_entry_id: e.id,
+          payment_method: e.payment_method || "interac",
+          payment_status: e.payment_status || "paid",
+          payment_reference: e.payment_reference,
+          payment_date: e.payment_date || new Date().toISOString().slice(0, 10),
+          send_email: true,
+        },
+      });
+      if (error || data?.error) failed++; else sent++;
+    }
+    toast.dismiss(t);
+    toast.success(`${sent} envoyée(s)${failed ? `, ${failed} échec(s)` : ""}`);
+    qc.invalidateQueries({ queryKey: ["hr-payroll2-payments"] });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-[95vw] xl:max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5" /> Centre de paiements — Talons & Versements</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <Stat label="Talons" value={String(stats.total)} />
+          <Stat label="Payés" value={String(stats.paid)} />
+          <Stat label="En attente" value={String(stats.pending)} />
+          <Stat label="Échec" value={String(stats.failed)} />
+          <Stat label="Net total" value={fmtMoney(stats.totalNet)} />
+          <Stat label="Net à payer" value={fmtMoney(stats.pendingNet)} accent />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Input className="max-w-xs" placeholder="Rechercher employé, n° talon, référence..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="pending">En attente</SelectItem>
+              <SelectItem value="paid">Payé</SelectItem>
+              <SelectItem value="sent">Envoyé</SelectItem>
+              <SelectItem value="failed">Échec</SelectItem>
+              <SelectItem value="cancelled">Annulé</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={methodFilter} onValueChange={setMethodFilter}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes méthodes</SelectItem>
+              {Object.entries(PAYMENT_METHOD_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="date" className="w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <div className="ml-auto flex items-center gap-2">
+            <Badge variant="secondary">{selected.size} sélectionné(s)</Badge>
+            <Button size="sm" variant="outline" onClick={bulkResendConfirmations} disabled={selected.size === 0}>
+              <Mail className="h-4 w-4" /> Renvoyer confirmations
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto rounded-md border">
+          {isLoading ? (
+            <div className="p-8 text-center"><Loader2 className="h-5 w-5 animate-spin inline" /> Chargement...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">
+                    <input type="checkbox" checked={filtered.length > 0 && filtered.every((e: any) => selected.has(e.id))} onChange={toggleAll} />
+                  </TableHead>
+                  <TableHead>Employé</TableHead>
+                  <TableHead>N° talon</TableHead>
+                  <TableHead>Date paie</TableHead>
+                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>Méthode</TableHead>
+                  <TableHead>Référence</TableHead>
+                  <TableHead>Date versement</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Courriel</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Aucun paiement trouvé</TableCell></TableRow>
+                )}
+                {filtered.map((e: any) => {
+                  const st = String(e.payment_status || "pending");
+                  const isPaid = ["paid", "sent"].includes(st);
+                  return (
+                    <TableRow key={e.id}>
+                      <TableCell>
+                        <input type="checkbox" checked={selected.has(e.id)} onChange={() => {
+                          const n = new Set(selected); n.has(e.id) ? n.delete(e.id) : n.add(e.id); setSelected(n);
+                        }} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{e.profile?.full_name ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground">{e.profile?.agent_number ?? e.profile?.email ?? ""}</div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{e.payroll_number ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{shortDate(e.payment_date || e.created_at)}</TableCell>
+                      <TableCell className="text-right font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
+                      <TableCell className="text-xs">{PAYMENT_METHOD_LABEL[e.payment_method] || e.payment_method || "—"}</TableCell>
+                      <TableCell className="text-xs font-mono">{e.payment_reference || "—"}</TableCell>
+                      <TableCell className="text-xs">{e.payment_date ? shortDate(e.payment_date) : "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={isPaid ? "default" : st === "failed" ? "destructive" : "secondary"}>{st}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={e.payment_notified_at ? "default" : "secondary"} className="text-xs">
+                          {e.payment_notified_at ? "envoyé" : "—"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant={isPaid ? "outline" : "default"} onClick={() => onMarkPayment(e)}>
+                            <DollarSign className="h-3.5 w-3.5" /> {isPaid ? "Modifier" : "Marquer payé"}
+                          </Button>
+                          {e.payment_confirmation_pdf_url && (
+                            <Button size="sm" variant="ghost" title="Voir avis de paiement" onClick={() => openConfirmationPdf(e)}>
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {isPaid && (
+                            <Button size="sm" variant="ghost" title="Renvoyer confirmation" onClick={() => resendConfirmation(e)}>
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// MarkPaymentDialog — record a payment + notify employee
+// ──────────────────────────────────────────────────────────────────────
+function MarkPaymentDialog({ entry, onClose, onSaved }: { entry: any | null; onClose: () => void; onSaved: () => void }) {
+  const [method, setMethod] = useState("interac");
+  const [status, setStatus] = useState("paid");
+  const [reference, setReference] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Sync state when entry changes
+  useMemo(() => {
+    if (entry) {
+      setMethod(entry.payment_method || "interac");
+      setStatus(entry.payment_status === "pending" ? "paid" : (entry.payment_status || "paid"));
+      setReference(entry.payment_reference || "");
+      setDate(entry.payment_date || new Date().toISOString().slice(0, 10));
+      setNotes(entry.payment_notes || "");
+      setSendEmail(true);
+    }
+    return null;
+  }, [entry?.id]);
+
+  if (!entry) return null;
+
+  async function save() {
+    setSaving(true);
+    const t = toast.loading("Enregistrement du paiement...");
+    try {
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: {
+          mark_payment_sent_for_entry_id: entry.id,
+          payment_method: method,
+          payment_status: status,
+          payment_reference: reference || null,
+          payment_date: date,
+          payment_notes: notes || null,
+          send_email: sendEmail,
+        },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error || "Erreur");
+      toast.dismiss(t);
+      toast.success(
+        sendEmail
+          ? `Paiement enregistré · Courriel ${data?.email_sent ? "envoyé" : "non envoyé"} à ${data?.to ?? "l'employé"}`
+          : "Paiement enregistré"
+      );
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      toast.dismiss(t);
+      toast.error(e.message || "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Enregistrer un paiement</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+            <div><strong>{entry.profile?.full_name || "Employé"}</strong> {entry.profile?.agent_number ? `· ${entry.profile.agent_number}` : ""}</div>
+            <div className="text-muted-foreground text-xs">Talon {entry.payroll_number || entry.id.slice(0, 8)} · Net à verser : <strong className="text-emerald-700">{fmtMoney(entry.net_pay)}</strong></div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Méthode de paiement</Label>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PAYMENT_METHOD_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Statut</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Payé</SelectItem>
+                  <SelectItem value="sent">Envoyé</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="processing">En traitement</SelectItem>
+                  <SelectItem value="failed">Échec</SelectItem>
+                  <SelectItem value="cancelled">Annulé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Date du versement</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>Référence / N° transaction</Label>
+              <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="ex: INT-2026-0123" />
+            </div>
+          </div>
+
+          <div>
+            <Label>Notes internes</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optionnel" />
+          </div>
+
+          <div className="flex items-center gap-2 rounded-md border p-3">
+            <Switch checked={sendEmail} onCheckedChange={setSendEmail} id="send-email-toggle" />
+            <Label htmlFor="send-email-toggle" className="cursor-pointer flex-1">
+              <div>Notifier l'employé par courriel</div>
+              <div className="text-xs text-muted-foreground">Envoie l'avis de paiement officiel (PDF) + talon de paie</div>
+            </Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Annuler</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+            Enregistrer le paiement
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
