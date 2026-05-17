@@ -544,6 +544,8 @@ Deno.serve(async (req) => {
       commissionLines: CommLine[];
       regularPay: number;
       overtimePay: number;
+      hoursRegular: number;
+      hoursOvertime: number;
       taxableAdjustments: number;
       nonTaxableAdjustments: number;
       manualDeductions: number;
@@ -581,6 +583,8 @@ Deno.serve(async (req) => {
         commissionLines: c.lines,
         regularPay,
         overtimePay,
+        hoursRegular: hoursReg,
+        hoursOvertime: hoursOt,
         taxableAdjustments: taxAdj,
         nonTaxableAdjustments: ntAdj,
         manualDeductions,
@@ -614,8 +618,8 @@ Deno.serve(async (req) => {
       const netPay = round2(totalGrossAgent - totalDeductions);
       const prevYtd = await fetchYtd(previewEmployeeId, year);
       const hRate = Number(b.settings.hourly_rate || 0);
-      const hReg = (tsByEmp.get(previewEmployeeId)?.reg || 0);
-      const hOt = (tsByEmp.get(previewEmployeeId)?.ot || 0);
+      const hReg = b.hoursRegular;
+      const hOt = b.hoursOvertime;
       const pdf = buildPaystubPdf({
         paystub_number: `APERÇU-${previewEmployeeId.slice(0, 6)}`,
         pay_date: payDate,
