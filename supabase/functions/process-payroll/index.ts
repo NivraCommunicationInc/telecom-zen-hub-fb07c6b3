@@ -301,6 +301,7 @@ Deno.serve(async (req) => {
         portal_url: "https://nivra-telecom.ca/field/profile",
         resent: true,
       }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
+      await notifyPayrollReady(entry.employee_id, Number(entry.net_pay || 0), "renvoyée", signed?.signedUrl ?? null);
       return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -677,6 +678,12 @@ Deno.serve(async (req) => {
           portal_url: "https://nivra-telecom.ca/field/profile",
         }, pdf, entry.id);
       }
+      await notifyPayrollReady(
+        empId,
+        netPay,
+        `du ${pStart.toISOString().slice(0, 10)} au ${pEnd.toISOString().slice(0, 10)}`,
+        uploadedPdf?.signedUrl ?? null,
+      );
 
       totalGross += totalGrossAgent;
       totalDed += ded.total_deductions;
