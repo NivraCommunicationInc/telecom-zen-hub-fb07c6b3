@@ -348,7 +348,7 @@ export default function HrPayrollPage2() {
     mutationFn: async (employeeId: string) => {
       setPreviewingStub(employeeId);
       const { data, error } = await supabase.functions.invoke("process-payroll", {
-        body: { dry_run: true, preview_employee_id: employeeId, excluded_commission_ids: Array.from(excludedComm) },
+        body: { dry_run: true, preview_employee_id: employeeId, excluded_commission_ids: Array.from(excludedComm), bonus_overrides: Object.fromEntries(bonusOverrides) },
       });
       if (error) throw error;
       return data;
