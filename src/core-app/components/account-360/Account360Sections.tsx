@@ -83,6 +83,9 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
   const isPreAuth = !!paypalSub;
   const [chargeOpen, setChargeOpen] = useState(false);
   const cycle = resolveAccountCycle(acct, data.subscriptions || []);
+  const cycleDayLabel = cycle.cycleDay ? `Le ${cycle.cycleDay} de chaque mois` : "À régénérer";
+  const nextInvoiceLabel = cycle.nextInvoiceDate ? fmtDate(cycle.nextInvoiceDate) : "À régénérer";
+  const anchorLabel = cycle.anchorDate ? fmtDate(cycle.anchorDate) : "À régénérer";
 
   return (
   <div className="space-y-3">
@@ -153,9 +156,9 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
     <Panel>
       <PanelHeader icon={Clock} title="Cycle de facturation" />
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
-        <InfoLine label="Jour de cycle" value={cycle.cycleDay ? `Le ${cycle.cycleDay} de chaque mois` : "—"} accent />
-        <InfoLine label="Prochaine facture" value={fmtDate(cycle.nextInvoiceDate)} accent />
-        <InfoLine label="Date d'ancrage" value={fmtDate(cycle.anchorDate)} />
+        <InfoLine label="Jour de cycle" value={cycleDayLabel} accent={!!cycle.cycleDay} />
+        <InfoLine label="Prochaine facture" value={nextInvoiceLabel} accent={!!cycle.nextInvoiceDate} />
+        <InfoLine label="Date d'ancrage" value={anchorLabel} />
         <InfoLine label="Fuseau horaire" value={acct.billing_cycle_timezone || "America/Toronto"} />
       </div>
     </Panel>
@@ -182,6 +185,12 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
 };
 
 /* ── Subscriptions ── */
+const subscriptionCycleLabel = (s: any) => {
+  const start = s?.cycle_start_date ? fmtDate(s.cycle_start_date) : null;
+  const end = s?.cycle_end_date ? fmtDate(s.cycle_end_date) : null;
+  return start && end ? `${start} → ${end}` : "Cycle à régénérer";
+};
+
 export const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={Repeat} title="Services / Abonnements" count={data.subscriptions.length}
@@ -196,7 +205,7 @@ export const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
           <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{s.service_category || "—"}</td>
           <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(s.plan_price)}</td>
           <td className="px-3 py-1.5"><StatusBadge label={label(s.status)} variant={statusToVariant(s.status || "")} size="sm" /></td>
-          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[10px]">{fmtDate(s.cycle_start_date)} → {fmtDate(s.cycle_end_date)}</td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[10px]">{subscriptionCycleLabel(s)}</td>
           <td className="px-3 py-1.5">{s.auto_billing_enabled ? <Zap className="h-3 w-3 text-emerald-400" /> : <span className="text-core-text-disabled text-[10px]">—</span>}</td>
           <td className="px-3 py-1.5"><Link to={corePath(`/subscriptions/${s.id}`)} className="text-core-text-label hover:text-emerald-400"><ExternalLink className="h-3 w-3" /></Link></td>
         </tr>
