@@ -65,6 +65,29 @@ export default function FieldProtectedRoute() {
         return;
       }
 
+      // ──── Training gate ────────────────────────────────────────────────
+      // Block all Field routes except /field/training until the agent has
+      // completed every mandatory training module, OR has an admin override.
+      const [{ data: mandatoryModules }, { data: completedModules }, { data: profile }] = await Promise.all([
+        supabase.from("training_modules").select("id").eq("is_mandatory", true).eq("is_active", true),
+        supabase.from("training_progress").select("module_id").eq("agent_id", session.user.id).eq("status", "completed"),
+        supabase.from("profiles").select("training_override").eq("user_id", session.user.id).maybeSingle(),
+      ]);
+      const mandatoryIds = (mandatoryModules ?? []).map((m: any) => m.id);
+      const completedIds = (completedModules ?? []).map((m: any) => m.module_id);
+      const allCompleted = mandatoryIds.length > 0 && mandatoryIds.every((id: string) => completedIds.includes(id));
+      const hasOverride = ((profile as any)?.training_override) === true;
+
+      if (mounted) {
+        setTrainingDone(completedIds.length);
+        setTrainingTotal(mandatoryIds.length || 8);
+      }
+
+      if (!allCompleted && !hasOverride) {
+        if (mounted) setState("training_required");
+        return;
+      }
+
       await auditAccess("portal_entry", "field");
       if (mounted) setState("authorized");
     };
