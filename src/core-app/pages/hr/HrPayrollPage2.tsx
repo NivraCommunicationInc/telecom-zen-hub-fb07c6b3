@@ -571,6 +571,7 @@ export default function HrPayrollPage2() {
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
   onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
+  selected, onToggleSelected, onPreviewStub, previewingStub,
 }: {
   emp: EmployeeRow;
   summary: any;
@@ -582,6 +583,10 @@ function EmployeeCard({
   excludedComm: Set<string>;
   onToggleComm: (id: string) => void;
   onLocalHoursChange: (h: number, ot: number) => void;
+  selected: boolean;
+  onToggleSelected: () => void;
+  onPreviewStub: () => void;
+  previewingStub: boolean;
 }) {
   const isHourly = emp.pay_type === "hourly" || emp.pay_type === "hourly_commission";
   const isCommission = emp.pay_type === "commission" || emp.pay_type === "hourly_commission";
