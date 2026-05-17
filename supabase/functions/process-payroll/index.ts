@@ -450,7 +450,7 @@ Deno.serve(async (req) => {
         payment_method: entry.payment_method || "interac",
         payroll_number: entry.payroll_number,
         paystub_url: uploaded?.signedUrl,
-        portal_url: "https://nivra-telecom.ca/field/profile",
+        portal_url: "https://nivra-telecom.ca/hr/paie",
         resent: true,
       }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
       await supabase.from("payroll_entries").update({
@@ -898,7 +898,7 @@ Deno.serve(async (req) => {
           payment_method: paymentMethod,
           payroll_number: entry.payroll_number,
           paystub_url: uploadedPdf?.signedUrl,
-          portal_url: "https://nivra-telecom.ca/field/profile",
+          portal_url: "https://nivra-telecom.ca/hr/paie",
         }, pdf, entry.id);
         await supabase.from("payroll_entries").update({
           email_status: emailResult.ok ? "sent" : "failed",
