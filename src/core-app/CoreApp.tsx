@@ -82,6 +82,7 @@ const HrEmployeesPage = lazy(() => import("./pages/hr/HrEmployeesPage"));
 const HrOnboardingPage = lazy(() => import("./pages/hr/HrOnboardingPage"));
 const HrPayrollPage = lazy(() => import("./pages/hr/HrPayrollPage"));
 const HrPayrollPage2 = lazy(() => import("./pages/hr/HrPayrollPage2"));
+const HrPaymentsPage = lazy(() => import("./pages/hr/HrPaymentsPage"));
 const HrCommissionsPage = lazy(() => import("./pages/hr/HrCommissionsPage"));
 const HrTimePage = lazy(() => import("./pages/hr/HrTimePage"));
 const HrCreateEmployeePage = lazy(() => import("./pages/hr/HrCreateEmployeePage"));
