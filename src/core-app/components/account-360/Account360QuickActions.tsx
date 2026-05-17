@@ -4,10 +4,6 @@
  * Now includes: restrictions, PIN reset, credits with duration.
  */
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
@@ -18,6 +14,7 @@ import { ResetClientPinDialog } from "@/core-app/components/account-actions/Rese
 import { AddCreditWithDurationDialog } from "@/core-app/components/account-actions/AddCreditWithDurationDialog";
 import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/AccountAdjustmentDialog";
 import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
+import { ReactivateAccountDialog } from "@/core-app/components/account-360/ReactivateAccountDialog";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 interface Props {
@@ -35,7 +32,6 @@ interface Props {
 }
 
 export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", clientEmail, monthlyRevenue = 0, subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
-  const navigate = useNavigate();
   const { startImpersonation } = useImpersonation();
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
@@ -44,20 +40,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
-
-  const updateStatus = async (newStatus: string) => {
-    if (!accountId) return;
-    setLoading(true);
-    try {
-      const { error } = await supabase.from("accounts").update({
-        status: newStatus, updated_at: new Date().toISOString(),
-      }).eq("id", accountId);
-      if (error) throw error;
-      toast.success(`Compte ${newStatus === "suspended" ? "suspendu" : "réactivé"}`);
-      onRefresh();
-    } catch (e: any) { toast.error(e.message || "Erreur"); }
-    finally { setLoading(false); }
-  };
+  const [reactivateOpen, setReactivateOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -76,9 +59,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
     ...(accountStatus !== "suspended" && accountStatus !== "cancelled"
       ? [{ icon: PauseCircle, label: "Pause temporaire", onClick: () => setPauseOpen(true), color: "warning" as const }]
-      : accountStatus === "suspended"
-        ? [{ icon: PlayCircle, label: "Réactiver", onClick: () => updateStatus("active"), color: "success" as const }]
-        : []
+      : [{ icon: PlayCircle, label: "Réactiver le compte", onClick: () => setReactivateOpen(true), color: "success" as const }]
     ),
     ...(accountStatus !== "cancelled"
       ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
@@ -169,6 +150,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         accountId={accountId}
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
+        onRefresh={onRefresh}
+      />
+
+      <ReactivateAccountDialog
+        accountId={accountId}
+        customerId={customerId}
+        accountStatus={accountStatus}
+        subscriptions={subscriptions}
+        open={reactivateOpen}
+        onClose={() => setReactivateOpen(false)}
         onRefresh={onRefresh}
       />
     </>

@@ -3,6 +3,7 @@
  * Client tickets + Internal tickets with tab separation
  */
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -59,6 +60,7 @@ const categoryConfig: Record<string, string> = {
 
 export default function CoreSupportPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   // Realtime: refresh ticket lists and conversations on any DB change
   usePortalRealtime(
     ["support_tickets", "ticket_replies"],
@@ -106,6 +108,23 @@ export default function CoreSupportPage() {
       return (data || []).map((t: any) => ({ ...t, profile: profileMap.get(t.user_id) || null }));
     },
   });
+
+  // Auto-open ticket if ?ticket=<id> is present in the URL (deep-link from Account 360, etc.)
+  const ticketParam = searchParams.get("ticket");
+  useEffect(() => {
+    if (!ticketParam || tickets.length === 0) return;
+    const found = (tickets as any[]).find((t: any) => t.id === ticketParam || t.ticket_number === ticketParam);
+    if (found) {
+      setSelectedTicket(found);
+      // Auto-switch scope so the ticket is visible in its list when user closes it.
+      const isInternal = found.internal_notes?.startsWith("[TICKET INTERNE]") || ["internal", "operations", "hr", "it"].includes(found.category);
+      setTicketScope(isInternal ? "internal" : "client");
+      // Clear param so refresh doesn't re-trigger.
+      const next = new URLSearchParams(searchParams);
+      next.delete("ticket");
+      setSearchParams(next, { replace: true });
+    }
+  }, [ticketParam, tickets, searchParams, setSearchParams]);
 
   // Staff list for assignment
   const { data: staffList = [] } = useQuery({

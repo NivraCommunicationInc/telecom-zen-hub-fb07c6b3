@@ -2,7 +2,7 @@
  * Account360Sections — All section content components for the Customer 360 workspace.
  */
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import {
@@ -309,14 +309,23 @@ export const EquipmentSection = ({ data, accountId, onRefresh }: any) => {
 };
 
 /* ── Tickets ── */
-export const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
+export const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => {
+  const navigate = useNavigate();
+  return (
   <Panel>
     <PanelHeader icon={MessageSquare} title="Tickets de support" count={data.tickets.length}
       actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Sujet", "Cat.", "Priorité", "Statut", "Créé le"]} empty={data.tickets.length === 0}>
       {data.tickets.slice(0, 30).map((t: any) => (
-        <tr key={t.id} className={trClass}>
-          <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{t.ticket_number || "—"}</td>
+        <tr
+          key={t.id}
+          className={`${trClass} cursor-pointer`}
+          onClick={() => navigate(corePath(`/support?ticket=${t.id}`))}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(corePath(`/support?ticket=${t.id}`)); } }}
+        >
+          <td className="px-3 py-1.5 font-mono text-emerald-400 hover:underline text-[11px]">{t.ticket_number || "—"}</td>
           <td className="px-3 py-1.5 text-core-text-primary max-w-[180px] truncate text-[11px]">{t.subject || t.title || "—"}</td>
           <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{t.category || "—"}</td>
           <td className="px-3 py-1.5 text-core-text-secondary text-[11px] capitalize">{t.priority || "—"}</td>
@@ -326,7 +335,8 @@ export const TicketsSection = ({ data, clientId, clientEmail, clientName, accoun
       ))}
     </MiniTable>
   </Panel>
-);
+  );
+};
 
 /* ── Appointments ── */
 export const AppointmentsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
