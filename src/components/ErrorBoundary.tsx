@@ -21,6 +21,29 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info);
+
+    // Stale-chunk recovery: after a deploy, the cached index.html can reference
+    // hashed chunks that no longer exist. Auto-reload once instead of showing
+    // the crash screen.
+    const msg = (error?.message || "").toLowerCase();
+    const isChunkError =
+      msg.includes("importing a module script failed") ||
+      msg.includes("failed to fetch dynamically imported module") ||
+      msg.includes("loading chunk") ||
+      msg.includes("loading css chunk") ||
+      error?.name === "ChunkLoadError";
+    if (isChunkError && typeof window !== "undefined") {
+      const KEY = "__nivra_chunk_reload__";
+      try {
+        const last = Number(sessionStorage.getItem(KEY) || "0");
+        if (Date.now() - last > 30_000) {
+          sessionStorage.setItem(KEY, String(Date.now()));
+          window.location.reload();
+          return;
+        }
+      } catch { /* ignore */ }
+    }
+
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       if (projectId) {
