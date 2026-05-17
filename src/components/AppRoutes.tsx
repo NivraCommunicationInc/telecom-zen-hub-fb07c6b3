@@ -863,6 +863,8 @@ const AppRoutes = () => {
           <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
           <Route path="support/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="internal-tickets" element={<Suspense fallback={null}><CoreInternalTicketsPage /></Suspense>} />
+          {/* Formation & Développement */}
+          <Route path="training" element={<Suspense fallback={null}><CoreTrainingPage /></Suspense>} />
           <Route path="web-forms" element={<Suspense fallback={null}><CoreWebFormsPage /></Suspense>} />
           <Route path="telephony" element={<Suspense fallback={null}><CoreTelephonyPage /></Suspense>} />
           {/* HR & Payroll */}
