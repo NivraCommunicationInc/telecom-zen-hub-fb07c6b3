@@ -194,7 +194,7 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     const content = btoa(binary);
     const eventKey = `paystub_notification_${entryId}`;
     const { error } = await supabase.from("email_queue").upsert({
-      event_key: `paystub_notification_${entryId}`,
+      event_key: eventKey,
       template_key: "paystub_notification",
       to_email: toEmail,
       template_vars: vars,
@@ -322,10 +322,17 @@ Deno.serve(async (req) => {
     // 2. Approved commissions are payable immediately (for commission/hourly_commission types)
     const { data: approvedRaw, error: cmErr } = await supabase
       .from("field_commissions")
-      .select("id, agent_id, amount, commission_type, description, earned_at, order_id")
+      .select("id, agent_id, amount, commission_type, description, earned_at, order_id, paid_in_run_id, paid_in_entry_id")
       .eq("status", "approved");
     if (cmErr) throw cmErr;
-    const approved = (approvedRaw ?? []).filter((c: any) => !excludedCommissionIds.has(c.id));
+    const approvedIds = (approvedRaw ?? []).map((c: any) => c.id);
+    const { data: linkedRows } = approvedIds.length
+      ? await supabase.from("payroll_commission_links").select("commission_id").in("commission_id", approvedIds)
+      : { data: [] as any[] };
+    const alreadyLinked = new Set((linkedRows ?? []).map((r: any) => String(r.commission_id)));
+    const approved = (approvedRaw ?? []).filter((c: any) =>
+      !excludedCommissionIds.has(c.id) && !alreadyLinked.has(String(c.id)) && !c.paid_in_run_id && !c.paid_in_entry_id
+    );
 
     type CommLine = { id: string; amount: number; description: string | null; earned_at: string | null; order_id: string | null; commission_type: string | null };
     const commByAgent = new Map<string, { ids: string[]; gross: number; lines: CommLine[] }>();
