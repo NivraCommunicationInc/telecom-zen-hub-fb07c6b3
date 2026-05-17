@@ -89,6 +89,7 @@ const ROLE_BADGE_CLS: Record<string, string> = {
 const ADJUSTMENT_TYPES = [
   { value: "allocation", label: "Allocation" },
   { value: "bonus", label: "Bonus" },
+  { value: "supplement", label: "Supplément" },
   { value: "advance", label: "Avance" },
   { value: "deduction", label: "Déduction" },
   { value: "reimbursement", label: "Remboursement" },
@@ -578,6 +579,7 @@ export default function HrPayrollPage2() {
                   <TableHead className="text-right">Déductions</TableHead>
                   <TableHead className="text-right">Net</TableHead>
                   <TableHead>Méthode</TableHead>
+                      <TableHead>Courriel</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Talon</TableHead>
                 </TableRow>
@@ -599,6 +601,7 @@ export default function HrPayrollPage2() {
                     <TableCell className="text-right text-destructive">-{fmtMoney(e.deductions_total)}</TableCell>
                     <TableCell className="text-right font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
                     <TableCell className="text-xs capitalize">{e.payment_method ?? "—"}</TableCell>
+                    <TableCell><Badge variant={e.email_status === "sent" ? "default" : "secondary"}>{e.email_status ?? "not_sent"}</Badge></TableCell>
                     <TableCell><Badge variant={e.payment_status === "paid" ? "default" : "secondary"}>{e.payment_status ?? e.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
