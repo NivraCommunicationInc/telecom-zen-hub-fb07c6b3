@@ -15,6 +15,7 @@ const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatu
 
 // Operations
 const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
+const CoreSLAPage = lazy(() => import("@/core-app/pages/CoreSLAPage"));
 const OrdersPage = lazy(() => import("@/core-app/pages/OrdersPage"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
