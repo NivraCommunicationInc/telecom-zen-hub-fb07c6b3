@@ -562,10 +562,15 @@ Deno.serve(async (req) => {
           detail: [c.description, c.earned_at ? new Date(c.earned_at).toLocaleDateString("fr-CA") : null].filter(Boolean).join(" · ") || null,
           amount: c.amount,
         })),
-        adjustment_lines: b.adjustmentLines.map((a) => ({
-          label: a.adjustment_type.charAt(0).toUpperCase() + a.adjustment_type.slice(1),
+        adjustment_lines: b.adjustmentLines.filter((a) => !["deduction", "advance"].includes(a.adjustment_type)).map((a) => ({
+          label: adjLabel(a.adjustment_type),
           detail: a.description + (a.is_taxable ? "" : " (non imposable)"),
           amount: a.amount,
+        })),
+        manual_deduction_lines: b.adjustmentLines.filter((a) => ["deduction", "advance"].includes(a.adjustment_type)).map((a) => ({
+          label: adjLabel(a.adjustment_type),
+          detail: a.description,
+          amount: Math.abs(a.amount),
         })),
         federal_tax: ded.federal_tax, quebec_tax: ded.quebec_tax,
         rrq: ded.rrq, ae: ded.ae, rqap: ded.rqap,
@@ -574,7 +579,7 @@ Deno.serve(async (req) => {
         total_deductions: totalDeductions,
         net_pay: netPay,
         ytd_gross: round2(prevYtd.ytd_gross + totalGrossAgent),
-        ytd_deductions: round2(prevYtd.ytd_federal_tax + prevYtd.ytd_quebec_tax + prevYtd.ytd_rrq + prevYtd.ytd_ae + prevYtd.ytd_rqap + prevYtd.ytd_disability + totalDeductions),
+        ytd_deductions: round2(prevYtd.ytd_deductions + totalDeductions),
         ytd_net: round2(prevYtd.ytd_net + netPay),
       });
       // base64 encode
