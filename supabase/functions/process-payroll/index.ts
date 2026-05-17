@@ -319,7 +319,7 @@ Deno.serve(async (req) => {
         String(path).includes("/documents/") ? String(path).split("/documents/").pop()! : String(path),
         60 * 60 * 24 * 30,
       );
-      await enqueuePaystubEmail(profile.email, {
+      const resendResult = await enqueuePaystubEmail(profile.email, {
         agent_name: profile.full_name || profile.email,
         agent_number: profile.agent_number || "—",
         period_start: entry.created_at?.slice(0, 10),
@@ -345,6 +345,11 @@ Deno.serve(async (req) => {
         portal_url: "https://nivra-telecom.ca/field/profile",
         resent: true,
       }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
+      await supabase.from("payroll_entries").update({
+        email_status: resendResult.ok ? "sent" : "failed",
+        emailed_at: resendResult.ok ? new Date().toISOString() : null,
+        email_last_error: resendResult.error ?? null,
+      }).eq("id", entry.id);
       await notifyPayrollReady(entry.employee_id, Number(entry.net_pay || 0), "renvoyée", signed?.signedUrl ?? null);
       return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -744,7 +749,7 @@ Deno.serve(async (req) => {
         .eq("pay_period_start", periodStartStr);
 
       if (profile?.email) {
-        await enqueuePaystubEmail(profile.email, {
+        const emailResult = await enqueuePaystubEmail(profile.email, {
           agent_name: profile.full_name || profile.email,
           agent_number: profile.agent_number || "—",
           period_start: pStart.toISOString().slice(0, 10),
@@ -770,6 +775,16 @@ Deno.serve(async (req) => {
           paystub_url: uploadedPdf?.signedUrl,
           portal_url: "https://nivra-telecom.ca/field/profile",
         }, pdf, entry.id);
+        await supabase.from("payroll_entries").update({
+          email_status: emailResult.ok ? "sent" : "failed",
+          emailed_at: emailResult.ok ? new Date().toISOString() : null,
+          email_last_error: emailResult.error ?? null,
+        }).eq("id", entry.id);
+      } else {
+        await supabase.from("payroll_entries").update({
+          email_status: "failed",
+          email_last_error: "Aucun courriel employé.",
+        }).eq("id", entry.id);
       }
       await notifyPayrollReady(
         empId,
