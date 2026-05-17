@@ -207,7 +207,7 @@ export default function HrPayrollPage2() {
   // Filter by tab
   const filteredEmployees = useMemo(() => {
     const group = ROLE_GROUPS.find((g) => g.key === tab) ?? ROLE_GROUPS[0];
-    return (employees ?? []).filter((e) => group.roles.includes(e.employee_role || ""));
+    return (employees ?? []).filter((e) => (group.roles as readonly string[]).includes(e.employee_role || ""));
   }, [employees, tab]);
 
   // Per-employee compute summary
