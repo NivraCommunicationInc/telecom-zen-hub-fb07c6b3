@@ -127,6 +127,7 @@ export default function HrPayrollPage2() {
   // Employee multi-select for payroll processing
   const [selectedEmps, setSelectedEmps] = useState<Set<string>>(new Set());
   const [previewingStub, setPreviewingStub] = useState<string | null>(null);
+  const [emailingStub, setEmailingStub] = useState<string | null>(null);
   const [bonusOverrides, setBonusOverrides] = useState<Map<string, number>>(new Map());
   function toggleExcludedComm(id: string) {
     setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -421,6 +422,50 @@ export default function HrPayrollPage2() {
     stubPreviewMutation.mutate(empId);
   }
 
+  async function sendEntryPaystubEmail(entryId: string, label = "l'employé") {
+    setEmailingStub(entryId);
+    const t = toast.loading(`Envoi du talon à ${label}...`);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { resend_email_for_entry_id: entryId },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error || "Erreur d'envoi");
+      toast.success(`Courriel envoyé à ${data?.to ?? label}`);
+      qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
+      if (drillIn) qc.invalidateQueries({ queryKey: ["hr-payroll2-entries", drillIn] });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur d'envoi");
+    } finally {
+      toast.dismiss(t);
+      setEmailingStub(null);
+    }
+  }
+
+  async function sendLatestPaystubEmail(emp: EmployeeRow) {
+    const existing = latestPaystubs?.get(emp.employee_id);
+    if (!existing?.id) {
+      toast.error("Aucun talon traité à envoyer pour cet employé.");
+      return;
+    }
+    await sendEntryPaystubEmail(existing.id, emp.profile?.full_name ?? "l'employé");
+  }
+
+  async function sendSelectedLatestPaystubEmails() {
+    if (selectedEmps.size === 0) { toast.error("Sélectionnez les employés à aviser."); return; }
+    const selected = filteredEmployees.filter((e) => selectedEmps.has(e.employee_id));
+    const entries = selected.map((e) => latestPaystubs?.get(e.employee_id)?.id).filter(Boolean) as string[];
+    if (!entries.length) { toast.error("Aucun talon déjà traité pour les employés sélectionnés."); return; }
+    const t = toast.loading(`Envoi de ${entries.length} courriel(s) de paie...`);
+    let sent = 0, failed = 0;
+    for (const entryId of entries) {
+      const { data, error } = await supabase.functions.invoke("process-payroll", { body: { resend_email_for_entry_id: entryId } });
+      if (error || data?.error) failed++; else sent++;
+    }
+    toast.dismiss(t);
+    toast.success(`${sent} courriel(s) envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
+    qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* SECTION 1 — Header */}
@@ -451,6 +496,10 @@ export default function HrPayrollPage2() {
               <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending}>
                 {runMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
                 Traiter la paie
+              </Button>
+              <Button variant="outline" onClick={sendSelectedLatestPaystubEmails} disabled={selectedEmps.size === 0 || emailingStub === "bulk"}>
+                {emailingStub === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                Envoyer courriels sélectionnés
               </Button>
               <Button variant="ghost" onClick={() => setHistoryOpen(true)}>
                 <History className="h-4 w-4" />
@@ -513,7 +562,10 @@ export default function HrPayrollPage2() {
                 selected={selectedEmps.has(emp.employee_id)}
                 onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
                 onPreviewStub={() => openPaystubOrPreview(emp.employee_id)}
+                onEmailPaystub={() => sendLatestPaystubEmail(emp)}
                 previewingStub={previewingStub === emp.employee_id}
+                emailingStub={emailingStub === latestPaystubs?.get(emp.employee_id)?.id}
+                hasProcessedPaystub={!!latestPaystubs?.get(emp.employee_id)?.id}
                 bonus={bonusOverrides.get(emp.employee_id) || 0}
                 onBonusChange={(v) => setBonusFor(emp.employee_id, v)}
               />
