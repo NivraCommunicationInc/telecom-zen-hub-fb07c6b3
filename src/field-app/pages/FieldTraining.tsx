@@ -90,12 +90,10 @@ export default function FieldTraining() {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
-  usePortalRealtime({
-    tables: ["training_progress", "agent_points"],
-    onChange: () => {
-      qc.invalidateQueries({ queryKey: ["field-training"] });
-    },
-  });
+  usePortalRealtime(
+    ["training_progress", "agent_points"],
+    [["field-training"]],
+  );
 
   const { data: modules = [] } = useQuery({
     queryKey: ["field-training", "modules"],
