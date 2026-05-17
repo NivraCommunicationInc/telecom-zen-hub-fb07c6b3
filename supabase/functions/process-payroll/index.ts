@@ -2,7 +2,7 @@
  * process-payroll — Friday weekly payroll engine.
  *
  * - Cutoff = previous Thursday 18:00 EST (or as provided).
- * - Pulls all field_commissions (status=approved, earned_at<=cutoff).
+ * - Pulls all field_commissions (status=approved), including missing earned_at.
  * - Computes Fed/QC tax + RRQ + AE + RQAP + disability per agent.
  * - Writes payroll_runs row + payroll_entries per agent.
  * - Flips commissions to 'paid'.
@@ -226,12 +226,11 @@ Deno.serve(async (req) => {
       .select("employee_id, pay_type, hourly_rate, employee_role, payment_method, federal_claim_amount, quebec_claim_amount, disability_insurance_rate")
       .eq("is_active", true);
 
-    // 2. Approved commissions before cutoff (for commission/hourly_commission types)
+    // 2. Approved commissions are payable immediately (for commission/hourly_commission types)
     const { data: approvedRaw, error: cmErr } = await supabase
       .from("field_commissions")
       .select("id, agent_id, amount, commission_type")
-      .eq("status", "approved")
-      .lte("earned_at", cutoff.toISOString());
+      .eq("status", "approved");
     if (cmErr) throw cmErr;
     const approved = (approvedRaw ?? []).filter((c: any) => !excludedCommissionIds.has(c.id));
 
