@@ -6,6 +6,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { 
   ArrowDownCircle, 
   ArrowUpCircle, 
@@ -13,6 +14,7 @@ import {
   CreditCard,
   FileText,
   Banknote,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
