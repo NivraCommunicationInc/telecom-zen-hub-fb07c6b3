@@ -610,6 +610,38 @@ export default function HrPayrollPage2() {
       <Dialog open={!!drillIn} onOpenChange={(o) => !o && setDrillIn(null)}>
         <DialogContent className="max-w-6xl">
           <DialogHeader><DialogTitle>Détails de la paie</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <Stat label="Talons" value={String(filteredDrillEntries.length)} />
+            <Stat label="Brut" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.total_gross || 0), 0))} />
+            <Stat label="Fed/QC" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.federal_tax || 0) + Number(e.quebec_tax || 0), 0))} />
+            <Stat label="RRQ/AE/RQAP" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.rrq || 0) + Number(e.ae || 0) + Number(e.rqap || 0), 0))} />
+            <Stat label="Déductions" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.deductions_total || 0), 0))} />
+            <Stat label="Net" value={fmtMoney(filteredDrillEntries.reduce((s: number, e: any) => s + Number(e.net_pay || 0), 0))} accent />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Select value={historyEmail} onValueChange={setHistoryEmail}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les courriels</SelectItem>
+                <SelectItem value="sent">Courriel envoyé</SelectItem>
+                <SelectItem value="failed">Courriel échoué</SelectItem>
+                <SelectItem value="not_sent">Non envoyé</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" onClick={async () => {
+              const entries = filteredDrillEntries;
+              if (!entries.length) { toast.error("Aucun talon à envoyer"); return; }
+              const t = toast.loading(`Envoi de ${entries.length} courriel(s)...`);
+              let sent = 0, failed = 0;
+              for (const en of entries) {
+                const { data, error } = await supabase.functions.invoke("process-payroll", { body: { resend_email_for_entry_id: en.id } });
+                if (error || data?.error) failed++; else sent++;
+              }
+              toast.dismiss(t);
+              toast.success(`${sent} envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
+              qc.invalidateQueries({ queryKey: ["hr-payroll2-entries", drillIn] });
+            }}><Mail className="h-4 w-4" /> Envoyer aux employés affichés</Button>
+          </div>
           <div className="max-h-[70vh] overflow-auto">
             <Table>
               <TableHeader>
@@ -631,7 +663,7 @@ export default function HrPayrollPage2() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(drillEntries ?? []).map((e: any) => (
+                {filteredDrillEntries.map((e: any) => (
                   <TableRow key={e.id}>
                     <TableCell>
                       <div className="font-medium">{e.profile?.full_name ?? "—"}</div>
