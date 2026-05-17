@@ -444,11 +444,30 @@ export default function HrPaymentsPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         entries={entriesWithoutPayment}
-        onCreate={(body) => {
-          invokeAction.mutate(
-            { action: "create", ...body },
-            { onSuccess: () => { toast.success("Paiement créé"); setCreateOpen(false); qc.invalidateQueries({ queryKey: ["payroll-entries-without-payment"] }); } },
-          );
+        onCreate={async ({ initial_status, bank_reference, transaction_id, recipient_bank_name, recipient_account_last4, client_visible_notes, ...createBody }: any) => {
+          try {
+            const created = await invokeAction.mutateAsync({ action: "create", ...createBody });
+            const paymentId = created?.payment?.id || created?.payment_id;
+            if (paymentId) {
+              const updates: any = {};
+              if (bank_reference) updates.bank_reference = bank_reference;
+              if (transaction_id) updates.transaction_id = transaction_id;
+              if (recipient_bank_name) updates.recipient_bank_name = recipient_bank_name;
+              if (recipient_account_last4) updates.recipient_account_last4 = recipient_account_last4;
+              if (client_visible_notes) updates.client_visible_notes = client_visible_notes;
+              if (Object.keys(updates).length) {
+                await invokeAction.mutateAsync({ action: "update", payment_id: paymentId, ...updates });
+              }
+              if (initial_status && !["draft", "pending_approval"].includes(initial_status)) {
+                await invokeAction.mutateAsync({ action: "transition", payment_id: paymentId, next_status: initial_status });
+              }
+            }
+            toast.success("Paiement créé");
+            setCreateOpen(false);
+            qc.invalidateQueries({ queryKey: ["payroll-entries-without-payment"] });
+          } catch (e: any) {
+            toast.error(e?.message || "Échec de création");
+          }
         }}
       />
     </div>
