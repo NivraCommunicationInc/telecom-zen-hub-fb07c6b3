@@ -134,7 +134,7 @@ export function Account360Header({ account, profile, clientName, latestKyc, tota
                   <Calendar className="h-3 w-3" /> Créé le {fmtDate(acct.created_at)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Cycle: jour {acct.billing_cycle_day || "—"}
+                  <Clock className="h-3 w-3" /> Cycle: jour {effectiveCycleDay ?? "—"}
                 </span>
                 <span>Classe: {acct.credit_class || "C"}</span>
                 {acct.recouvrement_reminder_sent_at && (
