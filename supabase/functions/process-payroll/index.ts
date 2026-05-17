@@ -14,6 +14,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,7 @@ const RQAP_MAX_INSURABLE = 94000;
 const DISABILITY_RATE_DEFAULT = 0.02;
 const FEDERAL_WITHHOLDING_FLOOR_RATE = 0.03;
 const QUEBEC_WITHHOLDING_FLOOR_RATE = 0.03;
+const RRQ_WITHHOLDING_FLOOR_RATE = 0.01;
 
 // ─────────── Helpers ───────────
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -133,7 +135,7 @@ async function calculateDeductions(
 
   const rrqPeriodExemption = RRQ_BASIC_EXEMPTION / PAY_PERIODS_WEEKLY;
   const rrqPensionableThisPay = Math.min(Math.max(0, grossPay - rrqPeriodExemption), RRQ_MAX_PENSIONABLE / PAY_PERIODS_WEEKLY);
-  const rrq = rrqPensionableThisPay * RRQ_RATE;
+  const rrq = grossPay > 0 ? Math.max(rrqPensionableThisPay * RRQ_RATE, grossPay * RRQ_WITHHOLDING_FLOOR_RATE) : 0;
 
   const aeAnnual = Math.min(annualGross * AE_RATE, AE_MAX_INSURABLE * AE_RATE);
   const ae = aeAnnual / PAY_PERIODS_WEEKLY;
