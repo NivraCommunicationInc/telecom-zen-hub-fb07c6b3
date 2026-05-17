@@ -127,6 +127,7 @@ export default function HrPayrollPage2() {
   // Employee multi-select for payroll processing
   const [selectedEmps, setSelectedEmps] = useState<Set<string>>(new Set());
   const [previewingStub, setPreviewingStub] = useState<string | null>(null);
+  const [emailingStub, setEmailingStub] = useState<string | null>(null);
   const [bonusOverrides, setBonusOverrides] = useState<Map<string, number>>(new Map());
   function toggleExcludedComm(id: string) {
     setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -272,7 +273,7 @@ export default function HrPayrollPage2() {
       const ids = (employees ?? []).map((e) => e.employee_id);
       const { data } = await supabase
         .from("payroll_entries")
-        .select("id, employee_id, payroll_number, paystub_pdf_url, pdf_url, created_at, total_gross, commission_gross, deductions_total, net_pay")
+        .select("id, employee_id, payroll_number, paystub_pdf_url, pdf_url, created_at, total_gross, commission_gross, deductions_total, total_deductions, net_pay, federal_tax, quebec_tax, rrq, ae, rqap, email_status, emailed_at, email_last_error")
         .in("employee_id", ids)
         .order("created_at", { ascending: false });
       const byEmp = new Map<string, any>();
@@ -311,16 +312,18 @@ export default function HrPayrollPage2() {
     const includedComm = allComm.filter((c: any) => !excludedComm.has(c.id));
     const commTotal = includedComm.reduce((s: number, c: any) => s + Number(c.amount || 0), 0);
     const adj = getAdjustments(emp.employee_id);
-    const adjTotal = adj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
+    const earningAdj = adj.filter((a: any) => !["deduction", "advance"].includes(a.adjustment_type));
+    const manualDed = adj.filter((a: any) => ["deduction", "advance"].includes(a.adjustment_type)).reduce((s: number, a: any) => s + Math.abs(Number(a.amount || 0)), 0);
+    const adjTotal = earningAdj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
     const bonus = bonusOverrides.get(emp.employee_id) || 0;
     const gross = hourly + overtime + commTotal + adjTotal + bonus;
 
     // Estimated deductions (simplified preview — actual computed by edge function)
     const fedRate = 0.15, qcRate = 0.15, rrqRate = 0.059, aeRate = 0.0166, rqapRate = 0.00494;
     const disRate = Number(emp.disability_insurance_rate || 0.02);
-    const ded = gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0;
+    const ded = (gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0) + manualDed;
     const net = gross - ded;
-    return { hourly, overtime, commTotal, adjTotal, bonus, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
+    return { hourly, overtime, commTotal, adjTotal, manualDed, bonus, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
   // Aggregate totals — based on SELECTED employees (fallback: all visible)
@@ -344,9 +347,12 @@ export default function HrPayrollPage2() {
   function buildRunBody(extra: Record<string, unknown> = {}) {
     const bonusObj: Record<string, number> = {};
     bonusOverrides.forEach((v, k) => { if (v > 0) bonusObj[k] = v; });
+    const hoursObj: Record<string, { hours_worked: number; overtime_hours: number }> = {};
+    localHours.forEach((v, k) => { hoursObj[k] = { hours_worked: v.h, overtime_hours: v.ot }; });
     const body: Record<string, unknown> = {
       excluded_commission_ids: Array.from(excludedComm),
       bonus_overrides: bonusObj,
+      hours_overrides: hoursObj,
       ...extra,
     };
     if (selectedEmps.size > 0) body.employee_ids = Array.from(selectedEmps);
@@ -421,6 +427,52 @@ export default function HrPayrollPage2() {
     stubPreviewMutation.mutate(empId);
   }
 
+  async function sendEntryPaystubEmail(entryId: string, label = "l'employé") {
+    setEmailingStub(entryId);
+    const t = toast.loading(`Envoi du talon à ${label}...`);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { resend_email_for_entry_id: entryId },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error || "Erreur d'envoi");
+      toast.success(`Courriel envoyé à ${data?.to ?? label}`);
+      qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
+      if (drillIn) qc.invalidateQueries({ queryKey: ["hr-payroll2-entries", drillIn] });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur d'envoi");
+    } finally {
+      toast.dismiss(t);
+      setEmailingStub(null);
+    }
+  }
+
+  async function sendLatestPaystubEmail(emp: EmployeeRow) {
+    const existing = latestPaystubs?.get(emp.employee_id);
+    if (!existing?.id) {
+      toast.error("Aucun talon traité à envoyer pour cet employé.");
+      return;
+    }
+    await sendEntryPaystubEmail(existing.id, emp.profile?.full_name ?? "l'employé");
+  }
+
+  async function sendSelectedLatestPaystubEmails() {
+    if (selectedEmps.size === 0) { toast.error("Sélectionnez les employés à aviser."); return; }
+    const selected = filteredEmployees.filter((e) => selectedEmps.has(e.employee_id));
+    const entries = selected.map((e) => latestPaystubs?.get(e.employee_id)?.id).filter(Boolean) as string[];
+    if (!entries.length) { toast.error("Aucun talon déjà traité pour les employés sélectionnés."); return; }
+    setEmailingStub("bulk");
+    const t = toast.loading(`Envoi de ${entries.length} courriel(s) de paie...`);
+    let sent = 0, failed = 0;
+    for (const entryId of entries) {
+      const { data, error } = await supabase.functions.invoke("process-payroll", { body: { resend_email_for_entry_id: entryId } });
+      if (error || data?.error) failed++; else sent++;
+    }
+    toast.dismiss(t);
+    setEmailingStub(null);
+    toast.success(`${sent} courriel(s) envoyé(s)${failed ? `, ${failed} échec(s)` : ""}`);
+    qc.invalidateQueries({ queryKey: ["hr-payroll2-latest-paystubs"] });
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* SECTION 1 — Header */}
@@ -451,6 +503,10 @@ export default function HrPayrollPage2() {
               <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending}>
                 {runMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
                 Traiter la paie
+              </Button>
+              <Button variant="outline" onClick={sendSelectedLatestPaystubEmails} disabled={selectedEmps.size === 0 || emailingStub === "bulk"}>
+                {emailingStub === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                Envoyer courriels sélectionnés
               </Button>
               <Button variant="ghost" onClick={() => setHistoryOpen(true)}>
                 <History className="h-4 w-4" />
@@ -513,7 +569,11 @@ export default function HrPayrollPage2() {
                 selected={selectedEmps.has(emp.employee_id)}
                 onToggleSelected={() => toggleSelectedEmp(emp.employee_id)}
                 onPreviewStub={() => openPaystubOrPreview(emp.employee_id)}
+                onEmailPaystub={() => sendLatestPaystubEmail(emp)}
                 previewingStub={previewingStub === emp.employee_id}
+                emailingStub={emailingStub === latestPaystubs?.get(emp.employee_id)?.id}
+                hasProcessedPaystub={!!latestPaystubs?.get(emp.employee_id)?.id}
+                latestPaystub={latestPaystubs?.get(emp.employee_id) ?? null}
                 bonus={bonusOverrides.get(emp.employee_id) || 0}
                 onBonusChange={(v) => setBonusFor(emp.employee_id, v)}
               />
@@ -804,7 +864,7 @@ function BreakdownBox({ title, rows, positive }: { title: string; rows: any[]; p
 function EmployeeCard({
   emp, summary, onEditSettings, onAddAdjustment, periodStart, periodEnd,
   onSavedTimesheet, onAdjustmentDeleted, excludedComm, onToggleComm, onLocalHoursChange,
-  selected, onToggleSelected, onPreviewStub, previewingStub, bonus, onBonusChange,
+  selected, onToggleSelected, onPreviewStub, onEmailPaystub, previewingStub, emailingStub, hasProcessedPaystub, latestPaystub, bonus, onBonusChange,
 }: {
   emp: EmployeeRow;
   summary: any;
@@ -819,7 +879,11 @@ function EmployeeCard({
   selected: boolean;
   onToggleSelected: () => void;
   onPreviewStub: () => void;
+  onEmailPaystub: () => void;
   previewingStub: boolean;
+  emailingStub: boolean;
+  hasProcessedPaystub: boolean;
+  latestPaystub: any | null;
   bonus: number;
   onBonusChange: (v: number) => void;
 }) {
@@ -913,6 +977,15 @@ function EmployeeCard({
               {previewingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Voir le talon
             </Button>
+            <Button size="sm" variant="outline" onClick={onEmailPaystub} disabled={!hasProcessedPaystub || emailingStub}>
+              {emailingStub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Envoyer courriel
+            </Button>
+            {latestPaystub ? (
+              <Badge variant={latestPaystub.email_status === "sent" ? "default" : latestPaystub.email_status === "failed" ? "destructive" : "secondary"}>
+                Courriel : {latestPaystub.email_status ?? "not_sent"}
+              </Badge>
+            ) : null}
             <Button size="sm" variant="ghost" onClick={onEditSettings}><Settings className="h-4 w-4" /></Button>
           </div>
         </div>
@@ -995,18 +1068,21 @@ function EmployeeCard({
             <Button size="sm" variant="outline" onClick={onAddAdjustment}><Plus className="h-3 w-3" /> Ajouter</Button>
           </div>
           {summary.adj.length === 0 && <div className="text-xs text-muted-foreground">Aucun ajustement pour cette période</div>}
-          {summary.adj.map((a: any) => (
+          {summary.adj.map((a: any) => {
+            const meta = ADJUSTMENT_TYPES.find((t) => t.value === a.adjustment_type);
+            return (
             <div key={a.id} className="flex justify-between items-center text-sm">
               <div>
-                <span className="font-medium capitalize">{a.adjustment_type}</span>
+                <span className="font-medium">{meta?.label ?? a.adjustment_type}</span>
                 <span className="text-muted-foreground"> — {a.description}</span>
+                <Badge variant="outline" className="ml-2 text-[10px]">{a.is_taxable ? "imposable" : "non imposable"}</Badge>
               </div>
               <div className="flex items-center gap-2">
                 <span className={Number(a.amount) >= 0 ? "text-emerald-700" : "text-destructive"}>{fmtMoney(a.amount)}</span>
                 <Button size="sm" variant="ghost" onClick={() => deleteAdjustment(a.id)}><Trash2 className="h-3 w-3" /></Button>
               </div>
             </div>
-          ))}
+          );})}
         </div>
 
         {/* Bonus ponctuel */}
@@ -1032,6 +1108,7 @@ function EmployeeCard({
         <div className="rounded-md border bg-muted/30 p-3 space-y-1 text-sm">
           <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Déductions estimées (calcul exact au traitement)</div>
           <div className="flex justify-between"><span>Total brut</span><span className="font-semibold">{fmtMoney(summary.gross)}</span></div>
+          {summary.manualDed > 0 ? <div className="flex justify-between text-destructive"><span>Avances / déductions manuelles</span><span>-{fmtMoney(summary.manualDed)}</span></div> : null}
           <div className="flex justify-between text-destructive"><span>Déductions estimées (~)</span><span>-{fmtMoney(summary.ded)}</span></div>
         </div>
 
@@ -1198,8 +1275,28 @@ function AdjustmentDialog({ emp, onClose, onSaved }: { emp: EmployeeRow | null; 
         <DialogHeader><DialogTitle>Nouvel ajustement</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
+            <Label>Raccourcis RH</Label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ADJUSTMENT_PRESETS.map((preset) => (
+                <Button
+                  key={`${preset.type}-${preset.description}`}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setType(preset.type); setDescription(preset.description); setTaxable(preset.taxable); if (preset.amount > 0) setAmount(String(preset.amount)); }}
+                >
+                  {preset.description}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
             <Label>Type</Label>
-            <Select value={type} onValueChange={setType}>
+            <Select value={type} onValueChange={(v) => {
+              setType(v);
+              if (["allocation", "reimbursement"].includes(v)) setTaxable(false);
+              if (["bonus", "supplement", "other", "advance", "deduction"].includes(v)) setTaxable(true);
+            }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ADJUSTMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -1207,7 +1304,7 @@ function AdjustmentDialog({ emp, onClose, onSaved }: { emp: EmployeeRow | null; 
             </Select>
           </div>
           <div><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-          <div><Label>Montant (négatif pour déduction)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+          <div><Label>Montant (positif — avance/déduction sera retenue)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           <div className="flex items-center gap-2"><Switch checked={taxable} onCheckedChange={setTaxable} /><Label>Imposable</Label></div>
         </div>
         <DialogFooter>

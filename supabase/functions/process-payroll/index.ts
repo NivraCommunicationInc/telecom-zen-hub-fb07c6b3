@@ -42,6 +42,8 @@ const RQAP_RATE = 0.00494;
 const RQAP_MAX_INSURABLE = 94000;
 
 const DISABILITY_RATE_DEFAULT = 0.02;
+const FEDERAL_WITHHOLDING_FLOOR_RATE = 0.03;
+const QUEBEC_WITHHOLDING_FLOOR_RATE = 0.03;
 
 // ─────────── Helpers ───────────
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -126,14 +128,12 @@ async function calculateDeductions(
   // periods because annual credits wipe out the first bracket. Nivra needs an
   // explicit withholding line on every taxable paid stub, so we keep the
   // bracket result and apply a conservative source-withholding floor.
-  const federal_tax = grossPay > 0 ? Math.max(federalAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
-  const quebec_tax = grossPay > 0 ? Math.max(quebecAnnual / PAY_PERIODS_WEEKLY, grossPay * 0.03) : 0;
+  const federal_tax = grossPay > 0 ? Math.max(federalAnnual / PAY_PERIODS_WEEKLY, grossPay * FEDERAL_WITHHOLDING_FLOOR_RATE) : 0;
+  const quebec_tax = grossPay > 0 ? Math.max(quebecAnnual / PAY_PERIODS_WEEKLY, grossPay * QUEBEC_WITHHOLDING_FLOOR_RATE) : 0;
 
-  const rrqAnnual = Math.min(
-    Math.max(0, annualGross - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
-    (RRQ_MAX_PENSIONABLE - RRQ_BASIC_EXEMPTION) * RRQ_RATE,
-  );
-  const rrq = rrqAnnual / PAY_PERIODS_WEEKLY;
+  const rrqPeriodExemption = RRQ_BASIC_EXEMPTION / PAY_PERIODS_WEEKLY;
+  const rrqPensionableThisPay = Math.min(Math.max(0, grossPay - rrqPeriodExemption), RRQ_MAX_PENSIONABLE / PAY_PERIODS_WEEKLY);
+  const rrq = rrqPensionableThisPay * RRQ_RATE;
 
   const aeAnnual = Math.min(annualGross * AE_RATE, AE_MAX_INSURABLE * AE_RATE);
   const ae = aeAnnual / PAY_PERIODS_WEEKLY;
@@ -328,15 +328,19 @@ Deno.serve(async (req) => {
     const selectedEmployeeIds: Set<string> | null = Array.isArray(body.employee_ids) && body.employee_ids.length
       ? new Set(body.employee_ids.map((x: any) => String(x)))
       : null;
+    const hoursOverrides = (body.hours_overrides && typeof body.hours_overrides === "object") ? body.hours_overrides as Record<string, any> : {};
     const previewEmployeeId: string | null = body.preview_employee_id ? String(body.preview_employee_id) : null;
     const resendEntryId: string | null = body.resend_email_for_entry_id ? String(body.resend_email_for_entry_id) : null;
+    const regenerateEntryId: string | null = body.regenerate_entry_id ? String(body.regenerate_entry_id) : null;
 
-    // ─── Manual resend of paystub email for an existing payroll entry ───
-    if (resendEntryId) {
+    // ─── Regenerate an existing paystub PDF and optionally resend its email ───
+    if (resendEntryId || regenerateEntryId) {
+      const targetEntryId = resendEntryId || regenerateEntryId!;
+      const shouldSendEmail = Boolean(resendEntryId);
       const { data: entry, error: eErr } = await supabase
         .from("payroll_entries")
         .select("*")
-        .eq("id", resendEntryId)
+        .eq("id", targetEntryId)
         .maybeSingle();
       if (eErr || !entry) {
         return new Response(JSON.stringify({ error: "Talon introuvable." }),
@@ -345,49 +349,118 @@ Deno.serve(async (req) => {
       const { data: profile } = await supabase
         .from("profiles").select("user_id, full_name, email, agent_number")
         .eq("user_id", entry.employee_id).maybeSingle();
-      if (!profile?.email) {
+      if (shouldSendEmail && !profile?.email) {
         return new Response(JSON.stringify({ error: "Cet employé n'a pas de courriel." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      // Download existing PDF from storage
-      let pdfBytes: Uint8Array | null = null;
-      const path = entry.paystub_pdf_url || entry.pdf_url;
-      if (path) {
-        const cleanPath = String(path).includes("/documents/") ? String(path).split("/documents/").pop()! : String(path);
-        const { data: dl } = await supabase.storage.from("documents").download(cleanPath);
-        if (dl) pdfBytes = new Uint8Array(await dl.arrayBuffer());
+
+      const { data: run } = entry.run_id
+        ? await supabase.from("payroll_runs").select("period_start, period_end, pay_date, id").eq("id", entry.run_id).maybeSingle()
+        : { data: null } as any;
+      const { data: settings } = await supabase
+        .from("employee_payroll_settings")
+        .select("employee_role, payment_method, federal_claim_amount, quebec_claim_amount, disability_insurance_rate")
+        .eq("employee_id", entry.employee_id)
+        .maybeSingle();
+
+      const payDateForEntry = String(run?.pay_date || entry.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10));
+      const entryYear = new Date(payDateForEntry).getUTCFullYear();
+      const fedBrackets = await getBrackets("tax_brackets_federal", entryYear);
+      const qcBrackets = await getBrackets("tax_brackets_quebec", entryYear);
+      const taxableGross = round2(Number(entry.taxable_gross || 0) || Math.max(0, Number(entry.total_gross || 0) - Number(entry.non_taxable_gross || 0)));
+      const totalGross = round2(Number(entry.total_gross || 0));
+      const manualDeductions = round2(Number(entry.manual_deductions || 0));
+      const deductions = await calculateDeductions(taxableGross, {
+        federal_claim_amount: Number(settings?.federal_claim_amount ?? FED_BPA_DEFAULT),
+        quebec_claim_amount: Number(settings?.quebec_claim_amount ?? QC_BPA_DEFAULT),
+        disability_insurance_rate: Number(settings?.disability_insurance_rate ?? DISABILITY_RATE_DEFAULT),
+      }, fedBrackets, qcBrackets);
+      const totalDeductions = round2(deductions.total_deductions + manualDeductions);
+      const netPay = round2(totalGross - totalDeductions);
+      const deductionLines = Array.isArray(entry.adjustment_breakdown)
+        ? entry.adjustment_breakdown.filter((a: any) => ["deduction", "advance"].includes(String(a.type || a.adjustment_type)))
+          .map((a: any) => ({ id: a.id || crypto.randomUUID(), amount: Math.abs(Number(a.amount || 0)), is_taxable: Boolean(a.taxable ?? true), adjustment_type: String(a.type || a.adjustment_type), description: String(a.description || "") }))
+        : [];
+      const deductionBreakdown = makeDeductionBreakdown(deductions, manualDeductions, deductionLines);
+
+      await supabase.from("payroll_entries").update({
+        federal_tax: deductions.federal_tax,
+        quebec_tax: deductions.quebec_tax,
+        rrq: deductions.rrq,
+        ae: deductions.ae,
+        rqap: deductions.rqap,
+        disability_insurance: deductions.disability_insurance,
+        deductions_total: totalDeductions,
+        total_deductions: totalDeductions,
+        net_pay: netPay,
+        deduction_breakdown: deductionBreakdown,
+      } as any).eq("id", entry.id);
+
+      const commissionLines = Array.isArray(entry.commission_breakdown) ? entry.commission_breakdown : [];
+      const adjustmentLines = Array.isArray(entry.adjustment_breakdown) ? entry.adjustment_breakdown : [];
+      const pdfBytes = buildPaystubPdf({
+        paystub_number: entry.payroll_number || `PAY-${String(entry.id).slice(0, 8)}`,
+        pay_date: payDateForEntry,
+        period_start: String(run?.period_start || entry.created_at).slice(0, 10),
+        period_end: String(run?.period_end || entry.created_at).slice(0, 10),
+        employee_name: profile?.full_name || profile?.email || "Employé",
+        employee_email: profile?.email ?? null,
+        agent_number: profile?.agent_number ?? entry.agent_number ?? null,
+        employee_role: settings?.employee_role ?? null,
+        payment_method: settings?.payment_method || entry.payment_method || "interac",
+        commission_gross: round2(Number(entry.commission_gross || entry.commission_total || 0)),
+        regular_hours_pay: round2(Number(entry.base_salary || 0)),
+        overtime_hours_pay: 0,
+        hours_regular: Number(entry.hours_worked || 0),
+        hours_overtime: Number(entry.overtime_hours || 0),
+        allocation_total: round2(Number(entry.non_taxable_gross || 0) + Math.max(0, taxableGross - Number(entry.base_salary || 0) - Number(entry.commission_gross || 0) - Number(entry.bonus_amount || entry.bonus_total || 0))),
+        bonus_amount: round2(Number(entry.bonus_amount || entry.bonus_total || 0)),
+        total_gross: totalGross,
+        commission_lines: commissionLines.map((c: any) => ({ label: c.label || c.commission_type || "Commission", detail: [c.description, c.earned_at ? new Date(c.earned_at).toLocaleDateString("fr-CA") : null].filter(Boolean).join(" · ") || c.order_id || null, amount: Number(c.amount || 0) })),
+        adjustment_lines: adjustmentLines.filter((a: any) => !["deduction", "advance"].includes(String(a.type || a.adjustment_type))).map((a: any) => ({ label: a.label || adjLabel(String(a.type || a.adjustment_type || "other")), detail: `${a.description || ""}${a.taxable === false ? " (non imposable)" : ""}`, amount: Number(a.amount || 0) })),
+        manual_deduction_lines: deductionLines.map((a) => ({ label: adjLabel(a.adjustment_type), detail: a.description, amount: Math.abs(a.amount) })),
+        federal_tax: deductions.federal_tax, quebec_tax: deductions.quebec_tax,
+        rrq: deductions.rrq, ae: deductions.ae, rqap: deductions.rqap,
+        disability_insurance: deductions.disability_insurance,
+        manual_deductions: manualDeductions,
+        total_deductions: totalDeductions,
+        net_pay: netPay,
+        ytd_gross: Number(entry.ytd_gross || totalGross),
+        ytd_deductions: Number(entry.ytd_deductions || totalDeductions),
+        ytd_net: Number(entry.ytd_net || netPay),
+      });
+      const uploaded = await uploadPaystubPdf(pdfBytes, entry.run_id || "manual", entry.employee_id || entry.user_id || "unknown");
+      if (uploaded) await supabase.from("payroll_entries").update({ paystub_pdf_url: uploaded.path, pdf_url: uploaded.path } as any).eq("id", entry.id);
+
+      if (!shouldSendEmail) {
+        return new Response(JSON.stringify({ ok: true, regenerated: true, signed_url: uploaded?.signedUrl ?? null }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      if (!pdfBytes) {
-        return new Response(JSON.stringify({ error: "PDF du talon introuvable dans le stockage." }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      const { data: signed } = await supabase.storage.from("documents").createSignedUrl(
-        String(path).includes("/documents/") ? String(path).split("/documents/").pop()! : String(path),
-        60 * 60 * 24 * 30,
-      );
-      const resendResult = await enqueuePaystubEmail(profile.email, {
+
+      const resendResult = await enqueuePaystubEmail(profile!.email, {
         agent_name: profile.full_name || profile.email,
         agent_number: profile.agent_number || "—",
-        period_start: entry.created_at?.slice(0, 10),
-        period_end: entry.created_at?.slice(0, 10),
-        pay_date: entry.created_at?.slice(0, 10),
+        period_start: String(run?.period_start || entry.created_at).slice(0, 10),
+        period_end: String(run?.period_end || entry.created_at).slice(0, 10),
+        pay_date: payDateForEntry,
         regular_hours_pay: Number(entry.base_salary || 0),
         overtime_hours_pay: 0,
         commission_gross: Number(entry.commission_gross || 0),
         bonus_amount: Number(entry.bonus_amount || 0),
         allocation_total: Math.max(0, Number(entry.total_gross || 0) - Number(entry.commission_gross || 0) - Number(entry.bonus_amount || 0) - Number(entry.base_salary || 0)),
         total_gross: Number(entry.total_gross || 0),
-        federal_tax: Number(entry.federal_tax || 0),
-        quebec_tax: Number(entry.quebec_tax || 0),
-        rrq: Number(entry.rrq || 0),
-        ae: Number(entry.ae || 0),
-        rqap: Number(entry.rqap || 0),
-        disability_insurance: Number(entry.disability_insurance || 0),
-        total_deductions: Number(entry.deductions_total || 0),
-        net_pay: Number(entry.net_pay || 0),
+        federal_tax: deductions.federal_tax,
+        quebec_tax: deductions.quebec_tax,
+        rrq: deductions.rrq,
+        ae: deductions.ae,
+        rqap: deductions.rqap,
+        disability_insurance: deductions.disability_insurance,
+        manual_deductions: manualDeductions,
+        total_deductions: totalDeductions,
+        net_pay: netPay,
         payment_method: entry.payment_method || "interac",
         payroll_number: entry.payroll_number,
-        paystub_url: signed?.signedUrl,
+        paystub_url: uploaded?.signedUrl,
         portal_url: "https://nivra-telecom.ca/field/profile",
         resent: true,
       }, pdfBytes, `${entry.id}-resend-${Date.now()}`);
@@ -396,7 +469,7 @@ Deno.serve(async (req) => {
         emailed_at: resendResult.ok ? new Date().toISOString() : null,
         email_last_error: resendResult.error ?? null,
       } as any).eq("id", entry.id);
-      await notifyPayrollReady(entry.employee_id, Number(entry.net_pay || 0), "renvoyée", signed?.signedUrl ?? null);
+      await notifyPayrollReady(entry.employee_id, netPay, "renvoyée", uploaded?.signedUrl ?? null);
       return new Response(JSON.stringify({ ok: true, resent: true, to: profile.email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -471,6 +544,8 @@ Deno.serve(async (req) => {
       commissionLines: CommLine[];
       regularPay: number;
       overtimePay: number;
+      hoursRegular: number;
+      hoursOvertime: number;
       taxableAdjustments: number;
       nonTaxableAdjustments: number;
       manualDeductions: number;
@@ -483,9 +558,12 @@ Deno.serve(async (req) => {
       const isHourly = s.pay_type === "hourly" || s.pay_type === "hourly_commission";
       const isCommission = s.pay_type === "commission" || s.pay_type === "hourly_commission";
       const ts = tsByEmp.get(s.employee_id);
+      const hOverride = hoursOverrides[s.employee_id];
       const rate = Number(s.hourly_rate || 0);
-      const regularPay = isHourly && ts ? ts.reg * rate : 0;
-      const overtimePay = isHourly && ts ? ts.ot * rate * 1.5 : 0;
+      const hoursReg = hOverride ? Number(hOverride.hours_worked || 0) : Number(ts?.reg || 0);
+      const hoursOt = hOverride ? Number(hOverride.overtime_hours || 0) : Number(ts?.ot || 0);
+      const regularPay = isHourly ? hoursReg * rate : 0;
+      const overtimePay = isHourly ? hoursOt * rate * 1.5 : 0;
       const c = isCommission ? (commByAgent.get(s.employee_id) || { ids: [], gross: 0, lines: [] }) : { ids: [], gross: 0, lines: [] as CommLine[] };
       const adj = adjByEmp.get(s.employee_id) || [];
       const earningAdj = adj.filter((a) => !["deduction", "advance"].includes(a.adjustment_type));
@@ -505,6 +583,8 @@ Deno.serve(async (req) => {
         commissionLines: c.lines,
         regularPay,
         overtimePay,
+        hoursRegular: hoursReg,
+        hoursOvertime: hoursOt,
         taxableAdjustments: taxAdj,
         nonTaxableAdjustments: ntAdj,
         manualDeductions,
@@ -538,8 +618,8 @@ Deno.serve(async (req) => {
       const netPay = round2(totalGrossAgent - totalDeductions);
       const prevYtd = await fetchYtd(previewEmployeeId, year);
       const hRate = Number(b.settings.hourly_rate || 0);
-      const hReg = (tsByEmp.get(previewEmployeeId)?.reg || 0);
-      const hOt = (tsByEmp.get(previewEmployeeId)?.ot || 0);
+      const hReg = b.hoursRegular;
+      const hOt = b.hoursOvertime;
       const pdf = buildPaystubPdf({
         paystub_number: `APERÇU-${previewEmployeeId.slice(0, 6)}`,
         pay_date: payDate,
@@ -672,8 +752,8 @@ Deno.serve(async (req) => {
       const ytd_disability = round2(prevYtd.ytd_disability + ded.disability_insurance);
       const ytd_net = round2(prevYtd.ytd_net + netPay);
 
-      const hReg = (tsByEmp.get(empId)?.reg || 0);
-      const hOt = (tsByEmp.get(empId)?.ot || 0);
+      const hReg = b.hoursRegular;
+      const hOt = b.hoursOvertime;
       const hRate = Number(b.settings.hourly_rate || 0);
       const commissionBreakdown = b.commissionLines.map((c) => ({
         id: c.id,
