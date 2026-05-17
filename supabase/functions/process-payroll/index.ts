@@ -13,6 +13,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,7 @@ async function getBrackets(table: string, year: number) {
 
 function bracketTax(annualIncome: number, brackets: Awaited<ReturnType<typeof getBrackets>>, claimAmount: number): number {
   const taxable = Math.max(0, annualIncome);
+  if (!brackets.length) return 0;
   for (const b of brackets) {
     const max = b.max_income ?? Infinity;
     if (taxable > Number(b.min_income) && taxable <= max) {
@@ -159,7 +161,7 @@ async function calculateDeductions(
 async function fetchYtd(employeeId: string, year: number) {
   const { data } = await supabase
     .from("payroll_entries")
-    .select("total_gross, federal_tax, quebec_tax, rrq, ae, rqap, disability_insurance, net_pay")
+    .select("total_gross, federal_tax, quebec_tax, rrq, ae, rqap, disability_insurance, deductions_total, total_deductions, net_pay")
     .eq("employee_id", employeeId)
     .gte("created_at", `${year}-01-01T00:00:00Z`)
     .lte("created_at", `${year}-12-31T23:59:59Z`);
@@ -172,6 +174,7 @@ async function fetchYtd(employeeId: string, year: number) {
     ytd_ae: round2(rows.reduce((s, r) => s + Number(r.ae || 0), 0)),
     ytd_rqap: round2(rows.reduce((s, r) => s + Number(r.rqap || 0), 0)),
     ytd_disability: round2(rows.reduce((s, r) => s + Number(r.disability_insurance || 0), 0)),
+    ytd_deductions: round2(rows.reduce((s, r) => s + Number((r as any).total_deductions ?? (r as any).deductions_total ?? 0), 0)),
     ytd_net: round2(rows.reduce((s, r) => s + Number(r.net_pay || 0), 0)),
   };
 }
