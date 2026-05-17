@@ -1276,6 +1276,36 @@ export type Database = {
           },
         ]
       }
+      agent_points: {
+        Row: {
+          agent_id: string
+          current_badge: string
+          id: string
+          sales_points: number
+          total_points: number
+          training_points: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          current_badge?: string
+          id?: string
+          sales_points?: number
+          total_points?: number
+          training_points?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          current_badge?: string
+          id?: string
+          sales_points?: number
+          total_points?: number
+          training_points?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointment_blocked_dates: {
         Row: {
           blocked_date: string
@@ -19737,6 +19767,321 @@ export type Database = {
           total_hours?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      training_answers: {
+        Row: {
+          answered_at: string
+          id: string
+          is_correct: boolean
+          points_earned: number
+          progress_id: string
+          question_id: string
+          selected_option: number
+        }
+        Insert: {
+          answered_at?: string
+          id?: string
+          is_correct: boolean
+          points_earned?: number
+          progress_id: string
+          question_id: string
+          selected_option: number
+        }
+        Update: {
+          answered_at?: string
+          id?: string
+          is_correct?: boolean
+          points_earned?: number
+          progress_id?: string
+          question_id?: string
+          selected_option?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_answers_progress_id_fkey"
+            columns: ["progress_id"]
+            isOneToOne: false
+            referencedRelation: "training_progress"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "training_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_attendance: {
+        Row: {
+          agent_id: string
+          id: string
+          registered_at: string
+          session_id: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          id?: string
+          registered_at?: string
+          session_id: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          id?: string
+          registered_at?: string
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_attendance_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_certifications: {
+        Row: {
+          agent_id: string
+          badge_color: string
+          certification_level: string
+          certification_name: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          issued_at: string
+          pdf_url: string | null
+          total_points: number
+        }
+        Insert: {
+          agent_id: string
+          badge_color?: string
+          certification_level: string
+          certification_name: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          issued_at?: string
+          pdf_url?: string | null
+          total_points?: number
+        }
+        Update: {
+          agent_id?: string
+          badge_color?: string
+          certification_level?: string
+          certification_name?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          issued_at?: string
+          pdf_url?: string | null
+          total_points?: number
+        }
+        Relationships: []
+      }
+      training_modules: {
+        Row: {
+          category: string
+          content_en: string | null
+          content_fr: string | null
+          content_type: string
+          created_at: string
+          description_en: string | null
+          description_fr: string | null
+          estimated_minutes: number
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          order_index: number
+          passing_score: number
+          points_reward: number
+          title_en: string
+          title_fr: string
+          video_url: string | null
+        }
+        Insert: {
+          category: string
+          content_en?: string | null
+          content_fr?: string | null
+          content_type?: string
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
+          estimated_minutes?: number
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          order_index?: number
+          passing_score?: number
+          points_reward?: number
+          title_en: string
+          title_fr: string
+          video_url?: string | null
+        }
+        Update: {
+          category?: string
+          content_en?: string | null
+          content_fr?: string | null
+          content_type?: string
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
+          estimated_minutes?: number
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          order_index?: number
+          passing_score?: number
+          points_reward?: number
+          title_en?: string
+          title_fr?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      training_progress: {
+        Row: {
+          agent_id: string
+          attempts: number
+          completed_at: string | null
+          id: string
+          module_id: string
+          score: number
+          started_at: string | null
+          status: string
+          time_spent_minutes: number
+        }
+        Insert: {
+          agent_id: string
+          attempts?: number
+          completed_at?: string | null
+          id?: string
+          module_id: string
+          score?: number
+          started_at?: string | null
+          status?: string
+          time_spent_minutes?: number
+        }
+        Update: {
+          agent_id?: string
+          attempts?: number
+          completed_at?: string | null
+          id?: string
+          module_id?: string
+          score?: number
+          started_at?: string | null
+          status?: string
+          time_spent_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_questions: {
+        Row: {
+          correct_option: number
+          created_at: string
+          explanation_en: string | null
+          explanation_fr: string | null
+          id: string
+          module_id: string
+          options_en: Json
+          options_fr: Json
+          order_index: number
+          points: number
+          question_en: string
+          question_fr: string
+        }
+        Insert: {
+          correct_option: number
+          created_at?: string
+          explanation_en?: string | null
+          explanation_fr?: string | null
+          id?: string
+          module_id: string
+          options_en: Json
+          options_fr: Json
+          order_index?: number
+          points?: number
+          question_en: string
+          question_fr: string
+        }
+        Update: {
+          correct_option?: number
+          created_at?: string
+          explanation_en?: string | null
+          explanation_fr?: string | null
+          id?: string
+          module_id?: string
+          options_en?: Json
+          options_fr?: Json
+          order_index?: number
+          points?: number
+          question_en?: string
+          question_fr?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_questions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_sessions: {
+        Row: {
+          created_at: string
+          description_en: string | null
+          description_fr: string | null
+          duration_minutes: number
+          id: string
+          meeting_url: string | null
+          scheduled_at: string
+          status: string
+          title_en: string
+          title_fr: string
+          trainer_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
+          duration_minutes?: number
+          id?: string
+          meeting_url?: string | null
+          scheduled_at: string
+          status?: string
+          title_en: string
+          title_fr: string
+          trainer_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
+          duration_minutes?: number
+          id?: string
+          meeting_url?: string | null
+          scheduled_at?: string
+          status?: string
+          title_en?: string
+          title_fr?: string
+          trainer_id?: string | null
         }
         Relationships: []
       }
