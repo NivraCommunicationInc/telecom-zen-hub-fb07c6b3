@@ -518,18 +518,26 @@ export default function HrPayrollPage2() {
         </DialogContent>
       </Dialog>
 
-      {/* Drill-in dialog */}
+      {/* Drill-in dialog — full breakdown */}
       <Dialog open={!!drillIn} onOpenChange={(o) => !o && setDrillIn(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl">
           <DialogHeader><DialogTitle>Détails de la paie</DialogTitle></DialogHeader>
-          <div className="max-h-[60vh] overflow-auto">
+          <div className="max-h-[70vh] overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Employé</TableHead>
-                  <TableHead>Brut</TableHead>
-                  <TableHead>Déductions</TableHead>
-                  <TableHead>Net</TableHead>
+                  <TableHead className="text-right">Heures</TableHead>
+                  <TableHead className="text-right">Commissions</TableHead>
+                  <TableHead className="text-right">Bonus</TableHead>
+                  <TableHead className="text-right">Brut</TableHead>
+                  <TableHead className="text-right">Fed</TableHead>
+                  <TableHead className="text-right">QC</TableHead>
+                  <TableHead className="text-right">RRQ/AE/RQAP</TableHead>
+                  <TableHead className="text-right">Déductions</TableHead>
+                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>Méthode</TableHead>
+                  <TableHead>Statut</TableHead>
                   <TableHead>Talon</TableHead>
                 </TableRow>
               </TableHeader>
@@ -538,15 +546,23 @@ export default function HrPayrollPage2() {
                   <TableRow key={e.id}>
                     <TableCell>
                       <div className="font-medium">{e.profile?.full_name ?? "—"}</div>
-                      <div className="text-xs text-muted-foreground">{e.profile?.agent_number ?? ""}</div>
+                      <div className="text-xs text-muted-foreground">{e.profile?.agent_number ?? e.profile?.email ?? ""}</div>
                     </TableCell>
-                    <TableCell>{fmtMoney(e.total_gross)}</TableCell>
-                    <TableCell className="text-destructive">{fmtMoney(e.deductions_total)}</TableCell>
-                    <TableCell className="font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
+                    <TableCell className="text-right text-xs">{Number(e.hours_worked || 0)}h + {Number(e.overtime_hours || 0)}h</TableCell>
+                    <TableCell className="text-right">{fmtMoney(e.commission_gross)}</TableCell>
+                    <TableCell className="text-right">{fmtMoney(e.bonus_amount)}</TableCell>
+                    <TableCell className="text-right font-medium">{fmtMoney(e.total_gross)}</TableCell>
+                    <TableCell className="text-right text-xs text-destructive">-{fmtMoney(e.federal_tax)}</TableCell>
+                    <TableCell className="text-right text-xs text-destructive">-{fmtMoney(e.quebec_tax)}</TableCell>
+                    <TableCell className="text-right text-xs text-destructive">-{fmtMoney(Number(e.rrq||0)+Number(e.ae||0)+Number(e.rqap||0))}</TableCell>
+                    <TableCell className="text-right text-destructive">-{fmtMoney(e.deductions_total)}</TableCell>
+                    <TableCell className="text-right font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
+                    <TableCell className="text-xs capitalize">{e.payment_method ?? "—"}</TableCell>
+                    <TableCell><Badge variant={e.payment_status === "paid" ? "default" : "secondary"}>{e.payment_status ?? e.status}</Badge></TableCell>
                     <TableCell>
                       {e.paystub_pdf_url ? (
                         <a href={e.paystub_pdf_url} target="_blank" rel="noreferrer">
-                          <Button size="sm" variant="ghost"><Download className="h-4 w-4" /> PDF</Button>
+                          <Button size="sm" variant="ghost"><Download className="h-4 w-4" /></Button>
                         </a>
                       ) : "—"}
                     </TableCell>
