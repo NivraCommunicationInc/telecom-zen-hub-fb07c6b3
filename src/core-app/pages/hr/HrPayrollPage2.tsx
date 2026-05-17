@@ -104,6 +104,15 @@ export default function HrPayrollPage2() {
   const [drillIn, setDrillIn] = useState<string | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeRow | null>(null);
   const [adjustmentFor, setAdjustmentFor] = useState<EmployeeRow | null>(null);
+  // Per-employee live overrides (real-time recompute before saving / running)
+  const [excludedComm, setExcludedComm] = useState<Set<string>>(new Set());
+  const [localHours, setLocalHours] = useState<Map<string, { h: number; ot: number }>>(new Map());
+  function toggleExcludedComm(id: string) {
+    setExcludedComm((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function setLocalHoursFor(empId: string, h: number, ot: number) {
+    setLocalHours((prev) => { const n = new Map(prev); n.set(empId, { h, ot }); return n; });
+  }
 
   // Period boundaries
   const now = new Date();
@@ -148,9 +157,10 @@ export default function HrPayrollPage2() {
     queryFn: async () => {
       const { data } = await supabase
         .from("field_commissions")
-        .select("id, agent_id, amount, description, commission_type, earned_at, order_id")
+        .select("id, agent_id, amount, description, commission_type, earned_at, order_id, orders:order_id(order_number)")
         .eq("status", "approved")
-        .lte("earned_at", cutoff.toISOString());
+        .lte("earned_at", cutoff.toISOString())
+        .order("earned_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -225,11 +235,14 @@ export default function HrPayrollPage2() {
     const isCommission = emp.pay_type === "commission" || emp.pay_type === "hourly_commission";
     const ts = getTimesheet(emp.employee_id);
     const rate = Number(emp.hourly_rate || 0);
-    const hourly = isHourly && ts ? Number(ts.hours_worked || 0) * rate : 0;
-    const overtime = isHourly && ts ? Number(ts.overtime_hours || 0) * rate * 1.5 : 0;
-    const commTotal = isCommission
-      ? getCommissions(emp.employee_id).reduce((s: number, c: any) => s + Number(c.amount || 0), 0)
-      : 0;
+    const lh = localHours.get(emp.employee_id);
+    const hWorked = lh ? lh.h : Number(ts?.hours_worked || 0);
+    const otWorked = lh ? lh.ot : Number(ts?.overtime_hours || 0);
+    const hourly = isHourly ? hWorked * rate : 0;
+    const overtime = isHourly ? otWorked * rate * 1.5 : 0;
+    const allComm = isCommission ? getCommissions(emp.employee_id) : [];
+    const includedComm = allComm.filter((c: any) => !excludedComm.has(c.id));
+    const commTotal = includedComm.reduce((s: number, c: any) => s + Number(c.amount || 0), 0);
     const adj = getAdjustments(emp.employee_id);
     const adjTotal = adj.reduce((s: number, a: any) => s + Number(a.amount || 0), 0);
     const gross = hourly + overtime + commTotal + adjTotal;
@@ -237,11 +250,9 @@ export default function HrPayrollPage2() {
     // Estimated deductions (simplified preview — actual computed by edge function)
     const fedRate = 0.15, qcRate = 0.15, rrqRate = 0.059, aeRate = 0.0166, rqapRate = 0.00494;
     const disRate = Number(emp.disability_insurance_rate || 0.02);
-    const ded = gross > 0
-      ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate)
-      : 0;
+    const ded = gross > 0 ? gross * (fedRate + qcRate + rrqRate + aeRate + rqapRate + disRate) : 0;
     const net = gross - ded;
-    return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, commCount: getCommissions(emp.employee_id).length };
+    return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
   // Aggregate totals
@@ -255,7 +266,7 @@ export default function HrPayrollPage2() {
       t.count += 1;
     }
     return t;
-  }, [filteredEmployees, periodCommissions, timesheets, adjustments]);
+  }, [filteredEmployees, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
 
   // Mutations
   const previewMutation = useMutation({
@@ -270,7 +281,9 @@ export default function HrPayrollPage2() {
 
   const runMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("process-payroll", { body: {} });
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { excluded_commission_ids: Array.from(excludedComm) },
+      });
       if (error) throw error;
       return data;
     },
@@ -342,6 +355,9 @@ export default function HrPayrollPage2() {
                 key={emp.employee_id}
                 emp={emp}
                 summary={computeSummary(emp)}
+                excludedComm={excludedComm}
+                onToggleComm={toggleExcludedComm}
+                onLocalHoursChange={(h, ot) => setLocalHoursFor(emp.employee_id, h, ot)}
                 onEditSettings={() => setEditingEmployee(emp)}
                 onAddAdjustment={() => setAdjustmentFor(emp)}
                 periodStart={pStart}
