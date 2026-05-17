@@ -23129,6 +23129,7 @@ export type Database = {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
         Returns: Json
       }
+      repair_order_client_portal_links: { Args: never; Returns: Json }
       resolve_or_create_service_address: {
         Args: { p_customer_id: string; p_order_id?: string }
         Returns: string

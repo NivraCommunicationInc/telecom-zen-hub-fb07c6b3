@@ -264,6 +264,8 @@ Deno.serve(async (req) => {
           .from("profiles")
           .select("user_id, email")
           .ilike("email", customerEmail)
+          .order("created_at", { ascending: true })
+          .limit(1)
           .maybeSingle();
 
         if (existingProfileError) {
@@ -522,15 +524,31 @@ Deno.serve(async (req) => {
           canonicalOrder = newOrder;
           console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id} by agent ${agentName}`);
         } else {
-          // Backfill agent identity if order already exists but missing tags
-          await supabaseAdmin
+          // Existing/orphan field order: force it back onto the canonical client/account.
+          // This prevents future portal-empty cases where Field created a temporary user_id
+          // but the real client profile already exists for the same email.
+          const { data: repairedOrder, error: repairOrderError } = await supabaseAdmin
             .from('orders')
             .update({
+              user_id: clientUserId,
+              account_id: accountId,
+              client_email: customerEmail,
+              client_phone: sale.customer_phone || null,
+              client_first_name: customerFirstName || null,
+              client_last_name: customerLastName || null,
               source: 'field_sales',
               created_by_agent_id: sale.salesperson_id,
               agent_name: agentName,
             })
-            .eq('id', canonicalOrder.id);
+            .eq('id', canonicalOrder.id)
+            .select('id, order_number, status')
+            .single();
+
+          if (repairOrderError || !repairedOrder) {
+            throw new Error(`Order identity repair failed: ${repairOrderError?.message || "order not found"}`);
+          }
+
+          canonicalOrder = repairedOrder;
         }
 
         const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method);
