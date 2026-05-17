@@ -233,6 +233,33 @@ async function notifyPayrollReady(empId: string, amount: number, period: string,
   });
 }
 
+const ADJ_LABEL: Record<string, string> = {
+  allocation: "Allocation",
+  bonus: "Bonus",
+  supplement: "Supplément",
+  reimbursement: "Remboursement",
+  advance: "Avance sur paie",
+  deduction: "Déduction manuelle",
+  other: "Autre revenu",
+};
+
+function adjLabel(type: string) {
+  return ADJ_LABEL[type] || type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function makeDeductionBreakdown(ded: any, manualDeductions: number, deductionLines: AdjLine[] = []) {
+  return [
+    { label: "Impôt fédéral", amount: round2(ded.federal_tax || 0), category: "tax" },
+    { label: "Impôt provincial (Québec)", amount: round2(ded.quebec_tax || 0), category: "tax" },
+    { label: "RRQ (Régime de rentes du Québec)", amount: round2(ded.rrq || 0), category: "statutory" },
+    { label: "Assurance-emploi (AE)", amount: round2(ded.ae || 0), category: "statutory" },
+    { label: "RQAP (Assurance parentale)", amount: round2(ded.rqap || 0), category: "statutory" },
+    { label: "Assurance invalidité", amount: round2(ded.disability_insurance || 0), category: "benefit" },
+    ...deductionLines.map((a) => ({ label: adjLabel(a.adjustment_type), detail: a.description, amount: round2(Math.abs(a.amount)), category: "manual" })),
+    ...(manualDeductions > 0 && deductionLines.length === 0 ? [{ label: "Avances / déductions manuelles", amount: round2(manualDeductions), category: "manual" }] : []),
+  ].filter((l) => Number(l.amount) > 0 || ["Impôt fédéral", "Impôt provincial (Québec)", "RRQ (Régime de rentes du Québec)"].includes(l.label));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
