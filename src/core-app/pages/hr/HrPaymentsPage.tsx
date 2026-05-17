@@ -635,27 +635,36 @@ function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
   const [entryId, setEntryId] = useState("");
   const [method, setMethod] = useState("interac");
   const [initialStatus, setInitialStatus] = useState("scheduled");
+  const [priority, setPriority] = useState("normal");
   const [scheduled, setScheduled] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [bankRef, setBankRef] = useState("");
   const [txnId, setTxnId] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountLast4, setAccountLast4] = useState("");
+  const [interacQuestion, setInteracQuestion] = useState("");
+  const [interacAnswer, setInteracAnswer] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
   const [clientNotes, setClientNotes] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [sendNotificationNow, setSendNotificationNow] = useState(true);
+  const [attachPaystub, setAttachPaystub] = useState(true);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setEmployeeId(""); setEntryId(""); setMethod("interac"); setInitialStatus("scheduled");
-      setScheduled(""); setRequiresApproval(false); setBankRef(""); setTxnId("");
-      setBankName(""); setAccountLast4(""); setInternalNotes(""); setClientNotes("");
+      setPriority("normal"); setScheduled(""); setScheduledTime("");
+      setRequiresApproval(false); setBankRef(""); setTxnId("");
+      setBankName(""); setAccountLast4(""); setInteracQuestion(""); setInteracAnswer("");
+      setInternalNotes(""); setClientNotes(""); setEmailSubject("");
+      setSendNotificationNow(true); setAttachPaystub(true);
       setEmployeeSearch(""); setSubmitting(false);
     }
   }, [open]);
 
-  // Group entries by employee
   const employees = useMemo(() => {
     const m = new Map<string, { uid: string; name: string; email: string; number: string; entries: any[] }>();
     for (const e of entries) {
@@ -686,12 +695,11 @@ function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
   const employeeEntries = selectedEmp?.entries || [];
   const selectedEntry = employeeEntries.find(e => e.id === entryId);
 
-  // Auto-suggest approval if > 5000$
   useEffect(() => {
     if (selectedEntry) {
       const net = Number(selectedEntry.net_pay || 0);
       setRequiresApproval(net > 5000);
-      if (selectedEntry.payment_method && !method) setMethod(selectedEntry.payment_method);
+      if (selectedEntry.payment_method) setMethod(selectedEntry.payment_method);
     }
   }, [entryId]); // eslint-disable-line
 
@@ -706,16 +714,25 @@ function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
     if (!entryId) return;
     setSubmitting(true);
     try {
+      const scheduledIso = scheduled
+        ? (scheduledTime ? `${scheduled}T${scheduledTime}:00` : scheduled)
+        : null;
       await onCreate({
         payroll_entry_id: entryId,
         payment_method: method,
-        scheduled_date: scheduled || null,
+        scheduled_date: scheduledIso,
+        priority,
         internal_notes: internalNotes || null,
         client_visible_notes: clientNotes || null,
         bank_reference: bankRef || null,
         transaction_id: txnId || null,
         recipient_bank_name: bankName || null,
         recipient_account_last4: accountLast4 ? accountLast4.replace(/\D/g, "").slice(-4) : null,
+        interac_question: interacQuestion || null,
+        interac_answer: interacAnswer || null,
+        email_subject: emailSubject || null,
+        send_notification_now: sendNotificationNow,
+        attach_paystub: attachPaystub,
         requires_approval: requiresApproval,
         initial_status: initialStatus,
       });
@@ -724,37 +741,54 @@ function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-violet-500" />
-            Nouveau paiement de paie
-          </DialogTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Sélectionnez un employé, choisissez le talon de paie à régler, configurez la méthode et la programmation.
-          </p>
-        </DialogHeader>
+  const Section = ({ title, children, accent }: any) => (
+    <div className="rounded-lg border border-border bg-card/40 overflow-hidden">
+      <div className={`px-3 py-2 border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider font-semibold ${accent || "text-muted-foreground"}`}>
+        {title}
+      </div>
+      <div className="p-3 space-y-2.5">{children}</div>
+    </div>
+  );
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* ─── LEFT: Employee + Payslip ─── */}
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">1. Employé</Label>
-              <div className="mt-1.5 flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-none sm:w-[95vw] lg:w-[1100px] p-0 overflow-hidden flex flex-col">
+        {/* Header */}
+        <SheetHeader className="px-6 py-4 border-b border-border bg-gradient-to-r from-violet-500/10 via-card to-card">
+          <SheetTitle className="flex items-center gap-2 text-lg">
+            <div className="w-9 h-9 rounded-lg bg-violet-500/20 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-violet-400" />
+            </div>
+            Nouveau paiement de paie
+          </SheetTitle>
+          <p className="text-xs text-muted-foreground">
+            Sélectionnez un employé, son talon, puis configurez la méthode, la programmation et la notification.
+          </p>
+        </SheetHeader>
+
+        {/* Body — 3 columns */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-0 min-h-full">
+
+            {/* ─── COL 1: Employee list ─── */}
+            <div className="border-r border-border bg-muted/10 p-3 space-y-2">
+              <div className="text-[10px] uppercase tracking-wider text-violet-300 font-semibold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-300">1</span>
+                Employé
+              </div>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
                 <Search className="w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   value={employeeSearch}
                   onChange={(e) => setEmployeeSearch(e.target.value)}
-                  placeholder="Rechercher nom, email, #employé…"
+                  placeholder="Rechercher…"
                   className="flex-1 bg-transparent text-xs outline-none"
                 />
               </div>
-              <div className="mt-1.5 max-h-[200px] overflow-y-auto border border-border rounded-md bg-card divide-y divide-border">
+              <div className="max-h-[calc(100vh-260px)] overflow-y-auto border border-border rounded-md bg-card divide-y divide-border">
                 {filteredEmployees.length === 0 ? (
                   <div className="p-3 text-xs text-muted-foreground text-center">
-                    {entries.length === 0 ? "Aucun talon approuvé en attente de paiement." : "Aucun employé correspondant."}
+                    {entries.length === 0 ? "Aucun talon approuvé en attente." : "Aucun employé."}
                   </div>
                 ) : filteredEmployees.map(emp => (
                   <button
@@ -762,145 +796,237 @@ function CreatePaymentDialog({ open, onClose, entries, onCreate }: any) {
                     onClick={() => { setEmployeeId(emp.uid); setEntryId(emp.entries[0]?.id || ""); }}
                     className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/40 transition ${employeeId === emp.uid ? "bg-violet-500/10 border-l-2 border-violet-500" : ""}`}
                   >
-                    <div className="font-medium text-foreground">{emp.name}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      {emp.email || "—"} {emp.number && `· #${emp.number}`}
+                    <div className="font-medium text-foreground truncate">{emp.name}</div>
+                    <div className="text-muted-foreground text-[11px] truncate">
+                      {emp.email || "—"}
                     </div>
-                    <div className="text-[10px] text-violet-400 mt-0.5">
-                      {emp.entries.length} talon(s) · {fmtMoney(emp.entries.reduce((a, e) => a + Number(e.net_pay || 0), 0))}
+                    <div className="flex items-center justify-between text-[10px] mt-1">
+                      <span className="text-muted-foreground">{emp.number && `#${emp.number}`}</span>
+                      <span className="text-violet-400 font-semibold">
+                        {emp.entries.length} · {fmtMoney(emp.entries.reduce((a, e) => a + Number(e.net_pay || 0), 0))}
+                      </span>
                     </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            {selectedEmp && (
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">2. Talon de paie</Label>
-                <div className="mt-1.5 space-y-1.5 max-h-[180px] overflow-y-auto">
-                  {employeeEntries.map(e => (
-                    <button
-                      key={e.id}
-                      onClick={() => setEntryId(e.id)}
-                      className={`w-full text-left rounded-md border px-2.5 py-2 transition ${entryId === e.id ? "border-violet-500 bg-violet-500/10" : "border-border hover:bg-muted/40"}`}
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-mono">{e.payroll_number || e.id.slice(0, 8)}</span>
-                        <span className="font-bold text-emerald-400">{fmtMoney(e.net_pay)}</span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">
-                        Période: {periodLabel(e)} · Brut: {fmtMoney(e.total_gross || e.gross_pay)} · Statut: {e.status}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+            {/* ─── COL 2: Payslip selection + preview ─── */}
+            <div className="p-4 space-y-3 border-r border-border">
+              <div className="text-[10px] uppercase tracking-wider text-violet-300 font-semibold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-300">2</span>
+                Talon de paie à régler
               </div>
-            )}
 
-            {selectedEntry && (
-              <div className="rounded-md border border-violet-500/30 bg-violet-500/5 p-3 space-y-1.5">
-                <div className="text-[10px] uppercase tracking-wider text-violet-300 font-semibold">Aperçu du talon</div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  <span className="text-muted-foreground">Brut</span><span className="text-right font-mono">{fmtMoney(selectedEntry.total_gross || selectedEntry.gross_pay)}</span>
-                  <span className="text-muted-foreground">Impôt fédéral</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.federal_tax)}</span>
-                  <span className="text-muted-foreground">Impôt QC</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.quebec_tax)}</span>
-                  <span className="text-muted-foreground">RRQ</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.rrq)}</span>
-                  <span className="text-muted-foreground">AE</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.ae)}</span>
-                  <span className="text-muted-foreground">RQAP</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.rqap)}</span>
-                  {Number(selectedEntry.disability_insurance) > 0 && (
-                    <><span className="text-muted-foreground">Inv.</span><span className="text-right font-mono">−{fmtMoney(selectedEntry.disability_insurance)}</span></>
-                  )}
-                  <span className="text-muted-foreground border-t border-violet-500/20 pt-1 mt-1">Total déductions</span>
-                  <span className="text-right font-mono border-t border-violet-500/20 pt-1 mt-1">−{fmtMoney(selectedEntry.deductions_total)}</span>
-                  <span className="font-semibold text-emerald-300 border-t border-violet-500/20 pt-1">NET À VERSER</span>
-                  <span className="text-right font-bold text-emerald-400 font-mono border-t border-violet-500/20 pt-1">{fmtMoney(selectedEntry.net_pay)}</span>
+              {!selectedEmp ? (
+                <div className="border border-dashed border-border rounded-lg p-8 text-center text-xs text-muted-foreground">
+                  ← Sélectionnez d'abord un employé
                 </div>
-                {(Number(selectedEntry.ytd_gross) > 0 || Number(selectedEntry.ytd_net) > 0) && (
-                  <div className="text-[10px] text-muted-foreground pt-1 border-t border-violet-500/20">
-                    YTD: brut {fmtMoney(selectedEntry.ytd_gross)} · net {fmtMoney(selectedEntry.ytd_net)}
+              ) : (
+                <>
+                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto">
+                    {employeeEntries.map(e => (
+                      <button
+                        key={e.id}
+                        onClick={() => setEntryId(e.id)}
+                        className={`w-full text-left rounded-md border px-3 py-2.5 transition ${entryId === e.id ? "border-violet-500 bg-violet-500/10 shadow-sm" : "border-border hover:bg-muted/40"}`}
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-mono font-semibold">{e.payroll_number || e.id.slice(0, 8)}</span>
+                          <span className="font-bold text-emerald-400 text-sm">{fmtMoney(e.net_pay)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                          <span>📅 {periodLabel(e)}</span>
+                          <span>·</span>
+                          <span>Brut {fmtMoney(e.total_gross || e.gross_pay)}</span>
+                          <span>·</span>
+                          <Badge variant="outline" className="text-[9px] py-0 h-4">{e.status}</Badge>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedEntry && (
+                    <div className="rounded-lg border border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-violet-500/5 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-violet-300 font-semibold">Aperçu du talon sélectionné</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">Période: {periodLabel(selectedEntry)}</div>
+                        </div>
+                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
+                          {fmtMoney(selectedEntry.net_pay)} net
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                        <div className="space-y-1">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pb-1 border-b border-violet-500/20">Revenus</div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Brut total</span><span className="font-mono">{fmtMoney(selectedEntry.total_gross || selectedEntry.gross_pay)}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Imposable</span><span className="font-mono">{fmtMoney(selectedEntry.taxable_gross)}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Non-imposable</span><span className="font-mono">{fmtMoney(selectedEntry.non_taxable_gross)}</span></div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pb-1 border-b border-violet-500/20">Déductions</div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Impôt féd.</span><span className="font-mono">−{fmtMoney(selectedEntry.federal_tax)}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Impôt QC</span><span className="font-mono">−{fmtMoney(selectedEntry.quebec_tax)}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">RRQ</span><span className="font-mono">−{fmtMoney(selectedEntry.rrq)}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">AE</span><span className="font-mono">−{fmtMoney(selectedEntry.ae)}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">RQAP</span><span className="font-mono">−{fmtMoney(selectedEntry.rqap)}</span></div>
+                          {Number(selectedEntry.disability_insurance) > 0 && (
+                            <div className="flex justify-between"><span className="text-muted-foreground">Invalidité</span><span className="font-mono">−{fmtMoney(selectedEntry.disability_insurance)}</span></div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-violet-500/20 flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net à verser</div>
+                          <div className="text-2xl font-bold text-emerald-400">{fmtMoney(selectedEntry.net_pay)}</div>
+                        </div>
+                        {(Number(selectedEntry.ytd_gross) > 0 || Number(selectedEntry.ytd_net) > 0) && (
+                          <div className="text-right text-[10px] text-muted-foreground">
+                            <div>YTD brut: <span className="font-mono">{fmtMoney(selectedEntry.ytd_gross)}</span></div>
+                            <div>YTD net: <span className="font-mono">{fmtMoney(selectedEntry.ytd_net)}</span></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ─── COL 3: Settings ─── */}
+            <div className="p-4 space-y-3 bg-muted/5 overflow-y-auto">
+              <div className="text-[10px] uppercase tracking-wider text-violet-300 font-semibold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-300">3</span>
+                Configuration du paiement
+              </div>
+
+              <Section title="💳 Méthode & programmation" accent="text-cyan-300">
+                <div>
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Méthode</Label>
+                  <Select value={method} onValueChange={setMethod}>
+                    <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(METHOD_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Date</Label>
+                    <Input type="date" value={scheduled} onChange={(e) => setScheduled(e.target.value)} className="mt-1 h-9 text-xs" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Heure</Label>
+                    <Input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="mt-1 h-9 text-xs" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Statut initial</Label>
+                    <Select value={initialStatus} onValueChange={setInitialStatus}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Brouillon</SelectItem>
+                        <SelectItem value="scheduled">Programmé</SelectItem>
+                        <SelectItem value="approved">Approuvé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Priorité</Label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">🟢 Basse</SelectItem>
+                        <SelectItem value="normal">🔵 Normale</SelectItem>
+                        <SelectItem value="high">🟠 Élevée</SelectItem>
+                        <SelectItem value="urgent">🔴 Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </Section>
+
+              <Section title="🛡️ Approbation" accent="text-amber-300">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <div className="text-xs font-medium">Approbation requise</div>
+                    <p className="text-[10px] text-muted-foreground">Auto si net &gt; 5 000 $</p>
+                  </div>
+                  <Checkbox checked={requiresApproval} onCheckedChange={(v) => setRequiresApproval(!!v)} />
+                </label>
+              </Section>
+
+              <Section title="🏦 Informations bancaires" accent="text-blue-300">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Banque" className="h-8 text-xs" />
+                  <Input value={accountLast4} onChange={(e) => setAccountLast4(e.target.value)} placeholder="•••• 4 derniers" maxLength={4} className="h-8 text-xs" />
+                  <Input value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="Référence" className="h-8 text-xs" />
+                  <Input value={txnId} onChange={(e) => setTxnId(e.target.value)} placeholder="ID transaction" className="h-8 text-xs" />
+                </div>
+                {method === "interac" && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                    <Input value={interacQuestion} onChange={(e) => setInteracQuestion(e.target.value)} placeholder="Question Interac" className="h-8 text-xs" />
+                    <Input value={interacAnswer} onChange={(e) => setInteracAnswer(e.target.value)} placeholder="Réponse" className="h-8 text-xs" />
                   </div>
                 )}
-              </div>
-            )}
-          </div>
+              </Section>
 
-          {/* ─── RIGHT: Method, Schedule, Banking ─── */}
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">3. Méthode de paiement</Label>
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(METHOD_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+              <Section title="📧 Notification employé" accent="text-emerald-300">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div className="text-xs">Envoyer l'avis par courriel</div>
+                  <Checkbox checked={sendNotificationNow} onCheckedChange={(v) => setSendNotificationNow(!!v)} />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div className="text-xs">Joindre le talon (PDF)</div>
+                  <Checkbox checked={attachPaystub} onCheckedChange={(v) => setAttachPaystub(!!v)} />
+                </label>
+                <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} placeholder="Objet personnalisé (optionnel)" className="h-8 text-xs" />
+              </Section>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">4. Date programmée</Label>
-                <Input type="date" value={scheduled} onChange={(e) => setScheduled(e.target.value)} className="mt-1.5" />
-              </div>
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">5. Statut initial</Label>
-                <Select value={initialStatus} onValueChange={setInitialStatus}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Brouillon</SelectItem>
-                    <SelectItem value="scheduled">Programmé</SelectItem>
-                    <SelectItem value="approved">Approuvé</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="rounded-md border border-border p-2.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Approbation requise</Label>
-                <Checkbox checked={requiresApproval} onCheckedChange={(v) => setRequiresApproval(!!v)} />
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Activé automatiquement si le montant net dépasse 5 000 $.
-              </p>
-            </div>
-
-            <div className="rounded-md border border-border p-2.5 space-y-2">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Informations bancaires (optionnel)</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Banque destinataire" className="h-8 text-xs" />
-                <Input value={accountLast4} onChange={(e) => setAccountLast4(e.target.value)} placeholder="Compte (4 derniers)" maxLength={4} className="h-8 text-xs" />
-                <Input value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="Référence bancaire" className="h-8 text-xs" />
-                <Input value={txnId} onChange={(e) => setTxnId(e.target.value)} placeholder="ID transaction" className="h-8 text-xs" />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Notes internes</Label>
-              <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} className="mt-1.5 text-xs" placeholder="Visible uniquement par l'équipe interne…" />
-            </div>
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Note pour l'employé</Label>
-              <Textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} rows={2} className="mt-1.5 text-xs" placeholder="Affichée dans le portail employé…" />
+              <Section title="📝 Notes" accent="text-slate-300">
+                <div>
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Notes internes (équipe seulement)</Label>
+                  <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} className="mt-1 text-xs" />
+                </div>
+                <div>
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Note visible employé</Label>
+                  <Textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} rows={2} className="mt-1 text-xs" />
+                </div>
+              </Section>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="border-t border-border pt-3 mt-2">
-          <div className="flex-1 text-xs text-muted-foreground">
+        {/* Footer */}
+        <div className="border-t border-border bg-card px-6 py-3 flex items-center justify-between gap-3">
+          <div className="flex-1 text-xs">
             {selectedEntry ? (
-              <>Net à verser : <span className="font-bold text-emerald-400">{fmtMoney(selectedEntry.net_pay)}</span> · {METHOD_LABEL[method]}</>
-            ) : "Sélectionnez un employé et un talon pour continuer"}
+              <div className="flex items-center gap-3">
+                <span className="text-muted-foreground">Net à verser:</span>
+                <span className="font-bold text-emerald-400 text-base">{fmtMoney(selectedEntry.net_pay)}</span>
+                <span className="text-muted-foreground">·</span>
+                <span>{METHOD_LABEL[method]}</span>
+                <span className="text-muted-foreground">·</span>
+                <Badge variant="outline" className="text-[10px]">{STATUS_META[initialStatus]?.label || initialStatus}</Badge>
+                {requiresApproval && <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/30">Approbation requise</Badge>}
+              </div>
+            ) : <span className="text-muted-foreground">Sélectionnez un employé et un talon pour continuer</span>}
           </div>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Annuler</Button>
-          <Button disabled={!entryId || submitting} onClick={handleSubmit}>
-            {submitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <DollarSign className="w-4 h-4 mr-1.5" />}
+          <Button disabled={!entryId || submitting} onClick={handleSubmit} size="lg" className="bg-violet-600 hover:bg-violet-700">
+            {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
             Créer le paiement
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
+
 
 
 function PaymentDetailDrawer({ paymentId, onClose, onAction }: any) {
