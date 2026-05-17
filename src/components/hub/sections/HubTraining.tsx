@@ -4,7 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, GraduationCap, PlayCircle, FileText, Award, CheckCircle2, X, BookOpen, Lock } from "lucide-react";
+import { Loader2, GraduationCap, PlayCircle, FileText, Award, CheckCircle2, X, BookOpen, Lock, Trophy, Medal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -80,6 +80,16 @@ export default function HubTraining({ search = "" }: { search?: string }) {
         .order("issued_at", { ascending: false });
       return data || [];
     },
+  });
+
+  const { data: leaderboard } = useQuery({
+    queryKey: ["hub-training-leaderboard"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_training_leaderboard", { _limit: 20 });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+    staleTime: 60_000,
   });
 
   const markComplete = useMutation({
@@ -168,6 +178,7 @@ export default function HubTraining({ search = "" }: { search?: string }) {
         <TabsList>
           <TabsTrigger value="catalog">Catalogue</TabsTrigger>
           <TabsTrigger value="certs">Mes certificats {certificates?.length ? `(${certificates.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="leaderboard"><Trophy className="h-3.5 w-3.5 mr-1" />Classement</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="mt-4">
@@ -239,6 +250,49 @@ export default function HubTraining({ search = "" }: { search?: string }) {
                   <div className="text-[11px] text-muted-foreground">Émis le {new Date(c.issued_at).toLocaleDateString("fr-CA")}</div>
                 </div>
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="leaderboard" className="mt-4">
+          {!leaderboard?.length ? (
+            <div className="text-center py-16">
+              <Trophy className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Aucun score enregistré pour l'instant. Soyez le premier !</p>
+            </div>
+          ) : (
+            <div className="max-w-2xl rounded-xl border border-border bg-card overflow-hidden">
+              <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/40">
+                <div className="col-span-1">#</div>
+                <div className="col-span-5">Agent</div>
+                <div className="col-span-2 text-center">Complétées</div>
+                <div className="col-span-2 text-center">Certificats</div>
+                <div className="col-span-2 text-right">Score moy.</div>
+              </div>
+              {leaderboard.map((row: any, idx: number) => {
+                const isMe = row.user_id === userId;
+                const medal = idx === 0 ? "text-yellow-500" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-700" : "";
+                return (
+                  <div
+                    key={row.user_id}
+                    className={cn(
+                      "grid grid-cols-12 items-center px-4 py-2.5 text-sm border-b border-border/60 last:border-0",
+                      isMe && "bg-violet-500/10"
+                    )}
+                  >
+                    <div className="col-span-1 flex items-center">
+                      {idx < 3 ? <Medal className={cn("h-4 w-4", medal)} /> : <span className="text-muted-foreground text-xs">{idx + 1}</span>}
+                    </div>
+                    <div className="col-span-5 font-medium truncate">
+                      {row.display_name}
+                      {isMe && <span className="ml-1.5 text-[10px] text-violet-600 font-semibold">(vous)</span>}
+                    </div>
+                    <div className="col-span-2 text-center text-muted-foreground">{row.completed_count}</div>
+                    <div className="col-span-2 text-center text-muted-foreground">{row.certificate_count}</div>
+                    <div className="col-span-2 text-right font-semibold">{row.avg_score}%</div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>
