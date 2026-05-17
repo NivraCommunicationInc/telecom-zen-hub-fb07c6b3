@@ -153,13 +153,14 @@ export default function HrPayrollPage2() {
 
   // Payable commissions: once approved, Field commissions can be paid at any payroll run.
   const { data: periodCommissions } = useQuery({
-    queryKey: ["hr-payroll2-commissions", cutoff.toISOString()],
+    queryKey: ["hr-payroll2-commissions"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("field_commissions")
-        .select("id, agent_id, amount, description, commission_type, earned_at, order_id, orders:order_id(order_number)")
+        .select("id, agent_id, amount, description, commission_type, earned_at, order_id")
         .eq("status", "approved")
         .order("earned_at", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
   });
@@ -447,7 +448,7 @@ export default function HrPayrollPage2() {
                       <div className="text-xs text-muted-foreground">{e.profile?.agent_number ?? ""}</div>
                     </TableCell>
                     <TableCell>{fmtMoney(e.total_gross)}</TableCell>
-                    <TableCell className="text-destructive">{fmtMoney(e.total_deductions)}</TableCell>
+                    <TableCell className="text-destructive">{fmtMoney(e.deductions_total)}</TableCell>
                     <TableCell className="font-semibold text-emerald-700">{fmtMoney(e.net_pay)}</TableCell>
                     <TableCell>
                       {e.paystub_pdf_url ? (
@@ -617,7 +618,7 @@ function EmployeeCard({
                         />
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">
-                            {c.orders?.order_number ? `Cmd #${c.orders.order_number}` : "Commission"}
+                            {c.order_id ? `Commande ${String(c.order_id).slice(0, 8)}` : "Commission"}
                             {c.description ? <span className="text-muted-foreground"> — {c.description}</span> : null}
                           </div>
                           <div className="text-xs text-muted-foreground">{shortDate(c.earned_at)}</div>
