@@ -396,10 +396,11 @@ Deno.serve(async (req) => {
           quebec_claim_amount: Number(b.settings.quebec_claim_amount ?? QC_BPA_DEFAULT),
           disability_insurance_rate: Number(b.settings.disability_insurance_rate ?? DISABILITY_RATE_DEFAULT),
         };
-        const taxableGross = b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments;
+        const bonus = Number(body.bonus_overrides?.[empId] || 0);
+        const taxableGross = b.regularPay + b.overtimePay + b.commissionGross + b.taxableAdjustments + bonus;
         const totalGrossAgent = round2(taxableGross + b.nonTaxableAdjustments);
         const ded = await calculateDeductions(taxableGross, eff, fedBrackets, qcBrackets);
-        employees.push({ employee_id: empId, gross: totalGrossAgent, ...ded, net_pay: round2(totalGrossAgent - ded.total_deductions) });
+        employees.push({ employee_id: empId, gross: totalGrossAgent, bonus: round2(bonus), ...ded, net_pay: round2(totalGrossAgent - ded.total_deductions) });
       }
       const totalGross = round2(employees.reduce((s, e: any) => s + Number(e.gross || 0), 0));
       const totalDed = round2(employees.reduce((s, e: any) => s + Number(e.total_deductions || 0), 0));
