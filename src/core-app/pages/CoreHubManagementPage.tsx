@@ -368,8 +368,21 @@ function PostsAdmin({ section, sectionLabel }: { section: string; sectionLabel: 
   );
 }
 
+type TrainingQuizDraft = { question: string; options: string[]; answer: number };
+
+function normalizeTrainingQuiz(existing: any): TrainingQuizDraft[] {
+  const raw = existing?.rich_content?.quiz;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((q: any) => ({
+    question: typeof q?.question === "string" ? q.question : "",
+    options: Array.isArray(q?.options) ? [...q.options, "", "", "", ""].slice(0, 4) : ["", "", "", ""],
+    answer: Number.isInteger(q?.answer) ? q.answer : 0,
+  }));
+}
+
 function PostForm({ section, existing, onClose }: { section: string; existing: any | null; onClose: () => void }) {
   const isEdit = !!existing;
+  const isTraining = section === "training";
   const [title, setTitle] = useState(existing?.title ?? "");
   const [content, setContent] = useState(existing?.content ?? "");
   const [category, setCategory] = useState(existing?.category ?? "");
@@ -391,6 +404,7 @@ function PostForm({ section, existing, onClose }: { section: string; existing: a
   const [expiresAt, setExpiresAt] = useState<string>(existing?.expires_at?.slice(0, 16) ?? "");
   const [pinned, setPinned] = useState<boolean>(existing?.is_pinned ?? false);
   const [featured, setFeatured] = useState<boolean>(existing?.is_featured ?? false);
+  const [quiz, setQuiz] = useState<TrainingQuizDraft[]>(normalizeTrainingQuiz(existing));
   const [uploading, setUploading] = useState(false);
 
   const handleFiles = async (files: FileList | null, target: "media" | "docs" | "videos") => {
@@ -423,6 +437,14 @@ function PostForm({ section, existing, onClose }: { section: string; existing: a
         published_at: (publishNow || status === "published") ? new Date().toISOString()
           : status === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
       };
+      if (isTraining) {
+        payload.rich_content = {
+          ...(existing?.rich_content && typeof existing.rich_content === "object" ? existing.rich_content : {}),
+          quiz: quiz
+            .map((q) => ({ question: q.question.trim(), options: q.options.map((o) => o.trim()), answer: q.answer }))
+            .filter((q) => q.question && q.options.filter(Boolean).length >= 2),
+        };
+      }
       if (isEdit) {
         const { error } = await supabase.from("hub_posts").update(payload).eq("id", existing.id);
         if (error) throw error;
