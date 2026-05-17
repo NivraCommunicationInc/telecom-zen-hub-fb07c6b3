@@ -233,16 +233,18 @@ Deno.serve(async (req) => {
     // 2. Approved commissions are payable immediately (for commission/hourly_commission types)
     const { data: approvedRaw, error: cmErr } = await supabase
       .from("field_commissions")
-      .select("id, agent_id, amount, commission_type")
+      .select("id, agent_id, amount, commission_type, description, earned_at, order_id")
       .eq("status", "approved");
     if (cmErr) throw cmErr;
     const approved = (approvedRaw ?? []).filter((c: any) => !excludedCommissionIds.has(c.id));
 
-    const commByAgent = new Map<string, { ids: string[]; gross: number }>();
+    type CommLine = { id: string; amount: number; description: string | null; earned_at: string | null; order_id: string | null; commission_type: string | null };
+    const commByAgent = new Map<string, { ids: string[]; gross: number; lines: CommLine[] }>();
     for (const c of approved ?? []) {
-      const entry = commByAgent.get(c.agent_id) || { ids: [], gross: 0 };
+      const entry = commByAgent.get(c.agent_id) || { ids: [], gross: 0, lines: [] };
       entry.ids.push(c.id);
       entry.gross += Number(c.amount || 0);
+      entry.lines.push({ id: c.id, amount: Number(c.amount || 0), description: c.description, earned_at: c.earned_at, order_id: c.order_id, commission_type: c.commission_type });
       commByAgent.set(c.agent_id, entry);
     }
 
