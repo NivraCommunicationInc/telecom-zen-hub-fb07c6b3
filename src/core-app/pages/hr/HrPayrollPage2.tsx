@@ -261,10 +261,14 @@ export default function HrPayrollPage2() {
     return { hourly, overtime, commTotal, adjTotal, gross, ded, net, ts, adj, hWorked, otWorked, commissions: allComm, includedComm, commCount: allComm.length };
   }
 
-  // Aggregate totals
+  // Aggregate totals — based on SELECTED employees (fallback: all visible)
+  const selectionList = useMemo(
+    () => filteredEmployees.filter((e) => selectedEmps.size === 0 || selectedEmps.has(e.employee_id)),
+    [filteredEmployees, selectedEmps],
+  );
   const totals = useMemo(() => {
     const t = { gross: 0, ded: 0, net: 0, count: 0, bonus: 0 };
-    for (const e of filteredEmployees) {
+    for (const e of selectionList) {
       const s = computeSummary(e);
       t.gross += s.gross;
       t.ded += s.ded;
@@ -272,13 +276,22 @@ export default function HrPayrollPage2() {
       t.count += 1;
     }
     return t;
-  }, [filteredEmployees, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
+  }, [selectionList, periodCommissions, timesheets, adjustments, excludedComm, localHours]);
+
+  function buildRunBody(extra: Record<string, unknown> = {}) {
+    const body: Record<string, unknown> = {
+      excluded_commission_ids: Array.from(excludedComm),
+      ...extra,
+    };
+    if (selectedEmps.size > 0) body.employee_ids = Array.from(selectedEmps);
+    return body;
+  }
 
   // Mutations
   const previewMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("process-payroll", {
-        body: { dry_run: true, excluded_commission_ids: Array.from(excludedComm) },
+        body: buildRunBody({ dry_run: true }),
       });
       if (error) throw error;
       return data;
@@ -289,8 +302,11 @@ export default function HrPayrollPage2() {
 
   const runMutation = useMutation({
     mutationFn: async () => {
+      if (selectedEmps.size === 0) {
+        throw new Error("Sélectionnez au moins un employé à payer.");
+      }
       const { data, error } = await supabase.functions.invoke("process-payroll", {
-        body: { excluded_commission_ids: Array.from(excludedComm) },
+        body: buildRunBody(),
       });
       if (error) throw error;
       return data;
@@ -298,11 +314,33 @@ export default function HrPayrollPage2() {
     onSuccess: (d: any) => {
       toast.success(`Paie traitée — ${d.employee_count} employé(s), net ${fmtMoney(d.total_net)}`);
       setPreview(null);
+      setSelectedEmps(new Set());
       qc.invalidateQueries({ queryKey: ["hr-payroll2-runs"] });
       qc.invalidateQueries({ queryKey: ["hr-payroll2-commissions"] });
       qc.invalidateQueries({ queryKey: ["hr-payroll2-adjustments"] });
     },
     onError: (e: any) => toast.error(e.message || "Erreur de traitement"),
+  });
+
+  // Paystub preview (per employee — opens generated PDF in new tab)
+  const stubPreviewMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      setPreviewingStub(employeeId);
+      const { data, error } = await supabase.functions.invoke("process-payroll", {
+        body: { dry_run: true, preview_employee_id: employeeId, excluded_commission_ids: Array.from(excludedComm) },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      setPreviewingStub(null);
+      if (!d?.pdf_base64) { toast.error("Aperçu indisponible"); return; }
+      const bytes = Uint8Array.from(atob(d.pdf_base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e: any) => { setPreviewingStub(null); toast.error(e.message || "Erreur"); },
   });
 
   return (
