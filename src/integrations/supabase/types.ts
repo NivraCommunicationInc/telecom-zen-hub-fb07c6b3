@@ -17897,12 +17897,18 @@ export type Database = {
       }
       service_incidents: {
         Row: {
+          client_account_id: string | null
+          client_description: string | null
+          client_user_id: string | null
           created_at: string
           created_by: string | null
           duration_minutes: number | null
           id: string
           incident_message: string | null
           incident_title: string
+          incident_type: string | null
+          related_ticket_id: string | null
+          reported_by_client: boolean
           resolved_at: string | null
           resolved_by: string | null
           service_display_name: string | null
@@ -17912,12 +17918,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          client_account_id?: string | null
+          client_description?: string | null
+          client_user_id?: string | null
           created_at?: string
           created_by?: string | null
           duration_minutes?: number | null
           id?: string
           incident_message?: string | null
           incident_title: string
+          incident_type?: string | null
+          related_ticket_id?: string | null
+          reported_by_client?: boolean
           resolved_at?: string | null
           resolved_by?: string | null
           service_display_name?: string | null
@@ -17927,12 +17939,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          client_account_id?: string | null
+          client_description?: string | null
+          client_user_id?: string | null
           created_at?: string
           created_by?: string | null
           duration_minutes?: number | null
           id?: string
           incident_message?: string | null
           incident_title?: string
+          incident_type?: string | null
+          related_ticket_id?: string | null
+          reported_by_client?: boolean
           resolved_at?: string | null
           resolved_by?: string | null
           service_display_name?: string | null
