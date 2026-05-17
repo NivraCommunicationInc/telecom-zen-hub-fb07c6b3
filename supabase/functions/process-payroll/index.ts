@@ -494,10 +494,15 @@ Deno.serve(async (req) => {
       const pdfUrl = await uploadPaystubPdf(pdf, run.id, empId);
       if (pdfUrl) await supabase.from("payroll_entries").update({ paystub_pdf_url: pdfUrl, pdf_url: pdfUrl }).eq("id", entry.id);
 
-      // Flip commissions to paid
+      // Flip commissions to paid + record which run/entry paid them
       if (b.commissionIds.length) {
         await supabase.from("field_commissions")
-          .update({ status: "paid", paid_at: new Date().toISOString() })
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            paid_in_run_id: run.id,
+            paid_in_entry_id: entry.id,
+          })
           .in("id", b.commissionIds);
       }
       // Attach adjustments to this run
