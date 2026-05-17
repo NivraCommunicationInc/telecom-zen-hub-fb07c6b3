@@ -486,6 +486,7 @@ export default function FieldProfile() {
         )}
       </section>
 
+
       {/* SECTION 4 — Pay */}
       <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Paie</h2>
@@ -500,6 +501,10 @@ export default function FieldProfile() {
           </div>
         </div>
       </section>
+
+      {/* SECTION 4b — Ma Paie (paystubs from payroll_entries) */}
+      <FieldMyPaySection />
+
 
       {/* SECTION 5 — Actions */}
       <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 space-y-2">
