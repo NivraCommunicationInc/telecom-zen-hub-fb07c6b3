@@ -44,6 +44,7 @@ import {
   PlayCircle,
   Loader2,
 } from "lucide-react";
+import TechnicianLocationShare from "@/core-app/components/TechnicianLocationShare";
 
 /* ─── Helpers ─── */
 const todayBoundsIso = () => {
