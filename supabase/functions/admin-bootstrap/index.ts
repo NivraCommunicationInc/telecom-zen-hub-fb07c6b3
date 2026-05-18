@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 
     // RECOVER ACTION - Reset existing admin credentials
     if (action === "recover") {
-      console.log(`[admin-bootstrap] RECOVER action for email: ${body.email}`);
+      console.log(`[admin-bootstrap] RECOVER action received`);
       
       if (!body.email || !body.password || !body.pin) {
         return new Response(
