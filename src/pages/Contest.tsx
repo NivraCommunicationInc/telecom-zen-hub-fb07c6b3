@@ -29,7 +29,8 @@ const Contest = () => {
         description="Participez à notre tirage de 500$ cash! Devenez client Nivra et courez la chance de gagner."
       />
       
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <Header />
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 pt-16">
         {/* Hero Section */}
         <section className="relative py-16 md:py-24 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5" />
