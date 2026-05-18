@@ -291,6 +291,7 @@ const ClientNotificationPreferences = ({ userId }: ClientNotificationPreferences
         )}
       </CardContent>
     </Card>
+    </>
   );
 };
 
