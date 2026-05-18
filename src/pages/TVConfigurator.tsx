@@ -267,7 +267,7 @@ const TVConfigurator = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* ═══════════════════════════════════════════════════════ */}
+      <Header />
       {/* HERO — Full-width immersive header */}
       {/* ═══════════════════════════════════════════════════════ */}
       <section className="bg-[#003366] relative overflow-hidden">
