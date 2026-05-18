@@ -30,15 +30,32 @@ export default function FieldPerformance() {
         title="Pilotage des résultats"
         description="Lecture claire des ventes, conversion et valeur commerciale."
         actions={
-          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-card">
-            {([["week", "7 jours"], ["month", "Ce mois"], ["all", "Historique"]] as [Period, string][]).map(([value, label]) => (
-              <button key={value} onClick={() => setPeriod(value)}
-                className={cn("rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                  period === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                )}>
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                const rows = (data?.dailyBreakdown || []).map((d: any) => ({
+                  date: d.label,
+                  ventes: d.count,
+                }));
+                exportToCSV(rows, "field_performance", [
+                  { key: "date", label: "Date" },
+                  { key: "ventes", label: "Ventes" },
+                ]);
+              }}
+              className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+            >
+              <Download className="h-3.5 w-3.5" /> Exporter rapport CSV
+            </button>
+            <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-card">
+              {([["week", "7 jours"], ["month", "Ce mois"], ["all", "Historique"]] as [Period, string][]).map(([value, label]) => (
+                <button key={value} onClick={() => setPeriod(value)}
+                  className={cn("rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                    period === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
