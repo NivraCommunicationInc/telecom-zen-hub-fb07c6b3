@@ -6,8 +6,8 @@
  * into individual billable items (base internet + TV pack).
  * 
  * Each combo maps to exactly:
- *   - 1 base internet plan (from stripe_plan_mapping, category: internet)
- *   - 1 TV pack (from stripe_plan_mapping, category: tv_pack)
+ *   - 1 base internet plan (from plan_mapping, category: internet)
+ *   - 1 TV pack (from plan_mapping, category: tv_pack)
  * 
  * The sum of individual item prices must match the combo's advertised price.
  */
@@ -25,7 +25,7 @@ export interface ComboDecomposition {
 /**
  * Canonical combo → individual items mapping.
  * 
- * Pricing reference (from stripe_plan_mapping):
+ * Pricing reference (from plan_mapping):
  *   internet_100 = $45, internet_500 = $50, internet_giga = $60
  *   tvpack_famille = $44.99, tvpack_sports = $49.99, etc.
  * 
