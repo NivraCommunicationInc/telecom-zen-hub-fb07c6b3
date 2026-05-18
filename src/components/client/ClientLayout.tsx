@@ -325,6 +325,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                         style={active ? { background: PURPLE } : undefined}
                       >
                         {group.label}
+                        {group.label === "Mes points" && typeof pointsBalance === "number" && (
+                          <Badge className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0 ml-1.5 min-w-[18px]">
+                            {pointsBalance}
+                          </Badge>
+                        )}
                       </Link>
                     )}
 
