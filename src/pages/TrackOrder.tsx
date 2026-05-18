@@ -702,6 +702,8 @@ const TrackOrder = () => {
                 </CardContent>
               </Card>
 
+              <ClientOrderEta orderNumber={orderData.order_number} isFr={isFr} />
+
               {/* Help Card */}
               <Card className="border-0 shadow-lg shadow-black/5 bg-gradient-to-br from-accent/5 via-background to-accent/5">
                 <CardContent className="p-6">
