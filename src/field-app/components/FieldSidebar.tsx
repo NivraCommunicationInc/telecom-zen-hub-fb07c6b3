@@ -28,6 +28,7 @@ const salesNav = [
 ];
 
 const prospectNav = [
+  { label: "CRM Prospects", href: `${FIELD_BASE}/crm`, icon: PhoneCall },
   { label: "Leads", href: `${FIELD_BASE}/leads`, icon: UserPlus, badgeKey: "leads" as const },
   { label: "Territoire & rues", href: `${FIELD_BASE}/territory`, icon: Map },
   { label: "Clients", href: `${FIELD_BASE}/clients`, icon: Users, badgeKey: "clients" as const },
