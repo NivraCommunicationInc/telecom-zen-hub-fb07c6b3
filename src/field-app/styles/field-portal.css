@@ -14,19 +14,20 @@
  */
 
 [data-field-portal] {
-  --field-bg: 244 51% 12%;
-  --field-bg-elevated: 244 48% 16%;
-  --field-card: 247 35% 20%;
-  --field-card-hover: 247 35% 24%;
-  --field-border: 258 90% 66%;
-  --field-border-subtle: 247 25% 30%;
-  --field-accent: 258 90% 58%;
-  --field-accent-glow: 258 90% 70%;
-  --field-accent-soft: 258 90% 58%;
-  --field-text: 0 0% 100%;
-  --field-text-muted: 215 20% 78%;
-  --field-text-dim: 215 15% 60%;
-  --field-success: 142 71% 50%;
+  /* Tailwind gray-900/800/700 + violet-600 palette */
+  --field-bg: 220 39% 11%;             /* gray-900 #111827 */
+  --field-bg-elevated: 215 28% 17%;    /* gray-800 #1f2937 */
+  --field-card: 215 28% 17%;           /* gray-800 */
+  --field-card-hover: 217 19% 22%;
+  --field-border: 217 19% 35%;         /* gray-700-ish */
+  --field-border-subtle: 217 19% 27%;  /* gray-700 #374151 */
+  --field-accent: 262 83% 58%;         /* violet-600 #7c3aed */
+  --field-accent-glow: 258 90% 66%;    /* violet-500 */
+  --field-accent-soft: 262 83% 58%;
+  --field-text: 210 20% 98%;           /* gray-50 */
+  --field-text-muted: 218 11% 75%;     /* gray-300 */
+  --field-text-dim: 220 9% 55%;        /* gray-500 */
+  --field-success: 158 64% 52%;        /* emerald-400 */
   --field-warning: 38 92% 56%;
   --field-danger: 0 84% 60%;
   --field-info: 199 89% 60%;
