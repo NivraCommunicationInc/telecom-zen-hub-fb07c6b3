@@ -4603,57 +4603,111 @@ export type Database = {
       }
       crm_contacts: {
         Row: {
+          address: string | null
+          assigned_to: string | null
+          birthday: string | null
+          call_attempts: number | null
+          call_notes: string | null
+          call_status: string | null
+          callback_scheduled_at: string | null
+          city: string | null
           converted_at: string | null
           converted_to_user_id: string | null
           created_at: string
           email: string | null
+          external_reference: string | null
           first_name: string | null
           full_name: string
           id: string
           import_batch_id: string | null
           imported_by: string | null
+          is_locked: boolean | null
+          last_called_at: string | null
+          last_called_by: string | null
           last_name: string | null
+          locked_at: string | null
+          locked_by: string | null
           notes: string | null
           phone: string | null
+          postal_code: string | null
+          priority: number | null
           source: string
+          square_customer_id: string | null
           status: string
           tags: string[] | null
+          territory: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          assigned_to?: string | null
+          birthday?: string | null
+          call_attempts?: number | null
+          call_notes?: string | null
+          call_status?: string | null
+          callback_scheduled_at?: string | null
+          city?: string | null
           converted_at?: string | null
           converted_to_user_id?: string | null
           created_at?: string
           email?: string | null
+          external_reference?: string | null
           first_name?: string | null
           full_name: string
           id?: string
           import_batch_id?: string | null
           imported_by?: string | null
+          is_locked?: boolean | null
+          last_called_at?: string | null
+          last_called_by?: string | null
           last_name?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           notes?: string | null
           phone?: string | null
+          postal_code?: string | null
+          priority?: number | null
           source?: string
+          square_customer_id?: string | null
           status?: string
           tags?: string[] | null
+          territory?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          assigned_to?: string | null
+          birthday?: string | null
+          call_attempts?: number | null
+          call_notes?: string | null
+          call_status?: string | null
+          callback_scheduled_at?: string | null
+          city?: string | null
           converted_at?: string | null
           converted_to_user_id?: string | null
           created_at?: string
           email?: string | null
+          external_reference?: string | null
           first_name?: string | null
           full_name?: string
           id?: string
           import_batch_id?: string | null
           imported_by?: string | null
+          is_locked?: boolean | null
+          last_called_at?: string | null
+          last_called_by?: string | null
           last_name?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           notes?: string | null
           phone?: string | null
+          postal_code?: string | null
+          priority?: number | null
           source?: string
+          square_customer_id?: string | null
           status?: string
           tags?: string[] | null
+          territory?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -23648,6 +23702,10 @@ export type Database = {
           status: string
         }[]
       }
+      lock_crm_contact: {
+        Args: { p_agent_id: string; p_contact_id: string }
+        Returns: Json
+      }
       log_pdf_generation: {
         Args: {
           p_customer_email?: string
@@ -24070,6 +24128,10 @@ export type Database = {
           p_reason?: string
         }
         Returns: Json
+      }
+      unlock_crm_contact: {
+        Args: { p_agent_id: string; p_contact_id: string }
+        Returns: undefined
       }
       update_supplier_account: {
         Args: {

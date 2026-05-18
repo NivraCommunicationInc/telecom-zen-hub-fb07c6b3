@@ -7,7 +7,50 @@ interface CsvClient {
   last_name?: string;
   email: string | null;
   phone: string | null;
+  address?: string | null;
+  city?: string | null;
+  postal_code?: string | null;
+  birthday?: string | null;
+  square_customer_id?: string | null;
+  external_reference?: string | null;
 }
+
+// Fake/placeholder email fragments to coerce to NULL
+const FAKE_EMAIL_FRAGMENTS = ["noemail@", "x@gmail", "kersten@master", "nizarabd@hotmail"];
+// Fake/placeholder phones to skip entirely
+const FAKE_PHONES = new Set(["1111111111", "0000000000"]);
+// Names that mean "no real contact" — skip the row
+const SKIP_NAMES_LC = new Set(["pix", "x", "xxxxxx", "xxx", "xxxx", "xxxxx"]);
+
+const stripAccents = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
+const capitalize = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  const t = s.trim().toLowerCase();
+  if (!t) return null;
+  return t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+};
+
+const parseBirthday = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  const t = s.trim();
+  if (!t) return null;
+  // Accept YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+  if (us) {
+    const m = us[1].padStart(2, "0");
+    const d = us[2].padStart(2, "0");
+    return `${us[3]}-${m}-${d}`;
+  }
+  const d2 = new Date(t);
+  if (!isNaN(d2.getTime())) return d2.toISOString().slice(0, 10);
+  return null;
+};
 
 Deno.serve(async (req) => {
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -78,9 +121,14 @@ Deno.serve(async (req) => {
       if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
       return d.length === 10 ? d : null;
     };
-    const cleanEmail = (e: string | null): string | null => {
+    const cleanEmail = (e: string | null | undefined): string | null => {
       if (!e) return null;
       const t = e.trim().toLowerCase();
+      if (!t) return null;
+      // Coerce known fake emails to NULL
+      for (const frag of FAKE_EMAIL_FRAGMENTS) {
+        if (t.includes(frag)) return null;
+      }
       return /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/.test(t) ? t : null;
     };
 
@@ -91,18 +139,46 @@ Deno.serve(async (req) => {
     let imported = 0, duplicates = 0, invalid = 0, failed = 0;
     const toInsert: Array<Record<string, unknown>> = [];
 
+    // In-batch dedup by (phone, last_name) per spec
+    const seenPhoneLast = new Set<string>();
+
     for (const client of clients) {
-      const name = (client.name || [client.first_name, client.last_name].filter(Boolean).join(" ")).trim();
+      const firstNameClean = capitalize(client.first_name) || capitalize((client.name || "").split(" ")[0]);
+      const lastNameClean = capitalize(client.last_name) || capitalize((client.name || "").split(" ").slice(1).join(" "));
+      const name = (client.name || [firstNameClean, lastNameClean].filter(Boolean).join(" ")).trim();
       const email = cleanEmail(client.email);
-      const phone = cleanPhone(client.phone);
+      const rawPhone = cleanPhone(client.phone);
+      const phone = rawPhone && !FAKE_PHONES.has(rawPhone) ? rawPhone : null;
+
+      // SKIP rules: PIX / x / xxxxxx / empty names
+      const fnLc = (firstNameClean || "").toLowerCase().trim();
+      const lnLc = (lastNameClean || "").toLowerCase().trim();
+      if (
+        (SKIP_NAMES_LC.has(fnLc) && SKIP_NAMES_LC.has(lnLc)) ||
+        SKIP_NAMES_LC.has(fnLc) ||
+        (!fnLc && !lnLc)
+      ) {
+        results.push({ name: name || "—", status: "invalid", reason: "Nom placeholder (PIX/x/vide)", rejection_code: "placeholder_name" });
+        invalid++;
+        continue;
+      }
 
       if (!email && !phone) { results.push({ name: name || "—", status: "invalid", reason: "Aucun contact valide", rejection_code: "invalid_format" }); invalid++; continue; }
       if (!name || name.length < 2) { results.push({ name: name || "—", status: "invalid", reason: "Nom invalide", rejection_code: "invalid_format" }); invalid++; continue; }
 
+      // Dedup: same email OR (same phone AND same last_name)
+      const phoneLastKey = phone && lnLc ? `${phone}|${lnLc}` : null;
       const dupE = email && existingEmails.has(email);
+      const dupPL = phoneLastKey && seenPhoneLast.has(phoneLastKey);
+      // Also dedup against any existing phone (legacy behaviour kept as soft check)
       const dupP = phone && existingPhones.has(phone);
-      if (dupE || dupP) {
-        results.push({ name, status: "duplicate", reason: dupE ? `Courriel existant: ${email}` : `Téléphone existant: ${phone}`, rejection_code: dupE ? "duplicate_email" : "duplicate_phone" });
+      if (dupE || dupPL || dupP) {
+        results.push({
+          name,
+          status: "duplicate",
+          reason: dupE ? `Courriel existant: ${email}` : (dupPL ? `Téléphone + nom déjà importés` : `Téléphone existant: ${phone}`),
+          rejection_code: dupE ? "duplicate_email" : "duplicate_phone",
+        });
         duplicates++;
         continue;
       }
@@ -110,15 +186,24 @@ Deno.serve(async (req) => {
       // Track for in-batch dedup
       if (email) existingEmails.add(email);
       if (phone) existingPhones.add(phone);
+      if (phoneLastKey) seenPhoneLast.add(phoneLastKey);
 
       toInsert.push({
         full_name: name,
-        first_name: client.first_name || name.split(" ")[0],
-        last_name: client.last_name || name.split(" ").slice(1).join(" ") || null,
+        first_name: firstNameClean,
+        last_name: lastNameClean,
         email,
         phone,
-        source: "csv_import",
+        address: stripAccents(client.address) || null,
+        city: stripAccents(client.city) || null,
+        postal_code: client.postal_code ? client.postal_code.trim().toUpperCase() : null,
+        birthday: parseBirthday(client.birthday),
+        square_customer_id: client.square_customer_id?.trim() || null,
+        external_reference: client.external_reference?.trim() || null,
+        source: (client.square_customer_id || client.external_reference) ? "shopify_import" : "csv_import",
         status: "lead",
+        call_status: "not_called",
+        priority: 2,
         imported_by: user.id,
         import_batch_id: batchId,
       });

@@ -19,6 +19,9 @@ interface ParsedRow {
   city?: string;
   province?: string;
   postal_code?: string;
+  birthday?: string;
+  square_customer_id?: string;
+  external_reference?: string;
   _valid: boolean;
   _reason?: string;
   _duplicate?: boolean;
@@ -80,6 +83,22 @@ const COLUMN_MAP: Record<string, string> = {
   "last_name": "last_name",
   "phone": "phone",
   "nom_famille": "last_name",
+  // Shopify / Square export aliases
+  "surname": "last_name",
+  "email address": "email",
+  "email_address": "email",
+  "street address 1": "address_line1",
+  "street_address_1": "address_line1",
+  "street address 2": "address_line2",
+  "street_address_2": "address_line2",
+  "birthday": "birthday",
+  "date of birth": "birthday",
+  "date_of_birth": "birthday",
+  "square customer id": "square_customer_id",
+  "square_customer_id": "square_customer_id",
+  "customer id": "square_customer_id",
+  "reference id": "external_reference",
+  "reference_id": "external_reference",
 };
 
 /**
@@ -251,6 +270,9 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
           city: r.city || undefined,
           province: r.province || undefined,
           postal_code: r.postal_code || undefined,
+          birthday: r.birthday || undefined,
+          square_customer_id: r.square_customer_id || undefined,
+          external_reference: r.external_reference || undefined,
           _valid: true,
           _duplicate: false,
         };
@@ -329,6 +351,12 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
         last_name: r.last_name,
         email: r.email,
         phone: r.phone,
+        address: [r.address_line1, r.address_line2].filter(Boolean).join(" ") || null,
+        city: r.city || null,
+        postal_code: r.postal_code || null,
+        birthday: r.birthday || null,
+        square_customer_id: r.square_customer_id || null,
+        external_reference: r.external_reference || null,
       }));
       setBatchInfo(`Lot ${Math.floor(i / BATCH) + 1} / ${batches}`);
 
