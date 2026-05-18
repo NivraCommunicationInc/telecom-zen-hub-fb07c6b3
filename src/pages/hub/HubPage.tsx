@@ -117,7 +117,7 @@ export default function HubPage() {
             {PORTALS.map((portal) => (
               <button
                 key={portal.id}
-                onClick={() => navigate(`/hub/login?portal=${portal.id}`)}
+                onClick={() => navigate(`/nivra-secure-hub-2617-internal/login?portal=${portal.id}`)}
                 className={cn(
                   "group relative text-left p-5 rounded-xl border transition-all duration-200",
                   "border-border bg-card hover:bg-secondary",
