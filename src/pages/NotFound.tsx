@@ -24,7 +24,8 @@ export default function NotFound() {
         path={location.pathname}
         noindex
       />
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Header />
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 pt-24">
         <div className="text-center space-y-5 max-w-lg">
           <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
             <SearchX className="w-8 h-8 text-muted-foreground" />
