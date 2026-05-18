@@ -313,6 +313,7 @@ const Contest = () => {
           </div>
         </section>
       </div>
+      <Footer />
     </>
   );
 };
