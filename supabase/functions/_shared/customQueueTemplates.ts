@@ -265,18 +265,26 @@ export interface RenderResult {
   subject: string;
 }
 
+export type EmailLang = "fr" | "en";
+
+/** Bilingual helper — returns the EN string when lang==='en', else FR. */
+const t = (fr: string, en: string, lang: EmailLang): string =>
+  lang === "en" ? en : fr;
+
 export function renderQueueTemplate(
   templateKey: string,
   vars: Record<string, unknown>,
+  lang: EmailLang = "fr",
 ): RenderResult | null {
+  const isEn = lang === "en";
   const v = vars || {};
   const clientName = String(
     v.client_name || v.first_name || v.CLIENT_FIRST_NAME || v.CLIENT_NAME || "Client",
   );
-  const greeting = `Bonjour ${clientName},`;
+  const greeting = isEn ? `Hello ${clientName},` : `Bonjour ${clientName},`;
   const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
   const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "N/A");
-  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "Non spécifié");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || (isEn ? "Not specified" : "Non spécifié"));
 
   switch (templateKey) {
     // ===================================================================
@@ -352,15 +360,15 @@ export function renderQueueTemplate(
     case "order_confirmation": {
       const cClientName = esc(v.client_name || v.first_name || "Client");
       const cOrderNum = esc(v.order_number || v.ORDER_NUMBER || "N/A");
-      const cServices = esc(v.services || "Voir détails de la commande");
-      const cEquipment = esc(v.equipment || "Aucun équipement");
+      const cServices = esc(v.services || t("Voir détails de la commande","See order details", lang));
+      const cEquipment = esc(v.equipment || t("Aucun équipement","No equipment", lang));
       const cDiscount = v.discount ? esc(String(v.discount)) : null;
       const cSubtotal = money(v.subtotal || 0);
       const cTps = money(v.tps || 0);
       const cTvq = money(v.tvq || 0);
       const cTotal = money(v.total || v.amount || 0);
-      const cPaymentStatus = esc(v.payment_status || "En attente de traitement");
-      const cAgentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const cPaymentStatus = esc(v.payment_status || t("En attente de traitement","Pending processing", lang));
+      const cAgentName = esc(v.agent_name || t("Votre conseiller Nivra","Your Nivra advisor", lang));
       const cAgentNumber = esc(v.agent_number || "N/A");
       const cAgentDisplay = v.agent_number
         ? `${cAgentName} — ${cAgentNumber}`
@@ -368,44 +376,45 @@ export function renderQueueTemplate(
       const cPaymentUrl = String(v.payment_url || v.payer_url || `${PORTAL_URL}/facturation`);
 
       const cRows: Array<[string, string]> = [
-        ["Numéro de commande", `#${cOrderNum}`],
-        ["Votre représentant", cAgentDisplay],
-        ["Forfaits", cServices],
-        ["Équipement", cEquipment],
+        [t("Numéro de commande","Order number", lang), `#${cOrderNum}`],
+        [t("Votre représentant","Your representative", lang), cAgentDisplay],
+        [t("Forfaits","Plans", lang), cServices],
+        [t("Équipement","Equipment", lang), cEquipment],
       ];
-      if (cDiscount) cRows.push(["Rabais appliqué", cDiscount]);
-      // Per-line discounts from billing_invoice_lines (line_type='discount').
-      // Each renders as a negative-amount row so the client sees every rabais.
+      if (cDiscount) cRows.push([t("Rabais appliqué","Discount applied", lang), cDiscount]);
       for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
         cRows.push(r);
       }
-      // Structured discount object (field-sales discount_data) — branded label.
       if (v.discount_data) {
-        cRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+        cRows.push([t("Rabais","Discount", lang), formatDiscountForContract(v.discount_data)]);
       }
       cRows.push(
-        ["Sous-total", cSubtotal],
+        [t("Sous-total","Subtotal", lang), cSubtotal],
         ["TPS (5%)", cTps],
         ["TVQ (9,975%)", cTvq],
         ["TOTAL", cTotal],
-        ["Statut paiement", cPaymentStatus],
+        [t("Statut paiement","Payment status", lang), cPaymentStatus],
       );
 
       return {
-        subject: `Confirmation de commande — Nivra Telecom`,
+        subject: t("Confirmation de commande — Nivra Telecom","Order Confirmation — Nivra Telecom", lang),
         html: shell({
-          preheader: "Votre commande Nivra a été enregistrée.",
-          badge: "COMMANDE REÇUE",
-          heroTitle: "Votre commande a été enregistrée",
-          heroSub: `Commande #${cOrderNum}`,
+          preheader: t("Votre commande Nivra a été enregistrée.","Your Nivra order has been registered.", lang),
+          badge: t("COMMANDE REÇUE","ORDER RECEIVED", lang),
+          heroTitle: t("Votre commande a été enregistrée","Your order has been registered", lang),
+          heroSub: `${t("Commande","Order", lang)} #${cOrderNum}`,
           icon: "check",
-          greeting: `Bonjour ${cClientName},`,
-          bodyText: `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
-          cardTitle: "Récapitulatif de votre commande",
+          greeting: t(`Bonjour ${cClientName},`, `Hello ${cClientName},`, lang),
+          bodyText: t(
+            `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
+            `Your order has been registered. Card payment will be processed by our team within 48 business hours. You will receive a confirmation as soon as the payment is completed.`,
+            lang,
+          ),
+          cardTitle: t("Récapitulatif de votre commande","Order summary", lang),
           cardRows: cRows,
           ctaPrimaryUrl: cPaymentUrl,
-          ctaPrimaryLabel: "Voir ma commande",
-          helpHtml: `Questions ? Contactez-nous à ${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: t("Voir ma commande","View my order", lang),
+          helpHtml: t(`Questions ? Contactez-nous à ${SUPPORT_EMAIL}`, `Questions? Contact us at ${SUPPORT_EMAIL}`, lang),
         }),
       };
     }
@@ -484,44 +493,43 @@ export function renderQueueTemplate(
     case "payment_confirmed":
     case "payment_receipt":
     case "payment_received": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours","In progress", lang));
       const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
-      const reference = esc(v.reference || v.payment_reference || "Non disponible");
+      const reference = esc(v.reference || v.payment_reference || t("Non disponible","Not available", lang));
       const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       const prRows: Array<[string, string]> = [
-        ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-        ["Facture", `#${invoiceNum}`],
+        [t("Commande","Order", lang), `#${String(orderNum).replace(/^#/, "")}`],
+        [t("Facture","Invoice", lang), `#${invoiceNum}`],
       ];
-      // Discount lines from billing_invoice_lines (each line_type='discount').
       for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
         prRows.push(r);
       }
       if (v.discount_data) {
-        prRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+        prRows.push([t("Rabais","Discount", lang), formatDiscountForContract(v.discount_data)]);
       }
-      if (v.subtotal !== undefined && v.subtotal !== null) prRows.push(["Sous-total HT", money(v.subtotal)]);
+      if (v.subtotal !== undefined && v.subtotal !== null) prRows.push([t("Sous-total HT","Subtotal (pre-tax)", lang), money(v.subtotal)]);
       if (v.tps !== undefined && v.tps !== null) prRows.push(["TPS (5%)", money(v.tps)]);
       if (v.tvq !== undefined && v.tvq !== null) prRows.push(["TVQ (9,975%)", money(v.tvq)]);
       prRows.push(
-        ["Montant payé", amount],
-        ["Méthode", String(method)],
-        ["Référence", String(reference)],
-        ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
+        [t("Montant payé","Amount paid", lang), amount],
+        [t("Méthode","Method", lang), String(method)],
+        [t("Référence","Reference", lang), String(reference)],
+        [t("Date","Date", lang), fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
       );
       return {
-        subject: `Paiement reçu — Merci`,
+        subject: t("Paiement reçu — Merci","Payment Received — Thank You", lang),
         html: shell({
-          preheader: `Votre paiement de ${amount} a été reçu.`,
-          badge: "PAIEMENT CONFIRMÉ",
-          heroTitle: "Paiement reçu — Merci",
+          preheader: t(`Votre paiement de ${amount} a été reçu.`, `Your payment of ${amount} has been received.`, lang),
+          badge: t("PAIEMENT CONFIRMÉ","PAYMENT CONFIRMED", lang),
+          heroTitle: t("Paiement reçu — Merci","Payment received — Thank you", lang),
           icon: "check",
           greeting,
-          bodyText: "Nous confirmons la réception de votre paiement.",
-          cardTitle: "Détails",
+          bodyText: t("Nous confirmons la réception de votre paiement.","We confirm receipt of your payment.", lang),
+          cardTitle: t("Détails","Details", lang),
           cardRows: prRows,
           ctaPrimaryUrl: invoiceUrl,
-          ctaPrimaryLabel: "Voir ma facture",
+          ctaPrimaryLabel: t("Voir ma facture","View my invoice", lang),
         }),
       };
     }
@@ -1135,26 +1143,26 @@ export function renderQueueTemplate(
     case "welcome_to_nivra":
     case "welcome_new_client":
     case "account_created": {
-      const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || t("Service Nivra","Nivra service", lang));
       const billingDate = fmtDate(v.billing_date || v.next_billing_date);
       return {
-        subject: `Bienvenue chez Nivra — Tout ce qu'il faut savoir`,
+        subject: t("Bienvenue chez Nivra — Tout ce qu'il faut savoir","Welcome to Nivra — Everything you need to know", lang),
         html: shell({
-          preheader: `Bienvenue chez Nivra Telecom.`,
-          badge: "BIENVENUE",
-          heroTitle: "Bienvenue chez Nivra Telecom",
-          heroSub: "Nous sommes ravis de vous avoir parmi nous.",
+          preheader: t("Bienvenue chez Nivra Telecom.","Welcome to Nivra Telecom.", lang),
+          badge: t("BIENVENUE","WELCOME", lang),
+          heroTitle: t("Bienvenue chez Nivra Telecom","Welcome to Nivra Telecom", lang),
+          heroSub: t("Nous sommes ravis de vous avoir parmi nous.","We're thrilled to have you with us.", lang),
           icon: "star",
           greeting,
-          bodyText: "Votre compte est prêt. Connectez-vous pour tout gérer.",
-          cardTitle: "Détails",
+          bodyText: t("Votre compte est prêt. Connectez-vous pour tout gérer.","Your account is ready. Sign in to manage everything.", lang),
+          cardTitle: t("Détails","Details", lang),
           cardRows: [
-            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-            ["Service", String(service)],
-            ["Date de facturation", billingDate],
+            [t("Compte","Account", lang), `#${String(accountNum).replace(/^#/, "")}`],
+            [t("Service","Service", lang), String(service)],
+            [t("Date de facturation","Billing date", lang), billingDate],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Mon espace client",
+          ctaPrimaryLabel: t("Mon espace client","My client portal", lang),
         }),
       };
     }
@@ -1174,36 +1182,44 @@ export function renderQueueTemplate(
       );
       const services = safe(
         v.services || v.service || v.plan_name || v.services_summary,
-        "Vos services Nivra"
+        t("Vos services Nivra","Your Nivra services", lang),
       );
-      const agentName = safe(v.agent_name, "Votre conseiller Nivra");
+      const agentName = safe(v.agent_name, t("Votre conseiller Nivra","Your Nivra advisor", lang));
       const agentNumber = safe(v.agent_number, "");
-      const agentDisplay = agentNumber && agentNumber !== "Non disponible"
+      const agentDisplay = agentNumber && agentNumber !== t("Non disponible","Not available", lang)
         ? `${agentName} — ${agentNumber}`
         : agentName;
       const validUntil = v.token_expires_at
         ? fmtDate(v.token_expires_at)
-        : "7 jours";
+        : t("7 jours","7 days", lang);
       return {
-        subject: `Signez votre contrat Nivra Telecom`,
+        subject: t("Signez votre contrat Nivra Telecom","Sign your Nivra Telecom contract", lang),
         html: shell({
-          preheader: `Votre contrat est prêt à signer.`,
-          badge: "SIGNATURE REQUISE",
-          heroTitle: "Votre contrat est prêt à signer",
-          heroSub: `Commande #${String(orderNum).replace(/^#/, "")}`,
+          preheader: t("Votre contrat est prêt à signer.","Your contract is ready to sign.", lang),
+          badge: t("SIGNATURE REQUISE","SIGNATURE REQUIRED", lang),
+          heroTitle: t("Votre contrat est prêt à signer","Your contract is ready to sign", lang),
+          heroSub: `${t("Commande","Order", lang)} #${String(orderNum).replace(/^#/, "")}`,
           icon: "pen",
           greeting,
-          bodyText: "Nivra Communication Inc. a signé sa partie du contrat. Il ne reste qu'à apposer votre signature pour finaliser votre entente de service.",
-          cardTitle: "Détails de votre contrat",
+          bodyText: t(
+            "Nivra Communication Inc. a signé sa partie du contrat. Il ne reste qu'à apposer votre signature pour finaliser votre entente de service.",
+            "Nivra Communication Inc. has signed its part of the contract. All that remains is your signature to finalize your service agreement.",
+            lang,
+          ),
+          cardTitle: t("Détails de votre contrat","Contract details", lang),
           cardRows: [
-            ["Numéro de commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Services", services],
-            ["Votre représentant", agentDisplay],
-            ["Valide jusqu'au", validUntil],
+            [t("Numéro de commande","Order number", lang), `#${String(orderNum).replace(/^#/, "")}`],
+            [t("Services","Services", lang), services],
+            [t("Votre représentant","Your representative", lang), agentDisplay],
+            [t("Valide jusqu'au","Valid until", lang), validUntil],
           ],
           ctaPrimaryUrl: contractUrl,
-          ctaPrimaryLabel: "Signer mon contrat",
-          helpHtml: `Questions ? Contactez-nous à <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
+          ctaPrimaryLabel: t("Signer mon contrat","Sign my contract", lang),
+          helpHtml: t(
+            `Questions ? Contactez-nous à <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
+            `Questions? Contact us at <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
+            lang,
+          ),
         }),
       };
     }
@@ -2536,21 +2552,25 @@ export function renderQueueTemplate(
         v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
         "Client",
       );
-      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountLabel = safe(v.discount_label ?? v.discount_name, t("Rabais promotionnel","Promotional discount", lang));
       const discountAmount = money(v.discount_amount ?? 0);
       const fullPrice = money(v.full_price ?? v.next_amount ?? 0);
       const endDate = fmtDate(v.end_date ?? v.next_invoice_date);
       return {
-        subject: "Votre rabais Nivra expire bientôt",
+        subject: t("Votre rabais Nivra expire bientôt","Your Nivra discount expires soon", lang),
         html: shell({
-          preheader: "Votre rabais se termine après votre prochaine facture.",
-          badge: "AVIS IMPORTANT",
-          heroTitle: "Votre rabais se termine le mois prochain",
+          preheader: t("Votre rabais se termine après votre prochaine facture.","Your discount ends after your next invoice.", lang),
+          badge: t("AVIS IMPORTANT","IMPORTANT NOTICE", lang),
+          heroTitle: t("Votre rabais se termine le mois prochain","Your discount ends next month", lang),
           icon: "alert",
-          greeting: `Bonjour ${fullName},`,
-          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois se terminera après votre prochaine facture. À partir du ${endDate}, votre mensualité sera de <strong>${fullPrice}</strong>.`,
+          greeting: t(`Bonjour ${fullName},`, `Hello ${fullName},`, lang),
+          bodyText: t(
+            `Votre ${discountLabel} de ${discountAmount}/mois se terminera après votre prochaine facture. À partir du ${endDate}, votre mensualité sera de <strong>${fullPrice}</strong>.`,
+            `Your ${discountLabel} of ${discountAmount}/month will end after your next invoice. Starting ${endDate}, your monthly amount will be <strong>${fullPrice}</strong>.`,
+            lang,
+          ),
           ctaPrimaryUrl: PORTAL_URL,
-          ctaPrimaryLabel: "Voir mon compte",
+          ctaPrimaryLabel: t("Voir mon compte","View my account", lang),
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
         }),
       };
@@ -2561,21 +2581,25 @@ export function renderQueueTemplate(
         v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
         "Client",
       );
-      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountLabel = safe(v.discount_label ?? v.discount_name, t("Rabais promotionnel","Promotional discount", lang));
       const discountAmount = money(v.discount_amount ?? 0);
       const months = safe(v.duration_months, "");
       const newAmount = money(v.new_amount ?? v.full_price ?? 0);
       return {
-        subject: "Votre rabais Nivra a expiré",
+        subject: t("Votre rabais Nivra a expiré","Your Nivra discount has expired", lang),
         html: shell({
-          preheader: "Votre période de rabais est maintenant terminée.",
-          badge: "RABAIS EXPIRÉ",
-          heroTitle: "Votre période de rabais est terminée",
+          preheader: t("Votre période de rabais est maintenant terminée.","Your discount period has now ended.", lang),
+          badge: t("RABAIS EXPIRÉ","DISCOUNT EXPIRED", lang),
+          heroTitle: t("Votre période de rabais est terminée","Your discount period has ended", lang),
           icon: "alert",
-          greeting: `Bonjour ${fullName},`,
-          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois${months ? ` pendant ${months} mois` : ""} est maintenant terminé. Votre prochain paiement sera de <strong>${newAmount}</strong>.`,
+          greeting: t(`Bonjour ${fullName},`, `Hello ${fullName},`, lang),
+          bodyText: t(
+            `Votre ${discountLabel} de ${discountAmount}/mois${months ? ` pendant ${months} mois` : ""} est maintenant terminé. Votre prochain paiement sera de <strong>${newAmount}</strong>.`,
+            `Your ${discountLabel} of ${discountAmount}/month${months ? ` for ${months} months` : ""} has now ended. Your next payment will be <strong>${newAmount}</strong>.`,
+            lang,
+          ),
           ctaPrimaryUrl: PORTAL_URL,
-          ctaPrimaryLabel: "Voir mon compte",
+          ctaPrimaryLabel: t("Voir mon compte","View my account", lang),
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
         }),
       };
@@ -2797,15 +2821,19 @@ export function renderQueueTemplate(
       ];
 
       return {
-        subject: `Votre paie Nivra — ${payDate}`,
+        subject: t(`Votre paie Nivra — ${payDate}`, `Your Nivra paystub — ${payDate}`, lang),
         html: shell({
-          preheader: `Votre paie pour la période du ${periodStart} au ${periodEnd}.`,
-          badge: "PAIE DISPONIBLE",
-          heroTitle: "Votre paie a été traitée",
-          heroSub: `Période du ${periodStart} au ${periodEnd}`,
-          greeting: `Bonjour ${agentName},`,
-          bodyText: `Votre paie pour la période du ${periodStart} au ${periodEnd} a été traitée. Votre talon de paie est disponible ci-dessous avec le détail des gains et des déductions.`,
-          cardTitle: "Détails de votre paie",
+          preheader: t(`Votre paie pour la période du ${periodStart} au ${periodEnd}.`, `Your pay for the period of ${periodStart} to ${periodEnd}.`, lang),
+          badge: t("PAIE DISPONIBLE","PAYSTUB AVAILABLE", lang),
+          heroTitle: t("Votre paie a été traitée","Your pay has been processed", lang),
+          heroSub: t(`Période du ${periodStart} au ${periodEnd}`, `Period from ${periodStart} to ${periodEnd}`, lang),
+          greeting: t(`Bonjour ${agentName},`, `Hello ${agentName},`, lang),
+          bodyText: t(
+            `Votre paie pour la période du ${periodStart} au ${periodEnd} a été traitée. Votre talon de paie est disponible ci-dessous avec le détail des gains et des déductions.`,
+            `Your pay for the period of ${periodStart} to ${periodEnd} has been processed. Your paystub is available below with the breakdown of earnings and deductions.`,
+            lang,
+          ),
+          cardTitle: t("Détails de votre paie","Paystub details", lang),
           cardRows,
           cardEmphasizeLast: true,
           ctaPrimaryUrl: paystubUrl,

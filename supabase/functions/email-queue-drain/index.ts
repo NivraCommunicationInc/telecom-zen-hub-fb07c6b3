@@ -48,6 +48,7 @@ interface QueueRow {
   entity_type: string | null;
   entity_id: string | null;
   attachments: QueueAttachment[] | null;
+  language: string | null;
 }
 
 interface ResolvedEmail {
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
   // 1. Fetch eligible queued rows
   let q = supabase
     .from("email_queue")
-    .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id, attachments")
+    .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id, attachments, language")
     .in("status", ["queued", "failed"])
     .order("created_at", { ascending: true })
     .limit(batchSize);
@@ -133,7 +134,8 @@ Deno.serve(async (req) => {
       // Fallback: if custom_html had no inline html, OR for any other template_key,
       // try the inlined template renderer.
       if (!resolved || !resolved.html) {
-        const tmpl = renderQueueTemplate(row.template_key, row.template_vars || {});
+        const lang = (row.language === "en" ? "en" : "fr") as "fr" | "en";
+        const tmpl = renderQueueTemplate(row.template_key, row.template_vars || {}, lang);
         if (tmpl) {
           resolved = { html: tmpl.html, subject: tmpl.subject, from: row.from_email || undefined };
         }
