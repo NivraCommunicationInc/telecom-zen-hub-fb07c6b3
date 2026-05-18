@@ -14,7 +14,7 @@ import { formatBillingCycleDescription, BILLING_CONSTANTS } from "@/lib/billingC
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
-// StripeInlinePayment removed — Stripe disabled
+
 import { ETRANSFER_CONFIG } from "@/config/company";
 
 const statusColors: Record<string, string> = {

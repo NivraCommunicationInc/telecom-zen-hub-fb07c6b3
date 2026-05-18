@@ -11,7 +11,8 @@ export interface PaymentData {
   payment_method: "card" | "interac" | "deferred";
   payment_reference?: string;
   notes?: string;
-  stripe_payment_intent_id?: string;
+  /** Optional provider payment reference (PayPal capture id, etc.) */
+  provider_payment_id?: string;
 }
 
 interface POSPaymentFormProps {
@@ -19,17 +20,18 @@ interface POSPaymentFormProps {
   isSubmitting?: boolean;
   totalAmount?: number;
   invoiceId?: string;
-  renderStripePayment?: () => React.ReactNode;
+  /** Render prop for online card processor (PayPal) when "card" is selected */
+  renderCardPayment?: () => React.ReactNode;
 }
 
-export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStripePayment }: POSPaymentFormProps) {
+export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderCardPayment }: POSPaymentFormProps) {
   const [method, setMethod] = useState<PaymentData["payment_method"]>("card");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (method === "card" && renderStripePayment) return;
+    if (method === "card" && renderCardPayment) return;
     onSubmit({ payment_method: method, payment_reference: reference || undefined, notes: notes || undefined });
   };
 
@@ -76,10 +78,10 @@ export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStri
             </div>
           </RadioGroup>
 
-          {/* Stripe Elements inline form for card */}
-          {method === "card" && renderStripePayment && (
+          {/* Inline card processor (PayPal) */}
+          {method === "card" && renderCardPayment && (
             <div className="rounded-xl border border-primary/30 bg-muted/30 p-4">
-              {renderStripePayment()}
+              {renderCardPayment()}
             </div>
           )}
 
