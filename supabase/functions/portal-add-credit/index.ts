@@ -2,15 +2,18 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 /**
- * PORTAL-ADD-CREDIT — Apply a Stripe payment as account credit
- * 
+ * PORTAL-ADD-CREDIT — Apply a PayPal capture as account credit
+ *
  * Logic:
- * 1. Verify the Stripe PaymentIntent succeeded
- * 2. Find or error on billing_customer
- * 3. Find unpaid invoices (oldest first)
- * 4. Apply payment to invoices via apply_payment_to_invoice RPC
- * 5. Any remaining amount → create a credit invoice + payment pair
- * 6. All updates are canonical — no client-side math
+ * 1. Authenticate the user
+ * 2. Idempotency check on paypal_capture_id
+ * 3. Resolve billing_customer
+ * 4. Find unpaid invoices (oldest first)
+ * 5. Apply payment to invoices via apply_payment_to_invoice RPC
+ * 6. Any remaining amount → create a credit invoice + payment pair
+ * 7. Queue confirmation email
+ *
+ * Note: Stripe was decommissioned 2026-05-18. PayPal is the sole live provider.
  */
 
 const corsHeaders = {
@@ -24,14 +27,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // ═══ STRIPE KILL-SWITCH — 2026-03-21 ═══
-  // portal-add-credit was Stripe-specific. Disabled until PayPal credit flow is implemented.
-  console.warn("[portal-add-credit] BLOCKED — Stripe disabled in production");
-  return new Response(
-    JSON.stringify({ error: "L'ajout de crédit par carte est désactivé. Utilisez PayPal ou Interac." }),
-    { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -42,26 +37,26 @@ serve(async (req) => {
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Non autorisé");
-    
+
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
     if (authError || !user) throw new Error("Non autorisé");
 
     const body = await req.json();
-    const { amount, payment_intent_id } = body;
+    const { amount, paypal_capture_id } = body;
     const userId = user.id;
 
     if (!amount || amount < 5) throw new Error("Montant minimum: 5$");
     if (amount > 1000) throw new Error("Montant maximum: 1000$");
-    if (!payment_intent_id) throw new Error("payment_intent_id requis");
+    if (!paypal_capture_id) throw new Error("paypal_capture_id requis");
 
-    // Idempotency: check if this PI was already processed
+    // Idempotency: check if this PayPal capture was already processed
     const { data: existingPayment } = await db
       .from("billing_payments")
       .select("id")
-      .eq("stripe_payment_intent_id", payment_intent_id)
+      .eq("provider_payment_id", paypal_capture_id)
       .maybeSingle();
-    
+
     if (existingPayment) {
       return new Response(
         JSON.stringify({ success: true, already_processed: true }),
@@ -98,13 +93,13 @@ serve(async (req) => {
       if (balanceDue <= 0) continue;
 
       const applyAmount = Math.min(remainingAmount, balanceDue);
-      
+
       const { error: rpcError } = await db.rpc("apply_payment_to_invoice", {
         p_invoice_id: inv.id,
         p_amount: applyAmount,
-        p_method: "card",
-        p_provider: "stripe",
-        p_provider_payment_id: payment_intent_id,
+        p_method: "paypal",
+        p_provider: "paypal",
+        p_provider_payment_id: paypal_capture_id,
         p_source: "portal",
         p_created_by_name: `${customer.first_name} ${customer.last_name}`,
         p_created_by_role: "client",
@@ -113,7 +108,6 @@ serve(async (req) => {
 
       if (rpcError) {
         console.error(`[portal-add-credit] RPC error for invoice ${inv.id}:`, rpcError);
-        // Continue to next invoice if this one fails
         continue;
       }
 
@@ -131,10 +125,8 @@ serve(async (req) => {
     if (remainingAmount > 0) {
       creditAmount = remainingAmount;
 
-      // Generate a unique payment number for the credit
       const creditPaymentNumber = `PAY-CR-${Date.now()}`;
 
-      // Create a credit-type invoice for record-keeping
       const today = new Date().toISOString().split("T")[0];
       const { data: creditInvoice, error: invErr } = await db
         .from("billing_invoices")
@@ -160,19 +152,16 @@ serve(async (req) => {
 
       if (invErr) {
         console.error("[portal-add-credit] Credit invoice creation error:", invErr);
-        // Still record the payment even if credit invoice fails
       }
 
-      // Record the credit payment
       const { error: payErr } = await db.from("billing_payments").insert({
         customer_id: customer.id,
         invoice_id: creditInvoice?.id || (unpaidInvoices?.[0]?.id ?? null),
         payment_number: creditPaymentNumber,
         amount: creditAmount,
-        method: "card",
-        provider: "stripe",
-        provider_payment_id: `${payment_intent_id}_credit`,
-        stripe_payment_intent_id: payment_intent_id,
+        method: "paypal",
+        provider: "paypal",
+        provider_payment_id: `${paypal_capture_id}_credit`,
         status: "confirmed",
         source: "portal",
         created_by_name: `${customer.first_name} ${customer.last_name}`,
@@ -188,7 +177,7 @@ serve(async (req) => {
 
     // Queue confirmation email
     await db.from("email_queue").insert({
-      event_key: `credit_payment_${payment_intent_id}`,
+      event_key: `credit_payment_${paypal_capture_id}`,
       to_email: customer.email,
       to_name: `${customer.first_name} ${customer.last_name}`,
       template_type: "billing_credit_payment",
@@ -198,31 +187,22 @@ serve(async (req) => {
         appliedToBalance: (amount - creditAmount).toFixed(2),
         creditAdded: creditAmount.toFixed(2),
         appliedInvoices: appliedInvoices.map((i) => i.invoice_number).join(", ") || "Aucune",
-        paymentMethod: "Carte de crédit (Stripe)",
-        paymentReference: payment_intent_id,
-        date: new Date().toLocaleDateString("fr-CA"),
       },
-      priority: "high",
-    }).then(() => {}).catch((e: Error) => {
-      console.warn("[portal-add-credit] Email queue error (non-blocking):", e);
     });
-
-    console.log(`[portal-add-credit] ✓ ${amount}$ processed for ${customer.email}. Applied: ${appliedInvoices.length} invoices. Credit: ${creditAmount}$`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        total_paid: amount,
-        applied_to_invoices: appliedInvoices,
+        applied_invoices: appliedInvoices,
         credit_added: creditAmount,
-        payment_intent_id,
+        total_amount: amount,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
-    console.error("[portal-add-credit] Error:", error);
+  } catch (err) {
+    console.error("[portal-add-credit] error:", err);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: err instanceof Error ? err.message : "Erreur inconnue" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
