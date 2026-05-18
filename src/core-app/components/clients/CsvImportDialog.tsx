@@ -83,6 +83,22 @@ const COLUMN_MAP: Record<string, string> = {
   "last_name": "last_name",
   "phone": "phone",
   "nom_famille": "last_name",
+  // Shopify / Square export aliases
+  "surname": "last_name",
+  "email address": "email",
+  "email_address": "email",
+  "street address 1": "address_line1",
+  "street_address_1": "address_line1",
+  "street address 2": "address_line2",
+  "street_address_2": "address_line2",
+  "birthday": "birthday",
+  "date of birth": "birthday",
+  "date_of_birth": "birthday",
+  "square customer id": "square_customer_id",
+  "square_customer_id": "square_customer_id",
+  "customer id": "square_customer_id",
+  "reference id": "external_reference",
+  "reference_id": "external_reference",
 };
 
 /**
