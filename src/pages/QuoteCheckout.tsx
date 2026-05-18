@@ -549,7 +549,19 @@ export default function QuoteCheckout() {
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="address" className="text-sm flex items-center gap-1"><Home className="h-3 w-3" /> Adresse <span className="text-destructive">*</span></Label>
-              <Input id="address" value={form.address} onChange={e => updateField("address", e.target.value)} placeholder="123 rue Exemple" className={errors.address ? "border-destructive" : ""} />
+              <AddressAutocomplete
+                value={form.address}
+                onValueChange={(v) => updateField("address", v)}
+                onSelect={(a) => {
+                  updateField("address", a.line1 || a.formatted);
+                  if (a.city) updateField("city", a.city);
+                  if (a.region) updateField("province", a.region);
+                  if (a.postalCode) updateField("postal_code", a.postalCode);
+                }}
+                placeholder="Commencez à taper votre adresse..."
+                restrictToQuebec
+                className={errors.address ? "border-destructive" : ""}
+              />
               {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
             </div>
             <div className="grid grid-cols-3 gap-4">
