@@ -929,10 +929,14 @@ const AppRoutes = () => {
 
       {/* ============================================ */}
       {/* INTERNAL HUB — Secure Staff Gateway          */}
+      {/* Obscure URL — old /hub returns 404 (decoy)   */}
       {/* ============================================ */}
       <Route path="/nivra-secure-hub-2617-internal" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
       <Route path="/nivra-secure-hub-2617-internal/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
       <Route path="/nivra-secure-hub-2617-internal/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
+      {/* Decoy 404 for legacy /hub paths — scanners/bots see standard not-found */}
+      <Route path="/hub" element={<NotFound />} />
+      <Route path="/hub/*" element={<NotFound />} />
 
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}
