@@ -2552,21 +2552,25 @@ export function renderQueueTemplate(
         v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
         "Client",
       );
-      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountLabel = safe(v.discount_label ?? v.discount_name, t("Rabais promotionnel","Promotional discount", lang));
       const discountAmount = money(v.discount_amount ?? 0);
       const fullPrice = money(v.full_price ?? v.next_amount ?? 0);
       const endDate = fmtDate(v.end_date ?? v.next_invoice_date);
       return {
-        subject: "Votre rabais Nivra expire bientôt",
+        subject: t("Votre rabais Nivra expire bientôt","Your Nivra discount expires soon", lang),
         html: shell({
-          preheader: "Votre rabais se termine après votre prochaine facture.",
-          badge: "AVIS IMPORTANT",
-          heroTitle: "Votre rabais se termine le mois prochain",
+          preheader: t("Votre rabais se termine après votre prochaine facture.","Your discount ends after your next invoice.", lang),
+          badge: t("AVIS IMPORTANT","IMPORTANT NOTICE", lang),
+          heroTitle: t("Votre rabais se termine le mois prochain","Your discount ends next month", lang),
           icon: "alert",
-          greeting: `Bonjour ${fullName},`,
-          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois se terminera après votre prochaine facture. À partir du ${endDate}, votre mensualité sera de <strong>${fullPrice}</strong>.`,
+          greeting: t(`Bonjour ${fullName},`, `Hello ${fullName},`, lang),
+          bodyText: t(
+            `Votre ${discountLabel} de ${discountAmount}/mois se terminera après votre prochaine facture. À partir du ${endDate}, votre mensualité sera de <strong>${fullPrice}</strong>.`,
+            `Your ${discountLabel} of ${discountAmount}/month will end after your next invoice. Starting ${endDate}, your monthly amount will be <strong>${fullPrice}</strong>.`,
+            lang,
+          ),
           ctaPrimaryUrl: PORTAL_URL,
-          ctaPrimaryLabel: "Voir mon compte",
+          ctaPrimaryLabel: t("Voir mon compte","View my account", lang),
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
         }),
       };
@@ -2577,21 +2581,25 @@ export function renderQueueTemplate(
         v.client_full_name ?? `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim(),
         "Client",
       );
-      const discountLabel = safe(v.discount_label ?? v.discount_name, "Rabais promotionnel");
+      const discountLabel = safe(v.discount_label ?? v.discount_name, t("Rabais promotionnel","Promotional discount", lang));
       const discountAmount = money(v.discount_amount ?? 0);
       const months = safe(v.duration_months, "");
       const newAmount = money(v.new_amount ?? v.full_price ?? 0);
       return {
-        subject: "Votre rabais Nivra a expiré",
+        subject: t("Votre rabais Nivra a expiré","Your Nivra discount has expired", lang),
         html: shell({
-          preheader: "Votre période de rabais est maintenant terminée.",
-          badge: "RABAIS EXPIRÉ",
-          heroTitle: "Votre période de rabais est terminée",
+          preheader: t("Votre période de rabais est maintenant terminée.","Your discount period has now ended.", lang),
+          badge: t("RABAIS EXPIRÉ","DISCOUNT EXPIRED", lang),
+          heroTitle: t("Votre période de rabais est terminée","Your discount period has ended", lang),
           icon: "alert",
-          greeting: `Bonjour ${fullName},`,
-          bodyText: `Votre ${discountLabel} de ${discountAmount}/mois${months ? ` pendant ${months} mois` : ""} est maintenant terminé. Votre prochain paiement sera de <strong>${newAmount}</strong>.`,
+          greeting: t(`Bonjour ${fullName},`, `Hello ${fullName},`, lang),
+          bodyText: t(
+            `Votre ${discountLabel} de ${discountAmount}/mois${months ? ` pendant ${months} mois` : ""} est maintenant terminé. Votre prochain paiement sera de <strong>${newAmount}</strong>.`,
+            `Your ${discountLabel} of ${discountAmount}/month${months ? ` for ${months} months` : ""} has now ended. Your next payment will be <strong>${newAmount}</strong>.`,
+            lang,
+          ),
           ctaPrimaryUrl: PORTAL_URL,
-          ctaPrimaryLabel: "Voir mon compte",
+          ctaPrimaryLabel: t("Voir mon compte","View my account", lang),
           helpHtml: `<strong style="color:#7c3aed;">${SUPPORT_EMAIL}</strong> · <a href="${APP_URL}" style="color:#7c3aed;">nivra-telecom.ca</a>`,
         }),
       };
