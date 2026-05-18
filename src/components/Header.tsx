@@ -317,8 +317,8 @@ const Header = () => {
 
             <div className="h-6 w-px mx-1" style={{ background: '#eeeeee' }} />
 
-            <nav aria-label="Navigation principale" className="flex items-center gap-0.5 flex-1">
-              {NAV_TARGETS.map(renderDesktopNavItem)}
+            <nav aria-label="Navigation principale" className="flex items-center gap-0.5 flex-1 min-w-0">
+              {NAV_TARGETS.filter((t) => !HEADER_HIDDEN_IDS.has(t.id)).map(renderDesktopNavItem)}
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
