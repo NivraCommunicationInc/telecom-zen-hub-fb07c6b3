@@ -1530,6 +1530,60 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_login_alerts_sent: {
+        Row: {
+          email_attempted: string
+          id: string
+          ip_address: string | null
+          sent_at: string
+        }
+        Insert: {
+          email_attempted: string
+          id?: string
+          ip_address?: string | null
+          sent_at?: string
+        }
+        Update: {
+          email_attempted?: string
+          id?: string
+          ip_address?: string | null
+          sent_at?: string
+        }
+        Relationships: []
+      }
+      auth_login_attempts: {
+        Row: {
+          created_at: string
+          email_attempted: string
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          portal: string | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_attempted: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          portal?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_attempted?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          portal?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       authorized_users: {
         Row: {
           client_id: string

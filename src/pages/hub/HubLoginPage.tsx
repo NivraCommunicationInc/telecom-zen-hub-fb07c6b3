@@ -166,10 +166,29 @@ export default function HubLoginPage() {
       });
 
       if (authError || !data.session) {
+        // Fire-and-forget brute-force tracker (alerts ops on 3+ failures/5min)
+        supabase.functions.invoke("track-login-attempt", {
+          body: {
+            email_attempted: email.trim(),
+            success: false,
+            failure_reason: authError?.message ?? "no_session",
+            portal: portal ?? "hub",
+          },
+        }).catch(() => { /* never block UX */ });
+
         setError("Identifiants invalides.");
         setLoading(false);
         return;
       }
+
+      // Log successful login (no alert, just history)
+      supabase.functions.invoke("track-login-attempt", {
+        body: {
+          email_attempted: email.trim(),
+          success: true,
+          portal: portal ?? "hub",
+        },
+      }).catch(() => { /* ignore */ });
 
       // Normal login → wipe any stale staff-assistance flag from a previous
       // admin session on this device. The banner must never appear when the
