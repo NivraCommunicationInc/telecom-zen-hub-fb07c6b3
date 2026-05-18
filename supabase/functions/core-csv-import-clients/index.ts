@@ -225,6 +225,13 @@ Deno.serve(async (req) => {
       if (phone) existingPhones.add(phone);
       if (phoneLastKey) seenPhoneLast.add(phoneLastKey);
 
+      // Detect prospect↔client conversion (informational only — does NOT block import)
+      const normPhone = normPhoneForDedup(phone);
+      const convertedUserId =
+        (email && profileByEmail.get(email)) ||
+        (normPhone && profileByPhone.get(normPhone)) ||
+        null;
+
       toInsert.push({
         full_name: name,
         first_name: firstNameClean,
@@ -238,12 +245,14 @@ Deno.serve(async (req) => {
         square_customer_id: client.square_customer_id?.trim() || null,
         external_reference: client.external_reference?.trim() || null,
         source: (client.square_customer_id || client.external_reference) ? "shopify_import" : "csv_import",
-        status: "lead",
+        status: convertedUserId ? "converted" : "lead",
         call_status: "not_called",
         priority: 2,
         imported_by: user.id,
         import_batch_id: batchId,
+        converted_to_user_id: convertedUserId,
       });
+
       results.push({ name, status: "imported" });
       imported++;
     }
