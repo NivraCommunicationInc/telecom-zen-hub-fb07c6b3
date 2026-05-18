@@ -166,37 +166,22 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
       {/* DESKTOP & TABLET — Side rail (collapsible on tablet) */}
       <aside
         className={cn(
-          "hidden md:flex flex-col shrink-0 sticky top-0 h-screen transition-all duration-200",
+          "hidden md:flex flex-col shrink-0 sticky top-0 h-screen transition-all duration-200 bg-gray-900 border-r border-gray-700",
           collapsed ? "w-16" : "w-60"
         )}
-        style={{
-          background: "linear-gradient(180deg, hsl(var(--field-bg-elevated)) 0%, hsl(var(--field-bg)) 100%)",
-          borderRight: "1px solid hsl(var(--field-border) / 0.15)",
-        }}
       >
         {/* Logo + collapse toggle */}
-        <div
-          className="h-16 flex items-center justify-between px-3"
-          style={{ borderBottom: "1px solid hsl(var(--field-border) / 0.12)" }}
-        >
+        <div className="h-16 flex items-center justify-between px-3 bg-gray-900 border-b border-gray-700">
           <Link to={`${FIELD_BASE}/dashboard`} className={cn("flex items-center gap-3", collapsed && "mx-auto")}>
-            <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center field-glow shrink-0"
-              style={{
-                background: "linear-gradient(135deg, hsl(var(--field-accent)) 0%, hsl(var(--field-accent-glow)) 100%)",
-              }}
-            >
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 bg-violet-600 shadow-md shadow-violet-600/40">
               <Zap className="h-4.5 w-4.5 text-white" />
             </div>
             {!collapsed && (
               <div>
                 <div className="font-bold text-[15px] tracking-tight text-white leading-none flex items-center gap-1.5">
-                  Nivra <span style={{ color: "hsl(var(--field-accent-glow))" }}>Field</span>
+                  Nivra <span className="text-violet-400">Field</span>
                 </div>
-                <div
-                  className="text-[10px] font-medium mt-0.5"
-                  style={{ color: "hsl(var(--field-text-dim))" }}
-                >
+                <div className="text-[10px] font-medium mt-0.5 text-gray-500">
                   Portail terrain
                 </div>
               </div>
@@ -206,7 +191,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
             <button
               onClick={onToggleCollapsed}
               aria-label="Réduire le menu"
-              className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:text-white hover:bg-[#1A1A2E]/10 transition-colors"
+              className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
