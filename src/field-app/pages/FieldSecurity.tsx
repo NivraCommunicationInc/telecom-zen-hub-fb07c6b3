@@ -142,7 +142,7 @@ export default function FieldSecurity() {
               <button
                 onClick={handleGlobalSignOut}
                 disabled={signingOut}
-                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[hsl(var(--field-border-subtle))] text-white text-xs font-medium hover:bg-white/5 disabled:opacity-50"
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[hsl(var(--field-border-subtle))] text-white text-xs font-medium hover:bg-gray-800/5 disabled:opacity-50"
               >
                 {signingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
                 Déconnecter tous les appareils

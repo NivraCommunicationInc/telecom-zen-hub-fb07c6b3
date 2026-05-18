@@ -206,7 +206,7 @@ export default function FieldProfile() {
     <div className="max-w-2xl mx-auto space-y-5 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#111827]">Mon profil</h1>
+        <h1 className="text-xl font-bold text-white">Mon profil</h1>
         {!editing && (
           <button
             onClick={startEdit}
@@ -218,7 +218,7 @@ export default function FieldProfile() {
       </div>
 
       {/* SECTION 1 — Identity */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 space-y-4">
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-4">
           {data.avatarUrl ? (
             <img src={data.avatarUrl} alt={data.fullName} className="h-20 w-20 rounded-2xl object-cover shadow-md" />
@@ -232,11 +232,11 @@ export default function FieldProfile() {
               <input
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="text-lg font-bold text-[#111827] border-b-2 border-[#7C3AED] bg-transparent outline-none pb-0.5 w-full"
+                className="text-lg font-bold text-white border-b-2 border-[#7C3AED] bg-transparent outline-none pb-0.5 w-full"
                 placeholder="Nom complet"
               />
             ) : (
-              <p className="text-lg font-bold text-[#111827] truncate">{data.fullName || "Non renseigné"}</p>
+              <p className="text-lg font-bold text-white truncate">{data.fullName || "Non renseigné"}</p>
             )}
             <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-[#EDE9FE] text-[#6D28D9] text-[10px] font-semibold">
               Agent terrain
@@ -246,30 +246,30 @@ export default function FieldProfile() {
 
         <div className="space-y-3 pt-3 border-t border-[#F3F4F6]">
           <div className="flex items-center gap-3">
-            <Mail className="h-4 w-4 text-[#9CA3AF]" />
-            <span className="text-sm text-[#374151] truncate">{data.email || "Non renseigné"}</span>
-            <span className="ml-auto text-[9px] uppercase tracking-wider text-[#9CA3AF]">Lecture seule</span>
+            <Mail className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-300 truncate">{data.email || "Non renseigné"}</span>
+            <span className="ml-auto text-[9px] uppercase tracking-wider text-gray-500">Lecture seule</span>
           </div>
           <div className="flex items-center gap-3">
-            <Phone className="h-4 w-4 text-[#9CA3AF]" />
+            <Phone className="h-4 w-4 text-gray-500" />
             {editing ? (
               <input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="Numéro de téléphone"
-                className="text-sm text-[#374151] border-b border-[#E5E7EB] bg-transparent outline-none focus:border-[#7C3AED] pb-0.5 flex-1"
+                className="text-sm text-gray-300 border-b border-gray-700 bg-transparent outline-none focus:border-[#7C3AED] pb-0.5 flex-1"
               />
             ) : (
-              <span className="text-sm text-[#374151]">{data.phone || "Non renseigné"}</span>
+              <span className="text-sm text-gray-300">{data.phone || "Non renseigné"}</span>
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-[#9CA3AF]" />
+            <Calendar className="h-4 w-4 text-gray-500" />
             <div className="flex-1">
-              <p className="text-[10px] text-[#9CA3AF]">Date de naissance</p>
-              <p className="text-sm text-[#374151]">{dobLabel}</p>
+              <p className="text-[10px] text-gray-500">Date de naissance</p>
+              <p className="text-sm text-gray-300">{dobLabel}</p>
             </div>
-            <span className="text-[9px] uppercase tracking-wider text-[#9CA3AF]">Lecture seule</span>
+            <span className="text-[9px] uppercase tracking-wider text-gray-500">Lecture seule</span>
           </div>
         </div>
 
@@ -285,7 +285,7 @@ export default function FieldProfile() {
             </button>
             <button
               onClick={() => setEditing(false)}
-              className="px-4 py-2.5 rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#6B7280] hover:bg-[#F9FAFB] transition-colors min-h-[44px] min-w-[44px]"
+              className="px-4 py-2.5 rounded-xl border border-gray-700 text-sm font-medium text-gray-400 hover:bg-gray-800 transition-colors min-h-[44px] min-w-[44px]"
               aria-label="Annuler"
             >
               <X className="h-4 w-4" />
@@ -295,44 +295,44 @@ export default function FieldProfile() {
       </section>
 
       {/* SECTION — Identifiants Nivra (lecture seule) */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 space-y-3">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Identifiants Nivra</h2>
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5 space-y-3">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiants Nivra</h2>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[#6B7280]">Numéro d'agent</span>
-          <span className="text-sm font-mono font-semibold text-[#111827]">{data.agentNumber || "En cours d'attribution"}</span>
+          <span className="text-sm text-gray-400">Numéro d'agent</span>
+          <span className="text-sm font-mono font-semibold text-white">{data.agentNumber || "En cours d'attribution"}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[#6B7280]">Badge</span>
-          <span className="text-sm font-mono font-semibold text-[#111827]">{data.agentNumber || "En cours d'attribution"}</span>
+          <span className="text-sm text-gray-400">Badge</span>
+          <span className="text-sm font-mono font-semibold text-white">{data.agentNumber || "En cours d'attribution"}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[#6B7280]">Courriel professionnel</span>
-          <span className="text-sm text-[#374151]">{data.professionalEmail ? `${data.professionalEmail} (à venir)` : "À venir"}</span>
+          <span className="text-sm text-gray-400">Courriel professionnel</span>
+          <span className="text-sm text-gray-300">{data.professionalEmail ? `${data.professionalEmail} (à venir)` : "À venir"}</span>
         </div>
-        <p className="text-[10px] uppercase tracking-wider text-[#9CA3AF] pt-1">Lecture seule — assigné par Nivra</p>
+        <p className="text-[10px] uppercase tracking-wider text-gray-500 pt-1">Lecture seule — assigné par Nivra</p>
       </section>
 
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Adresse domicile</h2>
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Adresse domicile</h2>
         {editing ? (
           <div className="space-y-3">
             <input
               value={formData.address_street}
               onChange={(e) => setFormData({ ...formData, address_street: e.target.value })}
               placeholder="Rue (adresse civique)"
-              className="w-full text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              className="w-full text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
             />
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={formData.address_city}
                 onChange={(e) => setFormData({ ...formData, address_city: e.target.value })}
                 placeholder="Ville"
-                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+                className="text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
               />
               <select
                 value={formData.address_province}
                 onChange={(e) => setFormData({ ...formData, address_province: e.target.value })}
-                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+                className="text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
               >
                 {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -342,27 +342,27 @@ export default function FieldProfile() {
               onChange={(e) => setFormData({ ...formData, address_postal: e.target.value.toUpperCase() })}
               placeholder="Code postal (H1A 1A1)"
               maxLength={7}
-              className="w-full text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              className="w-full text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
             />
           </div>
         ) : (
           <div className="flex items-start gap-3">
-            <MapPin className="h-4 w-4 text-[#9CA3AF] mt-0.5" />
-            <p className="text-sm text-[#374151] flex-1">{homeAddrLabel}</p>
+            <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
+            <p className="text-sm text-gray-300 flex-1">{homeAddrLabel}</p>
           </div>
         )}
       </section>
 
       {/* SECTION — Contact d'urgence (editable) */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Contact d'urgence</h2>
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Contact d'urgence</h2>
         {editing ? (
           <div className="space-y-3">
             <input
               value={formData.emergency_contact_name}
               onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
               placeholder="Nom complet"
-              className="w-full text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+              className="w-full text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
             />
             <div className="grid grid-cols-2 gap-2">
               <input
@@ -370,12 +370,12 @@ export default function FieldProfile() {
                 onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
                 placeholder="Téléphone"
                 type="tel"
-                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+                className="text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
               />
               <select
                 value={formData.emergency_contact_relation}
                 onChange={(e) => setFormData({ ...formData, emergency_contact_relation: e.target.value })}
-                className="text-sm border border-[#E5E7EB] rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
+                className="text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
               >
                 <option value="">Relation…</option>
                 {RELATION_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -385,54 +385,54 @@ export default function FieldProfile() {
         ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <User className="h-4 w-4 text-[#9CA3AF]" />
-              <span className="text-sm text-[#374151]">{data.emergencyName || "Non renseigné"}</span>
+              <User className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-300">{data.emergencyName || "Non renseigné"}</span>
               {data.emergencyRelation && (
-                <span className="text-[10px] text-[#6B7280]">({data.emergencyRelation})</span>
+                <span className="text-[10px] text-gray-400">({data.emergencyRelation})</span>
               )}
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="h-4 w-4 text-[#9CA3AF]" />
-              <span className="text-sm text-[#374151]">{data.emergencyPhone || "Non renseigné"}</span>
+              <Phone className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-300">{data.emergencyPhone || "Non renseigné"}</span>
             </div>
           </div>
         )}
       </section>
 
       {/* SECTION 2 — Employment (read-only) */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Emploi <span className="text-[9px] font-normal normal-case tracking-normal text-[#9CA3AF]">— Lecture seule</span></h2>
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Emploi <span className="text-[9px] font-normal normal-case tracking-normal text-gray-500">— Lecture seule</span></h2>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-[#9CA3AF]" />
+            <Calendar className="h-4 w-4 text-gray-500" />
             <div className="flex-1">
-              <p className="text-[10px] text-[#9CA3AF]">Date d'entrée</p>
-              <p className="text-sm text-[#374151]">
+              <p className="text-[10px] text-gray-500">Date d'entrée</p>
+              <p className="text-sm text-gray-300">
                 {data.startDate ? format(new Date(data.startDate), "d MMMM yyyy", { locale: fr }) : "Non renseigné"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <MapPin className="h-4 w-4 text-[#9CA3AF]" />
+            <MapPin className="h-4 w-4 text-gray-500" />
             <div className="flex-1">
-              <p className="text-[10px] text-[#9CA3AF]">Territoire assigné</p>
-              <p className="text-sm text-[#374151]">{data.territoryName || "Non assigné"}</p>
+              <p className="text-[10px] text-gray-500">Territoire assigné</p>
+              <p className="text-sm text-gray-300">{data.territoryName || "Non assigné"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <DollarSign className="h-4 w-4 text-[#9CA3AF]" />
+            <DollarSign className="h-4 w-4 text-gray-500" />
             <div className="flex-1">
-              <p className="text-[10px] text-[#9CA3AF]">Méthode de paiement</p>
-              <p className="text-sm text-[#374151]">{PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod || "Non renseigné"}</p>
+              <p className="text-[10px] text-gray-500">Méthode de paiement</p>
+              <p className="text-sm text-gray-300">{PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod || "Non renseigné"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Shield className="h-4 w-4 text-[#9CA3AF]" />
+            <Shield className="h-4 w-4 text-gray-500" />
             <div className="flex-1">
-              <p className="text-[10px] text-[#9CA3AF]">Statut</p>
+              <p className="text-[10px] text-gray-500">Statut</p>
               <span className={cn(
                 "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold",
-                data.isActive ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEE2E2] text-[#B91C1C]",
+                data.isActive ? "bg-emerald-500/20 text-[#15803D]" : "bg-red-500/20 text-[#B91C1C]",
               )}>
                 {data.isActive ? "Actif" : "Inactif"}
               </span>
@@ -442,44 +442,44 @@ export default function FieldProfile() {
       </section>
 
       {/* SECTION 3 — Performance this month */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
           Performance — {format(new Date(), "MMMM yyyy", { locale: fr })}
         </h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-[#EDE9FE]">
             <TrendingUp className="h-5 w-5 text-[#7C3AED]" />
             <div>
-              <p className="text-lg font-bold text-[#111827]">{data.monthSales}</p>
-              <p className="text-[10px] text-[#6B7280]">Ventes ce mois</p>
+              <p className="text-lg font-bold text-white">{data.monthSales}</p>
+              <p className="text-[10px] text-gray-400">Ventes ce mois</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#DBEAFE]">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/20">
             <DollarSign className="h-5 w-5 text-[#3B82F6]" />
             <div>
-              <p className="text-lg font-bold text-[#111827]">{fmtMoney(data.totalAmount)}</p>
-              <p className="text-[10px] text-[#6B7280]">Commission totale</p>
+              <p className="text-lg font-bold text-white">{fmtMoney(data.totalAmount)}</p>
+              <p className="text-[10px] text-gray-400">Commission totale</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#FEF3C7]">
-            <DollarSign className="h-5 w-5 text-[#D97706]" />
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/20">
+            <DollarSign className="h-5 w-5 text-amber-300" />
             <div>
-              <p className="text-lg font-bold text-[#111827]">{fmtMoney(data.pendingAmount)}</p>
-              <p className="text-[10px] text-[#6B7280]">En attente</p>
+              <p className="text-lg font-bold text-white">{fmtMoney(data.pendingAmount)}</p>
+              <p className="text-[10px] text-gray-400">En attente</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#DCFCE7]">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/20">
             <Check className="h-5 w-5 text-[#15803D]" />
             <div>
-              <p className="text-lg font-bold text-[#111827]">{fmtMoney(data.approvedAmount)}</p>
-              <p className="text-[10px] text-[#6B7280]">Approuvée</p>
+              <p className="text-lg font-bold text-white">{fmtMoney(data.approvedAmount)}</p>
+              <p className="text-[10px] text-gray-400">Approuvée</p>
             </div>
           </div>
         </div>
 
         {data.nextTier && (
           <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#F59E0B]/30">
-            <Award className="h-5 w-5 text-[#D97706]" />
+            <Award className="h-5 w-5 text-amber-300" />
             <p className="text-xs text-[#78350F]">
               Encore <span className="font-bold">{data.nextTierRemaining} vente{data.nextTierRemaining > 1 ? "s" : ""}</span> pour atteindre le bonus de <span className="font-bold">{fmtMoney(data.nextTier.bonus)}</span>
             </p>
@@ -489,16 +489,16 @@ export default function FieldProfile() {
 
 
       {/* SECTION 4 — Pay */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Paie</h2>
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Paie</h2>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#6B7280]">Cadence des paiements</span>
-            <span className="text-[#111827] font-medium">Chaque vendredi</span>
+            <span className="text-gray-400">Cadence des paiements</span>
+            <span className="text-white font-medium">Chaque vendredi</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#6B7280]">Allocation données</span>
-            <span className="text-[#111827] font-medium">40 $/mois</span>
+            <span className="text-gray-400">Allocation données</span>
+            <span className="text-white font-medium">40 $/mois</span>
           </div>
         </div>
       </section>
@@ -508,21 +508,21 @@ export default function FieldProfile() {
 
 
       {/* SECTION 5 — Actions */}
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 space-y-2">
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-1">Sécurité</h2>
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5 space-y-2">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Sécurité</h2>
         <button
           onClick={sendPasswordReset}
-          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[#F9FAFB] transition-colors text-left min-h-[44px]"
+          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition-colors text-left min-h-[44px]"
         >
           <KeyRound className="h-4 w-4 text-[#7C3AED]" />
-          <span className="text-sm font-medium text-[#111827] flex-1">Changer mon mot de passe</span>
+          <span className="text-sm font-medium text-white flex-1">Changer mon mot de passe</span>
         </button>
         <button
           onClick={() => navigate("/field/security")}
-          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[#F9FAFB] transition-colors text-left min-h-[44px]"
+          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition-colors text-left min-h-[44px]"
         >
           <Lock className="h-4 w-4 text-[#7C3AED]" />
-          <span className="text-sm font-medium text-[#111827] flex-1">Sécurité 2FA</span>
+          <span className="text-sm font-medium text-white flex-1">Sécurité 2FA</span>
         </button>
       </section>
     </div>

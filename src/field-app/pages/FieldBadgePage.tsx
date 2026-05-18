@@ -399,7 +399,7 @@ export default function FieldBadgePage() {
             <div className="flex flex-col items-center mt-4">
               <Avatar className="h-24 w-24 ring-2 ring-white/90">
                 <AvatarImage src={avatarUrl} alt="" />
-                <AvatarFallback className="bg-white/15 text-white">
+                <AvatarFallback className="bg-gray-800/15 text-white">
                   <User2 className="h-10 w-10" />
                 </AvatarFallback>
               </Avatar>
@@ -415,7 +415,7 @@ export default function FieldBadgePage() {
                 <div className="text-[10px] opacity-75 mt-2">{badge.support_email}</div>
               </div>
               {qrSrc && (
-                <div className="bg-white p-1.5 rounded">
+                <div className="bg-gray-800 p-1.5 rounded">
                   <img src={qrSrc} alt="QR" className="w-20 h-20" />
                 </div>
               )}
