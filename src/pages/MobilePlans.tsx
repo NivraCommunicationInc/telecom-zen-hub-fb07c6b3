@@ -15,6 +15,7 @@ import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useMobilePlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import { ProductSchema, BreadcrumbSchema, type ProductSchemaItem } from "@/components/seo";
+import PremiumPlanCard from "@/components/shared/PremiumPlanCard";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
