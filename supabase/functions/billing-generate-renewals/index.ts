@@ -140,32 +140,29 @@ serve(async (req) => {
         }
         
         // ═══ AUTOPAY DISCOUNT CHECK ═══
-        // If customer has autopay enabled (Stripe OR PayPal recurring), apply $5 monthly discount.
-        // PayPal pre-authorized subs are detected via sub.paypal_subscription_id.
+        // PayPal pre-authorized subscriptions trigger the $5 monthly autopay discount.
+        // Stripe was decommissioned 2026-05-18 — PayPal is the sole recurring provider.
         let autopayDiscount = 0;
         let autopayNote = "";
-        
+
         const { data: customerData } = await supabase
           .from("billing_customers")
-          .select("autopay_enabled, autopay_discount_active, stripe_customer_id, default_payment_method_id")
+          .select("autopay_enabled, autopay_discount_active")
           .eq("id", sub.customer_id)
           .single();
-        
-        const hasStripeAutopay = !!(customerData?.stripe_customer_id && customerData?.default_payment_method_id);
+
         const hasPayPalAutopay = !!sub.paypal_subscription_id;
-        
+
         const isAutopayEligible = !!customerData?.autopay_enabled &&
                                    !!customerData?.autopay_discount_active &&
-                                   (hasStripeAutopay || hasPayPalAutopay);
-        
+                                   hasPayPalAutopay;
+
         if (isAutopayEligible) {
           autopayDiscount = 5;
-          autopayNote = hasPayPalAutopay
-            ? " (Rabais paiement pré-autorisé PayPal -5$)"
-            : " (Rabais prélèvement automatique -5$)";
-          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id} (provider: ${hasPayPalAutopay ? 'paypal' : 'stripe'})`);
+          autopayNote = " (Rabais paiement pré-autorisé PayPal -5$)";
+          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id} (provider: paypal)`);
         }
-        
+
         // Calculate amounts via canonical tax module
         const subtotal = Math.max(0, sub.plan_price - promoDiscount - autopayDiscount);
         const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
