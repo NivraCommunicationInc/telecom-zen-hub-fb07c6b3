@@ -1,0 +1,114 @@
+/**
+ * INTERNAL PORTAL — Unified dark theme
+ * Applies the same gray-900 background + violet-600 accent + white text
+ * palette across every staff-facing portal (Core, Field, HR, Employee,
+ * Marketing, Technician, Hub-secure).
+ *
+ * All internal layouts wrap their content in `.internal-ui`, which is the
+ * only scope used here. The public marketing site is NOT affected.
+ *
+ * This file overrides BOTH:
+ *   1. Global shadcn semantic tokens (--background, --card, --primary…)
+ *      so any <Card>, <Input>, <Button>, <Dialog>, <Select> etc. renders dark.
+ *   2. Common Tailwind utility classes that were previously hardcoded with
+ *      light-theme colors (bg-white, text-gray-900, border-gray-200, …).
+ */
+
+.internal-ui,
+[data-field-portal],
+[data-core-portal],
+[data-hr-portal],
+[data-employee-portal],
+[data-marketing-portal] {
+  /* ── shadcn semantic tokens (HSL triplets) ── */
+  --background: 220 39% 11%;        /* gray-900 #111827 */
+  --foreground: 210 20% 98%;        /* gray-50  #f9fafb */
+  --card: 215 28% 17%;              /* gray-800 #1f2937 */
+  --card-foreground: 210 20% 98%;
+  --popover: 215 28% 17%;
+  --popover-foreground: 210 20% 98%;
+  --primary: 262 83% 58%;           /* violet-600 #7c3aed */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 19% 27%;         /* gray-700 #374151 */
+  --secondary-foreground: 210 20% 98%;
+  --muted: 217 19% 27%;
+  --muted-foreground: 218 11% 75%;  /* gray-300 #d1d5db */
+  --accent: 262 83% 58%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 217 19% 27%;            /* gray-700 */
+  --input: 217 19% 27%;
+  --ring: 262 83% 58%;
+  --sidebar-background: 220 39% 11%;
+  --sidebar-foreground: 210 20% 98%;
+  --sidebar-primary: 262 83% 58%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 215 28% 17%;
+  --sidebar-accent-foreground: 210 20% 98%;
+  --sidebar-border: 217 19% 27%;
+  --sidebar-ring: 262 83% 58%;
+
+  color-scheme: dark;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* ── Override hardcoded light-theme Tailwind utilities ────────
+   Force readability inside internal portals even when legacy
+   pages still use bg-white / text-black / text-gray-900 etc. */
+
+.internal-ui .bg-white,
+.internal-ui .bg-gray-50,
+.internal-ui .bg-slate-50,
+.internal-ui .bg-zinc-50,
+.internal-ui .bg-neutral-50 {
+  background-color: hsl(var(--card)) !important;
+}
+
+.internal-ui .bg-gray-100,
+.internal-ui .bg-slate-100,
+.internal-ui .bg-zinc-100,
+.internal-ui .bg-neutral-100 {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+.internal-ui .text-black,
+.internal-ui .text-gray-900,
+.internal-ui .text-gray-800,
+.internal-ui .text-slate-900,
+.internal-ui .text-slate-800,
+.internal-ui .text-zinc-900,
+.internal-ui .text-neutral-900 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.internal-ui .text-gray-700,
+.internal-ui .text-gray-600,
+.internal-ui .text-slate-700,
+.internal-ui .text-slate-600,
+.internal-ui .text-zinc-700 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.internal-ui .text-gray-500,
+.internal-ui .text-gray-400,
+.internal-ui .text-slate-500,
+.internal-ui .text-slate-400 {
+  color: hsl(218 11% 65%) !important;
+}
+
+.internal-ui .border-gray-200,
+.internal-ui .border-gray-300,
+.internal-ui .border-slate-200,
+.internal-ui .border-slate-300,
+.internal-ui .border-zinc-200 {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Radix portals (Dialog, Select, Dropdown, Popover, Tooltip, Sheet,
+   Toast) render outside the .internal-ui wrapper — they automatically
+   inherit the global :root tokens, which remain the public/light theme.
+   These components already use semantic tokens (bg-popover, text-foreground)
+   so they render correctly when opened from a public page. We do NOT
+   override :root here on purpose to keep the public marketing site intact. */
