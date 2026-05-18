@@ -415,7 +415,7 @@ export default function FieldBadgePage() {
                 <div className="text-[10px] opacity-75 mt-2">{badge.support_email}</div>
               </div>
               {qrSrc && (
-                <div className="bg-gray-800 p-1.5 rounded">
+                <div className="bg-white p-1.5 rounded">
                   <img src={qrSrc} alt="QR" className="w-20 h-20" />
                 </div>
               )}
