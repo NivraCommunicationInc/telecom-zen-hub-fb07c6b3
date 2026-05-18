@@ -88,6 +88,7 @@ const Forfaits = () => {
         title="Forfaits Internet et TV sans contrat au Québec | Nivra Telecom"
         description="Comparez nos forfaits Internet haute vitesse et TV sans contrat au Québec. Prix fixes garantis, sans engagement. Activation rapide."
       />
+      <Header />
 
       <main className="pt-20 sm:pt-24 pb-12 sm:pb-16">
         <div className="container mx-auto px-4 max-w-6xl">
