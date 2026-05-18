@@ -360,15 +360,15 @@ export function renderQueueTemplate(
     case "order_confirmation": {
       const cClientName = esc(v.client_name || v.first_name || "Client");
       const cOrderNum = esc(v.order_number || v.ORDER_NUMBER || "N/A");
-      const cServices = esc(v.services || "Voir détails de la commande");
-      const cEquipment = esc(v.equipment || "Aucun équipement");
+      const cServices = esc(v.services || t("Voir détails de la commande","See order details", lang));
+      const cEquipment = esc(v.equipment || t("Aucun équipement","No equipment", lang));
       const cDiscount = v.discount ? esc(String(v.discount)) : null;
       const cSubtotal = money(v.subtotal || 0);
       const cTps = money(v.tps || 0);
       const cTvq = money(v.tvq || 0);
       const cTotal = money(v.total || v.amount || 0);
-      const cPaymentStatus = esc(v.payment_status || "En attente de traitement");
-      const cAgentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const cPaymentStatus = esc(v.payment_status || t("En attente de traitement","Pending processing", lang));
+      const cAgentName = esc(v.agent_name || t("Votre conseiller Nivra","Your Nivra advisor", lang));
       const cAgentNumber = esc(v.agent_number || "N/A");
       const cAgentDisplay = v.agent_number
         ? `${cAgentName} — ${cAgentNumber}`
@@ -376,44 +376,45 @@ export function renderQueueTemplate(
       const cPaymentUrl = String(v.payment_url || v.payer_url || `${PORTAL_URL}/facturation`);
 
       const cRows: Array<[string, string]> = [
-        ["Numéro de commande", `#${cOrderNum}`],
-        ["Votre représentant", cAgentDisplay],
-        ["Forfaits", cServices],
-        ["Équipement", cEquipment],
+        [t("Numéro de commande","Order number", lang), `#${cOrderNum}`],
+        [t("Votre représentant","Your representative", lang), cAgentDisplay],
+        [t("Forfaits","Plans", lang), cServices],
+        [t("Équipement","Equipment", lang), cEquipment],
       ];
-      if (cDiscount) cRows.push(["Rabais appliqué", cDiscount]);
-      // Per-line discounts from billing_invoice_lines (line_type='discount').
-      // Each renders as a negative-amount row so the client sees every rabais.
+      if (cDiscount) cRows.push([t("Rabais appliqué","Discount applied", lang), cDiscount]);
       for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
         cRows.push(r);
       }
-      // Structured discount object (field-sales discount_data) — branded label.
       if (v.discount_data) {
-        cRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+        cRows.push([t("Rabais","Discount", lang), formatDiscountForContract(v.discount_data)]);
       }
       cRows.push(
-        ["Sous-total", cSubtotal],
+        [t("Sous-total","Subtotal", lang), cSubtotal],
         ["TPS (5%)", cTps],
         ["TVQ (9,975%)", cTvq],
         ["TOTAL", cTotal],
-        ["Statut paiement", cPaymentStatus],
+        [t("Statut paiement","Payment status", lang), cPaymentStatus],
       );
 
       return {
-        subject: `Confirmation de commande — Nivra Telecom`,
+        subject: t("Confirmation de commande — Nivra Telecom","Order Confirmation — Nivra Telecom", lang),
         html: shell({
-          preheader: "Votre commande Nivra a été enregistrée.",
-          badge: "COMMANDE REÇUE",
-          heroTitle: "Votre commande a été enregistrée",
-          heroSub: `Commande #${cOrderNum}`,
+          preheader: t("Votre commande Nivra a été enregistrée.","Your Nivra order has been registered.", lang),
+          badge: t("COMMANDE REÇUE","ORDER RECEIVED", lang),
+          heroTitle: t("Votre commande a été enregistrée","Your order has been registered", lang),
+          heroSub: `${t("Commande","Order", lang)} #${cOrderNum}`,
           icon: "check",
-          greeting: `Bonjour ${cClientName},`,
-          bodyText: `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
-          cardTitle: "Récapitulatif de votre commande",
+          greeting: t(`Bonjour ${cClientName},`, `Hello ${cClientName},`, lang),
+          bodyText: t(
+            `Votre commande a bien été enregistrée. Le paiement par carte sera traité par notre équipe dans les 48 heures ouvrables. Vous recevrez une confirmation dès que le paiement sera complété.`,
+            `Your order has been registered. Card payment will be processed by our team within 48 business hours. You will receive a confirmation as soon as the payment is completed.`,
+            lang,
+          ),
+          cardTitle: t("Récapitulatif de votre commande","Order summary", lang),
           cardRows: cRows,
           ctaPrimaryUrl: cPaymentUrl,
-          ctaPrimaryLabel: "Voir ma commande",
-          helpHtml: `Questions ? Contactez-nous à ${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: t("Voir ma commande","View my order", lang),
+          helpHtml: t(`Questions ? Contactez-nous à ${SUPPORT_EMAIL}`, `Questions? Contact us at ${SUPPORT_EMAIL}`, lang),
         }),
       };
     }
