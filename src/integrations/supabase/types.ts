@@ -20103,6 +20103,59 @@ export type Database = {
         }
         Relationships: []
       }
+      technician_locations: {
+        Row: {
+          accuracy_meters: number | null
+          created_at: string
+          heading: number | null
+          id: string
+          installation_job_id: string | null
+          is_active: boolean
+          latitude: number
+          longitude: number
+          recorded_at: string
+          speed_kmh: number | null
+          technician_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_meters?: number | null
+          created_at?: string
+          heading?: number | null
+          id?: string
+          installation_job_id?: string | null
+          is_active?: boolean
+          latitude: number
+          longitude: number
+          recorded_at?: string
+          speed_kmh?: number | null
+          technician_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_meters?: number | null
+          created_at?: string
+          heading?: number | null
+          id?: string
+          installation_job_id?: string | null
+          is_active?: boolean
+          latitude?: number
+          longitude?: number
+          recorded_at?: string
+          speed_kmh?: number | null
+          technician_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technician_locations_installation_job_id_fkey"
+            columns: ["installation_job_id"]
+            isOneToOne: false
+            referencedRelation: "installation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technician_slot_bookings: {
         Row: {
           client_id: string
@@ -23158,6 +23211,16 @@ export type Database = {
           other_entry_id: string
           other_entry_type: string
           other_reference_number: string
+        }[]
+      }
+      get_order_technician_eta: {
+        Args: { p_order_number: string }
+        Returns: {
+          eta_minutes: number
+          has_technician: boolean
+          last_update: string
+          on_site: boolean
+          technician_name: string
         }[]
       }
       get_technician_mobile_self: {

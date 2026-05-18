@@ -42,6 +42,7 @@ import { format } from "date-fns";
 import { fr, enCA } from "date-fns/locale";
 import SEOHead from "@/components/SEOHead";
 import { toast } from "@/hooks/use-toast";
+import ClientOrderEta from "@/components/client/ClientOrderEta";
 
 interface OrderData {
   id: string;
@@ -700,6 +701,8 @@ const TrackOrder = () => {
                   </p>
                 </CardContent>
               </Card>
+
+              <ClientOrderEta orderNumber={orderData.order_number} isFr={isFr} />
 
               {/* Help Card */}
               <Card className="border-0 shadow-lg shadow-black/5 bg-gradient-to-br from-accent/5 via-background to-accent/5">
