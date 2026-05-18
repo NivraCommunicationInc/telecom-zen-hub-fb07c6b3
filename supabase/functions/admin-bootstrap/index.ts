@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         target_email: normalizedEmail,
       });
 
-      console.log(`[admin-bootstrap] Admin recovered successfully: ${normalizedEmail}`);
+      console.log(`[admin-bootstrap] Admin recovered successfully`);
 
       return new Response(
         JSON.stringify({
