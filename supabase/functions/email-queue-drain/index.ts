@@ -48,6 +48,7 @@ interface QueueRow {
   entity_type: string | null;
   entity_id: string | null;
   attachments: QueueAttachment[] | null;
+  language: string | null;
 }
 
 interface ResolvedEmail {
