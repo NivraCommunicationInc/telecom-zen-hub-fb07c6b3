@@ -39,8 +39,8 @@ const ComparisonTable = () => {
                 <tr style={{ background: '#F7F7F7' }}>
                   <th className="p-3 sm:p-4 text-left text-xs font-medium" style={{ color: '#999999' }} />
                   <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#7C3AED', borderLeft: '1px solid #EEEEEE', background: '#F3EEFF' }}>Nivra</th>
-                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>Bell</th>
-                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>Vidéotron</th>
+                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>{isFr ? "Autres fournisseurs" : "Other providers"}</th>
+                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>{isFr ? "Fournisseurs traditionnels" : "Traditional providers"}</th>
                 </tr>
               </thead>
               <tbody>
