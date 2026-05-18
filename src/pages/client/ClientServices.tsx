@@ -26,6 +26,7 @@ type Subscription = {
   paused_at: string | null;
   pause_until: string | null;
   pause_reason: string | null;
+  paypal_subscription_id: string | null;
 };
 
 const DURATION_PRESETS: { label: string; days: number }[] = [
