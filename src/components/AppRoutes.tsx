@@ -508,6 +508,7 @@ const AppRoutes = () => {
       <Route path="/telephones/:id" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneDetail /></Suspense></MaintenanceGuard>} />
       <Route path="/telephones/:id/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneCheckout /></Suspense></MaintenanceGuard>} />
       <Route path="/mobile-coverage" element={<MaintenanceGuard><PublicLayout><MobileCoverage /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/couverture" element={<MaintenanceGuard><PublicLayout><CoverageMap /></PublicLayout></MaintenanceGuard>} />
       <Route path="/streaming" element={<MaintenanceGuard><PublicLayout><StreamingPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/compare" element={<MaintenanceGuard><PublicLayout><ComparePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/television-sur-mesure" element={<MaintenanceGuard><PublicLayout><TVConfigurator /></PublicLayout></MaintenanceGuard>} />
