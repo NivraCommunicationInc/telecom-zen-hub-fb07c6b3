@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import FieldMyPaySection from "@/field-app/components/FieldMyPaySection";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 2 }).format(n || 0);
@@ -316,9 +317,16 @@ export default function FieldProfile() {
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Adresse domicile</h2>
         {editing ? (
           <div className="space-y-3">
-            <input
+            <AddressAutocomplete
               value={formData.address_street}
-              onChange={(e) => setFormData({ ...formData, address_street: e.target.value })}
+              onValueChange={(v) => setFormData({ ...formData, address_street: v })}
+              onSelect={(a) => setFormData({
+                ...formData,
+                address_street: a.line1 || a.formatted,
+                address_city: a.city || formData.address_city,
+                address_province: a.region || formData.address_province,
+                address_postal: a.postalCode || formData.address_postal,
+              })}
               placeholder="Rue (adresse civique)"
               className="w-full text-sm border border-gray-700 rounded-lg px-3 py-2 focus:border-[#7C3AED] outline-none"
             />

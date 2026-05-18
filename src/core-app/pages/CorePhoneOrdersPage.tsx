@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1200,7 +1201,19 @@ function ManualOrderDialog({
           {/* SECTION 4 — Address */}
           <Section icon={<MapPin className="h-4 w-4" />} title="4. Adresse de livraison">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Input placeholder="Adresse *" value={address} onChange={(e) => setAddress(e.target.value)} className="sm:col-span-2" />
+              <div className="sm:col-span-2">
+                <AddressAutocomplete
+                  value={address}
+                  onValueChange={setAddress}
+                  onSelect={(a) => {
+                    setAddress(a.line1 || a.formatted);
+                    if (a.city) setCity(a.city);
+                    if (a.region) setProvince(a.region);
+                    if (a.postalCode) setPostalCode(a.postalCode);
+                  }}
+                  placeholder="Adresse *"
+                />
+              </div>
               <Input placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} />
               <Select value={province} onValueChange={setProvince}>
                 <SelectTrigger><SelectValue /></SelectTrigger>

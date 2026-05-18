@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Check } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const SERVICE_OPTIONS = ["Internet", "Mobile", "TV", "Internet + TV", "Internet + Mobile", "Combo complet", "Autre"];
 const PAYMENT_INTENTS = ["Carte de crédit", "Virement Interac", "Paiement comptant", "À déterminer"];
@@ -64,7 +65,18 @@ export default function FieldNewLead() {
 
         <fieldset className="space-y-3">
           <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Adresse</legend>
-          <input placeholder="Adresse" value={form.address} onChange={(e) => update("address", e.target.value)} className={inputClass} />
+          <AddressAutocomplete
+            value={form.address}
+            onValueChange={(v) => update("address", v)}
+            onSelect={(a) => {
+              update("address", a.line1 || a.formatted);
+              if (a.city) update("city", a.city);
+              if (a.postalCode) update("postal_code", a.postalCode);
+            }}
+            placeholder="Adresse"
+            restrictToQuebec
+            className={inputClass}
+          />
           <div className="grid grid-cols-2 gap-2">
             <input placeholder="Ville" value={form.city} onChange={(e) => update("city", e.target.value)} className={inputClass} />
             <input placeholder="Code postal" value={form.postal_code} onChange={(e) => update("postal_code", e.target.value)} className={inputClass} />
