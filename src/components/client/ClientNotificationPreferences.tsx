@@ -13,6 +13,7 @@ import { Bell, Mail, MessageSquare, Loader2, Save, CheckCircle2 } from "lucide-r
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
+import ClientSmsMasterToggle from "./ClientSmsMasterToggle";
 
 interface ClientNotificationPreferencesProps {
   userId: string;
