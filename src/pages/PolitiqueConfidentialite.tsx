@@ -12,7 +12,8 @@ export default function PolitiqueConfidentialite() {
         description="Politique de confidentialité de Nivra Telecom, conforme à la Loi 25 du Québec et à la LPRPDE. Vos droits, nos engagements."
         path="/politique-de-confidentialite"
       />
-      <div className="container mx-auto px-4 sm:px-6 max-w-3xl py-16 sm:py-20 text-foreground">
+      <Header />
+      <div className="container mx-auto px-4 sm:px-6 max-w-3xl py-16 sm:py-20 text-foreground pt-24 sm:pt-28">
         <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 tracking-tight">Politique de confidentialité</h1>
         <p className="text-sm text-muted-foreground mb-10">Dernière mise à jour : 13 avril 2025</p>
 
