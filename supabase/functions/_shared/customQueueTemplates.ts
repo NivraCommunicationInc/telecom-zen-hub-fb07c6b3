@@ -3557,6 +3557,143 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // ONBOARDING DAY 1 — Welcome + setup guide
+    // ===================================================================
+    case "onboarding_day1": {
+      return {
+        subject: isEn
+          ? "Welcome to Nivra! Here's how to get started 🎉"
+          : "Bienvenue chez Nivra! Voici comment démarrer 🎉",
+        html: shell({
+          preheader: isEn ? "Your getting started guide" : "Votre guide de démarrage",
+          badge: isEn ? "WELCOME" : "BIENVENUE",
+          heroTitle: isEn ? "Welcome to Nivra 🎉" : "Bienvenue chez Nivra 🎉",
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your Nivra service is active. Three things to do right now: <strong>1)</strong> sign in to your portal, <strong>2)</strong> verify your equipment, <strong>3)</strong> bookmark our support page.`
+            : `Votre service Nivra est actif. Trois choses à faire dès maintenant : <strong>1)</strong> connectez-vous à votre portail, <strong>2)</strong> vérifiez votre équipement, <strong>3)</strong> mettez en favori notre page de support.`,
+          cardTitle: isEn ? "Your account" : "Votre compte",
+          cardRows: [
+            [isEn ? "Account number" : "Numéro de compte", accountNum],
+            [isEn ? "Portal" : "Portail", portalUrl],
+            [isEn ? "Support" : "Support", SUPPORT_EMAIL],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: isEn ? "Access my portal" : "Accéder à mon portail",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ONBOARDING DAY 3 — Tips + FAQ
+    // ===================================================================
+    case "onboarding_day3": {
+      return {
+        subject: isEn
+          ? "Tips to get the most out of Nivra 💡"
+          : "Conseils pour profiter au maximum de Nivra 💡",
+        html: shell({
+          preheader: isEn ? "Pro tips for your service" : "Astuces pour votre service",
+          badge: isEn ? "TIPS" : "CONSEILS",
+          heroTitle: isEn ? "Get more from Nivra 💡" : "Tirez le maximum de Nivra 💡",
+          icon: "star",
+          greeting,
+          bodyText: isEn
+            ? `Run a speed test to confirm your line is delivering full speed. Manage your plan, billing and address from your online portal at any time.`
+            : `Lancez un test de vitesse pour confirmer que votre ligne livre la pleine vitesse. Gérez votre forfait, votre facturation et votre adresse depuis votre portail en ligne à tout moment.`,
+          cardTitle: "FAQ",
+          cardRows: [
+            [isEn ? "Speed test" : "Test de vitesse", "https://nivra-telecom.ca/test-vitesse"],
+            ["FAQ", "https://nivra-telecom.ca/faq"],
+            [isEn ? "Support" : "Support", SUPPORT_EMAIL],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/faq",
+          ctaPrimaryLabel: isEn ? "Open the FAQ" : "Ouvrir la FAQ",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ONBOARDING DAY 7 — Satisfaction check (NPS)
+    // ===================================================================
+    case "onboarding_day7": {
+      const npsUrl = String(v.nps_url || (v.nps_token ? `https://nivra-telecom.ca/nps/${v.nps_token}` : "https://nivra-telecom.ca/contact"));
+      return {
+        subject: isEn
+          ? "How's your experience going? 🙏"
+          : "Comment se passe votre expérience? 🙏",
+        html: shell({
+          preheader: isEn ? "30 seconds of your time" : "30 secondes de votre temps",
+          badge: isEn ? "YOUR OPINION MATTERS" : "VOTRE AVIS COMPTE",
+          heroTitle: isEn ? "How are we doing? 🙏" : "Comment ça se passe? 🙏",
+          icon: "star",
+          greeting,
+          bodyText: isEn
+            ? `It has been a week with Nivra. Tell us in one click how it's going — your feedback drives every improvement we make.`
+            : `Cela fait une semaine avec Nivra. Dites-nous en un clic comment cela se passe — votre avis nous aide à nous améliorer.`,
+          cardTitle: isEn ? "Your account" : "Votre compte",
+          cardRows: [
+            [isEn ? "Account number" : "Numéro de compte", accountNum],
+          ],
+          ctaPrimaryUrl: npsUrl,
+          ctaPrimaryLabel: isEn ? "Share my feedback" : "Donner mon avis",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ONBOARDING DAY 30 — 1 month anniversary + referral
+    // ===================================================================
+    case "onboarding_day30": {
+      const referralLink = String(v.referral_link || "https://nivra-telecom.ca/commander");
+      return {
+        subject: isEn ? "1 month with Nivra — Thank you! 🎁" : "1 mois avec Nivra — Merci! 🎁",
+        html: shell({
+          preheader: isEn ? "A small thank-you offer" : "Un petit cadeau pour vous remercier",
+          badge: isEn ? "THANK YOU" : "MERCI",
+          heroTitle: isEn ? "1 month together 🎁" : "1 mois ensemble 🎁",
+          icon: "star",
+          greeting,
+          bodyText: isEn
+            ? `Thank you for trusting Nivra for the past month. Share Nivra with friends and family — when they sign up, you both win.`
+            : `Merci de faire confiance à Nivra depuis un mois. Partagez Nivra avec vos proches — quand ils s'abonnent, vous gagnez tous les deux.`,
+          cardTitle: isEn ? "Your account" : "Votre compte",
+          cardRows: [
+            [isEn ? "Account number" : "Numéro de compte", accountNum],
+            [isEn ? "Refer & earn" : "Programme de parrainage", referralLink],
+          ],
+          ctaPrimaryUrl: referralLink,
+          ctaPrimaryLabel: isEn ? "Refer a friend" : "Parrainer un ami",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // NPS SURVEY
+    // ===================================================================
+    case "nps_survey": {
+      const npsUrl = String(v.nps_url || (v.nps_token ? `https://nivra-telecom.ca/nps/${v.nps_token}` : "https://nivra-telecom.ca/contact"));
+      return {
+        subject: isEn
+          ? "30 seconds to help us improve 🙏"
+          : "30 secondes pour nous aider à nous améliorer 🙏",
+        html: shell({
+          preheader: isEn ? "We'd love your feedback" : "Votre avis nous intéresse",
+          badge: isEn ? "YOUR OPINION MATTERS" : "VOTRE AVIS COMPTE",
+          heroTitle: isEn ? "Rate your Nivra experience" : "Évaluez votre expérience Nivra",
+          icon: "star",
+          greeting,
+          bodyText: isEn
+            ? `On a scale from 0 to 10, how likely are you to recommend Nivra to a friend? Just one click — that's all we need.`
+            : `Sur une échelle de 0 à 10, à quel point recommanderiez-vous Nivra à un ami? Un seul clic — c'est tout ce qu'il nous faut.`,
+          ctaPrimaryUrl: npsUrl,
+          ctaPrimaryLabel: isEn ? "Share my feedback" : "Donner mon avis",
+        }),
+      };
+    }
+
     default:
       return null;
   }
