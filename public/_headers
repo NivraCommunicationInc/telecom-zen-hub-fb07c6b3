@@ -49,10 +49,8 @@
   X-Robots-Tag: noindex, nofollow
 
 # Internal hub & sub-portals - block all crawlers
-/hub
-  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
-/hub/*
-  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+# NOTE: do NOT list the real obscure hub path here (would leak it).
+# SPA fallback applies noindex via in-page meta (useNoIndexMeta).
 /core/*
   X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
 /field/*
