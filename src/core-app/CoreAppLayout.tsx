@@ -72,6 +72,9 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Radio, label: "Live Activity", href: "/live-activity" },
       { icon: HardDrive, label: "System Status", href: "/system-status" },
       { icon: Activity, label: "Analytics", href: "/analytics" },
+      { icon: Activity, label: "Finance", href: "/finance" },
+      { icon: FileText, label: "SOPs", href: "/sops" },
+      { icon: Activity, label: "Support Metrics", href: "/support-metrics" },
     ],
   },
   {
