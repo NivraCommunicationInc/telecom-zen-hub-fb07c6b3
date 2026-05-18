@@ -214,13 +214,24 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
           [firstName, lastName].filter(Boolean).join(" ").trim();
 
         const rawEmail = r.email || null;
-        const rawPhone = r.phone || null;
+        let rawPhone = r.phone || null;
+        // Reference ID fallback → phone if it looks like one (7-11 digits)
+        if (!rawPhone && r.external_reference) {
+          const refDigits = r.external_reference.replace(/\D/g, "");
+          if (refDigits.length >= 7 && refDigits.length <= 11) {
+            rawPhone = r.external_reference;
+          }
+        }
 
         const cleanedEmail =
           rawEmail && validateEmail(rawEmail) ? rawEmail.trim().toLowerCase() : null;
         const cleanedPhone = rawPhone ? normalizePhone(rawPhone) : null;
 
-        if (!cleanedEmail && !cleanedPhone) {
+        const cityVal = (r.city || "").trim();
+        const addrVal = (r.address_line1 || r.address_line2 || "").trim();
+        const hasLocatable = !!(firstName.trim() && lastName.trim() && (cityVal || addrVal));
+
+        if (!cleanedEmail && !cleanedPhone && !hasLocatable) {
           return {
             name: name || "—",
             email: null,
@@ -228,7 +239,7 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
             first_name: firstName || undefined,
             last_name: lastName || undefined,
             _valid: false,
-            _reason: "Aucun contact valide (email/téléphone)",
+            _reason: "Aucun email, téléphone ni adresse exploitable",
           };
         }
         if (!name || name.length < 2) {
