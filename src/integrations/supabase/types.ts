@@ -2390,16 +2390,6 @@ export type Database = {
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
-          stripe_cancel_at: string | null
-          stripe_canceled_at: string | null
-          stripe_current_period_end: string | null
-          stripe_current_period_start: string | null
-          stripe_default_payment_method: string | null
-          stripe_price_id: string | null
-          stripe_product_id: string | null
-          stripe_setup_status: string | null
-          stripe_status: string | null
-          stripe_subscription_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2433,16 +2423,6 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
-          stripe_cancel_at?: string | null
-          stripe_canceled_at?: string | null
-          stripe_current_period_end?: string | null
-          stripe_current_period_start?: string | null
-          stripe_default_payment_method?: string | null
-          stripe_price_id?: string | null
-          stripe_product_id?: string | null
-          stripe_setup_status?: string | null
-          stripe_status?: string | null
-          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2476,16 +2456,6 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
-          stripe_cancel_at?: string | null
-          stripe_canceled_at?: string | null
-          stripe_current_period_end?: string | null
-          stripe_current_period_start?: string | null
-          stripe_default_payment_method?: string | null
-          stripe_price_id?: string | null
-          stripe_product_id?: string | null
-          stripe_setup_status?: string | null
-          stripe_status?: string | null
-          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
