@@ -232,6 +232,18 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
             );
           })}
           <button
+            onClick={() => navigate('/nivra-secure-hub-2617-internal')}
+            title={collapsed ? "Changer de portail" : undefined}
+            className={cn(
+              "w-full flex items-center mx-1 rounded-xl text-[12px] font-medium text-gray-400 hover:bg-gray-700/50 hover:text-white transition-colors border-t border-gray-700 pt-2 mt-2",
+              collapsed ? "justify-center py-2.5" : "gap-3 px-3 py-2"
+            )}
+            style={{ minHeight: 44 }}
+          >
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Changer de portail</span>}
+          </button>
+          <button
             onClick={handleLogout}
             title={collapsed ? "Déconnexion" : undefined}
             className={cn(

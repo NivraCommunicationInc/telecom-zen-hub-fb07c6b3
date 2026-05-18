@@ -14,7 +14,9 @@ import {
   ChevronDown,
   User,
   Search,
+  LayoutGrid,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { PortalSystemStatusBanner } from "@/components/client/PortalSystemStatusBanner";
 import { PortalNotificationBell } from "@/components/client/PortalNotificationBell";
@@ -126,6 +128,21 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
   const { badges: sectionBadges } = usePortalSectionBadges();
+
+  const { data: hasStaffRole } = useQuery({
+    queryKey: ["user-has-staff-role", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .neq("role", "client");
+      return Array.isArray(data) && data.length > 0;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60_000,
+  });
 
   const { data: pointsBalance } = useQuery({
     queryKey: ["loyalty-points-balance", user?.id],
@@ -475,6 +492,15 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               <Link to="/" className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
                 Retour au site Nivra
               </Link>
+              {hasStaffRole && (
+                <button
+                  onClick={() => navigate('/nivra-secure-hub-2617-internal')}
+                  className="w-full text-left px-4 py-3 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl flex items-center gap-2 min-h-[44px] border-t border-slate-200 pt-3 mt-1"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  Changer de portail
+                </button>
+              )}
               <button
                 onClick={handleSignOut}
                 className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2 min-h-[44px]"
