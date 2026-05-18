@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const STORAGE_KEY = "nivra_launch_popup_dismissed_at";
 const DISMISS_DAYS = 7;
-const SHOW_DELAY_MS = 3000;
+const SHOW_DELAY_MS = 12000;
 
 const LaunchOfferPopup = () => {
   const { language } = useLanguage();
