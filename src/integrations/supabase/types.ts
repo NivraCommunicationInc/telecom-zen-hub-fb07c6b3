@@ -15790,6 +15790,7 @@ export type Database = {
           training_override: boolean
           updated_at: string
           user_id: string
+          work_city: string | null
         }
         Insert: {
           account_number?: string | null
@@ -15882,6 +15883,7 @@ export type Database = {
           training_override?: boolean
           updated_at?: string
           user_id: string
+          work_city?: string | null
         }
         Update: {
           account_number?: string | null
@@ -15974,6 +15976,7 @@ export type Database = {
           training_override?: boolean
           updated_at?: string
           user_id?: string
+          work_city?: string | null
         }
         Relationships: [
           {
