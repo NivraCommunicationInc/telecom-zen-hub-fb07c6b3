@@ -62,6 +62,7 @@ const FieldClientLookup = lazy(() => import("@/field-app/pages/FieldClientLookup
 const FieldResources = lazy(() => import("@/field-app/pages/FieldResources"));
 const FieldTraining = lazy(() => import("@/field-app/pages/FieldTraining"));
 const FieldBadgePage = lazy(() => import("@/field-app/pages/FieldBadgePage"));
+const FieldProcedures = lazy(() => import("@/field-app/pages/FieldProcedures"));
 const HrBadgePage = lazy(() => import("@/hr-app/pages/HrBadgePage"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
@@ -226,6 +227,7 @@ const JobListings = lazy(() => import("@/pages/JobListings"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const NPSSurvey = lazy(() => import("@/pages/NPSSurvey"));
+const Presse = lazy(() => import("@/pages/Presse"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
 const ServicesDetail = lazy(() => import("@/pages/ServicesDetail"));
@@ -523,6 +525,7 @@ const AppRoutes = () => {
       <Route path="/apply/:jobId" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
       <Route path="/faq" element={<MaintenanceGuard><PublicLayout><FAQ /></PublicLayout></MaintenanceGuard>} />
       <Route path="/nps/:token" element={<MaintenanceGuard><PublicLayout><NPSSurvey /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/presse" element={<MaintenanceGuard><PublicLayout><Presse /></PublicLayout></MaintenanceGuard>} />
       <Route path="/contact" element={<MaintenanceGuard><PublicLayout><Contact /></PublicLayout></MaintenanceGuard>} />
       <Route path="/privacy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicy /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms" element={<MaintenanceGuard><PublicLayout><TermsOfUse /></PublicLayout></MaintenanceGuard>} />
@@ -1017,6 +1020,7 @@ const AppRoutes = () => {
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
           <Route path="training" element={<Suspense fallback={null}><FieldTraining /></Suspense>} />
           <Route path="badge" element={<Suspense fallback={null}><FieldBadgePage /></Suspense>} />
+          <Route path="procedures" element={<Suspense fallback={null}><FieldProcedures /></Suspense>} />
           {/* Nivra Source Hub — unified */}
           <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="field" /></Suspense>} />
           <Route path="hub/annonces" element={<Navigate to="/field/hub?section=annonces" replace />} />
