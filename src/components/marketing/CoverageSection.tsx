@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { MapPin, Search, CheckCircle2, ArrowRight } from "lucide-react";
+import { MapPin, CheckCircle2, ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 const regions = [
   'Montréal', 'Laval', 'Longueuil', 'Brossard', 'Rive-Sud',
@@ -15,10 +16,18 @@ export default function CoverageSection() {
   const isFr = language === 'fr';
   const [address, setAddress] = useState('');
 
+  const goToCoverage = (q: string) => {
+    window.location.href = `/couverture${q ? `?address=${encodeURIComponent(q)}` : ''}`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = address.trim();
-    window.location.href = `/couverture${q ? `?address=${encodeURIComponent(q)}` : ''}`;
+    goToCoverage(address.trim());
+  };
+
+  const handleSelect = (addr: AddressValue) => {
+    setAddress(addr.formatted);
+    goToCoverage(addr.formatted);
   };
 
   return (
