@@ -25,6 +25,7 @@ import { validateDob, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateCanadianPostalCode, formatPostalCode } from "@/components/checkout/CheckoutServiceAddress";
 import PayPalButton from "@/components/payment/PayPalButton";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { toast } from "sonner";
 import {
   User, MapPin, CreditCard, CheckCircle, ShieldCheck, ArrowRight,
