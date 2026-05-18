@@ -10,6 +10,7 @@ import {
   Phone,
   Settings,
   LogOut,
+  LayoutGrid,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,13 @@ export default function MarketingAppLayout() {
             </span>
             <div className="flex items-center gap-3">
               <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+              <button
+                onClick={() => navigate('/nivra-secure-hub-2617-internal')}
+                title="Changer de portail"
+                className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground border-l border-border pl-3 ml-1"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
               <button
                 onClick={handleLogout}
                 title="Déconnexion"
