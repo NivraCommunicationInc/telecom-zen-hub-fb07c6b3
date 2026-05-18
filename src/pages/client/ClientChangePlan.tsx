@@ -40,7 +40,7 @@ type Subscription = {
 const ClientChangePlan = () => {
   const { user } = useClientAuth();
   const qc = useQueryClient();
-  const [selected, setSelected] = useState<Plan | null>(null);
+  const [selected, setSelected] = useState<(Plan & { diff: number; changeType: "upgrade" | "downgrade" | "current"; isCurrent: boolean }) | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Current active subscription (pick the most recent active one)
