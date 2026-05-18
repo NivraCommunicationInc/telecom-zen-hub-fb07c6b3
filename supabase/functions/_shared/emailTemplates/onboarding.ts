@@ -415,6 +415,9 @@ export const preauthorizedPaymentConfirmed = (params: BaseParams & {
 // ============================================================
 // EMPLOYEE WELCOME — Onboarding for new staff (RH portal access)
 // ============================================================
+/** Canonical secure hub entry point — single door for all internal portals */
+export const SECURE_HUB_URL = 'https://nivra-telecom.ca/nivra-secure-hub-2617-internal';
+
 export const employeeWelcome = (params: BaseParams & {
   employeeName: string;
   employeeEmail: string;
@@ -422,9 +425,9 @@ export const employeeWelcome = (params: BaseParams & {
   department?: string;
   hireDate?: string;
   hasEmployeePortal?: boolean;
-  rhUrl?: string;
-  employeeUrl?: string;
-  /** Magic link or invitation link to set password and access /rh */
+  /** Optional override — defaults to the secure hub URL */
+  hubUrl?: string;
+  /** Magic link or invitation link to set password */
   setupLink?: string;
 }): { subject: string; html: string } => {
   const {
@@ -434,8 +437,7 @@ export const employeeWelcome = (params: BaseParams & {
     department,
     hireDate,
     hasEmployeePortal = false,
-    rhUrl = 'https://nivra-telecom.ca/rh',
-    employeeUrl = 'https://nivra-telecom.ca/employee',
+    hubUrl = SECURE_HUB_URL,
     setupLink,
     supportEmail,
   } = params;
@@ -454,7 +456,7 @@ export const employeeWelcome = (params: BaseParams & {
         Bonjour ${escapeHtml(employeeName)},
       </p>
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Votre espace employé est prêt. Utilisez les identifiants ci-dessous pour accéder à tous vos portails Nivra.
+        Votre espace employé Nivra est prêt. Tous les portails internes (RH, Employee, Field) sont accessibles via une <strong>seule porte d'entrée sécurisée</strong>.
       </p>
 
       ${sectionHeader('Vos informations', 'purple')}
@@ -469,33 +471,38 @@ export const employeeWelcome = (params: BaseParams & {
       </table>
 
       ${setupLink ? `
-      ${alertBox('success', '🔐', 'Activez votre compte',
-        'Cliquez sur le bouton ci-dessous pour configurer votre mot de passe et accéder à votre portail RH immédiatement. Ce lien est personnel — ne le partagez avec personne.')}
+      ${alertBox('success', '🔐', 'Étape 1 — Activez votre compte',
+        'Cliquez sur le bouton ci-dessous pour configurer votre mot de passe. Ce lien est personnel — ne le partagez avec personne.')}
 
       <div style="text-align: center; margin-top: 24px; margin-bottom: 16px;">
-        ${button('Activer mon compte et configurer mon mot de passe →', setupLink, 'primary')}
+        ${button('Activer mon compte →', setupLink, 'primary')}
       </div>
 
-      <p style="color: ${colors.gray500}; font-size: 13px; text-align: center; margin: 0 0 24px 0;">
+      <p style="color: ${colors.gray500}; font-size: 13px; text-align: center; margin: 0 0 32px 0;">
         Ou copiez ce lien dans votre navigateur:<br>
         <a href="${setupLink}" style="color: ${colors.primary}; word-break: break-all; font-size: 12px;">${setupLink}</a>
       </p>
-      ` : `
-      ${alertBox('info', 'ℹ️', 'Première connexion',
-        'Vous recevrez sous peu un courriel séparé contenant un lien magique pour configurer votre compte (mot de passe, NIP, MFA si requis). Conservez cet email comme référence pour vos accès.')}
-      `}
+      ` : ''}
 
-      <div style="text-align: center; margin-top: 32px;">
-        ${button(setupLink ? 'Voir mon espace RH' : 'Accéder à mon espace RH →', rhUrl, setupLink ? 'secondary' : 'primary')}
+      ${sectionHeader(setupLink ? 'Étape 2 — Hub d\u2019accès sécurisé' : 'Hub d\u2019accès sécurisé', 'purple')}
+      <p style="color: ${colors.gray700}; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">
+        À chaque connexion, accédez à votre poste de travail via le Hub Nivra. Vous y choisirez votre portail (RH, Employee, Field) selon votre rôle.
+      </p>
+
+      <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
+        <p style="color: ${colors.gray500}; font-size: 12px; font-weight: 600; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Votre lien officiel</p>
+        <a href="${hubUrl}" style="color: ${colors.primary}; font-size: 14px; font-weight: 600; word-break: break-all;">${hubUrl}</a>
       </div>
 
-      ${hasEmployeePortal ? `
-      <div style="text-align: center; margin-top: 16px;">
-        ${button('Accéder à Nivra Employee →', employeeUrl, 'secondary')}
-      </div>` : ''}
+      <div style="text-align: center; margin-top: 24px;">
+        ${button('Accéder au Hub Nivra →', hubUrl, setupLink ? 'secondary' : 'primary')}
+      </div>
+
+      ${alertBox('info', '💡', 'Conseil',
+        'Ajoutez ce lien à vos favoris (bookmark) sur votre navigateur. C\u2019est le <strong>seul</strong> point d\u2019entrée pour toute l\u2019équipe Nivra — il remplace les anciennes URLs.')}
 
       <p style="color: ${colors.gray500}; font-size: 14px; line-height: 1.6; margin: 32px 0 0 0;">
-        Utilisez ces identifiants pour accéder à tous vos portails Nivra (RH, Employee, Field selon votre rôle). Pour toute question, contactez l\u2019équipe RH à
+        Pour toute question, contactez l\u2019équipe RH à
         <a href="mailto:${supportEmail}" style="color: ${colors.primary};">${supportEmail}</a>.
       </p>
 
