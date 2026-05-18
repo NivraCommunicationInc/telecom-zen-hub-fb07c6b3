@@ -39,8 +39,8 @@ const ComparisonTable = () => {
                 <tr style={{ background: '#F7F7F7' }}>
                   <th className="p-3 sm:p-4 text-left text-xs font-medium" style={{ color: '#999999' }} />
                   <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#7C3AED', borderLeft: '1px solid #EEEEEE', background: '#F3EEFF' }}>Nivra</th>
-                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>Bell</th>
-                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>Vidéotron</th>
+                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>{isFr ? "Fournisseur A" : "Provider A"}</th>
+                  <th className="p-3 sm:p-4 text-center font-bold text-[13px] sm:text-sm" style={{ color: '#999999', borderLeft: '1px solid #EEEEEE' }}>{isFr ? "Fournisseur B" : "Provider B"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -71,8 +71,8 @@ const ComparisonTable = () => {
         </p>
         <p className="text-center mt-6 max-w-[700px] mx-auto leading-relaxed px-2" style={{ color: '#999999', fontSize: 11 }}>
           * {isFr
-            ? "Comparaison basée sur les informations publiques disponibles sur bell.ca et videotron.com en avril 2025."
-            : "Comparison based on publicly available information on bell.ca and videotron.com as of April 2025."}
+            ? "Comparaison à titre indicatif basée sur les pratiques courantes des grands fournisseurs traditionnels au Québec."
+            : "Indicative comparison based on common practices of major traditional providers in Quebec."}
         </p>
       </div>
     </section>

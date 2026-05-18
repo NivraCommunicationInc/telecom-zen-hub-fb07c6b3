@@ -139,7 +139,7 @@ const HomePricing = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 items-stretch mb-10 max-w-[960px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 items-stretch mb-10 max-w-[880px] mx-auto">
           {plans.map((plan) => {
             const isRec = plan.recommended;
             return (
@@ -152,55 +152,46 @@ const HomePricing = () => {
                     ? 'linear-gradient(180deg, #FFFFFF 0%, #FBF8FF 100%)'
                     : '#FFFFFF',
                   border: isRec ? '2px solid #7C3AED' : '1px solid #ECECEC',
-                  borderRadius: 24,
+                  borderRadius: 20,
                   boxShadow: isRec
-                    ? '0 20px 60px -15px rgba(124,58,237,0.35), 0 4px 12px rgba(0,0,0,0.04)'
-                    : '0 4px 24px rgba(0,0,0,0.06)',
+                    ? '0 16px 40px -16px rgba(124,58,237,0.30), 0 2px 8px rgba(0,0,0,0.04)'
+                    : '0 2px 14px rgba(0,0,0,0.05)',
                   overflow: 'hidden',
                 }}
               >
                 {isRec && (
-                  <>
-                    <div
-                      aria-hidden
-                      style={{
-                        position: 'absolute', inset: 0, pointerEvents: 'none',
-                        background: 'radial-gradient(600px circle at 50% -20%, rgba(124,58,237,0.10), transparent 50%)',
-                      }}
-                    />
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
-                      <div className="flex items-center gap-1.5 text-white uppercase px-4 py-1.5"
-                        style={{ background: '#7C3AED', borderRadius: '0 0 12px 12px', fontSize: 10, fontWeight: 800, letterSpacing: '1.2px', boxShadow: '0 4px 12px rgba(124,58,237,0.4)' }}>
-                        <Star className="w-3 h-3 fill-current" />
-                        {t('pricing.recommended')}
-                      </div>
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
+                    <div className="flex items-center gap-1 text-white uppercase px-3 py-1"
+                      style={{ background: '#7C3AED', borderRadius: '0 0 10px 10px', fontSize: 9, fontWeight: 800, letterSpacing: '1px', boxShadow: '0 3px 8px rgba(124,58,237,0.35)' }}>
+                      <Star className="w-2.5 h-2.5 fill-current" />
+                      {t('pricing.recommended')}
                     </div>
-                  </>
+                  </div>
                 )}
 
-                <div className="p-7 sm:p-8 flex flex-col h-full relative">
-                  <div className={isRec ? 'pt-3' : ''}>
-                    <h3 className="font-bold mb-1" style={{ color: '#0D0D0D', fontSize: 20, letterSpacing: '-0.3px' }}>{plan.name}</h3>
-                    <p className="font-semibold mb-6" style={{ color: '#7C3AED', fontSize: 13, letterSpacing: '0.5px' }}>{plan.speed}</p>
+                <div className="p-5 sm:p-6 flex flex-col h-full relative">
+                  <div className={isRec ? 'pt-2' : ''}>
+                    <h3 className="font-bold mb-0.5" style={{ color: '#0D0D0D', fontSize: 16, letterSpacing: '-0.2px' }}>{plan.name}</h3>
+                    <p className="font-semibold mb-4" style={{ color: '#7C3AED', fontSize: 11, letterSpacing: '0.4px' }}>{plan.speed}</p>
                   </div>
 
-                  <div className="mb-6 flex items-baseline gap-1">
-                    <span className="font-extrabold leading-none" style={{ color: '#0D0D0D', fontSize: 56, letterSpacing: '-2px' }}>
+                  <div className="mb-4 flex items-baseline gap-0.5">
+                    <span className="font-extrabold leading-none" style={{ color: '#0D0D0D', fontSize: 38, letterSpacing: '-1.2px' }}>
                       {plan.price.toFixed(0)}
                     </span>
-                    <span className="font-bold" style={{ color: '#0D0D0D', fontSize: 24 }}>$</span>
-                    <span className="ml-1" style={{ color: '#888', fontSize: 15, fontWeight: 500 }}>/mois</span>
+                    <span className="font-bold" style={{ color: '#0D0D0D', fontSize: 18 }}>$</span>
+                    <span className="ml-1" style={{ color: '#888', fontSize: 12, fontWeight: 500 }}>/mois</span>
                   </div>
 
-                  <div className="h-px w-full mb-6" style={{ background: 'linear-gradient(90deg, transparent, #EEE, transparent)' }} />
+                  <div className="h-px w-full mb-4" style={{ background: '#F0F0F0' }} />
 
-                  <div className="space-y-3 mb-7 flex-1">
+                  <div className="space-y-2 mb-5 flex-1">
                     {plan.features.map((f, i) => (
-                      <div key={i} className="flex items-start gap-2.5" style={{ fontSize: 14.5 }}>
-                        <div className="shrink-0 flex items-center justify-center mt-0.5" style={{ width: 18, height: 18, borderRadius: 50, background: isRec ? '#7C3AED' : '#F3EEFF' }}>
-                          <Check className="w-3 h-3" strokeWidth={3} style={{ color: isRec ? '#FFFFFF' : '#7C3AED' }} />
+                      <div key={i} className="flex items-start gap-2" style={{ fontSize: 12.5 }}>
+                        <div className="shrink-0 flex items-center justify-center mt-0.5" style={{ width: 15, height: 15, borderRadius: 50, background: isRec ? '#7C3AED' : '#F3EEFF' }}>
+                          <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: isRec ? '#FFFFFF' : '#7C3AED' }} />
                         </div>
-                        <span style={{ color: '#333', lineHeight: 1.5 }}>{f}</span>
+                        <span style={{ color: '#333', lineHeight: 1.45 }}>{f}</span>
                       </div>
                     ))}
                   </div>
@@ -208,16 +199,16 @@ const HomePricing = () => {
                   <EquipmentRequiredBox type={plan.equipmentType} />
 
                   <div
-                    className="w-full flex items-center justify-center gap-2 font-bold mt-5 transition-all group-hover:gap-3"
+                    className="w-full flex items-center justify-center gap-1.5 font-bold mt-4 transition-all group-hover:gap-2.5"
                     style={{
-                      height: 52, borderRadius: 50,
+                      height: 42, borderRadius: 50,
                       background: isRec ? '#7C3AED' : '#0D0D0D',
-                      color: '#FFFFFF', fontSize: 15,
-                      boxShadow: isRec ? '0 10px 24px -8px rgba(124,58,237,0.5)' : '0 6px 16px -6px rgba(0,0,0,0.3)',
+                      color: '#FFFFFF', fontSize: 13,
+                      boxShadow: isRec ? '0 8px 18px -8px rgba(124,58,237,0.45)' : '0 4px 12px -4px rgba(0,0,0,0.25)',
                     }}
                   >
                     Commencer
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                   </div>
                 </div>
               </Link>
