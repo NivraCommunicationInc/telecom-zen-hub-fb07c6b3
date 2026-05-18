@@ -44,8 +44,7 @@ export default function FieldAppLayout() {
       <StaffAssistanceBanner />
       <div
         data-field-portal
-        className="internal-ui min-h-screen flex w-full"
-        style={{ background: "hsl(var(--field-bg))" }}
+        className="internal-ui min-h-screen flex w-full bg-gray-900 text-gray-50"
       >
         {!isMobile && (
           <FieldSidebar
