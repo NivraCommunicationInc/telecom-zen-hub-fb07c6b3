@@ -265,18 +265,26 @@ export interface RenderResult {
   subject: string;
 }
 
+export type EmailLang = "fr" | "en";
+
+/** Bilingual helper — returns the EN string when lang==='en', else FR. */
+const t = (fr: string, en: string, lang: EmailLang): string =>
+  lang === "en" ? en : fr;
+
 export function renderQueueTemplate(
   templateKey: string,
   vars: Record<string, unknown>,
+  lang: EmailLang = "fr",
 ): RenderResult | null {
+  const isEn = lang === "en";
   const v = vars || {};
   const clientName = String(
     v.client_name || v.first_name || v.CLIENT_FIRST_NAME || v.CLIENT_NAME || "Client",
   );
-  const greeting = `Bonjour ${clientName},`;
+  const greeting = isEn ? `Hello ${clientName},` : `Bonjour ${clientName},`;
   const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
   const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "N/A");
-  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "Non spécifié");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || (isEn ? "Not specified" : "Non spécifié"));
 
   switch (templateKey) {
     // ===================================================================
