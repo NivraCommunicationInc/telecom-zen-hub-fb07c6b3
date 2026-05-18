@@ -23,8 +23,7 @@ Disallow: /agent-portal
 Disallow: /agent-portal/
 Disallow: /influencer
 Disallow: /influencer/
-Disallow: /hub
-Disallow: /hub/
+# /hub intentionally NOT listed — it's a decoy 404; real entry uses obscure path with in-page noindex
 Disallow: /core
 Disallow: /core/
 Disallow: /field
