@@ -60,8 +60,9 @@ export default function EmployeeBadgePreview({ targetUserId }: Props) {
         try {
           const qr = await QRCode.toDataURL(p.badge.qr_payload, { width: 220, margin: 1 });
           if (alive) setQrSrc(qr);
-        } catch {
-          /* non-fatal */
+        } catch (qrErr) {
+          console.error("[EmployeeBadgePreview] QR generation failed:", qrErr);
+          if (alive) toast.error("QR code indisponible — réessayez plus tard.");
         }
         setLoading(false);
       });
