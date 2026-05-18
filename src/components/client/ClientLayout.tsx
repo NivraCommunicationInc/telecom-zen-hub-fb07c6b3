@@ -70,6 +70,7 @@ const navGroups: Array<{
     badgeKey: "services",
     children: [
       { path: "/portal/services", label: "Mes services", badgeKey: "services" },
+      { path: "/portal/change-plan", label: "Changer de forfait" },
       { path: "/portal/equipment", label: "Mon équipement" },
       { path: "/portal/activation", label: "📶 Activation WiFi" },
       { path: "/portal/service-addresses", label: "Mes adresses" },
