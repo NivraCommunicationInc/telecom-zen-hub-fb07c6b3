@@ -15754,6 +15754,7 @@ export type Database = {
           pending_email_expires_at: string | null
           pending_email_token: string | null
           phone: string | null
+          phone_e164: string | null
           pin_failed_attempts: number | null
           pin_is_default: boolean | null
           pin_lockout_until: string | null
@@ -15772,6 +15773,7 @@ export type Database = {
           service_city: string | null
           service_postal_code: string | null
           service_province: string | null
+          sms_opt_in: boolean | null
           store_credit: number | null
           terms_accepted_at: string | null
           terms_accepted_ip: string | null
@@ -15844,6 +15846,7 @@ export type Database = {
           pending_email_expires_at?: string | null
           pending_email_token?: string | null
           phone?: string | null
+          phone_e164?: string | null
           pin_failed_attempts?: number | null
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
@@ -15862,6 +15865,7 @@ export type Database = {
           service_city?: string | null
           service_postal_code?: string | null
           service_province?: string | null
+          sms_opt_in?: boolean | null
           store_credit?: number | null
           terms_accepted_at?: string | null
           terms_accepted_ip?: string | null
@@ -15934,6 +15938,7 @@ export type Database = {
           pending_email_expires_at?: string | null
           pending_email_token?: string | null
           phone?: string | null
+          phone_e164?: string | null
           pin_failed_attempts?: number | null
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
@@ -15952,6 +15957,7 @@ export type Database = {
           service_city?: string | null
           service_postal_code?: string | null
           service_province?: string | null
+          sms_opt_in?: boolean | null
           store_credit?: number | null
           terms_accepted_at?: string | null
           terms_accepted_ip?: string | null
@@ -18766,6 +18772,45 @@ export type Database = {
           sent_by_email?: string | null
           sent_count?: number
           status?: string
+        }
+        Relationships: []
+      }
+      sms_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          error_message: string | null
+          event_key: string
+          id: string
+          message: string
+          sent_at: string | null
+          status: string
+          to_phone: string
+          to_user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          event_key: string
+          id?: string
+          message: string
+          sent_at?: string | null
+          status?: string
+          to_phone: string
+          to_user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          event_key?: string
+          id?: string
+          message?: string
+          sent_at?: string | null
+          status?: string
+          to_phone?: string
+          to_user_id?: string | null
         }
         Relationships: []
       }
