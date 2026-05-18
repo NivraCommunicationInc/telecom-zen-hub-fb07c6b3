@@ -14,6 +14,10 @@ import { SiteSearchDialog } from "@/components/public/SiteSearchDialog";
 const PURPLE = "#7c3aed";
 const PURPLE_DARK = "#5b21b6";
 
+// Items relocated to the footer to keep the desktop nav compact and prevent
+// the "Mon compte" CTA from overflowing on common laptop widths (1280–1440px).
+const HEADER_HIDDEN_IDS = new Set(["couverture", "compare", "parrainage"]);
+
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
