@@ -267,7 +267,7 @@ serve(async (req) => {
               invoice_id: invoice.id,
               customer_id: sub.customer_id,
               method: paymentMethod,
-              provider: isAutopayEligible ? 'stripe' : (hasPayPalSubscription ? 'paypal' : 'interac'),
+              provider: hasPayPalSubscription ? 'paypal' : 'interac',
               amount: total,
               status: 'pending',
               payment_number: paymentNumber,
@@ -276,14 +276,10 @@ serve(async (req) => {
               created_by_role: 'system',
             });
         }
-        
-        // ═══ STRIPE AUTOPAY: DISABLED — 2026-03-21 ═══
-        // Stripe autopay is permanently disabled. PayPal handles recurring billing.
-        if (isAutopayEligible && customerData?.stripe_customer_id && customerData?.default_payment_method_id) {
-          console.log(`[billing-generate-renewals] SKIPPED Stripe autopay (disabled) for customer ${sub.customer_id}`);
-        }
-        // If PayPal subscription, trigger automatic charge
-        else if (hasPayPalSubscription) {
+
+        // ═══ RECURRING CHARGE TRIGGER ═══
+        // PayPal handles all autopay/recurring billing. Stripe was decommissioned 2026-05-18.
+        if (hasPayPalSubscription) {
           console.log(`[billing-generate-renewals] Triggering PayPal auto-charge for ${sub.id}`);
           try {
             await supabase.functions.invoke("paypal-charge-subscription", {
@@ -297,7 +293,7 @@ serve(async (req) => {
             console.error(`[billing-generate-renewals] PayPal charge error:`, chargeErr);
           }
         }
-        
+
         // Queue reminder email (with invoice PDF, non-blocking)
         if (sub.customer) {
           const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
