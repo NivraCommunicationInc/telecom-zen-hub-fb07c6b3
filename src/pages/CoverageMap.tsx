@@ -5,16 +5,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { backendClient } from "@/integrations/backend/client";
 import { quebecCities } from "@/data/quebecCities";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { MapPin, Locate, Wifi, Tv, Smartphone, CheckCircle2, ArrowRight, Search } from "lucide-react";
+import { MapPin, Wifi, Tv, Smartphone, CheckCircle2, ArrowRight } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
+import AddressAutocomplete, { type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 type Zone = {
   id: string;
@@ -48,10 +48,16 @@ function FlyToControl({ target }: { target: [number, number] | null }) {
 export default function CoverageMap() {
   const { language } = useLanguage();
   const isFr = language === "fr";
+  const [searchParams] = useSearchParams();
   const [zones, setZones] = useState<Zone[]>([]);
   const [search, setSearch] = useState("");
   const [target, setTarget] = useState<[number, number] | null>(null);
   const [resultMsg, setResultMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    const address = searchParams.get("address");
+    if (address) setSearch(address);
+  }, [searchParams]);
 
   useEffect(() => {
     (async () => {
@@ -73,12 +79,16 @@ export default function CoverageMap() {
     mobile: zones.filter(z => z.mobile_available).length,
   }), [zones]);
 
-  const handleSearch = () => {
-    const q = search.trim();
+  const handleSearch = (forcedQuery?: string) => {
+    const q = (forcedQuery ?? search).trim();
     if (!q) return;
     const slug = citySlug(q);
     const geo = quebecCities[slug];
-    const match = points.find((p) => citySlug(p.city) === slug || p.city.toLowerCase().includes(q.toLowerCase()));
+    const lowerQuery = q.toLowerCase();
+    const match = points.find((p) => {
+      const city = p.city.toLowerCase();
+      return citySlug(p.city) === slug || city.includes(lowerQuery) || lowerQuery.includes(city);
+    });
     if (geo) setTarget([geo.lat, geo.lng]);
     else if (match) setTarget([match.lat, match.lng]);
 
@@ -98,9 +108,17 @@ export default function CoverageMap() {
     }
   };
 
-  const handleGeolocate = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => setTarget([pos.coords.latitude, pos.coords.longitude]));
+  const handleAddressSelect = (address: AddressValue) => {
+    const label = address.formatted || [address.line1, address.city, address.postalCode].filter(Boolean).join(", ");
+    setSearch(label);
+
+    if (address.lat !== undefined && address.lng !== undefined) {
+      setTarget([address.lat, address.lng]);
+    }
+
+    if (address.city) {
+      handleSearch(address.city);
+    }
   };
 
   return (
@@ -121,29 +139,26 @@ export default function CoverageMap() {
             </h1>
             <p className="max-w-2xl mx-auto mb-8" style={{ color: "#555", fontSize: 17, lineHeight: 1.6 }}>
               {isFr
-                ? "Internet, TV et Mobile disponibles partout au Québec. Recherchez votre ville pour confirmer l'éligibilité en quelques secondes."
-                : "Internet, TV and Mobile available across Quebec. Search your city to confirm eligibility in seconds."}
+                ? "Entrez une adresse au Québec pour voir les suggestions et confirmer rapidement les services disponibles."
+                : "Enter a Quebec address to see suggestions and quickly confirm available services."}
             </p>
 
             {/* Search card */}
             <div className="max-w-2xl mx-auto p-2 flex flex-col sm:flex-row gap-2"
               style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 20px 50px -20px rgba(124,58,237,0.25), 0 4px 12px rgba(0,0,0,0.05)", border: "1px solid #ECECEC" }}>
-              <div className="flex items-center gap-2 flex-1 px-4">
-                <Search className="w-4 h-4 shrink-0" style={{ color: "#999" }} />
-                <Input
-                  placeholder={isFr ? "Entrez votre ville (Montréal, Québec, Laval…)" : "Enter your city (Montreal, Quebec, Laval…)"}
+              <div className="flex-1">
+                <AddressAutocomplete
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="border-0 shadow-none focus-visible:ring-0 px-0 h-12 text-base"
+                  onValueChange={setSearch}
+                  onSelect={handleAddressSelect}
+                  restrictToQuebec
+                  placeholder={isFr ? "Entrez votre adresse au Québec" : "Enter your Quebec address"}
+                  className="h-12 border-0 shadow-none focus-visible:ring-0 text-base"
                 />
               </div>
-              <Button onClick={handleSearch} className="h-12 px-6 font-bold" style={{ background: "#7C3AED", borderRadius: 50 }}>
+              <Button onClick={() => handleSearch()} className="h-12 px-6 font-bold" style={{ background: "#7C3AED", borderRadius: 50 }}>
                 {isFr ? "Vérifier" : "Check"}
                 <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-              <Button onClick={handleGeolocate} variant="outline" className="h-12 px-4" style={{ borderRadius: 50 }}>
-                <Locate className="w-4 h-4 mr-1" /> {isFr ? "Ma position" : "My location"}
               </Button>
             </div>
 
