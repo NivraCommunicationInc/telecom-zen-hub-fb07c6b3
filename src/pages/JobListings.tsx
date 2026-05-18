@@ -358,6 +358,8 @@ export default function JobListings() {
           )}
         </DialogContent>
       </Dialog>
-    </main>
+      </main>
+      <Footer />
+    </>
   );
 }
