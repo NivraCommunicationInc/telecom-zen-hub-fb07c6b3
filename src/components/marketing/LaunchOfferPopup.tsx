@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const STORAGE_KEY = "nivra_launch_popup_dismissed_at";
 const DISMISS_DAYS = 7;
-const SHOW_DELAY_MS = 3000;
+const SHOW_DELAY_MS = 12000;
 
 const LaunchOfferPopup = () => {
   const { language } = useLanguage();
@@ -85,51 +85,54 @@ const LaunchOfferPopup = () => {
   return (
     <div
       role="dialog"
-      aria-modal="true"
       aria-labelledby="launch-offer-title"
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: "rgba(17,17,17,0.55)" }}
-      onClick={dismiss}
+      className="fixed z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300"
+      style={{
+        bottom: "16px",
+        right: "16px",
+        left: "16px",
+        maxWidth: "380px",
+        marginLeft: "auto",
+      }}
     >
       <div
-        className="relative w-full max-w-md rounded-3xl shadow-2xl text-white animate-in fade-in zoom-in-95 duration-200"
-        style={{ background: "#7C3AED", padding: "32px 28px 28px" }}
-        onClick={(e) => e.stopPropagation()}
+        className="relative w-full rounded-2xl shadow-2xl text-white"
+        style={{ background: "#7C3AED", padding: "20px 22px 18px" }}
       >
         <button
           type="button"
           onClick={dismiss}
           aria-label={t.close}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-white/15"
+          className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/15"
           style={{ color: "#FFFFFF" }}
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        <p className="font-bold uppercase mb-3" style={{ fontSize: 12, letterSpacing: 2, opacity: 0.9 }}>
+        <p className="font-bold uppercase mb-1.5" style={{ fontSize: 11, letterSpacing: 1.5, opacity: 0.9 }}>
           {t.eyebrow}
         </p>
-        <h2 id="launch-offer-title" className="font-extrabold leading-tight mb-2" style={{ fontSize: 28 }}>
+        <h2 id="launch-offer-title" className="font-extrabold leading-tight mb-1" style={{ fontSize: 20 }}>
           {t.line1}
         </h2>
-        <p className="mb-6" style={{ fontSize: 15, opacity: 0.95 }}>
+        <p className="mb-4" style={{ fontSize: 13, opacity: 0.95 }}>
           {t.line2}
         </p>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex items-center gap-2">
           <Link
             to="/commander?promo=BIENVENUE2026"
             onClick={dismiss}
-            className="flex items-center justify-center px-6 font-bold transition-all"
-            style={{ height: 48, borderRadius: 50, background: "#FFFFFF", color: "#7C3AED", fontSize: 14 }}
+            className="flex-1 flex items-center justify-center px-4 font-bold transition-all"
+            style={{ height: 40, borderRadius: 50, background: "#FFFFFF", color: "#7C3AED", fontSize: 13 }}
           >
             {t.order} →
           </Link>
           <Link
             to={isFr ? "/garantie" : "/guarantee"}
             onClick={dismiss}
-            className="flex items-center justify-center px-6 font-semibold transition-all"
-            style={{ height: 44, borderRadius: 50, border: "2px solid rgba(255,255,255,0.6)", color: "#FFFFFF", fontSize: 13 }}
+            className="flex items-center justify-center px-3 font-semibold transition-all"
+            style={{ height: 40, borderRadius: 50, color: "#FFFFFF", fontSize: 12, opacity: 0.9 }}
           >
             {t.details}
           </Link>
