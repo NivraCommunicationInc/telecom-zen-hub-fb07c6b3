@@ -2821,15 +2821,19 @@ export function renderQueueTemplate(
       ];
 
       return {
-        subject: `Votre paie Nivra — ${payDate}`,
+        subject: t(`Votre paie Nivra — ${payDate}`, `Your Nivra paystub — ${payDate}`, lang),
         html: shell({
-          preheader: `Votre paie pour la période du ${periodStart} au ${periodEnd}.`,
-          badge: "PAIE DISPONIBLE",
-          heroTitle: "Votre paie a été traitée",
-          heroSub: `Période du ${periodStart} au ${periodEnd}`,
-          greeting: `Bonjour ${agentName},`,
-          bodyText: `Votre paie pour la période du ${periodStart} au ${periodEnd} a été traitée. Votre talon de paie est disponible ci-dessous avec le détail des gains et des déductions.`,
-          cardTitle: "Détails de votre paie",
+          preheader: t(`Votre paie pour la période du ${periodStart} au ${periodEnd}.`, `Your pay for the period of ${periodStart} to ${periodEnd}.`, lang),
+          badge: t("PAIE DISPONIBLE","PAYSTUB AVAILABLE", lang),
+          heroTitle: t("Votre paie a été traitée","Your pay has been processed", lang),
+          heroSub: t(`Période du ${periodStart} au ${periodEnd}`, `Period from ${periodStart} to ${periodEnd}`, lang),
+          greeting: t(`Bonjour ${agentName},`, `Hello ${agentName},`, lang),
+          bodyText: t(
+            `Votre paie pour la période du ${periodStart} au ${periodEnd} a été traitée. Votre talon de paie est disponible ci-dessous avec le détail des gains et des déductions.`,
+            `Your pay for the period of ${periodStart} to ${periodEnd} has been processed. Your paystub is available below with the breakdown of earnings and deductions.`,
+            lang,
+          ),
+          cardTitle: t("Détails de votre paie","Paystub details", lang),
           cardRows,
           cardEmphasizeLast: true,
           ctaPrimaryUrl: paystubUrl,
