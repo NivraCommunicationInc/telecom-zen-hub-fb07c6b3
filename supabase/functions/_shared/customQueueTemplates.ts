@@ -1182,36 +1182,44 @@ export function renderQueueTemplate(
       );
       const services = safe(
         v.services || v.service || v.plan_name || v.services_summary,
-        "Vos services Nivra"
+        t("Vos services Nivra","Your Nivra services", lang),
       );
-      const agentName = safe(v.agent_name, "Votre conseiller Nivra");
+      const agentName = safe(v.agent_name, t("Votre conseiller Nivra","Your Nivra advisor", lang));
       const agentNumber = safe(v.agent_number, "");
-      const agentDisplay = agentNumber && agentNumber !== "Non disponible"
+      const agentDisplay = agentNumber && agentNumber !== t("Non disponible","Not available", lang)
         ? `${agentName} — ${agentNumber}`
         : agentName;
       const validUntil = v.token_expires_at
         ? fmtDate(v.token_expires_at)
-        : "7 jours";
+        : t("7 jours","7 days", lang);
       return {
-        subject: `Signez votre contrat Nivra Telecom`,
+        subject: t("Signez votre contrat Nivra Telecom","Sign your Nivra Telecom contract", lang),
         html: shell({
-          preheader: `Votre contrat est prêt à signer.`,
-          badge: "SIGNATURE REQUISE",
-          heroTitle: "Votre contrat est prêt à signer",
-          heroSub: `Commande #${String(orderNum).replace(/^#/, "")}`,
+          preheader: t("Votre contrat est prêt à signer.","Your contract is ready to sign.", lang),
+          badge: t("SIGNATURE REQUISE","SIGNATURE REQUIRED", lang),
+          heroTitle: t("Votre contrat est prêt à signer","Your contract is ready to sign", lang),
+          heroSub: `${t("Commande","Order", lang)} #${String(orderNum).replace(/^#/, "")}`,
           icon: "pen",
           greeting,
-          bodyText: "Nivra Communication Inc. a signé sa partie du contrat. Il ne reste qu'à apposer votre signature pour finaliser votre entente de service.",
-          cardTitle: "Détails de votre contrat",
+          bodyText: t(
+            "Nivra Communication Inc. a signé sa partie du contrat. Il ne reste qu'à apposer votre signature pour finaliser votre entente de service.",
+            "Nivra Communication Inc. has signed its part of the contract. All that remains is your signature to finalize your service agreement.",
+            lang,
+          ),
+          cardTitle: t("Détails de votre contrat","Contract details", lang),
           cardRows: [
-            ["Numéro de commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Services", services],
-            ["Votre représentant", agentDisplay],
-            ["Valide jusqu'au", validUntil],
+            [t("Numéro de commande","Order number", lang), `#${String(orderNum).replace(/^#/, "")}`],
+            [t("Services","Services", lang), services],
+            [t("Votre représentant","Your representative", lang), agentDisplay],
+            [t("Valide jusqu'au","Valid until", lang), validUntil],
           ],
           ctaPrimaryUrl: contractUrl,
-          ctaPrimaryLabel: "Signer mon contrat",
-          helpHtml: `Questions ? Contactez-nous à <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
+          ctaPrimaryLabel: t("Signer mon contrat","Sign my contract", lang),
+          helpHtml: t(
+            `Questions ? Contactez-nous à <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
+            `Questions? Contact us at <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>`,
+            lang,
+          ),
         }),
       };
     }
