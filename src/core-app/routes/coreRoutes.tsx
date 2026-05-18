@@ -29,6 +29,7 @@ const CoreTechnicianMobilePage = lazy(() => import("@/core-app/pages/CoreTechnic
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
 const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
 const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
+const CoreTechnicianMapPage = lazy(() => import("@/core-app/pages/CoreTechnicianMapPage"));
 
 // Clients
 const ClientsPage = lazy(() => import("@/core-app/pages/ClientsPage"));
