@@ -493,44 +493,43 @@ export function renderQueueTemplate(
     case "payment_confirmed":
     case "payment_receipt":
     case "payment_received": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours","In progress", lang));
       const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
-      const reference = esc(v.reference || v.payment_reference || "Non disponible");
+      const reference = esc(v.reference || v.payment_reference || t("Non disponible","Not available", lang));
       const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       const prRows: Array<[string, string]> = [
-        ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-        ["Facture", `#${invoiceNum}`],
+        [t("Commande","Order", lang), `#${String(orderNum).replace(/^#/, "")}`],
+        [t("Facture","Invoice", lang), `#${invoiceNum}`],
       ];
-      // Discount lines from billing_invoice_lines (each line_type='discount').
       for (const r of buildDiscountRowsFromInvoiceLines(v.invoice_lines || v.discount_lines)) {
         prRows.push(r);
       }
       if (v.discount_data) {
-        prRows.push(["Rabais", formatDiscountForContract(v.discount_data)]);
+        prRows.push([t("Rabais","Discount", lang), formatDiscountForContract(v.discount_data)]);
       }
-      if (v.subtotal !== undefined && v.subtotal !== null) prRows.push(["Sous-total HT", money(v.subtotal)]);
+      if (v.subtotal !== undefined && v.subtotal !== null) prRows.push([t("Sous-total HT","Subtotal (pre-tax)", lang), money(v.subtotal)]);
       if (v.tps !== undefined && v.tps !== null) prRows.push(["TPS (5%)", money(v.tps)]);
       if (v.tvq !== undefined && v.tvq !== null) prRows.push(["TVQ (9,975%)", money(v.tvq)]);
       prRows.push(
-        ["Montant payé", amount],
-        ["Méthode", String(method)],
-        ["Référence", String(reference)],
-        ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
+        [t("Montant payé","Amount paid", lang), amount],
+        [t("Méthode","Method", lang), String(method)],
+        [t("Référence","Reference", lang), String(reference)],
+        [t("Date","Date", lang), fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
       );
       return {
-        subject: `Paiement reçu — Merci`,
+        subject: t("Paiement reçu — Merci","Payment Received — Thank You", lang),
         html: shell({
-          preheader: `Votre paiement de ${amount} a été reçu.`,
-          badge: "PAIEMENT CONFIRMÉ",
-          heroTitle: "Paiement reçu — Merci",
+          preheader: t(`Votre paiement de ${amount} a été reçu.`, `Your payment of ${amount} has been received.`, lang),
+          badge: t("PAIEMENT CONFIRMÉ","PAYMENT CONFIRMED", lang),
+          heroTitle: t("Paiement reçu — Merci","Payment received — Thank you", lang),
           icon: "check",
           greeting,
-          bodyText: "Nous confirmons la réception de votre paiement.",
-          cardTitle: "Détails",
+          bodyText: t("Nous confirmons la réception de votre paiement.","We confirm receipt of your payment.", lang),
+          cardTitle: t("Détails","Details", lang),
           cardRows: prRows,
           ctaPrimaryUrl: invoiceUrl,
-          ctaPrimaryLabel: "Voir ma facture",
+          ctaPrimaryLabel: t("Voir ma facture","View my invoice", lang),
         }),
       };
     }
