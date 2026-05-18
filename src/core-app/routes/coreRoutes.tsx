@@ -12,6 +12,7 @@ const DashboardPage = lazy(() => import("@/core-app/pages/DashboardPage"));
 const CoreActivityPage = lazy(() => import("@/core-app/pages/CoreActivityPage"));
 const CoreLiveActivityPage = lazy(() => import("@/core-app/pages/CoreLiveActivityPage"));
 const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatusPage"));
+const CoreSystemHealthPage = lazy(() => import("@/core-app/pages/CoreSystemHealthPage"));
 
 // Operations
 const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
@@ -129,6 +130,7 @@ export const coreRoutes: RouteObject = {
     { path: "activity", element: <CoreActivityPage /> },
     { path: "live-activity", element: <CoreLiveActivityPage /> },
     { path: "system-status", element: <CoreSystemStatusPage /> },
+    { path: "system-health", element: <CoreSystemHealthPage /> },
     { path: "analytics", element: <CoreAnalyticsPage /> },
     // Operations
     { path: "work-queue", element: <WorkQueuePage /> },
