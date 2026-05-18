@@ -3206,6 +3206,120 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // SERVICE PAUSE — client self-serve (Feature: pause service online)
+    // ===================================================================
+    case "service_pause_requested": {
+      const pauseFrom = esc(v.pause_from || "—");
+      const pauseUntil = esc(v.pause_until || "—");
+      const reason = esc(v.pause_reason || (isEn ? "Not specified" : "Non précisée"));
+      return {
+        subject: isEn
+          ? `Service pause request received`
+          : `Demande de suspension reçue`,
+        html: shell({
+          preheader: isEn
+            ? `We received your pause request.`
+            : `Nous avons bien reçu votre demande de suspension.`,
+          badge: t("DEMANDE REÇUE", "REQUEST RECEIVED", lang),
+          heroTitle: t("Demande de suspension reçue", "Pause request received", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your request to pause your service has been received. Our team will process it within 24 hours.`
+            : `Votre demande de suspension de service a été reçue. Notre équipe la traitera sous 24 heures.`,
+          cardTitle: t("Détails", "Details", lang),
+          cardRows: [
+            [t("Suspension demandée", "Pause requested", lang), pauseFrom],
+            [t("Reprise prévue", "Resume planned", lang), pauseUntil],
+            [t("Raison", "Reason", lang), reason],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/services`,
+          ctaPrimaryLabel: t("Voir mes services", "View my services", lang),
+          helpHtml: isEn
+            ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Besoin d'aide ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "service_pause_approved": {
+      const pauseFrom = esc(v.pause_from || "—");
+      const pauseUntil = esc(v.pause_until || "—");
+      return {
+        subject: isEn ? `Service paused — resumes ${pauseUntil}` : `Service suspendu — reprise le ${pauseUntil}`,
+        html: shell({
+          preheader: isEn
+            ? `Your pause is now active.`
+            : `Votre suspension est maintenant active.`,
+          badge: t("SUSPENSION APPROUVÉE", "PAUSE APPROVED", lang),
+          heroTitle: t("Service suspendu ⏸", "Service paused ⏸", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your service will be paused from ${pauseFrom} to ${pauseUntil}. No billing during this period. Your service will resume automatically on ${pauseUntil}.`
+            : `Votre service sera suspendu du ${pauseFrom} au ${pauseUntil}. Aucune facturation pendant cette période. Votre service reprendra automatiquement le ${pauseUntil}.`,
+          cardTitle: t("Période de suspension", "Pause period", lang),
+          cardRows: [
+            [t("Du", "From", lang), pauseFrom],
+            [t("Au", "To", lang), pauseUntil],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/services`,
+          ctaPrimaryLabel: t("Voir mes services", "View my services", lang),
+          helpHtml: isEn
+            ? `Need to come back earlier? Use the "Resume now" button in the portal.`
+            : `Besoin de revenir plus tôt ? Utilisez le bouton "Reprendre maintenant" dans le portail.`,
+        }),
+      };
+    }
+
+    case "service_pause_admin_alert": {
+      const clientLabel = esc(v.client_name || "Client");
+      const pauseFrom = esc(v.pause_from || "—");
+      const pauseUntil = esc(v.pause_until || "—");
+      const reason = esc(v.pause_reason || "Non précisée");
+      return {
+        subject: `⏸ Demande de suspension service — ${clientLabel}`,
+        html: shell({
+          preheader: `Nouvelle demande à traiter.`,
+          badge: "ALERTE INTERNE",
+          heroTitle: "Suspension de service demandée",
+          icon: "alert",
+          greeting: `Bonjour,`,
+          bodyText: `Le client ${clientLabel} veut suspendre son service du ${pauseFrom} au ${pauseUntil}.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Client", clientLabel],
+            ["Compte", accountNum],
+            ["Du", pauseFrom],
+            ["Au", pauseUntil],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL.replace(/\/portal$/, '')}/core/pause-requests`,
+          ctaPrimaryLabel: "Traiter dans Core",
+        }),
+      };
+    }
+
+    case "service_resumed": {
+      const planName = esc(v.plan_name || (isEn ? "your plan" : "votre forfait"));
+      return {
+        subject: isEn ? `Your service is active again` : `Votre service est de nouveau actif`,
+        html: shell({
+          preheader: isEn ? `Welcome back.` : `Bon retour.`,
+          badge: t("SERVICE ACTIF", "SERVICE ACTIVE", lang),
+          heroTitle: t("Service réactivé ✓", "Service resumed ✓", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your service (${planName}) has been automatically resumed. Billing will resume on your next cycle.`
+            : `Votre service (${planName}) a été automatiquement réactivé. La facturation reprendra à votre prochain cycle.`,
+          ctaPrimaryUrl: `${portalUrl}/services`,
+          ctaPrimaryLabel: t("Voir mes services", "View my services", lang),
+        }),
+      };
+    }
+
     default:
       return null;
   }

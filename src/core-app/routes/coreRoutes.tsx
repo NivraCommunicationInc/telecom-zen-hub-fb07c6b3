@@ -28,6 +28,7 @@ const CoreInstallationsPage = lazy(() => import("@/core-app/pages/CoreInstallati
 const CoreTechnicianMobilePage = lazy(() => import("@/core-app/pages/CoreTechnicianMobilePage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
 const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
+const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
 
 // Clients
 const ClientsPage = lazy(() => import("@/core-app/pages/ClientsPage"));
@@ -144,6 +145,7 @@ export const coreRoutes: RouteObject = {
     { path: "technician", element: <CoreTechnicianMobilePage /> },
    { path: "cancellations", element: <CoreCancellationsPage /> },
    { path: "plan-changes", element: <CorePlanChangesPage /> },
+   { path: "pause-requests", element: <CorePauseRequestsPage /> },
     // Clients
     { path: "clients", element: <ClientsPage /> },
     { path: "clients/:clientId", element: <CoreClientProfile /> },
