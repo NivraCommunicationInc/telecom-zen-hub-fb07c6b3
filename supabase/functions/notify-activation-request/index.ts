@@ -120,7 +120,7 @@ serve(async (req) => {
       for (const to of ADMIN_RECIPIENTS) {
         try {
           await resend.emails.send({
-            from: "Nivra Activations <admin@nivra-telecom.ca>",
+            from: "Nivra Activations <nivratelecom@gmail.com>",
             to: [to],
             subject,
             html,

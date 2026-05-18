@@ -18004,6 +18004,7 @@ export type Database = {
           client_id: string
           created_at: string
           current_plan_name: string | null
+          effective_date: string | null
           id: string
           notes: string | null
           requested_by: string
@@ -18021,6 +18022,7 @@ export type Database = {
           client_id: string
           created_at?: string
           current_plan_name?: string | null
+          effective_date?: string | null
           id?: string
           notes?: string | null
           requested_by: string
@@ -18038,6 +18040,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           current_plan_name?: string | null
+          effective_date?: string | null
           id?: string
           notes?: string | null
           requested_by?: string
