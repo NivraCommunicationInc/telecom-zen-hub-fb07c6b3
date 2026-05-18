@@ -16,6 +16,7 @@ import { TVInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useTVPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
+import PremiumPlanCard from "@/components/shared/PremiumPlanCard";
 
 
 const TVPlans = () => {
