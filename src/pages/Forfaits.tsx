@@ -3,6 +3,8 @@ import { Check, Wifi, Tv, Package, ArrowRight, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SEOHead from "@/components/SEOHead";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { useInternetPlans, useTVPlans } from "@/hooks/usePublicServices";
 import { Input } from "@/components/ui/input";
