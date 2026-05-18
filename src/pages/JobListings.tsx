@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { Briefcase, MapPin, Loader2, Upload, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const TYPE_LABEL: Record<string, string> = {
   "full-time": "Temps plein",
