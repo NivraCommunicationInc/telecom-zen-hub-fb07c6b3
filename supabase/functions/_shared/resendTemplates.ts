@@ -130,7 +130,6 @@ export async function sendTemplateEmail(params: {
   const toAddresses = Array.isArray(to) ? to : [to];
   
   console.log(`[sendTemplateEmail] Sending template "${templateSlug}" to ${toAddresses.length} recipient(s)`);
-  console.log(`[sendTemplateEmail] Variables:`, JSON.stringify(variables));
   
   try {
     // Clean variables - remove undefined values and ensure proper types
@@ -158,7 +157,7 @@ export async function sendTemplateEmail(params: {
       payload.subject = subject;
     }
     
-    console.log(`[sendTemplateEmail] Request payload:`, JSON.stringify(payload));
+    // [sendTemplateEmail] Request payload omitted (PII)
     
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",

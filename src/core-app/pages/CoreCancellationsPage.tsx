@@ -186,7 +186,6 @@ export default function CoreCancellationsPage() {
               .from("billing_subscriptions")
               .update({
                 status: "cancelled",
-                stripe_canceled_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               })
               .eq("id", subRow.id);
@@ -206,7 +205,6 @@ export default function CoreCancellationsPage() {
               .from("billing_subscriptions")
               .update({
                 status: "cancelled",
-                stripe_canceled_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               })
               .in("order_id", orderIds)

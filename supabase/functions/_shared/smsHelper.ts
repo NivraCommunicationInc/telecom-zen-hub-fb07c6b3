@@ -114,7 +114,7 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
     // Validate phone number
     const e164Phone = toE164(notification.to);
     if (!e164Phone) {
-      console.log(`[SMS-${requestId}] Invalid phone number: ${notification.to}`);
+      console.log(`[SMS-${requestId}] Invalid phone number format`);
       await logTelephony({
         phone: notification.to || "invalid",
         status: "failed",
@@ -185,7 +185,7 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
       : notification.message;
 
     // Send SMS via OpenPhone
-    console.log(`[SMS-${requestId}] Sending to: ${e164Phone}`);
+    console.log(`[SMS-${requestId}] Sending to: ${e164Phone.slice(0, 3)}***${e164Phone.slice(-2)}`);
     const smsRes = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {

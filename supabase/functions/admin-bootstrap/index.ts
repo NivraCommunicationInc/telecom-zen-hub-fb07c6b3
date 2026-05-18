@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 
     // RECOVER ACTION - Reset existing admin credentials
     if (action === "recover") {
-      console.log(`[admin-bootstrap] RECOVER action for email: ${body.email}`);
+      console.log(`[admin-bootstrap] RECOVER action received`);
       
       if (!body.email || !body.password || !body.pin) {
         return new Response(
@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         target_email: normalizedEmail,
       });
 
-      console.log(`[admin-bootstrap] Admin recovered successfully: ${normalizedEmail}`);
+      console.log(`[admin-bootstrap] Admin recovered successfully`);
 
       return new Response(
         JSON.stringify({
