@@ -100,21 +100,13 @@ function NavSection({
             className={cn(
               "group mx-2 flex items-center rounded-xl text-[13px] font-medium transition-all duration-200",
               collapsed ? "justify-center px-0 py-3" : "justify-between px-3 py-2.5",
-              active && "field-glow",
-              item.primary && !active && "text-white",
-            )}
-            style={{
-              minHeight: 44,
-              background: active
-                ? "linear-gradient(135deg, hsl(var(--field-accent)) 0%, hsl(var(--field-accent-glow)) 100%)"
+              active
+                ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
                 : item.primary
-                  ? "hsl(var(--field-accent) / 0.15)"
-                  : "transparent",
-              color: active ? "white" : "hsl(var(--field-text-muted))",
-              border: item.primary && !active
-                ? "1px solid hsl(var(--field-accent) / 0.4)"
-                : "1px solid transparent",
-            }}
+                  ? "bg-violet-600/15 text-white border border-violet-500/40 hover:bg-violet-600/25"
+                  : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent",
+            )}
+            style={{ minHeight: 44 }}
           >
             <span className={cn("flex items-center", collapsed ? "" : "gap-3")}>
               <item.icon className={cn("h-5 w-5 shrink-0", active && "drop-shadow-sm")} />
