@@ -399,7 +399,7 @@ export default function FieldBadgePage() {
             <div className="flex flex-col items-center mt-4">
               <Avatar className="h-24 w-24 ring-2 ring-white/90">
                 <AvatarImage src={avatarUrl} alt="" />
-                <AvatarFallback className="bg-gray-800/15 text-white">
+                <AvatarFallback className="bg-white/15 text-white">
                   <User2 className="h-10 w-10" />
                 </AvatarFallback>
               </Avatar>
