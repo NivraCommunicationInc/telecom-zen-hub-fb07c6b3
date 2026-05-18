@@ -19,6 +19,9 @@ interface ParsedRow {
   city?: string;
   province?: string;
   postal_code?: string;
+  birthday?: string;
+  square_customer_id?: string;
+  external_reference?: string;
   _valid: boolean;
   _reason?: string;
   _duplicate?: boolean;
