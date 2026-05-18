@@ -15,6 +15,7 @@ import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useMobilePlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import { ProductSchema, BreadcrumbSchema, type ProductSchemaItem } from "@/components/seo";
+import PremiumPlanCard from "@/components/shared/PremiumPlanCard";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
@@ -127,86 +128,55 @@ const MobilePlans = () => {
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {plans.map((plan, index) => (
-              <Card 
+              <PremiumPlanCard
                 key={plan.id}
-                className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
-                  plan.featured 
-                    ? "border-2 border-cyan-500 shadow-lg shadow-cyan-500/10" 
-                    : "border-border hover:border-cyan-500/50"
-                }`}
-              >
-                {/* Badge */}
-                <div className="absolute top-4 right-4">
-                  <Badge className={`${plan.badgeColor} text-white`}>
-                    {plan.badge}
-                  </Badge>
-                </div>
-
-                <CardHeader className="pb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
-                    <Smartphone className="w-7 h-7 text-blue-500" />
-                  </div>
-                  <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
-                  <p className="text-muted-foreground text-sm mt-2">{plan.description}</p>
-                </CardHeader>
-
-                <CardContent className="space-y-6">
-                  {/* Price */}
-                  <div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-foreground">${plan.price}</span>
-                      <span className="text-muted-foreground">/{isFrench ? "30 jours" : "30 days"}</span>
-                    </div>
-                  </div>
-
-                  {/* Data Options */}
-                  <div className="space-y-3 p-4 rounded-lg bg-muted/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-emerald-500" />
-                        <span className="text-sm font-medium">{isFrench ? "Avec Auto Top-Up" : "With Auto Top-Up"}</span>
-                      </div>
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                        {plan.dataAutoTopUp}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium">{isFrench ? "Sans Auto Top-Up" : "No Auto Top-Up"}</span>
-                      </div>
-                      <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30">
-                        {plan.dataNoAutoTopUp}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <div className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                          <Check className="w-3 h-3 text-cyan-500" />
-                        </div>
-                        <span className="text-sm text-muted-foreground">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <EquipmentRequiredBox type="mobile" />
-
-                  {/* CTA Button */}
-                  <Button 
-                    className="w-full" 
-                    variant={plan.featured ? "hero" : "outline"}
-                    size="lg"
-                    onClick={() => handleGetStarted(plan.id)}
+                name={plan.name}
+                subtitle={isFrench ? "Mobile prépayé" : "Prepaid mobile"}
+                price={plan.price}
+                priceUnit={isFrench ? "/30 jours" : "/30 days"}
+                features={plan.features}
+                featured={plan.featured}
+                badge={plan.badge}
+                description={plan.description}
+                equipmentType="mobile"
+                ctaLabel={isFrench ? "Commander" : "Order Now"}
+                onClick={() => handleGetStarted(plan.id)}
+                extra={
+                  <div
+                    className="rounded-2xl p-4 space-y-2.5"
+                    style={{ background: "#FAFAFB", border: "1px solid #ECECEC" }}
                   >
-                    {isFrench ? "Commander" : "Order Now"}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4" style={{ color: "#10B981" }} />
+                        <span className="text-sm font-semibold" style={{ color: "#0D0D0D" }}>
+                          {isFrench ? "Avec Auto Top-Up" : "With Auto Top-Up"}
+                        </span>
+                      </div>
+                      <span
+                        className="px-2.5 py-0.5 text-xs font-bold"
+                        style={{ background: "#ECFDF5", color: "#065F46", borderRadius: 50 }}
+                      >
+                        {plan.dataAutoTopUp}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wifi className="w-4 h-4" style={{ color: "#2563EB" }} />
+                        <span className="text-sm font-semibold" style={{ color: "#0D0D0D" }}>
+                          {isFrench ? "Sans Auto Top-Up" : "No Auto Top-Up"}
+                        </span>
+                      </div>
+                      <span
+                        className="px-2.5 py-0.5 text-xs font-bold"
+                        style={{ background: "#EFF6FF", color: "#1E40AF", borderRadius: 50 }}
+                      >
+                        {plan.dataNoAutoTopUp}
+                      </span>
+                    </div>
+                  </div>
+                }
+              />
             ))}
           </div>
         </section>
