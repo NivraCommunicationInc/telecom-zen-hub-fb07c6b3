@@ -78,6 +78,53 @@ export default function CoreAnalyticsPage() {
         <Card><CardContent className="p-4"><p className="text-xs text-slate-500">NPS</p><p className="text-xl font-bold" style={{ color: npsColor }}>{loading ? "…" : npsScore}</p></CardContent></Card>
       </div>
 
+      {/* Métriques d'acquisition — CAC / LTV / Ratio / Profit */}
+      {(() => {
+        const cacVal = Number(cac?.cac_per_client || 0);
+        const ltvVal = Number(ltv?.ltv || 0);
+        const ratio = cacVal > 0 ? ltvVal / cacVal : 0;
+        const ratioColor = ratio < 2 ? "#dc2626" : ratio < 3 ? "#f59e0b" : "#10b981";
+        const ratioLabel = ratio < 2 ? "Insuffisant" : ratio < 3 ? "Acceptable" : "Excellent";
+        return (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="w-5 h-5" />Métriques d'acquisition</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-500 flex items-center gap-1"><Wallet className="w-3 h-3" />CAC</p>
+                  <p className="text-2xl font-bold mt-1">{loading ? "…" : fmtCAD(cacVal)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Coût moyen par client acquis</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-500 flex items-center gap-1"><Coins className="w-3 h-3" />LTV</p>
+                  <p className="text-2xl font-bold mt-1">{loading ? "…" : fmtCAD(ltvVal)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Revenu total par client</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-500 flex items-center gap-1"><Activity className="w-3 h-3" />Ratio LTV/CAC</p>
+                  <p className="text-2xl font-bold mt-1" style={{ color: ratioColor }}>
+                    {loading ? "…" : (cacVal > 0 ? `${ratio.toFixed(2)}:1` : "—")}
+                  </p>
+                  <p className="text-xs font-semibold mt-1" style={{ color: ratioColor }}>{loading ? "" : ratioLabel}</p>
+                  <p className="text-xs text-slate-400 mt-1">Objectif : minimum 3:1</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-500 flex items-center gap-1"><DollarSign className="w-3 h-3" />Profit net/client</p>
+                  <p className="text-2xl font-bold mt-1">{loading ? "…" : fmtCAD(Number(profit?.avg_profit_per_client || 0))}</p>
+                  <p className="text-xs text-slate-400 mt-1">Après wholesale + support + infra</p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        );
+      })()}
+
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="w-5 h-5" />MRR — Revenu mensuel récurrent (par mois ajouté)</CardTitle></CardHeader>
         <CardContent className="h-72">
