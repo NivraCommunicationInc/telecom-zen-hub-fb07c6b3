@@ -95,6 +95,11 @@ const navGroups: Array<{
     children: [],
   },
   {
+    label: "Mes points",
+    path: "/portal/loyalty",
+    children: [],
+  },
+  {
     label: "Paramètres",
     path: null,
     badgeKey: "support",
