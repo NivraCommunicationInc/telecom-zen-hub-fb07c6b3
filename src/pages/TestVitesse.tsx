@@ -27,7 +27,8 @@ export default function TestVitesse() {
         <link rel="canonical" href="https://nivra-telecom.ca/test-vitesse" />
       </Helmet>
 
-      <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text }}>
+      <Header />
+      <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, paddingTop: 64 }}>
         {/* HEADER */}
         <header
           style={{
