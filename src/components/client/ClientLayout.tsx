@@ -6,7 +6,7 @@ import { ReactNode, useCallback, useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   LogOut,
   Menu,
