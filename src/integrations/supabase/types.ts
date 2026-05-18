@@ -11113,12 +11113,15 @@ export type Database = {
           id: string
           imei: string | null
           item_type: Database["public"]["Enums"]["inventory_stock_type"]
+          last_alert_sent_at: string | null
           mac_address: string | null
           metadata: Json | null
+          min_stock_threshold: number | null
           model: string | null
           notes: string | null
           purchase_date: string | null
           purchase_price: number | null
+          reorder_point: number | null
           serial_number: string | null
           sku: string | null
           status: string
@@ -11133,12 +11136,15 @@ export type Database = {
           id?: string
           imei?: string | null
           item_type: Database["public"]["Enums"]["inventory_stock_type"]
+          last_alert_sent_at?: string | null
           mac_address?: string | null
           metadata?: Json | null
+          min_stock_threshold?: number | null
           model?: string | null
           notes?: string | null
           purchase_date?: string | null
           purchase_price?: number | null
+          reorder_point?: number | null
           serial_number?: string | null
           sku?: string | null
           status?: string
@@ -11153,12 +11159,15 @@ export type Database = {
           id?: string
           imei?: string | null
           item_type?: Database["public"]["Enums"]["inventory_stock_type"]
+          last_alert_sent_at?: string | null
           mac_address?: string | null
           metadata?: Json | null
+          min_stock_threshold?: number | null
           model?: string | null
           notes?: string | null
           purchase_date?: string | null
           purchase_price?: number | null
+          reorder_point?: number | null
           serial_number?: string | null
           sku?: string | null
           status?: string
@@ -18162,10 +18171,15 @@ export type Database = {
           incident_message: string | null
           incident_title: string
           incident_type: string | null
+          maintenance_type: string | null
+          notification_sent_at: string | null
+          notify_clients: boolean | null
           related_ticket_id: string | null
           reported_by_client: boolean
           resolved_at: string | null
           resolved_by: string | null
+          scheduled_end_at: string | null
+          scheduled_start_at: string | null
           service_display_name: string | null
           service_name: string
           started_at: string
@@ -18183,10 +18197,15 @@ export type Database = {
           incident_message?: string | null
           incident_title: string
           incident_type?: string | null
+          maintenance_type?: string | null
+          notification_sent_at?: string | null
+          notify_clients?: boolean | null
           related_ticket_id?: string | null
           reported_by_client?: boolean
           resolved_at?: string | null
           resolved_by?: string | null
+          scheduled_end_at?: string | null
+          scheduled_start_at?: string | null
           service_display_name?: string | null
           service_name: string
           started_at?: string
@@ -18204,10 +18223,15 @@ export type Database = {
           incident_message?: string | null
           incident_title?: string
           incident_type?: string | null
+          maintenance_type?: string | null
+          notification_sent_at?: string | null
+          notify_clients?: boolean | null
           related_ticket_id?: string | null
           reported_by_client?: boolean
           resolved_at?: string | null
           resolved_by?: string | null
+          scheduled_end_at?: string | null
+          scheduled_start_at?: string | null
           service_display_name?: string | null
           service_name?: string
           started_at?: string
@@ -22052,6 +22076,24 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_stock_levels: {
+        Row: {
+          assigned_count: number | null
+          available_count: number | null
+          brand: string | null
+          item_type: Database["public"]["Enums"]["inventory_stock_type"] | null
+          last_alert_sent_at: string | null
+          min_stock_threshold: number | null
+          model: string | null
+          reorder_point: number | null
+          reserved_count: number | null
+          sku: string | null
+          stock_status: string | null
+          total_count: number | null
+          warehouse_location: string | null
+        }
+        Relationships: []
+      }
       mrr_metrics: {
         Row: {
           active_subscriptions: number | null
@@ -23491,6 +23533,7 @@ export type Database = {
         Returns: string
       }
       normalize_text: { Args: { val: string }; Returns: string }
+      notify_upcoming_maintenance: { Args: never; Returns: undefined }
       orchestrate_order: { Args: { p_order_id: string }; Returns: Json }
       provision_services_for_order: {
         Args: { p_order_id: string }

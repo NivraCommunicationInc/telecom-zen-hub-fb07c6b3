@@ -3320,6 +3320,104 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // INVENTORY — low stock alert (admin)
+    // ===================================================================
+    case "inventory_low_stock": {
+      const itemLabel = esc(v.item_name || `${v.brand || ""} ${v.model || ""}`.trim() || "Article");
+      const sku = esc(v.sku || "—");
+      const available = esc(String(v.available_count ?? 0));
+      const minThr = esc(String(v.min_stock_threshold ?? 5));
+      const statusLabel = String(v.stock_status) === "out_of_stock" ? "RUPTURE" : "CRITIQUE";
+      return {
+        subject: `⚠️ Stock bas — ${itemLabel}`,
+        html: shell({
+          preheader: `Stock insuffisant détecté pour ${itemLabel}.`,
+          badge: "ALERTE INVENTAIRE",
+          heroTitle: "Stock insuffisant détecté",
+          icon: "alert",
+          greeting: "Bonjour,",
+          bodyText: `Le stock de l'article ${itemLabel} est ${statusLabel === "RUPTURE" ? "épuisé" : "sous le seuil critique"}. Veuillez réapprovisionner rapidement.`,
+          cardTitle: "Détails de l'inventaire",
+          cardRows: [
+            ["Article", itemLabel],
+            ["SKU", sku],
+            ["Disponible", available],
+            ["Seuil minimum", minThr],
+            ["Statut", statusLabel],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL.replace(/\/portal$/, '')}/core/inventory`,
+          ctaPrimaryLabel: "Ouvrir l'inventaire",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // REFERRAL — reward issued
+    // ===================================================================
+    case "referral_reward_issued": {
+      const amt = money(v.reward_amount ?? 25);
+      return {
+        subject: isEn ? `Your referral reward has been issued` : `Votre récompense de parrainage est émise`,
+        html: shell({
+          preheader: isEn ? `You earned ${amt} for your referral.` : `Vous avez gagné ${amt} pour votre parrainage.`,
+          badge: t("RÉCOMPENSE ÉMISE", "REWARD ISSUED", lang),
+          heroTitle: t("Merci pour votre parrainage ✓", "Thanks for your referral ✓", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Great news — your referral has qualified. A reward of ${amt} has been issued to your account.`
+            : `Excellente nouvelle — votre filleul est qualifié. Une récompense de ${amt} a été émise sur votre compte.`,
+          cardTitle: t("Détails", "Details", lang),
+          cardRows: [
+            [t("Récompense", "Reward", lang), amt],
+            [t("Type", "Type", lang), t("Crédit parrainage", "Referral credit", lang)],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/referrals`,
+          ctaPrimaryLabel: t("Voir mes parrainages", "View my referrals", lang),
+        }),
+      };
+    }
+
+    // ===================================================================
+    // MAINTENANCE — notification to all clients
+    // ===================================================================
+    case "maintenance_notification": {
+      const startAt = esc(v.scheduled_start_at || "—");
+      const duration = esc(v.estimated_duration || (isEn ? "TBD" : "À confirmer"));
+      const services = esc(v.affected_services || (isEn ? "Some services" : "Certains services"));
+      const mtype = String(v.maintenance_type || "planned");
+      const typeLabel = isEn
+        ? (mtype === "emergency" ? "Emergency" : mtype === "unplanned" ? "Unplanned" : "Planned")
+        : (mtype === "emergency" ? "Urgence" : mtype === "unplanned" ? "Non planifiée" : "Planifiée");
+      return {
+        subject: isEn
+          ? `Scheduled Maintenance — Nivra Telecom ${startAt}`
+          : `Maintenance planifiée — Nivra Telecom ${startAt}`,
+        html: shell({
+          preheader: isEn
+            ? `Service maintenance scheduled for ${startAt}.`
+            : `Maintenance de service prévue le ${startAt}.`,
+          badge: t("AVIS DE MAINTENANCE", "MAINTENANCE NOTICE", lang),
+          heroTitle: t("Maintenance planifiée de nos services", "Scheduled Service Maintenance", lang),
+          icon: "alert",
+          greeting,
+          bodyText: isEn
+            ? `We're informing you that ${typeLabel.toLowerCase()} maintenance is scheduled for ${startAt}. During this period, ${services} may be temporarily unavailable. We apologize for any inconvenience.`
+            : `Nous vous informons qu'une maintenance ${typeLabel.toLowerCase()} est prévue le ${startAt}. Pendant cette période, ${services} pourrait être temporairement indisponible. Nous nous excusons pour tout inconvénient.`,
+          cardTitle: t("Détails de la maintenance", "Maintenance details", lang),
+          cardRows: [
+            [t("Date", "Date", lang), startAt],
+            [t("Durée estimée", "Estimated duration", lang), duration],
+            [t("Services affectés", "Affected services", lang), services],
+            [t("Type", "Type", lang), typeLabel],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/statut",
+          ctaPrimaryLabel: t("Voir le statut en direct", "View live status", lang),
+        }),
+      };
+    }
+
     default:
       return null;
   }
