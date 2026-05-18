@@ -2906,30 +2906,49 @@ export function renderQueueTemplate(
     // ===================================================================
     case "order_status_update": {
       const oNum = esc(v.order_number || "N/A");
-      const sLabel = esc(v.status_label || v.status || "Mise à jour");
+      const rawStatus = String(v.status || v.status_label || "").toLowerCase();
+      const statusLabels: Record<string, { fr: string; en: string }> = {
+        confirmed: { fr: "Commande confirmée ✓", en: "Order Confirmed ✓" },
+        processing: { fr: "En préparation", en: "Being Prepared" },
+        shipped: { fr: "Expédiée 📦", en: "Shipped 📦" },
+        delivered: { fr: "Livrée ✓", en: "Delivered ✓" },
+        activated: { fr: "Service activé ✓", en: "Service Activated ✓" },
+        cancelled: { fr: "Commande annulée", en: "Order Cancelled" },
+      };
+      const sLabel =
+        statusLabels[rawStatus]?.[lang] ||
+        esc(v.status_label || v.status || (isEn ? "Update" : "Mise à jour"));
       const tracking = esc(v.tracking_number || "");
       const carrier = esc(v.carrier || "");
       const rows: [string, string][] = [
-        ["Numéro de commande", `#${String(oNum).replace(/^#/, "")}`],
-        ["Statut", String(sLabel)],
+        [t("Numéro de commande", "Order number", lang), `#${String(oNum).replace(/^#/, "")}`],
+        [t("Nouveau statut", "New status", lang), String(sLabel)],
       ];
-      if (tracking) rows.push(["Numéro de suivi", tracking]);
-      if (carrier) rows.push(["Transporteur", carrier]);
+      if (tracking) rows.push([t("Numéro de suivi", "Tracking number", lang), tracking]);
+      if (carrier) rows.push([t("Transporteur", "Carrier", lang), carrier]);
       return {
-        subject: `Commande ${oNum} : ${sLabel}`,
+        subject: isEn
+          ? `Order #${String(oNum).replace(/^#/, "")} — ${sLabel}`
+          : `Commande #${String(oNum).replace(/^#/, "")} — ${sLabel}`,
         html: shell({
-          preheader: `Statut mis à jour : ${sLabel}.`,
-          badge: "MISE À JOUR DE COMMANDE",
+          preheader: isEn
+            ? `Status updated: ${sLabel}.`
+            : `Statut mis à jour : ${sLabel}.`,
+          badge: t("MISE À JOUR DE COMMANDE", "ORDER UPDATE", lang),
           heroTitle: String(sLabel),
-          heroSub: `Commande ${oNum}`,
+          heroSub: isEn ? `Order #${String(oNum).replace(/^#/, "")}` : `Commande #${String(oNum).replace(/^#/, "")}`,
           icon: "check",
           greeting,
-          bodyText: `Le statut de votre commande Nivra vient d'être mis à jour.`,
-          cardTitle: "Détails",
+          bodyText: isEn
+            ? `Your Nivra order #${String(oNum).replace(/^#/, "")} status has been updated.`
+            : `Le statut de votre commande Nivra #${String(oNum).replace(/^#/, "")} vient d'être mis à jour.`,
+          cardTitle: t("Détails", "Details", lang),
           cardRows: rows,
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Voir ma commande",
-          helpHtml: `Une question ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+          ctaPrimaryLabel: t("Voir ma commande", "Track my order", lang),
+          helpHtml: isEn
+            ? `Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Une question ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
     }
