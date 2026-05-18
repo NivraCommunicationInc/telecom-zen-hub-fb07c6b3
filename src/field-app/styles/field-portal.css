@@ -32,6 +32,29 @@
   --field-danger: 0 84% 60%;
   --field-info: 199 89% 60%;
 
+  /* ── Override GLOBAL shadcn tokens inside Field portal ──
+     Without this, <Card> (bg-card), <Input> (bg-background),
+     border-border etc. inherit the main app's purple theme. */
+  --background: 220 39% 11%;        /* gray-900 */
+  --foreground: 210 20% 98%;        /* gray-50 */
+  --card: 215 28% 17%;              /* gray-800 */
+  --card-foreground: 210 20% 98%;
+  --popover: 215 28% 17%;
+  --popover-foreground: 210 20% 98%;
+  --primary: 262 83% 58%;           /* violet-600 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 19% 27%;         /* gray-700 */
+  --secondary-foreground: 210 20% 98%;
+  --muted: 217 19% 27%;
+  --muted-foreground: 218 11% 75%;  /* gray-300 */
+  --accent: 262 83% 58%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 217 19% 27%;            /* gray-700 */
+  --input: 217 19% 27%;
+  --ring: 262 83% 58%;
+
   background: hsl(var(--field-bg));
   color: hsl(var(--field-text));
   color-scheme: dark;
