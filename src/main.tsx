@@ -4,6 +4,7 @@ import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import App from "./App.tsx";
 import "./index.css";
+import "./styles/internal-portal.css";
 import "./core-app/styles/core-dark-processing.css";
 
 // Global error handlers — catch async errors that escape React
