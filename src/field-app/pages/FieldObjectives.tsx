@@ -141,7 +141,7 @@ export default function FieldObjectives() {
 
       {/* SECTION 1 — Ce mois-ci */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
           <div className="flex items-center gap-3 mb-2">
             <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
               <Calendar className="h-5 w-5 text-[#3B82F6]" />
@@ -151,7 +151,7 @@ export default function FieldObjectives() {
           <p className="text-3xl font-bold text-[#000000]">{monthSales}</p>
           <p className="text-xs text-[#9CA3AF] mt-1">vente{monthSales !== 1 ? "s" : ""}</p>
         </div>
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
           <div className="flex items-center gap-3 mb-2">
             <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#EDE9FE]">
               <TrendingUp className="h-5 w-5 text-[#7C3AED]" />
@@ -175,7 +175,7 @@ export default function FieldObjectives() {
       )}
 
       {/* Revenu total généré ce mois (chiffre d'affaires) */}
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DCFCE7]">
@@ -205,7 +205,7 @@ export default function FieldObjectives() {
 
       {/* SECTION 4 — Objectif mensuel (if assigned) */}
       {data?.hasTargets && monthlyTarget > 0 ? (
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
@@ -244,7 +244,7 @@ export default function FieldObjectives() {
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 text-center">
+        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 text-center">
           <Target className="h-8 w-8 mx-auto mb-3 text-[#9CA3AF]" />
           <p className="text-sm text-[#6B7280]">
             Aucun objectif assigné pour ce mois.<br />
@@ -254,7 +254,7 @@ export default function FieldObjectives() {
       )}
 
       {/* SECTION 3 — Progression vers le bonus (always shown) */}
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#FEF3C7]">
             <Award className="h-5 w-5 text-[#D97706]" />

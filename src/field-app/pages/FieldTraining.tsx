@@ -307,7 +307,7 @@ export default function FieldTraining() {
       <div className="rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 text-white p-5 shadow-lg">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20">
+            <div className="h-12 w-12 rounded-2xl bg-[#1A1A2E]/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20">
               <GraduationCap className="h-6 w-6" />
             </div>
             <div>
@@ -324,15 +324,15 @@ export default function FieldTraining() {
         </div>
 
         <div className="grid grid-cols-3 gap-3 mt-5">
-          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-3">
+          <div className="rounded-xl bg-[#1A1A2E]/10 backdrop-blur-sm p-3">
             <div className="text-[10px] uppercase tracking-wider text-white/70">Modules</div>
             <div className="text-xl font-bold mt-1">{stats.done}/{stats.total}</div>
           </div>
-          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-3">
+          <div className="rounded-xl bg-[#1A1A2E]/10 backdrop-blur-sm p-3">
             <div className="text-[10px] uppercase tracking-wider text-white/70">Points formation</div>
             <div className="text-xl font-bold mt-1">{myPoints?.training_points ?? 0}</div>
           </div>
-          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-3">
+          <div className="rounded-xl bg-[#1A1A2E]/10 backdrop-blur-sm p-3">
             <div className="text-[10px] uppercase tracking-wider text-white/70">Certifications</div>
             <div className="text-xl font-bold mt-1">{certifications?.length ?? 0}</div>
           </div>
@@ -342,7 +342,7 @@ export default function FieldTraining() {
           <div className="flex justify-between text-[11px] text-white/80 mb-1.5">
             <span>Progression globale</span><span>{stats.pct}%</span>
           </div>
-          <Progress value={stats.pct} className="h-2 bg-white/20" indicatorClassName="bg-white" />
+          <Progress value={stats.pct} className="h-2 bg-[#1A1A2E]/20" indicatorClassName="bg-[#1A1A2E]" />
         </div>
       </div>
 
@@ -398,7 +398,7 @@ export default function FieldTraining() {
                         </span>
                       )}
                     </div>
-                    <h3 className="text-sm font-semibold text-foreground mt-0.5 truncate">{m.title_fr}</h3>
+                    <h3 className="text-sm font-semibold text-white mt-0.5 truncate">{m.title_fr}</h3>
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
                       {m.estimated_minutes && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.estimated_minutes} min</span>}
                       <span className="flex items-center gap-1"><Star className="h-3 w-3" />{m.points_reward} pts</span>
@@ -510,14 +510,14 @@ export default function FieldTraining() {
                     <video src={activeModule.video_url} controls className="w-full rounded-lg" />
                   )}
                   {activeModule.content_fr && (
-                    <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+                    <div className="prose prose-sm max-w-none text-white whitespace-pre-wrap">
                       {activeModule.content_fr}
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
                     <div className="text-[11px] text-muted-foreground">
-                      Score requis : <span className="font-semibold text-foreground">{activeModule.passing_score}%</span>
-                      {" · "}Récompense : <span className="font-semibold text-foreground">{activeModule.points_reward} pts</span>
+                      Score requis : <span className="font-semibold text-white">{activeModule.passing_score}%</span>
+                      {" · "}Récompense : <span className="font-semibold text-white">{activeModule.points_reward} pts</span>
                     </div>
                     <Button
                       onClick={async () => {
@@ -543,7 +543,7 @@ export default function FieldTraining() {
                     <>
                       {questions.map((q, qi) => (
                         <div key={q.id} className="space-y-2">
-                          <div className="text-sm font-semibold text-foreground">
+                          <div className="text-sm font-semibold text-white">
                             {qi + 1}. {q.question_fr}
                           </div>
                           <div className="space-y-1.5">
@@ -556,7 +556,7 @@ export default function FieldTraining() {
                                   className={cn(
                                     "w-full text-left rounded-lg border px-3 py-2.5 text-sm transition-colors min-h-[44px]",
                                     selected
-                                      ? "border-violet-500 bg-violet-500/10 text-foreground"
+                                      ? "border-violet-500 bg-violet-500/10 text-white"
                                       : "border-border bg-card hover:bg-muted"
                                   )}
                                 >

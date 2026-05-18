@@ -87,14 +87,14 @@ export default function FieldMyPaySection() {
 
   if (isLoading) {
     return (
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 flex items-center justify-center min-h-[120px]">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 flex items-center justify-center min-h-[120px]">
         <Loader2 className="h-5 w-5 animate-spin text-[#7C3AED]" />
       </section>
     );
   }
 
   return (
-    <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+    <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-3">
         <Wallet className="h-4 w-4 text-[#7C3AED]" />
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Ma Paie</h2>

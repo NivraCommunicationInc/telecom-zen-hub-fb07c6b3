@@ -218,7 +218,7 @@ export default function FieldProfile() {
       </div>
 
       {/* SECTION 1 — Identity */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 space-y-4">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-4">
           {data.avatarUrl ? (
             <img src={data.avatarUrl} alt={data.fullName} className="h-20 w-20 rounded-2xl object-cover shadow-md" />
@@ -295,7 +295,7 @@ export default function FieldProfile() {
       </section>
 
       {/* SECTION — Identifiants Nivra (lecture seule) */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 space-y-3">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 space-y-3">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Identifiants Nivra</h2>
         <div className="flex items-center justify-between">
           <span className="text-sm text-[#6B7280]">Numéro d'agent</span>
@@ -312,7 +312,7 @@ export default function FieldProfile() {
         <p className="text-[10px] uppercase tracking-wider text-[#9CA3AF] pt-1">Lecture seule — assigné par Nivra</p>
       </section>
 
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Adresse domicile</h2>
         {editing ? (
           <div className="space-y-3">
@@ -354,7 +354,7 @@ export default function FieldProfile() {
       </section>
 
       {/* SECTION — Contact d'urgence (editable) */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Contact d'urgence</h2>
         {editing ? (
           <div className="space-y-3">
@@ -400,7 +400,7 @@ export default function FieldProfile() {
       </section>
 
       {/* SECTION 2 — Employment (read-only) */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Emploi <span className="text-[9px] font-normal normal-case tracking-normal text-[#9CA3AF]">— Lecture seule</span></h2>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
@@ -442,7 +442,7 @@ export default function FieldProfile() {
       </section>
 
       {/* SECTION 3 — Performance this month */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">
           Performance — {format(new Date(), "MMMM yyyy", { locale: fr })}
         </h2>
@@ -489,7 +489,7 @@ export default function FieldProfile() {
 
 
       {/* SECTION 4 — Pay */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">Paie</h2>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -508,7 +508,7 @@ export default function FieldProfile() {
 
 
       {/* SECTION 5 — Actions */}
-      <section className="bg-white border border-[#E5E7EB] rounded-2xl p-5 space-y-2">
+      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 space-y-2">
         <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider mb-1">Sécurité</h2>
         <button
           onClick={sendPasswordReset}

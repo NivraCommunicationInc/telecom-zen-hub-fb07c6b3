@@ -208,7 +208,7 @@ export default function FieldOrders() {
       </header>
 
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
+        <div className="rounded-2xl border border-white/10 bg-[#1A1A2E]/5 p-10 text-center">
           <ShoppingCart className="h-10 w-10 mx-auto text-white/30 mb-3" />
           <p className="text-white/70">Aucune commande pour l'instant.</p>
           <Link to="/field/sale/new" className="inline-block mt-4 rounded-full bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 text-sm font-semibold">
@@ -221,7 +221,7 @@ export default function FieldOrders() {
             const st = STATUS_FR[r.status] || { label: r.status, cls: "bg-slate-500/15 text-slate-300 border-slate-500/30" };
             const previewItems = (r.services || []).slice(0, 3);
             return (
-              <div key={`${r.kind}-${r.id}`} className="rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] transition-colors p-4">
+              <div key={`${r.kind}-${r.id}`} className="rounded-xl border border-white/10 bg-[#1A1A2E]/[0.04] hover:bg-[#1A1A2E]/[0.07] transition-colors p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -264,7 +264,7 @@ export default function FieldOrders() {
                           href={r.paypal_approval_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 text-[11px] font-bold"
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 text-[11px] font-bold"
                         >
                           Reprendre <ExternalLink className="h-3 w-3" />
                         </a>
@@ -273,7 +273,7 @@ export default function FieldOrders() {
                         <Link
                           to="/field/sale/new"
                           state={{ resumeIntentId: r.id, resumeQuoteId: r.quote_id }}
-                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 text-[11px] font-bold"
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 text-[11px] font-bold"
                         >
                           Reprendre
                         </Link>
@@ -281,7 +281,7 @@ export default function FieldOrders() {
                       {r.kind === "order" && (r.status === "pending_payment" || r.status === "on_hold") && (
                         <Link
                           to={`/field/orders/${r.id}?resume=1`}
-                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 text-[11px] font-bold"
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 text-[11px] font-bold"
                         >
                           Reprendre
                         </Link>
