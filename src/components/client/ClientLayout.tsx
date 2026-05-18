@@ -126,6 +126,21 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
   const { badges: sectionBadges } = usePortalSectionBadges();
 
+  const { data: pointsBalance } = useQuery({
+    queryKey: ["loyalty-points-balance", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { data } = await portalClient
+        .from("loyalty_points")
+        .select("available_points")
+        .eq("client_id", user.id)
+        .maybeSingle();
+      return data?.available_points ?? 0;
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
