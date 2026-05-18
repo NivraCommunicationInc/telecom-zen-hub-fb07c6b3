@@ -270,6 +270,9 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
           city: r.city || undefined,
           province: r.province || undefined,
           postal_code: r.postal_code || undefined,
+          birthday: r.birthday || undefined,
+          square_customer_id: r.square_customer_id || undefined,
+          external_reference: r.external_reference || undefined,
           _valid: true,
           _duplicate: false,
         };
