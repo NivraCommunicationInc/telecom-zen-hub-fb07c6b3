@@ -172,8 +172,8 @@ serve(async (req) => {
         
         // Determine payment method based on subscription/autopay
         const hasPayPalSubscription = !!sub.paypal_subscription_id;
-        const paymentMethod = hasPayPalSubscription ? 'paypal' : (isAutopayEligible ? 'card' : 'interac');
-        
+        const paymentMethod = hasPayPalSubscription ? 'paypal' : 'interac';
+
         // Create renewal invoice
         const { data: invoice, error: invoiceError } = await supabase
           .from("billing_invoices")
