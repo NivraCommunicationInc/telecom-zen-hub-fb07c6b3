@@ -46,7 +46,7 @@ export default function SaleStepIndicator({ currentStep, onStepClick, completedS
                 <span
                   className={cn(
                     "h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold",
-                    isCurrent ? "border-white/60 bg-white/10" : "border-current"
+                    isCurrent ? "border-white/60 bg-gray-800/10" : "border-current"
                   )}
                 >
                   {i + 1}

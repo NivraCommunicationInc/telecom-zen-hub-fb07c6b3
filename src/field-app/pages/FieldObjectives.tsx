@@ -135,31 +135,31 @@ export default function FieldObjectives() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#000000] tracking-tight">Objectifs &amp; Cibles</h1>
-        <p className="text-sm text-[#6B7280] mt-0.5">{format(new Date(), "MMMM yyyy", { locale: fr })}</p>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Objectifs &amp; Cibles</h1>
+        <p className="text-sm text-gray-400 mt-0.5">{format(new Date(), "MMMM yyyy", { locale: fr })}</p>
       </div>
 
       {/* SECTION 1 — Ce mois-ci */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-blue-500/20">
               <Calendar className="h-5 w-5 text-[#3B82F6]" />
             </div>
-            <p className="text-xs font-medium text-[#6B7280]">Ce mois</p>
+            <p className="text-xs font-medium text-gray-400">Ce mois</p>
           </div>
-          <p className="text-3xl font-bold text-[#000000]">{monthSales}</p>
-          <p className="text-xs text-[#9CA3AF] mt-1">vente{monthSales !== 1 ? "s" : ""}</p>
+          <p className="text-3xl font-bold text-white">{monthSales}</p>
+          <p className="text-xs text-gray-500 mt-1">vente{monthSales !== 1 ? "s" : ""}</p>
         </div>
-        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
           <div className="flex items-center gap-3 mb-2">
             <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#EDE9FE]">
               <TrendingUp className="h-5 w-5 text-[#7C3AED]" />
             </div>
-            <p className="text-xs font-medium text-[#6B7280]">Cette semaine</p>
+            <p className="text-xs font-medium text-gray-400">Cette semaine</p>
           </div>
-          <p className="text-3xl font-bold text-[#000000]">{weekSales}</p>
-          <p className="text-xs text-[#9CA3AF] mt-1">vente{weekSales !== 1 ? "s" : ""}</p>
+          <p className="text-3xl font-bold text-white">{weekSales}</p>
+          <p className="text-xs text-gray-500 mt-1">vente{weekSales !== 1 ? "s" : ""}</p>
         </div>
       </div>
 
@@ -175,26 +175,26 @@ export default function FieldObjectives() {
       )}
 
       {/* Revenu total généré ce mois (chiffre d'affaires) */}
-      <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
+      <div className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DCFCE7]">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-emerald-500/20">
               <TrendingUp className="h-5 w-5 text-[#15803D]" />
             </div>
             <div>
-              <p className="text-sm font-bold text-[#000000]">Revenu total généré</p>
-              <p className="text-[10px] text-[#9CA3AF]">Chiffre d'affaires ce mois</p>
+              <p className="text-sm font-bold text-white">Revenu total généré</p>
+              <p className="text-[10px] text-gray-500">Chiffre d'affaires ce mois</p>
             </div>
           </div>
-          <p className="text-xl font-bold text-[#000000]">
+          <p className="text-xl font-bold text-white">
             {fmtMoney(monthRevenue)}
             {monthlyRevenueTarget > 0 && (
-              <span className="text-xs font-normal text-[#6B7280]"> / {fmtMoney(monthlyRevenueTarget)}</span>
+              <span className="text-xs font-normal text-gray-400"> / {fmtMoney(monthlyRevenueTarget)}</span>
             )}
           </p>
         </div>
         {monthlyRevenueTarget > 0 && (
-          <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
+          <div className="h-3 rounded-full bg-gray-700 overflow-hidden">
             <div
               className={cn("h-full rounded-full transition-all duration-700", revenuePct >= 100 ? "bg-[#22C55E]" : "bg-[#15803D]")}
               style={{ width: `${revenuePct}%` }}
@@ -205,26 +205,26 @@ export default function FieldObjectives() {
 
       {/* SECTION 4 — Objectif mensuel (if assigned) */}
       {data?.hasTargets && monthlyTarget > 0 ? (
-        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
+        <div className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#DBEAFE]">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-blue-500/20">
                 <Target className="h-5 w-5 text-[#3B82F6]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[#000000]">Objectif du mois</p>
-                <p className="text-[10px] text-[#9CA3AF]">Assigné par votre gestionnaire</p>
+                <p className="text-sm font-bold text-white">Objectif du mois</p>
+                <p className="text-[10px] text-gray-500">Assigné par votre gestionnaire</p>
               </div>
             </div>
-            <p className="text-xl font-bold text-[#000000]">{monthSales} / {monthlyTarget}</p>
+            <p className="text-xl font-bold text-white">{monthSales} / {monthlyTarget}</p>
           </div>
-          <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
+          <div className="h-3 rounded-full bg-gray-700 overflow-hidden">
             <div
               className={cn("h-full rounded-full transition-all duration-700", monthlyPct >= 100 ? "bg-[#22C55E]" : monthlyPct >= 50 ? "bg-[#3B82F6]" : "bg-[#F59E0B]")}
               style={{ width: `${monthlyPct}%` }}
             />
           </div>
-          <p className="text-[11px] text-[#6B7280] mt-2">
+          <p className="text-[11px] text-gray-400 mt-2">
             {monthlyRemaining > 0
               ? `${monthlyRemaining} vente${monthlyRemaining > 1 ? "s" : ""} restante${monthlyRemaining > 1 ? "s" : ""} pour atteindre votre objectif`
               : "✅ Objectif atteint !"}
@@ -232,9 +232,9 @@ export default function FieldObjectives() {
           <p className={cn(
             "text-xs font-semibold mt-2 text-center",
             monthlyPct >= 100 ? "text-[#15803D]" :
-            monthlyPct >= 76 ? "text-[#D97706]" :
+            monthlyPct >= 76 ? "text-amber-300" :
             monthlyPct >= 51 ? "text-[#3B82F6]" :
-            monthlyPct >= 26 ? "text-[#7C3AED]" : "text-[#6B7280]"
+            monthlyPct >= 26 ? "text-[#7C3AED]" : "text-gray-400"
           )}>
             {monthlyPct >= 100 ? "🏆 Objectif atteint ! Félicitations !" :
              monthlyPct >= 76 ? "Presque là ! Encore un effort !" :
@@ -244,9 +244,9 @@ export default function FieldObjectives() {
           </p>
         </div>
       ) : (
-        <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 text-center">
-          <Target className="h-8 w-8 mx-auto mb-3 text-[#9CA3AF]" />
-          <p className="text-sm text-[#6B7280]">
+        <div className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5 text-center">
+          <Target className="h-8 w-8 mx-auto mb-3 text-gray-500" />
+          <p className="text-sm text-gray-400">
             Aucun objectif assigné pour ce mois.<br />
             Votre gestionnaire vous assignera des objectifs prochainement.
           </p>
@@ -254,14 +254,14 @@ export default function FieldObjectives() {
       )}
 
       {/* SECTION 3 — Progression vers le bonus (always shown) */}
-      <div className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
+      <div className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[#FEF3C7]">
-            <Award className="h-5 w-5 text-[#D97706]" />
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-amber-500/20">
+            <Award className="h-5 w-5 text-amber-300" />
           </div>
           <div>
-            <p className="text-sm font-bold text-[#000000]">Progression vers le bonus</p>
-            <p className="text-[10px] text-[#9CA3AF]">Bonus mensuels Nivra</p>
+            <p className="text-sm font-bold text-white">Progression vers le bonus</p>
+            <p className="text-[10px] text-gray-500">Bonus mensuels Nivra</p>
           </div>
         </div>
 
@@ -274,23 +274,23 @@ export default function FieldObjectives() {
                 key={tier.count}
                 className={cn(
                   "flex items-center justify-between p-3 rounded-xl border transition-all",
-                  reached ? "bg-[#DCFCE7] border-[#22C55E]/40" : isNext ? "bg-[#FEF3C7] border-[#F59E0B]/40" : "bg-[#F9FAFB] border-[#E5E7EB]",
+                  reached ? "bg-emerald-500/20 border-[#22C55E]/40" : isNext ? "bg-amber-500/20 border-[#F59E0B]/40" : "bg-gray-800 border-gray-700",
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span className={cn("h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", reached ? "bg-[#22C55E] text-white" : isNext ? "bg-[#F59E0B] text-white" : "bg-[#E5E7EB] text-[#6B7280]")}>
+                  <span className={cn("h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", reached ? "bg-[#22C55E] text-white" : isNext ? "bg-[#F59E0B] text-white" : "bg-gray-700 text-gray-400")}>
                     {reached ? "✓" : tier.count}
                   </span>
-                  <span className="text-sm font-medium text-[#111827]">{tier.count} ventes</span>
+                  <span className="text-sm font-medium text-white">{tier.count} ventes</span>
                 </div>
-                <span className={cn("text-sm font-bold", reached ? "text-[#15803D]" : "text-[#111827]")}>{fmtMoney(tier.bonus)}</span>
+                <span className={cn("text-sm font-bold", reached ? "text-[#15803D]" : "text-white")}>{fmtMoney(tier.bonus)}</span>
               </div>
             );
           })}
         </div>
 
         {nextTier && (
-          <p className="text-xs text-[#6B7280] mt-3 text-center">
+          <p className="text-xs text-gray-400 mt-3 text-center">
             Encore <span className="font-bold text-[#7C3AED]">{nextTierRemaining} vente{nextTierRemaining > 1 ? "s" : ""}</span> pour atteindre <span className="font-bold">{fmtMoney(nextTier.bonus)}</span>
           </p>
         )}

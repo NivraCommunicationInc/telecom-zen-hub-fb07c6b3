@@ -87,36 +87,36 @@ export default function FieldMyPaySection() {
 
   if (isLoading) {
     return (
-      <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5 flex items-center justify-center min-h-[120px]">
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5 flex items-center justify-center min-h-[120px]">
         <Loader2 className="h-5 w-5 animate-spin text-[#7C3AED]" />
       </section>
     );
   }
 
   return (
-    <section className="bg-[#1A1A2E] border border-[#E5E7EB] rounded-2xl p-5">
+    <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-3">
         <Wallet className="h-4 w-4 text-[#7C3AED]" />
-        <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Ma Paie</h2>
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ma Paie</h2>
       </div>
 
       {/* Prochaine paie estimée */}
       <div className="p-4 rounded-xl bg-gradient-to-br from-[#F5F3FF] to-[#EDE9FE] border border-[#DDD6FE] mb-4">
-        <p className="text-xs text-[#6B7280] mb-1">Prochaine paie estimée</p>
+        <p className="text-xs text-gray-400 mb-1">Prochaine paie estimée</p>
         <p className="text-2xl font-bold text-[#7C3AED]">{fmtMoney(estimatedNext)}</p>
-        <p className="text-xs text-[#6B7280] mt-1">
+        <p className="text-xs text-gray-400 mt-1">
           {fmtMoney(pendingCommissions || 0)} en commissions approuvées (estimation après déductions)
         </p>
       </div>
 
       {/* Dernier talon */}
       {last && (
-        <div className="p-4 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] mb-4">
+        <div className="p-4 rounded-xl bg-gray-800 border border-gray-700 mb-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-xs text-[#6B7280]">Dernier talon</p>
-              <p className="text-sm font-semibold text-[#111827]">{last.payroll_number || "—"}</p>
-              <p className="text-xs text-[#6B7280]">{fmtDate(last.created_at)}</p>
+              <p className="text-xs text-gray-400">Dernier talon</p>
+              <p className="text-sm font-semibold text-white">{last.payroll_number || "—"}</p>
+              <p className="text-xs text-gray-400">{fmtDate(last.created_at)}</p>
             </div>
             {(last.paystub_pdf_url || last.pdf_url) && (
               <a
@@ -130,29 +130,29 @@ export default function FieldMyPaySection() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-[#6B7280]">Brut</div>
-            <div className="text-right font-medium text-[#111827]">{fmtMoney(Number(last.total_gross || last.gross_pay || 0))}</div>
-            <div className="text-[#6B7280]">Déductions</div>
-            <div className="text-right text-[#DC2626]">- {fmtMoney(Number(last.total_deductions || last.deductions_total || 0))}</div>
-            <div className="text-[#111827] font-bold border-t border-[#E5E7EB] pt-2 mt-1">NET</div>
-            <div className="text-right text-[#16A34A] font-bold border-t border-[#E5E7EB] pt-2 mt-1">{fmtMoney(Number(last.net_pay || 0))}</div>
+            <div className="text-gray-400">Brut</div>
+            <div className="text-right font-medium text-white">{fmtMoney(Number(last.total_gross || last.gross_pay || 0))}</div>
+            <div className="text-gray-400">Déductions</div>
+            <div className="text-right text-red-400">- {fmtMoney(Number(last.total_deductions || last.deductions_total || 0))}</div>
+            <div className="text-white font-bold border-t border-gray-700 pt-2 mt-1">NET</div>
+            <div className="text-right text-emerald-400 font-bold border-t border-gray-700 pt-2 mt-1">{fmtMoney(Number(last.net_pay || 0))}</div>
           </div>
         </div>
       )}
 
       {/* YTD */}
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="p-3 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
-          <p className="text-[10px] text-[#6B7280] uppercase">Brut YTD</p>
-          <p className="text-sm font-bold text-[#111827]">{fmtMoney(ytd.gross)}</p>
+        <div className="p-3 rounded-lg bg-gray-800 border border-gray-700">
+          <p className="text-[10px] text-gray-400 uppercase">Brut YTD</p>
+          <p className="text-sm font-bold text-white">{fmtMoney(ytd.gross)}</p>
         </div>
         <div className="p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA]">
-          <p className="text-[10px] text-[#6B7280] uppercase">Déductions</p>
-          <p className="text-sm font-bold text-[#DC2626]">{fmtMoney(ytd.deductions)}</p>
+          <p className="text-[10px] text-gray-400 uppercase">Déductions</p>
+          <p className="text-sm font-bold text-red-400">{fmtMoney(ytd.deductions)}</p>
         </div>
-        <div className="p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0]">
-          <p className="text-[10px] text-[#6B7280] uppercase">Net YTD</p>
-          <p className="text-sm font-bold text-[#16A34A]">{fmtMoney(ytd.net)}</p>
+        <div className="p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
+          <p className="text-[10px] text-gray-400 uppercase">Net YTD</p>
+          <p className="text-sm font-bold text-emerald-400">{fmtMoney(ytd.net)}</p>
         </div>
       </div>
 
@@ -164,13 +164,13 @@ export default function FieldMyPaySection() {
           </summary>
           <div className="mt-2 space-y-1.5 max-h-64 overflow-y-auto">
             {entries.slice(1).map((e: any) => (
-              <div key={e.id} className="flex items-center justify-between p-2 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
+              <div key={e.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-800 border border-gray-700">
                 <div>
-                  <p className="text-xs font-medium text-[#111827]">{e.payroll_number || fmtDate(e.created_at)}</p>
-                  <p className="text-[10px] text-[#6B7280]">{fmtDate(e.created_at)}</p>
+                  <p className="text-xs font-medium text-white">{e.payroll_number || fmtDate(e.created_at)}</p>
+                  <p className="text-[10px] text-gray-400">{fmtDate(e.created_at)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-[#16A34A]">{fmtMoney(Number(e.net_pay || 0))}</span>
+                  <span className="text-sm font-semibold text-emerald-400">{fmtMoney(Number(e.net_pay || 0))}</span>
                   {(e.paystub_pdf_url || e.pdf_url) && (
                     <a
                       href={(e.paystub_pdf_url || e.pdf_url) as string}
@@ -190,7 +190,7 @@ export default function FieldMyPaySection() {
       )}
 
       {!entries?.length && (
-        <p className="text-sm text-[#6B7280] text-center py-4">Aucun talon de paie pour le moment.</p>
+        <p className="text-sm text-gray-400 text-center py-4">Aucun talon de paie pour le moment.</p>
       )}
     </section>
   );

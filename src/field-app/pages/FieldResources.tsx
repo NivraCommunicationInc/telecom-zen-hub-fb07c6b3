@@ -55,19 +55,19 @@ export default function FieldResources() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-[#000000]">Ressources</h1>
-        <p className="text-sm text-[#6B7280]">Outils, scripts et FAQ pour maximiser vos ventes</p>
+        <h1 className="text-xl font-bold text-white">Ressources</h1>
+        <p className="text-sm text-gray-400">Outils, scripts et FAQ pour maximiser vos ventes</p>
       </div>
 
       {/* Tab nav */}
-      <div className="flex gap-1 bg-[#F3F4F6] rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-700 rounded-xl p-1">
         {sections.map((s) => (
           <button
             key={s.key}
             onClick={() => setActiveSection(s.key)}
             className={cn(
               "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors",
-              activeSection === s.key ? "bg-white text-[#000000] shadow-sm" : "text-[#6B7280] hover:text-[#000000]"
+              activeSection === s.key ? "bg-gray-800 text-white shadow-sm" : "text-gray-400 hover:text-white"
             )}
           >
             <s.icon className="h-3.5 w-3.5" />
@@ -80,20 +80,20 @@ export default function FieldResources() {
       {activeSection === "scripts" && (
         <div className="space-y-2">
           {SALES_SCRIPTS.map((script, i) => (
-            <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+            <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
               <button
                 onClick={() => setOpenScript(openScript === i ? null : i)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#F9FAFB] transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-800 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-[#22C55E]" />
-                  <span className="text-sm font-semibold text-[#000000]">{script.title}</span>
+                  <MessageSquare className="h-4 w-4 text-emerald-400" />
+                  <span className="text-sm font-semibold text-white">{script.title}</span>
                 </div>
-                {openScript === i ? <ChevronDown className="h-4 w-4 text-[#6B7280]" /> : <ChevronRight className="h-4 w-4 text-[#6B7280]" />}
+                {openScript === i ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
               </button>
               {openScript === i && (
                 <div className="px-4 pb-4 border-t border-[#F3F4F6]">
-                  <p className="text-sm text-[#374151] leading-relaxed mt-3 italic bg-[#F9FAFB] p-3 rounded-lg">
+                  <p className="text-sm text-gray-300 leading-relaxed mt-3 italic bg-gray-800 p-3 rounded-lg">
                     "{script.content}"
                   </p>
                 </div>
@@ -107,17 +107,17 @@ export default function FieldResources() {
       {activeSection === "services" && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {SERVICE_INFO.map((svc) => (
-            <div key={svc.title} className="bg-white border border-[#E5E7EB] rounded-xl p-5">
+            <div key={svc.title} className="bg-gray-800 border border-gray-700 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-9 w-9 rounded-lg bg-[#DCFCE7] flex items-center justify-center">
-                  <svc.icon className="h-4.5 w-4.5 text-[#16A34A]" />
+                <div className="h-9 w-9 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <svc.icon className="h-4.5 w-4.5 text-emerald-400" />
                 </div>
-                <h3 className="text-sm font-bold text-[#000000]">{svc.title}</h3>
+                <h3 className="text-sm font-bold text-white">{svc.title}</h3>
               </div>
               <ul className="space-y-1.5">
                 {svc.items.map((item, i) => (
-                  <li key={i} className="text-xs text-[#374151] flex items-start gap-1.5">
-                    <span className="text-[#22C55E] mt-0.5">•</span> {item}
+                  <li key={i} className="text-xs text-gray-300 flex items-start gap-1.5">
+                    <span className="text-emerald-400 mt-0.5">•</span> {item}
                   </li>
                 ))}
               </ul>
@@ -130,17 +130,17 @@ export default function FieldResources() {
       {activeSection === "faq" && (
         <div className="space-y-2">
           {FAQ.map((item, i) => (
-            <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+            <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
               <button
                 onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#F9FAFB] transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-800 transition-colors"
               >
-                <span className="text-sm font-semibold text-[#000000] pr-4">{item.q}</span>
-                {openFaq === i ? <ChevronDown className="h-4 w-4 text-[#6B7280] shrink-0" /> : <ChevronRight className="h-4 w-4 text-[#6B7280] shrink-0" />}
+                <span className="text-sm font-semibold text-white pr-4">{item.q}</span>
+                {openFaq === i ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />}
               </button>
               {openFaq === i && (
                 <div className="px-4 pb-4 border-t border-[#F3F4F6]">
-                  <p className="text-sm text-[#374151] mt-3 leading-relaxed">{item.a}</p>
+                  <p className="text-sm text-gray-300 mt-3 leading-relaxed">{item.a}</p>
                 </div>
               )}
             </div>
@@ -159,11 +159,11 @@ export default function FieldResources() {
             { icon: "📱", title: "Capturez chaque contact", text: "Même si la personne n'achète pas aujourd'hui, créez un lead. Un bon suivi transforme 30% des 'non' en 'oui'." },
             { icon: "⚡", title: "Utilisez la recherche d'adresse", text: "Avant de sonner, vérifiez si l'adresse a déjà un service Nivra pour éviter de perdre du temps." },
           ].map((tip, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 bg-white border border-[#E5E7EB] rounded-xl">
+            <div key={i} className="flex items-start gap-3 p-4 bg-gray-800 border border-gray-700 rounded-xl">
               <span className="text-2xl">{tip.icon}</span>
               <div>
-                <p className="text-sm font-bold text-[#000000]">{tip.title}</p>
-                <p className="text-xs text-[#6B7280] mt-0.5 leading-relaxed">{tip.text}</p>
+                <p className="text-sm font-bold text-white">{tip.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{tip.text}</p>
               </div>
             </div>
           ))}
