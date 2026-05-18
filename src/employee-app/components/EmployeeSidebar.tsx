@@ -203,6 +203,14 @@ export default function EmployeeSidebar() {
           </Link>
         ))}
         <button
+          onClick={() => navigate('/nivra-secure-hub-2617-internal')}
+          title={collapsed ? "Changer de portail" : undefined}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors border-t border-border pt-2 mt-2"
+        >
+          <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
+          {!collapsed && <span>Changer de portail</span>}
+        </button>
+        <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
