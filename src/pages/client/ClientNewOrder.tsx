@@ -153,7 +153,7 @@ const categoryIcons: Record<string, any> = {
   Extras: Package,
 };
 
-// Canonical streaming name → plan_code mapping (matches stripe_plan_mapping exactly)
+// Canonical streaming name → plan_code mapping (matches catalog plan_mapping)
 const STREAMING_PLAN_CODE_MAP: Record<string, string> = {
   "Netflix Premium": "streaming_netflix",
   "Disney+ Standard": "streaming_disney",
@@ -2255,7 +2255,7 @@ const ClientNewOrder = () => {
         nivra_invoice_number: '',
         nivra_order_id: '',
         billing_cycle_day: new Date().getDate(),
-        // Canonical plan_code for Stripe subscription creation
+        // Canonical plan_code for recurring subscription creation
         plan_code: primaryPlanCode,
         service_category: primaryService?.category?.toLowerCase() || undefined,
         // All service plan_codes for multi-item subscriptions

@@ -445,13 +445,13 @@ export async function backfillCheckoutToSupabase(
         : billingMethod === "interac"
           ? "interac"
           : billingMethod === "card"
-            ? "stripe"
+            ? "card"
             : "manual";
     const reference = provider === "paypal" ? null : (payload.payment.reference || response.payment_number || null);
     const providerPaymentId =
       provider === "paypal"
         ? (payload.payment.paypal_capture_id || null)
-        : provider === "stripe"
+        : provider === "card"
           ? (payload.payment.reference || null)
           : null;
 

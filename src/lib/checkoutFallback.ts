@@ -380,13 +380,13 @@ export async function fallbackCheckout(
       : (["etransfer", "e_transfer", "interac"].includes(rawMethod)
           ? "interac"
           : (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference ? "card" : "manual"));
-  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : billingMethod === "card" ? "stripe" : "manual";
+  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : billingMethod === "card" ? "card" : "manual";
   const paymentReference = paymentProvider === "paypal"
     ? null
     : (payload.payment.reference || paymentNumber || null);
   const paymentProviderPaymentId = paymentProvider === "paypal"
     ? (payload.payment.paypal_capture_id || null)
-    : paymentProvider === "stripe"
+    : paymentProvider === "card"
       ? (payload.payment.reference || null)
       : null;
   const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;

@@ -1,9 +1,9 @@
 /**
  * createPOSDraftInvoice — Creates a draft order + invoice for POS card payments.
  *
- * This enables the POS to mount StripeInlinePayment with a real invoice_id
- * BEFORE the card payment is captured. On Stripe success, the order/invoice
- * are finalized. On failure/abandon, they remain in "pending" state.
+ * Enables the POS to mount the card processor (PayPal hosted card) with a real
+ * invoice_id BEFORE the card payment is captured. On success the order/invoice
+ * are finalized; on failure/abandon they remain in "pending" state.
  *
  * Flow: Resolve Account → Create Order (pending) → Find/Create billing_customer
  *       → Create Invoice (pending) → Create Invoice Lines
@@ -232,7 +232,7 @@ export async function createPOSDraftInvoice(
       payment_status: "pending",
       payment_method: "card",
       payment_reference: null,
-      internal_notes: `[POS ${input.portalType.toUpperCase()} — Stripe card] ${input.notes || ""}`,
+      internal_notes: `[POS ${input.portalType.toUpperCase()} — card] ${input.notes || ""}`,
       status: "pending",
     }])
     .select("id, order_number")
@@ -358,7 +358,7 @@ export async function createPOSDraftInvoice(
     }
   }
 
-  console.log(`[POS Draft Invoice] Created order ${newOrder.order_number}, invoice ${invoiceNumber}, account ${accountNumber} for Stripe payment`);
+  console.log(`[POS Draft Invoice] Created order ${newOrder.order_number}, invoice ${invoiceNumber}, account ${accountNumber} for card payment`);
 
   return {
     orderId: newOrder.id,
@@ -372,7 +372,7 @@ export async function createPOSDraftInvoice(
 }
 
 /**
- * Finalize a POS order after successful Stripe payment.
+ * Finalize a POS order after successful card payment.
  * Updates order payment_status and triggers orchestration.
  */
 export async function finalizePOSCardPayment(

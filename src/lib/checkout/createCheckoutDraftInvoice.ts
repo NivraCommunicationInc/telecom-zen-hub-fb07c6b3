@@ -1,9 +1,9 @@
 /**
- * createCheckoutDraftInvoice — Draft Stripe invoice for public checkout.
+ * createCheckoutDraftInvoice — Draft invoice for public checkout (PayPal flow).
  *
  * Important behavior:
  * - Creates billing_customer (if missing)
- * - Creates billing_invoice (pending) for Stripe PaymentIntent
+ * - Creates billing_invoice (pending) awaiting PayPal capture
  * - Does NOT create orders anymore (prevents ghost orders before final confirmation)
  */
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
@@ -205,14 +205,14 @@ export async function createCheckoutDraftInvoice(
       email: input.email,
       phone: input.phone,
     },
-    notes: input.description || "Checkout public — Stripe card payment draft",
+    notes: input.description || "Checkout public — card payment draft (PayPal)",
   });
 
   if (invErr) {
     throw new Error(`Échec création facture draft: ${invErr.message}`);
   }
 
-  console.log(`[Checkout Draft] Invoice ${invoiceNumber} ready for Stripe (no order yet)`);
+  console.log(`[Checkout Draft] Invoice ${invoiceNumber} ready for capture (no order yet)`);
 
   return {
     orderId: null,

@@ -140,7 +140,7 @@ export interface Payment {
   paid_amount: number;
   paid_at?: string;
   payment_reference: string; // 8 digits internal
-  processor_txn_id?: string; // PayPal id / Stripe id etc.
+  processor_txn_id?: string; // PayPal capture id or other provider reference
 }
 
 // ============================================================================
