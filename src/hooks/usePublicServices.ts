@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export type CatalogSurface = "website" | "checkout" | "simulator" | "portal" | "all";
 
@@ -141,6 +142,8 @@ const extractDataInfo = (description: string): { autoTopUp: string; noTopUp: str
 export function usePublicServices(options: UsePublicServicesOptions = {}) {
   const { surface = "website", categories } = options;
   const queryClient = useQueryClient();
+  const { language } = useLanguage();
+  const isEn = language === "en";
   const categoryKey = categories?.slice().sort().join("|") || "all";
 
   useEffect(() => {
@@ -163,12 +166,12 @@ export function usePublicServices(options: UsePublicServicesOptions = {}) {
   }, [queryClient, surface, categoryKey]);
 
   return useQuery({
-    queryKey: ["public-services", surface, categoryKey],
+    queryKey: ["public-services", surface, categoryKey, language],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
         .select(
-          "id, name, short_description, description, category, price, billing_type, display_order, tags, badges, features_json, is_featured, is_recommended, promo_eligible, visible_website, visible_simulator, visible_checkout, visible_portal, status, activation_fee_rule, installation_fee_rule, shipping_fee_rule",
+          "id, name, name_en, short_description, short_description_en, description, description_en, category, price, billing_type, display_order, tags, badges, features_json, features_json_en, is_featured, is_recommended, promo_eligible, visible_website, visible_simulator, visible_checkout, visible_portal, status, activation_fee_rule, installation_fee_rule, shipping_fee_rule",
         )
         .order("category", { ascending: true })
         .order("display_order", { ascending: true, nullsFirst: false })
@@ -193,16 +196,16 @@ export function usePublicServices(options: UsePublicServicesOptions = {}) {
           (row): PublicService => ({
             id: row.id || "",
             sku: "",
-            name: row.name || "",
-            short_description: row.short_description || null,
-            description: row.description || null,
+            name: (isEn ? row.name_en : null) || row.name || "",
+            short_description: (isEn ? row.short_description_en : null) ?? row.short_description ?? null,
+            description: (isEn ? row.description_en : null) ?? row.description ?? null,
             category: row.category || "",
             price: Number(row.price) || 0,
             billing_type: row.billing_type || null,
             display_order: Number(row.display_order) || 0,
             tags: toStringArray(row.tags),
             badges: toStringArray(row.badges),
-            features_json: toStringArray(row.features_json),
+            features_json: toStringArray((isEn ? row.features_json_en : null) ?? row.features_json),
             is_featured: Boolean(row.is_featured),
             is_recommended: Boolean(row.is_recommended),
             promo_eligible: Boolean(row.promo_eligible),

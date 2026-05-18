@@ -22389,19 +22389,23 @@ export type Database = {
           billing_type: string | null
           category: string | null
           description: string | null
+          description_en: string | null
           display_order: number | null
           equipment_rules: Json | null
           features_json: Json | null
+          features_json_en: Json | null
           id: string | null
           installation_fee_rule: string | null
           is_featured: boolean | null
           is_recommended: boolean | null
           name: string | null
+          name_en: string | null
           plan_code: string | null
           price: number | null
           promo_eligible: boolean | null
           shipping_fee_rule: string | null
           short_description: string | null
+          short_description_en: string | null
           status: string | null
           tags: Json | null
           visible_checkout: boolean | null
@@ -22415,19 +22419,23 @@ export type Database = {
           billing_type?: string | null
           category?: string | null
           description?: string | null
+          description_en?: string | null
           display_order?: number | null
           equipment_rules?: Json | null
           features_json?: Json | null
+          features_json_en?: Json | null
           id?: string | null
           installation_fee_rule?: string | null
           is_featured?: boolean | null
           is_recommended?: boolean | null
           name?: string | null
+          name_en?: string | null
           plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
           shipping_fee_rule?: string | null
           short_description?: string | null
+          short_description_en?: string | null
           status?: string | null
           tags?: Json | null
           visible_checkout?: boolean | null
@@ -22441,19 +22449,23 @@ export type Database = {
           billing_type?: string | null
           category?: string | null
           description?: string | null
+          description_en?: string | null
           display_order?: number | null
           equipment_rules?: Json | null
           features_json?: Json | null
+          features_json_en?: Json | null
           id?: string | null
           installation_fee_rule?: string | null
           is_featured?: boolean | null
           is_recommended?: boolean | null
           name?: string | null
+          name_en?: string | null
           plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
           shipping_fee_rule?: string | null
           short_description?: string | null
+          short_description_en?: string | null
           status?: string | null
           tags?: Json | null
           visible_checkout?: boolean | null
