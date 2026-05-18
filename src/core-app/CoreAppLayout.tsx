@@ -13,7 +13,7 @@ import {
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, MessageCircle, Upload,
-  MonitorPlay, Lock, Wifi, FileX,
+  MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote,
