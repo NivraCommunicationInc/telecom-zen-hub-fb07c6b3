@@ -34,6 +34,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Smartphone, ShieldCheck, Truck, AlertTriangle, Loader2, Phone as PhoneIcon } from "lucide-react";
 import { PayPalButton, type PayPalPayerAddress } from "@/components/payment/PayPalButton";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMobilePlans } from "@/hooks/usePublicServices";
