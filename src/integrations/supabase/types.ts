@@ -5471,6 +5471,7 @@ export type Database = {
           from_email: string | null
           id: string
           idempotency_key: string | null
+          language: string
           last_error: string | null
           max_attempts: number
           max_retries: number | null
@@ -5506,6 +5507,7 @@ export type Database = {
           from_email?: string | null
           id?: string
           idempotency_key?: string | null
+          language?: string
           last_error?: string | null
           max_attempts?: number
           max_retries?: number | null
@@ -5541,6 +5543,7 @@ export type Database = {
           from_email?: string | null
           id?: string
           idempotency_key?: string | null
+          language?: string
           last_error?: string | null
           max_attempts?: number
           max_retries?: number | null
