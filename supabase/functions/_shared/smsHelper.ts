@@ -59,14 +59,50 @@ export function toE164(phone: string): string | null {
 export async function sendSmsNotification(notification: SmsNotification): Promise<SmsResult> {
   const requestId = crypto.randomUUID().slice(0, 8);
   console.log(`[SMS-${requestId}] Attempting to send SMS notification...`);
-  
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  // Bug #16: helper to log every failure / skip so admins see them in Telephony section
+  const logTelephony = async (params: {
+    phone: string;
+    status: string; // 'sent' | 'failed' | 'skipped'
+    preview: string;
+    messageId?: string | null;
+    errorReason?: string | null;
+  }) => {
+    if (!supabaseUrl || !supabaseServiceKey) return;
+    try {
+      const sb = createClient(supabaseUrl, supabaseServiceKey);
+      await sb.from("telephony_logs").insert({
+        client_id: notification.clientId || null,
+        phone_number: params.phone,
+        action: "sms",
+        direction: "outbound",
+        agent_user_id: null,
+        agent_name: "Système Auto",
+        openphone_message_id: params.messageId || null,
+        message_preview: params.errorReason
+          ? `[${params.status.toUpperCase()}] ${params.errorReason} — ${params.preview.substring(0, 80)}`
+          : params.preview.substring(0, 100),
+        status: params.status,
+      });
+    } catch (e) {
+      console.error(`[SMS-${requestId}] telephony_logs insert failed:`, e);
+    }
+  };
+
   try {
     const OPENPHONE_API_KEY = Deno.env.get("OPENPHONE_API_KEY");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!OPENPHONE_API_KEY) {
       console.log(`[SMS-${requestId}] OpenPhone API key not configured, skipping SMS`);
+      await logTelephony({
+        phone: notification.to || "unknown",
+        status: "skipped",
+        preview: notification.message,
+        errorReason: "OpenPhone not configured",
+      });
       return { success: false, skipped: true, reason: "OpenPhone not configured" };
     }
 
@@ -79,6 +115,12 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
     const e164Phone = toE164(notification.to);
     if (!e164Phone) {
       console.log(`[SMS-${requestId}] Invalid phone number: ${notification.to}`);
+      await logTelephony({
+        phone: notification.to || "invalid",
+        status: "failed",
+        preview: notification.message,
+        errorReason: "Invalid phone number format",
+      });
       return { success: false, error: "Invalid phone number format" };
     }
 
@@ -111,6 +153,12 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
     if (!phoneNumbersRes.ok) {
       const errText = await phoneNumbersRes.text();
       console.error(`[SMS-${requestId}] Failed to get OpenPhone numbers:`, errText);
+      await logTelephony({
+        phone: e164Phone,
+        status: "failed",
+        preview: notification.message,
+        errorReason: `OpenPhone numbers fetch ${phoneNumbersRes.status}`,
+      });
       return { success: false, error: "Failed to get OpenPhone numbers" };
     }
 
@@ -119,6 +167,12 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
 
     if (phoneNumbers.length === 0) {
       console.log(`[SMS-${requestId}] No OpenPhone numbers available`);
+      await logTelephony({
+        phone: e164Phone,
+        status: "failed",
+        preview: notification.message,
+        errorReason: "No OpenPhone numbers available",
+      });
       return { success: false, error: "No OpenPhone numbers available" };
     }
 
@@ -126,7 +180,7 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
     const fromPhoneNumberId = phoneNumbers[0].id;
 
     // Add event marker to message for tracking (hidden at end)
-    const messageWithMarker = notification.eventKey 
+    const messageWithMarker = notification.eventKey
       ? `${notification.message}\n\n[AUTO:${notification.eventKey}]`
       : notification.message;
 
@@ -148,6 +202,12 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
     if (!smsRes.ok) {
       const errText = await smsRes.text();
       console.error(`[SMS-${requestId}] OpenPhone SMS error:`, errText);
+      await logTelephony({
+        phone: e164Phone,
+        status: "failed",
+        preview: notification.message,
+        errorReason: `OpenPhone ${smsRes.status}: ${errText.substring(0, 60)}`,
+      });
       return { success: false, error: "Failed to send SMS" };
     }
 
@@ -156,13 +216,12 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
 
     console.log(`[SMS-${requestId}] ✅ SMS sent successfully: ${messageId}`);
 
-    // Log to telephony_logs for visibility in Admin Telephony section
     await supabase.from("telephony_logs").insert({
       client_id: notification.clientId || null,
       phone_number: e164Phone,
       action: "sms",
       direction: "outbound",
-      agent_user_id: null, // System-generated
+      agent_user_id: null,
       agent_name: "Système Auto",
       openphone_message_id: messageId || null,
       message_preview: notification.message.substring(0, 100),
@@ -173,6 +232,12 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
 
   } catch (error) {
     console.error(`[SMS-${requestId}] Error:`, error);
+    await logTelephony({
+      phone: notification.to || "unknown",
+      status: "failed",
+      preview: notification.message,
+      errorReason: (error as Error)?.message || "Unknown error",
+    });
     return { success: false, error: (error as Error)?.message || "Unknown error" };
   }
 }
