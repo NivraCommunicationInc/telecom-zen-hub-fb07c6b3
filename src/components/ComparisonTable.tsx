@@ -71,8 +71,8 @@ const ComparisonTable = () => {
         </p>
         <p className="text-center mt-6 max-w-[700px] mx-auto leading-relaxed px-2" style={{ color: '#999999', fontSize: 11 }}>
           * {isFr
-            ? "Comparaison basée sur les informations publiques disponibles sur bell.ca et videotron.com en avril 2025."
-            : "Comparison based on publicly available information on bell.ca and videotron.com as of April 2025."}
+            ? "Comparaison à titre indicatif basée sur les pratiques courantes des grands fournisseurs traditionnels au Québec."
+            : "Indicative comparison based on common practices of major traditional providers in Quebec."}
         </p>
       </div>
     </section>
