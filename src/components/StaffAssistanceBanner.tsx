@@ -29,7 +29,7 @@ export default function StaffAssistanceBanner() {
     if (session.real_impersonation) {
       await endRealStaffImpersonation(session.imp_token);
       try { await supabase.auth.signOut(); } catch { /* noop */ }
-      window.location.href = "/hub/login?from=impersonation";
+      window.location.href = "/nivra-secure-hub-2617-internal/login?from=impersonation";
       return;
     }
     clearStaffAssistance();
