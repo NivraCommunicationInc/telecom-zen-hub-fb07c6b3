@@ -28,13 +28,17 @@ export default function CoreAnalyticsPage() {
 
   useEffect(() => {
     (async () => {
-      const [m, c, g, n] = await Promise.all([
+      const [m, c, g, n, ca, lt, pr] = await Promise.all([
         backendClient.from("mrr_metrics" as any).select("*").maybeSingle(),
         backendClient.from("churn_metrics" as any).select("*").limit(12),
         backendClient.from("growth_metrics" as any).select("*").limit(12),
         backendClient.from("nps_score" as any).select("*").maybeSingle(),
+        backendClient.from("cac_metric" as any).select("*").maybeSingle(),
+        backendClient.from("ltv_metric" as any).select("*").maybeSingle(),
+        backendClient.from("profit_per_client" as any).select("*").maybeSingle(),
       ]);
       setMrr(m.data); setChurn((c.data as any[]) || []); setGrowth((g.data as any[]) || []); setNps(n.data);
+      setCac(ca.data); setLtv(lt.data); setProfit(pr.data);
       setLoading(false);
     })();
   }, []);
