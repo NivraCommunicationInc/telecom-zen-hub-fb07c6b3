@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
-  Briefcase, Target, Inbox, Upload, LayoutGrid,
+  Briefcase, Target, Inbox, Upload, LayoutGrid, IdCard,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { useState, useEffect } from "react";
