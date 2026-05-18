@@ -85,6 +85,7 @@ const PORTALS: PortalOption[] = [
 export default function HubPage() {
   const navigate = useNavigate();
   const { theme, themeClass, toggleTheme } = useInternalTheme();
+  useNoIndexMeta();
 
   return (
     <div className={cn("internal-ui min-h-screen bg-background text-foreground flex flex-col", themeClass)}>
