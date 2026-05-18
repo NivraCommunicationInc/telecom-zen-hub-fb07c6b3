@@ -781,7 +781,7 @@ const AppRoutes = () => {
       <Route path="/referral-rewards" element={<Navigate to="/core/referral-rewards" replace />} />
       <Route path="/referral-terms" element={<Navigate to="/core/referral-terms" replace />} />
       {/* Core login removed — all access through /hub */}
-      <Route path="/core/login" element={<Navigate to="/hub" replace />} />
+      <Route path="/core/login" element={<Navigate to="/nivra-secure-hub-2617-internal" replace />} />
 
       {/* ============================================ */}
       {/* MARKETING HUB — Dedicated Admin Portal       */}
@@ -930,9 +930,9 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* INTERNAL HUB — Secure Staff Gateway          */}
       {/* ============================================ */}
-      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
-      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
-      <Route path="/hub/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
 
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}

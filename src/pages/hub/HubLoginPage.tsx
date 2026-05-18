@@ -196,7 +196,7 @@ export default function HubLoginPage() {
   const handleLogout = async () => {
     clearHubSession();
     await supabase.auth.signOut();
-    navigate("/hub", { replace: true });
+    navigate("/nivra-secure-hub-2617-internal", { replace: true });
   };
 
   if (!portal) {
@@ -271,7 +271,7 @@ export default function HubLoginPage() {
               </Button>
 
               <p className="text-center text-xs text-muted-foreground pt-2">
-                <Link to="/hub" className="text-primary hover:underline">
+                <Link to="/nivra-secure-hub-2617-internal" className="text-primary hover:underline">
                   Choisir un portail spécifique
                 </Link>
               </p>
@@ -347,7 +347,7 @@ export default function HubLoginPage() {
       </div>
       <div className="w-full max-w-sm">
         <div className="mb-6">
-          <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/nivra-secure-hub-2617-internal" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             Retour à la sélection
           </Link>

@@ -89,7 +89,7 @@ export default function HrSidebar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/hub/login", { replace: true });
+    navigate("/nivra-secure-hub-2617-internal/login", { replace: true });
   };
 
   return (

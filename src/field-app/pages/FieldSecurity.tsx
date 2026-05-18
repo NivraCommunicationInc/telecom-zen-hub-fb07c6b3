@@ -61,7 +61,7 @@ export default function FieldSecurity() {
     try {
       await supabase.auth.signOut({ scope: "global" });
       toast.success("Déconnecté de tous les appareils");
-      window.location.href = "/hub";
+      window.location.href = "/nivra-secure-hub-2617-internal";
     } catch (err: any) {
       toast.error(err?.message ?? "Erreur lors de la déconnexion");
     } finally {

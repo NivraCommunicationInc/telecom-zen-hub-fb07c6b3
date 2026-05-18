@@ -92,7 +92,7 @@ export default function MarketingProtectedRoute() {
   }
 
   if (state === "no_hub" || state === "unauthorized") {
-    return <Navigate to="/hub" state={{ from: location }} replace />;
+    return <Navigate to="/nivra-secure-hub-2617-internal" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

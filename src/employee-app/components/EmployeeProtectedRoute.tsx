@@ -26,13 +26,13 @@ export default function EmployeeProtectedRoute() {
     const check = async () => {
       // CRITICAL: Must have entered through /hub
       if (!hasValidHubSession()) {
-        navigate("/hub", { replace: true });
+        navigate("/nivra-secure-hub-2617-internal", { replace: true });
         return;
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        navigate("/hub", { replace: true });
+        navigate("/nivra-secure-hub-2617-internal", { replace: true });
         return;
       }
 
@@ -83,7 +83,7 @@ export default function EmployeeProtectedRoute() {
     return (
       <MfaEnrollmentDialog
         onComplete={() => window.location.reload()}
-        onCancel={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
+        onCancel={async () => { await supabase.auth.signOut(); navigate("/nivra-secure-hub-2617-internal", { replace: true }); }}
       />
     );
   }
@@ -93,7 +93,7 @@ export default function EmployeeProtectedRoute() {
       <MfaVerificationGate
         factorId={factorId}
         onVerified={() => { setState("authorized"); auditAccess("portal_entry", "employee"); }}
-        onLogout={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
+        onLogout={async () => { await supabase.auth.signOut(); navigate("/nivra-secure-hub-2617-internal", { replace: true }); }}
       />
     );
   }
@@ -105,7 +105,7 @@ export default function EmployeeProtectedRoute() {
           <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-destructive" />
           <h2 className="text-lg font-semibold text-foreground mb-1">Accès refusé</h2>
           <p className="text-sm text-muted-foreground mb-4">Vous n'avez pas accès au portail Employé.</p>
-          <button onClick={() => navigate("/hub")} className="text-sm text-primary hover:opacity-80">
+          <button onClick={() => navigate("/nivra-secure-hub-2617-internal")} className="text-sm text-primary hover:opacity-80">
             Retour au Hub
           </button>
         </div>

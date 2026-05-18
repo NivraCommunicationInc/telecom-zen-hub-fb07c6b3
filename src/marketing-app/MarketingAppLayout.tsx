@@ -41,7 +41,7 @@ export default function MarketingAppLayout() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/hub", { replace: true });
+    navigate("/nivra-secure-hub-2617-internal", { replace: true });
   };
 
   return (

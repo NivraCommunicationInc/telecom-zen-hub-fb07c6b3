@@ -142,11 +142,11 @@ export default function CoreProtectedRoute() {
   }
 
   if (state === "no_hub") {
-    return <Navigate to="/hub" state={{ from: location }} replace />;
+    return <Navigate to="/nivra-secure-hub-2617-internal" state={{ from: location }} replace />;
   }
 
   if (state === "unauthorized") {
-    return <Navigate to="/hub" state={{ from: location }} replace />;
+    return <Navigate to="/nivra-secure-hub-2617-internal" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

@@ -19,7 +19,7 @@ const INTERNAL_ROUTE_PREFIXES = [
   "/staff",
   "/hr",
   "/rh",
-  "/hub",
+  "/nivra-secure-hub-2617-internal",
   "/admin",
   "/technician",
   "/influencer",

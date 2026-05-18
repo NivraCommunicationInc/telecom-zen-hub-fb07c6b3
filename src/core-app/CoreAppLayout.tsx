@@ -221,7 +221,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Nivra Source",
     icon: Megaphone,
     items: [
-      { icon: LayoutDashboard, label: "Gestion du Hub", href: "/hub" },
+      { icon: LayoutDashboard, label: "Gestion du Hub", href: "/nivra-secure-hub-2617-internal" },
       { icon: Mail, label: "Envoyer un courriel", href: "/email/compose" },
     ],
   },
