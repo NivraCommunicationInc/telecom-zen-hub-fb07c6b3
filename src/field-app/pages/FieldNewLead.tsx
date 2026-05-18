@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Check } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const SERVICE_OPTIONS = ["Internet", "Mobile", "TV", "Internet + TV", "Internet + Mobile", "Combo complet", "Autre"];
 const PAYMENT_INTENTS = ["Carte de crédit", "Virement Interac", "Paiement comptant", "À déterminer"];
