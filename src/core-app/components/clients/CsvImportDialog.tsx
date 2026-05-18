@@ -99,6 +99,10 @@ const COLUMN_MAP: Record<string, string> = {
   "customer id": "square_customer_id",
   "reference id": "external_reference",
   "reference_id": "external_reference",
+  "phone number": "phone",
+  "phone_number": "phone",
+  "mobile": "phone",
+  "mobile phone": "phone",
 };
 
 /**
