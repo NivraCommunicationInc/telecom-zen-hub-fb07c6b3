@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import FieldMyPaySection from "@/field-app/components/FieldMyPaySection";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 2 }).format(n || 0);
