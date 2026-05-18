@@ -54,22 +54,20 @@ export default function CoverageSection() {
 
         {/* Search card */}
         <form onSubmit={handleSubmit} className="max-w-[640px] mx-auto mb-10" style={{ background: '#FFFFFF', borderRadius: 24, boxShadow: '0 12px 40px -12px rgba(124,58,237,0.25)', padding: 14 }}>
-          <div className="flex items-center gap-2 flex-col sm:flex-row">
-            <div className="flex items-center gap-2 flex-1 w-full px-4" style={{ height: 52 }}>
-              <Search className="w-4 h-4 shrink-0" style={{ color: '#7C3AED' }} />
-              <input
-                type="text"
+          <div className="flex items-stretch gap-2 flex-col sm:flex-row">
+            <div className="flex-1 w-full">
+              <AddressAutocomplete
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder={isFr ? "Entrez votre code postal ou adresse" : "Enter your postal code or address"}
-                className="w-full bg-transparent outline-none"
-                style={{ color: '#0D0D0D', fontSize: 15 }}
-                aria-label={isFr ? "Adresse" : "Address"}
+                onValueChange={setAddress}
+                onSelect={handleSelect}
+                restrictToQuebec
+                placeholder={isFr ? "Entrez votre adresse au Québec" : "Enter your Quebec address"}
+                className="h-[52px] rounded-full border-0 bg-transparent text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
             <button
               type="submit"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 font-bold transition-all hover:gap-3"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 font-bold transition-all hover:gap-3 shrink-0"
               style={{ height: 52, borderRadius: 50, background: '#7C3AED', color: '#FFFFFF', fontSize: 14, boxShadow: '0 8px 18px -8px rgba(124,58,237,0.5)' }}
             >
               {isFr ? "Vérifier" : "Check"}
@@ -77,6 +75,7 @@ export default function CoverageSection() {
             </button>
           </div>
         </form>
+
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-10 max-w-[860px] mx-auto">
