@@ -138,6 +138,7 @@ const ClientChangePlan = () => {
           change_type: changeType,
           status: "pending",
           requested_by: user.id,
+          effective_date: subscription?.next_renewal_at ?? null,
           notes: `Client self-serve request via portal. Effective: ${effectiveDate}.`,
         });
       if (insertErr) throw insertErr;
@@ -159,7 +160,7 @@ const ClientChangePlan = () => {
 
       // Internal alert (FR — admin language)
       await portalSupabase.from("email_queue").insert({
-        to_email: "admin@nivra-telecom.ca",
+        to_email: "nivratelecom@gmail.com",
         template_key: "plan_change_admin_alert",
         event_key: "plan_change_admin_alert",
         message_type: "transactional",

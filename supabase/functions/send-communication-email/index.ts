@@ -36,7 +36,7 @@ serve(async (req) => {
 
     // Get the authenticated user
     const authHeader = req.headers.get("Authorization");
-    let senderEmail = "admin@nivra-telecom.ca";
+    let senderEmail = "nivratelecom@gmail.com";
     
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
