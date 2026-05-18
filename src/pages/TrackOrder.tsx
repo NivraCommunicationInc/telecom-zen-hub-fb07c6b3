@@ -41,6 +41,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr, enCA } from "date-fns/locale";
 import SEOHead from "@/components/SEOHead";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { toast } from "@/hooks/use-toast";
 import ClientOrderEta from "@/components/client/ClientOrderEta";
 
