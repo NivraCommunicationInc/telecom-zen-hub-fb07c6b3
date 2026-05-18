@@ -647,9 +647,31 @@ export default function CoreTechnicianMobilePage() {
   const techStatus = (technician.status || "available").toLowerCase();
   const isAvailable = techStatus === "available";
 
+  /* ─── Current in-progress installation job (for GPS sharing link) ─── */
+  const activeJobQuery = useQuery({
+    queryKey: ["technician-active-job", technicianId],
+    enabled: !!technicianId,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("installation_jobs")
+        .select("id")
+        .eq("technician_id", technicianId!)
+        .in("status", ["scheduled", "en_route", "on_the_way", "in_progress", "started"])
+        .order("scheduled_date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return (data?.id as string | undefined) ?? null;
+    },
+  });
+  const activeJobId = activeJobQuery.data ?? null;
+
   /* ─── Section: Today ─── */
   const TodayView = () => (
     <div className="px-4 pb-24 pt-3 space-y-3">
+      {user?.id && (
+        <TechnicianLocationShare userId={user.id} installationJobId={activeJobId} />
+      )}
       <div>
         <h2 className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">
           Interventions du jour
