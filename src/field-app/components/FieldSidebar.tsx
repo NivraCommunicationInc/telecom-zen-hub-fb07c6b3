@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSidebarBadges } from "@/field-app/lib/fieldServices";
 import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
-  DollarSign, User, Lock, LogOut, ShoppingCart,
+  DollarSign, User, Lock, LogOut, ShoppingCart, PhoneCall,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
   ChevronLeft, ChevronRight, LayoutGrid, IdCard,
   GraduationCap, BookOpen, ClipboardList,
