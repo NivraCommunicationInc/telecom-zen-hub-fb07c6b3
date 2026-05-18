@@ -1,11 +1,34 @@
 /**
  * HubPage — Secure Internal Access Hub — Portal Selection (Public).
+ * NoIndex enforced at page-level + via _headers + robots.txt.
  */
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Terminal, Briefcase, MapPin, Shield, ChevronRight, UserCheck, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
+
+function useNoIndexMeta() {
+  useEffect(() => {
+    const tags: HTMLMetaElement[] = [];
+    const add = (name: string, content: string) => {
+      const m = document.createElement("meta");
+      m.name = name;
+      m.content = content;
+      document.head.appendChild(m);
+      tags.push(m);
+    };
+    add("robots", "noindex, nofollow, noarchive, nosnippet");
+    add("googlebot", "noindex, nofollow, noarchive, nosnippet");
+    const prevTitle = document.title;
+    document.title = "Nivra Internal";
+    return () => {
+      tags.forEach((t) => t.remove());
+      document.title = prevTitle;
+    };
+  }, []);
+}
 
 interface PortalOption {
   id: string;
