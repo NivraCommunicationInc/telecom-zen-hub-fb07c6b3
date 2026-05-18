@@ -656,23 +656,23 @@ export default function FieldNewSale() {
   if (cardSuccess) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
-        <div className="rounded-2xl border border-violet-500/30 bg-card p-6 md:p-8 shadow-xl">
+        <div className="rounded-2xl border border-violet-500/30 bg-gray-800 p-6 md:p-8 shadow-xl">
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-violet-600/10 mb-3">
               <span className="text-3xl">✅</span>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Commande créée</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Numéro <span className="font-mono font-semibold text-foreground">#{cardSuccess.orderNumber}</span> · Carte ••{cardSuccess.last4}
+            <h1 className="text-xl md:text-2xl font-bold text-gray-50">Commande créée</h1>
+            <p className="text-sm text-gray-400 mt-1">
+              Numéro <span className="font-mono font-semibold text-gray-50">#{cardSuccess.orderNumber}</span> · Carte ••{cardSuccess.last4}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm mb-6">
             <div className="rounded-lg bg-muted/40 p-3">
-              <div className="text-xs text-muted-foreground">Total commande</div>
-              <div className="font-semibold text-foreground">{cardSuccess.amount.toFixed(2)} $</div>
+              <div className="text-xs text-gray-400">Total commande</div>
+              <div className="font-semibold text-gray-50">{cardSuccess.amount.toFixed(2)} $</div>
             </div>
             <div className="rounded-lg bg-muted/40 p-3">
-              <div className="text-xs text-muted-foreground">Commission en attente</div>
+              <div className="text-xs text-gray-400">Commission en attente</div>
               <div className="font-semibold text-violet-400">{cardSuccess.commission.toFixed(2)} $</div>
             </div>
           </div>
@@ -970,23 +970,23 @@ export default function FieldNewSale() {
       {/* Restore-draft dialog (FIX: survive page refresh mid-sale) */}
       {restoreDialogOpen && (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-gray-800 border border-border rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-foreground">Commande en cours détectée</h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h2 className="text-lg font-bold text-gray-50">Commande en cours détectée</h2>
+              <p className="text-sm text-gray-400 mt-1">
                 Vous avez une commande en cours. Voulez-vous la reprendre où vous l'avez laissée ?
               </p>
             </div>
             {pendingRestore?.draft?.customer?.first_name || pendingRestore?.draft?.customer?.last_name ? (
               <div className="text-xs bg-muted/50 rounded-lg p-3">
-                <span className="text-muted-foreground">Client :</span>{" "}
-                <span className="font-medium text-foreground">
+                <span className="text-gray-400">Client :</span>{" "}
+                <span className="font-medium text-gray-50">
                   {[pendingRestore.draft.customer.first_name, pendingRestore.draft.customer.last_name].filter(Boolean).join(" ")}
                 </span>
                 {pendingRestore.draft.services.length > 0 && (
                   <div className="mt-1">
-                    <span className="text-muted-foreground">Forfaits :</span>{" "}
-                    <span className="text-foreground">{pendingRestore.draft.services.length}</span>
+                    <span className="text-gray-400">Forfaits :</span>{" "}
+                    <span className="text-gray-50">{pendingRestore.draft.services.length}</span>
                   </div>
                 )}
               </div>
@@ -994,7 +994,7 @@ export default function FieldNewSale() {
             <div className="flex gap-2">
               <button
                 onClick={handleRestoreReject}
-                className="flex-1 h-10 px-4 rounded-lg border border-border bg-background text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                className="flex-1 h-10 px-4 rounded-lg border border-border bg-gray-900 text-sm font-medium text-gray-50 hover:bg-muted transition-colors"
               >
                 Nouvelle commande
               </button>

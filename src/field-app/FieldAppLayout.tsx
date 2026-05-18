@@ -70,7 +70,7 @@ export default function FieldAppLayout() {
               <button
                 onClick={() => setSidebarCollapsed(false)}
                 aria-label="Ouvrir le menu"
-                className="inline-flex items-center justify-center rounded-lg text-white hover:bg-white/10 transition-colors"
+                className="inline-flex items-center justify-center rounded-lg text-white hover:bg-gray-800/10 transition-colors"
                 style={{ minHeight: 44, minWidth: 44 }}
               >
                 <Menu className="h-5 w-5" />

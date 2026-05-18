@@ -294,7 +294,7 @@ export default function FieldTraining() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
       </div>
     );
   }
@@ -357,8 +357,8 @@ export default function FieldTraining() {
         <TabsContent value="modules" className="mt-4 space-y-2.5">
           {!modules?.length ? (
             <div className="text-center py-16">
-              <GraduationCap className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Aucun module disponible.</p>
+              <GraduationCap className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-400">Aucun module disponible.</p>
             </div>
           ) : (
             modules.map((m, idx) => {
@@ -367,14 +367,14 @@ export default function FieldTraining() {
               const prevDone = idx === 0 || (progressMap?.[modules[idx - 1].id]?.status === "completed");
               const locked = m.is_mandatory && !prevDone && status !== "completed";
               const Icon = status === "completed" ? CheckCircle2 : locked ? Lock : status === "in_progress" ? Clock : PlayCircle;
-              const iconColor = status === "completed" ? "text-emerald-600" : locked ? "text-muted-foreground" : status === "in_progress" ? "text-amber-600" : "text-violet-600";
+              const iconColor = status === "completed" ? "text-emerald-600" : locked ? "text-gray-400" : status === "in_progress" ? "text-amber-600" : "text-violet-600";
               return (
                 <button
                   key={m.id}
                   disabled={locked}
                   onClick={() => { setActiveModule(m); setQuizMode(false); setFinalScore(null); setAnswers({}); }}
                   className={cn(
-                    "w-full text-left rounded-xl border border-border bg-card p-4 hover:shadow-md transition-all flex items-center gap-3 min-h-[64px]",
+                    "w-full text-left rounded-xl border border-border bg-gray-800 p-4 hover:shadow-md transition-all flex items-center gap-3 min-h-[64px]",
                     locked && "opacity-60 cursor-not-allowed",
                     status === "completed" && "border-emerald-500/40 bg-emerald-500/5"
                   )}
@@ -388,7 +388,7 @@ export default function FieldTraining() {
                         Module {m.order_index}
                       </span>
                       {m.category && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-gray-400">
                           · {CATEGORY_LABELS[m.category] || m.category}
                         </span>
                       )}
@@ -399,7 +399,7 @@ export default function FieldTraining() {
                       )}
                     </div>
                     <h3 className="text-sm font-semibold text-white mt-0.5 truncate">{m.title_fr}</h3>
-                    <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400">
                       {m.estimated_minutes && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.estimated_minutes} min</span>}
                       <span className="flex items-center gap-1"><Star className="h-3 w-3" />{m.points_reward} pts</span>
                       {p?.score !== null && p?.score !== undefined && (
@@ -409,7 +409,7 @@ export default function FieldTraining() {
                       )}
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                 </button>
               );
             })
@@ -420,12 +420,12 @@ export default function FieldTraining() {
         <TabsContent value="leaderboard" className="mt-4">
           {!leaderboard?.length ? (
             <div className="text-center py-16">
-              <Trophy className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Aucun score enregistré. Soyez le premier !</p>
+              <Trophy className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-400">Aucun score enregistré. Soyez le premier !</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/40">
+            <div className="rounded-xl border border-border bg-gray-800 overflow-hidden">
+              <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-border bg-muted/40">
                 <div className="col-span-1">#</div>
                 <div className="col-span-5">Agent</div>
                 <div className="col-span-3 text-center">Badge</div>
@@ -443,13 +443,13 @@ export default function FieldTraining() {
                     )}
                   >
                     <div className="col-span-1 flex items-center">
-                      {idx < 3 ? <Medal className={cn("h-4 w-4", medal)} /> : <span className="text-muted-foreground text-xs">{idx + 1}</span>}
+                      {idx < 3 ? <Medal className={cn("h-4 w-4", medal)} /> : <span className="text-gray-400 text-xs">{idx + 1}</span>}
                     </div>
                     <div className="col-span-5 font-medium truncate">
                       {row.display_name}
                       {isMe && <span className="ml-1.5 text-[10px] text-violet-600 font-semibold">(vous)</span>}
                     </div>
-                    <div className="col-span-3 text-center text-[11px] text-muted-foreground uppercase">
+                    <div className="col-span-3 text-center text-[11px] text-gray-400 uppercase">
                       {row.current_badge || "—"}
                     </div>
                     <div className="col-span-3 text-right font-semibold">{row.training_points || 0}</div>
@@ -464,8 +464,8 @@ export default function FieldTraining() {
         <TabsContent value="certs" className="mt-4">
           {!certifications?.length ? (
             <div className="text-center py-16">
-              <Award className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Aucune certification pour l'instant.</p>
+              <Award className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-400">Aucune certification pour l'instant.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -478,11 +478,11 @@ export default function FieldTraining() {
                       {c.certification_level}
                     </div>
                     <div className="text-sm font-semibold">{c.certification_name}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">
+                    <div className="text-[11px] text-gray-400 mt-1">
                       Émise le {new Date(c.issued_at).toLocaleDateString("fr-CA")}
                       {c.expires_at && ` · Expire le ${new Date(c.expires_at).toLocaleDateString("fr-CA")}`}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{c.total_points} pts</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">{c.total_points} pts</div>
                   </div>
                 );
               })}
@@ -504,7 +504,7 @@ export default function FieldTraining() {
               {!quizMode && finalScore === null && (
                 <div className="space-y-4">
                   {activeModule.description_fr && (
-                    <p className="text-sm text-muted-foreground">{activeModule.description_fr}</p>
+                    <p className="text-sm text-gray-400">{activeModule.description_fr}</p>
                   )}
                   {activeModule.video_url && (
                     <video src={activeModule.video_url} controls className="w-full rounded-lg" />
@@ -515,7 +515,7 @@ export default function FieldTraining() {
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-[11px] text-gray-400">
                       Score requis : <span className="font-semibold text-white">{activeModule.passing_score}%</span>
                       {" · "}Récompense : <span className="font-semibold text-white">{activeModule.points_reward} pts</span>
                     </div>
@@ -538,7 +538,7 @@ export default function FieldTraining() {
                   {!questions ? (
                     <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div>
                   ) : !questions.length ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">Aucune question pour ce module.</p>
+                    <p className="text-sm text-gray-400 text-center py-6">Aucune question pour ce module.</p>
                   ) : (
                     <>
                       {questions.map((q, qi) => (
@@ -557,7 +557,7 @@ export default function FieldTraining() {
                                     "w-full text-left rounded-lg border px-3 py-2.5 text-sm transition-colors min-h-[44px]",
                                     selected
                                       ? "border-violet-500 bg-violet-500/10 text-white"
-                                      : "border-border bg-card hover:bg-muted"
+                                      : "border-border bg-gray-800 hover:bg-muted"
                                   )}
                                 >
                                   {opt}
@@ -592,7 +592,7 @@ export default function FieldTraining() {
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-emerald-600">{finalScore}%</div>
-                        <p className="text-sm text-muted-foreground mt-1">Module réussi — points créditer.</p>
+                        <p className="text-sm text-gray-400 mt-1">Module réussi — points créditer.</p>
                       </div>
                     </>
                   ) : (
@@ -602,7 +602,7 @@ export default function FieldTraining() {
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-destructive">{finalScore}%</div>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-gray-400 mt-1">
                           Score insuffisant (requis {activeModule.passing_score}%). Vous pouvez retenter.
                         </p>
                       </div>
