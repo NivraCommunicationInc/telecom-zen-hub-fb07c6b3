@@ -351,6 +351,12 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
         last_name: r.last_name,
         email: r.email,
         phone: r.phone,
+        address: [r.address_line1, r.address_line2].filter(Boolean).join(" ") || null,
+        city: r.city || null,
+        postal_code: r.postal_code || null,
+        birthday: r.birthday || null,
+        square_customer_id: r.square_customer_id || null,
+        external_reference: r.external_reference || null,
       }));
       setBatchInfo(`Lot ${Math.floor(i / BATCH) + 1} / ${batches}`);
 
