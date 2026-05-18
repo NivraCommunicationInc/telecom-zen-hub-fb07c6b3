@@ -16,7 +16,7 @@ export const PAYMENT_STATUSES = {
 } as const;
 
 export const PAYMENT_METHODS = {
-  card: "Carte (Stripe)",
+  card: "Carte de crédit",
   paypal: "PayPal",
   interac: "Interac e-Transfer",
   manual: "Manuel",

@@ -51,7 +51,7 @@ export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStri
               <RadioGroupItem value="card" id="card" />
               <Label htmlFor="card" className="flex items-center gap-2 text-foreground cursor-pointer">
                 <CreditCard className="h-5 w-5 text-primary" />
-                Carte de crédit (Stripe)
+                Carte de crédit
               </Label>
             </div>
             {/* 2. Interac */}
