@@ -17889,6 +17889,8 @@ export type Database = {
           last_install_level: string | null
           last_install_outcome: string | null
           last_install_outcome_at: string | null
+          latitude: number | null
+          longitude: number | null
           postal_code: string | null
           province: string | null
           updated_at: string | null
@@ -17910,6 +17912,8 @@ export type Database = {
           last_install_level?: string | null
           last_install_outcome?: string | null
           last_install_outcome_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
           postal_code?: string | null
           province?: string | null
           updated_at?: string | null
@@ -17931,6 +17935,8 @@ export type Database = {
           last_install_level?: string | null
           last_install_outcome?: string | null
           last_install_outcome_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
           postal_code?: string | null
           province?: string | null
           updated_at?: string | null
