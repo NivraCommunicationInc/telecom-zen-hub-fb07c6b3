@@ -251,7 +251,7 @@ export default function StepPaymentPaypal({
             <CheckCircle2 className="h-5 w-5" /><span className="font-semibold">Lien PayPal généré</span>
           </div>
           {qrDataUrl && (
-            <div className="bg-white rounded-xl p-4 mx-auto w-fit">
+            <div className="bg-gray-800 rounded-xl p-4 mx-auto w-fit">
               <img src={qrDataUrl} alt="QR PayPal" className="block" />
             </div>
           )}
