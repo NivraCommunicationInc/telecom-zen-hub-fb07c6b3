@@ -11892,6 +11892,190 @@ export type Database = {
         }
         Relationships: []
       }
+      loyalty_points: {
+        Row: {
+          account_id: string
+          available_points: number
+          client_id: string | null
+          created_at: string
+          id: string
+          lifetime_points: number
+          tier: string
+          tier_updated_at: string
+          total_points: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          available_points?: number
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          lifetime_points?: number
+          tier?: string
+          tier_updated_at?: string
+          total_points?: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          available_points?: number
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          lifetime_points?: number
+          tier?: string
+          tier_updated_at?: string
+          total_points?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_points_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_redemptions: {
+        Row: {
+          account_id: string
+          applied_at: string | null
+          created_at: string
+          id: string
+          points_spent: number
+          reward_id: string
+          status: string
+        }
+        Insert: {
+          account_id: string
+          applied_at?: string | null
+          created_at?: string
+          id?: string
+          points_spent: number
+          reward_id: string
+          status?: string
+        }
+        Update: {
+          account_id?: string
+          applied_at?: string | null
+          created_at?: string
+          id?: string
+          points_spent?: number
+          reward_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_redemptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_rewards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_rewards: {
+        Row: {
+          created_at: string
+          description_en: string | null
+          description_fr: string | null
+          id: string
+          is_active: boolean
+          name_en: string
+          name_fr: string
+          points_required: number
+          redemptions_count: number
+          reward_type: string
+          reward_value: number | null
+          stock_limit: number | null
+        }
+        Insert: {
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
+          id?: string
+          is_active?: boolean
+          name_en: string
+          name_fr: string
+          points_required: number
+          redemptions_count?: number
+          reward_type: string
+          reward_value?: number | null
+          stock_limit?: number | null
+        }
+        Update: {
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
+          id?: string
+          is_active?: boolean
+          name_en?: string
+          name_fr?: string
+          points_required?: number
+          redemptions_count?: number
+          reward_type?: string
+          reward_value?: number | null
+          stock_limit?: number | null
+        }
+        Relationships: []
+      }
+      loyalty_transactions: {
+        Row: {
+          account_id: string
+          balance_after: number
+          created_at: string
+          description: string
+          expires_at: string | null
+          id: string
+          points: number
+          reference_id: string | null
+          reference_type: string | null
+          type: string
+        }
+        Insert: {
+          account_id: string
+          balance_after: number
+          created_at?: string
+          description: string
+          expires_at?: string | null
+          id?: string
+          points: number
+          reference_id?: string | null
+          reference_type?: string | null
+          type: string
+        }
+        Update: {
+          account_id?: string
+          balance_after?: number
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          id?: string
+          points?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_ai_config: {
         Row: {
           created_at: string
@@ -12427,6 +12611,56 @@ export type Database = {
           user_role?: string
         }
         Relationships: []
+      }
+      nps_surveys: {
+        Row: {
+          account_id: string | null
+          category: string | null
+          client_id: string | null
+          comment: string | null
+          created_at: string
+          id: string
+          public_token: string
+          responded_at: string | null
+          score: number | null
+          sent_at: string
+          trigger_event: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          category?: string | null
+          client_id?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          public_token?: string
+          responded_at?: string | null
+          score?: number | null
+          sent_at?: string
+          trigger_event?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          category?: string | null
+          client_id?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          public_token?: string
+          responded_at?: string | null
+          score?: number | null
+          sent_at?: string
+          trigger_event?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nps_surveys_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       operational_fees: {
         Row: {
@@ -21550,6 +21784,14 @@ export type Database = {
       }
     }
     Views: {
+      churn_metrics: {
+        Row: {
+          churn_rate_pct: number | null
+          churned_count: number | null
+          month: string | null
+        }
+        Relationships: []
+      }
       client_payment_history: {
         Row: {
           amount: number | null
@@ -21665,6 +21907,14 @@ export type Database = {
           },
         ]
       }
+      growth_metrics: {
+        Row: {
+          month: string | null
+          new_mrr: number | null
+          new_subscriptions: number | null
+        }
+        Relationships: []
+      }
       influencer_invites_public: {
         Row: {
           expires_at: string | null
@@ -21683,6 +21933,28 @@ export type Database = {
           id?: string | null
           is_used?: never
           is_valid?: never
+        }
+        Relationships: []
+      }
+      mrr_metrics: {
+        Row: {
+          active_subscriptions: number | null
+          arpu: number | null
+          arr: number | null
+          mrr: number | null
+          period: string | null
+          total_subscriptions: number | null
+        }
+        Relationships: []
+      }
+      nps_score: {
+        Row: {
+          avg_score: number | null
+          detractors: number | null
+          nps_score: number | null
+          passives: number | null
+          promoters: number | null
+          total_responses: number | null
         }
         Relationships: []
       }
@@ -23142,6 +23414,10 @@ export type Database = {
           p_payment_id: string
           p_reason?: string
         }
+        Returns: Json
+      }
+      redeem_loyalty_reward: {
+        Args: { p_account_id: string; p_reward_id: string }
         Returns: Json
       }
       regenerate_contract_pdf: {

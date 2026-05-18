@@ -3012,6 +3012,53 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // WEEKLY SALES REPORT — admin digest (Feature 4)
+    // ===================================================================
+    case "weekly_sales_report": {
+      const ps = esc(v.period_start || "");
+      const pe = esc(v.period_end || "");
+      const totalOrders = esc(String(v.total_orders ?? 0));
+      const totalRevenue = esc(v.total_revenue || "0,00 $");
+      const totalCommissions = esc(v.total_commissions || "0,00 $");
+      const trend = esc(v.revenue_trend_label || "0%");
+      const topRows = String(v.top_agents_rows_html || "");
+      const planRows = String(v.plan_breakdown_rows_html || "");
+      const extraHtml = `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top:16px;border-collapse:collapse;font-size:13px;">
+          <tr style="background:#f4f6fb"><th align="left" style="padding:8px;border-bottom:1px solid #ddd">Top agents</th><th align="right" style="padding:8px;border-bottom:1px solid #ddd">Ventes</th><th align="right" style="padding:8px;border-bottom:1px solid #ddd">Commission</th></tr>
+          ${topRows}
+        </table>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top:16px;border-collapse:collapse;font-size:13px;">
+          <tr style="background:#f4f6fb"><th align="left" style="padding:8px;border-bottom:1px solid #ddd">Forfait</th><th align="right" style="padding:8px;border-bottom:1px solid #ddd">Nouveaux abonnés</th></tr>
+          ${planRows}
+        </table>`;
+      return {
+        subject: `Rapport hebdomadaire Nivra — Semaine du ${ps}`,
+        html: shell({
+          preheader: `Rapport des ventes du ${ps} au ${pe}`,
+          badge: "RAPPORT HEBDOMADAIRE",
+          heroTitle: "Performance de la semaine",
+          heroSub: `${ps} → ${pe}`,
+          icon: "info",
+          greeting: "Bonjour,",
+          bodyText: `Voici le résumé des ventes Nivra pour la semaine.`,
+          cardTitle: "Indicateurs clés",
+          cardRows: [
+            ["Période", `${ps} → ${pe}`],
+            ["Total des commandes", String(totalOrders)],
+            ["Revenu total", String(totalRevenue)],
+            ["Commissions totales", String(totalCommissions)],
+            ["Tendance vs semaine précédente", String(trend)],
+          ],
+          extraHtml,
+          ctaPrimaryUrl: `${APP_URL}/core/analytics`,
+          ctaPrimaryLabel: "Voir le tableau analytique",
+          helpHtml: `Questions ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
