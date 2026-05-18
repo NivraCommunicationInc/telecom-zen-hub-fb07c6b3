@@ -226,6 +226,7 @@ const JobListings = lazy(() => import("@/pages/JobListings"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const NPSSurvey = lazy(() => import("@/pages/NPSSurvey"));
+const Presse = lazy(() => import("@/pages/Presse"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
 const ServicesDetail = lazy(() => import("@/pages/ServicesDetail"));
