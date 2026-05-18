@@ -225,26 +225,11 @@ verify_jwt = false
 [functions.process-id-ocr]
 verify_jwt = false
 
-[functions.stripe-create-payment-intent]
-verify_jwt = true
-
-[functions.stripe-webhook]
-verify_jwt = true
-
-[functions.stripe-admin-actions]
-verify_jwt = true
-
-[functions.stripe-setup-autopay]
-verify_jwt = true
-
 [functions.employee-work-engine]
 verify_jwt = false
 
 [functions.employee-verify-customer-pin]
 verify_jwt = true
-
-[functions.retry-subscription-activation]
-verify_jwt = false
 
 [functions.email-unsubscribe]
 verify_jwt = false
