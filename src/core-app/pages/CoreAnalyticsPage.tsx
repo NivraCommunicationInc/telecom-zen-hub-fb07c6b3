@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { DollarSign, Users, TrendingDown, Smile, Download } from "lucide-react";
+import { DollarSign, Users, TrendingDown, Smile, Download, Target, Wallet, Activity, Coins } from "lucide-react";
 
 const fmtCAD = (n: number) => new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
 const fmtMonth = (d: string) => new Date(d).toLocaleDateString("fr-CA", { month: "short", year: "numeric" });
@@ -20,6 +20,9 @@ export default function CoreAnalyticsPage() {
   const [churn, setChurn] = useState<any[]>([]);
   const [growth, setGrowth] = useState<any[]>([]);
   const [nps, setNps] = useState<any>(null);
+  const [cac, setCac] = useState<any>(null);
+  const [ltv, setLtv] = useState<any>(null);
+  const [profit, setProfit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
