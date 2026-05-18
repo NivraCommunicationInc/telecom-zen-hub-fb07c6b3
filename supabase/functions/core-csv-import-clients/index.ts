@@ -80,13 +80,17 @@ Deno.serve(async (req) => {
     const fileName: string = body.file_name || "unknown.csv";
     if (!clients?.length) return json({ error: "Liste vide" }, 400);
 
-    // Load ALL existing data for dedup (paginate past 1000-row limit)
-    const fetchAll = async (table: string) => {
+    // Load existing data:
+    // - crm_contacts: used for dedup (these are the actual leads we're managing)
+    // - profiles: used ONLY to detect prospect↔client conversion (NOT for dedup)
+    //   Rationale: Shopify/Square exports are prospects. A contact already in profiles
+    //   is a client — we still import it as a CRM lead but tag it with converted_to_user_id.
+    const fetchAll = async (table: string, cols: string) => {
       const all: any[] = [];
       let from = 0;
       const PAGE = 1000;
       while (true) {
-        const { data } = await admin.from(table).select("email, phone").range(from, from + PAGE - 1);
+        const { data } = await admin.from(table).select(cols).range(from, from + PAGE - 1);
         if (!data || data.length === 0) break;
         all.push(...data);
         if (data.length < PAGE) break;
@@ -95,8 +99,8 @@ Deno.serve(async (req) => {
       return all;
     };
     const [profiles, crmContactsExisting] = await Promise.all([
-      fetchAll("profiles"),
-      fetchAll("crm_contacts"),
+      fetchAll("profiles", "user_id, email, phone"),
+      fetchAll("crm_contacts", "email, phone"),
     ]);
 
     // Normalize phone to 10-digit canonical form (same as frontend)
@@ -107,13 +111,24 @@ Deno.serve(async (req) => {
       return d.length === 10 ? d : null;
     };
 
+    // Dedup Sets — crm_contacts ONLY
     const existingEmails = new Set<string>();
     const existingPhones = new Set<string>();
-    for (const p of [...profiles, ...crmContactsExisting]) {
-      if (p.email) existingEmails.add(p.email.toLowerCase());
-      const np = normPhoneForDedup(p.phone);
+    for (const c of crmContactsExisting) {
+      if (c.email) existingEmails.add(c.email.toLowerCase());
+      const np = normPhoneForDedup(c.phone);
       if (np) existingPhones.add(np);
     }
+
+    // Profile lookup maps — for converted_to_user_id tagging
+    const profileByEmail = new Map<string, string>();
+    const profileByPhone = new Map<string, string>();
+    for (const p of profiles) {
+      if (p.email && p.user_id) profileByEmail.set(p.email.toLowerCase(), p.user_id);
+      const np = normPhoneForDedup(p.phone);
+      if (np && p.user_id) profileByPhone.set(np, p.user_id);
+    }
+
 
     const cleanPhone = (p: string | null): string | null => {
       if (!p) return null;
@@ -210,6 +225,13 @@ Deno.serve(async (req) => {
       if (phone) existingPhones.add(phone);
       if (phoneLastKey) seenPhoneLast.add(phoneLastKey);
 
+      // Detect prospect↔client conversion (informational only — does NOT block import)
+      const normPhone = normPhoneForDedup(phone);
+      const convertedUserId =
+        (email && profileByEmail.get(email)) ||
+        (normPhone && profileByPhone.get(normPhone)) ||
+        null;
+
       toInsert.push({
         full_name: name,
         first_name: firstNameClean,
@@ -223,12 +245,14 @@ Deno.serve(async (req) => {
         square_customer_id: client.square_customer_id?.trim() || null,
         external_reference: client.external_reference?.trim() || null,
         source: (client.square_customer_id || client.external_reference) ? "shopify_import" : "csv_import",
-        status: "lead",
+        status: convertedUserId ? "converted" : "lead",
         call_status: "not_called",
         priority: 2,
         imported_by: user.id,
         import_batch_id: batchId,
+        converted_to_user_id: convertedUserId,
       });
+
       results.push({ name, status: "imported" });
       imported++;
     }
