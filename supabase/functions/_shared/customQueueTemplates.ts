@@ -3451,6 +3451,112 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // TICKET REPLY (support reply to client) — bilingual
+    // ===================================================================
+    case "ticket_reply": {
+      const ticketNumber = esc(v.ticket_number || v.ticket_id || "—");
+      const replyContent = esc(v.reply_content || "");
+      const subjectLine = esc(v.subject || (isEn ? "Support update" : "Mise à jour support"));
+      const replyDate = fmtDate(v.reply_date) || fmtDate(new Date().toISOString());
+      const ctaUrl = String(v.portal_url || portalUrl) + "/portal/support";
+      return {
+        subject: isEn
+          ? `Reply on your ticket ${ticketNumber}`
+          : `Réponse à votre billet ${ticketNumber}`,
+        html: shell({
+          preheader: isEn
+            ? `A support agent replied to ticket ${ticketNumber}.`
+            : `Un agent support a répondu au billet ${ticketNumber}.`,
+          badge: isEn ? "SUPPORT REPLY" : "RÉPONSE SUPPORT",
+          heroTitle: isEn ? "New reply on your ticket" : "Nouvelle réponse sur votre billet",
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Our support team replied to your ticket. The full conversation is available in your portal.`
+            : `Notre équipe support a répondu à votre billet. La conversation complète est disponible dans votre portail.`,
+          cardTitle: isEn ? "Reply details" : "Détails de la réponse",
+          cardRows: [
+            [isEn ? "Ticket" : "Billet", ticketNumber],
+            [isEn ? "Subject" : "Sujet", subjectLine],
+            [isEn ? "Date" : "Date", replyDate],
+            [isEn ? "Message" : "Message", replyContent || (isEn ? "(empty)" : "(vide)")],
+          ],
+          ctaPrimaryUrl: ctaUrl,
+          ctaPrimaryLabel: isEn ? "View ticket" : "Voir le billet",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ALL DOCUMENTS SENT (order documents bundle) — bilingual
+    // ===================================================================
+    case "all_documents_sent": {
+      const orderNumber = esc(v.order_number || v.order_id || "—");
+      const documentTypes = esc(v.document_types || (isEn ? "Order documents" : "Documents de commande"));
+      const ctaUrl = String(v.portal_url || portalUrl) + "/portal/documents";
+      return {
+        subject: isEn
+          ? `Your documents for order ${orderNumber}`
+          : `Vos documents pour la commande ${orderNumber}`,
+        html: shell({
+          preheader: isEn
+            ? `All documents for order ${orderNumber} have been sent.`
+            : `Tous les documents pour la commande ${orderNumber} ont été envoyés.`,
+          badge: isEn ? "DOCUMENTS SENT" : "DOCUMENTS ENVOYÉS",
+          heroTitle: isEn ? "Your order documents are ready" : "Vos documents de commande sont prêts",
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `All documents related to your order are now available. You will find each one as an attachment or in your portal.`
+            : `Tous les documents liés à votre commande sont maintenant disponibles. Vous les trouverez en pièces jointes ou dans votre portail.`,
+          cardTitle: isEn ? "Order details" : "Détails de la commande",
+          cardRows: [
+            [isEn ? "Order" : "Commande", `#${String(orderNumber).replace(/^#/, "")}`],
+            [isEn ? "Documents included" : "Documents inclus", documentTypes],
+          ],
+          ctaPrimaryUrl: ctaUrl,
+          ctaPrimaryLabel: isEn ? "View my documents" : "Voir mes documents",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // TECHNICIAN ASSIGNED — bilingual
+    // ===================================================================
+    case "technician_assigned": {
+      const techName = esc(v.technician_name || (isEn ? "Your technician" : "Votre technicien"));
+      const apptDate = fmtDate(v.appointment_date) || (isEn ? "To be confirmed" : "À confirmer");
+      const apptWindow = esc(v.appointment_window || "");
+      const ctaUrl = String(v.portal_url || portalUrl) + "/portal/appointments";
+      return {
+        subject: isEn
+          ? `Technician assigned for order ${orderNum}`
+          : `Technicien assigné pour la commande ${orderNum}`,
+        html: shell({
+          preheader: isEn
+            ? `${techName} has been assigned to your installation.`
+            : `${techName} a été assigné à votre installation.`,
+          badge: isEn ? "TECHNICIAN ASSIGNED" : "TECHNICIEN ASSIGNÉ",
+          heroTitle: isEn ? "Your technician is on the way" : "Votre technicien arrive bientôt",
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `A technician has been assigned to your service installation. You will receive an SMS the day of the appointment with arrival details.`
+            : `Un technicien a été assigné à l'installation de votre service. Vous recevrez un SMS le jour du rendez-vous avec les détails d'arrivée.`,
+          cardTitle: isEn ? "Appointment details" : "Détails du rendez-vous",
+          cardRows: [
+            [isEn ? "Order" : "Commande", orderNum],
+            [isEn ? "Technician" : "Technicien", techName],
+            [isEn ? "Date" : "Date", apptDate],
+            ...(apptWindow ? [[isEn ? "Window" : "Plage horaire", apptWindow] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: ctaUrl,
+          ctaPrimaryLabel: isEn ? "View appointment" : "Voir le rendez-vous",
+        }),
+      };
+    }
+
     default:
       return null;
   }
