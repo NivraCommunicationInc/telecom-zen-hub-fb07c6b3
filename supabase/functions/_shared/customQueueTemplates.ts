@@ -1143,26 +1143,26 @@ export function renderQueueTemplate(
     case "welcome_to_nivra":
     case "welcome_new_client":
     case "account_created": {
-      const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || "Service Nivra");
+      const service = esc(v.service_type || v.plan_name || v.SERVICES_LIST || t("Service Nivra","Nivra service", lang));
       const billingDate = fmtDate(v.billing_date || v.next_billing_date);
       return {
-        subject: `Bienvenue chez Nivra — Tout ce qu'il faut savoir`,
+        subject: t("Bienvenue chez Nivra — Tout ce qu'il faut savoir","Welcome to Nivra — Everything you need to know", lang),
         html: shell({
-          preheader: `Bienvenue chez Nivra Telecom.`,
-          badge: "BIENVENUE",
-          heroTitle: "Bienvenue chez Nivra Telecom",
-          heroSub: "Nous sommes ravis de vous avoir parmi nous.",
+          preheader: t("Bienvenue chez Nivra Telecom.","Welcome to Nivra Telecom.", lang),
+          badge: t("BIENVENUE","WELCOME", lang),
+          heroTitle: t("Bienvenue chez Nivra Telecom","Welcome to Nivra Telecom", lang),
+          heroSub: t("Nous sommes ravis de vous avoir parmi nous.","We're thrilled to have you with us.", lang),
           icon: "star",
           greeting,
-          bodyText: "Votre compte est prêt. Connectez-vous pour tout gérer.",
-          cardTitle: "Détails",
+          bodyText: t("Votre compte est prêt. Connectez-vous pour tout gérer.","Your account is ready. Sign in to manage everything.", lang),
+          cardTitle: t("Détails","Details", lang),
           cardRows: [
-            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-            ["Service", String(service)],
-            ["Date de facturation", billingDate],
+            [t("Compte","Account", lang), `#${String(accountNum).replace(/^#/, "")}`],
+            [t("Service","Service", lang), String(service)],
+            [t("Date de facturation","Billing date", lang), billingDate],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Mon espace client",
+          ctaPrimaryLabel: t("Mon espace client","My client portal", lang),
         }),
       };
     }
