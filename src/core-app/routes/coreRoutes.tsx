@@ -144,6 +144,7 @@ export const coreRoutes: RouteObject = {
     { path: "activations", element: <Navigate to="/core/wifi-requests" replace /> },
     { path: "installations", element: <CoreInstallationsPage /> },
     { path: "technician", element: <CoreTechnicianMobilePage /> },
+    { path: "technicians/map", element: <CoreTechnicianMapPage /> },
    { path: "cancellations", element: <CoreCancellationsPage /> },
    { path: "plan-changes", element: <CorePlanChangesPage /> },
    { path: "pause-requests", element: <CorePauseRequestsPage /> },
