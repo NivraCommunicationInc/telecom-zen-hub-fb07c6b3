@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
   // 1. Fetch eligible queued rows
   let q = supabase
     .from("email_queue")
-    .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id, attachments")
+    .select("id, event_key, to_email, template_key, template_vars, attempts, max_attempts, from_email, subject, message_type, entity_type, entity_id, attachments, language")
     .in("status", ["queued", "failed"])
     .order("created_at", { ascending: true })
     .limit(batchSize);
