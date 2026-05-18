@@ -287,7 +287,8 @@ Deno.serve(async (req) => {
       type: isNewAuthUser ? "invite" : "magiclink",
       email: body.work_email.trim().toLowerCase(),
       options: {
-        redirectTo: `${baseUrl}/rh`,
+        // CANONICAL: all internal staff land on the secure hub after activation
+        redirectTo: `${baseUrl}/nivra-secure-hub-2617-internal`,
         data: {
           role: primaryRole,
           employee_id: empRecord.id,
