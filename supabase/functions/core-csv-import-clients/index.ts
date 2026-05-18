@@ -7,7 +7,50 @@ interface CsvClient {
   last_name?: string;
   email: string | null;
   phone: string | null;
+  address?: string | null;
+  city?: string | null;
+  postal_code?: string | null;
+  birthday?: string | null;
+  square_customer_id?: string | null;
+  external_reference?: string | null;
 }
+
+// Fake/placeholder email fragments to coerce to NULL
+const FAKE_EMAIL_FRAGMENTS = ["noemail@", "x@gmail", "kersten@master", "nizarabd@hotmail"];
+// Fake/placeholder phones to skip entirely
+const FAKE_PHONES = new Set(["1111111111", "0000000000"]);
+// Names that mean "no real contact" — skip the row
+const SKIP_NAMES_LC = new Set(["pix", "x", "xxxxxx", "xxx", "xxxx", "xxxxx"]);
+
+const stripAccents = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
+const capitalize = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  const t = s.trim().toLowerCase();
+  if (!t) return null;
+  return t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+};
+
+const parseBirthday = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  const t = s.trim();
+  if (!t) return null;
+  // Accept YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+  if (us) {
+    const m = us[1].padStart(2, "0");
+    const d = us[2].padStart(2, "0");
+    return `${us[3]}-${m}-${d}`;
+  }
+  const d2 = new Date(t);
+  if (!isNaN(d2.getTime())) return d2.toISOString().slice(0, 10);
+  return null;
+};
 
 Deno.serve(async (req) => {
   const preflightResponse = handleCorsPreflightRequest(req);
