@@ -122,7 +122,9 @@ const ClientNotificationPreferences = ({ userId }: ClientNotificationPreferences
   }
 
   return (
-    <Card className="bg-card border-border">
+    <>
+      <ClientSmsMasterToggle userId={userId} />
+      <Card className="bg-card border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-cyan-400" />
