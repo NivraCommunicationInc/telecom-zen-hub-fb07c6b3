@@ -72,6 +72,14 @@ export const NAV_TARGETS: NavTarget[] = [
     fallbackRoute: '/mobile',
   },
   {
+    id: 'couverture',
+    label: 'Coverage',
+    labelFr: 'Couverture',
+    type: 'route',
+    target: '/couverture',
+    fallbackRoute: '/couverture',
+  },
+  {
     id: 'phones',
     label: 'Phones',
     labelFr: 'Téléphones',

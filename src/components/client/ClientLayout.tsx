@@ -6,7 +6,7 @@ import { ReactNode, useCallback, useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   LogOut,
   Menu,
@@ -95,6 +95,11 @@ const navGroups: Array<{
     children: [],
   },
   {
+    label: "Mes points",
+    path: "/portal/loyalty",
+    children: [],
+  },
+  {
     label: "Paramètres",
     path: null,
     badgeKey: "support",
@@ -120,6 +125,21 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
   const { badges: sectionBadges } = usePortalSectionBadges();
+
+  const { data: pointsBalance } = useQuery({
+    queryKey: ["loyalty-points-balance", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { data } = await portalClient
+        .from("loyalty_points")
+        .select("available_points")
+        .eq("client_id", user.id)
+        .maybeSingle();
+      return data?.available_points ?? 0;
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -305,6 +325,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                         style={active ? { background: PURPLE } : undefined}
                       >
                         {group.label}
+                        {group.label === "Mes points" && typeof pointsBalance === "number" && (
+                          <Badge className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0 ml-1.5 min-w-[18px]">
+                            {pointsBalance}
+                          </Badge>
+                        )}
                       </Link>
                     )}
 

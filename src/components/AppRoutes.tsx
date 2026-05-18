@@ -393,6 +393,8 @@ const ClientChannels = lazy(() => import("@/pages/client/ClientChannels"));
 const ClientEquipmentReplacement = lazy(() => import("@/pages/client/ClientEquipmentReplacement"));
 const ClientEquipment = lazy(() => import("@/pages/client/ClientEquipment"));
 const ClientPhoneOrders = lazy(() => import("@/pages/client/ClientPhoneOrders"));
+const ClientLoyalty = lazy(() => import("@/pages/client/ClientLoyalty"));
+const CoverageMap = lazy(() => import("@/pages/CoverageMap"));
 const ClientCancellations = lazy(() => import("@/pages/client/ClientCancellations"));
 const ClientAccessBlocked = lazy(() => import("@/pages/client/ClientAccessBlocked"));
 const ClientMonthlyInvoices = lazy(() => import("@/pages/client/ClientMonthlyInvoices"));
@@ -506,6 +508,7 @@ const AppRoutes = () => {
       <Route path="/telephones/:id" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneDetail /></Suspense></MaintenanceGuard>} />
       <Route path="/telephones/:id/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PhoneCheckout /></Suspense></MaintenanceGuard>} />
       <Route path="/mobile-coverage" element={<MaintenanceGuard><PublicLayout><MobileCoverage /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/couverture" element={<MaintenanceGuard><PublicLayout><CoverageMap /></PublicLayout></MaintenanceGuard>} />
       <Route path="/streaming" element={<MaintenanceGuard><PublicLayout><StreamingPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/compare" element={<MaintenanceGuard><PublicLayout><ComparePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/television-sur-mesure" element={<MaintenanceGuard><PublicLayout><TVConfigurator /></PublicLayout></MaintenanceGuard>} />
@@ -641,6 +644,7 @@ const AppRoutes = () => {
       <Route path="/portal/phones" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPhoneOrders /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/cancellations" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientCancellations /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/loyalty" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientLoyalty /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/paiement" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPaymentMethod /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/billing" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientBillingHub /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
