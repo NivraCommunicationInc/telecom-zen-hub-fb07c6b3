@@ -40,6 +40,7 @@ const navGroups = [
       { label: "Documents fiscaux", href: `${HR_BASE}/documents-fiscaux`, icon: FileText },
       { label: "Mes documents HR", href: `${HR_BASE}/documents`, icon: Upload },
       { label: "Lettres d'emploi", href: `${HR_BASE}/lettres`, icon: Mail },
+      { label: "Badges employés", href: `${HR_BASE}/badges`, icon: IdCard },
     ],
   },
   {
