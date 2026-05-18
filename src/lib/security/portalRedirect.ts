@@ -11,7 +11,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
-export const HUB_LOGIN_PATH = "/hub/login";
+export const HUB_LOGIN_PATH = "/nivra-secure-hub-2617-internal/login";
 
 /** Resolve the best landing portal path for the given user, or HUB_LOGIN_PATH if unknown. */
 export async function resolveStaffLandingPath(userId: string): Promise<string> {

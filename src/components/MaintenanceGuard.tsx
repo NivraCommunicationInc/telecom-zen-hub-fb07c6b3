@@ -70,7 +70,7 @@ const MaintenanceGuard = ({ children }: MaintenanceGuardProps) => {
     location.pathname.startsWith("/field") ||
     location.pathname.startsWith("/hr") ||
     location.pathname.startsWith("/rh") ||
-    location.pathname.startsWith("/hub");
+    location.pathname.startsWith("/nivra-secure-hub-2617-internal");
 
   const isFallbackAllowedRoute = allowedRoutes.some((route) => {
     if (route === location.pathname) return true;

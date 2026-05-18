@@ -75,7 +75,7 @@ export default function HubProtectedRoute() {
   }
 
   if (state === "unauthorized") {
-    return <Navigate to="/hub/login" state={{ from: location }} replace />;
+    return <Navigate to="/nivra-secure-hub-2617-internal/login" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

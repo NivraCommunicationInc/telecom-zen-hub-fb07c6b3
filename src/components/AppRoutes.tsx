@@ -10,6 +10,7 @@ const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubCreateAccountPage = lazy(() => import("@/pages/hub/HubCreateAccountPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 // Employee Portal (lazy-loaded, fully isolated)
 const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
@@ -781,7 +782,7 @@ const AppRoutes = () => {
       <Route path="/referral-rewards" element={<Navigate to="/core/referral-rewards" replace />} />
       <Route path="/referral-terms" element={<Navigate to="/core/referral-terms" replace />} />
       {/* Core login removed — all access through /hub */}
-      <Route path="/core/login" element={<Navigate to="/hub" replace />} />
+      <Route path="/core/login" element={<Navigate to="/nivra-secure-hub-2617-internal" replace />} />
 
       {/* ============================================ */}
       {/* MARKETING HUB — Dedicated Admin Portal       */}
@@ -929,10 +930,14 @@ const AppRoutes = () => {
 
       {/* ============================================ */}
       {/* INTERNAL HUB — Secure Staff Gateway          */}
+      {/* Obscure URL — old /hub returns 404 (decoy)   */}
       {/* ============================================ */}
-      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
-      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
-      <Route path="/hub/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
+      {/* Decoy 404 for legacy /hub paths — scanners/bots see standard not-found */}
+      <Route path="/hub" element={<NotFound />} />
+      <Route path="/hub/*" element={<NotFound />} />
 
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}

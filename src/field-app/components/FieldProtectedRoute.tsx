@@ -26,13 +26,13 @@ export default function FieldProtectedRoute() {
     const check = async () => {
       // CRITICAL: Must have entered through /hub
       if (!hasValidHubSession()) {
-        navigate("/hub", { replace: true });
+        navigate("/nivra-secure-hub-2617-internal", { replace: true });
         return;
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        navigate("/hub", { replace: true });
+        navigate("/nivra-secure-hub-2617-internal", { replace: true });
         return;
       }
 
@@ -81,7 +81,7 @@ export default function FieldProtectedRoute() {
     return (
       <MfaEnrollmentDialog
         onComplete={() => window.location.reload()}
-        onCancel={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
+        onCancel={async () => { await supabase.auth.signOut(); navigate("/nivra-secure-hub-2617-internal", { replace: true }); }}
       />
     );
   }
@@ -91,7 +91,7 @@ export default function FieldProtectedRoute() {
       <MfaVerificationGate
         factorId={factorId}
         onVerified={() => { setState("authorized"); auditAccess("portal_entry", "field"); }}
-        onLogout={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
+        onLogout={async () => { await supabase.auth.signOut(); navigate("/nivra-secure-hub-2617-internal", { replace: true }); }}
       />
     );
   }
@@ -103,7 +103,7 @@ export default function FieldProtectedRoute() {
           <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-destructive" />
           <h2 className="text-lg font-semibold text-gray-50 mb-1">Accès refusé</h2>
           <p className="text-sm text-gray-400 mb-4">Vous n'avez pas accès au portail Field.</p>
-          <button onClick={() => navigate("/hub")} className="text-sm text-primary hover:opacity-80">
+          <button onClick={() => navigate("/nivra-secure-hub-2617-internal")} className="text-sm text-primary hover:opacity-80">
             Retour au Hub
           </button>
         </div>

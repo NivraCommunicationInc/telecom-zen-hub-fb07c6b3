@@ -317,7 +317,7 @@ export default function HubCreateAccountPage() {
 
               <p className="text-center text-xs text-muted-foreground pt-2">
                 Déjà configuré?{" "}
-                <Link to="/hub/login" className="text-primary hover:underline">
+                <Link to="/nivra-secure-hub-2617-internal/login" className="text-primary hover:underline">
                   Se connecter
                 </Link>
               </p>

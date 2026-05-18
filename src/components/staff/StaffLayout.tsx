@@ -62,7 +62,7 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
 
           const portalFlag = requiredRole === "employee" ? roleData.can_access_employee : roleData.can_access_technician;
           if (!portalFlag) {
-            if (mounted) navigate("/hub", { replace: true });
+            if (mounted) navigate("/nivra-secure-hub-2617-internal", { replace: true });
             return;
           }
 

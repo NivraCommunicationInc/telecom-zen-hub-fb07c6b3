@@ -92,7 +92,7 @@ const AdminLogin = () => {
 
       setIsSubmitting(true);
 
-      const redirectUrl = `${window.location.origin}/hub/reset-password`;
+      const redirectUrl = `${window.location.origin}/nivra-secure-hub-2617-internal/reset-password`;
       const { error } = await adminClient.auth.resetPasswordForEmail(submittedEmail, {
         redirectTo: redirectUrl,
       });
