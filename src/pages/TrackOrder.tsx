@@ -784,6 +784,7 @@ const TrackOrder = () => {
           }
         }
       `}</style>
+      <Footer />
     </>
   );
 };
