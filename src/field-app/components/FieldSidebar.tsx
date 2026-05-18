@@ -85,8 +85,7 @@ function NavSection({
   return (
     <div className="space-y-1 mt-5 first:mt-0">
       {!collapsed && (
-        <p className="px-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.15em]"
-           style={{ color: "hsl(var(--field-text-dim))" }}>
+        <p className="px-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">
           {title}
         </p>
       )}
