@@ -243,7 +243,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
             <button
               onClick={onToggleCollapsed}
               aria-label="Étendre le menu"
-              className="w-full flex items-center justify-center py-2 rounded-xl text-white/60 hover:text-white hover:bg-[#1A1A2E]/10 transition-colors"
+              className="w-full flex items-center justify-center py-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
               style={{ minHeight: 44 }}
             >
               <ChevronRight className="h-4 w-4" />
@@ -253,13 +253,8 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
       </aside>
 
       {/* MOBILE — Bottom tab bar */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-2 py-2 safe-bottom"
-        style={{
-          background: "hsl(var(--field-bg-elevated))",
-          borderTop: "1px solid hsl(var(--field-border) / 0.15)",
-          backdropFilter: "blur(12px)",
-        }}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-2 py-2 safe-bottom bg-gray-900 border-t border-gray-700"
+        style={{ backdropFilter: "blur(12px)" }}
       >
         <div className="flex items-center justify-around">
           {[
