@@ -252,6 +252,7 @@ const Forfaits = () => {
           <LegalDisclaimer />
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
