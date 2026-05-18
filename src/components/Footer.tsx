@@ -28,12 +28,12 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const services = [
     { label: isFr ? "Internet haute vitesse" : "High-speed Internet", to: "/internet" },
     { label: isFr ? "Télévision" : "Television", to: "/tv" },
-    
+    { label: "Mobile", to: "/mobile" },
     { label: isFr ? "Comparer les forfaits" : "Compare Plans", to: "/compare" },
+    { label: isFr ? "Carte de couverture" : "Coverage Map", to: "/couverture" },
+    { label: isFr ? "Programme de parrainage" : "Refer a Friend", to: "/parrainage" },
     { label: isFr ? "Nos équipements" : "Our Equipment", to: "/frais-possibles" },
-    { label: isFr ? "Frais et tarifs" : "Fees & Pricing", to: "/frais-possibles" },
     { label: isFr ? "Commander" : "Order Now", to: "/commander" },
-    { label: isFr ? "Garantie 30 jours" : "30-day Guarantee", to: "/garantie" },
   ];
 
   const support = [
