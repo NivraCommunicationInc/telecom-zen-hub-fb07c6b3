@@ -10,6 +10,7 @@ const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubCreateAccountPage = lazy(() => import("@/pages/hub/HubCreateAccountPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 // Employee Portal (lazy-loaded, fully isolated)
 const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
