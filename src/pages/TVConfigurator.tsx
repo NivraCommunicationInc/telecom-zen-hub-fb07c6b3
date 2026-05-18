@@ -13,6 +13,8 @@ import {
   Zap, Signal, Layers, ChevronDown, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 /* ─── Canonical cart payload for checkout handoff ─── */
 
