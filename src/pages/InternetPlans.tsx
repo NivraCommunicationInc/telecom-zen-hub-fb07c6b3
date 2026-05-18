@@ -195,55 +195,21 @@ const InternetPlans = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
             {plans.map((plan) => (
-              <Card 
+              <PremiumPlanCard
                 key={plan.id}
-                className={`relative bg-card/80 backdrop-blur-sm border-border transition-all duration-300 hover:shadow-xl ${
-                  plan.featured ? 'ring-2 ring-accent shadow-lg scale-105' : ''
-                }`}
-              >
-                <div className={`absolute -top-3 left-1/2 -translate-x-1/2`}>
-                  <Badge className={`${plan.badgeColor} text-white px-4 py-1`}>
-                    {plan.badge}
-                  </Badge>
-                </div>
-                
-                <CardHeader className="text-center pt-8">
-                  <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-8 h-8 text-cyan-500" />
-                  </div>
-                  <CardTitle className="text-3xl font-bold text-foreground">
-                    {plan.speed}
-                  </CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold text-foreground">${plan.price}</span>
-                    <span className="text-muted-foreground">/{isFrench ? "mois" : "month"}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm">
-                        <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <EquipmentRequiredBox type="internet" />
-                  
-                  <Button
-                    onClick={() => handleGetStarted(plan.id)}
-                    variant={plan.featured ? "hero" : "outline"} 
-                    className="w-full mt-6"
-                    disabled={!addressValidated}
-                  >
-                    {isFrench ? "Commencer" : "Get Started"}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
+                name={plan.speed}
+                subtitle={isFrench ? "Internet haute vitesse" : "High-speed Internet"}
+                price={plan.price}
+                priceUnit={isFrench ? "/mois" : "/month"}
+                features={plan.features}
+                featured={plan.featured}
+                badge={plan.badge}
+                description={plan.description}
+                equipmentType="internet"
+                ctaLabel={isFrench ? "Commencer" : "Get Started"}
+                disabled={!addressValidated}
+                onClick={() => handleGetStarted(plan.id)}
+              />
             ))}
           </div>
           
