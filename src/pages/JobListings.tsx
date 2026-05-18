@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { Briefcase, MapPin, Loader2, Upload, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const TYPE_LABEL: Record<string, string> = {
   "full-time": "Temps plein",
@@ -180,7 +182,9 @@ export default function JobListings() {
   };
 
   return (
-    <main className="min-h-screen bg-background">
+    <>
+      <Header />
+      <main className="min-h-screen bg-background pt-16">
       <section className="border-b bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-12 md:py-16 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
@@ -354,6 +358,8 @@ export default function JobListings() {
           )}
         </DialogContent>
       </Dialog>
-    </main>
+      </main>
+      <Footer />
+    </>
   );
 }

@@ -1,4 +1,6 @@
 import { PublicLayout } from "@/components/PublicLayout";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import SEOHead from "@/components/SEOHead";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +29,8 @@ const Contest = () => {
         description="Participez à notre tirage de 500$ cash! Devenez client Nivra et courez la chance de gagner."
       />
       
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <Header />
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 pt-16">
         {/* Hero Section */}
         <section className="relative py-16 md:py-24 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5" />
@@ -310,6 +313,7 @@ const Contest = () => {
           </div>
         </section>
       </div>
+      <Footer />
     </>
   );
 };

@@ -13,6 +13,8 @@ import {
   Zap, Signal, Layers, ChevronDown, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 /* ─── Canonical cart payload for checkout handoff ─── */
 
@@ -265,7 +267,7 @@ const TVConfigurator = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* ═══════════════════════════════════════════════════════ */}
+      <Header />
       {/* HERO — Full-width immersive header */}
       {/* ═══════════════════════════════════════════════════════ */}
       <section className="bg-[#003366] relative overflow-hidden">
@@ -681,6 +683,7 @@ const TVConfigurator = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

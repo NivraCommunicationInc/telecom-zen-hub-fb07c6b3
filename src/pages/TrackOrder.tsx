@@ -41,6 +41,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr, enCA } from "date-fns/locale";
 import SEOHead from "@/components/SEOHead";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { toast } from "@/hooks/use-toast";
 import ClientOrderEta from "@/components/client/ClientOrderEta";
 
@@ -261,8 +263,8 @@ const TrackOrder = () => {
           ? "Suivez l'état de votre commande Nivra Telecom en temps réel." 
           : "Track your Nivra Telecom order status in real time."}
       />
-      
-      <div className="min-h-[85vh] bg-gradient-to-b from-muted/30 via-background to-background py-8 md:py-16 px-4">
+      <Header />
+      <div className="min-h-[85vh] bg-gradient-to-b from-muted/30 via-background to-background py-8 md:py-16 px-4 pt-24 md:pt-28">
         <div className="container mx-auto max-w-4xl">
           
           {/* Back Button */}
@@ -782,6 +784,7 @@ const TrackOrder = () => {
           }
         }
       `}</style>
+      <Footer />
     </>
   );
 };
