@@ -147,8 +147,19 @@ Deno.serve(async (req) => {
       const lastNameClean = capitalize(client.last_name) || capitalize((client.name || "").split(" ").slice(1).join(" "));
       const name = (client.name || [firstNameClean, lastNameClean].filter(Boolean).join(" ")).trim();
       const email = cleanEmail(client.email);
-      const rawPhone = cleanPhone(client.phone);
+      let rawPhone = cleanPhone(client.phone);
+      // Fallback: Reference ID (external_reference) often contains the phone in Shopify/Square exports
+      if (!rawPhone && client.external_reference) {
+        const ref = client.external_reference.trim();
+        const refDigits = ref.replace(/\D/g, "");
+        if (refDigits.length >= 7 && refDigits.length <= 11) {
+          rawPhone = cleanPhone(ref);
+        }
+      }
       const phone = rawPhone && !FAKE_PHONES.has(rawPhone) ? rawPhone : null;
+
+      const addressClean = stripAccents(client.address) || null;
+      const cityClean = stripAccents(client.city) || null;
 
       // SKIP rules: PIX / x / xxxxxx / empty names
       const fnLc = (firstNameClean || "").toLowerCase().trim();
@@ -163,8 +174,19 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (!email && !phone) { results.push({ name: name || "—", status: "invalid", reason: "Aucun contact valide", rejection_code: "invalid_format" }); invalid++; continue; }
-      if (!name || name.length < 2) { results.push({ name: name || "—", status: "invalid", reason: "Nom invalide", rejection_code: "invalid_format" }); invalid++; continue; }
+      // Relaxed validation:
+      // valid = (real email) OR (real phone) OR (first + last + (city OR address))
+      const hasLocatable = !!(fnLc && lnLc && (cityClean || addressClean));
+      if (!email && !phone && !hasLocatable) {
+        results.push({ name: name || "—", status: "invalid", reason: "Aucun email, téléphone ni adresse exploitable", rejection_code: "invalid_format" });
+        invalid++;
+        continue;
+      }
+      if (!name || name.length < 2) {
+        results.push({ name: name || "—", status: "invalid", reason: "Nom invalide", rejection_code: "invalid_format" });
+        invalid++;
+        continue;
+      }
 
       // Dedup: same email OR (same phone AND same last_name)
       const phoneLastKey = phone && lnLc ? `${phone}|${lnLc}` : null;
