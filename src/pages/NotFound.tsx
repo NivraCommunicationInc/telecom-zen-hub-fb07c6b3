@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageSEO from "@/components/shared/PageSEO";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 export default function NotFound() {
   const location = useLocation();
