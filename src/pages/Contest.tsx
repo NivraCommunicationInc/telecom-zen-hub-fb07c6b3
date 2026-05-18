@@ -1,4 +1,6 @@
 import { PublicLayout } from "@/components/PublicLayout";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import SEOHead from "@/components/SEOHead";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
