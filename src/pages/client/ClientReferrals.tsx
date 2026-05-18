@@ -10,7 +10,7 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Copy, Users, Clock, CheckCircle, DollarSign, Share2, ArrowRight, CreditCard, TrendingUp } from "lucide-react";
+import { Gift, Copy, Users, Clock, CheckCircle, DollarSign, Share2, ArrowRight, CreditCard, TrendingUp, MessageCircle, Mail, Smartphone, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
