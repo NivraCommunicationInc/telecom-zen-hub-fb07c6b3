@@ -44,6 +44,7 @@ const toolsNav = [
   { label: "Rapport du jour", href: `${FIELD_BASE}/daily-report`, icon: Calendar },
   { label: "Formation", href: `${FIELD_BASE}/training`, icon: GraduationCap },
   { label: "Ressources", href: `${FIELD_BASE}/resources`, icon: BookOpen },
+  { label: "Procédures", href: `${FIELD_BASE}/procedures`, icon: ClipboardList },
   { label: "Mon Badge", href: `${FIELD_BASE}/badge`, icon: IdCard },
 ];
 
