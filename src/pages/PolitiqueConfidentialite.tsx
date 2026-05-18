@@ -99,6 +99,7 @@ export default function PolitiqueConfidentialite() {
           </div>
         </section>
       </div>
+      <Footer />
     </>
   );
 }
