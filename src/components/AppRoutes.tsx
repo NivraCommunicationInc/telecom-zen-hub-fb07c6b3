@@ -393,6 +393,8 @@ const ClientChannels = lazy(() => import("@/pages/client/ClientChannels"));
 const ClientEquipmentReplacement = lazy(() => import("@/pages/client/ClientEquipmentReplacement"));
 const ClientEquipment = lazy(() => import("@/pages/client/ClientEquipment"));
 const ClientPhoneOrders = lazy(() => import("@/pages/client/ClientPhoneOrders"));
+const ClientLoyalty = lazy(() => import("@/pages/client/ClientLoyalty"));
+const CoverageMap = lazy(() => import("@/pages/CoverageMap"));
 const ClientCancellations = lazy(() => import("@/pages/client/ClientCancellations"));
 const ClientAccessBlocked = lazy(() => import("@/pages/client/ClientAccessBlocked"));
 const ClientMonthlyInvoices = lazy(() => import("@/pages/client/ClientMonthlyInvoices"));
