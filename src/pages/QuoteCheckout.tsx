@@ -25,6 +25,7 @@ import { validateDob, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateCanadianPostalCode, formatPostalCode } from "@/components/checkout/CheckoutServiceAddress";
 import PayPalButton from "@/components/payment/PayPalButton";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { toast } from "sonner";
 import {
   User, MapPin, CreditCard, CheckCircle, ShieldCheck, ArrowRight,
@@ -549,7 +550,19 @@ export default function QuoteCheckout() {
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="address" className="text-sm flex items-center gap-1"><Home className="h-3 w-3" /> Adresse <span className="text-destructive">*</span></Label>
-              <Input id="address" value={form.address} onChange={e => updateField("address", e.target.value)} placeholder="123 rue Exemple" className={errors.address ? "border-destructive" : ""} />
+              <AddressAutocomplete
+                value={form.address}
+                onValueChange={(v) => updateField("address", v)}
+                onSelect={(a) => {
+                  updateField("address", a.line1 || a.formatted);
+                  if (a.city) updateField("city", a.city);
+                  if (a.region) updateField("province", a.region);
+                  if (a.postalCode) updateField("postalCode", formatPostalCode(a.postalCode));
+                }}
+                placeholder="Commencez à taper votre adresse..."
+                restrictToQuebec
+                className={errors.address ? "border-destructive" : ""}
+              />
               {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
             </div>
             <div className="grid grid-cols-3 gap-4">

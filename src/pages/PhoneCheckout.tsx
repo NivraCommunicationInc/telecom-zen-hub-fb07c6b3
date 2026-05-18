@@ -34,6 +34,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Smartphone, ShieldCheck, Truck, AlertTriangle, Loader2, Phone as PhoneIcon } from "lucide-react";
 import { PayPalButton, type PayPalPayerAddress } from "@/components/payment/PayPalButton";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMobilePlans } from "@/hooks/usePublicServices";
@@ -419,7 +420,7 @@ export default function PhoneCheckout() {
               <CardTitle className="flex items-center gap-2"><Truck className="w-5 h-5 text-primary" />{isFr ? "Adresse de livraison" : "Shipping address"}</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2"><Label htmlFor="addr">{isFr ? "Rue" : "Street"} *</Label><Input id="addr" value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+              <div className="md:col-span-2"><Label htmlFor="addr">{isFr ? "Rue" : "Street"} *</Label><AddressAutocomplete value={address} onValueChange={setAddress} onSelect={(a) => { setAddress(a.line1 || a.formatted); if (a.city) setCity(a.city); if (a.region) setProvince(a.region); if (a.postalCode) setPostalCode(a.postalCode); }} placeholder={isFr ? "Commencez à taper votre adresse..." : "Start typing your address..."} /></div>
               <div><Label htmlFor="city">{isFr ? "Ville" : "City"} *</Label><Input id="city" value={city} onChange={(e) => setCity(e.target.value)} /></div>
               <div>
                 <Label htmlFor="prov">{isFr ? "Province" : "Province"} *</Label>
