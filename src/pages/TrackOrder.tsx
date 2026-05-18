@@ -42,6 +42,7 @@ import { format } from "date-fns";
 import { fr, enCA } from "date-fns/locale";
 import SEOHead from "@/components/SEOHead";
 import { toast } from "@/hooks/use-toast";
+import ClientOrderEta from "@/components/client/ClientOrderEta";
 
 interface OrderData {
   id: string;
