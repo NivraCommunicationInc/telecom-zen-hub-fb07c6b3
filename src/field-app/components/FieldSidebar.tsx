@@ -42,6 +42,8 @@ const toolsNav = [
   { label: "Catalogue offres", href: `${FIELD_BASE}/offers`, icon: Package },
   { label: "Objectifs & cibles", href: `${FIELD_BASE}/objectives`, icon: Target },
   { label: "Rapport du jour", href: `${FIELD_BASE}/daily-report`, icon: Calendar },
+  { label: "Formation", href: `${FIELD_BASE}/training`, icon: GraduationCap },
+  { label: "Ressources", href: `${FIELD_BASE}/resources`, icon: BookOpen },
   { label: "Mon Badge", href: `${FIELD_BASE}/badge`, icon: IdCard },
 ];
 
