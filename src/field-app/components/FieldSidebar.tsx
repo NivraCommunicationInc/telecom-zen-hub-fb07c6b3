@@ -207,10 +207,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
         </ScrollArea>
 
         {/* Bottom — profile + logout */}
-        <div
-          className="px-2 py-3 space-y-1"
-          style={{ borderTop: "1px solid hsl(var(--field-border) / 0.12)" }}
-        >
+        <div className="px-2 py-3 space-y-1 border-t border-gray-700">
           {bottomItems.map((item) => {
             const active = isActive(item.href);
             return (
@@ -220,13 +217,10 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center mx-1 rounded-xl text-[12px] font-medium transition-colors",
-                  collapsed ? "justify-center py-2.5" : "gap-3 px-3 py-2"
+                  collapsed ? "justify-center py-2.5" : "gap-3 px-3 py-2",
+                  active ? "bg-violet-600 text-white" : "text-gray-300 hover:bg-gray-800 hover:text-white"
                 )}
-                style={{
-                  minHeight: 44,
-                  background: active ? "hsl(var(--field-accent) / 0.2)" : "transparent",
-                  color: active ? "white" : "hsl(var(--field-text-muted))",
-                }}
+                style={{ minHeight: 44 }}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
@@ -237,10 +231,10 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
             onClick={handleLogout}
             title={collapsed ? "Déconnexion" : undefined}
             className={cn(
-              "w-full flex items-center mx-1 rounded-xl text-[12px] font-medium transition-colors hover:text-red-400",
+              "w-full flex items-center mx-1 rounded-xl text-[12px] font-medium text-gray-300 hover:bg-gray-800 hover:text-red-400 transition-colors",
               collapsed ? "justify-center py-2.5" : "gap-3 px-3 py-2"
             )}
-            style={{ minHeight: 44, color: "hsl(var(--field-text-muted))" }}
+            style={{ minHeight: 44 }}
           >
             <LogOut className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Déconnexion</span>}
