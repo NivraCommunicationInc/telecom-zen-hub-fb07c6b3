@@ -114,6 +114,14 @@ const ClientDashboard = () => {
           </div>
         )}
 
+        {/* Bug #15: surface fallback-link warning when history was reconciled via email match. */}
+        {canonicalData?.identifiers?.usedFallbackLinks && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            ⚠️ Certaines données de votre historique ont été reliées via votre adresse courriel.
+            Si une commande ou facture semble manquante, contactez le support.
+          </div>
+        )}
+
         {/* Page title - Rogers style */}
         <h1 className="text-3xl lg:text-4xl font-bold text-slate-900" data-testid="dashboard-greeting">
           Bienvenue
