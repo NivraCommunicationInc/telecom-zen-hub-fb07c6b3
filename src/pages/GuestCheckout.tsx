@@ -911,10 +911,17 @@ const GuestCheckout = () => {
                   <CardContent className="space-y-4">
                     <div>
                       <Label>Adresse</Label>
-                      <Input
-                        placeholder="123 Rue Principale"
+                      <AddressAutocomplete
+                        placeholder="Commencez à taper votre adresse..."
                         value={addressStreet}
-                        onChange={e => setAddressStreet(e.target.value)}
+                        onValueChange={(v) => setAddressStreet(v)}
+                        onSelect={(addr: AddressValue) => {
+                          setAddressStreet(addr.line1 || addr.formatted);
+                          if (addr.city) setAddressCity(addr.city);
+                          if (addr.region) setAddressProvince(addr.region);
+                          if (addr.postalCode) setAddressPostalCode(addr.postalCode);
+                        }}
+                        restrictToQuebec
                       />
                     </div>
                     <div>
