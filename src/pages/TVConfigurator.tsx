@@ -683,6 +683,7 @@ const TVConfigurator = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
