@@ -62,7 +62,7 @@ const ClientServicePauseCard = ({ userId }: { userId: string }) => {
     }
     const { data: sub } = await portalSupabase
       .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, plan_price, status, paused_at, pause_until, pause_reason")
+      .select("id, customer_id, plan_name, plan_price, status, paused_at, pause_until, pause_reason, paypal_subscription_id")
       .eq("customer_id", customer.id)
       .in("status", ["active", "pause_requested", "paused"])
       .order("created_at", { ascending: false })
