@@ -215,7 +215,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
             <button
               onClick={onToggleCollapsed}
               aria-label="Réduire le menu"
-              className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:text-white hover:bg-[#1A1A2E]/10 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -273,7 +273,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
             <button
               onClick={onToggleCollapsed}
               aria-label="Étendre le menu"
-              className="w-full flex items-center justify-center py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              className="w-full flex items-center justify-center py-2 rounded-xl text-white/60 hover:text-white hover:bg-[#1A1A2E]/10 transition-colors"
               style={{ minHeight: 44 }}
             >
               <ChevronRight className="h-4 w-4" />
