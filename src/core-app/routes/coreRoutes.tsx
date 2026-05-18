@@ -27,6 +27,7 @@ const CoreWifiRequestsPage = lazy(() => import("@/core-app/pages/CoreActivationR
 const CoreInstallationsPage = lazy(() => import("@/core-app/pages/CoreInstallationsPage"));
 const CoreTechnicianMobilePage = lazy(() => import("@/core-app/pages/CoreTechnicianMobilePage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
+const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
 
 // Clients
 const ClientsPage = lazy(() => import("@/core-app/pages/ClientsPage"));
@@ -141,7 +142,8 @@ export const coreRoutes: RouteObject = {
     { path: "activations", element: <Navigate to="/core/wifi-requests" replace /> },
     { path: "installations", element: <CoreInstallationsPage /> },
     { path: "technician", element: <CoreTechnicianMobilePage /> },
-    { path: "cancellations", element: <CoreCancellationsPage /> },
+   { path: "cancellations", element: <CoreCancellationsPage /> },
+   { path: "plan-changes", element: <CorePlanChangesPage /> },
     // Clients
     { path: "clients", element: <ClientsPage /> },
     { path: "clients/:clientId", element: <CoreClientProfile /> },

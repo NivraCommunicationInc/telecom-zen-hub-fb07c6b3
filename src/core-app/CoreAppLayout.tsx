@@ -98,6 +98,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Wrench, label: "Techniciens", href: "/technician" },
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
+      { icon: RefreshCcw, label: "Changements forfait", href: "/plan-changes" },
       { icon: RotateCcw, label: "Retours RMA", href: "/returns" },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
