@@ -3,10 +3,11 @@
  */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Award, BarChart3, DollarSign, Loader2, Target, TrendingUp } from "lucide-react";
+import { Award, BarChart3, DollarSign, Download, Loader2, Target, TrendingUp } from "lucide-react";
 import { fetchPerformanceData } from "@/field-app/lib/fieldServices";
 import { cn } from "@/lib/utils";
 import { FieldEmptyState, FieldMetricCard, FieldPageHeader, FieldPanel } from "@/field-app/components/FieldUI";
+import { exportToCSV } from "@/core-app/lib/exportUtils";
 
 type Period = "week" | "month" | "all";
 
