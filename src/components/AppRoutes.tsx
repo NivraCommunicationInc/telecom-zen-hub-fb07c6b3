@@ -60,6 +60,8 @@ const FieldNotifications = lazy(() => import("@/field-app/pages/FieldNotificatio
 const FieldClientLookup = lazy(() => import("@/field-app/pages/FieldClientLookup"));
 const FieldResources = lazy(() => import("@/field-app/pages/FieldResources"));
 const FieldTraining = lazy(() => import("@/field-app/pages/FieldTraining"));
+const FieldBadgePage = lazy(() => import("@/field-app/pages/FieldBadgePage"));
+const HrBadgePage = lazy(() => import("@/hr-app/pages/HrBadgePage"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
