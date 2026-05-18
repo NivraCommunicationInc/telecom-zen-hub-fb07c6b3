@@ -47,3 +47,23 @@
 # Portal routes - stricter CSP
 /portal/*
   X-Robots-Tag: noindex, nofollow
+
+# Internal hub & sub-portals - block all crawlers
+/hub
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/hub/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/core/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/field/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/employee/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/hr/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/rh/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/staff/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+/technician/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
