@@ -48,6 +48,7 @@ const hubNav = [
 ];
 
 const bottomItems = [
+  { label: "Mon Badge", href: `${FIELD_BASE}/badge`, icon: IdCard },
   { label: "Mon profil", href: `${FIELD_BASE}/profile`, icon: User },
   { label: "Sécurité", href: `${FIELD_BASE}/security`, icon: Lock },
 ];
