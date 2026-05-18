@@ -2372,6 +2372,9 @@ export type Database = {
           last_invoice_id: string | null
           next_renewal_at: string | null
           order_id: string | null
+          pause_reason: string | null
+          pause_until: string | null
+          paused_at: string | null
           paypal_plan_id: string | null
           paypal_subscription_id: string | null
           plan_code: string
@@ -2412,6 +2415,9 @@ export type Database = {
           last_invoice_id?: string | null
           next_renewal_at?: string | null
           order_id?: string | null
+          pause_reason?: string | null
+          pause_until?: string | null
+          paused_at?: string | null
           paypal_plan_id?: string | null
           paypal_subscription_id?: string | null
           plan_code: string
@@ -2452,6 +2458,9 @@ export type Database = {
           last_invoice_id?: string | null
           next_renewal_at?: string | null
           order_id?: string | null
+          pause_reason?: string | null
+          pause_until?: string | null
+          paused_at?: string | null
           paypal_plan_id?: string | null
           paypal_subscription_id?: string | null
           plan_code?: string
@@ -19867,6 +19876,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          pause_duration_days: number | null
           processed_at: string | null
           processed_by: string | null
           reason: string
@@ -19882,6 +19892,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          pause_duration_days?: number | null
           processed_at?: string | null
           processed_by?: string | null
           reason: string
@@ -19897,6 +19908,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          pause_duration_days?: number | null
           processed_at?: string | null
           processed_by?: string | null
           reason?: string
@@ -22666,6 +22678,7 @@ export type Database = {
         Args: { p_decision: string; p_note?: string; p_session_id: string }
         Returns: Json
       }
+      auto_resume_paused_services: { Args: never; Returns: number }
       backfill_field_sales_sync: { Args: never; Returns: undefined }
       book_slot: {
         Args: {
@@ -22741,6 +22754,10 @@ export type Database = {
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_logs: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      client_resume_paused_service: {
+        Args: { p_subscription_id: string }
+        Returns: undefined
+      }
       client_sign_contract: {
         Args: {
           p_contract_id: string
