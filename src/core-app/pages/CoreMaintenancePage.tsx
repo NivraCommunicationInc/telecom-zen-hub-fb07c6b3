@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
+import MaintenanceNotifyButton from "@/core-app/components/MaintenanceNotifyButton";
 
 const CARD = "rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] p-6";
 const INPUT_CLS =
