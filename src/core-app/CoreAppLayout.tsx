@@ -97,6 +97,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Calendar, label: "Appointments", href: "/appointments" },
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Wrench, label: "Techniciens", href: "/technician" },
+      { icon: MapPin, label: "Carte techniciens", href: "/technicians/map" },
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
       { icon: RefreshCcw, label: "Changements forfait", href: "/plan-changes" },
       { icon: Lock, label: "Suspensions", href: "/pause-requests" },
