@@ -93,7 +93,8 @@ Deno.serve(async (req) => {
       type: isNewAuthUser ? "invite" : "magiclink",
       email,
       options: {
-        redirectTo: `${baseUrl}/rh`,
+        // CANONICAL: all internal staff land on the secure hub after activation
+        redirectTo: `${baseUrl}/nivra-secure-hub-2617-internal`,
         data: { employee_id: emp.id, full_name: `${emp.first_name} ${emp.last_name}` },
       },
     });
@@ -114,8 +115,6 @@ Deno.serve(async (req) => {
       department: emp.department ?? undefined,
       hireDate: emp.hire_date ?? undefined,
       hasEmployeePortal: true,
-      rhUrl: "https://nivra-telecom.ca/rh",
-      employeeUrl: "https://nivra-telecom.ca/employee",
       setupLink,
       supportEmail: "support@nivra-telecom.ca",
     });
