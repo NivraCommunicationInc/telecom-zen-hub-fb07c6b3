@@ -556,7 +556,7 @@ export default function QuoteCheckout() {
                   updateField("address", a.line1 || a.formatted);
                   if (a.city) updateField("city", a.city);
                   if (a.region) updateField("province", a.region);
-                  if (a.postalCode) updateField("postal_code", a.postalCode);
+                  if (a.postalCode) updateField("postalCode", formatPostalCode(a.postalCode));
                 }}
                 placeholder="Commencez à taper votre adresse..."
                 restrictToQuebec
