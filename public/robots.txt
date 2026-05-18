@@ -23,6 +23,16 @@ Disallow: /agent-portal
 Disallow: /agent-portal/
 Disallow: /influencer
 Disallow: /influencer/
+Disallow: /hub
+Disallow: /hub/
+Disallow: /core
+Disallow: /core/
+Disallow: /field
+Disallow: /field/
+Disallow: /hr
+Disallow: /hr/
+Disallow: /rh
+Disallow: /rh/
 Disallow: /dashboard
 Disallow: /api
 Disallow: /.env
