@@ -19,7 +19,7 @@ const mapToBillingMethod = (method: PaymentMethod): CanonicalMethod => {
 const mapToProvider = (method: PaymentMethod): string => {
   if (method === "paypal") return "paypal";
   if (method === "interac") return "interac";
-  if (method === "debit_credit") return "stripe";
+  if (method === "debit_credit") return "card";
   if (method === "bank_transfer") return "bank";
   if (method === "cash") return "cash";
   return "manual";

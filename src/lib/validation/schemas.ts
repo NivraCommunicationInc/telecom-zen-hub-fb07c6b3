@@ -228,7 +228,7 @@ export interface CardMetadata {
  * Use this to get the only info that can be stored/sent to backend
  * 
  * IMPORTANT: The actual card number/expiry/cvv should ONLY go to
- * the payment processor SDK (Stripe Elements, hosted fields, etc.)
+ * the payment processor SDK (PayPal hosted fields, etc.)
  * NEVER construct serializable objects with full card data.
  */
 export function extractCardMetadata(

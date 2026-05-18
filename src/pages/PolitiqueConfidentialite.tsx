@@ -28,7 +28,7 @@ export default function PolitiqueConfidentialite() {
             <h2>2. Renseignements collectés</h2>
             <p>
               Nous collectons : nom, adresse courriel, numéro de téléphone, adresse de service, informations de
-              paiement (tokenisées via Stripe), données de navigation (adresse IP, navigateur, pages visitées).
+              paiement (tokenisées via PayPal), données de navigation (adresse IP, navigateur, pages visitées).
             </p>
           </div>
 
@@ -44,7 +44,7 @@ export default function PolitiqueConfidentialite() {
             <h2>4. Partage des renseignements</h2>
             <p>
               Nous ne vendons jamais vos renseignements personnels. Nous les partageons uniquement avec nos
-              sous-traitants (hébergement cloud, Stripe pour les paiements) qui sont contractuellement tenus de les protéger.
+              sous-traitants (hébergement cloud, PayPal pour les paiements) qui sont contractuellement tenus de les protéger.
             </p>
           </div>
 

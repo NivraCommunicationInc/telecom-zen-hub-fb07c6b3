@@ -1,6 +1,6 @@
 /**
- * AddAccountCredit — Custom amount payment via PayPal (Stripe temporarily disabled)
- * 
+ * AddAccountCredit — Custom amount payment via PayPal.
+ *
  * Rules:
  * - If balance_due > 0, payment applies to balance first
  * - Any excess becomes account credit

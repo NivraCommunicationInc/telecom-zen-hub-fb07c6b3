@@ -1,12 +1,12 @@
 /**
  * ClientBillingHub — Telecom-grade payment portal
- * 
+ *
  * Structured billing hub with clear sections:
  * - Pay Invoice (existing unpaid invoices)
- * - Add Credit (custom amount via Stripe)
+ * - Add Credit (custom amount via PayPal)
  * - Invoices (full list)
  * - Payment History
- * 
+ *
  * All financial data from canonical billing_invoices + billing_payments.
  */
 

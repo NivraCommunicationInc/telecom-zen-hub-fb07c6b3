@@ -38,7 +38,7 @@ const ClientPayments = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Credit card is active via Stripe
+  // Credit card is handled via PayPal hosted card flow (no separate processor)
   const isCreditCardMaintenance = false;
 
   return (
@@ -158,7 +158,7 @@ const ClientPayments = () => {
           </CardContent>
         </Card>
 
-        {/* Credit Card Section - DISABLED (Stripe under review) */}
+        {/* Credit Card Section — handled via PayPal hosted card flow */}
         <Card className="bg-card border-border opacity-60">
           <CardHeader>
             <div className="flex items-center justify-between">

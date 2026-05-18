@@ -76,7 +76,7 @@ const fmtDate = (dateStr: string | undefined | null): string => {
 
 const fmtMethod = (m: string): string => {
   const map: Record<string, string> = {
-    card: "Carte de credit (Stripe)", "Credit Card": "Carte de credit (Stripe)",
+    card: "Carte de credit", "Credit Card": "Carte de credit",
     paypal: "PayPal", PayPal: "PayPal",
     interac: "Virement Interac", e_transfer: "Virement Interac",
     cash: "Comptant",

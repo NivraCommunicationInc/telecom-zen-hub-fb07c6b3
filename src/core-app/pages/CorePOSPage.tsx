@@ -76,7 +76,7 @@ interface NewClientForm {
 type PaymentMethod = "paypal" | "interac" | "cash" | "card" | "debit" | "bank_transfer" | "deferred";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ElementType; disabled?: boolean }[] = [
-  { value: "card", label: "Carte de crédit (Stripe)", icon: CreditCard },
+  { value: "card", label: "Carte de crédit", icon: CreditCard },
   { value: "paypal", label: "PayPal", icon: CreditCard },
   { value: "interac", label: "Interac e-Transfer", icon: Banknote },
   { value: "cash", label: "Argent comptant", icon: Banknote },

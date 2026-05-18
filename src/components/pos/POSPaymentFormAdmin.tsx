@@ -1,6 +1,6 @@
 /**
  * POSPaymentFormAdmin - Enhanced payment form for Admin POS
- * Features: PayPal, Interac, Carte (Stripe Elements), Comptant, Paiement différé
+ * Features: PayPal, Interac, Carte (PayPal hosted card), Comptant, Paiement différé
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -40,11 +40,11 @@ interface POSPaymentFormAdminProps {
   onSubmit: (data: AdminPaymentData) => void;
   isSubmitting?: boolean;
   totalAmount: number;
-  /** Render prop: Stripe Elements form when card is selected */
-  renderStripePayment?: () => React.ReactNode;
+  /** Render prop: card processor form (PayPal hosted card) when card is selected */
+  renderCardPayment?: () => React.ReactNode;
 }
 
-export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, renderStripePayment }: POSPaymentFormAdminProps) {
+export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, renderCardPayment }: POSPaymentFormAdminProps) {
   const [method, setMethod] = useState<AdminPaymentMethod>("card");
   const [reference, setReference] = useState("");
   const [paypalTransactionId, setPaypalTransactionId] = useState("");
@@ -279,7 +279,7 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
             />
           </div>
 
-          {/* Only show submit for non-card methods (card handled by Stripe Elements) */}
+          {/* Only show submit for non-card methods (card handled by external processor) */}
           {method !== "card" && (
             <Button
               type="submit"

@@ -32,9 +32,9 @@ import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
 import { useIsMobile } from "@/hooks/use-mobile";
-// STRIPE DISABLED — imports removed
-// import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
-// import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
+
+
+
 
 /** Resolve or create account for a client (used by non-card POS flow) */
 async function resolveAccountForOrder(clientId: string, serviceAddress: string, serviceCity: string, servicePostalCode: string): Promise<string> {
@@ -114,7 +114,7 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  // STRIPE DISABLED — stripePending removed
+  
   
   // Is this the admin portal with full features?
   const isAdminPortal = portalType === "admin";
@@ -354,7 +354,7 @@ export default function UnifiedPOSPage({
       pos.clearCart();
       setCustomerData(null);
       setPaymentData(null);
-      // STRIPE DISABLED — stripePending removed
+      
       setStep("catalog");
 
     } catch (error: any) {
@@ -366,8 +366,8 @@ export default function UnifiedPOSPage({
     }
   };
 
-  // ── Stripe success handler — DISABLED ──
-  // const handleStripeSuccess = async () => { ... }
+  
+  
 
   const goBack = () => {
     if (step === "customer") setStep("catalog");
