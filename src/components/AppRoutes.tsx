@@ -60,6 +60,8 @@ const FieldNotifications = lazy(() => import("@/field-app/pages/FieldNotificatio
 const FieldClientLookup = lazy(() => import("@/field-app/pages/FieldClientLookup"));
 const FieldResources = lazy(() => import("@/field-app/pages/FieldResources"));
 const FieldTraining = lazy(() => import("@/field-app/pages/FieldTraining"));
+const FieldBadgePage = lazy(() => import("@/field-app/pages/FieldBadgePage"));
+const HrBadgePage = lazy(() => import("@/hr-app/pages/HrBadgePage"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
@@ -1007,6 +1009,7 @@ const AppRoutes = () => {
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
           <Route path="training" element={<Suspense fallback={null}><FieldTraining /></Suspense>} />
+          <Route path="badge" element={<Suspense fallback={null}><FieldBadgePage /></Suspense>} />
           {/* Nivra Source Hub — unified */}
           <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="field" /></Suspense>} />
           <Route path="hub/annonces" element={<Navigate to="/field/hub?section=annonces" replace />} />
@@ -1041,6 +1044,7 @@ const AppRoutes = () => {
           <Route path="objectifs" element={<Suspense fallback={null}><HrObjectives /></Suspense>} />
           <Route path="demandes" element={<Suspense fallback={null}><HrRequests /></Suspense>} />
           <Route path="documents" element={<Suspense fallback={null}><HrDocuments /></Suspense>} />
+          <Route path="badges" element={<Suspense fallback={null}><HrBadgePage /></Suspense>} />
           {/* Nivra Source Hub — unified */}
           <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="hr" /></Suspense>} />
           <Route path="hub/annonces" element={<Navigate to="/hr/hub?section=annonces" replace />} />

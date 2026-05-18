@@ -3418,6 +3418,39 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // EMPLOYEE BADGE READY (bilingual FR/EN)
+    // ===================================================================
+    case "employee_badge_ready": {
+      const fullName = esc(v.full_name || clientName);
+      const agentNumber = esc(v.agent_number || "—");
+      const roleTitle = esc(isEn ? (v.role_title_en || v.role_title) : v.role_title);
+      const ctaUrl = String(v.portal_url || portalUrl) + "/badge";
+      return {
+        subject: isEn ? "Your Nivra badge is ready" : "Votre badge Nivra est prêt",
+        html: shell({
+          preheader: isEn
+            ? `Your digital Nivra employee badge ${agentNumber} is available.`
+            : `Votre badge employé numérique Nivra ${agentNumber} est disponible.`,
+          badge: isEn ? "BADGE AVAILABLE" : "BADGE DISPONIBLE",
+          heroTitle: isEn ? "Your Nivra badge is ready" : "Votre badge Nivra est prêt",
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your digital employee badge is now available. Add it to Apple Wallet or Google Wallet, or download the printable PDF version.`
+            : `Votre badge employé numérique est maintenant disponible. Ajoutez-le à Apple Wallet ou Google Wallet, ou téléchargez la version PDF imprimable.`,
+          cardTitle: isEn ? "Badge details" : "Détails du badge",
+          cardRows: [
+            [isEn ? "Name" : "Nom", fullName],
+            [isEn ? "Role" : "Rôle", roleTitle || (isEn ? "Employee" : "Employé")],
+            [isEn ? "Badge number" : "N° badge", agentNumber],
+          ],
+          ctaPrimaryUrl: ctaUrl,
+          ctaPrimaryLabel: isEn ? "View my badge" : "Voir mon badge",
+        }),
+      };
+    }
+
     default:
       return null;
   }

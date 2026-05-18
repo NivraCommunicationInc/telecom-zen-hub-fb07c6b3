@@ -12,7 +12,7 @@ import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
   DollarSign, User, Lock, LogOut, ShoppingCart,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
-  ChevronLeft, ChevronRight, LayoutGrid,
+  ChevronLeft, ChevronRight, LayoutGrid, IdCard,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,6 +48,7 @@ const hubNav = [
 ];
 
 const bottomItems = [
+  { label: "Mon Badge", href: `${FIELD_BASE}/badge`, icon: IdCard },
   { label: "Mon profil", href: `${FIELD_BASE}/profile`, icon: User },
   { label: "Sécurité", href: `${FIELD_BASE}/security`, icon: Lock },
 ];
