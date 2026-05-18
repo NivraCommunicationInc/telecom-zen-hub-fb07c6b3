@@ -842,21 +842,24 @@ function IncidentsSection() {
               <div className="col-span-3 text-xs text-[hsl(var(--core-text-secondary))] truncate" title={i.incident_message ?? ""}>
                 {i.incident_message ?? i.incident_title}
               </div>
-              <div className="col-span-2 text-right">
+              <div className="col-span-2 text-right flex justify-end gap-1">
                 {isResolved ? (
                   <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
                     <CheckCircle className="w-3 h-3" /> Résolu
                   </Badge>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => resolve.mutate(i.id)}
-                    disabled={resolve.isPending}
-                    className="gap-1 h-7 text-xs bg-transparent border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]"
-                  >
-                    <RotateCcw className="w-3 h-3" /> Résoudre
-                  </Button>
+                  <>
+                    <MaintenanceNotifyButton incidentId={i.id} label="Notifier" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => resolve.mutate(i.id)}
+                      disabled={resolve.isPending}
+                      className="gap-1 h-7 text-xs bg-transparent border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Résoudre
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
