@@ -245,39 +245,7 @@ const BillingV2Playbook = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="stripe-migration">
-                <AccordionTrigger className="text-lg font-semibold">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-indigo-600" />
-                    Future Migration Stripe
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-4 text-base">
-                  <div className="bg-indigo-50 dark:bg-indigo-950 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2">Architecture prévue:</h4>
-                    <p className="mb-4">
-                      Le système Billing V2 est conçu pour supporter Stripe sans modifier la structure:
-                    </p>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Ajouter 'stripe' à l'enum billing_payment_method</li>
-                      <li>Stocker stripe_customer_id sur billing_customers</li>
-                      <li>Stocker stripe_subscription_id sur billing_subscriptions</li>
-                      <li>Créer webhook pour événements Stripe (payment_intent.succeeded)</li>
-                      <li>Le webhook appelle billing-confirm-payment automatiquement</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-gray-50 dark:bg-gray-950 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2">Coexistence Interac + Stripe:</h4>
-                    <p>
-                      Les deux modes peuvent coexister. Le champ <code>payment_method</code> sur 
-                      billing_invoices indique la méthode utilisée. L'admin peut toujours 
-                      confirmer manuellement les paiements Interac pendant que Stripe gère 
-                      les cartes automatiquement.
-                    </p>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+              {/* Stripe migration section removed — Stripe fully decommissioned 2026-05-18. PayPal is the sole live provider. */}
 
               <AccordionItem value="troubleshooting">
                 <AccordionTrigger className="text-lg font-semibold">
