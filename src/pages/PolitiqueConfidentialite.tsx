@@ -1,4 +1,6 @@
 import PageSEO from "@/components/shared/PageSEO";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const PRIVACY_EMAIL = "confidentialite@nivra-telecom.ca";
 
