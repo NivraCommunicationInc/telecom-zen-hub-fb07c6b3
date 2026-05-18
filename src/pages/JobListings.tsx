@@ -182,7 +182,9 @@ export default function JobListings() {
   };
 
   return (
-    <main className="min-h-screen bg-background">
+    <>
+      <Header />
+      <main className="min-h-screen bg-background pt-16">
       <section className="border-b bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-12 md:py-16 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
