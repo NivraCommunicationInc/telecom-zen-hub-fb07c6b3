@@ -196,6 +196,81 @@ const ClientReferrals = () => {
           </CardContent>
         </Card>
 
+        {/* Share Link — one-click copy + social buttons */}
+        {profile?.referral_code && (
+          <Card>
+            <CardContent className="p-5 space-y-4">
+              <div>
+                <p className="font-medium text-sm text-foreground mb-1 flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-primary" />
+                  Partagez votre lien de parrainage
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Copiez le lien ou partagez-le directement sur vos réseaux.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={referralLink}
+                    className="flex-1 px-3 py-2 text-sm font-mono bg-slate-50 dark:bg-card rounded-lg border truncate"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <Button onClick={copyLink} variant="outline" className="gap-2 shrink-0">
+                    <Copy className="w-4 h-4" />
+                    Copier le lien
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="w-4 h-4 text-emerald-600" /> WhatsApp
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <a href={emailUrl}>
+                    <Mail className="w-4 h-4 text-sky-600" /> Email
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="gap-2 sm:hidden">
+                  <a href={smsUrl}>
+                    <Smartphone className="w-4 h-4 text-amber-600" /> SMS
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Live earnings dashboard */}
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+              Mes gains de parrainage
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                <p className="text-xs text-muted-foreground">Total gagné</p>
+                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{stats.totalEarned}$</p>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <p className="text-xs text-muted-foreground">En attente</p>
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{stats.rewardsPending * 25}$</p>
+              </div>
+              <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-900/20">
+                <p className="text-xs text-muted-foreground">Reçu</p>
+                <p className="text-xl font-bold text-sky-700 dark:text-sky-300">{stats.rewardsIssued * 25}$</p>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-card">
+                <p className="text-xs text-muted-foreground">Parrainages actifs</p>
+                <p className="text-xl font-bold text-foreground">{stats.inProgress}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {[
