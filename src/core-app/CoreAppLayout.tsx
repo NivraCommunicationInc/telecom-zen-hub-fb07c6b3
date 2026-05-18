@@ -16,7 +16,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -521,8 +521,19 @@ const CoreAppLayout = () => {
           )}
         </nav>
 
-        {/* Collapse toggle */}
-        <div className="border-t border-border p-1.5">
+        {/* Portal switcher + collapse toggle */}
+        <div className="border-t border-border p-1.5 space-y-1">
+          <button
+            onClick={() => navigate('/nivra-secure-hub-2617-internal')}
+            title={collapsed ? "Changer de portail" : undefined}
+            className={cn(
+              "w-full flex items-center rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors",
+              collapsed ? "justify-center py-1.5" : "gap-2 px-2 py-1.5"
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
+            {!collapsed && <span>Changer de portail</span>}
+          </button>
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-center py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
