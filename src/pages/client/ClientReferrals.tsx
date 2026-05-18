@@ -101,6 +101,10 @@ const ClientReferrals = () => {
       .reduce((sum: number, r: any) => sum + Number(r.reward_amount || 0), 0),
   };
 
+  const referralLink = profile?.referral_code
+    ? `https://nivra-telecom.ca/commander?ref=${profile.referral_code}`
+    : "";
+
   const copyCode = () => {
     if (profile?.referral_code) {
       navigator.clipboard.writeText(profile.referral_code);
@@ -108,8 +112,15 @@ const ClientReferrals = () => {
     }
   };
 
+  const copyLink = () => {
+    if (referralLink) {
+      navigator.clipboard.writeText(referralLink);
+      toast.success("Lien copié! ✓");
+    }
+  };
+
   const shareCode = () => {
-    const text = `Utilise mon code ${profile?.referral_code} chez Nivra Télécom et obtiens un rabais ! Moi aussi, je reçois une carte-cadeau de 25$ 🎁 nivra.ca`;
+    const text = `Utilise mon code ${profile?.referral_code} chez Nivra Télécom et obtiens un rabais ! Moi aussi, je reçois une carte-cadeau de 25$ 🎁 ${referralLink}`;
     if (navigator.share) {
       navigator.share({ title: "Nivra Parrainage", text });
     } else {
@@ -117,6 +128,11 @@ const ClientReferrals = () => {
       toast.success("Message copié !");
     }
   };
+
+  const shareText = `Essayez Nivra Telecom! ${referralLink}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  const emailUrl = `mailto:?subject=${encodeURIComponent("Essayez Nivra Telecom")}&body=${encodeURIComponent(shareText)}`;
+  const smsUrl = `sms:?body=${encodeURIComponent(shareText)}`;
 
   return (
     <ClientLayout>
