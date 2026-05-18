@@ -3106,7 +3106,108 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // PLAN CHANGE — client self-serve (Feature: change plan online)
+    // ===================================================================
+    case "plan_change_requested": {
+      const fromPlan = esc(v.current_plan_name || (isEn ? "Current plan" : "Forfait actuel"));
+      const toPlan = esc(v.requested_plan_name || (isEn ? "New plan" : "Nouveau forfait"));
+      const effDate = esc(v.effective_date || (isEn ? "Next renewal" : "Prochain renouvellement"));
+      const changeType = String(v.change_type || "change").toLowerCase();
+      const typeLabel = t(
+        changeType === "upgrade" ? "Mise à niveau" : changeType === "downgrade" ? "Rétrogradation" : "Changement",
+        changeType === "upgrade" ? "Upgrade" : changeType === "downgrade" ? "Downgrade" : "Change",
+        lang,
+      );
+      return {
+        subject: isEn
+          ? `Plan change request received — ${toPlan}`
+          : `Demande de changement de forfait reçue — ${toPlan}`,
+        html: shell({
+          preheader: isEn ? `We received your request.` : `Nous avons bien reçu votre demande.`,
+          badge: t("DEMANDE REÇUE", "REQUEST RECEIVED", lang),
+          heroTitle: t("Demande enregistrée", "Request received", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your plan change request has been received. The change will take effect on ${effDate}. You will be notified once it is approved.`
+            : `Votre demande de changement de forfait a été reçue. Le changement sera effectif le ${effDate}. Vous serez notifié dès qu'elle sera approuvée.`,
+          cardTitle: t("Détails de la demande", "Request details", lang),
+          cardRows: [
+            [t("Type", "Type", lang), typeLabel],
+            [t("Forfait actuel", "Current plan", lang), fromPlan],
+            [t("Nouveau forfait", "New plan", lang), toPlan],
+            [t("Effectif dès", "Effective from", lang), effDate],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/services`,
+          ctaPrimaryLabel: t("Voir mes services", "View my services", lang),
+          helpHtml: isEn
+            ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Besoin d'aide ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "plan_change_approved": {
+      const fromPlan = esc(v.current_plan_name || "—");
+      const toPlan = esc(v.requested_plan_name || "—");
+      const effDate = esc(v.effective_date || (isEn ? "Next renewal" : "Prochain renouvellement"));
+      return {
+        subject: isEn
+          ? `Plan change approved — ${toPlan}`
+          : `Changement de forfait approuvé — ${toPlan}`,
+        html: shell({
+          preheader: isEn ? `Your new plan is confirmed.` : `Votre nouveau forfait est confirmé.`,
+          badge: t("CHANGEMENT APPROUVÉ", "CHANGE APPROVED", lang),
+          heroTitle: t("Changement approuvé ✓", "Change approved ✓", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Great news — your plan change has been approved and will take effect on ${effDate}.`
+            : `Bonne nouvelle — votre changement de forfait a été approuvé et sera effectif le ${effDate}.`,
+          cardTitle: t("Résumé", "Summary", lang),
+          cardRows: [
+            [t("Ancien forfait", "Previous plan", lang), fromPlan],
+            [t("Nouveau forfait", "New plan", lang), toPlan],
+            [t("Effectif dès", "Effective from", lang), effDate],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/services`,
+          ctaPrimaryLabel: t("Voir mes services", "View my services", lang),
+          helpHtml: isEn
+            ? `Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Une question ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "plan_change_admin_alert": {
+      const clientLabel = esc(v.client_name || "Client");
+      const fromPlan = esc(v.current_plan_name || "—");
+      const toPlan = esc(v.requested_plan_name || "—");
+      return {
+        subject: `🔔 Demande de changement de forfait — ${clientLabel}`,
+        html: shell({
+          preheader: `Nouvelle demande à traiter.`,
+          badge: "ALERTE INTERNE",
+          heroTitle: "Changement de forfait demandé",
+          icon: "alert",
+          greeting: `Bonjour,`,
+          bodyText: `Le client ${clientLabel} a demandé un changement de forfait.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Client", clientLabel],
+            ["Forfait actuel", fromPlan],
+            ["Nouveau forfait", toPlan],
+            ["Compte", accountNum],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL.replace(/\/portal$/, '')}/core/clients`,
+          ctaPrimaryLabel: "Ouvrir dans Core",
+        }),
+      };
+    }
+
     default:
       return null;
   }
 }
+
