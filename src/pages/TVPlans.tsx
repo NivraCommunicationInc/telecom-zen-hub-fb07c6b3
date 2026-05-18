@@ -199,69 +199,22 @@ const TVPlans = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-7xl mx-auto">
             {plans.map((plan, index) => (
-              <Card 
+              <PremiumPlanCard
                 key={index}
-                className={`relative bg-card/80 backdrop-blur-sm border-border transition-all duration-300 hover:shadow-xl ${
-                  plan.featured ? 'ring-2 ring-accent shadow-lg scale-105' : ''
-                }`}
-              >
-                <div className={`absolute -top-3 left-1/2 -translate-x-1/2`}>
-                  <Badge className={`${plan.badgeColor} text-white px-4 py-1`}>
-                    {plan.badge}
-                  </Badge>
-                </div>
-                
-                <CardHeader className="text-center pt-8">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                      <Tv className="w-6 h-6 text-purple-500" />
-                    </div>
-                    <span className="text-muted-foreground">+</span>
-                    <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center">
-                      <Wifi className="w-6 h-6 text-cyan-500" />
-                    </div>
-                  </div>
-                  <CardTitle className="text-xl font-bold text-foreground">
-                    {plan.name}
-                  </CardTitle>
-                  <div className="mt-4">
-                    {plan.previousPrice && (
-                      <span className="text-lg text-muted-foreground line-through mr-2">${plan.previousPrice}</span>
-                    )}
-                    <span className="text-4xl font-bold text-foreground">${plan.price}</span>
-                    <span className="text-muted-foreground">/{isFrench ? "mois" : "month"}</span>
-                  </div>
-                  <div className="mt-2">
-                    <Badge variant="outline" className="text-purple-500 border-purple-500/30">
-                      {plan.channels} {plan.channelType}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm">
-                        <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <EquipmentRequiredBox type="tv" />
-                  
-                  <Button
-                    onClick={() => handleGetStarted(plan.id)}
-                    variant={plan.featured ? "hero" : "outline"} 
-                    className="w-full mt-6"
-                    disabled={!addressValidated}
-                  >
-                    {isFrench ? "Commencer" : "Get Started"}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
+                name={plan.name}
+                subtitle={`${plan.channels} ${plan.channelType}`}
+                price={plan.price}
+                priceUnit={isFrench ? "/mois" : "/month"}
+                previousPrice={plan.previousPrice ?? null}
+                features={plan.features}
+                featured={plan.featured}
+                badge={plan.badge}
+                description={plan.description}
+                equipmentType="tv"
+                ctaLabel={isFrench ? "Commencer" : "Get Started"}
+                disabled={!addressValidated}
+                onClick={() => handleGetStarted(plan.id)}
+              />
             ))}
           </div>
           
