@@ -1,8 +1,8 @@
 /**
  * Payment detail drawer — full payment file with identity, links, timeline, actions.
- * ★ Now includes Stripe authorization controls (capture, cancel, refund).
+ * Provider-neutral (PayPal/cash/Interac). Stripe purgé (2026-05-18).
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { corePath } from "@/core-app/lib/corePaths";
@@ -10,13 +10,12 @@ import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBad
 import { PAYMENT_STATUSES, PAYMENT_METHODS, fmtCAD } from "./PaymentConstants";
 import type { AdminPayment } from "@/core-app/hooks/useAdminPayments";
 import { supabase } from "@/integrations/supabase/client";
-import { useStripeAdminActions } from "@/core-app/hooks/useStripeAdminActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  X, User, FileText, ShoppingCart, CreditCard, Clock, Hash,
+  X, User, FileText, CreditCard, Hash,
   MessageSquare, CheckCircle2, XCircle, AlertTriangle, RotateCcw,
-  ShieldCheck, ExternalLink, Copy, Loader2, Zap, Ban, DollarSign,
+  ShieldCheck, ExternalLink, Copy, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,32 +58,12 @@ function Field({ label, value, mono, link, copyable }: {
   );
 }
 
-// ═══ AUTHORIZATION STATUS LABELS ═══
-const AUTH_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  authorized: { label: "Autorisé (non capturé)", color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
-  captured: { label: "Capturé", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-  cancelled: { label: "Autorisation annulée", color: "text-red-400 border-red-500/30 bg-red-500/10" },
-  expired: { label: "Autorisation expirée", color: "text-orange-400 border-orange-500/30 bg-orange-500/10" },
-  none: { label: "—", color: "" },
-};
-
 export function PaymentDetailDrawer({ payment, onClose }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
-  const [stripeDetails, setStripeDetails] = useState<Record<string, any> | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [showCancelInput, setShowCancelInput] = useState(false);
-
-  const {
-    loading: stripeLoading,
-    capturePayment,
-    cancelAuthorization,
-    refundPayment,
-    getPaymentIntentStatus,
-  } = useStripeAdminActions();
 
   if (!payment) return null;
 
@@ -97,13 +76,7 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
   const isFailed = p.status === "failed" || p.status === "declined";
   const isFraud = p.status === "fraud";
 
-  // ★ Stripe authorization state
-  const stripePI = (p as any).stripe_payment_intent_id || (p as any).provider_payment_id;
-  const authStatus = (p as any).authorization_status || "none";
-  const isAuthorized = authStatus === "authorized";
-  const isCaptured = authStatus === "captured";
-  const isStripePayment = p.provider === "stripe" || p.method === "card";
-  const authStatusInfo = AUTH_STATUS_LABELS[authStatus] || AUTH_STATUS_LABELS.none;
+  const providerRef = (p as any).provider_payment_id || (p as any).paypal_capture_id || "—";
 
   const refreshAll = () => {
     queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
@@ -174,55 +147,6 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
   const handleFraud = () => updatePaymentStatus("fraud");
   const handleRefundLegacy = () => updatePaymentStatus("refunded");
 
-  // ★ STRIPE ACTIONS
-  const handleStripeCapture = async () => {
-    if (!stripePI) return;
-    setActionLoading("stripe_capture");
-    await capturePayment(stripePI, {
-      payment_id: p.id,
-      invoice_id: p.invoice_id,
-    });
-    refreshAll();
-    setActionLoading(null);
-    onClose();
-  };
-
-  const handleStripeCancelAuth = async () => {
-    if (!stripePI) return;
-    if (!showCancelInput) { setShowCancelInput(true); return; }
-    setActionLoading("stripe_cancel");
-    await cancelAuthorization(stripePI, {
-      payment_id: p.id,
-      invoice_id: p.invoice_id,
-      reason: cancelReason || undefined,
-    });
-    refreshAll();
-    setActionLoading(null);
-    onClose();
-  };
-
-  const handleStripeRefund = async () => {
-    if (!stripePI) return;
-    setActionLoading("stripe_refund");
-    await refundPayment(stripePI, {
-      payment_id: p.id,
-      invoice_id: p.invoice_id,
-    });
-    refreshAll();
-    setActionLoading(null);
-    onClose();
-  };
-
-  const handleFetchStripeStatus = async () => {
-    if (!stripePI) return;
-    setActionLoading("stripe_status");
-    const result = await getPaymentIntentStatus(stripePI);
-    if (result.success && result.data) {
-      setStripeDetails(result.data);
-    }
-    setActionLoading(null);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
@@ -251,24 +175,6 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
             </div>
             <StatusBadge label={statusLabel} variant={statusToVariant(p.status ?? "")} size="md" />
           </div>
-
-          {/* ═══ STRIPE AUTHORIZATION STATUS ═══ */}
-          {isStripePayment && authStatus !== "none" && (
-            <div className={`flex items-center gap-2 p-3 rounded-lg border ${authStatusInfo.color}`}>
-              {isAuthorized && <Zap className="h-4 w-4 shrink-0" />}
-              {isCaptured && <CheckCircle2 className="h-4 w-4 shrink-0" />}
-              {authStatus === "cancelled" && <Ban className="h-4 w-4 shrink-0" />}
-              <div>
-                <p className="text-xs font-semibold">{authStatusInfo.label}</p>
-                {isAuthorized && (
-                  <p className="text-[10px] opacity-80 mt-0.5">
-                    Le montant de {fmtCAD((p as any).authorized_amount || p.amount)} est retenu sur la carte.
-                    L'admin doit capturer ou annuler.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Fraud alert */}
           {isFraud && (
@@ -301,36 +207,14 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
             <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
               <Field label="Méthode" value={methodLabel} />
               <Field label="Fournisseur" value={p.provider || "—"} />
-              <Field label="Stripe PI" value={stripePI || "—"} mono copyable />
+              <Field label="Référence fournisseur" value={providerRef} mono copyable />
               <Field label="Référence" value={p.reference || "—"} mono copyable />
               <Field label="Source" value={p.source || "—"} />
-              <Field label="Statut autorisation" value={authStatusInfo.label} />
-              <Field label="Montant autorisé" value={(p as any).authorized_amount ? fmtCAD((p as any).authorized_amount) : "—"} />
-              <Field label="Autorisé le" value={fmtDate((p as any).authorized_at)} />
-              <Field label="Capturé le" value={fmtDate((p as any).captured_at)} />
               <Field label="Reçu le" value={fmtDate(p.received_at)} />
               <Field label="Créé le" value={fmtDate(p.created_at)} />
-              <Field label="Confirmé par" value={(p as any).captured_by || p.confirmed_by || p.created_by_name || "—"} />
+              <Field label="Confirmé par" value={p.confirmed_by || p.created_by_name || "—"} />
             </div>
           </div>
-
-          {/* ═══ Stripe Live Details (fetched on demand) ═══ */}
-          {stripeDetails && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <CreditCard className="h-3.5 w-3.5 text-[#94A3B8]" />
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Stripe — Détails en direct</h3>
-              </div>
-              <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
-                <Field label="Statut PI" value={stripeDetails.status || "—"} />
-                <Field label="Capturable" value={stripeDetails.amount_capturable ? fmtCAD(stripeDetails.amount_capturable) : "—"} />
-                <Field label="Reçu" value={stripeDetails.amount_received ? fmtCAD(stripeDetails.amount_received) : "—"} />
-                <Field label="Mode capture" value={stripeDetails.capture_method || "—"} />
-                <Field label="Mode" value={stripeDetails.livemode ? "PRODUCTION" : "TEST"} />
-                <Field label="Créé" value={fmtDate(stripeDetails.created)} />
-              </div>
-            </div>
-          )}
 
           {/* ═══ Linked Documents ═══ */}
           <div>
@@ -361,20 +245,6 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
             </div>
           )}
 
-          {/* ═══ Cancel reason input ═══ */}
-          {showCancelInput && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-              <label className="text-[11px] text-amber-400 font-medium block mb-1.5">Raison de l'annulation (optionnel)</label>
-              <textarea
-                value={cancelReason}
-                onChange={e => setCancelReason(e.target.value)}
-                rows={2}
-                className="w-full bg-[hsl(220,20%,11%)] border border-[hsl(220,15%,20%)] rounded-md text-xs text-[#F8FAFC] p-2 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-                placeholder="Entrez la raison de l'annulation..."
-              />
-            </div>
-          )}
-
           {/* ═══ Reject reason input ═══ */}
           {showRejectInput && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
@@ -389,63 +259,11 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
             </div>
           )}
 
-          {/* ═══ STRIPE AUTHORIZATION ACTIONS ═══ */}
-          {isStripePayment && stripePI && (
-            <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] mb-2">
-                Contrôles Stripe
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {/* Fetch live status */}
-                <ActionBtn
-                  icon={CreditCard}
-                  label="Statut Stripe"
-                  color="sky"
-                  onClick={handleFetchStripeStatus}
-                  loading={actionLoading === "stripe_status"}
-                />
-
-                {/* Capture authorized payment */}
-                {isAuthorized && (
-                  <ActionBtn
-                    icon={Zap}
-                    label="Capturer paiement"
-                    color="emerald"
-                    onClick={handleStripeCapture}
-                    loading={actionLoading === "stripe_capture" || stripeLoading}
-                  />
-                )}
-
-                {/* Cancel authorization */}
-                {isAuthorized && (
-                  <ActionBtn
-                    icon={Ban}
-                    label="Annuler autorisation"
-                    color="amber"
-                    onClick={handleStripeCancelAuth}
-                    loading={actionLoading === "stripe_cancel" || stripeLoading}
-                  />
-                )}
-
-                {/* Refund captured payment */}
-                {(isCaptured || isConfirmed) && (
-                  <ActionBtn
-                    icon={RotateCcw}
-                    label="Rembourser (Stripe)"
-                    color="red"
-                    onClick={handleStripeRefund}
-                    loading={actionLoading === "stripe_refund" || stripeLoading}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ═══ Quick Actions (non-Stripe) ═══ */}
+          {/* ═══ Quick Actions ═══ */}
           <div>
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] mb-2">Actions rapides</h3>
             <div className="grid grid-cols-2 gap-2">
-              {isPending && !isAuthorized && (
+              {isPending && (
                 <>
                   <ActionBtn icon={ShieldCheck} label="En vérification" color="violet" onClick={handleVerification} loading={actionLoading === "in_verification"} />
                   <ActionBtn icon={CheckCircle2} label="Confirmer" color="emerald" onClick={handleConfirm} loading={actionLoading === "confirmed"} />
@@ -459,7 +277,7 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
                   <ActionBtn icon={AlertTriangle} label="Signaler fraude" color="orange" onClick={handleFraud} loading={actionLoading === "fraud"} />
                 </>
               )}
-              {isConfirmed && !isStripePayment && (
+              {isConfirmed && (
                 <ActionBtn icon={RotateCcw} label="Rembourser" color="sky" onClick={handleRefundLegacy} loading={actionLoading === "refunded"} />
               )}
               {isFailed && (
