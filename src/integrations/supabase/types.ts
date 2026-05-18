@@ -3893,6 +3893,45 @@ export type Database = {
           },
         ]
       }
+      client_testimonials: {
+        Row: {
+          client_city: string | null
+          client_name: string
+          comment: string
+          created_at: string
+          id: string
+          is_approved: boolean
+          is_featured: boolean
+          rating: number | null
+          service_type: string | null
+          source: string
+        }
+        Insert: {
+          client_city?: string | null
+          client_name: string
+          comment: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          is_featured?: boolean
+          rating?: number | null
+          service_type?: string | null
+          source?: string
+        }
+        Update: {
+          client_city?: string | null
+          client_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          is_featured?: boolean
+          rating?: number | null
+          service_type?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       commission_disputes: {
         Row: {
           admin_response: string | null
@@ -12707,6 +12746,53 @@ export type Database = {
           },
         ]
       }
+      onboarding_sequences: {
+        Row: {
+          account_id: string | null
+          activation_date: string
+          client_id: string | null
+          created_at: string
+          day1_sent_at: string | null
+          day3_sent_at: string | null
+          day30_sent_at: string | null
+          day7_sent_at: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          account_id?: string | null
+          activation_date: string
+          client_id?: string | null
+          created_at?: string
+          day1_sent_at?: string | null
+          day3_sent_at?: string | null
+          day30_sent_at?: string | null
+          day7_sent_at?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          account_id?: string | null
+          activation_date?: string
+          client_id?: string | null
+          created_at?: string
+          day1_sent_at?: string | null
+          day3_sent_at?: string | null
+          day30_sent_at?: string | null
+          day7_sent_at?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_sequences_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operational_fees: {
         Row: {
           amount: number
@@ -18883,6 +18969,54 @@ export type Database = {
         }
         Relationships: []
       }
+      sop_documents: {
+        Row: {
+          category: string
+          content_en: string | null
+          content_fr: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_public_to_agents: boolean
+          title_en: string | null
+          title_fr: string
+          updated_at: string
+          updated_by: string | null
+          version: string
+        }
+        Insert: {
+          category: string
+          content_en?: string | null
+          content_fr: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_public_to_agents?: boolean
+          title_en?: string | null
+          title_fr: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: string
+        }
+        Update: {
+          category?: string
+          content_en?: string | null
+          content_fr?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_public_to_agents?: boolean
+          title_en?: string | null
+          title_fr?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       speedtest_results: {
         Row: {
           download_mbps: number | null
@@ -21969,6 +22103,14 @@ export type Database = {
       }
     }
     Views: {
+      cac_metric: {
+        Row: {
+          cac_per_client: number | null
+          total_acquisition_cost: number | null
+          total_active_clients: number | null
+        }
+        Relationships: []
+      }
       churn_metrics: {
         Row: {
           churn_rate_pct: number | null
@@ -22139,6 +22281,14 @@ export type Database = {
         }
         Relationships: []
       }
+      ltv_metric: {
+        Row: {
+          avg_lifespan_months: number | null
+          avg_monthly_revenue: number | null
+          ltv: number | null
+        }
+        Relationships: []
+      }
       mrr_metrics: {
         Row: {
           active_subscriptions: number | null
@@ -22294,6 +22444,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profit_per_client: {
+        Row: {
+          avg_infra_cost: number | null
+          avg_profit_per_client: number | null
+          avg_revenue: number | null
+          avg_support_cost: number | null
+          avg_wholesale_cost: number | null
+          total_monthly_profit: number | null
+        }
+        Relationships: []
       }
       qa_cron_jobs: {
         Row: {
@@ -22586,6 +22747,16 @@ export type Database = {
           name?: string | null
           price_monthly?: number | null
           sort_order?: number | null
+        }
+        Relationships: []
+      }
+      support_metrics: {
+        Row: {
+          avg_first_response_hours: number | null
+          avg_resolution_hours: number | null
+          open_tickets: number | null
+          resolved_tickets: number | null
+          total_tickets: number | null
         }
         Relationships: []
       }
@@ -23316,6 +23487,18 @@ export type Database = {
         Args: { p_entry_id: string }
         Returns: number
       }
+      get_featured_testimonials: {
+        Args: never
+        Returns: {
+          client_city: string
+          client_name: string
+          comment: string
+          created_at: string
+          id: string
+          rating: number
+          service_type: string
+        }[]
+      }
       get_field_payment_intent_public: { Args: { p_id: string }; Returns: Json }
       get_influencer_id: { Args: { _user_id: string }; Returns: string }
       get_invoice_payment_history: {
@@ -23592,6 +23775,7 @@ export type Database = {
       normalize_text: { Args: { val: string }; Returns: string }
       notify_upcoming_maintenance: { Args: never; Returns: undefined }
       orchestrate_order: { Args: { p_order_id: string }; Returns: Json }
+      process_onboarding_sequences: { Args: never; Returns: undefined }
       provision_services_for_order: {
         Args: { p_order_id: string }
         Returns: Json
