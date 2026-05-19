@@ -147,6 +147,10 @@ const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"
 // Operations — Returns & Cancellations
 const CoreReturnsPage = lazy(() => import("@/core-app/pages/CoreReturnsPage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
+const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
+const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
+const CoreTechnicianMapPage = lazy(() => import("@/core-app/pages/CoreTechnicianMapPage"));
+const CoreAcademyPage = lazy(() => import("@/core-app/pages/CoreAcademyPage"));
 // Marketing
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
