@@ -4673,6 +4673,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           desired_install_date: string | null
+          dnc_reason: string | null
           email: string | null
           external_reference: string | null
           first_name: string | null
@@ -4680,6 +4681,8 @@ export type Database = {
           id: string
           import_batch_id: string | null
           imported_by: string | null
+          interest_tags: string[]
+          is_dnc: boolean
           is_locked: boolean | null
           last_called_at: string | null
           last_called_by: string | null
@@ -4718,6 +4721,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           desired_install_date?: string | null
+          dnc_reason?: string | null
           email?: string | null
           external_reference?: string | null
           first_name?: string | null
@@ -4725,6 +4729,8 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           imported_by?: string | null
+          interest_tags?: string[]
+          is_dnc?: boolean
           is_locked?: boolean | null
           last_called_at?: string | null
           last_called_by?: string | null
@@ -4763,6 +4769,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           desired_install_date?: string | null
+          dnc_reason?: string | null
           email?: string | null
           external_reference?: string | null
           first_name?: string | null
@@ -4770,6 +4777,8 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           imported_by?: string | null
+          interest_tags?: string[]
+          is_dnc?: boolean
           is_locked?: boolean | null
           last_called_at?: string | null
           last_called_by?: string | null
@@ -4792,6 +4801,30 @@ export type Database = {
           tags?: string[] | null
           territory?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_territories: {
+        Row: {
+          agent_id: string
+          assigned_by: string | null
+          city: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_by?: string | null
+          city: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_by?: string | null
+          city?: string
+          created_at?: string
+          id?: string
         }
         Relationships: []
       }
@@ -23438,6 +23471,10 @@ export type Database = {
         }
         Returns: string
       }
+      crm_assign_contact: {
+        Args: { p_agent_id: string; p_contact_id: string }
+        Returns: Json
+      }
       crm_auto_unlock_expired: { Args: never; Returns: number }
       crm_lock_contact: { Args: { p_contact_id: string }; Returns: Json }
       crm_log_call: {
@@ -23449,6 +23486,15 @@ export type Database = {
           p_outcome: string
           p_portal?: string
         }
+        Returns: Json
+      }
+      crm_optimal_hour: { Args: { p_contact_id: string }; Returns: string }
+      crm_set_dnc: {
+        Args: { p_contact_id: string; p_is_dnc: boolean; p_reason?: string }
+        Returns: Json
+      }
+      crm_set_tags: {
+        Args: { p_contact_id: string; p_tags: string[] }
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }
