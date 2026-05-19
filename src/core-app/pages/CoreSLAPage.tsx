@@ -3,21 +3,29 @@
  * Reads from employee_work_items (sla_status / sla_deadline_at).
  * Realtime invalidation on table changes; auto-refresh every 30s.
  */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Clock, CheckCircle2, AlertOctagon, Timer } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2, AlertOctagon, Timer, Loader2, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 interface WorkItem {
   id: string;
   item_type: string;
+  source_id: string;
   source_reference: string | null;
+  client_email: string | null;
   client_name: string | null;
+  priority: string;
+  assigned_to_id: string | null;
   assigned_to_name: string | null;
   status: string;
   sla_status: "on_time" | "at_risk" | "breached" | null;
@@ -40,6 +48,14 @@ function timeRemaining(deadline: string | null): { label: string; breached: bool
   if (ms < 0) return { label: `DÉPASSÉ ${hours}h${mins.toString().padStart(2, "0")}`, breached: true, hours };
   return { label: `${hours}h${mins.toString().padStart(2, "0")}`, breached: false, hours };
 }
+
+const statusLabels: Record<string, string> = {
+  open: "Ouvert",
+  assigned: "Assigné",
+  in_progress: "En cours",
+  escalated: "Escaladé",
+  completed: "Complété",
+};
 
 export default function CoreSLAPage() {
   const queryClient = useQueryClient();
