@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useCrmContacts } from "../hooks/useCrmContacts";
 import { useCrmLock } from "../hooks/useCrmLock";
+import { useCrmDuplicates } from "../hooks/useCrmDuplicates";
 import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
@@ -22,12 +23,13 @@ import { CrmAssignDialog } from "./CrmAssignDialog";
 import { CrmQuickActions } from "./CrmQuickActions";
 import { CrmQuickNoteDialog } from "./CrmQuickNoteDialog";
 import { CrmScheduleCallbackDialog } from "./CrmScheduleCallbackDialog";
+import { CrmKanbanView } from "./CrmKanbanView";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import { exportContactsCsv } from "../lib/crmCsv";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
-  UserPlus, Download, ShieldAlert, Tag, ShoppingBag,
+  UserPlus, Download, ShieldAlert, Tag, ShoppingBag, Rocket, LayoutGrid, List, AlertOctagon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
