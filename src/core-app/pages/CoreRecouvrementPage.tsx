@@ -316,26 +316,26 @@ export default function CoreRecouvrementPage() {
 
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className={cardClass}>
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Solde dû</p>
-                  <p className="text-lg font-bold text-[hsl(var(--core-text-primary))]">
+                  <p className="text-xs text-core-text-label">Solde dû</p>
+                  <p className="text-lg font-bold text-core-text-primary">
                     {Number(selected.balance_due ?? selected.total ?? 0).toFixed(2)}$
                   </p>
                 </div>
                 <div className={cardClass}>
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Échéance</p>
-                  <p className="text-sm text-[hsl(var(--core-text-primary))]">
+                  <p className="text-xs text-core-text-label">Échéance</p>
+                  <p className="text-sm text-core-text-primary">
                     {selected.due_date && format(new Date(selected.due_date), "d MMM yyyy", { locale: fr })}
                   </p>
                 </div>
                 <div className={cardClass}>
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Retard</p>
-                  <p className="text-sm text-[hsl(var(--core-text-primary))]">{selected._daysOverdue}j</p>
+                  <p className="text-xs text-core-text-label">Retard</p>
+                  <p className="text-sm text-core-text-primary">{selected._daysOverdue}j</p>
                 </div>
               </div>
 
               {/* New action form */}
-              <div className="space-y-3 border border-[hsl(220,15%,20%)] rounded-lg p-3">
-                <h3 className="text-sm font-semibold text-[hsl(var(--core-text-primary))]">Nouvelle action</h3>
+              <div className="space-y-3 border border-core-border-strong rounded-lg p-3">
+                <h3 className="text-sm font-semibold text-core-text-primary">Nouvelle action</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Type</Label>
@@ -375,23 +375,23 @@ export default function CoreRecouvrementPage() {
 
               {/* History */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-[hsl(var(--core-text-primary))]">Historique</h3>
+                <h3 className="text-sm font-semibold text-core-text-primary">Historique</h3>
                 {history.length === 0 && (
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Aucune action enregistrée pour cette facture.</p>
+                  <p className="text-xs text-core-text-label">Aucune action enregistrée pour cette facture.</p>
                 )}
                 {history.map((h: any) => (
-                  <div key={h.id} className="text-xs border border-[hsl(220,15%,18%)] rounded p-2">
+                  <div key={h.id} className="text-xs border border-core-border rounded p-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-[hsl(var(--core-text-primary))]">
+                      <span className="font-medium text-core-text-primary">
                         {ACTION_TYPES.find(a => a.value === h.action_type)?.label ?? h.action_type}
                       </span>
-                      <span className="text-[hsl(var(--core-text-label))]">
+                      <span className="text-core-text-label">
                         {h.created_at && format(new Date(h.created_at), "d MMM yyyy HH:mm", { locale: fr })}
                       </span>
                     </div>
-                    {h.notes && <p className="mt-1 text-[hsl(var(--core-text-secondary))]">{h.notes}</p>}
+                    {h.notes && <p className="mt-1 text-core-text-secondary">{h.notes}</p>}
                     {(h.amount_promised || h.promise_date) && (
-                      <p className="mt-1 text-[hsl(var(--core-text-secondary))]">
+                      <p className="mt-1 text-core-text-secondary">
                         Promesse: {h.amount_promised ? `${Number(h.amount_promised).toFixed(2)}$` : "—"}
                         {h.promise_date && ` · ${format(new Date(h.promise_date), "d MMM yyyy", { locale: fr })}`}
                       </p>
