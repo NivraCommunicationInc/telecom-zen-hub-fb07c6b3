@@ -515,7 +515,7 @@ export function CrmCenter({
       <CrmCallDialog
         contact={activeCall}
         portal={portal}
-        onClose={() => setActiveCall(null)}
+        onClose={handleCallClose}
         onSold={handleSold}
       />
       <CrmContactDrawer contact={viewing} onClose={() => setViewing(null)} />
