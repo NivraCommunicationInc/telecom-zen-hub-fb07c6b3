@@ -213,6 +213,9 @@ export function CrmCenter({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Agent presence */}
+          <CrmAgentStatusToggle userId={user?.id} />
+
           {/* View mode toggle */}
           <div className="inline-flex rounded-lg border border-border overflow-hidden">
             <button
