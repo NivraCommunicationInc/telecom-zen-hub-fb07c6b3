@@ -539,11 +539,23 @@ export default function CoreCancellationsPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <StatCard label="Total" value={stats.total ?? 0} />
+      {/* Stats — clickable filter pills */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <StatCard
+          label="Total"
+          value={stats.total ?? 0}
+          active={statusFilter === "all"}
+          onClick={() => setStatusFilter("all")}
+        />
         {(Object.keys(statusConfig) as CancellationStatus[]).map((s) => (
-          <StatCard key={s} label={statusConfig[s].label} value={stats[s] ?? 0} tone={statusConfig[s].tone} />
+          <StatCard
+            key={s}
+            label={statusConfig[s].label}
+            value={stats[s] ?? 0}
+            tone={statusConfig[s].tone}
+            active={statusFilter === s}
+            onClick={() => setStatusFilter(s)}
+          />
         ))}
       </div>
 
@@ -747,12 +759,16 @@ export default function CoreCancellationsPage() {
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number; tone?: string }) {
+function StatCard({ label, value, tone, active, onClick }: { label: string; value: number; tone?: string; active?: boolean; onClick?: () => void }) {
   return (
-    <div className={`rounded-lg border border-border bg-card p-3 ${tone ?? ""}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-lg border bg-card p-3 transition-colors hover:border-primary/50 ${active ? "border-primary ring-1 ring-primary/40" : "border-border"} ${tone ?? ""}`}
+    >
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="text-xl font-bold mt-1">{value}</div>
-    </div>
+    </button>
   );
 }
 
