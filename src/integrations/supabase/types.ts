@@ -1306,6 +1306,47 @@ export type Database = {
         }
         Relationships: []
       }
+      applicant_emails: {
+        Row: {
+          applicant_id: string | null
+          email_type: string
+          id: string
+          resend_email_id: string | null
+          sent_at: string | null
+          sent_to: string
+          status: string | null
+          subject: string | null
+        }
+        Insert: {
+          applicant_id?: string | null
+          email_type: string
+          id?: string
+          resend_email_id?: string | null
+          sent_at?: string | null
+          sent_to: string
+          status?: string | null
+          subject?: string | null
+        }
+        Update: {
+          applicant_id?: string | null
+          email_type?: string
+          id?: string
+          resend_email_id?: string | null
+          sent_at?: string | null
+          sent_to?: string
+          status?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applicant_emails_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_blocked_dates: {
         Row: {
           blocked_date: string
@@ -11334,6 +11375,84 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_answers: {
+        Row: {
+          ai_feedback: string | null
+          ai_score: number | null
+          answer_text: string | null
+          answered_at: string | null
+          applicant_id: string | null
+          id: string
+          question_id: string | null
+        }
+        Insert: {
+          ai_feedback?: string | null
+          ai_score?: number | null
+          answer_text?: string | null
+          answered_at?: string | null
+          applicant_id?: string | null
+          id?: string
+          question_id?: string | null
+        }
+        Update: {
+          ai_feedback?: string | null
+          ai_score?: number | null
+          answer_text?: string | null
+          answered_at?: string | null
+          applicant_id?: string | null
+          id?: string
+          question_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_answers_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "interview_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_questions: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          order_index: number
+          question_en: string
+          question_fr: string
+          weight: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_index: number
+          question_en: string
+          question_fr: string
+          weight?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_index?: number
+          question_en?: string
+          question_fr?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
       inventory_assignments: {
         Row: {
           assigned_at: string | null
@@ -11557,6 +11676,159 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inventory_items"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applicants: {
+        Row: {
+          accepts_commission_only: boolean | null
+          applied_at: string | null
+          assigned_territory: string | null
+          availability_days: string | null
+          availability_start: string | null
+          available_equipment: string[] | null
+          can_travel: boolean | null
+          city: string | null
+          contract_sent_at: string | null
+          contract_signed_at: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          door_to_door_experience: string | null
+          email: string
+          first_name: string
+          hired_at: string | null
+          hired_by: string | null
+          hours_per_week: string | null
+          id: string
+          interview_completed_at: string | null
+          interview_concerns: string[] | null
+          interview_language: string | null
+          interview_notes: string | null
+          interview_recommendation: string | null
+          interview_red_flags: string[] | null
+          interview_score: number | null
+          interview_started_at: string | null
+          interview_strengths: string[] | null
+          interview_token: string | null
+          invitation_sent_at: string | null
+          languages: string[] | null
+          last_name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          resume_url: string | null
+          sales_experience: string | null
+          skip_interview: boolean | null
+          skip_reason: string | null
+          source: string | null
+          status: string | null
+          territories: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          accepts_commission_only?: boolean | null
+          applied_at?: string | null
+          assigned_territory?: string | null
+          availability_days?: string | null
+          availability_start?: string | null
+          available_equipment?: string[] | null
+          can_travel?: boolean | null
+          city?: string | null
+          contract_sent_at?: string | null
+          contract_signed_at?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          door_to_door_experience?: string | null
+          email: string
+          first_name: string
+          hired_at?: string | null
+          hired_by?: string | null
+          hours_per_week?: string | null
+          id?: string
+          interview_completed_at?: string | null
+          interview_concerns?: string[] | null
+          interview_language?: string | null
+          interview_notes?: string | null
+          interview_recommendation?: string | null
+          interview_red_flags?: string[] | null
+          interview_score?: number | null
+          interview_started_at?: string | null
+          interview_strengths?: string[] | null
+          interview_token?: string | null
+          invitation_sent_at?: string | null
+          languages?: string[] | null
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          resume_url?: string | null
+          sales_experience?: string | null
+          skip_interview?: boolean | null
+          skip_reason?: string | null
+          source?: string | null
+          status?: string | null
+          territories?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          accepts_commission_only?: boolean | null
+          applied_at?: string | null
+          assigned_territory?: string | null
+          availability_days?: string | null
+          availability_start?: string | null
+          available_equipment?: string[] | null
+          can_travel?: boolean | null
+          city?: string | null
+          contract_sent_at?: string | null
+          contract_signed_at?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          door_to_door_experience?: string | null
+          email?: string
+          first_name?: string
+          hired_at?: string | null
+          hired_by?: string | null
+          hours_per_week?: string | null
+          id?: string
+          interview_completed_at?: string | null
+          interview_concerns?: string[] | null
+          interview_language?: string | null
+          interview_notes?: string | null
+          interview_recommendation?: string | null
+          interview_red_flags?: string[] | null
+          interview_score?: number | null
+          interview_started_at?: string | null
+          interview_strengths?: string[] | null
+          interview_token?: string | null
+          invitation_sent_at?: string | null
+          languages?: string[] | null
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          resume_url?: string | null
+          sales_experience?: string | null
+          skip_interview?: boolean | null
+          skip_reason?: string | null
+          source?: string | null
+          status?: string | null
+          territories?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applicants_hired_by_fkey"
+            columns: ["hired_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "job_applicants_hired_by_fkey"
+            columns: ["hired_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
           },
         ]
       }
@@ -24106,6 +24378,19 @@ export type Database = {
           value: number
         }[]
       }
+      get_applicant_by_token: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          first_name: string
+          id: string
+          interview_completed_at: string
+          interview_language: string
+          interview_started_at: string
+          last_name: string
+          status: string
+        }[]
+      }
       get_appointment_slot_availability: {
         Args: { p_date: string }
         Returns: {
@@ -24437,6 +24722,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mark_interview_started: { Args: { _token: string }; Returns: undefined }
       mark_payment_error_captured: {
         Args: {
           p_admin_user_id?: string
