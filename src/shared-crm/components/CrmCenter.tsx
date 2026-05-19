@@ -79,6 +79,8 @@ export function CrmCenter({
   const [viewing, setViewing] = useState<CrmContact | null>(null);
   const [saleContact, setSaleContact] = useState<CrmContact | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
     status: statusFilter,
@@ -98,6 +100,16 @@ export function CrmCenter({
     }
     return copy;
   }, [contacts, sortKey]);
+
+  // Reset to page 1 whenever filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, cityFilter, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PER_PAGE;
+  const paged = sorted.slice(pageStart, pageStart + PER_PAGE);
 
   const startCall = async (c: CrmContact) => {
     if (!user?.id) return;
