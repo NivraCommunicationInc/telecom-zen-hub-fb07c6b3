@@ -58,6 +58,14 @@ export default function CoreInterviewsPage() {
   const [bulkSending, setBulkSending] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [notesDraft, setNotesDraft] = useState("");
+  const [indeedOpen, setIndeedOpen] = useState(false);
+  const [indeed, setIndeed] = useState({
+    first_name: "", last_name: "", email: "", phone: "",
+    city: "", indeed_url: "", language: "fr", notes: "",
+  });
+  const [indeedSubmitting, setIndeedSubmitting] = useState(false);
+
+
 
   const { data: applicants = [], isLoading } = useQuery({
     queryKey: ["job-applicants-interviews"],
