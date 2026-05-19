@@ -11681,6 +11681,7 @@ export type Database = {
       }
       job_applicants: {
         Row: {
+          accepted_at: string | null
           accepts_commission_only: boolean | null
           applied_at: string | null
           assigned_territory: string | null
@@ -11716,6 +11717,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           postal_code: string | null
+          rejected_at: string | null
           resume_url: string | null
           sales_experience: string | null
           skip_interview: boolean | null
@@ -11726,6 +11728,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          accepted_at?: string | null
           accepts_commission_only?: boolean | null
           applied_at?: string | null
           assigned_territory?: string | null
@@ -11761,6 +11764,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          rejected_at?: string | null
           resume_url?: string | null
           sales_experience?: string | null
           skip_interview?: boolean | null
@@ -11771,6 +11775,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          accepted_at?: string | null
           accepts_commission_only?: boolean | null
           applied_at?: string | null
           assigned_territory?: string | null
@@ -11806,6 +11811,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          rejected_at?: string | null
           resume_url?: string | null
           sales_experience?: string | null
           skip_interview?: boolean | null

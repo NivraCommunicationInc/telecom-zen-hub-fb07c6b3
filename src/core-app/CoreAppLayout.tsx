@@ -16,7 +16,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap, Brain,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,7 @@ const HREF_TO_BADGE: Record<string, CoreBadgeKey> = {
   "/notifications": "notifications",
   "/hr/careers": "careers",
   "/hr/applications": "careers",
+  "/hr/interviews": "careers",
 };
 
 interface NavGroup {
@@ -216,6 +217,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: MessageSquare, label: "Demandes HR", href: "/hr/requests" },
       { icon: Briefcase, label: "Recrutement (postes)", href: "/hr/careers", badgeKey: "careers" },
       { icon: UserPlus, label: "Candidatures", href: "/hr/applications", badgeKey: "careers" },
+      { icon: Brain, label: "Entrevues IA", href: "/hr/interviews" },
       { icon: Mail, label: "Templates emails", href: "/hr/email-templates" },
       { icon: History, label: "Audit HR", href: "/hr/audit" },
       { icon: GraduationCap, label: "Nivra Academy", href: "/academy" },
