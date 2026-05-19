@@ -555,8 +555,9 @@ export function CrmCenter({
           )}
         </div>
 
-        {/* Sidebar : leaderboard */}
+        {/* Sidebar : quota + leaderboard */}
         <aside className="space-y-4">
+          <CrmQuotaCard isDark={isDark} />
           <CrmLeaderboard darkPortal={isDark} />
           {isAdmin && (
             <div className={cn(cardCls, "p-3 text-xs", mutedCls)}>
@@ -578,6 +579,8 @@ export function CrmCenter({
       <CrmAssignDialog contact={assignContact} onClose={() => setAssignContact(null)} />
       <CrmQuickNoteDialog contact={noteContact} onClose={() => setNoteContact(null)} />
       <CrmScheduleCallbackDialog contact={callbackContact} onClose={() => setCallbackContact(null)} />
+      <CrmTransferDialog contact={transferContact} onClose={() => setTransferContact(null)} />
+      <CrmFollowUpEmailDialog contact={emailContact} onClose={() => setEmailContact(null)} />
     </div>
 
   );
