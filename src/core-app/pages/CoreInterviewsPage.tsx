@@ -757,6 +757,41 @@ export default function CoreInterviewsPage() {
           )}
         </DialogContent>
       </Dialog>
+      {/* Indeed import modal */}
+      <Dialog open={indeedOpen} onOpenChange={setIndeedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-primary" /> Importer un candidat Indeed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Prénom *</Label><Input value={indeed.first_name} onChange={(e) => setIndeed({ ...indeed, first_name: e.target.value })} /></div>
+              <div><Label>Nom *</Label><Input value={indeed.last_name} onChange={(e) => setIndeed({ ...indeed, last_name: e.target.value })} /></div>
+            </div>
+            <div><Label>Email *</Label><Input type="email" value={indeed.email} onChange={(e) => setIndeed({ ...indeed, email: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Téléphone</Label><Input value={indeed.phone} onChange={(e) => setIndeed({ ...indeed, phone: e.target.value })} /></div>
+              <div><Label>Ville</Label><Input value={indeed.city} onChange={(e) => setIndeed({ ...indeed, city: e.target.value })} /></div>
+            </div>
+            <div><Label>Lien profil Indeed</Label><Input value={indeed.indeed_url} onChange={(e) => setIndeed({ ...indeed, indeed_url: e.target.value })} placeholder="https://…" /></div>
+            <div>
+              <Label>Langue entrevue</Label>
+              <RadioGroup className="flex gap-4 mt-1" value={indeed.language} onValueChange={(v) => setIndeed({ ...indeed, language: v })}>
+                <div className="flex items-center gap-2"><RadioGroupItem id="lang-fr" value="fr" /><Label htmlFor="lang-fr">FR</Label></div>
+                <div className="flex items-center gap-2"><RadioGroupItem id="lang-en" value="en" /><Label htmlFor="lang-en">EN</Label></div>
+              </RadioGroup>
+            </div>
+            <div><Label>Note interne</Label><Textarea rows={2} value={indeed.notes} onChange={(e) => setIndeed({ ...indeed, notes: e.target.value })} /></div>
+            <Button onClick={async () => { setIndeedSubmitting(true); try { await importIndeed.mutateAsync(); } finally { setIndeedSubmitting(false); } }} disabled={indeedSubmitting || importIndeed.isPending}>
+              {indeedSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+              Importer & envoyer l&apos;invitation
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
