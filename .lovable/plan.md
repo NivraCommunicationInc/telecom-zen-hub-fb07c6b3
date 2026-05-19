@@ -1,85 +1,132 @@
-# Refonte visuelle complète + i18n FR/EN total
+## CRM Outbound Call Center — Nivra
 
-## Périmètre
-
-**Visuel** (niveau Fizz/Vidéotron/Koodo) — uniquement les pages publiques :
-- `/` (Home), `/internet`, `/mobile`, `/tv`, `/comparer`
-- `/a-propos`, `/contact`, `/faq`, `/couverture`
-- Tunnel `/commander` + page confirmation
-- Pages légales (footer)
-- **NON touché** : `/hub`, `/core`, `/rh`, `/field`, `/employee` (portails internes restent identiques)
-
-**Langues** : Français + Anglais, 100% des deux côtés (UI, DB, emails).
+Système complet de cold calling pour les 659 prospects, accessible depuis 3 portails avec verrouillage temps réel, vente intégrée et leaderboard.
 
 ---
 
-## Phase 1 — Fondations visuelles (design system)
+### 1. Renommage Employee → OneView CS
 
-Avant de toucher les pages, je consolide les tokens existants pour garder la cohérence Xfinity Premium / Fizz déjà en place :
+- Renommer toutes les références UI "Employee/Employé" → "Nivra OneView CS"
+- Conserver les routes `/employee/*` et les noms de fichiers (pour éviter régression massive)
+- Mettre à jour : sidebar, layout header, page titles, breadcrumbs, sélecteur de portail dans Hub Secure, boutons "Changer de portail"
 
-1. **Audit `index.css` + `tailwind.config.ts`** — vérifier que tous les tokens sémantiques sont là (`--primary`, `--background`, `--accent`, gradients, shadows, radii).
-2. **Composants partagés à upgrader** : Header public, Footer public, `PlanCard`, `ServiceCard`, `HeroSection`, `CTASection`, `TestimonialCard`, `ComparisonTable`. Aucun nouveau contenu — seulement le polish (spacing, hover states, micro-animations, typographie fluide, bordures, ombres premium).
-3. **Règles strictes** : 0 nouvelle donnée inventée. Aucun nouveau forfait, prix, témoignage, partenaire, stat. Tout le contenu reste celui de la DB / des fichiers de copie actuels.
+### 2. Base de données (migration)
 
-## Phase 2 — Refonte page par page
+**Étendre `crm_contacts`** :
+- `date_of_birth` (date)
+- `desired_install_date` (date)
+- `service_address`, `service_city`, `service_postal_code` (text)
+- `locked_by` (uuid → auth.users), `locked_at` (timestamptz), `locked_until` (timestamptz)
+- `assigned_to` (uuid, nullable — rotation)
+- `next_callback_at` (timestamptz)
+- Index sur `locked_until`, `next_callback_at`, `call_status`
 
-Pour chaque page : améliorer hiérarchie visuelle, espacement, hover states, transitions, responsive 320–1920px, anti-overflow (`overflow-x: hidden`, `min-w-0`, `truncate` où nécessaire). Aucun ajout de contenu.
+**Nouvelle table `crm_call_logs`** :
+- `id`, `contact_id` (fk crm_contacts), `agent_id`, `agent_name`
+- `started_at`, `ended_at`, `duration_seconds`
+- `outcome` enum : `sold | voicemail | callback | not_interested | wrong_number | no_answer`
+- `notes` (text), `callback_at` (timestamptz nullable)
+- RLS : agents (field_sales, employee, sales) voient leurs propres logs ; admin voit tout
 
-Ordre : Home → Internet → Mobile → TV → Comparer → Couverture → À propos → Contact → FAQ → Commander → Légales.
+**Nouvelle table `crm_agent_stats`** (vue matérialisée ou table calculée) :
+- Calculs : appels du jour, conversions, ventes, montant total
+- Ou simplement vue SQL `crm_leaderboard_v` agrégeant `crm_call_logs`
 
-Tests à chaque page :
-- Screenshot 1920 / 1366 / 947 (viewport actuel) / 414 / 375
-- Vérifier qu'aucun texte ne sort, ne se casse, ne se chevauche
-- Vérifier que tous les CTA restent fonctionnels (pas de changement de routing)
+**Fonctions RPC** :
+- `crm_lock_contact(contact_id)` → vérifie pas déjà locké, lock 30 min, retourne succès/erreur
+- `crm_unlock_contact(contact_id)` → unlock manuel
+- `crm_auto_unlock_expired()` → cron job toutes les 5 min
+- `crm_log_call(contact_id, outcome, notes, callback_at)` → insère log + met à jour `crm_contacts.call_status`, `last_called_at`, `call_attempts`, `next_callback_at` ; auto-archive si attempts >= 3 ; unlock
 
-## Phase 3 — i18n total FR/EN
+**Cron jobs** :
+- Auto-unlock toutes les 5 min (locks expirés)
+- Reset des "no_answer" en file après 2h
+- Activation realtime : `ALTER PUBLICATION supabase_realtime ADD TABLE crm_call_logs;`
 
-### 3a. Audit fichiers de traduction
-- Scanner `src/contexts/LanguageContext.tsx` + tous les fichiers `t('...')` pour lister les clés manquantes en EN.
-- Compléter le dictionnaire FR/EN pour 100% des chaînes UI publiques (menus, boutons, labels, messages d'erreur, footer, légal).
+### 3. Composants partagés CRM
 
-### 3b. Traduction DB (services / forfaits)
-- Migration : ajouter colonnes `name_en`, `description_en` (si elles n'existent pas déjà) sur `services` et autres tables de contenu public (plans, FAQ, témoignages, features).
-- **Auto-traduction via Lovable AI** (Gemini 3 Flash) : script qui lit les valeurs FR, génère EN, écrit dans les colonnes `_en`. Tu valides/édites ensuite via Core si besoin.
-- Front : `useLanguage()` choisit `name_en` vs `name` selon la langue active. Fallback FR si EN manquant.
+Dossier `src/shared-crm/` (utilisable par Core, OneView CS, Field) :
+- `useCrmContacts.ts` — hook liste + realtime + filtres
+- `useCrmLock.ts` — hook lock/unlock + heartbeat
+- `useCrmLeaderboard.ts` — hook stats temps réel
+- `CrmContactList.tsx` — tableau filtrable/triable + badge "🔴 En appel par X"
+- `CrmContactDetail.tsx` — fiche complète + historique appels
+- `CrmCallPanel.tsx` — panneau d'appel actif (timer, notes, boutons outcome)
+- `CrmOutcomeDialog.tsx` — sélection résultat post-appel
+- `CrmLeaderboard.tsx` — top agents jour/semaine/mois
+- `CrmSaleForm.tsx` — formulaire de vente (réutilise flow Field : forfaits, équipement, PayPal)
 
-### 3c. Détection / persistance langue
-- Garder le `LanguageContext` existant + persister dans `localStorage`.
-- Toggle FR/EN bien visible dans le header public.
+Règle métier dans `useCrmLock` : block call si hors 9h-20h heure Québec.
 
-## Phase 4 — Emails dans la langue active
+### 4. Portails
 
-1. **Captation** : au moment d'une commande / signup / contact, on lit la langue active du `LanguageContext` et on la passe en paramètre à toutes les edge functions qui envoient un email (`recipient_language: 'fr' | 'en'`).
-2. **Templates** : duplication des templates existants dans `supabase/functions/_shared/emailTemplates/` avec variante `_en` (ou injection conditionnelle par bloc). Sujet, header, corps, footer, CTA, signature — tout traduit.
-3. **Edge functions concernées** (à scanner et patcher) : confirmations de commande, factures, reçus, contrats, welcome, password reset, contact form ack, notifications de statut.
-4. **Fallback** : si langue absente → FR par défaut (marché principal QC).
+**Nivra Field** (`/field/crm`) :
+- Remplacer la page actuelle `FieldCrm.tsx` par version complète utilisant `shared-crm`
+- Sidebar : entrée "CRM Prospects" déjà existante ✅
 
-## Détails techniques
+**Nivra OneView CS** (`/employee/crm`) :
+- Nouvelle page `EmployeeCrm.tsx`
+- Ajouter entrée "CRM Prospects" dans `EmployeeSidebar.tsx`
+- Route dans `AppRoutes.tsx`
 
-- Pas de nouvelle librairie i18n — on reste sur le `LanguageContext` custom (memory rule).
-- Tokens HSL uniquement, jamais de couleurs hardcodées dans les composants.
-- Migrations DB via tool migration ; data updates via tool insert.
-- Auto-traduction : script ponctuel via `code--exec` + Lovable AI Gateway (`google/gemini-3-flash-preview`), pas une edge function permanente.
-- Aucune modification de logique business / pricing / RLS / portails internes.
-- Aucun ajout de contenu non approuvé — si une chaîne EN n'existe pas et que l'auto-traduction échoue, je laisse `[À COMPLÉTER EN]` et te le signale.
+**Nivra Core** (`/core/crm`) :
+- Nouvelle page `CoreCrm.tsx` — vue admin : tous contacts, filtres avancés, assignation manuelle, export CSV, stats globales par agent
+- Ajouter entrée "CRM Center" dans `CoreAppLayout.tsx` sidebar (section Sales/Outbound)
+- Route dans `AppRoutes.tsx`
 
-## Livraison itérative
+### 5. Vente intégrée
 
-Vu l'ampleur, je livre par lots et tu valides entre chaque :
+- Bouton "🟢 Vendu" → ouvre `CrmSaleForm` en dialog/page
+- Pré-rempli avec données contact (nom, tél, email, adresse, DOB)
+- Étapes : forfait → équipement → date install (2-3j après) → plage horaire → récap → PayPal
+- Sur succès :
+  - Créer commande via RPC existant (réutilise `field-create-sale` edge function)
+  - Marquer `crm_contacts.call_status = 'sold'`, lier `converted_order_id`
+  - Insérer commission pour l'agent (30% forfait, 5% équipement) — même logique que Field
+  - Email notification à Core via `send-transactional-email`
 
-1. **Lot 1** : Fondations + Home + Internet (visuel) — tu valides le style.
-2. **Lot 2** : Mobile + TV + Comparer + Couverture (visuel).
-3. **Lot 3** : À propos + Contact + FAQ + Commander + Légales (visuel).
-4. **Lot 4** : i18n UI complet (toutes clés FR/EN).
-5. **Lot 5** : Auto-traduction DB + branchement front.
-6. **Lot 6** : Emails bilingues.
+### 6. Commissions OneView CS
 
-Si tu veux, je peux aussi tout enchaîner sans pause — dis-moi.
+- Mettre à jour la fonction/table commissions pour inclure les agents `employee` au même taux que `field_sales`
+- Vérifier `commission_rules` ou logique dans edge function de création de vente
 
-## Ce que je ne fais PAS
+### 7. Vérifications finales
 
-- Aucun changement de prix, de plan, de partenaire, de témoignage, de stat.
-- Aucun nouveau contenu marketing.
-- Aucune modif des portails `/hub`, `/core`, `/rh`, `/field`, `/employee`.
-- Aucune modif de la logique de paiement / facturation / KYC.
-- Aucune nouvelle 3e langue (ES/AR) — strictement FR + EN comme demandé.
+- `npx tsc --noEmit` → EXIT=0
+- Vérifier realtime sur `crm_contacts` et `crm_call_logs`
+- Tester lock/unlock multi-onglets
+
+---
+
+### Détails techniques
+
+```text
+shared-crm/
+├── hooks/
+│   ├── useCrmContacts.ts      (list + realtime + filters)
+│   ├── useCrmContact.ts       (single contact + call history)
+│   ├── useCrmLock.ts          (lock/unlock + 30min heartbeat)
+│   ├── useCrmLeaderboard.ts   (agent stats realtime)
+│   └── useCrmBusinessHours.ts (9h-20h QC check)
+├── components/
+│   ├── CrmContactTable.tsx
+│   ├── CrmContactDrawer.tsx
+│   ├── CrmCallPanel.tsx       (active call UI + timer)
+│   ├── CrmOutcomeButtons.tsx
+│   ├── CrmCallHistory.tsx
+│   ├── CrmLeaderboard.tsx
+│   └── sale/
+│       ├── CrmSaleDialog.tsx
+│       └── CrmSaleSteps.tsx   (reuses Field steps)
+└── lib/
+    ├── crmTypes.ts
+    └── crmOutcomes.ts
+```
+
+Edge function ré-utilisée : `field-create-sale` (ou créer `crm-create-sale` similaire).
+
+### Hors scope (ne sera PAS fait dans ce loop)
+
+- Intégration téléphonie réelle (Twilio/OpenPhone dial) — on garde les `tel:` deep links existants
+- Système de points/badges gamification avancée — leaderboard simple seulement
+- Rotation automatique d'assignation — manuelle depuis Core
