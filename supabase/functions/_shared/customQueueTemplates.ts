@@ -3694,6 +3694,203 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // RECRUITMENT — AI INTERVIEW SYSTEM
+    // ===================================================================
+    case "interview_invitation": {
+      const firstName = esc(v.first_name || clientName);
+      const interviewUrl = String(v.interview_url || `${APP_URL}/entrevue`);
+      const isEnglish = lang === "en";
+      const cardRows: [string, string][] = isEnglish
+        ? [
+            ["Position", "Field Agent — Door-to-Door Sales"],
+            ["Compensation", "Commission only"],
+            ["Duration", "Approximately 15 minutes"],
+            ["Language", "English"],
+          ]
+        : [
+            ["Poste", "Agent Terrain — Vente Porte-à-Porte"],
+            ["Rémunération", "Commission uniquement"],
+            ["Durée", "Environ 15 minutes"],
+            ["Langue", "Français"],
+          ];
+      return {
+        subject: isEnglish
+          ? "Invitation — Virtual Interview Field Agent Nivra Telecom"
+          : "Invitation — Entrevue virtuelle Agent Terrain Nivra Telecom",
+        html: shell({
+          preheader: isEnglish
+            ? "Your virtual interview is ready to start."
+            : "Votre entrevue virtuelle est prête à débuter.",
+          badge: isEnglish ? "INTERVIEW INVITATION" : "INVITATION ENTREVUE",
+          heroTitle: isEnglish
+            ? "Your virtual interview is waiting!"
+            : "Votre entrevue virtuelle vous attend!",
+          icon: "star",
+          greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
+          bodyText: isEnglish
+            ? "Thank you for your interest in the Field Agent position at Nivra Telecom. We have received your application and would like to invite you to complete a virtual interview with our intelligent HR assistant. The interview takes about 15 minutes. Answer at your own pace."
+            : "Merci pour votre intérêt pour le poste d Agent Terrain chez Nivra Telecom. Nous avons bien reçu votre candidature et nous souhaitons vous inviter à passer une entrevue virtuelle avec notre assistant RH intelligent. L entrevue dure environ 15 minutes. Répondez à votre rythme.",
+          cardTitle: isEnglish ? "Interview details" : "Détails de l entrevue",
+          cardRows,
+          ctaPrimaryUrl: interviewUrl,
+          ctaPrimaryLabel: isEnglish ? "Start my interview" : "Commencer mon entrevue",
+          helpHtml: isEnglish
+            ? "This link is personal and unique to your application. Do not share it."
+            : "Ce lien est personnel et unique à votre candidature. Ne le partagez pas.",
+        }),
+      };
+    }
+
+    case "interview_completed_admin": {
+      const firstName = esc(v.first_name || "Candidat");
+      const lastName = esc(v.last_name || "");
+      const score = esc(v.score ?? "?");
+      const recommendation = esc(v.recommendation || "neutral");
+      const summary = esc(v.summary || "Aucun résumé disponible.");
+      const candidateEmail = esc(v.candidate_email || "");
+      const candidateCity = esc(v.candidate_city || "");
+      const strengths = Array.isArray(v.strengths) ? (v.strengths as string[]) : [];
+      const concerns = Array.isArray(v.concerns) ? (v.concerns as string[]) : [];
+      const redFlags = Array.isArray(v.red_flags) ? (v.red_flags as string[]) : [];
+      const qa = Array.isArray(v.qa) ? (v.qa as Array<{ q: string; a: string; score?: number; feedback?: string }>) : [];
+
+      const renderList = (items: string[], color: string) =>
+        items.length === 0
+          ? `<em style="color:${BRAND_TEXT_MUTED};">Aucun</em>`
+          : `<ul style="margin:6px 0 0 0;padding-left:18px;color:${color};">${items
+              .map((s) => `<li style="margin:4px 0;">${esc(s)}</li>`)
+              .join("")}</ul>`;
+
+      const qaHtml = qa
+        .map(
+          (item, i) => `
+          <div style="margin:14px 0;padding:12px;border:1px solid ${BRAND_CARD_BORDER};border-radius:8px;background:#fff;">
+            <div style="font-weight:600;color:${BRAND_DARK};font-size:13px;">Q${i + 1}. ${esc(item.q)}</div>
+            <div style="margin-top:6px;color:${BRAND_TEXT_BODY};font-size:13px;white-space:pre-wrap;">${esc(item.a)}</div>
+            ${item.score !== undefined ? `<div style="margin-top:6px;font-size:12px;color:${BRAND_PRIMARY};font-weight:600;">Score IA: ${esc(item.score)}/10</div>` : ""}
+            ${item.feedback ? `<div style="margin-top:4px;font-size:12px;color:${BRAND_TEXT_MUTED};font-style:italic;">${esc(item.feedback)}</div>` : ""}
+          </div>`,
+        )
+        .join("");
+
+      const extraHtml = `
+        <div style="margin:18px 0;padding:16px;background:${BRAND_HERO_BG};border-radius:8px;border:1px solid ${BRAND_CARD_BORDER};">
+          <div style="font-weight:700;color:${BRAND_DARK};margin-bottom:8px;">Résumé IA</div>
+          <div style="color:${BRAND_TEXT_BODY};font-size:14px;line-height:1.6;">${summary}</div>
+        </div>
+        <div style="margin:14px 0;">
+          <div style="font-weight:700;color:#059669;margin-bottom:4px;">Points forts</div>
+          ${renderList(strengths, "#065f46")}
+        </div>
+        <div style="margin:14px 0;">
+          <div style="font-weight:700;color:#d97706;margin-bottom:4px;">Préoccupations</div>
+          ${renderList(concerns, "#92400e")}
+        </div>
+        <div style="margin:14px 0;">
+          <div style="font-weight:700;color:#dc2626;margin-bottom:4px;">Drapeaux rouges</div>
+          ${renderList(redFlags, "#991b1b")}
+        </div>
+        <div style="margin:20px 0 8px 0;font-weight:700;color:${BRAND_DARK};font-size:16px;">Questions et réponses</div>
+        ${qaHtml}
+      `;
+
+      return {
+        subject: `[Entrevue complétée] ${firstName} ${lastName} — Score: ${score}/10`,
+        html: shell({
+          preheader: `Rapport entrevue ${firstName} ${lastName}`,
+          badge: "RAPPORT ENTREVUE",
+          heroTitle: "Entrevue complétée — Action requise",
+          heroSub: `Score global: ${score}/10`,
+          icon: "check",
+          greeting: "Bonjour équipe RH,",
+          bodyText: `Le candidat <strong>${firstName} ${lastName}</strong> a complété son entrevue virtuelle. Voici le rapport complet généré par l assistant IA.`,
+          cardTitle: "Informations candidat",
+          cardRows: [
+            ["Nom", `${firstName} ${lastName}`],
+            ["Courriel", candidateEmail],
+            ["Ville", candidateCity || "Non spécifiée"],
+            ["Score global", `${score}/10`],
+            ["Recommandation", recommendation],
+          ],
+          extraHtml,
+          ctaPrimaryUrl: `${APP_URL}/hr/recruitment`,
+          ctaPrimaryLabel: "Voir le dossier complet",
+          helpHtml: `Action requise: examiner ce candidat et décider de l accepter ou non.`,
+        }),
+      };
+    }
+
+    case "applicant_accepted": {
+      const firstName = esc(v.first_name || clientName);
+      const isEnglish = lang === "en";
+      return {
+        subject: isEnglish
+          ? "Congratulations! You are accepted at Nivra Telecom"
+          : "Félicitations! Vous êtes accepté chez Nivra Telecom",
+        html: shell({
+          preheader: isEnglish
+            ? "Welcome to the Nivra team."
+            : "Bienvenue dans l équipe Nivra.",
+          badge: isEnglish ? "APPLICATION ACCEPTED" : "CANDIDATURE ACCEPTÉE",
+          heroTitle: isEnglish
+            ? "Welcome to the Nivra team!"
+            : "Bienvenue dans l équipe Nivra!",
+          icon: "check",
+          greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
+          bodyText: isEnglish
+            ? "Congratulations! After reviewing your interview, we are excited to offer you a position as Field Agent at Nivra Telecom. The next step is to sign your commission agreement and complete onboarding. Our HR team will contact you shortly with your starter kit, territory and training schedule."
+            : "Félicitations! Après examen de votre entrevue, nous sommes ravis de vous offrir un poste d Agent Terrain chez Nivra Telecom. La prochaine étape est de signer votre entente de commission et compléter l intégration. Notre équipe RH vous contactera sous peu avec votre trousse de départ, votre territoire et l horaire de formation.",
+          cardTitle: isEnglish ? "Next steps" : "Prochaines étapes",
+          cardRows: isEnglish
+            ? [
+                ["1.", "Sign your commission agreement"],
+                ["2.", "Complete onboarding training"],
+                ["3.", "Receive your territory assignment"],
+                ["4.", "Start earning commissions on every sale"],
+              ]
+            : [
+                ["1.", "Signer votre entente de commission"],
+                ["2.", "Compléter la formation d intégration"],
+                ["3.", "Recevoir votre assignation de territoire"],
+                ["4.", "Commencer à gagner des commissions sur chaque vente"],
+              ],
+          ctaPrimaryUrl: `${APP_URL}/hub`,
+          ctaPrimaryLabel: isEnglish ? "Sign my contract" : "Signer mon contrat",
+          helpHtml: isEnglish
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "applicant_rejected": {
+      const firstName = esc(v.first_name || clientName);
+      const isEnglish = lang === "en";
+      return {
+        subject: isEnglish
+          ? "Thank you for applying at Nivra Telecom"
+          : "Merci pour votre candidature chez Nivra Telecom",
+        html: shell({
+          preheader: isEnglish
+            ? "Thank you for your interest in Nivra."
+            : "Merci pour votre intérêt envers Nivra.",
+          badge: isEnglish ? "APPLICATION REVIEWED" : "CANDIDATURE EXAMINÉE",
+          heroTitle: isEnglish ? "Thank you for applying" : "Merci pour votre candidature",
+          icon: "star",
+          greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
+          bodyText: isEnglish
+            ? "Thank you for taking the time to apply for the Field Agent position at Nivra Telecom and for completing the virtual interview. After careful review, we have decided not to move forward with your application at this time. This decision was not easy and does not reflect on your value as a professional. We encourage you to reapply in approximately three months as our hiring needs evolve. We sincerely appreciate the time and energy you invested in this process and wish you great success in your career."
+            : "Merci d avoir pris le temps de postuler pour le poste d Agent Terrain chez Nivra Telecom et d avoir complété l entrevue virtuelle. Après une analyse attentive, nous avons décidé de ne pas aller de l avant avec votre candidature pour le moment. Cette décision n a pas été facile et ne reflète en rien votre valeur professionnelle. Nous vous encourageons à postuler à nouveau dans environ trois mois, nos besoins de recrutement évoluant régulièrement. Nous apprécions sincèrement le temps et l énergie investis dans ce processus et vous souhaitons un grand succès dans votre carrière.",
+          ctaPrimaryUrl: `${APP_URL}/emplois`,
+          ctaPrimaryLabel: isEnglish ? "View future openings" : "Voir les futurs postes",
+          helpHtml: isEnglish
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
