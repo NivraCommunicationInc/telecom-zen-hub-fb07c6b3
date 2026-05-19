@@ -152,7 +152,7 @@ export default function EmployeePayments() {
               <div key={c.id} className="flex items-center justify-between text-[11px] py-1 border-b border-border/40 last:border-0">
                 <div className="flex-1 min-w-0">
                   <div className="text-muted-foreground truncate">{c.notes ?? "Commission"}</div>
-                  <div className="text-[10px] text-muted-foreground/70">{format(new Date(c.created_at), "d MMM yyyy", { locale: fr })} · {(Number(c.commission_rate) * 100).toFixed(0)}%</div>
+                  <div className="text-[10px] text-muted-foreground/70">{format(new Date(c.created_at), "d MMM yyyy", { locale: fr })} · {(Number(c.commission_rate) > 1 ? Number(c.commission_rate) : Number(c.commission_rate) * 100).toFixed(0)}%</div>
                 </div>
                 <div className="text-right ml-2">
                   <div className="font-bold">{fmtMoney(c.commission_amount)}</div>
