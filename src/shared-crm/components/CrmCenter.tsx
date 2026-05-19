@@ -535,6 +535,8 @@ export function CrmCenter({
                         onOpenCallback={setCallbackContact}
                         onStartCall={startCall}
                         onSell={setSaleContact}
+                        onOpenTransfer={setTransferContact}
+                        onOpenEmail={setEmailContact}
                       />
                     </div>
                   </div>
