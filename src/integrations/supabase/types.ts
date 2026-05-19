@@ -13556,6 +13556,7 @@ export type Database = {
           created_by: string | null
           created_by_agent_id: string | null
           credits_applied: number | null
+          crm_contact_id: string | null
           delivery_fee: number | null
           delivery_method: string | null
           discount_amount: number | null
@@ -13682,6 +13683,7 @@ export type Database = {
           created_by?: string | null
           created_by_agent_id?: string | null
           credits_applied?: number | null
+          crm_contact_id?: string | null
           delivery_fee?: number | null
           delivery_method?: string | null
           discount_amount?: number | null
@@ -13808,6 +13810,7 @@ export type Database = {
           created_by?: string | null
           created_by_agent_id?: string | null
           credits_applied?: number | null
+          crm_contact_id?: string | null
           delivery_fee?: number | null
           delivery_method?: string | null
           discount_amount?: number | null
@@ -13912,6 +13915,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -24064,6 +24074,7 @@ export type Database = {
           created_by: string | null
           created_by_agent_id: string | null
           credits_applied: number | null
+          crm_contact_id: string | null
           delivery_fee: number | null
           delivery_method: string | null
           discount_amount: number | null

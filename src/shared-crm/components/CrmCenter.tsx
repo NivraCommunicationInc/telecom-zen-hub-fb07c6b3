@@ -17,6 +17,7 @@ import { useCrmLock } from "../hooks/useCrmLock";
 import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
+import { CrmSaleModal } from "./CrmSaleModal";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus,
@@ -61,6 +62,7 @@ export function CrmCenter({
   const [sortKey, setSortKey] = useState<"priority" | "callback" | "city">("priority");
   const [activeCall, setActiveCall] = useState<CrmContact | null>(null);
   const [viewing, setViewing] = useState<CrmContact | null>(null);
+  const [saleContact, setSaleContact] = useState<CrmContact | null>(null);
 
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
@@ -101,10 +103,12 @@ export function CrmCenter({
   };
 
   const handleSold = (c: CrmContact) => {
-    if (saleRouteBuilder) {
-      navigate(saleRouteBuilder(c.id));
-    }
+    // Open integrated sale modal instead of navigating away
+    setSaleContact(c);
   };
+  // saleRouteBuilder retained for backwards-compat
+  void saleRouteBuilder;
+  void navigate;
 
   const isDark = variant === "dark";
 
@@ -372,6 +376,7 @@ export function CrmCenter({
         onSold={handleSold}
       />
       <CrmContactDrawer contact={viewing} onClose={() => setViewing(null)} />
+      <CrmSaleModal contact={saleContact} onClose={() => setSaleContact(null)} />
     </div>
   );
 }
