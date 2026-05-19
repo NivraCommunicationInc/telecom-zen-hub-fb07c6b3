@@ -24,6 +24,10 @@ import { CrmQuickActions } from "./CrmQuickActions";
 import { CrmQuickNoteDialog } from "./CrmQuickNoteDialog";
 import { CrmScheduleCallbackDialog } from "./CrmScheduleCallbackDialog";
 import { CrmKanbanView } from "./CrmKanbanView";
+import { CrmTransferDialog } from "./CrmTransferDialog";
+import { CrmFollowUpEmailDialog } from "./CrmFollowUpEmailDialog";
+import { CrmAgentStatusToggle } from "./CrmAgentStatusToggle";
+import { CrmQuotaCard } from "./CrmQuotaCard";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import { exportContactsCsv } from "../lib/crmCsv";
@@ -90,6 +94,8 @@ export function CrmCenter({
   const [assignContact, setAssignContact] = useState<CrmContact | null>(null);
   const [noteContact, setNoteContact] = useState<CrmContact | null>(null);
   const [callbackContact, setCallbackContact] = useState<CrmContact | null>(null);
+  const [transferContact, setTransferContact] = useState<CrmContact | null>(null);
+  const [emailContact, setEmailContact] = useState<CrmContact | null>(null);
 
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -207,6 +213,9 @@ export function CrmCenter({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Agent presence */}
+          <CrmAgentStatusToggle userId={user?.id} />
+
           {/* View mode toggle */}
           <div className="inline-flex rounded-lg border border-border overflow-hidden">
             <button
@@ -526,6 +535,8 @@ export function CrmCenter({
                         onOpenCallback={setCallbackContact}
                         onStartCall={startCall}
                         onSell={setSaleContact}
+                        onOpenTransfer={setTransferContact}
+                        onOpenEmail={setEmailContact}
                       />
                     </div>
                   </div>
@@ -546,8 +557,9 @@ export function CrmCenter({
           )}
         </div>
 
-        {/* Sidebar : leaderboard */}
+        {/* Sidebar : quota + leaderboard */}
         <aside className="space-y-4">
+          <CrmQuotaCard isDark={isDark} />
           <CrmLeaderboard darkPortal={isDark} />
           {isAdmin && (
             <div className={cn(cardCls, "p-3 text-xs", mutedCls)}>
@@ -569,6 +581,8 @@ export function CrmCenter({
       <CrmAssignDialog contact={assignContact} onClose={() => setAssignContact(null)} />
       <CrmQuickNoteDialog contact={noteContact} onClose={() => setNoteContact(null)} />
       <CrmScheduleCallbackDialog contact={callbackContact} onClose={() => setCallbackContact(null)} />
+      <CrmTransferDialog contact={transferContact} onClose={() => setTransferContact(null)} />
+      <CrmFollowUpEmailDialog contact={emailContact} onClose={() => setEmailContact(null)} />
     </div>
 
   );

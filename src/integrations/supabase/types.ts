@@ -4601,6 +4601,101 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_agent_quotas: {
+        Row: {
+          agent_id: string
+          calls_target: number
+          created_at: string
+          effective_from: string
+          id: string
+          sales_target: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          calls_target?: number
+          created_at?: string
+          effective_from?: string
+          id?: string
+          sales_target?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          calls_target?: number
+          created_at?: string
+          effective_from?: string
+          id?: string
+          sales_target?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_agent_status: {
+        Row: {
+          agent_id: string
+          status: string
+          status_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          status?: string
+          status_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          status?: string
+          status_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_assignment_history: {
+        Row: {
+          changed_by: string | null
+          changed_by_name: string | null
+          contact_id: string
+          created_at: string
+          from_agent_id: string | null
+          id: string
+          kind: string
+          reason: string | null
+          to_agent_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          contact_id: string
+          created_at?: string
+          from_agent_id?: string | null
+          id?: string
+          kind?: string
+          reason?: string | null
+          to_agent_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          contact_id?: string
+          created_at?: string
+          from_agent_id?: string | null
+          id?: string
+          kind?: string
+          reason?: string | null
+          to_agent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_assignment_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_call_logs: {
         Row: {
           agent_id: string
@@ -23495,10 +23590,15 @@ export type Database = {
         }
         Returns: Json
       }
+      crm_my_quota_progress: { Args: never; Returns: Json }
       crm_normalize_phone: { Args: { p_phone: string }; Returns: string }
       crm_optimal_hour: { Args: { p_contact_id: string }; Returns: string }
       crm_schedule_callback: {
         Args: { p_callback_at: string; p_contact_id: string; p_notes?: string }
+        Returns: Json
+      }
+      crm_set_agent_status: {
+        Args: { p_reason?: string; p_status: string }
         Returns: Json
       }
       crm_set_dnc: {
@@ -23519,6 +23619,10 @@ export type Database = {
       }
       crm_toggle_dnc: {
         Args: { p_contact_id: string; p_dnc: boolean; p_reason?: string }
+        Returns: Json
+      }
+      crm_transfer_contact: {
+        Args: { p_contact_id: string; p_reason?: string; p_to_agent_id: string }
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }

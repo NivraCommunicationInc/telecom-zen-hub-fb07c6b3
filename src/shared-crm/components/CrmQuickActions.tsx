@@ -4,7 +4,7 @@
  * schedule callback (sends email reminder), sale note, transfer (coming soon).
  */
 import { useState } from "react";
-import { MoreVertical, StickyNote, Lock, ListChecks, Calendar, ShoppingBag, ArrowRightLeft, Loader2, PhoneCall, ShieldAlert, ShieldCheck } from "lucide-react";
+import { MoreVertical, StickyNote, Lock, ListChecks, Calendar, ShoppingBag, ArrowRightLeft, Loader2, PhoneCall, ShieldAlert, ShieldCheck, Mail } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -27,6 +27,8 @@ interface Props {
   onOpenCallback: (c: CrmContact) => void;
   onStartCall: (c: CrmContact) => void;
   onSell: (c: CrmContact) => void;
+  onOpenTransfer?: (c: CrmContact) => void;
+  onOpenEmail?: (c: CrmContact) => void;
   isDark?: boolean;
 }
 
@@ -35,7 +37,7 @@ const STATUS_OPTIONS: CrmCallStatus[] = [
   "callback", "in_progress", "sold", "not_interested", "do_not_call",
 ];
 
-export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCall, onSell, isDark }: Props) {
+export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCall, onSell, onOpenTransfer, onOpenEmail, isDark }: Props) {
   const { lock } = useCrmLock();
   const [busy, setBusy] = useState(false);
 
@@ -59,9 +61,8 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
   };
 
   const handleTransfer = () => {
-    toast.info("🚧 Transfert de vente — Bientôt disponible", {
-      description: "Cette fonctionnalité permettra de passer la vente à un autre vendeur.",
-    });
+    if (onOpenTransfer) onOpenTransfer(contact);
+    else toast.info("Transfert non disponible ici");
   };
 
   const handleToggleDnc = async () => {
@@ -172,12 +173,16 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
         <DropdownMenuSeparator />
 
 
-        <DropdownMenuItem onClick={handleTransfer} disabled className="opacity-60">
+        {onOpenEmail && (
+          <DropdownMenuItem onClick={() => onOpenEmail(contact)}>
+            <Mail className="h-4 w-4 mr-2 text-blue-500" />
+            ✉️ Envoyer un courriel de suivi
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuItem onClick={handleTransfer}>
           <ArrowRightLeft className="h-4 w-4 mr-2 text-rose-500" />
           Transférer à un autre vendeur
-          <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500/40 font-semibold">
-            Bientôt
-          </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
