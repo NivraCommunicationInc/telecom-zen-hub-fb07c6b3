@@ -375,7 +375,7 @@ function LessonView({ lesson, sims, onStartSim }: { lesson: Lesson; sims: Simula
         <img src={lesson.image_url} alt={lesson.title_fr} className="rounded-lg max-h-80 w-full object-cover" />
       )}
       <LessonVisualBrief lesson={lesson} />
-      <article className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20">
+      <article className="prose prose-base lg:prose-lg max-w-none dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-3 prose-h3:text-xl prose-h3:mt-6 prose-p:leading-relaxed prose-li:leading-relaxed prose-table:text-sm prose-th:bg-muted prose-th:p-2 prose-td:p-2 prose-td:border prose-th:border prose-strong:text-foreground">
         <ReactMarkdown>{lesson.content_fr || ""}</ReactMarkdown>
       </article>
     </div>
