@@ -52,6 +52,7 @@ const HREF_TO_BADGE: Record<string, CoreBadgeKey> = {
   "/notifications": "notifications",
   "/hr/careers": "careers",
   "/hr/applications": "careers",
+  "/hr/interviews": "careers",
 };
 
 interface NavGroup {
