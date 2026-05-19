@@ -466,6 +466,8 @@ export function CrmCenter({
       />
       <CrmContactDrawer contact={viewing} onClose={() => setViewing(null)} />
       <CrmSaleModal contact={saleContact} onClose={() => setSaleContact(null)} />
+      <CrmAssignDialog contact={assignContact} onClose={() => setAssignContact(null)} />
     </div>
+
   );
 }
