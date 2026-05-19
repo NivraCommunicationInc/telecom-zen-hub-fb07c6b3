@@ -275,12 +275,31 @@ function ModuleDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0">
-        <DialogHeader className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="text-xl">{m.title_fr}</DialogTitle>
-            <Badge variant="outline">{(activeLessonIdx + 1)}/{lessons?.length || 0}</Badge>
+      <DialogContent className="!w-[96vw] !max-w-[1200px] !h-[94vh] !max-h-[94vh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="text-xl truncate">{m.title_fr}</DialogTitle>
+            <Badge variant="outline" className="shrink-0">{(activeLessonIdx + 1)}/{lessons?.length || 0}</Badge>
           </div>
+          {lessons && lessons.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {lessons.map((l: Lesson, i: number) => (
+                <button
+                  key={l.id}
+                  onClick={() => { setActiveLessonIdx(i); setShowQuiz(false); setShowSim(null); }}
+                  className={cn(
+                    "text-[11px] px-2.5 py-1 rounded-full border transition-colors",
+                    i === activeLessonIdx && !showQuiz
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card hover:bg-muted border-border text-muted-foreground"
+                  )}
+                  title={l.title_fr}
+                >
+                  {i + 1}. {l.title_fr.length > 28 ? l.title_fr.slice(0, 28) + "…" : l.title_fr}
+                </button>
+              ))}
+            </div>
+          )}
         </DialogHeader>
 
         {showQuiz ? (
@@ -291,14 +310,17 @@ function ModuleDialog({
           <div className="p-10 text-center text-muted-foreground">Aucune leçon disponible.</div>
         ) : (
           <>
-            <ScrollArea className="max-h-[55vh] px-6 py-5">
+            <div className="flex-1 overflow-y-auto px-6 md:px-10 py-6">
               <LessonView lesson={lesson!} sims={simulations || []} onStartSim={(s) => setShowSim(s)} />
-            </ScrollArea>
-            <div className="border-t px-6 py-4 flex items-center justify-between bg-muted/30">
+            </div>
+            <div className="border-t px-6 py-3 flex items-center justify-between bg-muted/30 shrink-0">
               <Button variant="ghost" size="sm" disabled={activeLessonIdx === 0}
                 onClick={() => setActiveLessonIdx(activeLessonIdx - 1)}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Précédent
               </Button>
+              <span className="text-xs text-muted-foreground hidden md:inline">
+                Leçon {activeLessonIdx + 1} sur {lessons.length} · ~{lesson?.duration_minutes || 8} min
+              </span>
               {isLast ? (
                 <Button onClick={() => setShowQuiz(true)}>
                   <Sparkles className="h-4 w-4 mr-2" /> Passer le quiz
@@ -353,7 +375,7 @@ function LessonView({ lesson, sims, onStartSim }: { lesson: Lesson; sims: Simula
         <img src={lesson.image_url} alt={lesson.title_fr} className="rounded-lg max-h-80 w-full object-cover" />
       )}
       <LessonVisualBrief lesson={lesson} />
-      <article className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20">
+      <article className="prose prose-base lg:prose-lg max-w-none dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-3 prose-h3:text-xl prose-h3:mt-6 prose-p:leading-relaxed prose-li:leading-relaxed prose-table:text-sm prose-th:bg-muted prose-th:p-2 prose-td:p-2 prose-td:border prose-th:border prose-strong:text-foreground">
         <ReactMarkdown>{lesson.content_fr || ""}</ReactMarkdown>
       </article>
     </div>
