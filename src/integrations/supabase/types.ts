@@ -18248,6 +18248,62 @@ export type Database = {
           },
         ]
       }
+      rma_requests: {
+        Row: {
+          account_id: string | null
+          client_name: string | null
+          created_at: string
+          created_by: string | null
+          device_type: string
+          id: string
+          notes: string | null
+          reason: string
+          serial_number: string | null
+          status: string
+          status_history: Json
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          device_type: string
+          id?: string
+          notes?: string | null
+          reason: string
+          serial_number?: string | null
+          status?: string
+          status_history?: Json
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          device_type?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          serial_number?: string | null
+          status?: string
+          status_history?: Json
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rma_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_commissions: {
         Row: {
           bonus_amount: number | null
