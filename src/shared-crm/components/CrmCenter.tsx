@@ -27,7 +27,7 @@ import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact }
 import { exportContactsCsv } from "../lib/crmCsv";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
-  UserPlus, Download, ShieldAlert, Tag,
+  UserPlus, Download, ShieldAlert, Tag, ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -420,6 +420,13 @@ export function CrmCenter({
                           Tél direct
                         </a>
                       )}
+                      <button
+                        onClick={() => setSaleContact(c)}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-bold transition-colors min-h-[40px] border border-emerald-500/60 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm"
+                      >
+                        <ShoppingBag className="h-3.5 w-3.5" />
+                        🟢 Vendre
+                      </button>
                       {isAdmin && (
                         <button
                           onClick={() => setAssignContact(c)}
