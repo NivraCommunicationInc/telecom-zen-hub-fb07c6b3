@@ -3813,7 +3813,7 @@ export function renderQueueTemplate(
             ["Score global", `${score}/10`],
             ["Recommandation", recommendation],
           ],
-          extraHtml,
+          afterCardText: extraHtml,
           ctaPrimaryUrl: `${APP_URL}/hr/recruitment`,
           ctaPrimaryLabel: "Voir le dossier complet",
           helpHtml: `Action requise: examiner ce candidat et décider de l accepter ou non.`,
