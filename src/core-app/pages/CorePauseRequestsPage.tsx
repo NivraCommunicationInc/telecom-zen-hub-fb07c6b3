@@ -222,42 +222,87 @@ export default function CorePauseRequestsPage() {
         <title>Suspensions de service — Nivra Core</title>
       </Helmet>
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        <header className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Pause className="w-6 h-6" /> Suspensions de service
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Demandes de suspension temporaire envoyées par les clients.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant={filter === "pending" ? "default" : "outline"} onClick={() => setFilter("pending")}>
-              En attente
-            </Button>
-            <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
-              Toutes
-            </Button>
-          </div>
+        <header className="space-y-1">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Pause className="w-6 h-6" /> Suspensions de service
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Demandes de suspension temporaire envoyées par les clients.
+          </p>
         </header>
 
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-10 flex justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : !requests || requests.length === 0 ? (
-          <Card>
-            <CardContent className="p-10 text-center text-muted-foreground">Aucune demande.</CardContent>
-          </Card>
-        ) : (
+        {/* Stats bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {([
+            { key: "pending", label: "En attente", value: stats?.pending ?? 0, icon: Clock, color: "text-amber-500" },
+            { key: "approved", label: "Approuvées", value: stats?.approved ?? 0, icon: CheckCircle2, color: "text-green-500" },
+            { key: "rejected", label: "Rejetées", value: stats?.rejected ?? 0, icon: XCircle, color: "text-red-500" },
+            { key: "all", label: "Total", value: stats?.total ?? 0, icon: ListChecks, color: "text-primary" },
+          ] as const).map((s) => {
+            const Icon = s.icon;
+            const active = filter === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setFilter(s.key as FilterKey)}
+                className={`text-left p-4 rounded-lg border transition-all ${
+                  active ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:border-primary/40"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</span>
+                  <Icon className={`w-4 h-4 ${s.color}`} />
+                </div>
+                <div className="text-2xl font-bold mt-1">{s.value}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher (nom, email, n° compte, forfait)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {(() => {
+          const filtered = (requests || []).filter((r) => {
+            if (!search.trim()) return true;
+            const q = search.toLowerCase();
+            const c = clients?.[r.client_id];
+            const a = accounts?.[r.account_id];
+            const s = r.subscription_id ? subs?.[r.subscription_id] : null;
+            return (
+              `${c?.first_name || ""} ${c?.last_name || ""}`.toLowerCase().includes(q) ||
+              (c?.email || "").toLowerCase().includes(q) ||
+              (a?.account_number || "").toLowerCase().includes(q) ||
+              (s?.plan_name || "").toLowerCase().includes(q)
+            );
+          });
+          if (isLoading) {
+            return (
+              <Card><CardContent className="p-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></CardContent></Card>
+            );
+          }
+          if (filtered.length === 0) {
+            return (
+              <Card><CardContent className="p-10 text-center text-muted-foreground">
+                {search ? `Aucun résultat pour "${search}"` : `Aucune demande ${filter === "all" ? "" : filter}.`}
+              </CardContent></Card>
+            );
+          }
+          return (
           <Card>
             <CardHeader>
-              <CardTitle>{requests.length} demande(s)</CardTitle>
+              <CardTitle>{filtered.length} demande(s)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {requests.map((r) => {
+              {filtered.map((r) => {
                 const client = clients?.[r.client_id];
                 const acc = accounts?.[r.account_id];
                 const sub = r.subscription_id ? subs?.[r.subscription_id] : null;
