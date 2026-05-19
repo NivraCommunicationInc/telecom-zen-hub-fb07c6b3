@@ -167,10 +167,23 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
             </div>
           )}
 
+          {/* Auto-SMS after voicemail toggle */}
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={sendSms}
+              onChange={(e) => setSendSms(e.target.checked)}
+              className="rounded"
+            />
+            <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+            <span>Envoyer un SMS de suivi automatiquement si je laisse un message vocal</span>
+          </label>
+
           {/* Outcome buttons */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Résultat de l'appel</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+
               {(Object.keys(OUTCOME_META) as CrmCallOutcome[]).map((o) => {
                 const meta = OUTCOME_META[o];
                 return (
