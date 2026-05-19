@@ -11,6 +11,8 @@ const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubCreateAccountPage = lazy(() => import("@/pages/hub/HubCreateAccountPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const OnboardingForm = lazy(() => import("@/pages/OnboardingForm"));
+
 
 // Employee Portal (lazy-loaded, fully isolated)
 const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
@@ -622,6 +624,8 @@ const AppRoutes = () => {
       <Route path="/influencer/register" element={<InfluencerRegister />} />
       <Route path="/influencer/reset-password" element={<InfluencerResetPassword />} />
       <Route path="/influencer/onboarding" element={<InfluencerOnboarding />} />
+      <Route path="/onboarding/:token" element={<Suspense fallback={null}><OnboardingForm /></Suspense>} />
+
       <Route path="/influencer/terms" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerTerms /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerDashboard /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerReferrals /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />

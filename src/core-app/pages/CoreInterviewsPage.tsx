@@ -19,11 +19,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   Brain, Send, Loader2, Mail, CheckCircle2, XCircle, Eye, AlertTriangle, Copy,
-  Download, ExternalLink, Save, User, MessageSquare, FileText,
+  Download, ExternalLink, Save, User, MessageSquare, FileText, UserPlus, ClipboardCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-slate-500/15 text-slate-600 border-slate-500/30" },
@@ -55,6 +58,14 @@ export default function CoreInterviewsPage() {
   const [bulkSending, setBulkSending] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [notesDraft, setNotesDraft] = useState("");
+  const [indeedOpen, setIndeedOpen] = useState(false);
+  const [indeed, setIndeed] = useState({
+    first_name: "", last_name: "", email: "", phone: "",
+    city: "", indeed_url: "", language: "fr", notes: "",
+  });
+  const [indeedSubmitting, setIndeedSubmitting] = useState(false);
+
+
 
   const { data: applicants = [], isLoading } = useQuery({
     queryKey: ["job-applicants-interviews"],
@@ -167,7 +178,107 @@ export default function CoreInterviewsPage() {
     onError: (e: any) => toast.error("Erreur", { description: e.message }),
   });
 
+  const importIndeed = useMutation({
+    mutationFn: async () => {
+      if (!indeed.first_name.trim() || !indeed.last_name.trim() || !indeed.email.trim()) {
+        throw new Error("Prénom, nom et email sont requis.");
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(indeed.email.trim())) {
+        throw new Error("Format de courriel invalide.");
+      }
+      const email = indeed.email.trim().toLowerCase();
+      const { data: existing } = await supabase
+        .from("job_applicants").select("id").eq("email", email).maybeSingle();
+      if (existing) throw new Error("Ce candidat existe déjà dans le système");
+
+      const notesText = indeed.notes.trim()
+        ? `[Importé d'Indeed${indeed.indeed_url ? ` — ${indeed.indeed_url}` : ""}]\n${indeed.notes.trim()}`
+        : `[Importé d'Indeed${indeed.indeed_url ? ` — ${indeed.indeed_url}` : ""}]`;
+
+      const { data: inserted, error: insErr } = await supabase
+        .from("job_applicants").insert({
+          first_name: indeed.first_name.trim(),
+          last_name: indeed.last_name.trim(),
+          email,
+          phone: indeed.phone.trim() || null,
+          city: indeed.city.trim() || null,
+          status: "new",
+          source: "indeed",
+          skip_interview: false,
+          interview_language: indeed.language,
+          notes: notesText,
+        }).select("id, email").single();
+      if (insErr) throw insErr;
+
+      const { error: invErr } = await supabase.functions.invoke(
+        "interview-send-invitations",
+        { body: { applicant_ids: [inserted.id] } },
+      );
+      if (invErr) throw invErr;
+      return inserted;
+    },
+    onSuccess: (a) => {
+      toast.success(`Candidat ajouté et invitation envoyée à ${a.email}`);
+      setIndeedOpen(false);
+      setIndeed({ first_name: "", last_name: "", email: "", phone: "", city: "", indeed_url: "", language: "fr", notes: "" });
+      qc.invalidateQueries({ queryKey: ["job-applicants-interviews"] });
+    },
+    onError: (e: any) => toast.error("Import Indeed", { description: e.message }),
+  });
+
+  const sendOnboarding = useMutation({
+    mutationFn: async (applicant: any) => {
+      const { data: existing } = await supabase
+        .from("employee_onboarding_forms")
+        .select("id, token, created_at")
+        .eq("applicant_id", applicant.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let tokenToUse: string;
+      if (existing) {
+        tokenToUse = existing.token;
+        await supabase.from("employee_onboarding_forms")
+          .update({ token_expires_at: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(), status: "pending" })
+          .eq("id", existing.id);
+      } else {
+        const { data: ins, error } = await supabase
+          .from("employee_onboarding_forms")
+          .insert({ applicant_id: applicant.id, email: applicant.email })
+          .select("token").single();
+        if (error) throw error;
+        tokenToUse = ins.token;
+      }
+
+      const url = `https://nivra-telecom.ca/onboarding/${tokenToUse}`;
+      const { error: qErr } = await supabase.from("email_queue").insert({
+        event_key: `onboarding_invite_${applicant.id}_${Date.now()}`,
+        to_email: applicant.email,
+        template_key: "onboarding_form_invitation",
+        template_vars: { first_name: applicant.first_name, onboarding_url: url },
+        language: applicant.interview_language || "fr",
+        status: "queued",
+      });
+      if (qErr) throw qErr;
+      await supabase.from("applicant_emails").insert({
+        applicant_id: applicant.id,
+        email_type: "onboarding_invitation",
+        sent_to: applicant.email,
+        status: "queued",
+        subject: "Action requise — Formulaire d embauche Nivra Telecom",
+      });
+      return applicant.email;
+    },
+    onSuccess: (email) => {
+      toast.success(`Formulaire envoyé à ${email}`);
+      qc.invalidateQueries({ queryKey: ["applicant-emails"] });
+    },
+    onError: (e: any) => toast.error("Erreur envoi formulaire", { description: e.message }),
+  });
+
   const filtered = useMemo(() => {
+
     return applicants.filter((a: any) => {
       if (statusFilter !== "all" && (a.status || "new") !== statusFilter) return false;
       if (!search) return true;
@@ -273,11 +384,15 @@ export default function CoreInterviewsPage() {
           <Button size="sm" variant="outline" onClick={exportCSV}>
             <Download className="h-3.5 w-3.5 mr-1" /> Exporter CSV
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setIndeedOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5 mr-1" /> Importer depuis Indeed
+          </Button>
           <Button size="sm" onClick={sendAllNew} disabled={bulkSending || sendInvite.isPending}>
             {bulkSending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
             Inviter tous les nouveaux ({stats.new})
           </Button>
         </div>
+
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
@@ -610,6 +725,14 @@ export default function CoreInterviewsPage() {
                       </Button>
                     )}
 
+                    {(selected.status === "accepted" || selected.status === "hired") && (
+                      <Button variant="outline"
+                        disabled={sendOnboarding.isPending}
+                        onClick={() => sendOnboarding.mutate(selected)}>
+                        <ClipboardCheck className="h-4 w-4 mr-2" /> Envoyer formulaire d&apos;embauche
+                      </Button>
+                    )}
+
                     {selected.status === "interview_completed" && (
                       <>
                         <Button
@@ -617,6 +740,7 @@ export default function CoreInterviewsPage() {
                           disabled={decision.isPending}
                           onClick={() => decision.mutate({ id: selected.id, decision: "accept" })}>
                           <CheckCircle2 className="h-4 w-4 mr-2" /> Accepter le candidat
+
                         </Button>
                         <Button
                           variant="destructive"
@@ -633,6 +757,41 @@ export default function CoreInterviewsPage() {
           )}
         </DialogContent>
       </Dialog>
+      {/* Indeed import modal */}
+      <Dialog open={indeedOpen} onOpenChange={setIndeedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-primary" /> Importer un candidat Indeed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Prénom *</Label><Input value={indeed.first_name} onChange={(e) => setIndeed({ ...indeed, first_name: e.target.value })} /></div>
+              <div><Label>Nom *</Label><Input value={indeed.last_name} onChange={(e) => setIndeed({ ...indeed, last_name: e.target.value })} /></div>
+            </div>
+            <div><Label>Email *</Label><Input type="email" value={indeed.email} onChange={(e) => setIndeed({ ...indeed, email: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Téléphone</Label><Input value={indeed.phone} onChange={(e) => setIndeed({ ...indeed, phone: e.target.value })} /></div>
+              <div><Label>Ville</Label><Input value={indeed.city} onChange={(e) => setIndeed({ ...indeed, city: e.target.value })} /></div>
+            </div>
+            <div><Label>Lien profil Indeed</Label><Input value={indeed.indeed_url} onChange={(e) => setIndeed({ ...indeed, indeed_url: e.target.value })} placeholder="https://…" /></div>
+            <div>
+              <Label>Langue entrevue</Label>
+              <RadioGroup className="flex gap-4 mt-1" value={indeed.language} onValueChange={(v) => setIndeed({ ...indeed, language: v })}>
+                <div className="flex items-center gap-2"><RadioGroupItem id="lang-fr" value="fr" /><Label htmlFor="lang-fr">FR</Label></div>
+                <div className="flex items-center gap-2"><RadioGroupItem id="lang-en" value="en" /><Label htmlFor="lang-en">EN</Label></div>
+              </RadioGroup>
+            </div>
+            <div><Label>Note interne</Label><Textarea rows={2} value={indeed.notes} onChange={(e) => setIndeed({ ...indeed, notes: e.target.value })} /></div>
+            <Button onClick={async () => { setIndeedSubmitting(true); try { await importIndeed.mutateAsync(); } finally { setIndeedSubmitting(false); } }} disabled={indeedSubmitting || importIndeed.isPending}>
+              {indeedSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+              Importer & envoyer l&apos;invitation
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
