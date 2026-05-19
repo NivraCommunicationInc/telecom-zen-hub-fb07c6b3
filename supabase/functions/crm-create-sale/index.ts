@@ -185,13 +185,65 @@ Deno.serve(async (req) => {
     // Commission estimate (30% forfait + 5% equipment)
     const commissionEstimate = Number((monthly * 0.30 + equipTotal * 0.05).toFixed(2));
 
+    // Step 7: create PayPal order (best-effort — non-blocking)
+    let paypalApproveUrl: string | null = null;
+    let paypalOrderId: string | null = null;
+    try {
+      const ppResp = await fetch(`${supabaseUrl}/functions/v1/paypal-create-order`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          "apikey": serviceKey,
+        },
+        body: JSON.stringify({
+          order_id: order.id,
+          amount: total,
+          currency: "CAD",
+          description: `Commande Nivra ${orderNumber}`,
+          customer_info: {
+            first_name: payload.client.first_name,
+            last_name: payload.client.last_name,
+            email: payload.client.email,
+            phone: payload.client.phone,
+          },
+        }),
+      });
+      const ppData = await ppResp.json().catch(() => ({}));
+      paypalOrderId = ppData?.paypal_order_id ?? null;
+      paypalApproveUrl = (ppData?.links ?? []).find((l: any) => l?.rel === "approve")?.href ?? null;
+    } catch (e) {
+      console.error("[crm-create-sale] paypal-create-order failed", e);
+    }
+
+    // Step 8: send order confirmation email (best-effort)
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-order-confirmation`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          "apikey": serviceKey,
+        },
+        body: JSON.stringify({
+          order_id: order.id,
+          paypal_approve_url: paypalApproveUrl,
+        }),
+      });
+    } catch (e) {
+      console.error("[crm-create-sale] send-order-confirmation failed", e);
+    }
+
     return json({
       ok: true,
       order_id: order.id,
       order_number: order.order_number,
       total: order.total_amount,
       commission_estimate: commissionEstimate,
+      paypal_approve_url: paypalApproveUrl,
+      paypal_order_id: paypalOrderId,
     });
+
   } catch (e: any) {
     console.error("[crm-create-sale] error", e);
     return json({ error: e?.message ?? "unknown" }, 500);
