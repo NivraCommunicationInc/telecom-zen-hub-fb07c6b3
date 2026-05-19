@@ -182,6 +182,7 @@ export default function CorePauseRequestsPage() {
 
       toast.success("Suspension approuvée");
       qc.invalidateQueries({ queryKey: ["core-pause-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-pause-stats"] });
     } catch (e: any) {
       console.error("[CorePauseRequestsPage.approve]", e);
       toast.error(e?.message || "Erreur lors de l'approbation");
