@@ -19,11 +19,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   Brain, Send, Loader2, Mail, CheckCircle2, XCircle, Eye, AlertTriangle, Copy,
-  Download, ExternalLink, Save, User, MessageSquare, FileText,
+  Download, ExternalLink, Save, User, MessageSquare, FileText, UserPlus, ClipboardCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-slate-500/15 text-slate-600 border-slate-500/30" },
