@@ -113,7 +113,7 @@ export default function InterviewPage() {
   const startInterview = async () => {
     setStep(0);
     if (applicant) {
-      await supabase.rpc("mark_interview_started", { _token: token! }).catch(() => {});
+      try { await supabase.rpc("mark_interview_started", { _token: token! }); } catch { /* noop */ }
     }
   };
 
