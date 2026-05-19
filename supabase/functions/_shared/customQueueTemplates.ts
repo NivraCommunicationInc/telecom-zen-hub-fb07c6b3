@@ -3891,8 +3891,121 @@ export function renderQueueTemplate(
       };
     }
 
+    case "onboarding_form_invitation": {
+      const firstName = esc(v.first_name || clientName);
+      const onboardingUrl = String(v.onboarding_url || `${APP_URL}/onboarding`);
+      const isEnglish = lang === "en";
+      return {
+        subject: isEnglish
+          ? "Action required — Nivra Telecom Onboarding Form"
+          : "Action requise — Formulaire d embauche Nivra Telecom",
+        html: shell({
+          preheader: isEnglish
+            ? "Complete your onboarding file to finalize your hiring."
+            : "Complétez votre dossier d embauche pour finaliser votre embauche.",
+          badge: isEnglish ? "ONBOARDING FORM" : "FORMULAIRE D EMBAUCHE",
+          heroTitle: isEnglish
+            ? "Congratulations! Complete your file"
+            : "Félicitations! Complétez votre dossier",
+          icon: "check",
+          greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
+          bodyText: isEnglish
+            ? "Your application at Nivra Telecom has been accepted. To finalize your hiring, please complete your onboarding form online. This form is secured and encrypted. Only the Nivra Telecom HR team will have access to your information. The link expires in 7 days."
+            : "Votre candidature chez Nivra Telecom a été acceptée. Pour finaliser votre embauche, veuillez compléter votre formulaire d embauche en ligne. Ce formulaire est sécurisé et chiffré. Seule l équipe RH de Nivra Telecom aura accès à vos informations. Le lien expire dans 7 jours.",
+          cardTitle: isEnglish ? "What you need to know" : "Ce que vous devez savoir",
+          cardRows: isEnglish
+            ? [
+                ["Deadline", "7 days to complete"],
+                ["Security", "Encrypted and confidential"],
+                ["Required documents", "Government ID + Void cheque"],
+              ]
+            : [
+                ["Délai", "7 jours pour compléter"],
+                ["Sécurité", "Chiffré et confidentiel"],
+                ["Documents requis", "Pièce d identité + Spécimen de chèque"],
+              ],
+          ctaPrimaryUrl: onboardingUrl,
+          ctaPrimaryLabel: isEnglish ? "Complete my form" : "Compléter mon formulaire",
+          helpHtml: isEnglish
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "onboarding_form_submitted_admin": {
+      const fullName = esc(v.full_legal_name || `${v.first_name || ""} ${v.last_name || ""}`.trim() || "Candidat");
+      const submitEmail = esc(v.email || "");
+      const phone = esc(v.phone || "—");
+      const address = esc([v.address_street, v.address_city, v.address_province, v.address_postal].filter(Boolean).join(", ") || "—");
+      const residential = esc(v.residential_status || "—");
+      const reviewUrl = `${APP_URL}/core/hr/interviews`;
+      return {
+        subject: `[Formulaire soumis] ${fullName} — Dossier d embauche complet`,
+        html: shell({
+          preheader: `Nouveau formulaire d embauche soumis: ${fullName}`,
+          badge: "FORMULAIRE SOUMIS",
+          heroTitle: "Nouveau dossier d embauche à réviser",
+          icon: "check",
+          greeting: "Bonjour équipe RH,",
+          bodyText: `Un candidat vient de soumettre son formulaire d embauche complet. Toutes les informations et documents sont disponibles dans le portail Nivra Core pour révision.`,
+          cardTitle: "Informations soumises",
+          cardRows: [
+            ["Nom légal", fullName],
+            ["Courriel", submitEmail],
+            ["Téléphone", phone],
+            ["Adresse", address],
+            ["Statut résidentiel", residential],
+          ],
+          ctaPrimaryUrl: reviewUrl,
+          ctaPrimaryLabel: "Réviser le dossier",
+          helpHtml: `Les documents (ID, permis de travail, spécimen de chèque) sont accessibles via le portail Nivra Core uniquement.`,
+        }),
+      };
+    }
+
+    case "onboarding_form_confirmation_employee": {
+      const firstName = esc(v.first_name || clientName);
+      const isEnglish = lang === "en";
+      return {
+        subject: isEnglish
+          ? "Your file has been received — Nivra Telecom"
+          : "Votre dossier est bien reçu — Nivra Telecom",
+        html: shell({
+          preheader: isEnglish
+            ? "We have received your onboarding file."
+            : "Nous avons reçu votre dossier d embauche.",
+          badge: isEnglish ? "FILE RECEIVED" : "DOSSIER REÇU",
+          heroTitle: isEnglish ? "Thank you! File received" : "Merci! Dossier reçu",
+          icon: "check",
+          greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
+          bodyText: isEnglish
+            ? "We have received your complete onboarding file. Our HR team will review your information and contact you within 24 to 48 hours with your next steps: training, territory assignment, and starter kit."
+            : "Nous avons bien reçu votre dossier d embauche complet. Notre équipe RH va réviser vos informations et vous contactera sous 24 à 48 heures avec les prochaines étapes: formation, assignation de territoire et trousse de départ.",
+          cardTitle: isEnglish ? "Next steps" : "Prochaines étapes",
+          cardRows: isEnglish
+            ? [
+                ["1.", "HR review of your file"],
+                ["2.", "Confirmation call within 24-48h"],
+                ["3.", "Onboarding training scheduling"],
+                ["4.", "Territory assignment"],
+              ]
+            : [
+                ["1.", "Révision de votre dossier par RH"],
+                ["2.", "Appel de confirmation sous 24-48h"],
+                ["3.", "Planification de la formation d intégration"],
+                ["4.", "Assignation de votre territoire"],
+              ],
+          helpHtml: isEnglish
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
 }
+
 
