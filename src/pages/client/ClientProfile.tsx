@@ -18,7 +18,8 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, Plus, CheckCircle2, XCircle, Bell } from "lucide-react";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -456,6 +457,22 @@ const ClientProfile = () => {
             clientName={profile?.full_name || formData.full_name}
           />
         )}
+
+        {/* Notifications push */}
+        <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 border-l-teal-600">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              Notifications push
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Recevez les alertes importantes (paiement reçu, facture, technicien en route) directement sur cet appareil, même quand le site est fermé.
+            </p>
+            <PushNotificationToggle />
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Personal Information - Rogers style with left border */}

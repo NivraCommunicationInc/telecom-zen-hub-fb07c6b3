@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 export default function CoreNotificationsPage() {
   const queryClient = useQueryClient();
@@ -15,6 +16,13 @@ export default function CoreNotificationsPage() {
   return (
     <div className="space-y-4">
       <div><h1 className="text-xl font-bold text-[hsl(var(--core-text-primary))]">Notifications</h1><p className="text-sm text-[hsl(var(--core-text-secondary))]">Paramètres de notifications système</p></div>
+
+      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-[hsl(var(--core-text-primary))] flex items-center gap-2"><Bell className="w-4 h-4 text-emerald-400" />Notifications push (cet appareil)</h2>
+        <p className="text-xs text-[hsl(var(--core-text-label))]">Recevez les alertes admin urgentes (incidents, escalades) sur ce navigateur, même quand l'onglet est fermé.</p>
+        <PushNotificationToggle />
+      </div>
+
       {Object.entries(grouped).map(([cat, items]) => (
         <div key={cat} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] p-4">
           <h2 className="text-sm font-semibold text-[hsl(var(--core-text-primary))] mb-3 flex items-center gap-2"><Bell className="w-4 h-4 text-emerald-400" />{cat}</h2>
