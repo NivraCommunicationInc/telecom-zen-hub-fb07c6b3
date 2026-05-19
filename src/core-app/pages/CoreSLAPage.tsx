@@ -99,7 +99,7 @@ export default function CoreSLAPage() {
       const { data: profile } = user
         ? await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle()
         : { data: null };
-      const finalPatch = { ...patch, updated_at: new Date().toISOString() };
+      const finalPatch: Record<string, any> = { ...patch, updated_at: new Date().toISOString() };
       if (patch.status === "assigned" || patch.status === "in_progress") {
         finalPatch.assigned_to_id = user?.id ?? item.assigned_to_id;
         finalPatch.assigned_to_name = profile?.full_name ?? user?.email ?? item.assigned_to_name ?? "Core";
