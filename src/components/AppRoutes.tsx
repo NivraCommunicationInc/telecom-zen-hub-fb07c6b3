@@ -69,6 +69,7 @@ const FieldProcedures = lazy(() => import("@/field-app/pages/FieldProcedures"));
 const HrBadgePage = lazy(() => import("@/hr-app/pages/HrBadgePage"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
+const EmployeeAcademy = lazy(() => import("@/employee-app/pages/EmployeeAcademy"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
 const EmployeeOrderDetail = lazy(() => import("@/employee-app/pages/EmployeeOrderDetail"));
 const EmployeeCreateOrder = lazy(() => import("@/employee-app/pages/EmployeeCreateOrder"));
@@ -956,6 +957,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
           <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
+          <Route path="academy" element={<Suspense fallback={null}><EmployeeAcademy /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
           <Route path="orders/new" element={<Suspense fallback={null}><EmployeeCreateOrder /></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />

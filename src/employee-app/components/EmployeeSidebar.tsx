@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
-  Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
+  Briefcase, ChevronLeft, ChevronRight, Calendar, FileText, GraduationCap,
   Package, UserCheck, Wifi, Mail, LayoutGrid, PhoneCall,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
