@@ -255,8 +255,8 @@ export default function CoreRecouvrementPage() {
             className={cn(
               "px-3 py-1.5 rounded-full text-xs font-medium border transition",
               bucket === p.k
-                ? "bg-[hsl(var(--core-text-primary))] text-[hsl(220,15%,8%)] border-transparent"
-                : "border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-secondary))] hover:text-[hsl(var(--core-text-primary))]"
+                ? "bg-core-accent text-core-fg border-transparent"
+                : "border-core-border-strong text-core-text-secondary hover:text-core-text-primary hover:border-core-accent/60"
             )}>{p.label}</button>
         ))}
       </div>
@@ -264,34 +264,34 @@ export default function CoreRecouvrementPage() {
       {/* Search */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--core-text-label))]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-core-text-label" />
           <Input placeholder="Facture, nom, email, téléphone…" value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-[hsl(220,15%,12%)] border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]" />
+            className="pl-9 bg-core-card-raised border-core-border-strong text-core-text-primary" />
         </div>
-        <span className="text-xs text-[hsl(var(--core-text-label))]">{filtered.length} résultat(s)</span>
+        <span className="text-xs text-core-text-label">{filtered.length} résultat(s)</span>
       </div>
 
       {/* List */}
       <div className="space-y-2">
-        {isLoading && <div className="text-center py-12 text-[hsl(var(--core-text-label))]">Chargement…</div>}
+        {isLoading && <div className="text-center py-12 text-core-text-label">Chargement…</div>}
         {!isLoading && filtered.map((inv: any) => {
           const c = inv.billing_customers;
           return (
             <button key={inv.id} onClick={() => openInvoice(inv)}
-              className="w-full p-3 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] hover:border-[hsl(220,15%,28%)] flex items-center justify-between text-left transition">
+              className="w-full p-3 rounded-lg border border-core-border bg-core-card hover:border-core-border-strong flex items-center justify-between text-left transition">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-[hsl(var(--core-text-primary))] truncate">
+                <p className="text-sm font-medium text-core-text-primary truncate">
                   {inv.invoice_number} — {c?.first_name} {c?.last_name}
                 </p>
-                <p className="text-xs text-[hsl(var(--core-text-secondary))] truncate">
+                <p className="text-xs text-core-text-secondary truncate">
                   {c?.email} {c?.phone && `· ${c.phone}`} · Échéance:{" "}
                   {inv.due_date && format(new Date(inv.due_date), "d MMM yyyy", { locale: fr })}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 {bucketBadge(inv._daysOverdue)}
-                <span className="text-sm font-semibold text-[hsl(var(--core-text-primary))] w-20 text-right">
+                <span className="text-sm font-semibold text-core-text-primary w-20 text-right">
                   {Number(inv.balance_due ?? inv.total ?? 0).toFixed(2)}$
                 </span>
               </div>
@@ -299,7 +299,7 @@ export default function CoreRecouvrementPage() {
           );
         })}
         {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-12 text-[hsl(var(--core-text-label))]">Aucune facture dans ce filtre</div>
+          <div className="text-center py-12 text-core-text-label">Aucune facture dans ce filtre</div>
         )}
       </div>
 
