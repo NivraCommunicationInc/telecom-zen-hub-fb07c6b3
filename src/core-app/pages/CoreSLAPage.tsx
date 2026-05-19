@@ -192,6 +192,35 @@ export default function CoreSLAPage() {
         </Card>
       </div>
 
+      <Card>
+        <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Actifs</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="open">Ouverts</SelectItem>
+                <SelectItem value="assigned">Assignés</SelectItem>
+                <SelectItem value="in_progress">En cours</SelectItem>
+                <SelectItem value="escalated">Escaladés</SelectItem>
+                <SelectItem value="completed">Complétés</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={slaFilter} onValueChange={setSlaFilter}>
+              <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous SLA</SelectItem>
+                <SelectItem value="breached">Dépassés</SelectItem>
+                <SelectItem value="at_risk">À risque</SelectItem>
+                <SelectItem value="on_time">À temps</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["core-sla-items"] })}>Rafraîchir</Button>
+        </CardContent>
+      </Card>
+
       {/* Table */}
       <Card>
         <CardHeader>
@@ -214,6 +243,7 @@ export default function CoreSLAPage() {
                     <TableHead>Référence</TableHead>
                     <TableHead>Assigné</TableHead>
                     <TableHead>Client</TableHead>
+                    <TableHead>Priorité</TableHead>
                     <TableHead>Échéance</TableHead>
                     <TableHead>Restant</TableHead>
                     <TableHead>Statut</TableHead>
@@ -237,18 +267,20 @@ export default function CoreSLAPage() {
                         <TableCell className="font-medium uppercase text-xs">{it.item_type}</TableCell>
                         <TableCell className="font-mono text-xs">{it.source_reference || "—"}</TableCell>
                         <TableCell>{it.assigned_to_name || "(non assigné)"}</TableCell>
-                        <TableCell>{it.client_name || "—"}</TableCell>
+                        <TableCell><div>{it.client_name || "—"}</div><div className="text-xs text-muted-foreground">{it.client_email || ""}</div></TableCell>
+                        <TableCell><Badge variant="outline">{it.priority}</Badge></TableCell>
                         <TableCell className="text-xs">{frDate(it.sla_deadline_at)}</TableCell>
                         <TableCell className={tr.breached ? "text-red-600 font-semibold" : ""}>
                           {tr.label}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={badgeColor}>{badgeLabel}</Badge>
+                          <div className="flex flex-col gap-1"><Badge variant="outline" className={badgeColor}>{badgeLabel}</Badge><span className="text-xs text-muted-foreground">{statusLabels[it.status] || it.status}</span></div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="space-x-1 whitespace-nowrap">
                           <Link to={`/core/work-queue?item=${it.id}`}>
                             <Button variant="ghost" size="sm">Ouvrir</Button>
                           </Link>
+                          <Button variant="outline" size="sm" onClick={() => setSelected(it)}>Gérer</Button>
                         </TableCell>
                       </TableRow>
                     );
