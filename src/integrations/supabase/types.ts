@@ -4601,6 +4601,62 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_call_logs: {
+        Row: {
+          agent_id: string
+          agent_name: string | null
+          agent_portal: string
+          callback_at: string | null
+          contact_id: string
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          outcome: string
+          started_at: string
+        }
+        Insert: {
+          agent_id: string
+          agent_name?: string | null
+          agent_portal?: string
+          callback_at?: string | null
+          contact_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          outcome: string
+          started_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_name?: string | null
+          agent_portal?: string
+          callback_at?: string | null
+          contact_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          outcome?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_call_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_contacts: {
         Row: {
           address: string | null
@@ -4612,8 +4668,11 @@ export type Database = {
           callback_scheduled_at: string | null
           city: string | null
           converted_at: string | null
+          converted_order_id: string | null
           converted_to_user_id: string | null
           created_at: string
+          date_of_birth: string | null
+          desired_install_date: string | null
           email: string | null
           external_reference: string | null
           first_name: string | null
@@ -4627,10 +4686,16 @@ export type Database = {
           last_name: string | null
           locked_at: string | null
           locked_by: string | null
+          locked_by_name: string | null
+          locked_until: string | null
+          next_callback_at: string | null
           notes: string | null
           phone: string | null
           postal_code: string | null
           priority: number | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
           source: string
           square_customer_id: string | null
           status: string
@@ -4648,8 +4713,11 @@ export type Database = {
           callback_scheduled_at?: string | null
           city?: string | null
           converted_at?: string | null
+          converted_order_id?: string | null
           converted_to_user_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          desired_install_date?: string | null
           email?: string | null
           external_reference?: string | null
           first_name?: string | null
@@ -4663,10 +4731,16 @@ export type Database = {
           last_name?: string | null
           locked_at?: string | null
           locked_by?: string | null
+          locked_by_name?: string | null
+          locked_until?: string | null
+          next_callback_at?: string | null
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
           priority?: number | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
           source?: string
           square_customer_id?: string | null
           status?: string
@@ -4684,8 +4758,11 @@ export type Database = {
           callback_scheduled_at?: string | null
           city?: string | null
           converted_at?: string | null
+          converted_order_id?: string | null
           converted_to_user_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          desired_install_date?: string | null
           email?: string | null
           external_reference?: string | null
           first_name?: string | null
@@ -4699,10 +4776,16 @@ export type Database = {
           last_name?: string | null
           locked_at?: string | null
           locked_by?: string | null
+          locked_by_name?: string | null
+          locked_until?: string | null
+          next_callback_at?: string | null
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
           priority?: number | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
           source?: string
           square_customer_id?: string | null
           status?: string
@@ -22249,6 +22332,20 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_leaderboard_v: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          calls_month: number | null
+          calls_today: number | null
+          calls_week: number | null
+          conversion_rate_today: number | null
+          sales_month: number | null
+          sales_today: number | null
+          sales_week: number | null
+        }
+        Relationships: []
+      }
       employee_financial_summary: {
         Row: {
           available_balance: number | null
@@ -23331,6 +23428,20 @@ export type Database = {
         }
         Returns: string
       }
+      crm_auto_unlock_expired: { Args: never; Returns: number }
+      crm_lock_contact: { Args: { p_contact_id: string }; Returns: Json }
+      crm_log_call: {
+        Args: {
+          p_callback_at?: string
+          p_contact_id: string
+          p_notes?: string
+          p_order_id?: string
+          p_outcome: string
+          p_portal?: string
+        }
+        Returns: Json
+      }
+      crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }
       decrypt_wifi_password: { Args: { p_encrypted: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
