@@ -227,7 +227,7 @@ export default function CorePlanChangesPage() {
           ? "Approuvé — pensez à mettre à jour PayPal manuellement"
           : "Demande approuvée",
       );
-      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] }); qc.invalidateQueries({ queryKey: ["core-plan-change-stats"] });
     } catch (e: any) {
       console.error("[CorePlanChangesPage.approve]", e);
       toast.error(e?.message || "Erreur lors de l'approbation");
@@ -244,7 +244,7 @@ export default function CorePlanChangesPage() {
         .update({ status: "rejected", approved_at: new Date().toISOString() })
         .eq("id", r.id);
       toast.success("Demande rejetée");
-      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] }); qc.invalidateQueries({ queryKey: ["core-plan-change-stats"] });
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     } finally {
