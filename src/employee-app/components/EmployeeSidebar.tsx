@@ -59,6 +59,7 @@ const navGroups = [
     items: [
       { label: "Audit", href: `${EMP_BASE}/audit`, icon: ScrollText },
       { label: "Envoyer un courriel", href: `${EMP_BASE}/email/compose`, icon: Mail },
+      { label: "Nivra Academy", href: `${EMP_BASE}/academy`, icon: GraduationCap },
     ],
   },
   {
