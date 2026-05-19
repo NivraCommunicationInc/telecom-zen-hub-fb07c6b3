@@ -21443,6 +21443,65 @@ export type Database = {
         }
         Relationships: []
       }
+      training_lessons: {
+        Row: {
+          content_en: string | null
+          content_fr: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          image_url: string | null
+          is_published: boolean
+          lesson_type: string
+          module_id: string
+          order_index: number
+          title_en: string
+          title_fr: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          content_en?: string | null
+          content_fr?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          lesson_type?: string
+          module_id: string
+          order_index?: number
+          title_en: string
+          title_fr: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          content_en?: string | null
+          content_fr?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          lesson_type?: string
+          module_id?: string
+          order_index?: number
+          title_en?: string
+          title_fr?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_modules: {
         Row: {
           category: string
@@ -21453,12 +21512,17 @@ export type Database = {
           description_en: string | null
           description_fr: string | null
           estimated_minutes: number
+          icon: string | null
           id: string
           is_active: boolean
           is_mandatory: boolean
           order_index: number
           passing_score: number
           points_reward: number
+          portal: string
+          slug: string | null
+          subtitle_en: string | null
+          subtitle_fr: string | null
           title_en: string
           title_fr: string
           video_url: string | null
@@ -21472,12 +21536,17 @@ export type Database = {
           description_en?: string | null
           description_fr?: string | null
           estimated_minutes?: number
+          icon?: string | null
           id?: string
           is_active?: boolean
           is_mandatory?: boolean
           order_index?: number
           passing_score?: number
           points_reward?: number
+          portal?: string
+          slug?: string | null
+          subtitle_en?: string | null
+          subtitle_fr?: string | null
           title_en: string
           title_fr: string
           video_url?: string | null
@@ -21491,12 +21560,17 @@ export type Database = {
           description_en?: string | null
           description_fr?: string | null
           estimated_minutes?: number
+          icon?: string | null
           id?: string
           is_active?: boolean
           is_mandatory?: boolean
           order_index?: number
           passing_score?: number
           points_reward?: number
+          portal?: string
+          slug?: string | null
+          subtitle_en?: string | null
+          subtitle_fr?: string | null
           title_en?: string
           title_fr?: string
           video_url?: string | null
@@ -21641,6 +21715,109 @@ export type Database = {
           trainer_id?: string | null
         }
         Relationships: []
+      }
+      training_simulation_sessions: {
+        Row: {
+          agent_id: string
+          completed_at: string | null
+          feedback: Json | null
+          id: string
+          messages: Json
+          score: number | null
+          simulation_id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          completed_at?: string | null
+          feedback?: Json | null
+          id?: string
+          messages?: Json
+          score?: number | null
+          simulation_id: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          completed_at?: string | null
+          feedback?: Json | null
+          id?: string
+          messages?: Json
+          score?: number | null
+          simulation_id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_simulation_sessions_simulation_id_fkey"
+            columns: ["simulation_id"]
+            isOneToOne: false
+            referencedRelation: "training_simulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_simulations: {
+        Row: {
+          created_at: string
+          difficulty: string
+          evaluation_criteria: Json
+          id: string
+          is_active: boolean
+          module_id: string | null
+          persona_key: string
+          persona_label_en: string
+          persona_label_fr: string
+          portal: string
+          scenario_en: string
+          scenario_fr: string
+          system_prompt_en: string
+          system_prompt_fr: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string
+          evaluation_criteria?: Json
+          id?: string
+          is_active?: boolean
+          module_id?: string | null
+          persona_key: string
+          persona_label_en: string
+          persona_label_fr: string
+          portal?: string
+          scenario_en: string
+          scenario_fr: string
+          system_prompt_en: string
+          system_prompt_fr: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          evaluation_criteria?: Json
+          id?: string
+          is_active?: boolean
+          module_id?: string | null
+          persona_key?: string
+          persona_label_en?: string
+          persona_label_fr?: string
+          portal?: string
+          scenario_en?: string
+          scenario_fr?: string
+          system_prompt_en?: string
+          system_prompt_fr?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_simulations_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transaction_events: {
         Row: {
@@ -23747,6 +23924,10 @@ export type Database = {
       fn_check_order_completeness: {
         Args: { p_order_id: string }
         Returns: Json
+      }
+      fn_check_portal_certification: {
+        Args: { _portal: string; _user_id: string }
+        Returns: boolean
       }
       fn_check_referral_qualification: {
         Args: { p_referral_id: string }
