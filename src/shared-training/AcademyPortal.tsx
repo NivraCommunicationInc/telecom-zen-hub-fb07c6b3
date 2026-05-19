@@ -74,6 +74,7 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
   const [activeLessonIdx, setActiveLessonIdx] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showSim, setShowSim] = useState<Simulation | null>(null);
+  const [showFinalExam, setShowFinalExam] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
