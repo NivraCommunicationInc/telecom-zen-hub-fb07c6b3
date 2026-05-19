@@ -387,7 +387,7 @@ function LessonEditor({ lesson: l, onClose }: { lesson: any; onClose: () => void
 }
 
 /* ============================================================
- *  QUIZ (training_questions + training_answers)
+ *  QUIZ — schema: options_fr/en jsonb + correct_option index
  * ============================================================ */
 function QuizTab() {
   const qc = useQueryClient();
@@ -401,16 +401,11 @@ function QuizTab() {
   const { data: questions, isLoading } = useQuery({
     queryKey: ["academy-questions", moduleId],
     enabled: !!moduleId,
-    queryFn: async () => {
-      const { data: qs } = await supabase.from("training_questions").select("*").eq("module_id", moduleId).order("order_index");
-      const { data: ans } = await supabase.from("training_answers").select("*").in("question_id", (qs || []).map((q: any) => q.id));
-      return (qs || []).map((q: any) => ({ ...q, answers: (ans || []).filter((a: any) => a.question_id === q.id) }));
-    },
+    queryFn: async () => (await supabase.from("training_questions").select("*").eq("module_id", moduleId).order("order_index")).data || [],
   });
 
   const del = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from("training_answers").delete().eq("question_id", id);
       const { error } = await supabase.from("training_questions").delete().eq("id", id);
       if (error) throw error;
     },
@@ -429,7 +424,7 @@ function QuizTab() {
               {modules?.map((m: any) => <SelectItem key={m.id} value={m.id}>{m.title_fr}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button size="sm" disabled={!moduleId} onClick={() => setEditing({ module_id: moduleId, answers: [{}, {}] })}>
+          <Button size="sm" disabled={!moduleId} onClick={() => setEditing({ module_id: moduleId })}>
             <Plus className="h-4 w-4 mr-1.5" />Nouvelle question
           </Button>
         </div>
@@ -438,26 +433,29 @@ function QuizTab() {
         {!moduleId ? <p className="text-sm text-muted-foreground text-center py-8">Sélectionne un module.</p>
           : isLoading ? <Spin /> : (
           <div className="space-y-2">
-            {questions?.map((q: any) => (
-              <div key={q.id} className="p-3 rounded border space-y-1">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{q.order_index + 1}. {q.question_fr}</p>
-                    <ul className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                      {q.answers?.map((a: any) => (
-                        <li key={a.id} className={a.is_correct ? "text-emerald-600 font-medium" : ""}>
-                          {a.is_correct ? "✓ " : "· "}{a.answer_fr}
-                        </li>
-                      ))}
-                    </ul>
+            {questions?.map((q: any) => {
+              const opts: string[] = Array.isArray(q.options_fr) ? q.options_fr : [];
+              return (
+                <div key={q.id} className="p-3 rounded border">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{q.order_index + 1}. {q.question_fr}</p>
+                      <ul className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                        {opts.map((o, i) => (
+                          <li key={i} className={i === q.correct_option ? "text-emerald-600 font-medium" : ""}>
+                            {i === q.correct_option ? "✓ " : "· "}{o}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => setEditing(q)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => confirm("Supprimer cette question ?") && del.mutate(q.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => setEditing(q)}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => confirm("Supprimer cette question ?") && del.mutate(q.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {questions?.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Aucune question.</p>}
           </div>
         )}
@@ -469,51 +467,50 @@ function QuizTab() {
 
 function QuestionEditor({ question: q, onClose }: { question: any; onClose: () => void }) {
   const qc = useQueryClient();
+  const initialOpts = Array.isArray(q.options_fr) && q.options_fr.length ? q.options_fr : ["", ""];
+  const initialOptsEn = Array.isArray(q.options_en) && q.options_en.length ? q.options_en : ["", ""];
   const [f, setF] = useState({
     module_id: q.module_id,
     question_fr: q.question_fr || "",
     question_en: q.question_en || "",
     explanation_fr: q.explanation_fr || "",
     explanation_en: q.explanation_en || "",
-    question_type: q.question_type || "multiple_choice",
-    points: q.points ?? 10,
+    points: q.points ?? 20,
     order_index: q.order_index ?? 0,
+    correct_option: q.correct_option ?? 0,
   });
-  const [answers, setAnswers] = useState<any[]>(
-    q.answers?.length ? q.answers.map((a: any) => ({ ...a })) : [{ answer_fr: "", answer_en: "", is_correct: false }, { answer_fr: "", answer_en: "", is_correct: false }]
-  );
+  const [optsFr, setOptsFr] = useState<string[]>(initialOpts);
+  const [optsEn, setOptsEn] = useState<string[]>(initialOptsEn);
+
+  const setOpt = (i: number, fr: string, en?: string) => {
+    setOptsFr(optsFr.map((o, idx) => idx === i ? fr : o));
+    if (en !== undefined) setOptsEn(optsEn.map((o, idx) => idx === i ? en : o));
+  };
+  const addOpt = () => { setOptsFr([...optsFr, ""]); setOptsEn([...optsEn, ""]); };
+  const removeOpt = (i: number) => {
+    setOptsFr(optsFr.filter((_, idx) => idx !== i));
+    setOptsEn(optsEn.filter((_, idx) => idx !== i));
+    if (f.correct_option >= i && f.correct_option > 0) setF({ ...f, correct_option: f.correct_option - 1 });
+  };
 
   const save = useMutation({
     mutationFn: async () => {
-      let qid = q.id;
-      if (qid) {
-        const { error } = await supabase.from("training_questions").update(f).eq("id", qid);
+      const cleanFr = optsFr.filter((o) => o.trim());
+      const cleanEn = optsEn.slice(0, cleanFr.length).map((o, i) => o.trim() || cleanFr[i]);
+      if (cleanFr.length < 2) throw new Error("Minimum 2 réponses requises");
+      if (f.correct_option >= cleanFr.length) throw new Error("La bonne réponse est invalide");
+      const payload = { ...f, options_fr: cleanFr, options_en: cleanEn };
+      if (q.id) {
+        const { error } = await supabase.from("training_questions").update(payload).eq("id", q.id);
         if (error) throw error;
-        await supabase.from("training_answers").delete().eq("question_id", qid);
       } else {
-        const { data, error } = await supabase.from("training_questions").insert(f).select("id").single();
-        if (error) throw error;
-        qid = data.id;
-      }
-      const rows = answers
-        .filter((a) => a.answer_fr?.trim())
-        .map((a, idx) => ({
-          question_id: qid,
-          answer_fr: a.answer_fr,
-          answer_en: a.answer_en || a.answer_fr,
-          is_correct: !!a.is_correct,
-          order_index: idx,
-        }));
-      if (rows.length) {
-        const { error } = await supabase.from("training_answers").insert(rows);
+        const { error } = await supabase.from("training_questions").insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => { toast.success("Question sauvegardée"); qc.invalidateQueries({ queryKey: ["academy-questions"] }); onClose(); },
     onError: (e: any) => toast.error(e.message),
   });
-
-  const setA = (i: number, patch: any) => setAnswers(answers.map((a, idx) => idx === i ? { ...a, ...patch } : a));
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -522,36 +519,22 @@ function QuestionEditor({ question: q, onClose }: { question: any; onClose: () =
         <div className="space-y-3">
           <Field label="Question (FR)"><Textarea rows={2} value={f.question_fr} onChange={(e) => setF({ ...f, question_fr: e.target.value })} /></Field>
           <Field label="Question (EN)"><Textarea rows={2} value={f.question_en} onChange={(e) => setF({ ...f, question_en: e.target.value })} /></Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Type">
-              <Select value={f.question_type} onValueChange={(v) => setF({ ...f, question_type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="multiple_choice">Choix multiple</SelectItem>
-                  <SelectItem value="true_false">Vrai/Faux</SelectItem>
-                  <SelectItem value="single_choice">Choix unique</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Points"><Input type="number" value={f.points} onChange={(e) => setF({ ...f, points: Number(e.target.value) })} /></Field>
             <Field label="Ordre"><Input type="number" value={f.order_index} onChange={(e) => setF({ ...f, order_index: Number(e.target.value) })} /></Field>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Réponses</Label>
-              <Button size="sm" variant="outline" onClick={() => setAnswers([...answers, { answer_fr: "", answer_en: "", is_correct: false }])}>
-                <Plus className="h-3 w-3 mr-1" />Ajouter
-              </Button>
+              <Label>Réponses (cocher la bonne)</Label>
+              <Button size="sm" variant="outline" onClick={addOpt}><Plus className="h-3 w-3 mr-1" />Ajouter</Button>
             </div>
-            {answers.map((a, i) => (
+            {optsFr.map((o, i) => (
               <div key={i} className="flex items-center gap-2 p-2 rounded border">
-                <Switch checked={a.is_correct} onCheckedChange={(v) => setA(i, { is_correct: v })} />
-                <Input placeholder="Réponse FR" value={a.answer_fr} onChange={(e) => setA(i, { answer_fr: e.target.value })} />
-                <Input placeholder="Réponse EN" value={a.answer_en} onChange={(e) => setA(i, { answer_en: e.target.value })} />
-                <Button size="icon" variant="ghost" onClick={() => setAnswers(answers.filter((_, idx) => idx !== i))}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <input type="radio" name="correct" checked={f.correct_option === i} onChange={() => setF({ ...f, correct_option: i })} />
+                <Input placeholder="Réponse FR" value={o} onChange={(e) => setOpt(i, e.target.value, optsEn[i])} />
+                <Input placeholder="Réponse EN" value={optsEn[i] || ""} onChange={(e) => setOpt(i, o, e.target.value)} />
+                <Button size="icon" variant="ghost" onClick={() => removeOpt(i)}><Trash2 className="h-3 w-3" /></Button>
               </div>
             ))}
           </div>
