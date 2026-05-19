@@ -59,17 +59,24 @@ const statusLabels: Record<string, string> = {
 
 export default function CoreSLAPage() {
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [slaFilter, setSlaFilter] = useState("all");
+  const [selected, setSelected] = useState<WorkItem | null>(null);
+  const [note, setNote] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["core-sla-items"],
+    queryKey: ["core-sla-items", statusFilter, slaFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("employee_work_items")
-        .select("id,item_type,source_reference,client_name,assigned_to_name,status,sla_status,sla_deadline_at,sla_breached_at,created_at,completed_at")
+        .select("id,item_type,source_id,source_reference,client_name,client_email,priority,assigned_to_id,assigned_to_name,status,sla_status,sla_deadline_at,sla_breached_at,created_at,completed_at")
         .not("sla_deadline_at", "is", null)
-        .not("status", "in", '("completed","cancelled")')
         .order("sla_deadline_at", { ascending: true })
         .limit(500);
+      if (statusFilter === "active") q = q.in("status", ["open", "assigned", "in_progress", "escalated"]);
+      else if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (slaFilter !== "all") q = q.eq("sla_status", slaFilter);
+      const { data, error } = await q;
       if (error) throw error;
       return (data || []) as WorkItem[];
     },
@@ -85,6 +92,36 @@ export default function CoreSLAPage() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [queryClient]);
+
+  const updateItem = useMutation({
+    mutationFn: async ({ item, patch }: { item: WorkItem; patch: Record<string, any> }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = user
+        ? await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle()
+        : { data: null };
+      const finalPatch = { ...patch, updated_at: new Date().toISOString() };
+      if (patch.status === "assigned" || patch.status === "in_progress") {
+        finalPatch.assigned_to_id = user?.id ?? item.assigned_to_id;
+        finalPatch.assigned_to_name = profile?.full_name ?? user?.email ?? item.assigned_to_name ?? "Core";
+      }
+      if (patch.status === "completed") finalPatch.completed_at = new Date().toISOString();
+      const { error } = await supabase.from("employee_work_items").update(finalPatch).eq("id", item.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("SLA mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["core-sla-items"] });
+      setSelected(null);
+      setNote("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur SLA"),
+  });
+
+  const appendNote = () => {
+    if (!selected || !note.trim()) return;
+    const stamp = new Date().toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" });
+    updateItem.mutate({ item: selected, patch: { notes: `[${stamp}] ${note.trim()}` } });
+  };
 
   const stats = useMemo(() => {
     const items = data || [];
