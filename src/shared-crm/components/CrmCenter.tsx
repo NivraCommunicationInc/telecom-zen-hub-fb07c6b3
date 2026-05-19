@@ -18,14 +18,18 @@ import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
 import { CrmSaleModal } from "./CrmSaleModal";
+import { CrmAssignDialog } from "./CrmAssignDialog";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
+import { exportContactsCsv } from "../lib/crmCsv";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
+  UserPlus, Download, ShieldAlert, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+
 
 const PER_PAGE = 10;
 const COOLDOWN_HOURS = 48;
