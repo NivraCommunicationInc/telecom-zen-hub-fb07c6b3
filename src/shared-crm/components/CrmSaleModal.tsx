@@ -131,9 +131,10 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
         toast.error(`Erreur: ${(data as any)?.error ?? error?.message}`);
         return;
       }
-      const r = data as { order_number: string; commission_estimate: number };
-      setSuccess({ order: r.order_number, commission: r.commission_estimate });
+      const r = data as { order_number: string; commission_estimate: number; paypal_approve_url: string | null };
+      setSuccess({ order: r.order_number, commission: r.commission_estimate, paypalUrl: r.paypal_approve_url ?? null });
       toast.success(`Vente complétée! Commission: ${r.commission_estimate.toFixed(2)}$`);
+
       onSuccess?.();
     } catch (e: any) {
       toast.error(e?.message ?? "Erreur lors de la création de la vente");
