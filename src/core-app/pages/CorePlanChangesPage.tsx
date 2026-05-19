@@ -9,12 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Check, X, ArrowRight, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Check, X, ArrowRight, AlertTriangle, ArrowUp, ArrowDown, Clock, CheckCircle2, XCircle, ListChecks, Search } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+type FilterKey = "pending" | "approved" | "rejected" | "all";
 
 type Row = {
   id: string;
