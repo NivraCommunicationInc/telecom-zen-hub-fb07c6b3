@@ -118,13 +118,25 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
     },
   });
 
+  const { data: certStatus, refetch: refetchCertStatus } = useQuery({
+    queryKey: ["academy-cert-status", userId, portal],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fn_certification_status", {
+        _user_id: userId!, _portal: portal,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
   const overallPct = useMemo(() => {
     if (!modules?.length) return 0;
     const done = modules.filter((m) => progress?.[m.id]?.status === "completed").length;
     return Math.round((done / modules.length) * 100);
   }, [modules, progress]);
 
-  const isCertified = (certs?.length ?? 0) > 0 && overallPct === 100;
+  const isCertified = certStatus?.status === "valid" || certStatus?.status === "expiring_soon";
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-7 w-7 animate-spin" /></div>;
