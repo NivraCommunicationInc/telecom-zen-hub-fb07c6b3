@@ -218,6 +218,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: UserPlus, label: "Candidatures", href: "/hr/applications", badgeKey: "careers" },
       { icon: Mail, label: "Templates emails", href: "/hr/email-templates" },
       { icon: History, label: "Audit HR", href: "/hr/audit" },
+      { icon: GraduationCap, label: "Nivra Academy", href: "/academy" },
     ],
   },
   {
