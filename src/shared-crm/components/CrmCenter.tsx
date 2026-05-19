@@ -28,6 +28,11 @@ import { CrmTransferDialog } from "./CrmTransferDialog";
 import { CrmFollowUpEmailDialog } from "./CrmFollowUpEmailDialog";
 import { CrmAgentStatusToggle } from "./CrmAgentStatusToggle";
 import { CrmQuotaCard } from "./CrmQuotaCard";
+import { CrmManagerDashboard } from "./CrmManagerDashboard";
+import { CrmOptimalHours } from "./CrmOptimalHours";
+import { CrmScriptsAdmin } from "./CrmScriptsAdmin";
+import { CrmCsvImport } from "./CrmCsvImport";
+import { supabase } from "@/integrations/supabase/client";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import { exportContactsCsv } from "../lib/crmCsv";
@@ -101,6 +106,15 @@ export function CrmCenter({
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [powerDialer, setPowerDialer] = useState(false);
+
+  // Auto-release stale locks every 2 min (admin tick; safe for all users).
+  useEffect(() => {
+    if (!isAdmin) return;
+    const tick = () => { (supabase.rpc as any)("crm_release_stale_locks").then(() => {}); };
+    tick();
+    const id = setInterval(tick, 120_000);
+    return () => clearInterval(id);
+  }, [isAdmin]);
 
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
@@ -562,10 +576,12 @@ export function CrmCenter({
           <CrmQuotaCard isDark={isDark} />
           <CrmLeaderboard darkPortal={isDark} />
           {isAdmin && (
-            <div className={cn(cardCls, "p-3 text-xs", mutedCls)}>
-              <strong className={titleCls}>Vue admin</strong>
-              <p className="mt-1">Exports, assignations et statistiques globales disponibles depuis Nivra Core.</p>
-            </div>
+            <>
+              <CrmManagerDashboard isDark={isDark} />
+              <CrmOptimalHours isDark={isDark} />
+              <CrmScriptsAdmin isDark={isDark} />
+              <CrmCsvImport isDark={isDark} />
+            </>
           )}
         </aside>
       </div>
