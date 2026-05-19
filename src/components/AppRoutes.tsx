@@ -152,6 +152,7 @@ const CoreStreamingPage = lazy(() => import("@/core-app/pages/CoreStreamingPage"
 const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"));
 // Operations — Returns & Cancellations
 const CoreReturnsPage = lazy(() => import("@/core-app/pages/CoreReturnsPage"));
+const CoreRmaPage = lazy(() => import("@/core-app/pages/CoreRmaPage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
 const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
 const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
@@ -948,6 +949,7 @@ const AppRoutes = () => {
           <Route path="phones/inventory" element={<Suspense fallback={null}><CorePhoneInventoryPage /></Suspense>} />
           {/* Returns (RMA) & Cancellations */}
           <Route path="returns" element={<Suspense fallback={null}><CoreReturnsPage /></Suspense>} />
+          <Route path="rma" element={<Suspense fallback={null}><CoreRmaPage /></Suspense>} />
           <Route path="cancellations" element={<Suspense fallback={null}><CoreCancellationsPage /></Suspense>} />
           <Route path="plan-changes" element={<Suspense fallback={null}><CorePlanChangesPage /></Suspense>} />
           <Route path="pause-requests" element={<Suspense fallback={null}><CorePauseRequestsPage /></Suspense>} />
