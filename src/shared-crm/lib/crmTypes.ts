@@ -56,8 +56,12 @@ export interface CrmContact {
   territory: string | null;
   source: string | null;
   status: string;
+  is_dnc?: boolean | null;
+  dnc_reason?: string | null;
+  interest_tags?: string[] | null;
   created_at: string;
 }
+
 
 export interface CrmCallLog {
   id: string;
