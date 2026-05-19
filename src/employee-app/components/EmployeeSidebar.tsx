@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
-  Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
+  Briefcase, ChevronLeft, ChevronRight, Calendar, FileText, GraduationCap,
   Package, UserCheck, Wifi, Mail, LayoutGrid, PhoneCall,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
@@ -59,6 +59,7 @@ const navGroups = [
     items: [
       { label: "Audit", href: `${EMP_BASE}/audit`, icon: ScrollText },
       { label: "Envoyer un courriel", href: `${EMP_BASE}/email/compose`, icon: Mail },
+      { label: "Nivra Academy", href: `${EMP_BASE}/academy`, icon: GraduationCap },
     ],
   },
   {
