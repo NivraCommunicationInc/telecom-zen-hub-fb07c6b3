@@ -35,6 +35,7 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
   const [callbackDate, setCallbackDate] = useState("");
   const [showCallbackInput, setShowCallbackInput] = useState(false);
   const [logging, setLogging] = useState(false);
+  const [sendSms, setSendSms] = useState(true);
 
   useEffect(() => {
     if (!contact) return;
