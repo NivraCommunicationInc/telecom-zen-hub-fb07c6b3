@@ -576,10 +576,12 @@ export function CrmCenter({
           <CrmQuotaCard isDark={isDark} />
           <CrmLeaderboard darkPortal={isDark} />
           {isAdmin && (
-            <div className={cn(cardCls, "p-3 text-xs", mutedCls)}>
-              <strong className={titleCls}>Vue admin</strong>
-              <p className="mt-1">Exports, assignations et statistiques globales disponibles depuis Nivra Core.</p>
-            </div>
+            <>
+              <CrmManagerDashboard isDark={isDark} />
+              <CrmOptimalHours isDark={isDark} />
+              <CrmScriptsAdmin isDark={isDark} />
+              <CrmCsvImport isDark={isDark} />
+            </>
           )}
         </aside>
       </div>
