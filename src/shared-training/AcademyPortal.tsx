@@ -157,6 +157,12 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
         ))}
       </div>
 
+      <FinalExamSection
+        status={certStatus}
+        portal={portal}
+        onStart={() => setShowFinalExam(true)}
+      />
+
       {activeModule && (
         <ModuleDialog
           module={activeModule}
@@ -172,6 +178,18 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
           onClose={() => { setActiveModule(null); setShowQuiz(false); setShowSim(null); }}
           onProgressUpdated={() => {
             qc.invalidateQueries({ queryKey: ["academy-progress"] });
+            qc.invalidateQueries({ queryKey: ["academy-certs"] });
+            qc.invalidateQueries({ queryKey: ["academy-cert-status"] });
+          }}
+        />
+      )}
+
+      {showFinalExam && (
+        <FinalExamDialog
+          portal={portal}
+          onClose={() => { setShowFinalExam(false); refetchCertStatus(); }}
+          onPassed={() => {
+            qc.invalidateQueries({ queryKey: ["academy-cert-status"] });
             qc.invalidateQueries({ queryKey: ["academy-certs"] });
           }}
         />
