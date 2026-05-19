@@ -193,6 +193,7 @@ const HrAuditPage = lazy(() => import("@/core-app/pages/hr/HrAuditPage"));
 const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
+const CoreInterviewsPage = lazy(() => import("@/core-app/pages/CoreInterviewsPage"));
 const CoreCareerEmailTemplatesPage = lazy(() => import("@/core-app/pages/hr/CoreCareerEmailTemplatesPage"));
 // System
 const CoreNotificationsPage = lazy(() => import("@/core-app/pages/CoreNotificationsPage"));
