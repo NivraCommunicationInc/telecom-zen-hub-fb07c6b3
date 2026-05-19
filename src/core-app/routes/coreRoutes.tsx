@@ -16,6 +16,7 @@ const CoreSystemHealthPage = lazy(() => import("@/core-app/pages/CoreSystemHealt
 
 // Operations
 const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
+const CoreAcademyPage = lazy(() => import("@/core-app/pages/CoreAcademyPage"));
 const CoreSLAPage = lazy(() => import("@/core-app/pages/CoreSLAPage"));
 const OrdersPage = lazy(() => import("@/core-app/pages/OrdersPage"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
@@ -143,6 +144,7 @@ export const coreRoutes: RouteObject = {
     { path: "support-metrics", element: <CoreSupportMetricsPage /> },
     // Operations
     { path: "work-queue", element: <WorkQueuePage /> },
+    { path: "academy", element: <CoreAcademyPage /> },
     { path: "sla", element: <CoreSLAPage /> },
     { path: "orders", element: <OrdersPage /> },
     { path: "orders/:orderId", element: <CoreOrderDetail /> },
