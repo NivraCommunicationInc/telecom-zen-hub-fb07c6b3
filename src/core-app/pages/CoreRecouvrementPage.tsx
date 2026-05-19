@@ -47,7 +47,7 @@ const ACTION_TYPES = [
   { value: "note", label: "Note interne", icon: History },
 ] as const;
 
-const cardClass = "p-4 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)]";
+const cardClass = "p-4 rounded-lg border border-core-border bg-core-card";
 
 export default function CoreRecouvrementPage() {
   const qc = useQueryClient();
@@ -200,21 +200,21 @@ export default function CoreRecouvrementPage() {
   };
 
   const bucketBadge = (d: number) => {
-    if (d <= 0) return <Badge className="bg-sky-500/15 text-sky-300 border-0">À venir</Badge>;
-    if (d <= 15) return <Badge className="bg-amber-500/15 text-amber-300 border-0">{d}j</Badge>;
-    if (d <= 30) return <Badge className="bg-orange-500/15 text-orange-300 border-0">{d}j</Badge>;
-    if (d <= 60) return <Badge className="bg-red-500/15 text-red-300 border-0">{d}j</Badge>;
-    return <Badge className="bg-red-700/30 text-red-200 border-0">{d}j ⚠</Badge>;
+    if (d <= 0) return <Badge className="bg-core-accent/15 text-core-accent-soft border-0">À venir</Badge>;
+    if (d <= 15) return <Badge className="bg-core-warning/15 text-core-warning border-0">{d}j</Badge>;
+    if (d <= 30) return <Badge className="bg-core-warning/25 text-core-warning border-0">{d}j</Badge>;
+    if (d <= 60) return <Badge className="bg-core-danger/15 text-core-danger border-0">{d}j</Badge>;
+    return <Badge className="bg-core-danger/30 text-core-fg border-0">{d}j ⚠</Badge>;
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[hsl(var(--core-text-primary))] flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-400" /> Recouvrement
+          <h1 className="text-xl font-bold text-core-text-primary flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-core-warning" /> Recouvrement
           </h1>
-          <p className="text-sm text-[hsl(var(--core-text-secondary))]">Suivi des factures en souffrance, relances et engagements de paiement</p>
+          <p className="text-sm text-core-text-secondary">Suivi des factures en souffrance, relances et engagements de paiement</p>
         </div>
         <Button onClick={exportCsv} variant="outline" size="sm" className="gap-2">
           <Download className="w-4 h-4" /> Exporter CSV
@@ -224,20 +224,20 @@ export default function CoreRecouvrementPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4 text-red-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">En souffrance</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.overdueCount}</p>
+          <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4 text-core-danger" /><span className="text-xs text-core-text-label">En souffrance</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.overdueCount}</p>
         </div>
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><Clock className="w-4 h-4 text-amber-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">À échoir</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.dueSoonCount}</p>
+          <div className="flex items-center gap-2 mb-1"><Clock className="w-4 h-4 text-core-warning" /><span className="text-xs text-core-text-label">À échoir</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.dueSoonCount}</p>
         </div>
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-sky-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">Solde total</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.totalBalance.toFixed(2)}$</p>
+          <div className="flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-core-accent-soft" /><span className="text-xs text-core-text-label">Solde total</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.totalBalance.toFixed(2)}$</p>
         </div>
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><Users className="w-4 h-4 text-fuchsia-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">Retard moyen</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.avgDays}j</p>
+          <div className="flex items-center gap-2 mb-1"><Users className="w-4 h-4 text-core-success" /><span className="text-xs text-core-text-label">Retard moyen</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.avgDays}j</p>
         </div>
       </div>
 
