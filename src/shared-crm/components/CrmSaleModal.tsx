@@ -46,7 +46,7 @@ interface Props {
 export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState("client");
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<{ order: string; commission: number } | null>(null);
+  const [success, setSuccess] = useState<{ order: string; commission: number; paypalUrl: string | null } | null>(null);
 
   // Form state
   const [firstName, setFirstName] = useState("");
