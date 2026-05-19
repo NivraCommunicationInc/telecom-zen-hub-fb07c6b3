@@ -69,6 +69,22 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
       return;
     }
     toast.success(`Résultat enregistré : ${OUTCOME_META[outcome].label}`);
+
+    // Auto-SMS after a voicemail is left
+    if (outcome === "voicemail" && sendSms && contact.phone) {
+      const firstName = contact.first_name ?? displayName(contact).split(" ")[0] ?? "";
+      const text = `Bonjour ${firstName}, ici Nivra Télécom. Je viens de vous laisser un message vocal. Internet/TV/Mobile prépayés — premier mois GRATUIT avec BIENVENUE2026. Détails : nivra-telecom.ca | Rép. STOP pour ne plus recevoir.`;
+      try {
+        const { error: smsErr } = await supabase.functions.invoke("openphone-sms", {
+          body: { to: contact.phone, text, clientId: contact.id },
+        });
+        if (smsErr) toast.warning("SMS de suivi non envoyé");
+        else toast.success("📱 SMS de suivi envoyé");
+      } catch {
+        toast.warning("SMS de suivi non envoyé");
+      }
+    }
+
     if (outcome === "sold" && onSold) {
       onSold(contact);
     }
