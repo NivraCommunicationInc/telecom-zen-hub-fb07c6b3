@@ -182,7 +182,7 @@ Règles:
         }
         const { error: updErr } = await supabase
           .from("interview_answers")
-          .update({ ai_score: pq.score, ai_feedback: pq.feedback })
+          .update({ ai_score: Math.round(pq.score / 10), ai_feedback: pq.feedback })
           .eq("applicant_id", applicant.id)
           .eq("question_id", qid);
         if (updErr) console.error("[per-q] update failed", pq, updErr);
