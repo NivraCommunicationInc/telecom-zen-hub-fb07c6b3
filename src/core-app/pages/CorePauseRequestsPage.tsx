@@ -381,7 +381,8 @@ export default function CorePauseRequestsPage() {
               })}
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
       </div>
     </>
   );
