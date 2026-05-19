@@ -173,12 +173,16 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
         <DropdownMenuSeparator />
 
 
-        <DropdownMenuItem onClick={handleTransfer} disabled className="opacity-60">
+        {onOpenEmail && (
+          <DropdownMenuItem onClick={() => onOpenEmail(contact)}>
+            <Mail className="h-4 w-4 mr-2 text-blue-500" />
+            ✉️ Envoyer un courriel de suivi
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuItem onClick={handleTransfer}>
           <ArrowRightLeft className="h-4 w-4 mr-2 text-rose-500" />
           Transférer à un autre vendeur
-          <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500/40 font-semibold">
-            Bientôt
-          </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
