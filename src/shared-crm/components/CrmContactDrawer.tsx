@@ -3,6 +3,7 @@
  */
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCrmContactCallHistory } from "../hooks/useCrmLeaderboard";
+import { useCrmAssignmentHistory } from "../hooks/useCrmAssignmentHistory";
 import { type CrmContact, OUTCOME_META, displayName, CALL_STATUS_META } from "../lib/crmTypes";
 import { Phone, Mail, MapPin, Calendar, User, Briefcase } from "lucide-react";
 import { format } from "date-fns";
