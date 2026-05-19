@@ -94,6 +94,8 @@ export function CrmCenter({
   const [assignContact, setAssignContact] = useState<CrmContact | null>(null);
   const [noteContact, setNoteContact] = useState<CrmContact | null>(null);
   const [callbackContact, setCallbackContact] = useState<CrmContact | null>(null);
+  const [transferContact, setTransferContact] = useState<CrmContact | null>(null);
+  const [emailContact, setEmailContact] = useState<CrmContact | null>(null);
 
 
   const [currentPage, setCurrentPage] = useState(1);
