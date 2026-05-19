@@ -291,6 +291,45 @@ export default function CoreSLAPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gérer le SLA</DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border p-3 text-sm">
+                <div className="font-semibold">{selected.source_reference || selected.id.slice(0, 8)}</div>
+                <div className="text-muted-foreground">{selected.item_type} · {selected.client_name || "Client non défini"}</div>
+                <div className="text-muted-foreground">Assigné: {selected.assigned_to_name || "non assigné"}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => updateItem.mutate({ item: selected, patch: { status: "assigned" } })} disabled={updateItem.isPending}>
+                  <UserCheck className="mr-2 h-4 w-4" /> Prendre
+                </Button>
+                <Button variant="outline" onClick={() => updateItem.mutate({ item: selected, patch: { status: "in_progress" } })} disabled={updateItem.isPending}>
+                  En cours
+                </Button>
+                <Button variant="outline" onClick={() => updateItem.mutate({ item: selected, patch: { status: "escalated", priority: "urgent" } })} disabled={updateItem.isPending}>
+                  Escalader
+                </Button>
+                <Button onClick={() => updateItem.mutate({ item: selected, patch: { status: "completed", sla_status: "on_time" } })} disabled={updateItem.isPending}>
+                  Compléter
+                </Button>
+              </div>
+              <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ajouter une note interne…" rows={3} />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelected(null)}>Fermer</Button>
+            <Button onClick={appendNote} disabled={!note.trim() || updateItem.isPending}>
+              {updateItem.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Ajouter la note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
