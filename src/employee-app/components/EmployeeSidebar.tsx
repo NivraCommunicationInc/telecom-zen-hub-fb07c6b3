@@ -9,7 +9,7 @@ import {
   ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
-  Package, UserCheck, Wifi, Mail, LayoutGrid,
+  Package, UserCheck, Wifi, Mail, LayoutGrid, PhoneCall,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { useState, useEffect } from "react";
@@ -24,6 +24,7 @@ const navGroups = [
   {
     label: "CLIENTS & COMPTES",
     items: [
+      { label: "CRM Prospects", href: `${EMP_BASE}/crm`, icon: PhoneCall },
       { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users, badge: "Nouveau client" },
       { label: "Comptes", href: `${EMP_BASE}/accounts`, icon: Briefcase },
       { label: "File de travail", href: `${EMP_BASE}/work-queue`, icon: ListTodo },
@@ -112,7 +113,7 @@ export default function EmployeeSidebar() {
             </div>
             <div className="leading-tight">
               <span className="font-bold text-[11px] text-foreground tracking-tight block">NIVRA</span>
-              <span className="text-[9px] text-muted-foreground font-medium tracking-widest">EMPLOYEE</span>
+              <span className="text-[9px] text-muted-foreground font-medium tracking-widest">ONEVIEW CS</span>
             </div>
           </Link>
         ) : (

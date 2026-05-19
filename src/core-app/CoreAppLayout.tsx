@@ -16,7 +16,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,6 +82,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Sales",
     icon: FileText,
     items: [
+      { icon: PhoneCall, label: "CRM Call Center", href: "/crm" },
       { icon: FileText, label: "Soumissions", href: "/quotes" },
       { icon: Tag, label: "Rabais agents", href: "/agent-discounts" },
     ],

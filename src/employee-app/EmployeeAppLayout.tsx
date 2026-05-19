@@ -20,7 +20,7 @@ export default function EmployeeAppLayout() {
 
   return (
     <InternalPortalGate>
-      <Helmet><title>Nivra Employee — Portail employé</title></Helmet>
+      <Helmet><title>Nivra OneView CS — Portail service client</title></Helmet>
       <StaffAssistanceBanner />
       <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
         <EmployeeSidebar />
