@@ -725,6 +725,14 @@ export default function CoreInterviewsPage() {
                       </Button>
                     )}
 
+                    {(selected.status === "accepted" || selected.status === "hired") && (
+                      <Button variant="outline"
+                        disabled={sendOnboarding.isPending}
+                        onClick={() => sendOnboarding.mutate(selected)}>
+                        <ClipboardCheck className="h-4 w-4 mr-2" /> Envoyer formulaire d&apos;embauche
+                      </Button>
+                    )}
+
                     {selected.status === "interview_completed" && (
                       <>
                         <Button
@@ -732,6 +740,7 @@ export default function CoreInterviewsPage() {
                           disabled={decision.isPending}
                           onClick={() => decision.mutate({ id: selected.id, decision: "accept" })}>
                           <CheckCircle2 className="h-4 w-4 mr-2" /> Accepter le candidat
+
                         </Button>
                         <Button
                           variant="destructive"
