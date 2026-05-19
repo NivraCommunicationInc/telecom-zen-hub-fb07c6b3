@@ -46,7 +46,7 @@ interface Props {
 export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState("client");
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<{ order: string; commission: number } | null>(null);
+  const [success, setSuccess] = useState<{ order: string; commission: number; paypalUrl: string | null } | null>(null);
 
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -131,9 +131,10 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
         toast.error(`Erreur: ${(data as any)?.error ?? error?.message}`);
         return;
       }
-      const r = data as { order_number: string; commission_estimate: number };
-      setSuccess({ order: r.order_number, commission: r.commission_estimate });
+      const r = data as { order_number: string; commission_estimate: number; paypal_approve_url: string | null };
+      setSuccess({ order: r.order_number, commission: r.commission_estimate, paypalUrl: r.paypal_approve_url ?? null });
       toast.success(`Vente complétée! Commission: ${r.commission_estimate.toFixed(2)}$`);
+
       onSuccess?.();
     } catch (e: any) {
       toast.error(e?.message ?? "Erreur lors de la création de la vente");
@@ -158,8 +159,22 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
             <h3 className="text-xl font-bold">Vente complétée!</h3>
             <p className="text-sm text-muted-foreground">Commande <span className="font-mono font-semibold">{success.order}</span></p>
             <p className="text-sm">Commission estimée : <span className="font-bold text-emerald-500">{success.commission.toFixed(2)} $</span></p>
-            <Button onClick={onClose} className="mt-3">Fermer</Button>
+            <p className="text-xs text-muted-foreground">📧 Email de confirmation envoyé au client</p>
+            {success.paypalUrl && (
+              <a
+                href={success.paypalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#ffc439] text-[#003087] font-bold text-sm hover:brightness-95"
+              >
+                💳 Ouvrir le paiement PayPal
+              </a>
+            )}
+            <div className="pt-2">
+              <Button onClick={onClose} variant="outline">Fermer</Button>
+            </div>
           </div>
+
         ) : (
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             <TabsList className="grid grid-cols-5 mx-4 mt-3">

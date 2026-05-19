@@ -18,14 +18,18 @@ import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
 import { CrmSaleModal } from "./CrmSaleModal";
+import { CrmAssignDialog } from "./CrmAssignDialog";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
+import { exportContactsCsv } from "../lib/crmCsv";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
+  UserPlus, Download, ShieldAlert, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+
 
 const PER_PAGE = 10;
 const COOLDOWN_HOURS = 48;
@@ -78,6 +82,8 @@ export function CrmCenter({
   const [activeCall, setActiveCall] = useState<CrmContact | null>(null);
   const [viewing, setViewing] = useState<CrmContact | null>(null);
   const [saleContact, setSaleContact] = useState<CrmContact | null>(null);
+  const [assignContact, setAssignContact] = useState<CrmContact | null>(null);
+
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -160,13 +166,24 @@ export function CrmCenter({
             Base de prospects à appeler · Pool partagé · {stats.total} contacts
           </p>
         </div>
-        {!isWithinBusinessHours() && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-medium">
-            <AlertTriangle className="h-4 w-4" />
-            Hors heures d'appel (9h-20h Québec)
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => exportContactsCsv(sorted, `crm-${new Date().toISOString().slice(0,10)}.csv`)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-violet-500/40 bg-violet-500/10 text-violet-600 hover:bg-violet-500/20"
+            >
+              <Download className="h-3.5 w-3.5" /> Exporter CSV ({sorted.length})
+            </button>
+          )}
+          {!isWithinBusinessHours() && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              Hors heures (9h-20h Québec)
+            </div>
+          )}
+        </div>
       </div>
+
 
       {/* Layout: list + leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
@@ -317,7 +334,19 @@ export function CrmCenter({
                               Cooldown actif · libre {cooldownLabel}
                             </span>
                           )}
+                          {c.is_dnc && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50">
+                              <ShieldAlert className="h-3 w-3" />
+                              LNNTE / DNC
+                            </span>
+                          )}
+                          {(c.interest_tags ?? []).slice(0, 3).map((t) => (
+                            <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-violet-500/10 text-violet-600 border-violet-500/30">
+                              <Tag className="h-2.5 w-2.5" />{t}
+                            </span>
+                          ))}
                         </div>
+
                         <div className={cn("mt-1 space-y-0.5 text-[12px]", mutedCls)}>
                           {c.phone && (
                             <a href={`tel:${c.phone}`} className="flex items-center gap-1.5 text-violet-500 hover:text-violet-400 font-medium">
@@ -386,6 +415,18 @@ export function CrmCenter({
                           Tél direct
                         </a>
                       )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => setAssignContact(c)}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors min-h-[40px] border border-violet-500/40 text-violet-600 hover:bg-violet-500/10",
+                          )}
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          {c.assigned_to ? "Réassigner" : "Assigner"}
+                        </button>
+                      )}
+
                     </div>
                   </div>
                 );
@@ -425,6 +466,8 @@ export function CrmCenter({
       />
       <CrmContactDrawer contact={viewing} onClose={() => setViewing(null)} />
       <CrmSaleModal contact={saleContact} onClose={() => setSaleContact(null)} />
+      <CrmAssignDialog contact={assignContact} onClose={() => setAssignContact(null)} />
     </div>
+
   );
 }
