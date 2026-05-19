@@ -178,7 +178,107 @@ export default function CoreInterviewsPage() {
     onError: (e: any) => toast.error("Erreur", { description: e.message }),
   });
 
+  const importIndeed = useMutation({
+    mutationFn: async () => {
+      if (!indeed.first_name.trim() || !indeed.last_name.trim() || !indeed.email.trim()) {
+        throw new Error("Prénom, nom et email sont requis.");
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(indeed.email.trim())) {
+        throw new Error("Format de courriel invalide.");
+      }
+      const email = indeed.email.trim().toLowerCase();
+      const { data: existing } = await supabase
+        .from("job_applicants").select("id").eq("email", email).maybeSingle();
+      if (existing) throw new Error("Ce candidat existe déjà dans le système");
+
+      const notesText = indeed.notes.trim()
+        ? `[Importé d'Indeed${indeed.indeed_url ? ` — ${indeed.indeed_url}` : ""}]\n${indeed.notes.trim()}`
+        : `[Importé d'Indeed${indeed.indeed_url ? ` — ${indeed.indeed_url}` : ""}]`;
+
+      const { data: inserted, error: insErr } = await supabase
+        .from("job_applicants").insert({
+          first_name: indeed.first_name.trim(),
+          last_name: indeed.last_name.trim(),
+          email,
+          phone: indeed.phone.trim() || null,
+          city: indeed.city.trim() || null,
+          status: "new",
+          source: "indeed",
+          skip_interview: false,
+          interview_language: indeed.language,
+          notes: notesText,
+        }).select("id, email").single();
+      if (insErr) throw insErr;
+
+      const { error: invErr } = await supabase.functions.invoke(
+        "interview-send-invitations",
+        { body: { applicant_ids: [inserted.id] } },
+      );
+      if (invErr) throw invErr;
+      return inserted;
+    },
+    onSuccess: (a) => {
+      toast.success(`Candidat ajouté et invitation envoyée à ${a.email}`);
+      setIndeedOpen(false);
+      setIndeed({ first_name: "", last_name: "", email: "", phone: "", city: "", indeed_url: "", language: "fr", notes: "" });
+      qc.invalidateQueries({ queryKey: ["job-applicants-interviews"] });
+    },
+    onError: (e: any) => toast.error("Import Indeed", { description: e.message }),
+  });
+
+  const sendOnboarding = useMutation({
+    mutationFn: async (applicant: any) => {
+      const { data: existing } = await supabase
+        .from("employee_onboarding_forms")
+        .select("id, token, created_at")
+        .eq("applicant_id", applicant.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let tokenToUse: string;
+      if (existing) {
+        tokenToUse = existing.token;
+        await supabase.from("employee_onboarding_forms")
+          .update({ token_expires_at: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(), status: "pending" })
+          .eq("id", existing.id);
+      } else {
+        const { data: ins, error } = await supabase
+          .from("employee_onboarding_forms")
+          .insert({ applicant_id: applicant.id, email: applicant.email })
+          .select("token").single();
+        if (error) throw error;
+        tokenToUse = ins.token;
+      }
+
+      const url = `https://nivra-telecom.ca/onboarding/${tokenToUse}`;
+      const { error: qErr } = await supabase.from("email_queue").insert({
+        event_key: `onboarding_invite_${applicant.id}_${Date.now()}`,
+        to_email: applicant.email,
+        template_key: "onboarding_form_invitation",
+        template_vars: { first_name: applicant.first_name, onboarding_url: url },
+        language: applicant.interview_language || "fr",
+        status: "queued",
+      });
+      if (qErr) throw qErr;
+      await supabase.from("applicant_emails").insert({
+        applicant_id: applicant.id,
+        email_type: "onboarding_invitation",
+        sent_to: applicant.email,
+        status: "queued",
+        subject: "Action requise — Formulaire d embauche Nivra Telecom",
+      });
+      return applicant.email;
+    },
+    onSuccess: (email) => {
+      toast.success(`Formulaire envoyé à ${email}`);
+      qc.invalidateQueries({ queryKey: ["applicant-emails"] });
+    },
+    onError: (e: any) => toast.error("Erreur envoi formulaire", { description: e.message }),
+  });
+
   const filtered = useMemo(() => {
+
     return applicants.filter((a: any) => {
       if (statusFilter !== "all" && (a.status || "new") !== statusFilter) return false;
       if (!search) return true;
