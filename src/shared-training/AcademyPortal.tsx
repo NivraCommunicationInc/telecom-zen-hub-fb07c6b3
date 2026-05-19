@@ -352,10 +352,63 @@ function LessonView({ lesson, sims, onStartSim }: { lesson: Lesson; sims: Simula
       {lesson.image_url && (
         <img src={lesson.image_url} alt={lesson.title_fr} className="rounded-lg max-h-80 w-full object-cover" />
       )}
+      <LessonVisualBrief lesson={lesson} />
       <article className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20">
         <ReactMarkdown>{lesson.content_fr || ""}</ReactMarkdown>
       </article>
     </div>
+  );
+}
+
+function LessonVisualBrief({ lesson }: { lesson: Lesson }) {
+  const text = `${lesson.title_fr} ${lesson.content_fr || ""}`.toLowerCase();
+  const isField = text.includes("nivra field") || text.includes("vente terrain") || text.includes("porte-à-porte");
+  const isCs = text.includes("oneview") || text.includes("téléphone") || text.includes("support");
+  const isProduct = text.includes("borne wifi") || text.includes("terminal tv") || text.includes("produits");
+
+  const steps = isField
+    ? ["CRM", "Adresse", "Services", "Équipement", "Résumé", "Consentement", "Commande"]
+    : isCs
+      ? ["File", "Client 360", "Compte", "Ticket", "KYC", "Activation", "Note"]
+      : isProduct
+        ? ["Disponibilité", "Service", "Mensuel", "Frais requis", "Taxes", "Confirmation"]
+        : ["Écouter", "Vérifier", "Expliquer", "Confirmer", "Documenter"];
+
+  const metrics = isProduct
+    ? ["Borne WiFi 60 $", "Terminal TV 50 $", "SIM/eSIM 30 $"]
+    : isField
+      ? ["1 adresse validée", "1 résumé relu", "0 promesse inventée"]
+      : isCs
+        ? ["1 dossier complet", "1 prochaine étape", "1 note factuelle"]
+        : ["Clarté", "Confiance", "Conformité"];
+
+  return (
+    <section className="rounded-lg border border-border bg-muted/30 p-4 md:p-5 space-y-4" aria-label="Résumé visuel de la leçon">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Carte de formation</p>
+          <h4 className="text-base font-bold">{lesson.title_fr}</h4>
+        </div>
+        <Badge variant="outline">~{lesson.duration_minutes || 8} min</Badge>
+      </div>
+      <div className="grid gap-2 md:grid-cols-7">
+        {steps.map((step, index) => (
+          <div key={step} className="rounded-md border border-border bg-card p-3 min-h-[74px]">
+            <div className="mb-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+              {index + 1}
+            </div>
+            <p className="text-xs font-semibold leading-snug">{step}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-2 md:grid-cols-3">
+        {metrics.map((item) => (
+          <div key={item} className="rounded-md bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+            {item}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
