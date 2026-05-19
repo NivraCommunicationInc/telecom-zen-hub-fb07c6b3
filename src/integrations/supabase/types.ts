@@ -3973,6 +3973,42 @@ export type Database = {
         }
         Relationships: []
       }
+      collections_actions: {
+        Row: {
+          action_type: string
+          amount_promised: number | null
+          created_at: string
+          customer_id: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          performed_by: string | null
+          promise_date: string | null
+        }
+        Insert: {
+          action_type: string
+          amount_promised?: number | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          performed_by?: string | null
+          promise_date?: string | null
+        }
+        Update: {
+          action_type?: string
+          amount_promised?: number | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          performed_by?: string | null
+          promise_date?: string | null
+        }
+        Relationships: []
+      }
       commission_disputes: {
         Row: {
           admin_response: string | null
