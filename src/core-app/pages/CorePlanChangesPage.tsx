@@ -252,36 +252,74 @@ export default function CorePlanChangesPage() {
     }
   };
 
+  const filteredRequests = useMemo(() => {
+    const list = requests || [];
+    const s = search.trim().toLowerCase();
+    if (!s) return list;
+    return list.filter((r) => {
+      const c = clients?.[r.client_id];
+      const a = accounts?.[r.account_id];
+      return (
+        r.requested_plan_name?.toLowerCase().includes(s) ||
+        r.current_plan_name?.toLowerCase().includes(s) ||
+        c?.email?.toLowerCase().includes(s) ||
+        c?.first_name?.toLowerCase().includes(s) ||
+        c?.last_name?.toLowerCase().includes(s) ||
+        a?.account_number?.toLowerCase().includes(s)
+      );
+    });
+  }, [requests, search, clients, accounts]);
+
+  const statCards = [
+    { key: "pending" as FilterKey, label: "En attente", value: stats?.pending ?? 0, icon: Clock, color: "text-amber-500" },
+    { key: "approved" as FilterKey, label: "Approuvées", value: stats?.approved ?? 0, icon: CheckCircle2, color: "text-emerald-500" },
+    { key: "rejected" as FilterKey, label: "Rejetées", value: stats?.rejected ?? 0, icon: XCircle, color: "text-red-500" },
+    { key: "all" as FilterKey, label: "Total", value: stats?.total ?? 0, icon: ListChecks, color: "text-violet-500" },
+  ];
+
   return (
     <>
       <Helmet>
         <title>Changements de forfait — Nivra Core</title>
       </Helmet>
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        <header className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">Changements de forfait</h1>
-            <p className="text-sm text-muted-foreground">
-              Demandes en attente d'approbation par l'équipe Nivra.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={filter === "pending" ? "default" : "outline"}
-              onClick={() => setFilter("pending")}
-            >
-              En attente
-            </Button>
-            <Button
-              size="sm"
-              variant={filter === "all" ? "default" : "outline"}
-              onClick={() => setFilter("all")}
-            >
-              Toutes
-            </Button>
-          </div>
+        <header>
+          <h1 className="text-2xl font-bold">Changements de forfait</h1>
+          <p className="text-sm text-muted-foreground">
+            Demandes en attente d'approbation par l'équipe Nivra.
+          </p>
         </header>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {statCards.map((s) => {
+            const Icon = s.icon;
+            const active = filter === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setFilter(s.key)}
+                className={`text-left rounded-lg border p-3 transition-colors ${active ? "border-violet-500 bg-violet-500/5" : "border-border hover:bg-muted/40"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
+                  <Icon className={`w-4 h-4 ${s.color}`} />
+                </div>
+                <div className="text-2xl font-bold mt-1">{s.value}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par client, email, forfait, # compte…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
         {isLoading ? (
           <Card>
@@ -289,10 +327,10 @@ export default function CorePlanChangesPage() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </CardContent>
           </Card>
-        ) : !requests || requests.length === 0 ? (
+        ) : !filteredRequests || filteredRequests.length === 0 ? (
           <Card>
             <CardContent className="p-10 text-center text-muted-foreground">
-              Aucune demande.
+              Aucune demande {filter !== "all" ? `(${filter})` : ""}.
             </CardContent>
           </Card>
         ) : (
