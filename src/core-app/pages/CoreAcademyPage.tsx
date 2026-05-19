@@ -22,8 +22,10 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   GraduationCap, Trophy, Users, BookOpen, Loader2, Plus, Pencil, Trash2,
-  ShieldCheck, Sparkles, MessageSquare, FileText,
+  ShieldCheck, Sparkles, MessageSquare, FileText, LayoutDashboard,
+  AlertTriangle, CheckCircle2, Clock, XCircle, TrendingUp, Search, Download,
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 /* ============================================================
  *  ROOT
