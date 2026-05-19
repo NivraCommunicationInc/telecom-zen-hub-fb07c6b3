@@ -21434,11 +21434,13 @@ export type Database = {
           badge_color: string
           certification_level: string
           certification_name: string
+          exam_score: number | null
           expires_at: string | null
           id: string
           is_active: boolean
           issued_at: string
           pdf_url: string | null
+          portal: string | null
           total_points: number
         }
         Insert: {
@@ -21446,11 +21448,13 @@ export type Database = {
           badge_color?: string
           certification_level: string
           certification_name: string
+          exam_score?: number | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
           issued_at?: string
           pdf_url?: string | null
+          portal?: string | null
           total_points?: number
         }
         Update: {
@@ -21458,12 +21462,56 @@ export type Database = {
           badge_color?: string
           certification_level?: string
           certification_name?: string
+          exam_score?: number | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
           issued_at?: string
           pdf_url?: string | null
+          portal?: string | null
           total_points?: number
+        }
+        Relationships: []
+      }
+      training_exam_attempts: {
+        Row: {
+          agent_id: string
+          answers: Json
+          expires_at: string
+          id: string
+          passed: boolean | null
+          portal: string
+          question_ids: string[]
+          score: number | null
+          started_at: string
+          status: string
+          submitted_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          answers?: Json
+          expires_at?: string
+          id?: string
+          passed?: boolean | null
+          portal: string
+          question_ids: string[]
+          score?: number | null
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          answers?: Json
+          expires_at?: string
+          id?: string
+          passed?: boolean | null
+          portal?: string
+          question_ids?: string[]
+          score?: number | null
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
         }
         Relationships: []
       }
@@ -23945,6 +23993,10 @@ export type Database = {
           total_commission: number
         }[]
       }
+      fn_certification_status: {
+        Args: { _portal: string; _user_id: string }
+        Returns: Json
+      }
       fn_check_order_completeness: {
         Args: { p_order_id: string }
         Returns: Json
@@ -23976,6 +24028,14 @@ export type Database = {
       }
       fn_run_subscription_renewals: {
         Args: { p_lookahead_days?: number }
+        Returns: Json
+      }
+      fn_start_final_exam: {
+        Args: { _portal: string; _question_count?: number }
+        Returns: Json
+      }
+      fn_submit_final_exam: {
+        Args: { _answers: Json; _attempt_id: string }
         Returns: Json
       }
       fn_update_orders_sla_status: { Args: never; Returns: Json }

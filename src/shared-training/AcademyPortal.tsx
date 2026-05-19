@@ -23,7 +23,7 @@ import {
   Loader2, GraduationCap, BookOpen, CheckCircle2, Lock, Trophy,
   PlayCircle, ChevronRight, Send, Bot, Award, Sparkles,
   Package, DoorOpen, PhoneCall, Smartphone, Headphones, UserCheck,
-  ShieldCheck, Scale, Receipt, ArrowLeft,
+  ShieldCheck, Scale, Receipt, ArrowLeft, AlertTriangle, Calendar, RefreshCw, Clock,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, any> = {
@@ -74,6 +74,7 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
   const [activeLessonIdx, setActiveLessonIdx] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showSim, setShowSim] = useState<Simulation | null>(null);
+  const [showFinalExam, setShowFinalExam] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -117,13 +118,25 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
     },
   });
 
+  const { data: certStatus, refetch: refetchCertStatus } = useQuery({
+    queryKey: ["academy-cert-status", userId, portal],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fn_certification_status", {
+        _user_id: userId!, _portal: portal,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
   const overallPct = useMemo(() => {
     if (!modules?.length) return 0;
     const done = modules.filter((m) => progress?.[m.id]?.status === "completed").length;
     return Math.round((done / modules.length) * 100);
   }, [modules, progress]);
 
-  const isCertified = (certs?.length ?? 0) > 0 && overallPct === 100;
+  const isCertified = certStatus?.status === "valid" || certStatus?.status === "expiring_soon";
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-7 w-7 animate-spin" /></div>;
@@ -144,6 +157,12 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
         ))}
       </div>
 
+      <FinalExamSection
+        status={certStatus}
+        portal={portal}
+        onStart={() => setShowFinalExam(true)}
+      />
+
       {activeModule && (
         <ModuleDialog
           module={activeModule}
@@ -159,6 +178,18 @@ export default function AcademyPortal({ portal }: AcademyPortalProps) {
           onClose={() => { setActiveModule(null); setShowQuiz(false); setShowSim(null); }}
           onProgressUpdated={() => {
             qc.invalidateQueries({ queryKey: ["academy-progress"] });
+            qc.invalidateQueries({ queryKey: ["academy-certs"] });
+            qc.invalidateQueries({ queryKey: ["academy-cert-status"] });
+          }}
+        />
+      )}
+
+      {showFinalExam && (
+        <FinalExamDialog
+          portal={portal}
+          onClose={() => { setShowFinalExam(false); refetchCertStatus(); }}
+          onPassed={() => {
+            qc.invalidateQueries({ queryKey: ["academy-cert-status"] });
             qc.invalidateQueries({ queryKey: ["academy-certs"] });
           }}
         />
@@ -715,5 +746,273 @@ function SimulationChat({ sim, userId, onBack }: { sim: Simulation; userId: stri
         </Button>
       </div>
     </div>
+  );
+}
+
+// ====================================================================
+// Final certification exam — Section + Modal
+// ====================================================================
+
+function FinalExamSection({
+  status, portal, onStart,
+}: { status: any; portal: Portal; onStart: () => void }) {
+  if (!status) return null;
+  const s = status.status as "none" | "valid" | "expiring_soon" | "expired";
+  const canStart = !!status.can_take_exam;
+  const cooldownUntil = status.cooldown_until ? new Date(status.cooldown_until) : null;
+  const expiresAt = status.expires_at ? new Date(status.expires_at) : null;
+  const days = status.days_until_expiry;
+
+  const palette = s === "valid"
+    ? { bg: "from-emerald-500/10 via-card to-card", icon: "text-emerald-600", border: "border-emerald-500/30" }
+    : s === "expiring_soon"
+      ? { bg: "from-amber-500/10 via-card to-card", icon: "text-amber-600", border: "border-amber-500/30" }
+      : s === "expired"
+        ? { bg: "from-destructive/10 via-card to-card", icon: "text-destructive", border: "border-destructive/30" }
+        : { bg: "from-primary/5 via-card to-card", icon: "text-primary", border: "border-primary/20" };
+
+  return (
+    <Card className={cn("bg-gradient-to-br", palette.bg, palette.border)}>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div className="flex items-start gap-4">
+            <div className={cn("rounded-xl bg-card p-3 border", palette.border)}>
+              {s === "valid" && <Trophy className={cn("h-8 w-8", palette.icon)} />}
+              {s === "expiring_soon" && <AlertTriangle className={cn("h-8 w-8", palette.icon)} />}
+              {s === "expired" && <Lock className={cn("h-8 w-8", palette.icon)} />}
+              {s === "none" && <Award className={cn("h-8 w-8", palette.icon)} />}
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight">
+                Examen final de certification
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {portal === "field" ? "Portail Nivra Field" : "Portail OneView CS"} ·
+                25 questions tirées au hasard · 80 % pour réussir · validité 12 mois
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                {s === "valid" && (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/40">
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Certifié — expire dans {days} j
+                  </Badge>
+                )}
+                {s === "expiring_soon" && (
+                  <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/40">
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Expire dans {days} j — recertification requise
+                  </Badge>
+                )}
+                {s === "expired" && (
+                  <Badge variant="destructive">
+                    <Lock className="h-3.5 w-3.5 mr-1" /> Certification expirée
+                  </Badge>
+                )}
+                {s === "none" && (
+                  <Badge variant="outline">
+                    <Award className="h-3.5 w-3.5 mr-1" /> Non certifié
+                  </Badge>
+                )}
+                {expiresAt && s !== "none" && (
+                  <Badge variant="outline" className="text-xs">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {expiresAt.toLocaleDateString("fr-CA")}
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-xs">
+                  Modules : {status.modules_done}/{status.modules_total}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              size="lg"
+              onClick={onStart}
+              disabled={!canStart}
+              className={cn(s === "expired" || s === "expiring_soon" ? "bg-amber-600 hover:bg-amber-700" : "")}
+            >
+              {s === "expired" || s === "expiring_soon"
+                ? (<><RefreshCw className="h-4 w-4 mr-2" /> Recertifier maintenant</>)
+                : (<><GraduationCap className="h-4 w-4 mr-2" /> Démarrer l'examen</>)}
+            </Button>
+            {!canStart && status.modules_total > 0 && status.modules_done < status.modules_total && (
+              <p className="text-xs text-muted-foreground text-right max-w-[260px]">
+                Termine tous les modules obligatoires ({status.modules_done}/{status.modules_total}) avant de passer l'examen.
+              </p>
+            )}
+            {cooldownUntil && (
+              <p className="text-xs text-amber-700 flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Réessai possible le {cooldownUntil.toLocaleString("fr-CA")}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+type ExamQuestion = {
+  id: string; question_fr: string; options_fr: any;
+};
+
+function FinalExamDialog({
+  portal, onClose, onPassed,
+}: { portal: Portal; onClose: () => void; onPassed: () => void }) {
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; total: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase.rpc("fn_start_final_exam", {
+        _portal: portal, _question_count: 25,
+      });
+      if (error) { setError(error.message); setLoading(false); return; }
+      const r: any = data;
+      if (!r?.ok) {
+        setError(r?.reason === "not_eligible"
+          ? "Tu n'es pas encore éligible à l'examen."
+          : r?.reason === "no_questions"
+            ? "Pas assez de questions dans la banque pour ce portail."
+            : "Impossible de démarrer l'examen.");
+        setLoading(false);
+        return;
+      }
+      setAttemptId(r.attempt_id);
+      setExpiresAt(new Date(r.expires_at));
+      // Fetch questions in attempt order
+      const ids: string[] = r.question_ids;
+      const { data: qs } = await supabase
+        .from("training_questions")
+        .select("id, question_fr, options_fr")
+        .in("id", ids);
+      const map = new Map((qs || []).map((q: any) => [q.id, q]));
+      setQuestions(ids.map((id) => map.get(id)).filter(Boolean) as ExamQuestion[]);
+      setLoading(false);
+    })();
+  }, [portal]);
+
+  const remainingSec = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - now) / 1000)) : 0;
+  const remainingLabel = `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, "0")}`;
+  const timeUp = expiresAt !== null && remainingSec === 0 && !result;
+
+  const submit = async () => {
+    if (!attemptId) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("fn_submit_final_exam", {
+      _attempt_id: attemptId, _answers: answers,
+    });
+    setSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    const r: any = data;
+    if (!r?.ok) { toast.error(r?.reason || "Erreur de soumission"); return; }
+    setResult({ score: r.score, passed: r.passed, correct: r.correct, total: r.total });
+    if (r.passed) {
+      toast.success(`🎉 Certification obtenue ! Score ${r.score}%`);
+      onPassed();
+    } else {
+      toast.error(`Score ${r.score}% — 80% requis. Réessai dans 24 h.`);
+    }
+  };
+
+  useEffect(() => { if (timeUp && attemptId && !result) submit(); /* eslint-disable-next-line */ }, [timeUp]);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="!w-[96vw] !max-w-[1100px] !h-[94vh] !max-h-[94vh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-primary" />
+              Examen final — {portal === "field" ? "Nivra Field" : "OneView CS"}
+            </DialogTitle>
+            {!result && expiresAt && (
+              <Badge variant={remainingSec < 300 ? "destructive" : "outline"} className="shrink-0 font-mono">
+                <Clock className="h-3 w-3 mr-1" /> {remainingLabel}
+              </Badge>
+            )}
+          </div>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin" /></div>
+        ) : error ? (
+          <div className="p-10 text-center space-y-4">
+            <AlertTriangle className="h-12 w-12 mx-auto text-amber-500" />
+            <p className="text-sm">{error}</p>
+            <Button onClick={onClose}>Fermer</Button>
+          </div>
+        ) : result ? (
+          <div className="flex-1 overflow-auto p-10 text-center space-y-5">
+            {result.passed ? <Trophy className="h-20 w-20 mx-auto text-amber-500" />
+                           : <Lock className="h-20 w-20 mx-auto text-destructive" />}
+            <h3 className="text-3xl font-bold">{result.passed ? "Certifié Nivra !" : "Pas encore"}</h3>
+            <div className="text-6xl font-extrabold text-primary">{result.score}%</div>
+            <p className="text-muted-foreground">{result.correct} / {result.total} bonnes réponses · seuil 80 %</p>
+            {result.passed
+              ? <p className="text-sm text-emerald-700">Ta certification est valide 12 mois. Tu recevras un rappel 30 jours avant expiration.</p>
+              : <p className="text-sm text-amber-700">Tu peux réessayer dans 24 h. Profites-en pour revoir les modules.</p>}
+            <Button size="lg" onClick={onClose}>Retour à l'Academy</Button>
+          </div>
+        ) : (
+          <>
+            <ScrollArea className="flex-1 px-6 md:px-10 py-6">
+              <div className="space-y-5 max-w-3xl mx-auto">
+                <p className="text-xs text-muted-foreground">
+                  Réponds aux {questions.length} questions. Le chrono se déclenche dès maintenant — 60 minutes maximum.
+                  Aucune nouvelle tentative pendant 24 h en cas d'échec.
+                </p>
+                {questions.map((q, i) => {
+                  const opts = Array.isArray(q.options_fr) ? q.options_fr : [];
+                  return (
+                    <Card key={q.id}>
+                      <CardContent className="p-4 space-y-3">
+                        <p className="font-medium text-sm"><span className="text-primary">Q{i + 1}.</span> {q.question_fr}</p>
+                        <div className="space-y-2">
+                          {opts.map((opt: string, oi: number) => (
+                            <button key={oi} type="button"
+                              onClick={() => setAnswers({ ...answers, [q.id]: oi })}
+                              className={cn("w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                                answers[q.id] === oi ? "border-primary bg-primary/10" : "border-border hover:bg-muted")}>
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+            <div className="border-t px-6 py-3 flex items-center justify-between bg-muted/30 shrink-0 gap-3">
+              <span className="text-xs text-muted-foreground">
+                {Object.keys(answers).length} / {questions.length} répondues
+              </span>
+              <Button
+                onClick={submit}
+                disabled={submitting || Object.keys(answers).length !== questions.length}
+                size="lg"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Soumettre l'examen
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
