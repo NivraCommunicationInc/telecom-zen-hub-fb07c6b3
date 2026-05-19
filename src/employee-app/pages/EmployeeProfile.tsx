@@ -3,7 +3,8 @@
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Loader2, Shield } from "lucide-react";
+import { User, Loader2, Shield, Bell } from "lucide-react";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 export default function EmployeeProfile() {
   const [profile, setProfile] = useState<any>(null);
@@ -61,6 +62,17 @@ export default function EmployeeProfile() {
           <Row label="MFA" value={role?.mfa_enrolled_at ? "✓ Activé" : "✗ Non configuré"} />
           <Row label="Téléphone" value={profile?.phone ?? "—"} />
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[hsl(220,15%,13%)] bg-[hsl(220,20%,8%)] p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-blue-400" />
+          <h2 className="text-sm font-semibold text-white">Notifications push</h2>
+        </div>
+        <p className="text-xs text-[hsl(220,10%,55%)]">
+          Recevez les alertes (nouveaux tickets, KYC, escalades) directement sur cet appareil, même quand l'application est fermée.
+        </p>
+        <PushNotificationToggle />
       </div>
 
       <div className="rounded-xl border border-[hsl(220,15%,13%)] bg-[hsl(220,20%,8%)] p-4">
