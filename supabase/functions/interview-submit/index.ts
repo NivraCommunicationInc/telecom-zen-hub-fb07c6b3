@@ -64,10 +64,15 @@ Deno.serve(async (req) => {
     if (insErr) throw insErr;
 
     // Build prompt for Gemini
-    const qaBlocks = answerRows.map((row, i) => {
-      const q: any = qMap.get(row.question_id);
+    // Preserve question order from interview_questions for stable indexing
+    const orderedAnswerRows = answerRows
+      .map(row => ({ row, q: qMap.get(row.question_id) as any }))
+      .filter(x => !!x.q)
+      .sort((a, b) => (a.q.order_index ?? 0) - (b.q.order_index ?? 0));
+
+    const qaBlocks = orderedAnswerRows.map(({ row, q }, i) => {
       const qText = lang === "en" ? q.question_en : q.question_fr;
-      return `Q${i + 1} [${q.category}] (poids ${q.weight}): ${qText}\nRéponse: ${row.answer_text}`;
+      return `Q${i + 1} [order_index=${q.order_index}] [${q.category}] (poids ${q.weight}): ${qText}\nRéponse: ${row.answer_text}`;
     }).join("\n\n");
 
     const systemPrompt = `Tu es un recruteur senior expert en vente porte-à-porte pour une entreprise de télécommunications québécoise (Nivra Telecom). Tu évalues des candidats agents commerciaux 100% commission qui doivent faire du porte-à-porte au Québec.
@@ -83,7 +88,10 @@ Critères clés:
 
 Tu dois retourner UNIQUEMENT du JSON valide, sans markdown, sans backticks, sans commentaires:
 {
-  "score": <entier 0-100>,
+  "questions": [
+    { "question_index": <order_index entier>, "score": <0-100>, "feedback": "<feedback court 1-2 phrases>" }
+  ],
+  "score": <entier 0-100 score global pondéré>,
   "recommendation": "hire" | "interview_human" | "reject",
   "summary": "<résumé 2-3 phrases en français>",
   "strengths": ["<force 1>", "<force 2>", "..."],
@@ -92,11 +100,10 @@ Tu dois retourner UNIQUEMENT du JSON valide, sans markdown, sans backticks, sans
 }
 
 Règles:
-- score 80-100 = "hire" (excellent candidat, embaucher direct)
-- score 60-79 = "interview_human" (entrevue humaine recommandée)
-- score 0-59 = "reject"
+- Tu DOIS retourner un objet "questions" avec UNE entrée par question évaluée, en utilisant le order_index exact fourni.
+- score global 80-100 = "hire", 60-79 = "interview_human", 0-59 = "reject"
 - Drapeaux rouges automatiques: refus du commission-only, refus du porte-à-porte, fausses promesses, agressivité, malhonnêteté détectée, indisponibilité totale.
-- Maximum 5 éléments par liste. Sois concis et factuel.`;
+- Maximum 5 éléments par liste strengths/concerns/red_flags. Sois concis et factuel.`;
 
     const userPrompt = `Candidat: ${applicant.first_name} ${applicant.last_name}\nLangue entrevue: ${lang}\n\nRÉPONSES À ÉVALUER:\n\n${qaBlocks}`;
 
@@ -106,6 +113,7 @@ Règles:
     let aiStrengths: string[] = [];
     let aiConcerns: string[] = [];
     let aiRedFlags: string[] = [];
+    let aiPerQuestion: Array<{ question_index: number; score: number; feedback: string }> = [];
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -144,9 +152,40 @@ Règles:
           aiStrengths = (Array.isArray(parsed.strengths) ? parsed.strengths : []).map(String).slice(0, 5);
           aiConcerns = (Array.isArray(parsed.concerns) ? parsed.concerns : []).map(String).slice(0, 5);
           aiRedFlags = (Array.isArray(parsed.red_flags) ? parsed.red_flags : []).map(String).slice(0, 5);
+          if (Array.isArray(parsed.questions)) {
+            aiPerQuestion = parsed.questions
+              .map((q: any) => ({
+                question_index: Number(q.question_index),
+                score: Math.max(0, Math.min(100, Number(q.score) || 0)),
+                feedback: String(q.feedback || "").slice(0, 1000),
+              }))
+              .filter((q: any) => Number.isFinite(q.question_index));
+          }
         }
       } catch (e) {
         console.error("AI analyse failed", e);
+      }
+    }
+
+    // Persist per-question ai_score / ai_feedback into interview_answers
+    if (aiPerQuestion.length > 0) {
+      // Map order_index -> question_id from loaded questions
+      const orderToQid = new Map<number, string>();
+      for (const q of (questions || []) as any[]) {
+        orderToQid.set(q.order_index, q.id);
+      }
+      for (const pq of aiPerQuestion) {
+        const qid = orderToQid.get(pq.question_index);
+        if (!qid) {
+          console.warn("[per-q] no question_id for order_index", pq.question_index);
+          continue;
+        }
+        const { error: updErr } = await supabase
+          .from("interview_answers")
+          .update({ ai_score: Math.round(pq.score / 10), ai_feedback: pq.feedback })
+          .eq("applicant_id", applicant.id)
+          .eq("question_id", qid);
+        if (updErr) console.error("[per-q] update failed", pq, updErr);
       }
     }
 
