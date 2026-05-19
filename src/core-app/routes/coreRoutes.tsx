@@ -9,6 +9,7 @@ const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 
 // Dashboard
 const DashboardPage = lazy(() => import("@/core-app/pages/DashboardPage"));
+const CoreAIConsolePage = lazy(() => import("@/core-app/pages/CoreAIConsolePage"));
 const CoreActivityPage = lazy(() => import("@/core-app/pages/CoreActivityPage"));
 const CoreLiveActivityPage = lazy(() => import("@/core-app/pages/CoreLiveActivityPage"));
 const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatusPage"));
@@ -135,6 +136,7 @@ export const coreRoutes: RouteObject = {
     { index: true, element: <Navigate to="dashboard" replace /> },
     // Dashboard
     { path: "dashboard", element: <DashboardPage /> },
+    { path: "ai-console", element: <CoreAIConsolePage /> },
     { path: "activity", element: <CoreActivityPage /> },
     { path: "live-activity", element: <CoreLiveActivityPage /> },
     { path: "system-status", element: <CoreSystemStatusPage /> },
