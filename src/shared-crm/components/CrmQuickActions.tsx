@@ -64,6 +64,29 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
     });
   };
 
+  const handleToggleDnc = async () => {
+    const next = !contact.is_dnc;
+    let reason: string | null = null;
+    if (next) {
+      reason = window.prompt("Raison LNNTE (optionnel) — ex : « Demande de ne plus être appelé »") || "Marqué LNNTE par agent";
+    } else {
+      if (!window.confirm("Retirer ce contact de la liste LNNTE ?")) return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("crm_toggle_dnc", {
+      p_contact_id: contact.id,
+      p_dnc: next,
+      p_reason: reason,
+    });
+    setBusy(false);
+    const res = data as any;
+    if (error || !res?.ok) {
+      toast.error(`Erreur LNNTE : ${res?.error ?? error?.message ?? "inconnue"}`);
+      return;
+    }
+    toast.success(next ? "🛑 Marqué LNNTE — ne plus appeler" : "✅ Retiré du LNNTE");
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
