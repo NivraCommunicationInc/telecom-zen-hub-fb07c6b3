@@ -415,6 +415,18 @@ export function CrmCenter({
                           Tél direct
                         </a>
                       )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => setAssignContact(c)}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors min-h-[40px] border border-violet-500/40 text-violet-600 hover:bg-violet-500/10",
+                          )}
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          {c.assigned_to ? "Réassigner" : "Assigner"}
+                        </button>
+                      )}
+
                     </div>
                   </div>
                 );
