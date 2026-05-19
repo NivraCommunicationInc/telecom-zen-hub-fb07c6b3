@@ -533,6 +533,18 @@ export default function FieldProfile() {
           <span className="text-sm font-medium text-white flex-1">Sécurité 2FA</span>
         </button>
       </section>
+
+      {/* SECTION 6 — Notifications push */}
+      <section className="bg-[#1A1A2E] border border-gray-700 rounded-2xl p-5 space-y-3">
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Notifications push</h2>
+        <p className="text-xs text-gray-400">
+          Sois alerté instantanément des nouveaux leads, commissions et objectifs — même quand l'app est fermée.
+        </p>
+        <PushNotificationToggle variant="outline" size="default" className="w-full min-h-[44px]" />
+      </section>
+    </div>
+  );
+}
     </div>
   );
 }
