@@ -545,6 +545,3 @@ export default function FieldProfile() {
     </div>
   );
 }
-    </div>
-  );
-}
