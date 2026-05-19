@@ -958,7 +958,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
           <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
-          <Route path="academy" element={<Suspense fallback={null}><EmployeeAcademy /></Suspense>} />
+          <Route path="academy" element={<Navigate to="/employee/hub?section=formation" replace />} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
           <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><EmployeeCreateOrder /></CertificationGate></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />
@@ -994,6 +994,7 @@ const AppRoutes = () => {
           <Route path="hub/leaderboard" element={<Navigate to="/employee/hub?section=leaderboard" replace />} />
           <Route path="hub/calendrier" element={<Navigate to="/employee/hub?section=calendrier" replace />} />
           <Route path="hub/formulaires" element={<Navigate to="/employee/hub?section=formulaires" replace />} />
+          <Route path="hub/formation" element={<Navigate to="/employee/hub?section=formation" replace />} />
         </Route>
       </Route>
 
@@ -1027,7 +1028,7 @@ const AppRoutes = () => {
           <Route path="crm" element={<Suspense fallback={null}><FieldCrm /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
-          <Route path="training" element={<Suspense fallback={null}><FieldTraining /></Suspense>} />
+          <Route path="training" element={<Navigate to="/field/hub?section=formation" replace />} />
           <Route path="badge" element={<Suspense fallback={null}><FieldBadgePage /></Suspense>} />
           <Route path="procedures" element={<Suspense fallback={null}><FieldProcedures /></Suspense>} />
           {/* Nivra Source Hub — unified */}
