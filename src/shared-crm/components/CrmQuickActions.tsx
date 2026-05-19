@@ -61,9 +61,8 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
   };
 
   const handleTransfer = () => {
-    toast.info("🚧 Transfert de vente — Bientôt disponible", {
-      description: "Cette fonctionnalité permettra de passer la vente à un autre vendeur.",
-    });
+    if (onOpenTransfer) onOpenTransfer(contact);
+    else toast.info("Transfert non disponible ici");
   };
 
   const handleToggleDnc = async () => {
