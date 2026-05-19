@@ -34,7 +34,24 @@ type Row = {
 export default function CorePauseRequestsPage() {
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [filter, setFilter] = useState<FilterKey>("pending");
+  const [search, setSearch] = useState("");
+
+  const { data: stats } = useQuery({
+    queryKey: ["core-pause-stats"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const counts = { pending: 0, approved: 0, rejected: 0, total: 0 };
+      const { data } = await supabase.from("suspension_requests").select("status");
+      (data || []).forEach((r: any) => {
+        counts.total++;
+        if (r.status === "pending" || r.status === "pending_core") counts.pending++;
+        else if (r.status === "approved") counts.approved++;
+        else if (r.status === "rejected") counts.rejected++;
+      });
+      return counts;
+    },
+  });
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["core-pause-requests", filter],
@@ -44,6 +61,8 @@ export default function CorePauseRequestsPage() {
         .select("id, account_id, client_id, subscription_id, reason, requested_for, pause_duration_days, status, created_at")
         .order("created_at", { ascending: false });
       if (filter === "pending") q = q.in("status", ["pending", "pending_core"]);
+      else if (filter === "approved") q = q.eq("status", "approved");
+      else if (filter === "rejected") q = q.eq("status", "rejected");
       const { data, error } = await q;
       if (error) throw error;
       return (data as Row[]) || [];
