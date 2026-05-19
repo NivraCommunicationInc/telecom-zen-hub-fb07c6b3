@@ -452,6 +452,7 @@ const TechnicianPOS = lazy(() => import("@/pages/staff/TechnicianPOS"));
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
 import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
+import CertificationGate from "@/shared-training/CertificationGate";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
