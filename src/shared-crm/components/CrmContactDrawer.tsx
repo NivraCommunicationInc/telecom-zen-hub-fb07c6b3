@@ -114,6 +114,30 @@ export function CrmContactDrawer({ contact, onClose }: Props) {
               </ul>
             )}
           </div>
+
+          {assignHistory.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                Historique d'assignation ({assignHistory.length})
+              </h3>
+              <ul className="space-y-1.5">
+                {assignHistory.map((h) => (
+                  <li key={h.id} className="border border-border rounded-lg p-2 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold capitalize">
+                        {h.kind === "transfer" ? "🔄 Transfert" : h.kind === "unassign" ? "🚫 Désassigné" : "➕ Assigné"}
+                      </span>
+                      <span className="text-muted-foreground">{format(new Date(h.created_at), "Pp", { locale: fr })}</span>
+                    </div>
+                    <div className="text-muted-foreground mt-0.5">
+                      par {h.changed_by_name ?? "—"}
+                    </div>
+                    {h.reason && <p className="mt-1 text-foreground/80 italic">« {h.reason} »</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
