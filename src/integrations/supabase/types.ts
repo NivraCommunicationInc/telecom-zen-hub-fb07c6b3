@@ -4642,6 +4642,60 @@ export type Database = {
         }
         Relationships: []
       }
+      coverage_zones: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          internet_available: boolean
+          max_speed_mbps: number | null
+          mobile_available: boolean
+          name: string
+          notes: string | null
+          postal_code_prefix: string | null
+          province: string
+          region: string
+          security_available: boolean
+          status: string
+          tv_available: boolean
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          internet_available?: boolean
+          max_speed_mbps?: number | null
+          mobile_available?: boolean
+          name: string
+          notes?: string | null
+          postal_code_prefix?: string | null
+          province?: string
+          region: string
+          security_available?: boolean
+          status?: string
+          tv_available?: boolean
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          internet_available?: boolean
+          max_speed_mbps?: number | null
+          mobile_available?: boolean
+          name?: string
+          notes?: string | null
+          postal_code_prefix?: string | null
+          province?: string
+          region?: string
+          security_available?: boolean
+          status?: string
+          tv_available?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_agent_quotas: {
         Row: {
           agent_id: string

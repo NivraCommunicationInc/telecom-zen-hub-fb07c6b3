@@ -103,6 +103,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Wrench, label: "Techniciens", href: "/technician" },
       { icon: MapPin, label: "Carte techniciens", href: "/technicians/map" },
+      { icon: MapPin, label: "Couverture réseau", href: "/coverage" },
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
       { icon: RefreshCcw, label: "Changements forfait", href: "/plan-changes" },
       { icon: Lock, label: "Suspensions", href: "/pause-requests" },

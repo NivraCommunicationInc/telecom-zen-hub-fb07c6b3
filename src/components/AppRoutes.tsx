@@ -158,6 +158,7 @@ const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesP
 const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
 const CoreTechnicianMapPage = lazy(() => import("@/core-app/pages/CoreTechnicianMapPage"));
 const CoreAcademyPage = lazy(() => import("@/core-app/pages/CoreAcademyPage"));
+const CoreCoveragePage = lazy(() => import("@/core-app/pages/CoreCoveragePage"));
 // Marketing
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
@@ -955,6 +956,7 @@ const AppRoutes = () => {
           <Route path="pause-requests" element={<Suspense fallback={null}><CorePauseRequestsPage /></Suspense>} />
           <Route path="technicians/map" element={<Suspense fallback={null}><CoreTechnicianMapPage /></Suspense>} />
           <Route path="academy" element={<Suspense fallback={null}><CoreAcademyPage /></Suspense>} />
+          <Route path="coverage" element={<Suspense fallback={null}><CoreCoveragePage /></Suspense>} />
           {/* Supplier Accounts (admin-only — RLS enforced server-side) */}
           <Route path="supplier-accounts" element={<Suspense fallback={null}><SupplierAccountsPage /></Suspense>} />
           <Route path="supplier-accounts/new" element={<Suspense fallback={null}><SupplierAccountNewPage /></Suspense>} />
