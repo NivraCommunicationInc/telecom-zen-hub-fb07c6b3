@@ -49,7 +49,7 @@ export default function CorePlanChangesPage() {
         .from("service_change_requests")
         .select("id, account_id, client_id, subscription_id, current_plan_name, requested_plan_id, requested_plan_name, change_type, status, effective_date, created_at")
         .order("created_at", { ascending: false });
-      if (filter === "pending") q = q.eq("status", "pending");
+      if (filter === "pending") q = q.in("status", ["pending", "pending_core"]);
       const { data, error } = await q;
       if (error) throw error;
       return (data as Row[]) || [];
@@ -292,6 +292,8 @@ export default function CorePlanChangesPage() {
                   ? `${client.first_name || ""} ${client.last_name || ""}`.trim() || client.email
                   : r.client_id.slice(0, 8);
 
+                const isPending = r.status === "pending" || r.status === "pending_core";
+
                 return (
                   <div
                     key={r.id}
@@ -308,7 +310,7 @@ export default function CorePlanChangesPage() {
                           )}
                           <Badge
                             variant={
-                              r.status === "pending"
+                              isPending
                                 ? "secondary"
                                 : r.status === "approved"
                                   ? "default"
@@ -351,7 +353,7 @@ export default function CorePlanChangesPage() {
                           {" · "}Effectif: <span className="font-medium">{effLabel}</span>
                         </div>
                       </div>
-                      {r.status === "pending" && (
+                      {isPending && (
                         <div className="flex gap-2 shrink-0">
                           <Button size="sm" onClick={() => approve(r)} disabled={busyId === r.id}>
                             {busyId === r.id ? (
@@ -373,7 +375,7 @@ export default function CorePlanChangesPage() {
                         </div>
                       )}
                     </div>
-                    {r.status === "pending" && (
+                    {isPending && (
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Checkbox
                           checked={!!applyNow[r.id]}
@@ -384,7 +386,7 @@ export default function CorePlanChangesPage() {
                         Appliquer immédiatement (un crédit prorata sera émis en cas de downgrade)
                       </label>
                     )}
-                    {onPayPal && r.status === "pending" && (
+                    {onPayPal && isPending && (
                       <div className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded text-xs text-destructive">
                         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                         <span>
