@@ -15,6 +15,7 @@ import {
   Calendar, TrendingUp, DollarSign, Award, KeyRound, Lock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { cn } from "@/lib/utils";
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
