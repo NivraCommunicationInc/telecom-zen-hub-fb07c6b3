@@ -9,6 +9,7 @@ const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 
 // Dashboard
 const DashboardPage = lazy(() => import("@/core-app/pages/DashboardPage"));
+const CoreAIConsolePage = lazy(() => import("@/core-app/pages/CoreAIConsolePage"));
 const CoreActivityPage = lazy(() => import("@/core-app/pages/CoreActivityPage"));
 const CoreLiveActivityPage = lazy(() => import("@/core-app/pages/CoreLiveActivityPage"));
 const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatusPage"));
