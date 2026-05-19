@@ -9,7 +9,7 @@
  * - Leaderboard sidebar
  * - Business hours warning
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useCrmContacts } from "../hooks/useCrmContacts";
@@ -18,13 +18,28 @@ import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
 import { CrmSaleModal } from "./CrmSaleModal";
+import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import {
-  PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus,
+  PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+
+const PER_PAGE = 10;
+const COOLDOWN_HOURS = 48;
+
+/** Returns ms remaining in cooldown (>0 means active), or 0 if no cooldown. */
+function cooldownRemainingMs(c: CrmContact): number {
+  const attempts = c.call_attempts ?? 0;
+  if (c.call_status === "sold") return 0;
+  if (attempts < 1 || attempts > 2) return 0;
+  if (!c.last_called_at) return 0;
+  const elapsed = Date.now() - new Date(c.last_called_at).getTime();
+  const cooldown = COOLDOWN_HOURS * 3600 * 1000;
+  return Math.max(0, cooldown - elapsed);
+}
 
 const STATUS_FILTERS = [
   { key: "all",            label: "Tous" },
