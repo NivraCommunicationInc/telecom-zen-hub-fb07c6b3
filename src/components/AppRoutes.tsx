@@ -49,6 +49,8 @@ const FieldTracking = lazy(() => import("@/field-app/pages/FieldTracking"));
 const FieldTerritory = lazy(() => import("@/field-app/pages/FieldTerritory"));
 const FieldClients = lazy(() => import("@/field-app/pages/FieldClients"));
 const FieldCrm = lazy(() => import("@/field-app/pages/FieldCrm"));
+const EmployeeCrm = lazy(() => import("@/employee-app/pages/EmployeeCrm"));
+const CoreCrm = lazy(() => import("@/core-app/pages/CoreCrm"));
 const FieldObjectives = lazy(() => import("@/field-app/pages/FieldObjectives"));
 const FieldCommissions = lazy(() => import("@/field-app/pages/FieldCommissions"));
 const FieldMyPay = lazy(() => import("@/field-app/pages/FieldMyPay"));
@@ -815,6 +817,7 @@ const AppRoutes = () => {
           <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
           {/* Operations */}
           <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
+          <Route path="crm" element={<Suspense fallback={null}><CoreCrm /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
@@ -955,6 +958,7 @@ const AppRoutes = () => {
           <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
           <Route path="orders/new" element={<Suspense fallback={null}><EmployeeCreateOrder /></Suspense>} />
+          <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
           <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />
           <Route path="clients/:clientId" element={<Suspense fallback={null}><EmployeeClientDetail /></Suspense>} />
