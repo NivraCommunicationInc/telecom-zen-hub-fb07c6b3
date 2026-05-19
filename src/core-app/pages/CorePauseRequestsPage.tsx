@@ -9,12 +9,15 @@ import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, Pause } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Check, X, Pause, Search, Clock, CheckCircle2, XCircle, ListChecks } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+type FilterKey = "pending" | "approved" | "rejected" | "all";
 
 type Row = {
   id: string;
@@ -31,7 +34,24 @@ type Row = {
 export default function CorePauseRequestsPage() {
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [filter, setFilter] = useState<FilterKey>("pending");
+  const [search, setSearch] = useState("");
+
+  const { data: stats } = useQuery({
+    queryKey: ["core-pause-stats"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const counts = { pending: 0, approved: 0, rejected: 0, total: 0 };
+      const { data } = await supabase.from("suspension_requests").select("status");
+      (data || []).forEach((r: any) => {
+        counts.total++;
+        if (r.status === "pending" || r.status === "pending_core") counts.pending++;
+        else if (r.status === "approved") counts.approved++;
+        else if (r.status === "rejected") counts.rejected++;
+      });
+      return counts;
+    },
+  });
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["core-pause-requests", filter],
@@ -41,6 +61,8 @@ export default function CorePauseRequestsPage() {
         .select("id, account_id, client_id, subscription_id, reason, requested_for, pause_duration_days, status, created_at")
         .order("created_at", { ascending: false });
       if (filter === "pending") q = q.in("status", ["pending", "pending_core"]);
+      else if (filter === "approved") q = q.eq("status", "approved");
+      else if (filter === "rejected") q = q.eq("status", "rejected");
       const { data, error } = await q;
       if (error) throw error;
       return (data as Row[]) || [];
@@ -160,6 +182,7 @@ export default function CorePauseRequestsPage() {
 
       toast.success("Suspension approuvée");
       qc.invalidateQueries({ queryKey: ["core-pause-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-pause-stats"] });
     } catch (e: any) {
       console.error("[CorePauseRequestsPage.approve]", e);
       toast.error(e?.message || "Erreur lors de l'approbation");
@@ -185,6 +208,7 @@ export default function CorePauseRequestsPage() {
       }
       toast.success("Demande rejetée");
       qc.invalidateQueries({ queryKey: ["core-pause-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-pause-stats"] });
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     } finally {
@@ -198,42 +222,87 @@ export default function CorePauseRequestsPage() {
         <title>Suspensions de service — Nivra Core</title>
       </Helmet>
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        <header className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Pause className="w-6 h-6" /> Suspensions de service
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Demandes de suspension temporaire envoyées par les clients.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant={filter === "pending" ? "default" : "outline"} onClick={() => setFilter("pending")}>
-              En attente
-            </Button>
-            <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
-              Toutes
-            </Button>
-          </div>
+        <header className="space-y-1">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Pause className="w-6 h-6" /> Suspensions de service
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Demandes de suspension temporaire envoyées par les clients.
+          </p>
         </header>
 
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-10 flex justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : !requests || requests.length === 0 ? (
-          <Card>
-            <CardContent className="p-10 text-center text-muted-foreground">Aucune demande.</CardContent>
-          </Card>
-        ) : (
+        {/* Stats bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {([
+            { key: "pending", label: "En attente", value: stats?.pending ?? 0, icon: Clock, color: "text-amber-500" },
+            { key: "approved", label: "Approuvées", value: stats?.approved ?? 0, icon: CheckCircle2, color: "text-green-500" },
+            { key: "rejected", label: "Rejetées", value: stats?.rejected ?? 0, icon: XCircle, color: "text-red-500" },
+            { key: "all", label: "Total", value: stats?.total ?? 0, icon: ListChecks, color: "text-primary" },
+          ] as const).map((s) => {
+            const Icon = s.icon;
+            const active = filter === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setFilter(s.key as FilterKey)}
+                className={`text-left p-4 rounded-lg border transition-all ${
+                  active ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:border-primary/40"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</span>
+                  <Icon className={`w-4 h-4 ${s.color}`} />
+                </div>
+                <div className="text-2xl font-bold mt-1">{s.value}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher (nom, email, n° compte, forfait)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {(() => {
+          const filtered = (requests || []).filter((r) => {
+            if (!search.trim()) return true;
+            const q = search.toLowerCase();
+            const c = clients?.[r.client_id];
+            const a = accounts?.[r.account_id];
+            const s = r.subscription_id ? subs?.[r.subscription_id] : null;
+            return (
+              `${c?.first_name || ""} ${c?.last_name || ""}`.toLowerCase().includes(q) ||
+              (c?.email || "").toLowerCase().includes(q) ||
+              (a?.account_number || "").toLowerCase().includes(q) ||
+              (s?.plan_name || "").toLowerCase().includes(q)
+            );
+          });
+          if (isLoading) {
+            return (
+              <Card><CardContent className="p-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></CardContent></Card>
+            );
+          }
+          if (filtered.length === 0) {
+            return (
+              <Card><CardContent className="p-10 text-center text-muted-foreground">
+                {search ? `Aucun résultat pour "${search}"` : `Aucune demande ${filter === "all" ? "" : filter}.`}
+              </CardContent></Card>
+            );
+          }
+          return (
           <Card>
             <CardHeader>
-              <CardTitle>{requests.length} demande(s)</CardTitle>
+              <CardTitle>{filtered.length} demande(s)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {requests.map((r) => {
+              {filtered.map((r) => {
                 const client = clients?.[r.client_id];
                 const acc = accounts?.[r.account_id];
                 const sub = r.subscription_id ? subs?.[r.subscription_id] : null;
@@ -312,7 +381,8 @@ export default function CorePauseRequestsPage() {
               })}
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
       </div>
     </>
   );
