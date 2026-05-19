@@ -4,7 +4,7 @@
  * schedule callback (sends email reminder), sale note, transfer (coming soon).
  */
 import { useState } from "react";
-import { MoreVertical, StickyNote, Lock, ListChecks, Calendar, ShoppingBag, ArrowRightLeft, Loader2, PhoneCall, ShieldAlert, ShieldCheck } from "lucide-react";
+import { MoreVertical, StickyNote, Lock, ListChecks, Calendar, ShoppingBag, ArrowRightLeft, Loader2, PhoneCall, ShieldAlert, ShieldCheck, Mail } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -27,6 +27,8 @@ interface Props {
   onOpenCallback: (c: CrmContact) => void;
   onStartCall: (c: CrmContact) => void;
   onSell: (c: CrmContact) => void;
+  onOpenTransfer?: (c: CrmContact) => void;
+  onOpenEmail?: (c: CrmContact) => void;
   isDark?: boolean;
 }
 
