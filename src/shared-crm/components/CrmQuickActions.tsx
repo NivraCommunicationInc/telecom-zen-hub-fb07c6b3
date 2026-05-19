@@ -155,6 +155,23 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
 
         <DropdownMenuSeparator />
 
+        <DropdownMenuItem onClick={handleToggleDnc}>
+          {contact.is_dnc ? (
+            <>
+              <ShieldCheck className="h-4 w-4 mr-2 text-emerald-500" />
+              Retirer du LNNTE
+            </>
+          ) : (
+            <>
+              <ShieldAlert className="h-4 w-4 mr-2 text-rose-500" />
+              🛑 Marquer LNNTE (Ne pas appeler)
+            </>
+          )}
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+
         <DropdownMenuItem onClick={handleTransfer} disabled className="opacity-60">
           <ArrowRightLeft className="h-4 w-4 mr-2 text-rose-500" />
           Transférer à un autre vendeur
