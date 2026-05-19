@@ -47,7 +47,7 @@ const ACTION_TYPES = [
   { value: "note", label: "Note interne", icon: History },
 ] as const;
 
-const cardClass = "p-4 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)]";
+const cardClass = "p-4 rounded-lg border border-core-border bg-core-card";
 
 export default function CoreRecouvrementPage() {
   const qc = useQueryClient();
@@ -200,21 +200,21 @@ export default function CoreRecouvrementPage() {
   };
 
   const bucketBadge = (d: number) => {
-    if (d <= 0) return <Badge className="bg-sky-500/15 text-sky-300 border-0">À venir</Badge>;
-    if (d <= 15) return <Badge className="bg-amber-500/15 text-amber-300 border-0">{d}j</Badge>;
-    if (d <= 30) return <Badge className="bg-orange-500/15 text-orange-300 border-0">{d}j</Badge>;
-    if (d <= 60) return <Badge className="bg-red-500/15 text-red-300 border-0">{d}j</Badge>;
-    return <Badge className="bg-red-700/30 text-red-200 border-0">{d}j ⚠</Badge>;
+    if (d <= 0) return <Badge className="bg-core-accent/15 text-core-accent-soft border-0">À venir</Badge>;
+    if (d <= 15) return <Badge className="bg-core-warning/15 text-core-warning border-0">{d}j</Badge>;
+    if (d <= 30) return <Badge className="bg-core-warning/25 text-core-warning border-0">{d}j</Badge>;
+    if (d <= 60) return <Badge className="bg-core-danger/15 text-core-danger border-0">{d}j</Badge>;
+    return <Badge className="bg-core-danger/30 text-core-fg border-0">{d}j ⚠</Badge>;
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[hsl(var(--core-text-primary))] flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-400" /> Recouvrement
+          <h1 className="text-xl font-bold text-core-text-primary flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-core-warning" /> Recouvrement
           </h1>
-          <p className="text-sm text-[hsl(var(--core-text-secondary))]">Suivi des factures en souffrance, relances et engagements de paiement</p>
+          <p className="text-sm text-core-text-secondary">Suivi des factures en souffrance, relances et engagements de paiement</p>
         </div>
         <Button onClick={exportCsv} variant="outline" size="sm" className="gap-2">
           <Download className="w-4 h-4" /> Exporter CSV
@@ -224,20 +224,20 @@ export default function CoreRecouvrementPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4 text-red-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">En souffrance</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.overdueCount}</p>
+          <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4 text-core-danger" /><span className="text-xs text-core-text-label">En souffrance</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.overdueCount}</p>
         </div>
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><Clock className="w-4 h-4 text-amber-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">À échoir</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.dueSoonCount}</p>
+          <div className="flex items-center gap-2 mb-1"><Clock className="w-4 h-4 text-core-warning" /><span className="text-xs text-core-text-label">À échoir</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.dueSoonCount}</p>
         </div>
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-sky-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">Solde total</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.totalBalance.toFixed(2)}$</p>
+          <div className="flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-core-accent-soft" /><span className="text-xs text-core-text-label">Solde total</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.totalBalance.toFixed(2)}$</p>
         </div>
         <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1"><Users className="w-4 h-4 text-fuchsia-400" /><span className="text-xs text-[hsl(var(--core-text-label))]">Retard moyen</span></div>
-          <p className="text-2xl font-bold text-[hsl(var(--core-text-primary))]">{stats.avgDays}j</p>
+          <div className="flex items-center gap-2 mb-1"><Users className="w-4 h-4 text-core-success" /><span className="text-xs text-core-text-label">Retard moyen</span></div>
+          <p className="text-2xl font-bold text-core-text-primary">{stats.avgDays}j</p>
         </div>
       </div>
 
@@ -255,8 +255,8 @@ export default function CoreRecouvrementPage() {
             className={cn(
               "px-3 py-1.5 rounded-full text-xs font-medium border transition",
               bucket === p.k
-                ? "bg-[hsl(var(--core-text-primary))] text-[hsl(220,15%,8%)] border-transparent"
-                : "border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-secondary))] hover:text-[hsl(var(--core-text-primary))]"
+                ? "bg-core-accent text-core-fg border-transparent"
+                : "border-core-border-strong text-core-text-secondary hover:text-core-text-primary hover:border-core-accent/60"
             )}>{p.label}</button>
         ))}
       </div>
@@ -264,34 +264,34 @@ export default function CoreRecouvrementPage() {
       {/* Search */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--core-text-label))]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-core-text-label" />
           <Input placeholder="Facture, nom, email, téléphone…" value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-[hsl(220,15%,12%)] border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]" />
+            className="pl-9 bg-core-card-raised border-core-border-strong text-core-text-primary" />
         </div>
-        <span className="text-xs text-[hsl(var(--core-text-label))]">{filtered.length} résultat(s)</span>
+        <span className="text-xs text-core-text-label">{filtered.length} résultat(s)</span>
       </div>
 
       {/* List */}
       <div className="space-y-2">
-        {isLoading && <div className="text-center py-12 text-[hsl(var(--core-text-label))]">Chargement…</div>}
+        {isLoading && <div className="text-center py-12 text-core-text-label">Chargement…</div>}
         {!isLoading && filtered.map((inv: any) => {
           const c = inv.billing_customers;
           return (
             <button key={inv.id} onClick={() => openInvoice(inv)}
-              className="w-full p-3 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] hover:border-[hsl(220,15%,28%)] flex items-center justify-between text-left transition">
+              className="w-full p-3 rounded-lg border border-core-border bg-core-card hover:border-core-border-strong flex items-center justify-between text-left transition">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-[hsl(var(--core-text-primary))] truncate">
+                <p className="text-sm font-medium text-core-text-primary truncate">
                   {inv.invoice_number} — {c?.first_name} {c?.last_name}
                 </p>
-                <p className="text-xs text-[hsl(var(--core-text-secondary))] truncate">
+                <p className="text-xs text-core-text-secondary truncate">
                   {c?.email} {c?.phone && `· ${c.phone}`} · Échéance:{" "}
                   {inv.due_date && format(new Date(inv.due_date), "d MMM yyyy", { locale: fr })}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 {bucketBadge(inv._daysOverdue)}
-                <span className="text-sm font-semibold text-[hsl(var(--core-text-primary))] w-20 text-right">
+                <span className="text-sm font-semibold text-core-text-primary w-20 text-right">
                   {Number(inv.balance_due ?? inv.total ?? 0).toFixed(2)}$
                 </span>
               </div>
@@ -299,7 +299,7 @@ export default function CoreRecouvrementPage() {
           );
         })}
         {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-12 text-[hsl(var(--core-text-label))]">Aucune facture dans ce filtre</div>
+          <div className="text-center py-12 text-core-text-label">Aucune facture dans ce filtre</div>
         )}
       </div>
 
@@ -316,26 +316,26 @@ export default function CoreRecouvrementPage() {
 
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className={cardClass}>
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Solde dû</p>
-                  <p className="text-lg font-bold text-[hsl(var(--core-text-primary))]">
+                  <p className="text-xs text-core-text-label">Solde dû</p>
+                  <p className="text-lg font-bold text-core-text-primary">
                     {Number(selected.balance_due ?? selected.total ?? 0).toFixed(2)}$
                   </p>
                 </div>
                 <div className={cardClass}>
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Échéance</p>
-                  <p className="text-sm text-[hsl(var(--core-text-primary))]">
+                  <p className="text-xs text-core-text-label">Échéance</p>
+                  <p className="text-sm text-core-text-primary">
                     {selected.due_date && format(new Date(selected.due_date), "d MMM yyyy", { locale: fr })}
                   </p>
                 </div>
                 <div className={cardClass}>
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Retard</p>
-                  <p className="text-sm text-[hsl(var(--core-text-primary))]">{selected._daysOverdue}j</p>
+                  <p className="text-xs text-core-text-label">Retard</p>
+                  <p className="text-sm text-core-text-primary">{selected._daysOverdue}j</p>
                 </div>
               </div>
 
               {/* New action form */}
-              <div className="space-y-3 border border-[hsl(220,15%,20%)] rounded-lg p-3">
-                <h3 className="text-sm font-semibold text-[hsl(var(--core-text-primary))]">Nouvelle action</h3>
+              <div className="space-y-3 border border-core-border-strong rounded-lg p-3">
+                <h3 className="text-sm font-semibold text-core-text-primary">Nouvelle action</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Type</Label>
@@ -375,23 +375,23 @@ export default function CoreRecouvrementPage() {
 
               {/* History */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-[hsl(var(--core-text-primary))]">Historique</h3>
+                <h3 className="text-sm font-semibold text-core-text-primary">Historique</h3>
                 {history.length === 0 && (
-                  <p className="text-xs text-[hsl(var(--core-text-label))]">Aucune action enregistrée pour cette facture.</p>
+                  <p className="text-xs text-core-text-label">Aucune action enregistrée pour cette facture.</p>
                 )}
                 {history.map((h: any) => (
-                  <div key={h.id} className="text-xs border border-[hsl(220,15%,18%)] rounded p-2">
+                  <div key={h.id} className="text-xs border border-core-border rounded p-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-[hsl(var(--core-text-primary))]">
+                      <span className="font-medium text-core-text-primary">
                         {ACTION_TYPES.find(a => a.value === h.action_type)?.label ?? h.action_type}
                       </span>
-                      <span className="text-[hsl(var(--core-text-label))]">
+                      <span className="text-core-text-label">
                         {h.created_at && format(new Date(h.created_at), "d MMM yyyy HH:mm", { locale: fr })}
                       </span>
                     </div>
-                    {h.notes && <p className="mt-1 text-[hsl(var(--core-text-secondary))]">{h.notes}</p>}
+                    {h.notes && <p className="mt-1 text-core-text-secondary">{h.notes}</p>}
                     {(h.amount_promised || h.promise_date) && (
-                      <p className="mt-1 text-[hsl(var(--core-text-secondary))]">
+                      <p className="mt-1 text-core-text-secondary">
                         Promesse: {h.amount_promised ? `${Number(h.amount_promised).toFixed(2)}$` : "—"}
                         {h.promise_date && ` · ${format(new Date(h.promise_date), "d MMM yyyy", { locale: fr })}`}
                       </p>
