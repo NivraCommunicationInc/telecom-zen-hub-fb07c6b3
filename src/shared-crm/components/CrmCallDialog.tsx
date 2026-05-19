@@ -63,10 +63,14 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
       return;
     }
     setLogging(true);
+    const objectionLine = objections.length
+      ? `[Objections: ${objections.join(", ")}]\n`
+      : "";
+    const finalNotes = (objectionLine + (notes.trim() || "")).trim() || undefined;
     const result = await crmLogCall({
       contactId: contact.id,
       outcome,
-      notes: notes.trim() || undefined,
+      notes: finalNotes,
       callbackAt: outcome === "callback" ? new Date(callbackDate).toISOString() : null,
       portal,
     });
