@@ -336,10 +336,10 @@ export default function CorePlanChangesPage() {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>{requests.length} demande(s)</CardTitle>
+              <CardTitle>{filteredRequests.length} demande(s)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {requests.map((r) => {
+              {filteredRequests.map((r) => {
                 const meta = r.subscription_id ? subMeta?.[r.subscription_id] : undefined;
                 const onPayPal = !!meta?.paypal_subscription_id;
                 const client = clients?.[r.client_id];
