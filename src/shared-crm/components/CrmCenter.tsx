@@ -19,6 +19,9 @@ import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
 import { CrmSaleModal } from "./CrmSaleModal";
 import { CrmAssignDialog } from "./CrmAssignDialog";
+import { CrmQuickActions } from "./CrmQuickActions";
+import { CrmQuickNoteDialog } from "./CrmQuickNoteDialog";
+import { CrmScheduleCallbackDialog } from "./CrmScheduleCallbackDialog";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import { exportContactsCsv } from "../lib/crmCsv";
@@ -83,6 +86,8 @@ export function CrmCenter({
   const [viewing, setViewing] = useState<CrmContact | null>(null);
   const [saleContact, setSaleContact] = useState<CrmContact | null>(null);
   const [assignContact, setAssignContact] = useState<CrmContact | null>(null);
+  const [noteContact, setNoteContact] = useState<CrmContact | null>(null);
+  const [callbackContact, setCallbackContact] = useState<CrmContact | null>(null);
 
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -426,7 +431,14 @@ export function CrmCenter({
                           {c.assigned_to ? "Réassigner" : "Assigner"}
                         </button>
                       )}
-
+                      <CrmQuickActions
+                        contact={c}
+                        isDark={isDark}
+                        onOpenNote={setNoteContact}
+                        onOpenCallback={setCallbackContact}
+                        onStartCall={startCall}
+                        onSell={setSaleContact}
+                      />
                     </div>
                   </div>
                 );
@@ -467,6 +479,8 @@ export function CrmCenter({
       <CrmContactDrawer contact={viewing} onClose={() => setViewing(null)} />
       <CrmSaleModal contact={saleContact} onClose={() => setSaleContact(null)} />
       <CrmAssignDialog contact={assignContact} onClose={() => setAssignContact(null)} />
+      <CrmQuickNoteDialog contact={noteContact} onClose={() => setNoteContact(null)} />
+      <CrmScheduleCallbackDialog contact={callbackContact} onClose={() => setCallbackContact(null)} />
     </div>
 
   );
