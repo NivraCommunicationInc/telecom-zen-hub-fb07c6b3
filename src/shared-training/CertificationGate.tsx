@@ -48,7 +48,7 @@ export default function CertificationGate({ portal, children }: Props) {
   }
 
   if (state === "blocked") {
-    const academyPath = portal === "field" ? "/field/academy" : "/employee/academy";
+    const academyPath = portal === "field" ? "/field/hub?section=formation" : "/employee/hub?section=formation";
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-6">
         <Card className="max-w-md w-full border-amber-500/30">
