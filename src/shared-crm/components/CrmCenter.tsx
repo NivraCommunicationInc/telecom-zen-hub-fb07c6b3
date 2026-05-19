@@ -431,7 +431,14 @@ export function CrmCenter({
                           {c.assigned_to ? "Réassigner" : "Assigner"}
                         </button>
                       )}
-
+                      <CrmQuickActions
+                        contact={c}
+                        isDark={isDark}
+                        onOpenNote={setNoteContact}
+                        onOpenCallback={setCallbackContact}
+                        onStartCall={startCall}
+                        onSell={setSaleContact}
+                      />
                     </div>
                   </div>
                 );
