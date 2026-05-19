@@ -22,8 +22,10 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   GraduationCap, Trophy, Users, BookOpen, Loader2, Plus, Pencil, Trash2,
-  ShieldCheck, Sparkles, MessageSquare, FileText,
+  ShieldCheck, Sparkles, MessageSquare, FileText, LayoutDashboard,
+  AlertTriangle, CheckCircle2, Clock, XCircle, TrendingUp, Search, Download,
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 /* ============================================================
  *  ROOT
@@ -39,8 +41,9 @@ export default function CoreAcademyPage() {
         </div>
       </header>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="dashboard"><LayoutDashboard className="h-4 w-4 mr-1.5" />Tableau de bord</TabsTrigger>
           <TabsTrigger value="overview"><BookOpen className="h-4 w-4 mr-1.5" />Vue d'ensemble</TabsTrigger>
           <TabsTrigger value="modules"><FileText className="h-4 w-4 mr-1.5" />Modules</TabsTrigger>
           <TabsTrigger value="lessons">Leçons</TabsTrigger>
@@ -50,6 +53,7 @@ export default function CoreAcademyPage() {
           <TabsTrigger value="agents"><Users className="h-4 w-4 mr-1.5" />Agents</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="dashboard"><ManagerDashboard /></TabsContent>
         <TabsContent value="overview"><OverviewTab /></TabsContent>
         <TabsContent value="modules"><ModulesTab /></TabsContent>
         <TabsContent value="lessons"><LessonsTab /></TabsContent>
@@ -60,6 +64,288 @@ export default function CoreAcademyPage() {
       </Tabs>
     </div>
   );
+}
+
+/* ============================================================
+ *  MANAGER DASHBOARD — Vue manager RH: qui est en retard / expiré
+ * ============================================================ */
+type AgentRow = {
+  agent_id: string;
+  name: string;
+  email: string | null;
+  portal: "field" | "cs" | "both" | "none";
+  modules_total: number;
+  modules_done: number;
+  modules_in_progress: number;
+  modules_failed: number;
+  avg_score: number;
+  last_activity: string | null;
+  cert_status: "valid" | "expiring_soon" | "expired" | "none";
+  cert_expires_at: string | null;
+  last_exam_passed: boolean | null;
+  last_exam_at: string | null;
+};
+
+function ManagerDashboard() {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [portalFilter, setPortalFilter] = useState<string>("all");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["academy-manager-dashboard"],
+    queryFn: async (): Promise<AgentRow[]> => {
+      // Pull whitelist + roles for portal scoping
+      const [{ data: modules }, { data: progress }, { data: certs }, { data: attempts }, { data: profiles }] = await Promise.all([
+        supabase.from("training_modules").select("id, portal, is_mandatory, is_active"),
+        supabase.from("training_progress").select("agent_id, module_id, status, score, completed_at, started_at"),
+        supabase.from("training_certifications").select("agent_id, portal, expires_at, is_active, issued_at").eq("is_active", true),
+        supabase.from("training_exam_attempts").select("agent_id, portal, passed, submitted_at, status").eq("status", "submitted").order("submitted_at", { ascending: false }),
+        supabase.from("profiles").select("user_id, full_name, email"),
+      ]);
+
+      const mandatoryByPortal = {
+        field: (modules || []).filter((m: any) => m.is_active && m.is_mandatory && (m.portal === "field" || m.portal === "both")).map((m: any) => m.id),
+        cs: (modules || []).filter((m: any) => m.is_active && m.is_mandatory && (m.portal === "cs" || m.portal === "both")).map((m: any) => m.id),
+      };
+
+      const agentIds = new Set<string>();
+      (progress || []).forEach((p: any) => agentIds.add(p.agent_id));
+      (certs || []).forEach((c: any) => agentIds.add(c.agent_id));
+      (attempts || []).forEach((a: any) => agentIds.add(a.agent_id));
+
+      const profMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      const now = Date.now();
+      const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+      return Array.from(agentIds).map((id) => {
+        const agentProgress = (progress || []).filter((p: any) => p.agent_id === id);
+        const agentCert = (certs || []).find((c: any) => c.agent_id === id);
+        const agentExam = (attempts || []).find((a: any) => a.agent_id === id);
+        const portal: AgentRow["portal"] = agentCert?.portal as any || (agentExam?.portal as any) || "none";
+
+        const relevantModules = portal === "field" ? mandatoryByPortal.field
+          : portal === "cs" ? mandatoryByPortal.cs
+          : [...new Set([...mandatoryByPortal.field, ...mandatoryByPortal.cs])];
+
+        const modProgress = agentProgress.filter((p: any) => relevantModules.includes(p.module_id));
+        const done = modProgress.filter((p: any) => p.status === "completed").length;
+        const inProg = modProgress.filter((p: any) => p.status === "in_progress").length;
+        const failed = modProgress.filter((p: any) => p.status === "failed").length;
+        const scores = modProgress.filter((p: any) => p.score > 0).map((p: any) => p.score);
+        const avgScore = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
+
+        const lastActivityDate = modProgress
+          .map((p: any) => p.completed_at || p.started_at)
+          .filter(Boolean)
+          .sort()
+          .pop() || null;
+
+        let certStatus: AgentRow["cert_status"] = "none";
+        if (agentCert) {
+          if (!agentCert.expires_at) certStatus = "valid";
+          else {
+            const expMs = new Date(agentCert.expires_at).getTime();
+            if (expMs < now) certStatus = "expired";
+            else if (expMs - now < THIRTY_DAYS) certStatus = "expiring_soon";
+            else certStatus = "valid";
+          }
+        }
+
+        const prof = profMap.get(id) as any;
+        return {
+          agent_id: id,
+          name: prof?.full_name || "Agent",
+          email: prof?.email || null,
+          portal,
+          modules_total: relevantModules.length,
+          modules_done: done,
+          modules_in_progress: inProg,
+          modules_failed: failed,
+          avg_score: avgScore,
+          last_activity: lastActivityDate,
+          cert_status: certStatus,
+          cert_expires_at: agentCert?.expires_at || null,
+          last_exam_passed: agentExam?.passed ?? null,
+          last_exam_at: agentExam?.submitted_at || null,
+        } as AgentRow;
+      }).sort((a, b) => {
+        // Surface problems first: expired > expiring > in_progress > valid
+        const rank = { expired: 0, expiring_soon: 1, none: 2, valid: 3 } as any;
+        return rank[a.cert_status] - rank[b.cert_status];
+      });
+    },
+  });
+
+  const filtered = (data || []).filter((r) => {
+    if (statusFilter !== "all" && r.cert_status !== statusFilter) return false;
+    if (portalFilter !== "all" && r.portal !== portalFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!r.name.toLowerCase().includes(q) && !(r.email || "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const stats = {
+    total: data?.length || 0,
+    certified: data?.filter((r) => r.cert_status === "valid").length || 0,
+    expiring: data?.filter((r) => r.cert_status === "expiring_soon").length || 0,
+    expired: data?.filter((r) => r.cert_status === "expired").length || 0,
+    in_progress: data?.filter((r) => r.modules_in_progress > 0 && r.cert_status === "none").length || 0,
+    failed: data?.filter((r) => r.modules_failed > 0).length || 0,
+  };
+
+  const exportCsv = () => {
+    const headers = ["Nom", "Email", "Portail", "Modules", "Complétés", "En cours", "Échecs", "Score moyen", "Certification", "Expire le", "Dernière activité"];
+    const rows = filtered.map((r) => [
+      r.name, r.email || "", r.portal,
+      r.modules_total, r.modules_done, r.modules_in_progress, r.modules_failed,
+      r.avg_score + "%", r.cert_status,
+      r.cert_expires_at ? new Date(r.cert_expires_at).toLocaleDateString("fr-CA") : "",
+      r.last_activity ? new Date(r.last_activity).toLocaleDateString("fr-CA") : "",
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `academy-dashboard-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLoading) return <Spin />;
+
+  return (
+    <div className="space-y-4">
+      {/* KPI Cards */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-6">
+        <KpiCard icon={Users} label="Total agents" value={stats.total} tone="neutral" />
+        <KpiCard icon={CheckCircle2} label="Certifiés" value={stats.certified} tone="success" />
+        <KpiCard icon={Clock} label="Expire <30j" value={stats.expiring} tone="warning" />
+        <KpiCard icon={XCircle} label="Expirés" value={stats.expired} tone="danger" />
+        <KpiCard icon={TrendingUp} label="En formation" value={stats.in_progress} tone="info" />
+        <KpiCard icon={AlertTriangle} label="Avec échec" value={stats.failed} tone="danger" />
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-base">Suivi des agents ({filtered.length})</CardTitle>
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom ou email..." className="pl-8 w-56" />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes certifications</SelectItem>
+                <SelectItem value="valid">Valide</SelectItem>
+                <SelectItem value="expiring_soon">Expire bientôt</SelectItem>
+                <SelectItem value="expired">Expirée</SelectItem>
+                <SelectItem value="none">Aucune</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={portalFilter} onValueChange={setPortalFilter}>
+              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous portails</SelectItem>
+                <SelectItem value="field">Field</SelectItem>
+                <SelectItem value="cs">OneView CS</SelectItem>
+                <SelectItem value="none">Non assigné</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Portail</TableHead>
+                  <TableHead>Progression</TableHead>
+                  <TableHead>Score moy.</TableHead>
+                  <TableHead>Certification</TableHead>
+                  <TableHead>Expire le</TableHead>
+                  <TableHead>Dernière activité</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">Aucun agent.</TableCell></TableRow>
+                )}
+                {filtered.map((r) => {
+                  const pct = r.modules_total > 0 ? Math.round((r.modules_done / r.modules_total) * 100) : 0;
+                  return (
+                    <TableRow key={r.agent_id}>
+                      <TableCell>
+                        <div className="font-medium">{r.name}</div>
+                        {r.email && <div className="text-xs text-muted-foreground">{r.email}</div>}
+                      </TableCell>
+                      <TableCell><Badge variant="outline" className="uppercase text-[10px]">{r.portal}</Badge></TableCell>
+                      <TableCell className="min-w-[180px]">
+                        <div className="flex items-center gap-2">
+                          <Progress value={pct} className="h-2 flex-1" />
+                          <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">{r.modules_done}/{r.modules_total}</span>
+                        </div>
+                        {(r.modules_in_progress > 0 || r.modules_failed > 0) && (
+                          <div className="flex gap-1.5 mt-1">
+                            {r.modules_in_progress > 0 && <span className="text-[10px] text-sky-600">{r.modules_in_progress} en cours</span>}
+                            {r.modules_failed > 0 && <span className="text-[10px] text-red-600">{r.modules_failed} échec</span>}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="tabular-nums">{r.avg_score}%</TableCell>
+                      <TableCell><CertBadge status={r.cert_status} /></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {r.cert_expires_at ? new Date(r.cert_expires_at).toLocaleDateString("fr-CA") : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {r.last_activity ? new Date(r.last_activity).toLocaleDateString("fr-CA") : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function KpiCard({ icon: Icon, label, value, tone }: { icon: any; label: string; value: number; tone: "neutral" | "success" | "warning" | "danger" | "info" }) {
+  const tones: Record<string, string> = {
+    neutral: "bg-muted text-foreground",
+    success: "bg-emerald-500/15 text-emerald-600",
+    warning: "bg-amber-500/15 text-amber-600",
+    danger: "bg-red-500/15 text-red-600",
+    info: "bg-sky-500/15 text-sky-600",
+  };
+  return (
+    <Card>
+      <CardContent className="p-3 flex items-center gap-2.5">
+        <div className={`rounded-lg p-2 ${tones[tone]}`}><Icon className="h-4 w-4" /></div>
+        <div className="min-w-0">
+          <p className="text-[11px] text-muted-foreground leading-none">{label}</p>
+          <p className="text-xl font-bold tabular-nums mt-0.5">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CertBadge({ status }: { status: AgentRow["cert_status"] }) {
+  const map = {
+    valid: { label: "Valide", className: "bg-emerald-500/15 text-emerald-600 border-emerald-500/25" },
+    expiring_soon: { label: "Expire <30j", className: "bg-amber-500/15 text-amber-600 border-amber-500/25" },
+    expired: { label: "Expirée", className: "bg-red-500/15 text-red-600 border-red-500/25" },
+    none: { label: "Aucune", className: "bg-muted text-muted-foreground border-border" },
+  }[status];
+  return <Badge variant="outline" className={map.className}>{map.label}</Badge>;
 }
 
 /* ============================================================
