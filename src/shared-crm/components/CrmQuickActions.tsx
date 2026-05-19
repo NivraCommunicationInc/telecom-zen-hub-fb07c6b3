@@ -53,9 +53,9 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
 
   const handleClaim = async () => {
     setBusy(true);
-    const res = await lock(contact.id);
+    const ok = await lock(contact.id);
     setBusy(false);
-    if (res.ok) toast.success("🔒 Prospect verrouillé pour vous (30 min)");
+    if (ok) toast.success("🔒 Prospect verrouillé pour vous (30 min)");
   };
 
   const handleTransfer = () => {
