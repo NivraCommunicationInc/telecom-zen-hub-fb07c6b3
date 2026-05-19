@@ -384,11 +384,15 @@ export default function CoreInterviewsPage() {
           <Button size="sm" variant="outline" onClick={exportCSV}>
             <Download className="h-3.5 w-3.5 mr-1" /> Exporter CSV
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setIndeedOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5 mr-1" /> Importer depuis Indeed
+          </Button>
           <Button size="sm" onClick={sendAllNew} disabled={bulkSending || sendInvite.isPending}>
             {bulkSending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
             Inviter tous les nouveaux ({stats.new})
           </Button>
         </div>
+
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
