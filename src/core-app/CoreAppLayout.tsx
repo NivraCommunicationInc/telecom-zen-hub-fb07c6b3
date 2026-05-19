@@ -16,7 +16,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
