@@ -23,7 +23,7 @@ import {
   Loader2, GraduationCap, BookOpen, CheckCircle2, Lock, Trophy,
   PlayCircle, ChevronRight, Send, Bot, Award, Sparkles,
   Package, DoorOpen, PhoneCall, Smartphone, Headphones, UserCheck,
-  ShieldCheck, Scale, Receipt, ArrowLeft,
+  ShieldCheck, Scale, Receipt, ArrowLeft, AlertTriangle, Calendar, RefreshCw, Clock,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, any> = {
