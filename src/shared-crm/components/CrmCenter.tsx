@@ -166,13 +166,24 @@ export function CrmCenter({
             Base de prospects à appeler · Pool partagé · {stats.total} contacts
           </p>
         </div>
-        {!isWithinBusinessHours() && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-medium">
-            <AlertTriangle className="h-4 w-4" />
-            Hors heures d'appel (9h-20h Québec)
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => exportContactsCsv(sorted, `crm-${new Date().toISOString().slice(0,10)}.csv`)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-violet-500/40 bg-violet-500/10 text-violet-600 hover:bg-violet-500/20"
+            >
+              <Download className="h-3.5 w-3.5" /> Exporter CSV ({sorted.length})
+            </button>
+          )}
+          {!isWithinBusinessHours() && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              Hors heures (9h-20h Québec)
+            </div>
+          )}
+        </div>
       </div>
+
 
       {/* Layout: list + leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
