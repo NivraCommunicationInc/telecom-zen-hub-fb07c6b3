@@ -43,7 +43,27 @@ export default function CorePlanChangesPage() {
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [applyNow, setApplyNow] = useState<Record<string, boolean>>({});
-  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [filter, setFilter] = useState<FilterKey>("pending");
+  const [search, setSearch] = useState("");
+
+  const { data: stats } = useQuery({
+    queryKey: ["core-plan-change-stats"],
+    queryFn: async () => {
+      const counts = { pending: 0, approved: 0, rejected: 0, total: 0 };
+      const { data, error } = await supabase
+        .from("service_change_requests")
+        .select("status");
+      if (error) throw error;
+      (data || []).forEach((r: any) => {
+        counts.total++;
+        if (r.status === "pending" || r.status === "pending_core") counts.pending++;
+        else if (r.status === "approved") counts.approved++;
+        else if (r.status === "rejected") counts.rejected++;
+      });
+      return counts;
+    },
+    refetchInterval: 30000,
+  });
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["core-plan-change-requests", filter],
@@ -53,6 +73,8 @@ export default function CorePlanChangesPage() {
         .select("id, account_id, client_id, subscription_id, current_plan_name, requested_plan_id, requested_plan_name, change_type, status, effective_date, created_at")
         .order("created_at", { ascending: false });
       if (filter === "pending") q = q.in("status", ["pending", "pending_core"]);
+      else if (filter === "approved") q = q.eq("status", "approved");
+      else if (filter === "rejected") q = q.eq("status", "rejected");
       const { data, error } = await q;
       if (error) throw error;
       return (data as Row[]) || [];
