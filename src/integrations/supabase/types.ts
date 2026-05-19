@@ -4665,6 +4665,8 @@ export type Database = {
           call_attempts: number | null
           call_notes: string | null
           call_status: string | null
+          callback_agent_id: string | null
+          callback_reminder_sent_at: string | null
           callback_scheduled_at: string | null
           city: string | null
           converted_at: string | null
@@ -4713,6 +4715,8 @@ export type Database = {
           call_attempts?: number | null
           call_notes?: string | null
           call_status?: string | null
+          callback_agent_id?: string | null
+          callback_reminder_sent_at?: string | null
           callback_scheduled_at?: string | null
           city?: string | null
           converted_at?: string | null
@@ -4761,6 +4765,8 @@ export type Database = {
           call_attempts?: number | null
           call_notes?: string | null
           call_status?: string | null
+          callback_agent_id?: string | null
+          callback_reminder_sent_at?: string | null
           callback_scheduled_at?: string | null
           city?: string | null
           converted_at?: string | null
@@ -23489,8 +23495,20 @@ export type Database = {
         Returns: Json
       }
       crm_optimal_hour: { Args: { p_contact_id: string }; Returns: string }
+      crm_schedule_callback: {
+        Args: { p_callback_at: string; p_contact_id: string; p_notes?: string }
+        Returns: Json
+      }
       crm_set_dnc: {
         Args: { p_contact_id: string; p_is_dnc: boolean; p_reason?: string }
+        Returns: Json
+      }
+      crm_set_note: {
+        Args: { p_contact_id: string; p_note: string }
+        Returns: Json
+      }
+      crm_set_status: {
+        Args: { p_contact_id: string; p_status: string }
         Returns: Json
       }
       crm_set_tags: {
