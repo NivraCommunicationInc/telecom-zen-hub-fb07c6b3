@@ -829,8 +829,14 @@ const AppRoutes = () => {
           <Route path="activity" element={<Suspense fallback={null}><CoreActivityPage /></Suspense>} />
           <Route path="live-activity" element={<Suspense fallback={null}><CoreLiveActivityPage /></Suspense>} />
           <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
+          <Route path="system-health" element={<Suspense fallback={null}><CoreSystemHealthPage /></Suspense>} />
+          <Route path="analytics" element={<Suspense fallback={null}><CoreAnalyticsPage /></Suspense>} />
+          <Route path="finance" element={<Suspense fallback={null}><CoreFinancePage /></Suspense>} />
+          <Route path="sops" element={<Suspense fallback={null}><CoreSOPsPage /></Suspense>} />
+          <Route path="support-metrics" element={<Suspense fallback={null}><CoreSupportMetricsPage /></Suspense>} />
           {/* Operations */}
           <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
+          <Route path="sla" element={<Suspense fallback={null}><CoreSLAPage /></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><CoreCrm /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
@@ -872,6 +878,7 @@ const AppRoutes = () => {
           <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
           <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
           <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />
+          <Route path="equipment" element={<Suspense fallback={null}><EquipmentInventoryPage /></Suspense>} />
           {/* Marketing */}
           <Route path="marketing" element={<Suspense fallback={null}><MarketingHubDashboard /></Suspense>} />
           <Route path="marketing/conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
