@@ -28,6 +28,11 @@ function formatTimer(seconds: number): string {
   return `${m}:${s}`;
 }
 
+const OBJECTION_TAGS = [
+  "Trop cher", "Déjà engagé", "Pas intéressé", "Mauvais moment",
+  "Pas le bon contact", "Veut réfléchir", "Pas de couverture", "Connaît mal Nivra",
+];
+
 export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
   const { unlock } = useCrmLock();
   const [elapsed, setElapsed] = useState(0);
@@ -36,6 +41,7 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
   const [showCallbackInput, setShowCallbackInput] = useState(false);
   const [logging, setLogging] = useState(false);
   const [sendSms, setSendSms] = useState(true);
+  const [objections, setObjections] = useState<string[]>([]);
 
   useEffect(() => {
     if (!contact) return;
@@ -43,6 +49,7 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
     setNotes(contact.call_notes ?? "");
     setShowCallbackInput(false);
     setCallbackDate("");
+    setObjections([]);
     const id = setInterval(() => setElapsed((v) => v + 1), 1000);
     return () => clearInterval(id);
   }, [contact?.id]);
