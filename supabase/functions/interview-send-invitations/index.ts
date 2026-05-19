@@ -77,8 +77,9 @@ Deno.serve(async (req) => {
         .insert({
           applicant_id: a.id,
           email_type: "interview_invitation",
-          to_email: a.email,
+          sent_to: a.email,
           subject: lang === "en" ? "Nivra Telecom — Interview invitation" : "Nivra Telecom — Invitation à l'entrevue",
+          status: "queued",
         });
 
       await supabase
