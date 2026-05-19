@@ -95,6 +95,9 @@ const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
 const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 
+// CRM Call Center (admin oversight: assign, monitor, KPIs)
+const CoreCrm = lazy(() => import("@/core-app/pages/CoreCrm"));
+
 // System
 const CoreNotificationsPage = lazy(() => import("@/core-app/pages/CoreNotificationsPage"));
 const CoreMaintenancePage = lazy(() => import("@/core-app/pages/CoreMaintenancePage"));
@@ -161,6 +164,7 @@ export const coreRoutes: RouteObject = {
     { path: "clients/:clientId", element: <CoreClientProfile /> },
     { path: "accounts", element: <AccountsPage /> },
     { path: "accounts/:accountId", element: <CoreAccountDetail /> },
+    { path: "crm", element: <CoreCrm /> },
     { path: "documents", element: <CoreDocumentsPage /> },
     // Billing
     { path: "billing", element: <CoreBillingPage /> },
