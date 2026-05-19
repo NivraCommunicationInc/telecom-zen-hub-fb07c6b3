@@ -254,3 +254,7 @@ verify_jwt = false
 
 [functions.interview-send-invitations]
 verify_jwt = false
+
+[functions.onboarding-form-submit]
+verify_jwt = false
+
