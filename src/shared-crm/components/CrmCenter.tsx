@@ -126,12 +126,18 @@ export function CrmCenter({
   const pageStart = (safePage - 1) * PER_PAGE;
   const paged = sorted.slice(pageStart, pageStart + PER_PAGE);
 
+  const duplicateIds = useCrmDuplicates(sorted.slice(0, 100));
+
   const startCall = async (c: CrmContact) => {
     if (!user?.id) return;
-    if (!isWithinBusinessHours()) {
+    if (c.is_dnc) {
       const ok = window.confirm(
-        "Hors heures d'appel (9h-20h). Continuer quand même ?"
+        `⚠️ LNNTE / DNC\n\nCe contact est sur la liste « Ne pas appeler ».\nRaison : ${c.dnc_reason ?? "—"}\n\nAppeler quand même ? (responsabilité légale)`
       );
+      if (!ok) return;
+    }
+    if (!isWithinBusinessHours()) {
+      const ok = window.confirm("Hors heures d'appel (9h-20h). Continuer quand même ?");
       if (!ok) return;
     }
     const locked = await lock(c.id);
@@ -143,6 +149,31 @@ export function CrmCenter({
       locked_until: new Date(Date.now() + 30 * 60_000).toISOString(),
     });
   };
+
+  /** Pick next callable contact for Power Dialer. */
+  const pickNextDialable = (): CrmContact | null => {
+    return sorted.find((x) => {
+      if (x.is_dnc) return false;
+      if (x.call_status === "sold" || x.call_status === "do_not_call") return false;
+      if (cooldownRemainingMs(x) > 0) return false;
+      const lockedByOther = x.is_locked && x.locked_by && x.locked_by !== user?.id
+        && x.locked_until && new Date(x.locked_until).getTime() > Date.now();
+      if (lockedByOther) return false;
+      return !!x.phone;
+    }) ?? null;
+  };
+
+  const handleCallClose = () => {
+    setActiveCall(null);
+    if (powerDialer) {
+      setTimeout(() => {
+        const next = pickNextDialable();
+        if (next) startCall(next);
+        else { setPowerDialer(false); }
+      }, 500);
+    }
+  };
+
 
   const handleSold = (c: CrmContact) => {
     // Open integrated sale modal instead of navigating away
