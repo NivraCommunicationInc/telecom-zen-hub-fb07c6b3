@@ -624,6 +624,8 @@ const AppRoutes = () => {
       <Route path="/influencer/register" element={<InfluencerRegister />} />
       <Route path="/influencer/reset-password" element={<InfluencerResetPassword />} />
       <Route path="/influencer/onboarding" element={<InfluencerOnboarding />} />
+      <Route path="/onboarding/:token" element={<Suspense fallback={null}><OnboardingForm /></Suspense>} />
+
       <Route path="/influencer/terms" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerTerms /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerDashboard /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerReferrals /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
