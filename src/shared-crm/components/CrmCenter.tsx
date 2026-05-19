@@ -206,7 +206,44 @@ export function CrmCenter({
             Base de prospects à appeler · Pool partagé · {stats.total} contacts
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View mode toggle */}
+          <div className="inline-flex rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn("inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold", viewMode === "list" ? "bg-violet-600 text-white" : "bg-background text-foreground hover:bg-muted")}
+            >
+              <List className="h-3.5 w-3.5" /> Liste
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={cn("inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold border-l border-border", viewMode === "kanban" ? "bg-violet-600 text-white" : "bg-background text-foreground hover:bg-muted")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Kanban
+            </button>
+          </div>
+
+          {/* Power Dialer */}
+          <button
+            onClick={() => {
+              if (powerDialer) { setPowerDialer(false); return; }
+              const next = pickNextDialable();
+              if (!next) { return; }
+              setPowerDialer(true);
+              startCall(next);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors",
+              powerDialer
+                ? "bg-red-600 border-red-600 text-white animate-pulse"
+                : "bg-orange-500 border-orange-500 text-white hover:bg-orange-600"
+            )}
+            title="Auto-numérotation séquentielle des prospects disponibles"
+          >
+            <Rocket className="h-3.5 w-3.5" />
+            {powerDialer ? "⏹ Stop Power Dialer" : "🚀 Power Dialer"}
+          </button>
+
           {isAdmin && (
             <button
               onClick={() => exportContactsCsv(sorted, `crm-${new Date().toISOString().slice(0,10)}.csv`)}
@@ -223,6 +260,7 @@ export function CrmCenter({
           )}
         </div>
       </div>
+
 
 
       {/* Layout: list + leaderboard */}
