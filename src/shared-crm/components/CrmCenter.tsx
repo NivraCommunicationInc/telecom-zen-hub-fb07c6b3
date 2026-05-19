@@ -86,6 +86,8 @@ export function CrmCenter({
   const [viewing, setViewing] = useState<CrmContact | null>(null);
   const [saleContact, setSaleContact] = useState<CrmContact | null>(null);
   const [assignContact, setAssignContact] = useState<CrmContact | null>(null);
+  const [noteContact, setNoteContact] = useState<CrmContact | null>(null);
+  const [callbackContact, setCallbackContact] = useState<CrmContact | null>(null);
 
 
   const [currentPage, setCurrentPage] = useState(1);
