@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.training_test_tbl;

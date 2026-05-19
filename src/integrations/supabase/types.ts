@@ -21642,24 +21642,6 @@ export type Database = {
         }
         Relationships: []
       }
-      training_test_tbl: {
-        Row: {
-          created_at: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       transaction_events: {
         Row: {
           amount: number | null
