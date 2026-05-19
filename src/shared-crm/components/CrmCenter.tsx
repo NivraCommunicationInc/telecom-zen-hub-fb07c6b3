@@ -107,6 +107,15 @@ export function CrmCenter({
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [powerDialer, setPowerDialer] = useState(false);
 
+  // Auto-release stale locks every 2 min (admin tick; safe for all users).
+  useEffect(() => {
+    if (!isAdmin) return;
+    const tick = () => { (supabase.rpc as any)("crm_release_stale_locks").then(() => {}); };
+    tick();
+    const id = setInterval(tick, 120_000);
+    return () => clearInterval(id);
+  }, [isAdmin]);
+
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
     status: statusFilter,
