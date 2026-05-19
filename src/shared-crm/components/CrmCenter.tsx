@@ -334,7 +334,19 @@ export function CrmCenter({
                               Cooldown actif · libre {cooldownLabel}
                             </span>
                           )}
+                          {c.is_dnc && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50">
+                              <ShieldAlert className="h-3 w-3" />
+                              LNNTE / DNC
+                            </span>
+                          )}
+                          {(c.interest_tags ?? []).slice(0, 3).map((t) => (
+                            <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-violet-500/10 text-violet-600 border-violet-500/30">
+                              <Tag className="h-2.5 w-2.5" />{t}
+                            </span>
+                          ))}
                         </div>
+
                         <div className={cn("mt-1 space-y-0.5 text-[12px]", mutedCls)}>
                           {c.phone && (
                             <a href={`tel:${c.phone}`} className="flex items-center gap-1.5 text-violet-500 hover:text-violet-400 font-medium">
