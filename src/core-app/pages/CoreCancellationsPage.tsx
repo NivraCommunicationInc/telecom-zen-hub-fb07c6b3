@@ -539,11 +539,23 @@ export default function CoreCancellationsPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <StatCard label="Total" value={stats.total ?? 0} />
+      {/* Stats — clickable filter pills */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <StatCard
+          label="Total"
+          value={stats.total ?? 0}
+          active={statusFilter === "all"}
+          onClick={() => setStatusFilter("all")}
+        />
         {(Object.keys(statusConfig) as CancellationStatus[]).map((s) => (
-          <StatCard key={s} label={statusConfig[s].label} value={stats[s] ?? 0} tone={statusConfig[s].tone} />
+          <StatCard
+            key={s}
+            label={statusConfig[s].label}
+            value={stats[s] ?? 0}
+            tone={statusConfig[s].tone}
+            active={statusFilter === s}
+            onClick={() => setStatusFilter(s)}
+          />
         ))}
       </div>
 
