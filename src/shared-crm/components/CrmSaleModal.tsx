@@ -159,8 +159,22 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
             <h3 className="text-xl font-bold">Vente complétée!</h3>
             <p className="text-sm text-muted-foreground">Commande <span className="font-mono font-semibold">{success.order}</span></p>
             <p className="text-sm">Commission estimée : <span className="font-bold text-emerald-500">{success.commission.toFixed(2)} $</span></p>
-            <Button onClick={onClose} className="mt-3">Fermer</Button>
+            <p className="text-xs text-muted-foreground">📧 Email de confirmation envoyé au client</p>
+            {success.paypalUrl && (
+              <a
+                href={success.paypalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#ffc439] text-[#003087] font-bold text-sm hover:brightness-95"
+              >
+                💳 Ouvrir le paiement PayPal
+              </a>
+            )}
+            <div className="pt-2">
+              <Button onClick={onClose} variant="outline">Fermer</Button>
+            </div>
           </div>
+
         ) : (
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             <TabsList className="grid grid-cols-5 mx-4 mt-3">
