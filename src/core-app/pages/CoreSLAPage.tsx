@@ -28,6 +28,7 @@ interface WorkItem {
   assigned_to_id: string | null;
   assigned_to_name: string | null;
   status: string;
+  notes: string | null;
   sla_status: "on_time" | "at_risk" | "breached" | null;
   sla_deadline_at: string | null;
   sla_breached_at: string | null;
@@ -69,7 +70,7 @@ export default function CoreSLAPage() {
     queryFn: async () => {
       let q = supabase
         .from("employee_work_items")
-        .select("id,item_type,source_id,source_reference,client_name,client_email,priority,assigned_to_id,assigned_to_name,status,sla_status,sla_deadline_at,sla_breached_at,created_at,completed_at")
+        .select("id,item_type,source_id,source_reference,client_name,client_email,priority,assigned_to_id,assigned_to_name,status,notes,sla_status,sla_deadline_at,sla_breached_at,created_at,completed_at")
         .not("sla_deadline_at", "is", null)
         .order("sla_deadline_at", { ascending: true })
         .limit(500);
@@ -120,7 +121,7 @@ export default function CoreSLAPage() {
   const appendNote = () => {
     if (!selected || !note.trim()) return;
     const stamp = new Date().toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" });
-    updateItem.mutate({ item: selected, patch: { notes: `[${stamp}] ${note.trim()}` } });
+    updateItem.mutate({ item: selected, patch: { notes: [selected.notes, `[${stamp}] ${note.trim()}`].filter(Boolean).join("\n") } });
   };
 
   const stats = useMemo(() => {
