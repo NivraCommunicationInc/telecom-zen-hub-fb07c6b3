@@ -21404,6 +21404,30 @@ export type Database = {
           },
         ]
       }
+      training_certification_whitelist: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       training_certifications: {
         Row: {
           agent_id: string

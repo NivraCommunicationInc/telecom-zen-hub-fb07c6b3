@@ -452,6 +452,7 @@ const TechnicianPOS = lazy(() => import("@/pages/staff/TechnicianPOS"));
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
 import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
+import CertificationGate from "@/shared-training/CertificationGate";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
@@ -959,7 +960,7 @@ const AppRoutes = () => {
           <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
           <Route path="academy" element={<Suspense fallback={null}><EmployeeAcademy /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
-          <Route path="orders/new" element={<Suspense fallback={null}><EmployeeCreateOrder /></Suspense>} />
+          <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><EmployeeCreateOrder /></CertificationGate></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
           <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />
@@ -1003,7 +1004,7 @@ const AppRoutes = () => {
         <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />
-          <Route path="sale/new" element={<Suspense fallback={null}><FieldNewSale /></Suspense>} />
+          <Route path="sale/new" element={<Suspense fallback={null}><CertificationGate portal="field"><FieldNewSale /></CertificationGate></Suspense>} />
           <Route path="sale/success" element={<Suspense fallback={null}><FieldSaleSuccess /></Suspense>} />
           <Route path="leads" element={<Suspense fallback={null}><FieldLeads /></Suspense>} />
           <Route path="leads/new" element={<Suspense fallback={null}><FieldNewLead /></Suspense>} />
