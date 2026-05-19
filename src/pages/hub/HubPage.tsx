@@ -50,7 +50,7 @@ const PORTALS: PortalOption[] = [
   },
   {
     id: "employee",
-    label: "Nivra Employee",
+    label: "Nivra OneView CS",
     description: "Espace de travail — Gestion clients, commandes, tickets, rendez-vous, POS.",
     icon: Briefcase,
     iconColor: "text-foreground",
