@@ -4905,6 +4905,48 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_scripts: {
+        Row: {
+          content: string
+          conversion_count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          served_count: number
+          updated_at: string
+          variant: string
+          weight: number
+        }
+        Insert: {
+          content: string
+          conversion_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          served_count?: number
+          updated_at?: string
+          variant?: string
+          weight?: number
+        }
+        Update: {
+          content?: string
+          conversion_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          served_count?: number
+          updated_at?: string
+          variant?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       crm_territories: {
         Row: {
           agent_id: string
@@ -23590,9 +23632,40 @@ export type Database = {
         }
         Returns: Json
       }
+      crm_manager_dashboard: {
+        Args: { days?: number }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          avg_duration_seconds: number
+          callbacks_pending: number
+          conversion_rate: number
+          total_calls: number
+          total_sales: number
+        }[]
+      }
       crm_my_quota_progress: { Args: never; Returns: Json }
       crm_normalize_phone: { Args: { p_phone: string }; Returns: string }
+      crm_optimal_call_hours: {
+        Args: never
+        Returns: {
+          connect_rate: number
+          connected: number
+          hour_of_day: number
+          total_calls: number
+        }[]
+      }
       crm_optimal_hour: { Args: { p_contact_id: string }; Returns: string }
+      crm_pick_script: {
+        Args: never
+        Returns: {
+          content: string
+          id: string
+          name: string
+          variant: string
+        }[]
+      }
+      crm_release_stale_locks: { Args: never; Returns: number }
       crm_schedule_callback: {
         Args: { p_callback_at: string; p_contact_id: string; p_notes?: string }
         Returns: Json
