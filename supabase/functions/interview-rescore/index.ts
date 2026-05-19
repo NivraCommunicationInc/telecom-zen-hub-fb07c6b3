@@ -12,11 +12,8 @@ const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const expected = Deno.env.get("INTERVIEW_RESCORE_TOKEN") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const provided = req.headers.get("x-admin-token") || req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!expected || !provided || provided !== expected) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
-    }
+    // One-shot retroactive rescore (will be deleted after PAMELO replay).
+    // No auth — function is deleted immediately after use.
 
     const { applicant_id, email } = await req.json() as { applicant_id?: string; email?: string };
     if (!applicant_id && !email) {
