@@ -93,6 +93,8 @@ export function CrmCenter({
 
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [powerDialer, setPowerDialer] = useState(false);
 
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
