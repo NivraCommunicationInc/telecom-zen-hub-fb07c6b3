@@ -24,8 +24,9 @@ export function useCrmContacts(filters: CrmFilters = {}) {
       let q = supabase
         .from("crm_contacts")
         .select(
-          "id, first_name, last_name, full_name, phone, email, address, city, postal_code, date_of_birth, desired_install_date, service_address, service_city, service_postal_code, call_status, call_attempts, last_called_at, last_called_by, call_notes, callback_scheduled_at, next_callback_at, is_locked, locked_by, locked_by_name, locked_at, locked_until, assigned_to, converted_to_user_id, converted_order_id, priority, territory, source, status, created_at"
+          "id, first_name, last_name, full_name, phone, email, address, city, postal_code, date_of_birth, desired_install_date, service_address, service_city, service_postal_code, call_status, call_attempts, last_called_at, last_called_by, call_notes, callback_scheduled_at, next_callback_at, is_locked, locked_by, locked_by_name, locked_at, locked_until, assigned_to, converted_to_user_id, converted_order_id, priority, territory, source, status, is_dnc, dnc_reason, interest_tags, created_at"
         )
+
         .order("priority", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(1000);
