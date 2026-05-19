@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useCrmContacts } from "../hooks/useCrmContacts";
 import { useCrmLock } from "../hooks/useCrmLock";
+import { useCrmDuplicates } from "../hooks/useCrmDuplicates";
 import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
@@ -22,12 +23,13 @@ import { CrmAssignDialog } from "./CrmAssignDialog";
 import { CrmQuickActions } from "./CrmQuickActions";
 import { CrmQuickNoteDialog } from "./CrmQuickNoteDialog";
 import { CrmScheduleCallbackDialog } from "./CrmScheduleCallbackDialog";
+import { CrmKanbanView } from "./CrmKanbanView";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import { exportContactsCsv } from "../lib/crmCsv";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
-  UserPlus, Download, ShieldAlert, Tag, ShoppingBag,
+  UserPlus, Download, ShieldAlert, Tag, ShoppingBag, Rocket, LayoutGrid, List, AlertOctagon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -91,6 +93,8 @@ export function CrmCenter({
 
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [powerDialer, setPowerDialer] = useState(false);
 
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
@@ -122,12 +126,18 @@ export function CrmCenter({
   const pageStart = (safePage - 1) * PER_PAGE;
   const paged = sorted.slice(pageStart, pageStart + PER_PAGE);
 
+  const duplicateIds = useCrmDuplicates(sorted.slice(0, 100));
+
   const startCall = async (c: CrmContact) => {
     if (!user?.id) return;
-    if (!isWithinBusinessHours()) {
+    if (c.is_dnc) {
       const ok = window.confirm(
-        "Hors heures d'appel (9h-20h). Continuer quand même ?"
+        `⚠️ LNNTE / DNC\n\nCe contact est sur la liste « Ne pas appeler ».\nRaison : ${c.dnc_reason ?? "—"}\n\nAppeler quand même ? (responsabilité légale)`
       );
+      if (!ok) return;
+    }
+    if (!isWithinBusinessHours()) {
+      const ok = window.confirm("Hors heures d'appel (9h-20h). Continuer quand même ?");
       if (!ok) return;
     }
     const locked = await lock(c.id);
@@ -139,6 +149,31 @@ export function CrmCenter({
       locked_until: new Date(Date.now() + 30 * 60_000).toISOString(),
     });
   };
+
+  /** Pick next callable contact for Power Dialer. */
+  const pickNextDialable = (): CrmContact | null => {
+    return sorted.find((x) => {
+      if (x.is_dnc) return false;
+      if (x.call_status === "sold" || x.call_status === "do_not_call") return false;
+      if (cooldownRemainingMs(x) > 0) return false;
+      const lockedByOther = x.is_locked && x.locked_by && x.locked_by !== user?.id
+        && x.locked_until && new Date(x.locked_until).getTime() > Date.now();
+      if (lockedByOther) return false;
+      return !!x.phone;
+    }) ?? null;
+  };
+
+  const handleCallClose = () => {
+    setActiveCall(null);
+    if (powerDialer) {
+      setTimeout(() => {
+        const next = pickNextDialable();
+        if (next) startCall(next);
+        else { setPowerDialer(false); }
+      }, 500);
+    }
+  };
+
 
   const handleSold = (c: CrmContact) => {
     // Open integrated sale modal instead of navigating away
@@ -171,7 +206,44 @@ export function CrmCenter({
             Base de prospects à appeler · Pool partagé · {stats.total} contacts
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View mode toggle */}
+          <div className="inline-flex rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn("inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold", viewMode === "list" ? "bg-violet-600 text-white" : "bg-background text-foreground hover:bg-muted")}
+            >
+              <List className="h-3.5 w-3.5" /> Liste
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={cn("inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold border-l border-border", viewMode === "kanban" ? "bg-violet-600 text-white" : "bg-background text-foreground hover:bg-muted")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Kanban
+            </button>
+          </div>
+
+          {/* Power Dialer */}
+          <button
+            onClick={() => {
+              if (powerDialer) { setPowerDialer(false); return; }
+              const next = pickNextDialable();
+              if (!next) { return; }
+              setPowerDialer(true);
+              startCall(next);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors",
+              powerDialer
+                ? "bg-red-600 border-red-600 text-white animate-pulse"
+                : "bg-orange-500 border-orange-500 text-white hover:bg-orange-600"
+            )}
+            title="Auto-numérotation séquentielle des prospects disponibles"
+          >
+            <Rocket className="h-3.5 w-3.5" />
+            {powerDialer ? "⏹ Stop Power Dialer" : "🚀 Power Dialer"}
+          </button>
+
           {isAdmin && (
             <button
               onClick={() => exportContactsCsv(sorted, `crm-${new Date().toISOString().slice(0,10)}.csv`)}
@@ -188,6 +260,7 @@ export function CrmCenter({
           )}
         </div>
       </div>
+
 
 
       {/* Layout: list + leaderboard */}
@@ -291,6 +364,14 @@ export function CrmCenter({
             <div className={cn(cardCls, "p-8 text-center")}>
               <p className={cn("text-sm", mutedCls)}>Aucun prospect trouvé.</p>
             </div>
+          ) : viewMode === "kanban" ? (
+            <CrmKanbanView
+              contacts={sorted}
+              isDark={isDark}
+              onOpen={setViewing}
+              onStartCall={startCall}
+              duplicateIds={duplicateIds}
+            />
           ) : (
             <div className="space-y-2">
               {paged.map((c) => {
@@ -480,7 +561,7 @@ export function CrmCenter({
       <CrmCallDialog
         contact={activeCall}
         portal={portal}
-        onClose={() => setActiveCall(null)}
+        onClose={handleCallClose}
         onSold={handleSold}
       />
       <CrmContactDrawer contact={viewing} onClose={() => setViewing(null)} />

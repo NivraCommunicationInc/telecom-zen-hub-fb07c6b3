@@ -23482,6 +23482,7 @@ export type Database = {
         Returns: Json
       }
       crm_auto_unlock_expired: { Args: never; Returns: number }
+      crm_check_duplicate: { Args: { p_phone: string }; Returns: Json }
       crm_lock_contact: { Args: { p_contact_id: string }; Returns: Json }
       crm_log_call: {
         Args: {
@@ -23494,6 +23495,7 @@ export type Database = {
         }
         Returns: Json
       }
+      crm_normalize_phone: { Args: { p_phone: string }; Returns: string }
       crm_optimal_hour: { Args: { p_contact_id: string }; Returns: string }
       crm_schedule_callback: {
         Args: { p_callback_at: string; p_contact_id: string; p_notes?: string }
@@ -23513,6 +23515,10 @@ export type Database = {
       }
       crm_set_tags: {
         Args: { p_contact_id: string; p_tags: string[] }
+        Returns: Json
+      }
+      crm_toggle_dnc: {
+        Args: { p_contact_id: string; p_dnc: boolean; p_reason?: string }
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }

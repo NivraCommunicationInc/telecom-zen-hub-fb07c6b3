@@ -4,7 +4,7 @@
  * schedule callback (sends email reminder), sale note, transfer (coming soon).
  */
 import { useState } from "react";
-import { MoreVertical, StickyNote, Lock, ListChecks, Calendar, ShoppingBag, ArrowRightLeft, Loader2, PhoneCall } from "lucide-react";
+import { MoreVertical, StickyNote, Lock, ListChecks, Calendar, ShoppingBag, ArrowRightLeft, Loader2, PhoneCall, ShieldAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -62,6 +62,29 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
     toast.info("🚧 Transfert de vente — Bientôt disponible", {
       description: "Cette fonctionnalité permettra de passer la vente à un autre vendeur.",
     });
+  };
+
+  const handleToggleDnc = async () => {
+    const next = !contact.is_dnc;
+    let reason: string | null = null;
+    if (next) {
+      reason = window.prompt("Raison LNNTE (optionnel) — ex : « Demande de ne plus être appelé »") || "Marqué LNNTE par agent";
+    } else {
+      if (!window.confirm("Retirer ce contact de la liste LNNTE ?")) return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("crm_toggle_dnc", {
+      p_contact_id: contact.id,
+      p_dnc: next,
+      p_reason: reason,
+    });
+    setBusy(false);
+    const res = data as any;
+    if (error || !res?.ok) {
+      toast.error(`Erreur LNNTE : ${res?.error ?? error?.message ?? "inconnue"}`);
+      return;
+    }
+    toast.success(next ? "🛑 Marqué LNNTE — ne plus appeler" : "✅ Retiré du LNNTE");
   };
 
   return (
@@ -131,6 +154,23 @@ export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCa
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={handleToggleDnc}>
+          {contact.is_dnc ? (
+            <>
+              <ShieldCheck className="h-4 w-4 mr-2 text-emerald-500" />
+              Retirer du LNNTE
+            </>
+          ) : (
+            <>
+              <ShieldAlert className="h-4 w-4 mr-2 text-rose-500" />
+              🛑 Marquer LNNTE (Ne pas appeler)
+            </>
+          )}
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
 
         <DropdownMenuItem onClick={handleTransfer} disabled className="opacity-60">
           <ArrowRightLeft className="h-4 w-4 mr-2 text-rose-500" />

@@ -28,6 +28,11 @@ function formatTimer(seconds: number): string {
   return `${m}:${s}`;
 }
 
+const OBJECTION_TAGS = [
+  "Trop cher", "Déjà engagé", "Pas intéressé", "Mauvais moment",
+  "Pas le bon contact", "Veut réfléchir", "Pas de couverture", "Connaît mal Nivra",
+];
+
 export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
   const { unlock } = useCrmLock();
   const [elapsed, setElapsed] = useState(0);
@@ -36,6 +41,7 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
   const [showCallbackInput, setShowCallbackInput] = useState(false);
   const [logging, setLogging] = useState(false);
   const [sendSms, setSendSms] = useState(true);
+  const [objections, setObjections] = useState<string[]>([]);
 
   useEffect(() => {
     if (!contact) return;
@@ -43,6 +49,7 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
     setNotes(contact.call_notes ?? "");
     setShowCallbackInput(false);
     setCallbackDate("");
+    setObjections([]);
     const id = setInterval(() => setElapsed((v) => v + 1), 1000);
     return () => clearInterval(id);
   }, [contact?.id]);
@@ -56,10 +63,14 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
       return;
     }
     setLogging(true);
+    const objectionLine = objections.length
+      ? `[Objections: ${objections.join(", ")}]\n`
+      : "";
+    const finalNotes = (objectionLine + (notes.trim() || "")).trim() || undefined;
     const result = await crmLogCall({
       contactId: contact.id,
       outcome,
-      notes: notes.trim() || undefined,
+      notes: finalNotes,
       callbackAt: outcome === "callback" ? new Date(callbackDate).toISOString() : null,
       portal,
     });
@@ -178,6 +189,34 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
             <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
             <span>Envoyer un SMS de suivi automatiquement si je laisse un message vocal</span>
           </label>
+
+          {/* Objection tags */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Objections rencontrées (analytics)
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {OBJECTION_TAGS.map((tag) => {
+                const active = objections.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setObjections((p) => active ? p.filter((t) => t !== tag) : [...p, tag])}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+                      active
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-background border-border text-foreground hover:border-rose-400"
+                    )}
+                  >
+                    {active ? "✓ " : ""}{tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
 
           {/* Outcome buttons */}
           <div>
