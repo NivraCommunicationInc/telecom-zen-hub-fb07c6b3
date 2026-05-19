@@ -119,7 +119,10 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          {/* Dynamic call script */}
+          <CrmCallScript contact={contact} />
+
           {/* Contact info */}
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm space-y-1">
             {contact.phone && (
