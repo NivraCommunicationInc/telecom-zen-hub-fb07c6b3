@@ -9,12 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Check, X, ArrowRight, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Check, X, ArrowRight, AlertTriangle, ArrowUp, ArrowDown, Clock, CheckCircle2, XCircle, ListChecks, Search } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+type FilterKey = "pending" | "approved" | "rejected" | "all";
 
 type Row = {
   id: string;
@@ -40,7 +43,27 @@ export default function CorePlanChangesPage() {
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [applyNow, setApplyNow] = useState<Record<string, boolean>>({});
-  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [filter, setFilter] = useState<FilterKey>("pending");
+  const [search, setSearch] = useState("");
+
+  const { data: stats } = useQuery({
+    queryKey: ["core-plan-change-stats"],
+    queryFn: async () => {
+      const counts = { pending: 0, approved: 0, rejected: 0, total: 0 };
+      const { data, error } = await supabase
+        .from("service_change_requests")
+        .select("status");
+      if (error) throw error;
+      (data || []).forEach((r: any) => {
+        counts.total++;
+        if (r.status === "pending" || r.status === "pending_core") counts.pending++;
+        else if (r.status === "approved") counts.approved++;
+        else if (r.status === "rejected") counts.rejected++;
+      });
+      return counts;
+    },
+    refetchInterval: 30000,
+  });
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["core-plan-change-requests", filter],
@@ -50,6 +73,8 @@ export default function CorePlanChangesPage() {
         .select("id, account_id, client_id, subscription_id, current_plan_name, requested_plan_id, requested_plan_name, change_type, status, effective_date, created_at")
         .order("created_at", { ascending: false });
       if (filter === "pending") q = q.in("status", ["pending", "pending_core"]);
+      else if (filter === "approved") q = q.eq("status", "approved");
+      else if (filter === "rejected") q = q.eq("status", "rejected");
       const { data, error } = await q;
       if (error) throw error;
       return (data as Row[]) || [];
@@ -202,7 +227,7 @@ export default function CorePlanChangesPage() {
           ? "Approuvé — pensez à mettre à jour PayPal manuellement"
           : "Demande approuvée",
       );
-      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] }); qc.invalidateQueries({ queryKey: ["core-plan-change-stats"] });
     } catch (e: any) {
       console.error("[CorePlanChangesPage.approve]", e);
       toast.error(e?.message || "Erreur lors de l'approbation");
@@ -219,7 +244,7 @@ export default function CorePlanChangesPage() {
         .update({ status: "rejected", approved_at: new Date().toISOString() })
         .eq("id", r.id);
       toast.success("Demande rejetée");
-      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-plan-change-requests"] }); qc.invalidateQueries({ queryKey: ["core-plan-change-stats"] });
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     } finally {
@@ -227,36 +252,74 @@ export default function CorePlanChangesPage() {
     }
   };
 
+  const filteredRequests = useMemo(() => {
+    const list = requests || [];
+    const s = search.trim().toLowerCase();
+    if (!s) return list;
+    return list.filter((r) => {
+      const c = clients?.[r.client_id];
+      const a = accounts?.[r.account_id];
+      return (
+        r.requested_plan_name?.toLowerCase().includes(s) ||
+        r.current_plan_name?.toLowerCase().includes(s) ||
+        c?.email?.toLowerCase().includes(s) ||
+        c?.first_name?.toLowerCase().includes(s) ||
+        c?.last_name?.toLowerCase().includes(s) ||
+        a?.account_number?.toLowerCase().includes(s)
+      );
+    });
+  }, [requests, search, clients, accounts]);
+
+  const statCards = [
+    { key: "pending" as FilterKey, label: "En attente", value: stats?.pending ?? 0, icon: Clock, color: "text-amber-500" },
+    { key: "approved" as FilterKey, label: "Approuvées", value: stats?.approved ?? 0, icon: CheckCircle2, color: "text-emerald-500" },
+    { key: "rejected" as FilterKey, label: "Rejetées", value: stats?.rejected ?? 0, icon: XCircle, color: "text-red-500" },
+    { key: "all" as FilterKey, label: "Total", value: stats?.total ?? 0, icon: ListChecks, color: "text-violet-500" },
+  ];
+
   return (
     <>
       <Helmet>
         <title>Changements de forfait — Nivra Core</title>
       </Helmet>
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        <header className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">Changements de forfait</h1>
-            <p className="text-sm text-muted-foreground">
-              Demandes en attente d'approbation par l'équipe Nivra.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={filter === "pending" ? "default" : "outline"}
-              onClick={() => setFilter("pending")}
-            >
-              En attente
-            </Button>
-            <Button
-              size="sm"
-              variant={filter === "all" ? "default" : "outline"}
-              onClick={() => setFilter("all")}
-            >
-              Toutes
-            </Button>
-          </div>
+        <header>
+          <h1 className="text-2xl font-bold">Changements de forfait</h1>
+          <p className="text-sm text-muted-foreground">
+            Demandes en attente d'approbation par l'équipe Nivra.
+          </p>
         </header>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {statCards.map((s) => {
+            const Icon = s.icon;
+            const active = filter === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setFilter(s.key)}
+                className={`text-left rounded-lg border p-3 transition-colors ${active ? "border-violet-500 bg-violet-500/5" : "border-border hover:bg-muted/40"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
+                  <Icon className={`w-4 h-4 ${s.color}`} />
+                </div>
+                <div className="text-2xl font-bold mt-1">{s.value}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par client, email, forfait, # compte…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
         {isLoading ? (
           <Card>
@@ -264,19 +327,19 @@ export default function CorePlanChangesPage() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </CardContent>
           </Card>
-        ) : !requests || requests.length === 0 ? (
+        ) : !filteredRequests || filteredRequests.length === 0 ? (
           <Card>
             <CardContent className="p-10 text-center text-muted-foreground">
-              Aucune demande.
+              Aucune demande {filter !== "all" ? `(${filter})` : ""}.
             </CardContent>
           </Card>
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>{requests.length} demande(s)</CardTitle>
+              <CardTitle>{filteredRequests.length} demande(s)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {requests.map((r) => {
+              {filteredRequests.map((r) => {
                 const meta = r.subscription_id ? subMeta?.[r.subscription_id] : undefined;
                 const onPayPal = !!meta?.paypal_subscription_id;
                 const client = clients?.[r.client_id];
