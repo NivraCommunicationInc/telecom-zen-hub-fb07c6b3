@@ -6603,6 +6603,124 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_onboarding_forms: {
+        Row: {
+          address_city: string | null
+          address_postal: string | null
+          address_province: string | null
+          address_street: string | null
+          applicant_id: string | null
+          bank_account_name: string | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          full_legal_name: string | null
+          id: string
+          id_document_path: string | null
+          id_document_type: string | null
+          notes: string | null
+          phone: string | null
+          residential_status: string | null
+          residential_status_other: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          signature_data: string | null
+          signature_ip: string | null
+          signed_at: string | null
+          status: string
+          submitted_at: string | null
+          token: string
+          token_expires_at: string
+          updated_at: string
+          void_cheque_path: string | null
+          work_permit_path: string | null
+        }
+        Insert: {
+          address_city?: string | null
+          address_postal?: string | null
+          address_province?: string | null
+          address_street?: string | null
+          applicant_id?: string | null
+          bank_account_name?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          full_legal_name?: string | null
+          id?: string
+          id_document_path?: string | null
+          id_document_type?: string | null
+          notes?: string | null
+          phone?: string | null
+          residential_status?: string | null
+          residential_status_other?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_data?: string | null
+          signature_ip?: string | null
+          signed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          token_expires_at?: string
+          updated_at?: string
+          void_cheque_path?: string | null
+          work_permit_path?: string | null
+        }
+        Update: {
+          address_city?: string | null
+          address_postal?: string | null
+          address_province?: string | null
+          address_street?: string | null
+          applicant_id?: string | null
+          bank_account_name?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          full_legal_name?: string | null
+          id?: string
+          id_document_path?: string | null
+          id_document_type?: string | null
+          notes?: string | null
+          phone?: string | null
+          residential_status?: string | null
+          residential_status_other?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_data?: string | null
+          signature_ip?: string | null
+          signed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          token_expires_at?: string
+          updated_at?: string
+          void_cheque_path?: string | null
+          work_permit_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_onboarding_forms_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_onboarding_forms_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "employee_onboarding_forms_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
       employee_operations_audit: {
         Row: {
           account_id: string | null
@@ -24662,6 +24780,36 @@ export type Database = {
           other_entry_id: string
           other_entry_type: string
           other_reference_number: string
+        }[]
+      }
+      get_onboarding_form_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          address_city: string
+          address_postal: string
+          address_province: string
+          address_street: string
+          applicant_email: string
+          applicant_first_name: string
+          applicant_id: string
+          applicant_last_name: string
+          bank_account_name: string
+          date_of_birth: string
+          email: string
+          full_legal_name: string
+          id: string
+          id_document_path: string
+          id_document_type: string
+          phone: string
+          residential_status: string
+          residential_status_other: string
+          signed_at: string
+          status: string
+          submitted_at: string
+          token: string
+          token_expires_at: string
+          void_cheque_path: string
+          work_permit_path: string
         }[]
       }
       get_order_technician_eta: {
