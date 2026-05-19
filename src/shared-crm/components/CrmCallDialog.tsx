@@ -190,6 +190,34 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
             <span>Envoyer un SMS de suivi automatiquement si je laisse un message vocal</span>
           </label>
 
+          {/* Objection tags */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Objections rencontrées (analytics)
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {OBJECTION_TAGS.map((tag) => {
+                const active = objections.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setObjections((p) => active ? p.filter((t) => t !== tag) : [...p, tag])}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+                      active
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-background border-border text-foreground hover:border-rose-400"
+                    )}
+                  >
+                    {active ? "✓ " : ""}{tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+
           {/* Outcome buttons */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Résultat de l'appel</label>
