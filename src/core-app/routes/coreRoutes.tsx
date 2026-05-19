@@ -136,6 +136,7 @@ export const coreRoutes: RouteObject = {
     { index: true, element: <Navigate to="dashboard" replace /> },
     // Dashboard
     { path: "dashboard", element: <DashboardPage /> },
+    { path: "ai-console", element: <CoreAIConsolePage /> },
     { path: "activity", element: <CoreActivityPage /> },
     { path: "live-activity", element: <CoreLiveActivityPage /> },
     { path: "system-status", element: <CoreSystemStatusPage /> },
