@@ -37,7 +37,7 @@ const STATUS_OPTIONS: CrmCallStatus[] = [
   "callback", "in_progress", "sold", "not_interested", "do_not_call",
 ];
 
-export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCall, onSell, isDark }: Props) {
+export function CrmQuickActions({ contact, onOpenNote, onOpenCallback, onStartCall, onSell, onOpenTransfer, onOpenEmail, isDark }: Props) {
   const { lock } = useCrmLock();
   const [busy, setBusy] = useState(false);
 
