@@ -106,7 +106,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
       { icon: RefreshCcw, label: "Changements forfait", href: "/plan-changes" },
       { icon: Lock, label: "Suspensions", href: "/pause-requests" },
-      { icon: RefreshCw, label: "RMA", href: "/rma" },
+      { icon: RefreshCcw, label: "RMA", href: "/rma" },
       { icon: RotateCcw, label: "Retours (legacy)", href: "/returns", adminOnly: true },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
