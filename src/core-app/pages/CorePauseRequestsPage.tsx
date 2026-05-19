@@ -40,7 +40,7 @@ export default function CorePauseRequestsPage() {
         .from("suspension_requests")
         .select("id, account_id, client_id, subscription_id, reason, requested_for, pause_duration_days, status, created_at")
         .order("created_at", { ascending: false });
-      if (filter === "pending") q = q.eq("status", "pending");
+      if (filter === "pending") q = q.in("status", ["pending", "pending_core"]);
       const { data, error } = await q;
       if (error) throw error;
       return (data as Row[]) || [];
@@ -242,6 +242,8 @@ export default function CorePauseRequestsPage() {
                   : r.client_id.slice(0, 8);
                 const pauseUntil = r.requested_for ? new Date(r.requested_for) : null;
 
+                const isPending = r.status === "pending" || r.status === "pending_core";
+
                 return (
                   <div key={r.id} className="flex flex-col gap-3 p-4 border border-border rounded-lg">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
@@ -253,7 +255,7 @@ export default function CorePauseRequestsPage() {
                           )}
                           <Badge
                             variant={
-                              r.status === "pending"
+                              isPending
                                 ? "secondary"
                                 : r.status === "approved"
                                   ? "default"
@@ -283,7 +285,7 @@ export default function CorePauseRequestsPage() {
                           {format(new Date(r.created_at), "d MMM yyyy HH:mm", { locale: fr })}
                         </div>
                       </div>
-                      {r.status === "pending" && (
+                      {isPending && (
                         <div className="flex gap-2 shrink-0">
                           <Button size="sm" onClick={() => approve(r)} disabled={busyId === r.id}>
                             {busyId === r.id ? (

@@ -2,14 +2,18 @@
  * TechnicianMapView — real-time map of all active technicians.
  * Uses react-leaflet (already installed) + OpenStreetMap tiles.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, LocateFixed, Navigation, RefreshCw, Search } from "lucide-react";
 
 // Fix default marker icons (Leaflet + bundlers)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -43,6 +47,8 @@ type LocRow = {
 };
 
 export function TechnicianMapView() {
+  const [search, setSearch] = useState("");
+  const [activityFilter, setActivityFilter] = useState("all");
   const locsQ = useQuery({
     queryKey: ["technician-locations-active"],
     refetchInterval: 30_000,
@@ -97,6 +103,24 @@ export function TechnicianMapView() {
     return () => clearInterval(t);
   }, []);
 
+  const visibleLocs = useMemo(() => locs.filter((loc) => {
+    const speed = loc.speed_kmh ?? 0;
+    const job = loc.installation_job_id ? jobsQ.data?.get(loc.installation_job_id) : null;
+    const name = techsQ.data?.get(loc.technician_id) ?? "Technicien";
+    if (activityFilter === "moving" && speed <= 5) return false;
+    if (activityFilter === "assigned" && !job) return false;
+    if (activityFilter === "idle" && (speed > 5 || job)) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const haystack = [name, loc.technician_id, job?.job_number, job?.client_name, job?.service_address, job?.service_city]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    }
+    return true;
+  }), [activityFilter, jobsQ.data, locs, search, techsQ.data]);
+
   if (locsQ.isLoading) {
     return (
       <div className="flex items-center justify-center h-96 text-muted-foreground">
@@ -106,13 +130,70 @@ export function TechnicianMapView() {
   }
 
   return (
-    <div className="h-[70vh] w-full rounded-xl overflow-hidden border border-border">
+    <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher technicien, job, client, adresse…" className="pl-9" />
+        </div>
+        <Select value={activityFilter} onValueChange={setActivityFilter}>
+          <SelectTrigger className="w-full md:w-52"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous ({locs.length})</SelectItem>
+            <SelectItem value="moving">En déplacement</SelectItem>
+            <SelectItem value="assigned">Avec job</SelectItem>
+            <SelectItem value="idle">Disponibles</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" onClick={() => locsQ.refetch()} disabled={locsQ.isFetching}>
+          {locsQ.isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          Rafraîchir
+        </Button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[320px_1fr]">
+        <div className="rounded-xl border border-border bg-card max-h-[70vh] overflow-auto">
+          <div className="sticky top-0 z-10 border-b border-border bg-card p-3">
+            <p className="text-sm font-semibold">Techniciens actifs</p>
+            <p className="text-xs text-muted-foreground">{visibleLocs.length} affiché(s) · mise à jour 30s</p>
+          </div>
+          <div className="divide-y divide-border">
+            {visibleLocs.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">Aucune position active selon les filtres.</div>
+            ) : visibleLocs.map((loc) => {
+              const speed = loc.speed_kmh ?? 0;
+              const job = loc.installation_job_id ? jobsQ.data?.get(loc.installation_job_id) : null;
+              const name = techsQ.data?.get(loc.technician_id) ?? "Technicien";
+              const ageSec = Math.max(0, Math.round((now - new Date(loc.recorded_at).getTime()) / 1000));
+              return (
+                <div key={loc.id} className="p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{name}</p>
+                      <p className="text-xs text-muted-foreground">Maj {ageSec < 60 ? `${ageSec}s` : `${Math.round(ageSec / 60)}min`}</p>
+                    </div>
+                    <Badge variant="outline">{speed > 5 ? "En route" : job ? "Sur job" : "Disponible"}</Badge>
+                  </div>
+                  {job && <p className="text-xs text-muted-foreground">Job #{job.job_number} · {job.client_name}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${loc.latitude},${loc.longitude}`, "_blank")}> 
+                      <LocateFixed className="mr-1 h-3 w-3" /> Ouvrir GPS
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(`${loc.latitude},${loc.longitude}`)}>Copier coords</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="h-[70vh] w-full rounded-xl overflow-hidden border border-border">
       <MapContainer center={[45.5, -73.5]} zoom={10} style={{ height: "100%", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {locs.map((loc) => {
+        {visibleLocs.map((loc) => {
           const speed = loc.speed_kmh ?? 0;
           const job = loc.installation_job_id ? jobsQ.data?.get(loc.installation_job_id) : null;
           const icon = speed > 5 ? greenIcon : job ? blueIcon : grayIcon;
@@ -133,6 +214,15 @@ export function TechnicianMapView() {
                     </>
                   )}
                   <div>{speed > 0 ? `${speed.toFixed(0)} km/h` : "Arrêté"}</div>
+                  <div className="text-muted-foreground">{Number(loc.latitude).toFixed(5)}, {Number(loc.longitude).toFixed(5)}</div>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-primary"
+                  >
+                    Itinéraire <Navigation size={12} />
+                  </a>
                   <div className="text-muted-foreground">
                     Maj il y a {ageSec < 60 ? `${ageSec}s` : `${Math.round(ageSec / 60)}min`}
                   </div>
@@ -142,6 +232,8 @@ export function TechnicianMapView() {
           );
         })}
       </MapContainer>
+        </div>
+      </div>
     </div>
   );
 }

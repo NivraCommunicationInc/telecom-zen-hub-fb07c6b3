@@ -3,23 +3,32 @@
  * Reads from employee_work_items (sla_status / sla_deadline_at).
  * Realtime invalidation on table changes; auto-refresh every 30s.
  */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Clock, CheckCircle2, AlertOctagon, Timer } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2, AlertOctagon, Timer, Loader2, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 interface WorkItem {
   id: string;
   item_type: string;
+  source_id: string;
   source_reference: string | null;
+  client_email: string | null;
   client_name: string | null;
+  priority: string;
+  assigned_to_id: string | null;
   assigned_to_name: string | null;
   status: string;
+  notes: string | null;
   sla_status: "on_time" | "at_risk" | "breached" | null;
   sla_deadline_at: string | null;
   sla_breached_at: string | null;
@@ -41,19 +50,34 @@ function timeRemaining(deadline: string | null): { label: string; breached: bool
   return { label: `${hours}h${mins.toString().padStart(2, "0")}`, breached: false, hours };
 }
 
+const statusLabels: Record<string, string> = {
+  open: "Ouvert",
+  assigned: "Assigné",
+  in_progress: "En cours",
+  escalated: "Escaladé",
+  completed: "Complété",
+};
+
 export default function CoreSLAPage() {
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [slaFilter, setSlaFilter] = useState("all");
+  const [selected, setSelected] = useState<WorkItem | null>(null);
+  const [note, setNote] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["core-sla-items"],
+    queryKey: ["core-sla-items", statusFilter, slaFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("employee_work_items")
-        .select("id,item_type,source_reference,client_name,assigned_to_name,status,sla_status,sla_deadline_at,sla_breached_at,created_at,completed_at")
+        .select("id,item_type,source_id,source_reference,client_name,client_email,priority,assigned_to_id,assigned_to_name,status,notes,sla_status,sla_deadline_at,sla_breached_at,created_at,completed_at")
         .not("sla_deadline_at", "is", null)
-        .not("status", "in", '("completed","cancelled")')
         .order("sla_deadline_at", { ascending: true })
         .limit(500);
+      if (statusFilter === "active") q = q.in("status", ["open", "assigned", "in_progress", "escalated"]);
+      else if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (slaFilter !== "all") q = q.eq("sla_status", slaFilter);
+      const { data, error } = await q;
       if (error) throw error;
       return (data || []) as WorkItem[];
     },
@@ -69,6 +93,36 @@ export default function CoreSLAPage() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [queryClient]);
+
+  const updateItem = useMutation({
+    mutationFn: async ({ item, patch }: { item: WorkItem; patch: Record<string, any> }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = user
+        ? await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle()
+        : { data: null };
+      const finalPatch: Record<string, any> = { ...patch, updated_at: new Date().toISOString() };
+      if (patch.status === "assigned" || patch.status === "in_progress") {
+        finalPatch.assigned_to_id = user?.id ?? item.assigned_to_id;
+        finalPatch.assigned_to_name = profile?.full_name ?? user?.email ?? item.assigned_to_name ?? "Core";
+      }
+      if (patch.status === "completed") finalPatch.completed_at = new Date().toISOString();
+      const { error } = await supabase.from("employee_work_items").update(finalPatch).eq("id", item.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("SLA mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["core-sla-items"] });
+      setSelected(null);
+      setNote("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur SLA"),
+  });
+
+  const appendNote = () => {
+    if (!selected || !note.trim()) return;
+    const stamp = new Date().toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" });
+    updateItem.mutate({ item: selected, patch: { notes: [selected.notes, `[${stamp}] ${note.trim()}`].filter(Boolean).join("\n") } });
+  };
 
   const stats = useMemo(() => {
     const items = data || [];
@@ -138,6 +192,35 @@ export default function CoreSLAPage() {
         </Card>
       </div>
 
+      <Card>
+        <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Actifs</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="open">Ouverts</SelectItem>
+                <SelectItem value="assigned">Assignés</SelectItem>
+                <SelectItem value="in_progress">En cours</SelectItem>
+                <SelectItem value="escalated">Escaladés</SelectItem>
+                <SelectItem value="completed">Complétés</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={slaFilter} onValueChange={setSlaFilter}>
+              <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous SLA</SelectItem>
+                <SelectItem value="breached">Dépassés</SelectItem>
+                <SelectItem value="at_risk">À risque</SelectItem>
+                <SelectItem value="on_time">À temps</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["core-sla-items"] })}>Rafraîchir</Button>
+        </CardContent>
+      </Card>
+
       {/* Table */}
       <Card>
         <CardHeader>
@@ -160,6 +243,7 @@ export default function CoreSLAPage() {
                     <TableHead>Référence</TableHead>
                     <TableHead>Assigné</TableHead>
                     <TableHead>Client</TableHead>
+                    <TableHead>Priorité</TableHead>
                     <TableHead>Échéance</TableHead>
                     <TableHead>Restant</TableHead>
                     <TableHead>Statut</TableHead>
@@ -183,18 +267,20 @@ export default function CoreSLAPage() {
                         <TableCell className="font-medium uppercase text-xs">{it.item_type}</TableCell>
                         <TableCell className="font-mono text-xs">{it.source_reference || "—"}</TableCell>
                         <TableCell>{it.assigned_to_name || "(non assigné)"}</TableCell>
-                        <TableCell>{it.client_name || "—"}</TableCell>
+                        <TableCell><div>{it.client_name || "—"}</div><div className="text-xs text-muted-foreground">{it.client_email || ""}</div></TableCell>
+                        <TableCell><Badge variant="outline">{it.priority}</Badge></TableCell>
                         <TableCell className="text-xs">{frDate(it.sla_deadline_at)}</TableCell>
                         <TableCell className={tr.breached ? "text-red-600 font-semibold" : ""}>
                           {tr.label}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={badgeColor}>{badgeLabel}</Badge>
+                          <div className="flex flex-col gap-1"><Badge variant="outline" className={badgeColor}>{badgeLabel}</Badge><span className="text-xs text-muted-foreground">{statusLabels[it.status] || it.status}</span></div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="space-x-1 whitespace-nowrap">
                           <Link to={`/core/work-queue?item=${it.id}`}>
                             <Button variant="ghost" size="sm">Ouvrir</Button>
                           </Link>
+                          <Button variant="outline" size="sm" onClick={() => setSelected(it)}>Gérer</Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -205,6 +291,45 @@ export default function CoreSLAPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gérer le SLA</DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border p-3 text-sm">
+                <div className="font-semibold">{selected.source_reference || selected.id.slice(0, 8)}</div>
+                <div className="text-muted-foreground">{selected.item_type} · {selected.client_name || "Client non défini"}</div>
+                <div className="text-muted-foreground">Assigné: {selected.assigned_to_name || "non assigné"}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => updateItem.mutate({ item: selected, patch: { status: "assigned" } })} disabled={updateItem.isPending}>
+                  <UserCheck className="mr-2 h-4 w-4" /> Prendre
+                </Button>
+                <Button variant="outline" onClick={() => updateItem.mutate({ item: selected, patch: { status: "in_progress" } })} disabled={updateItem.isPending}>
+                  En cours
+                </Button>
+                <Button variant="outline" onClick={() => updateItem.mutate({ item: selected, patch: { status: "escalated", priority: "urgent" } })} disabled={updateItem.isPending}>
+                  Escalader
+                </Button>
+                <Button onClick={() => updateItem.mutate({ item: selected, patch: { status: "completed", sla_status: "on_time" } })} disabled={updateItem.isPending}>
+                  Compléter
+                </Button>
+              </div>
+              <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ajouter une note interne…" rows={3} />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelected(null)}>Fermer</Button>
+            <Button onClick={appendNote} disabled={!note.trim() || updateItem.isPending}>
+              {updateItem.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Ajouter la note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
