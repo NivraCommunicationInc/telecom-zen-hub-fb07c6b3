@@ -208,6 +208,7 @@ export default function CorePauseRequestsPage() {
       }
       toast.success("Demande rejetée");
       qc.invalidateQueries({ queryKey: ["core-pause-requests"] });
+      qc.invalidateQueries({ queryKey: ["core-pause-stats"] });
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     } finally {
