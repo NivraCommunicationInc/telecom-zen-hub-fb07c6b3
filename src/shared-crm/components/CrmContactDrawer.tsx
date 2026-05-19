@@ -17,6 +17,7 @@ interface Props {
 
 export function CrmContactDrawer({ contact, onClose }: Props) {
   const { data: history = [] } = useCrmContactCallHistory(contact?.id ?? null);
+  const { data: assignHistory = [] } = useCrmAssignmentHistory(contact?.id ?? null);
   if (!contact) return null;
 
   const meta = CALL_STATUS_META[contact.call_status ?? "not_called"] ?? CALL_STATUS_META.not_called;
