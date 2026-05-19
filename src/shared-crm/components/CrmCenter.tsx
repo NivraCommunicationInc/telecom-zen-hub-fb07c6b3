@@ -364,6 +364,14 @@ export function CrmCenter({
             <div className={cn(cardCls, "p-8 text-center")}>
               <p className={cn("text-sm", mutedCls)}>Aucun prospect trouvé.</p>
             </div>
+          ) : viewMode === "kanban" ? (
+            <CrmKanbanView
+              contacts={sorted}
+              isDark={isDark}
+              onOpen={setViewing}
+              onStartCall={startCall}
+              duplicateIds={duplicateIds}
+            />
           ) : (
             <div className="space-y-2">
               {paged.map((c) => {
