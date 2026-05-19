@@ -1,16 +1,19 @@
 /**
  * CrmCallDialog — Active call panel with timer, notes, and outcome buttons.
  * Opens when an agent clicks "Commencer l'appel" on a contact.
+ * Includes the dynamic call script and auto-SMS after voicemail.
  */
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Phone, Clock, X } from "lucide-react";
+import { Phone, Clock, X, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { crmLogCall, useCrmLock } from "../hooks/useCrmLock";
 import { type CrmContact, OUTCOME_META, displayName, type CrmCallOutcome, isWithinBusinessHours } from "../lib/crmTypes";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { CrmCallScript } from "./CrmCallScript";
 
 interface Props {
   contact: CrmContact | null;
