@@ -9,7 +9,7 @@
  * - Leaderboard sidebar
  * - Business hours warning
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useCrmContacts } from "../hooks/useCrmContacts";
@@ -18,13 +18,28 @@ import { CrmCallDialog } from "./CrmCallDialog";
 import { CrmContactDrawer } from "./CrmContactDrawer";
 import { CrmLeaderboard } from "./CrmLeaderboard";
 import { CrmSaleModal } from "./CrmSaleModal";
+import { AppPagination } from "@/components/ui/app-pagination";
 import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact } from "../lib/crmTypes";
 import {
-  PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus,
+  PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+
+const PER_PAGE = 10;
+const COOLDOWN_HOURS = 48;
+
+/** Returns ms remaining in cooldown (>0 means active), or 0 if no cooldown. */
+function cooldownRemainingMs(c: CrmContact): number {
+  const attempts = c.call_attempts ?? 0;
+  if (c.call_status === "sold") return 0;
+  if (attempts < 1 || attempts > 2) return 0;
+  if (!c.last_called_at) return 0;
+  const elapsed = Date.now() - new Date(c.last_called_at).getTime();
+  const cooldown = COOLDOWN_HOURS * 3600 * 1000;
+  return Math.max(0, cooldown - elapsed);
+}
 
 const STATUS_FILTERS = [
   { key: "all",            label: "Tous" },
@@ -64,6 +79,8 @@ export function CrmCenter({
   const [viewing, setViewing] = useState<CrmContact | null>(null);
   const [saleContact, setSaleContact] = useState<CrmContact | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   const { contacts, cities, stats, isLoading } = useCrmContacts({
     search,
     status: statusFilter,
@@ -83,6 +100,16 @@ export function CrmCenter({
     }
     return copy;
   }, [contacts, sortKey]);
+
+  // Reset to page 1 whenever filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, cityFilter, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PER_PAGE;
+  const paged = sorted.slice(pageStart, pageStart + PER_PAGE);
 
   const startCall = async (c: CrmContact) => {
     if (!user?.id) return;
@@ -244,10 +271,7 @@ export function CrmCenter({
             </div>
           ) : (
             <div className="space-y-2">
-              <div className={cn("text-[11px] px-1", mutedCls)}>
-                {sorted.length} résultat{sorted.length > 1 ? "s" : ""}
-              </div>
-              {sorted.map((c) => {
+              {paged.map((c) => {
                 const meta = CALL_STATUS_META[c.call_status ?? "not_called"] ?? CALL_STATUS_META.not_called;
                 const lockedByOther =
                   c.is_locked &&
@@ -255,6 +279,11 @@ export function CrmCenter({
                   c.locked_by !== user?.id &&
                   c.locked_until &&
                   new Date(c.locked_until).getTime() > Date.now();
+                const cooldownMs = cooldownRemainingMs(c);
+                const inCooldown = cooldownMs > 0 && !lockedByOther;
+                const cooldownLabel = inCooldown
+                  ? formatDistanceToNow(new Date(Date.now() + cooldownMs), { addSuffix: true, locale: fr })
+                  : null;
                 return (
                   <div
                     key={c.id}
@@ -262,7 +291,8 @@ export function CrmCenter({
                       cardCls,
                       "p-3 transition-colors",
                       lockedByOther && "opacity-70 border-red-500/40",
-                      !lockedByOther && (isDark ? "hover:border-violet-500/50" : "hover:border-violet-500/50")
+                      inCooldown && "border-orange-500/50",
+                      !lockedByOther && !inCooldown && "hover:border-violet-500/50"
                     )}
                   >
                     <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -278,7 +308,13 @@ export function CrmCenter({
                           {lockedByOther && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-500/15 text-red-500 border-red-500/40 animate-pulse">
                               <Lock className="h-3 w-3" />
-                              🔴 {c.locked_by_name ?? "Agent"}
+                              🔴 En appel par {c.locked_by_name ?? "Agent"}
+                            </span>
+                          )}
+                          {inCooldown && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/40">
+                              <Timer className="h-3 w-3" />
+                              Cooldown actif · libre {cooldownLabel}
                             </span>
                           )}
                         </div>
@@ -313,8 +349,9 @@ export function CrmCenter({
                     {/* Actions */}
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <button
-                        disabled={lockedByOther || lockPending}
+                        disabled={lockedByOther || lockPending || inCooldown}
                         onClick={() => startCall(c)}
+                        title={inCooldown ? `Cooldown actif — libre ${cooldownLabel}` : undefined}
                         className={cn(
                           "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-[12px] font-semibold transition-colors min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed",
                           "bg-violet-600 hover:bg-violet-500"
@@ -353,6 +390,17 @@ export function CrmCenter({
                   </div>
                 );
               })}
+
+              <AppPagination
+                total={sorted.length}
+                page={safePage}
+                perPage={PER_PAGE}
+                onPageChange={(p) => {
+                  setCurrentPage(p);
+                  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                variant={isDark ? "dark" : "light"}
+              />
             </div>
           )}
         </div>
