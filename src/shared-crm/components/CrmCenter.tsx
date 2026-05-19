@@ -27,7 +27,7 @@ import { CALL_STATUS_META, displayName, isWithinBusinessHours, type CrmContact }
 import { exportContactsCsv } from "../lib/crmCsv";
 import {
   PhoneCall, Search, Phone, MapPin, Filter, Loader2, Lock, AlertTriangle, Eye, PhoneCall as PhonePlus, Timer,
-  UserPlus, Download, ShieldAlert, Tag,
+  UserPlus, Download, ShieldAlert, Tag, ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
