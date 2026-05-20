@@ -44,6 +44,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Suivre ma commande" : "Track Order", to: "/track-order" },
     { label: isFr ? "Test de vitesse" : "Speed Test", to: "/test-vitesse" },
     { label: isFr ? "Nous contacter" : "Contact Us", to: "/contact" },
+    { label: isFr ? "Soumettre une plainte" : "Submit a complaint", to: "/plainte" },
     { label: isFr ? "Carrières — Postuler" : "Careers — Apply", to: "/careers" },
     { label: "Presse", to: "/presse" },
   ];
