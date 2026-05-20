@@ -55,6 +55,7 @@ export default function CoreInterviewsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<any | null>(null);
+  const [detailTab, setDetailTab] = useState<string>("profil");
   const [bulkSending, setBulkSending] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [notesDraft, setNotesDraft] = useState("");
@@ -78,6 +79,37 @@ export default function CoreInterviewsPage() {
       return data ?? [];
     },
   });
+
+  const { data: allForms = [] } = useQuery({
+    queryKey: ["all-onboarding-forms"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("employee_onboarding_forms")
+        .select("id, applicant_id, status, full_legal_name, email, phone, submitted_at, token_expires_at, created_at")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const formsByApplicant = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const f of allForms as any[]) {
+      if (!f.applicant_id) continue;
+      const existing = m.get(f.applicant_id);
+      // Prefer submitted/reviewed over pending
+      if (!existing || (existing.status === "pending" && f.status !== "pending")) m.set(f.applicant_id, f);
+    }
+    return m;
+  }, [allForms]);
+
+  const submittedForms = useMemo(
+    () => (allForms as any[]).filter((f) => f.status === "submitted" || f.status === "reviewed"),
+    [allForms]
+  );
+  const pendingFormsCount = useMemo(
+    () => (allForms as any[]).filter((f) => f.status === "pending").length,
+    [allForms]
+  );
 
   const { data: answers = [] } = useQuery({
     enabled: !!selected,
@@ -147,6 +179,7 @@ export default function CoreInterviewsPage() {
     onSuccess: () => {
       toast.success("Dossier marqué comme révisé");
       qc.invalidateQueries({ queryKey: ["onboarding-form", selected?.id] });
+      qc.invalidateQueries({ queryKey: ["all-onboarding-forms"] });
     },
     onError: (e: any) => toast.error("Erreur", { description: e.message }),
   });
@@ -407,8 +440,9 @@ export default function CoreInterviewsPage() {
     else setSelectedIds(new Set(filtered.map((a: any) => a.id)));
   };
 
-  const openDetail = (a: any) => {
+  const openDetail = (a: any, tab: string = "profil") => {
     setSelected(a);
+    setDetailTab(tab);
     setNotesDraft(a.notes || "");
   };
 
@@ -494,6 +528,58 @@ export default function CoreInterviewsPage() {
         </Card>
       )}
 
+      {/* Panneau Formulaires d'embauche soumis */}
+      {(submittedForms.length > 0 || pendingFormsCount > 0) && (
+        <Card className="p-3 border-violet-500/40 bg-violet-500/5">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 text-violet-600" />
+              <span className="text-sm font-bold">Formulaires d'embauche</span>
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
+                {submittedForms.length} soumis
+              </Badge>
+              <Badge variant="outline" className="text-[10px] bg-amber-500/15 text-amber-700 border-amber-500/30">
+                {pendingFormsCount} en attente
+              </Badge>
+            </div>
+          </div>
+          {submittedForms.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun formulaire encore soumis par les candidats.</p>
+          ) : (
+            <div className="grid gap-1.5">
+              {submittedForms.map((f: any) => {
+                const applicant = (applicants as any[]).find((a) => a.id === f.applicant_id);
+                const isReviewed = f.status === "reviewed";
+                return (
+                  <div key={f.id} className="flex items-center gap-2 p-2 rounded border bg-background hover:border-violet-500/40 transition-colors">
+                    <Badge variant="outline" className={`text-[10px] ${isReviewed ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" : "bg-violet-500/15 text-violet-700 border-violet-500/30"}`}>
+                      {isReviewed ? "Révisé" : "Soumis"}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {f.full_legal_name || (applicant ? `${applicant.first_name} ${applicant.last_name}` : "—")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {f.email || applicant?.email || "—"} • Soumis le {f.submitted_at ? format(new Date(f.submitted_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[11px]"
+                      disabled={!applicant}
+                      onClick={() => applicant && openDetail(applicant, "embauche")}
+                    >
+                      <Eye className="h-3 w-3 mr-1" /> Voir le formulaire
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
@@ -524,6 +610,24 @@ export default function CoreInterviewsPage() {
                         {a.interview_red_flags.length} flag(s)
                       </Badge>
                     )}
+                    {(() => {
+                      const f = formsByApplicant.get(a.id);
+                      if (!f) return null;
+                      const isSubmitted = f.status === "submitted" || f.status === "reviewed";
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openDetail(a, "embauche"); }}
+                          className="inline-flex"
+                          title="Voir le formulaire d'embauche"
+                        >
+                          <Badge variant="outline" className={`text-[10px] cursor-pointer ${isSubmitted ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" : "bg-amber-500/15 text-amber-700 border-amber-500/30"}`}>
+                            <ClipboardCheck className="h-2.5 w-2.5 mr-0.5" />
+                            {f.status === "reviewed" ? "Formulaire révisé" : isSubmitted ? "Formulaire soumis" : "Formulaire en attente"}
+                          </Badge>
+                        </button>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{a.email} • {a.phone || "—"}</p>
                   <p className="text-[10px] text-muted-foreground">
@@ -577,7 +681,7 @@ export default function CoreInterviewsPage() {
           </DialogHeader>
 
           {selected && (
-            <Tabs defaultValue="profil" className="w-full">
+            <Tabs value={detailTab} onValueChange={setDetailTab} className="w-full">
               <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="profil"><User className="h-3.5 w-3.5 mr-1" />Profil</TabsTrigger>
                 <TabsTrigger value="entrevue"><MessageSquare className="h-3.5 w-3.5 mr-1" />Entrevue</TabsTrigger>
