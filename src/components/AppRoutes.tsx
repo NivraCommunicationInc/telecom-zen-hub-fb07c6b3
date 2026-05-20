@@ -1006,6 +1006,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
           <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
+          <Route path="complaints" element={<Suspense fallback={null}><EmployeeComplaintsPage /></Suspense>} />
           <Route path="academy" element={<Navigate to="/employee/hub?section=formation" replace />} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
           <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><EmployeeCreateOrder /></CertificationGate></Suspense>} />
@@ -1070,6 +1071,7 @@ const AppRoutes = () => {
           <Route path="performance" element={<Suspense fallback={null}><FieldPerformance /></Suspense>} />
           <Route path="daily-report" element={<Suspense fallback={null}><FieldDailyReport /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={null}><FieldNotifications /></Suspense>} />
+          <Route path="complaints" element={<Suspense fallback={null}><FieldComplaintsPage /></Suspense>} />
           <Route path="address-lookup" element={<Suspense fallback={null}><FieldClientLookup /></Suspense>} />
           <Route path="territory" element={<Suspense fallback={null}><FieldTerritory /></Suspense>} />
           <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
