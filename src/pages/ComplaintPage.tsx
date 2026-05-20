@@ -586,7 +586,7 @@ export default function ComplaintPage() {
           </button>
 
           <p className="text-center text-xs" style={{ color: C.textSecondary }}>
-            Nous vous répondrons par courriel dans les délais SLA indiqués ci-dessus.
+            Nous vous répondrons par courriel dans les plus brefs délais.
           </p>
         </form>
       </div>
