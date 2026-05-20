@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { SetPasswordDialog } from "@/components/admin/users/SetPasswordDialog";
+import { ProfileName } from "@/hooks/useProfileName";
 import {
   User,
   Mail,
