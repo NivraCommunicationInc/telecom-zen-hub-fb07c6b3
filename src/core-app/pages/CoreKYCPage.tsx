@@ -361,7 +361,7 @@ export default function CoreKYCPage() {
             <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
               <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Vérification</h3>
               <div className="space-y-1.5 text-[12px]">
-                <Row label="Agent vérificateur" value={selected.reviewed_by?.slice(0, 12) || "—"} mono />
+                <Row label="Agent vérificateur" value={selected.reviewed_by ? reviewerName : "—"} />
                 <Row label="Révisé le" value={selected.reviewed_at ? format(new Date(selected.reviewed_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"} />
                 <Row label="Rétention" value={selected.retention_status} />
               </div>
