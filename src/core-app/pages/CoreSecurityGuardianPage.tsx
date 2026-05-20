@@ -228,7 +228,7 @@ export default function CoreSecurityGuardianPage() {
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {filterList(secretAttempts).slice(0, 100).map((s: any) => (
                   <tr key={s.id} className="hover:bg-[hsl(220,15%,12%)]">
-                    <td className="p-2.5 text-white font-mono text-[10px]">{s.admin_user_id?.slice(0, 8)}</td>
+                    <td className="p-2.5 text-white text-[11px]"><ProfileName userId={s.admin_user_id} /></td>
                     <td className="p-2.5 text-[hsl(220,10%,70%)]">{s.attempts}</td>
                     <td className="p-2.5">
                       {s.locked_until ? (
