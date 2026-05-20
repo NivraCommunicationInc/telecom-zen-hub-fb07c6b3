@@ -157,6 +157,7 @@ const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"
 const CoreReturnsPage = lazy(() => import("@/core-app/pages/CoreReturnsPage"));
 const CoreRmaPage = lazy(() => import("@/core-app/pages/CoreRmaPage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
+const CoreReviewsPage = lazy(() => import("@/core-app/pages/CoreReviewsPage"));
 const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
 const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
 const CoreTechnicianMapPage = lazy(() => import("@/core-app/pages/CoreTechnicianMapPage"));
@@ -246,6 +247,7 @@ const JobListings = lazy(() => import("@/pages/JobListings"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const NPSSurvey = lazy(() => import("@/pages/NPSSurvey"));
+const ClientReviewPage = lazy(() => import("@/pages/ClientReviewPage"));
 const InterviewPage = lazy(() => import("@/pages/InterviewPage"));
 const Presse = lazy(() => import("@/pages/Presse"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
@@ -549,6 +551,7 @@ const AppRoutes = () => {
       <Route path="/postuler/:jobId" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
       <Route path="/faq" element={<MaintenanceGuard><PublicLayout><FAQ /></PublicLayout></MaintenanceGuard>} />
       <Route path="/nps/:token" element={<MaintenanceGuard><PublicLayout><NPSSurvey /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/avis/:token" element={<ClientReviewPage />} />
       <Route path="/entrevue/:token" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><InterviewPage /></Suspense></MaintenanceGuard>} />
       <Route path="/presse" element={<MaintenanceGuard><PublicLayout><Presse /></PublicLayout></MaintenanceGuard>} />
       <Route path="/contact" element={<MaintenanceGuard><PublicLayout><Contact /></PublicLayout></MaintenanceGuard>} />
@@ -962,6 +965,7 @@ const AppRoutes = () => {
           <Route path="returns" element={<Suspense fallback={null}><CoreReturnsPage /></Suspense>} />
           <Route path="rma" element={<Suspense fallback={null}><CoreRmaPage /></Suspense>} />
           <Route path="cancellations" element={<Suspense fallback={null}><CoreCancellationsPage /></Suspense>} />
+          <Route path="reviews" element={<Suspense fallback={null}><CoreReviewsPage /></Suspense>} />
           <Route path="plan-changes" element={<Suspense fallback={null}><CorePlanChangesPage /></Suspense>} />
           <Route path="pause-requests" element={<Suspense fallback={null}><CorePauseRequestsPage /></Suspense>} />
           <Route path="technicians/map" element={<Suspense fallback={null}><CoreTechnicianMapPage /></Suspense>} />

@@ -3853,6 +3853,91 @@ export type Database = {
           },
         ]
       }
+      client_reviews: {
+        Row: {
+          account_id: string | null
+          admin_responded_at: string | null
+          admin_responded_by: string | null
+          admin_response: string | null
+          created_at: string
+          id: string
+          is_featured: boolean
+          rating: number | null
+          review_text: string | null
+          review_token: string
+          service_quality: number | null
+          status: string
+          submitted_at: string | null
+          support_quality: number | null
+          token_expires_at: string
+          trigger_type: string
+          value_for_money: number | null
+          would_recommend: boolean | null
+        }
+        Insert: {
+          account_id?: string | null
+          admin_responded_at?: string | null
+          admin_responded_by?: string | null
+          admin_response?: string | null
+          created_at?: string
+          id?: string
+          is_featured?: boolean
+          rating?: number | null
+          review_text?: string | null
+          review_token?: string
+          service_quality?: number | null
+          status?: string
+          submitted_at?: string | null
+          support_quality?: number | null
+          token_expires_at?: string
+          trigger_type: string
+          value_for_money?: number | null
+          would_recommend?: boolean | null
+        }
+        Update: {
+          account_id?: string | null
+          admin_responded_at?: string | null
+          admin_responded_by?: string | null
+          admin_response?: string | null
+          created_at?: string
+          id?: string
+          is_featured?: boolean
+          rating?: number | null
+          review_text?: string | null
+          review_token?: string
+          service_quality?: number | null
+          status?: string
+          submitted_at?: string | null
+          support_quality?: number | null
+          token_expires_at?: string
+          trigger_type?: string
+          value_for_money?: number | null
+          would_recommend?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_reviews_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_reviews_admin_responded_by_fkey"
+            columns: ["admin_responded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "client_reviews_admin_responded_by_fkey"
+            columns: ["admin_responded_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
       client_streaming_subscriptions: {
         Row: {
           account_id: string | null
@@ -24717,6 +24802,18 @@ export type Database = {
           total_debits: number
         }[]
       }
+      get_client_review_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          account_number: string
+          first_name: string
+          id: string
+          status: string
+          submitted_at: string
+          token_expires_at: string
+          trigger_type: string
+        }[]
+      }
       get_contract_for_signing: { Args: { p_token: string }; Returns: Json }
       get_customer_unpaid_invoices: {
         Args: { p_customer_id: string }
@@ -25347,6 +25444,18 @@ export type Database = {
             }
             Returns: string
           }
+      submit_client_review_by_token: {
+        Args: {
+          p_rating: number
+          p_review_text: string
+          p_service_quality: number
+          p_support_quality: number
+          p_token: string
+          p_value_for_money: number
+          p_would_recommend: boolean
+        }
+        Returns: Json
+      }
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
