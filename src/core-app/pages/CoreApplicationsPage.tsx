@@ -294,17 +294,61 @@ export default function CoreApplicationsPage() {
 
   return (
     <div className="space-y-4 max-w-7xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-primary" />
-            Pipeline candidatures
-          </h1>
-          <p className="text-xs text-muted-foreground">{apps.length} candidature(s) au total</p>
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Applications / Candidatures RH
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Flux complet : entrevue → offre → embauche → création employé → invitation portail Employé.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link to={corePath("/hr/careers")}><Briefcase className="h-4 w-4" /> Postes ouverts</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link to={corePath("/hr/interviews")}><ExternalLink className="h-4 w-4" /> Entrevues IA</Link>
+            </Button>
+          </div>
         </div>
-        <div className="relative w-64">
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="rounded-md border bg-background p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Actives</p>
+            <p className="text-2xl font-bold text-foreground">{stats.active}</p>
+          </div>
+          <div className="rounded-md border bg-background p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Entrevues</p>
+            <p className="text-2xl font-bold text-foreground">{stats.interviews}</p>
+          </div>
+          <div className="rounded-md border bg-background p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Offres</p>
+            <p className="text-2xl font-bold text-foreground">{stats.offers}</p>
+          </div>
+          <div className="rounded-md border bg-background p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Embauchés</p>
+            <p className="text-2xl font-bold text-foreground">{stats.hired}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          {WORKFLOW_STEPS.map((step) => (
+            <div key={step.stage} className="rounded-md border bg-background p-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <step.icon className="h-4 w-4 text-primary" />
+                {step.title}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{step.text}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-8 text-xs" />
+          <Input placeholder="Rechercher candidat, email ou poste…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
         </div>
       </div>
 
