@@ -219,7 +219,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: FileText, label: "Docs fiscaux", href: "/hr/tax-documents" },
       { icon: MessageSquare, label: "Demandes HR", href: "/hr/requests" },
       { icon: Briefcase, label: "Recrutement (postes)", href: "/hr/careers", badgeKey: "careers" },
-      { icon: UserPlus, label: "Candidatures", href: "/hr/applications", badgeKey: "careers" },
+      { icon: UserPlus, label: "Applications / Candidatures", href: "/hr/applications", badgeKey: "careers" },
       { icon: Brain, label: "Entrevues IA", href: "/hr/interviews" },
       { icon: Mail, label: "Templates emails", href: "/hr/email-templates" },
       { icon: History, label: "Audit HR", href: "/hr/audit" },

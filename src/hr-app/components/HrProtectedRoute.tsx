@@ -4,7 +4,7 @@
  * All employees, technicians, field_sales, and admins can access the HR portal.
  */
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import { hasValidHubSession } from "@/lib/security/hubSession";
@@ -17,21 +17,34 @@ type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_ver
 
 export default function HrProtectedRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState<State>("loading");
   const [factorId, setFactorId] = useState<string | null>(null);
+
+  const requestedPath = `${location.pathname}${location.search}${location.hash}`;
+  const recruitmentRedirectMap: Record<string, string> = {
+    "/hr/postes": "/core/hr/careers",
+    "/hr/candidatures": "/core/hr/applications",
+    "/hr/applications": "/core/hr/applications",
+    "/hr/entrevues": "/core/hr/interviews",
+  };
+  const coreRecruitmentTarget = recruitmentRedirectMap[location.pathname];
+  const loginPortal = coreRecruitmentTarget ? "core" : "rh";
+  const loginRedirect = coreRecruitmentTarget ?? requestedPath;
+  const loginPath = `/nivra-secure-hub-2617-internal/login?portal=${loginPortal}&redirect=${encodeURIComponent(loginRedirect)}`;
 
   useEffect(() => {
     let mounted = true;
 
     const check = async () => {
       if (!hasValidHubSession()) {
-        navigate("/nivra-secure-hub-2617-internal", { replace: true });
+        navigate(loginPath, { replace: true });
         return;
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        navigate("/nivra-secure-hub-2617-internal", { replace: true });
+        navigate(loginPath, { replace: true });
         return;
       }
 
@@ -69,7 +82,7 @@ export default function HrProtectedRoute() {
 
     check();
     return () => { mounted = false; };
-  }, [navigate]);
+  }, [navigate, loginPath]);
 
   if (state === "loading") {
     return (
