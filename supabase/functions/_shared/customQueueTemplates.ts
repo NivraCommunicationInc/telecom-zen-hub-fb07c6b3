@@ -2997,7 +2997,7 @@ export function renderQueueTemplate(
           badge: "ALERTE INTERNE",
           heroTitle: "Nouveau signalement client",
           heroSub: `Ticket ${tNum}`,
-          icon: "warning",
+          icon: "alert",
           greeting: `Bonjour équipe Nivra,`,
           bodyText: `Un client vient de signaler un problème. Détails ci-dessous.`,
           cardTitle: "Signalement",
@@ -3039,7 +3039,7 @@ export function renderQueueTemplate(
           badge: isBreach ? "SLA DÉPASSÉ" : "SLA BIENTÔT EXPIRÉ",
           heroTitle: isBreach ? "SLA dépassé" : "Attention : SLA bientôt expiré",
           heroSub: `${itemType} ${itemRef}`,
-          icon: "warning",
+          icon: "alert",
           greeting: `Bonjour ${empName},`,
           bodyText: isBreach
             ? `Le délai SLA pour cette tâche a été dépassé. Une action immédiate est requise.`
@@ -4345,7 +4345,7 @@ export function renderQueueTemplate(
           preheader: `Plainte escaladée — ${ticket} — action requise`,
           badge: "ESCALADE URGENTE",
           heroTitle: "Action requise — Plainte escaladée",
-          icon: "warning",
+          icon: "alert",
           greeting: "Équipe Nivra,",
           bodyText: `Sujet: ${subjectLine}\n\n${description}`,
           cardTitle: "Détails complets",
