@@ -123,6 +123,61 @@ export default function CoreApplicationsPage() {
     onError: (e: any) => toast.error("Erreur", { description: e.message }),
   });
 
+  const workflowMut = useMutation({
+    mutationFn: async ({ app, action }: { app: any; action: "interview" | "offer" | "reject" }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const baseUpdate: Record<string, any> = {
+        stage_changed_at: new Date().toISOString(),
+        stage_changed_by: user?.id ?? null,
+      };
+
+      if (action === "interview") {
+        if (!workflowForm.interview_date) throw new Error("Choisis une date d'entrevue.");
+        Object.assign(baseUpdate, {
+          stage: "interview",
+          status: "interview",
+          interview_date: new Date(workflowForm.interview_date).toISOString(),
+          tags: mergeTags(app.tags, "entrevue_planifiee"),
+        });
+      }
+
+      if (action === "offer") {
+        Object.assign(baseUpdate, {
+          stage: "offer",
+          status: "offer",
+          message: workflowForm.offer_note?.trim()
+            ? `${app.message || ""}\n\n[Note RH - offre]\n${workflowForm.offer_note.trim()}`.trim()
+            : app.message,
+          tags: mergeTags(app.tags, "offre_a_envoyer"),
+        });
+      }
+
+      if (action === "reject") {
+        if (!workflowForm.rejection_reason.trim()) throw new Error("Ajoute un motif de refus.");
+        Object.assign(baseUpdate, {
+          stage: "rejected",
+          status: "rejected",
+          rejection_reason: workflowForm.rejection_reason.trim(),
+        });
+      }
+
+      const { error } = await supabase.from("job_applications").update(baseUpdate).eq("id", app.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      const labels = {
+        interview: "Entrevue planifiée",
+        offer: "Candidat passé en offre",
+        reject: "Candidature refusée",
+      } as const;
+      toast.success(labels[variables.action]);
+      qc.invalidateQueries({ queryKey: ["core-applications-pipeline"] });
+      setWorkflowApp(null);
+      setWorkflowAction(null);
+    },
+    onError: (e: any) => toast.error("Action impossible", { description: e.message }),
+  });
+
   const hireMut = useMutation({
     mutationFn: async () => {
       if (!hireApp) throw new Error("Pas d'application sélectionnée");
@@ -190,6 +245,14 @@ export default function CoreApplicationsPage() {
 
   const byStage = (stage: string) => filtered.filter((a: any) => (a.stage || a.status || "new") === stage);
 
+  const stats = useMemo(() => {
+    const active = filtered.filter((a: any) => !["hired", "rejected"].includes(getStageKey(a))).length;
+    const interviews = filtered.filter((a: any) => getStageKey(a) === "interview" || a.interview_date).length;
+    const offers = filtered.filter((a: any) => getStageKey(a) === "offer").length;
+    const hired = filtered.filter((a: any) => getStageKey(a) === "hired").length;
+    return { active, interviews, offers, hired };
+  }, [filtered]);
+
   const downloadCv = async (path: string) => {
     if (!path) return;
     const { data, error } = await supabase.storage.from("job-applications").createSignedUrl(path, 60);
@@ -214,6 +277,19 @@ export default function CoreApplicationsPage() {
       role: "employee",
     });
     setHireApp(a);
+  };
+
+  const openWorkflow = (app: any, action: "interview" | "offer" | "reject") => {
+    const currentInterviewDate = app.interview_date
+      ? format(new Date(app.interview_date), "yyyy-MM-dd'T'HH:mm")
+      : "";
+    setWorkflowForm({
+      interview_date: currentInterviewDate,
+      offer_note: "",
+      rejection_reason: app.rejection_reason || "",
+    });
+    setWorkflowApp(app);
+    setWorkflowAction(action);
   };
 
   return (
