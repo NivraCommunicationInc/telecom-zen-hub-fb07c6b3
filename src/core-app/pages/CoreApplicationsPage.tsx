@@ -48,6 +48,7 @@ export default function CoreApplicationsPage() {
     first_name: "", last_name: "", work_email: "",
     job_title: "", department: "", hire_date: format(new Date(), "yyyy-MM-dd"),
     employment_type: "full-time", hourly_rate: "",
+    role: "employee" as "employee" | "admin" | "field_sales",
   });
 
   const { data: apps = [], isLoading } = useQuery({
