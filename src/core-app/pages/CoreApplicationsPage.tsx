@@ -48,6 +48,7 @@ export default function CoreApplicationsPage() {
     first_name: "", last_name: "", work_email: "",
     job_title: "", department: "", hire_date: format(new Date(), "yyyy-MM-dd"),
     employment_type: "full-time", hourly_rate: "",
+    role: "employee" as "employee" | "admin" | "field_sales",
   });
 
   const { data: apps = [], isLoading } = useQuery({
@@ -95,45 +96,58 @@ export default function CoreApplicationsPage() {
   const hireMut = useMutation({
     mutationFn: async () => {
       if (!hireApp) throw new Error("Pas d'application sélectionnée");
-      const { data: emp, error: empErr } = await supabase
-        .from("employee_records")
-        .insert({
+      if (!hireForm.work_email?.trim()) {
+        throw new Error("Email professionnel requis pour créer le compte portail");
+      }
+
+      // Map UI employment_type → backend enum
+      const empTypeMap: Record<string, string> = {
+        "full-time": "full_time",
+        "part-time": "part_time",
+        "contractor": "contractor",
+      };
+
+      const { data, error } = await supabase.functions.invoke("hr-create-employee", {
+        body: {
           first_name: hireForm.first_name,
           last_name: hireForm.last_name,
-          work_email: hireForm.work_email || null,
-          personal_email: hireApp.email,
-          phone: hireApp.phone || null,
-          job_title: hireForm.job_title || null,
-          department: hireForm.department || null,
+          work_email: hireForm.work_email.trim().toLowerCase(),
+          phone: hireApp.phone || undefined,
+          job_title: hireForm.job_title || undefined,
+          department: hireForm.department || undefined,
           hire_date: hireForm.hire_date,
-          employment_type: hireForm.employment_type,
-          hourly_rate: hireForm.hourly_rate ? Number(hireForm.hourly_rate) : null,
+          employment_type: empTypeMap[hireForm.employment_type] || "full_time",
           salary_type: hireForm.hourly_rate ? "hourly" : "salary",
-          status: "active",
-        })
-        .select("id")
-        .single();
-      if (empErr) throw empErr;
+          hourly_rate: hireForm.hourly_rate ? Number(hireForm.hourly_rate) : undefined,
+          roles: [hireForm.role],
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Échec de la création de l'employé");
 
+      // Link the application to the new employee record
       const { data: { user } } = await supabase.auth.getUser();
-      const { error: appErr } = await supabase
+      await supabase
         .from("job_applications")
         .update({
           stage: "hired",
           status: "hired",
-          hired_employee_id: emp.id,
+          hired_employee_id: data.employee.id,
           stage_changed_at: new Date().toISOString(),
           stage_changed_by: user?.id ?? null,
         })
         .eq("id", hireApp.id);
-      if (appErr) throw appErr;
+
+      return data.employee;
     },
-    onSuccess: () => {
-      toast.success("Candidat embauché — fiche employé créée");
+    onSuccess: (emp: any) => {
+      toast.success("Candidat embauché", {
+        description: `Employé ${emp?.employee_number || ""} créé · invitation portail envoyée à ${emp?.email || ""}`,
+      });
       qc.invalidateQueries({ queryKey: ["core-applications-pipeline"] });
       setHireApp(null);
     },
-    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+    onError: (e: any) => toast.error("Erreur d'embauche", { description: e.message }),
   });
 
   const filtered = apps.filter((a: any) => {
@@ -167,6 +181,7 @@ export default function CoreApplicationsPage() {
       hire_date: format(new Date(), "yyyy-MM-dd"),
       employment_type: "full-time",
       hourly_rate: "",
+      role: "employee",
     });
     setHireApp(a);
   };
@@ -389,8 +404,19 @@ export default function CoreApplicationsPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Courriel travail</Label>
-              <Input type="email" value={hireForm.work_email} onChange={(e) => setHireForm({ ...hireForm, work_email: e.target.value })} className="h-8 text-xs" />
+              <Label className="text-xs">Courriel professionnel * <span className="text-muted-foreground font-normal">(utilisé pour l'invitation portail)</span></Label>
+              <Input type="email" required value={hireForm.work_email} onChange={(e) => setHireForm({ ...hireForm, work_email: e.target.value })} className="h-8 text-xs" placeholder="prenom.nom@nivra-telecom.ca" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Rôle / Portail d'accès *</Label>
+              <Select value={hireForm.role} onValueChange={(v: any) => setHireForm({ ...hireForm, role: v })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employé — portail Employé + RH</SelectItem>
+                  <SelectItem value="field_sales">Représentant terrain — portail Field</SelectItem>
+                  <SelectItem value="admin">Administrateur — accès Core complet</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -426,7 +452,7 @@ export default function CoreApplicationsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setHireApp(null)}>Annuler</Button>
-            <Button size="sm" disabled={!hireForm.first_name || !hireForm.last_name || hireMut.isPending}
+            <Button size="sm" disabled={!hireForm.first_name || !hireForm.last_name || !hireForm.work_email || hireMut.isPending}
               onClick={() => hireMut.mutate()}>
               {hireMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Check className="h-3.5 w-3.5 mr-1" />Embaucher</>}
             </Button>
