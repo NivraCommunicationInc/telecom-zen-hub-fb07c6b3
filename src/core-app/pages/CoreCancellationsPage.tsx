@@ -630,44 +630,66 @@ export default function CoreCancellationsPage() {
               Aucune demande de résiliation.
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {filtered.map((r: any) => {
-                const cfg = statusConfig[r.status as CancellationStatus] ?? statusConfig.requested;
-                const Icon = cfg.icon;
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() => openDetail(r)}
-                    className="w-full text-left px-4 py-3 hover:bg-secondary/40 transition-colors flex items-center gap-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="font-mono text-xs text-foreground">{r.request_number ?? r.id.slice(0, 8)}</span>
-                        <Badge variant="outline" className={cfg.tone}>
-                          <Icon className="h-3 w-3 mr-1" />
-                          {cfg.label}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {serviceTypeLabels[r.service_type] ?? r.service_type}
-                        </span>
+            <>
+              <div className="divide-y divide-border">
+                {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r: any) => {
+                  const cfg = statusConfig[r.status as CancellationStatus] ?? statusConfig.requested;
+                  const Icon = cfg.icon;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => openDetail(r)}
+                      className="w-full text-left px-4 py-3 hover:bg-secondary/40 transition-colors flex items-center gap-4"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-mono text-xs text-foreground">{r.request_number ?? r.id.slice(0, 8)}</span>
+                          <Badge variant="outline" className={cfg.tone}>
+                            <Icon className="h-3 w-3 mr-1" />
+                            {cfg.label}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {serviceTypeLabels[r.service_type] ?? r.service_type}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm text-foreground truncate">
+                          {r.profile?.full_name ?? "Client"} · {r.profile?.email ?? "—"}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {reasonCodeLabels[r.reason_code] ?? r.reason_code}
+                          {r.requested_effective_date && (
+                            <> · Souhaitée: {format(new Date(r.requested_effective_date), "d MMM yyyy", { locale: fr })}</>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm text-foreground truncate">
-                        {r.profile?.full_name ?? "Client"} · {r.profile?.email ?? "—"}
+                      <div className="text-[11px] text-muted-foreground text-right shrink-0">
+                        {format(new Date(r.created_at), "d MMM yyyy HH:mm", { locale: fr })}
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        {reasonCodeLabels[r.reason_code] ?? r.reason_code}
-                        {r.requested_effective_date && (
-                          <> · Souhaitée: {format(new Date(r.requested_effective_date), "d MMM yyyy", { locale: fr })}</>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground text-right shrink-0">
-                      {format(new Date(r.created_at), "d MMM yyyy HH:mm", { locale: fr })}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {filtered.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground">
+                  <span>
+                    Page {page} / {Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))} — {filtered.length} demande{filtered.length > 1 ? "s" : ""}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= Math.ceil(filtered.length / PAGE_SIZE)}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
