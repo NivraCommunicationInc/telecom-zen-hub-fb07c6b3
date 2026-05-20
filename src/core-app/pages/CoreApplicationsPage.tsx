@@ -254,6 +254,123 @@ export default function CoreApplicationsPage() {
         </div>
       )}
 
+      {/* Detail dialog — voir le formulaire complet */}
+      <Dialog open={!!detailApp} onOpenChange={(o) => !o && setDetailApp(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              {detailApp?.full_name || "Candidature"}
+            </DialogTitle>
+            <DialogDescription>
+              Formulaire soumis le{" "}
+              {detailApp && format(new Date(detailApp.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailApp && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">
+                  Étape : {STAGES.find(s => s.key === (detailApp.stage || detailApp.status))?.label || detailApp.stage || detailApp.status}
+                </Badge>
+                {detailApp.source && <Badge variant="secondary">Source : {detailApp.source}</Badge>}
+                {detailApp.score != null && <Badge>Score : {detailApp.score}</Badge>}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border p-3 bg-muted/30">
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Courriel
+                  </Label>
+                  <a href={`mailto:${detailApp.email}`} className="text-sm text-primary hover:underline break-all">
+                    {detailApp.email}
+                  </a>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> Téléphone
+                  </Label>
+                  <a href={`tel:${detailApp.phone}`} className="text-sm text-foreground">
+                    {detailApp.phone || "—"}
+                  </a>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Briefcase className="h-3 w-3" /> Poste visé
+                  </Label>
+                  <p className="text-sm text-foreground">
+                    {detailApp.position || jobMap[detailApp.job_id] || "Candidature spontanée"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Soumise
+                  </Label>
+                  <p className="text-sm text-foreground">
+                    {format(new Date(detailApp.created_at), "d MMM yyyy, HH:mm", { locale: fr })}
+                  </p>
+                </div>
+              </div>
+
+              {detailApp.message && (
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground">Message du candidat</Label>
+                  <div className="rounded-lg border p-3 bg-background text-sm whitespace-pre-wrap text-foreground">
+                    {detailApp.message}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                  <FileText className="h-3 w-3" /> Curriculum Vitae
+                </Label>
+                {detailApp.cv_path ? (
+                  <Button variant="outline" size="sm" onClick={() => downloadCv(detailApp.cv_path)}>
+                    <Download className="h-3.5 w-3.5 mr-2" />
+                    Télécharger {detailApp.cv_filename || "le CV"}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Aucun CV fourni</p>
+                )}
+              </div>
+
+              {detailApp.rejection_reason && (
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase text-destructive">Motif de refus</Label>
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
+                    {detailApp.rejection_reason}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDetailApp(null)}>Fermer</Button>
+            {detailApp && NEXT_STAGE[detailApp.stage || detailApp.status || "new"] && (
+              <Button size="sm" disabled={moveStage.isPending}
+                onClick={() => {
+                  const next = NEXT_STAGE[detailApp.stage || detailApp.status || "new"]!;
+                  if (next === "hired") { startHire(detailApp); setDetailApp(null); }
+                  else { moveStage.mutate({ id: detailApp.id, stage: next }); setDetailApp(null); }
+                }}>
+                <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                Passer à : {STAGES.find(s => s.key === NEXT_STAGE[detailApp.stage || detailApp.status || "new"])?.label}
+              </Button>
+            )}
+            {detailApp && detailApp.stage !== "rejected" && detailApp.stage !== "hired" && (
+              <Button variant="destructive" size="sm" disabled={moveStage.isPending}
+                onClick={() => { moveStage.mutate({ id: detailApp.id, stage: "rejected" }); setDetailApp(null); }}>
+                <X className="h-3.5 w-3.5 mr-1" />
+                Refuser
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Hire dialog */}
       <Dialog open={!!hireApp} onOpenChange={(o) => !o && setHireApp(null)}>
         <DialogContent className="max-w-xl">
