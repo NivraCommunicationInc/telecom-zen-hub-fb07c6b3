@@ -11592,6 +11592,10 @@ export type Database = {
           applicant_id: string | null
           id: string
           question_id: string | null
+          transcript: string | null
+          transcript_lang: string | null
+          video_duration_seconds: number | null
+          video_url: string | null
         }
         Insert: {
           ai_feedback?: string | null
@@ -11601,6 +11605,10 @@ export type Database = {
           applicant_id?: string | null
           id?: string
           question_id?: string | null
+          transcript?: string | null
+          transcript_lang?: string | null
+          video_duration_seconds?: number | null
+          video_url?: string | null
         }
         Update: {
           ai_feedback?: string | null
@@ -11610,6 +11618,10 @@ export type Database = {
           applicant_id?: string | null
           id?: string
           question_id?: string | null
+          transcript?: string | null
+          transcript_lang?: string | null
+          video_duration_seconds?: number | null
+          video_url?: string | null
         }
         Relationships: [
           {
