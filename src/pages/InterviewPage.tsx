@@ -350,6 +350,9 @@ export default function InterviewPage() {
     if (audioElRef.current) {
       try { audioElRef.current.pause(); } catch { /* noop */ }
     }
+    if ("speechSynthesis" in window) {
+      try { window.speechSynthesis.cancel(); } catch { /* noop */ }
+    }
     if (audioUrlRef.current) {
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
@@ -357,6 +360,32 @@ export default function InterviewPage() {
     setTtsLoading(false);
     setSpeaking(false);
   }, []);
+
+  const speakWithBrowserFallback = useCallback((text: string, onFinished?: () => void) => {
+    if (!text.trim() || !("speechSynthesis" in window)) {
+      onFinished?.();
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang === "fr" ? "fr-CA" : "en-CA";
+      utterance.rate = 0.82;
+      utterance.pitch = 0.95;
+      utterance.volume = 1;
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.lang.toLowerCase() === utterance.lang.toLowerCase())
+        || voices.find(v => v.lang.toLowerCase().startsWith(lang));
+      if (preferred) utterance.voice = preferred;
+      setSpeaking(true);
+      utterance.onend = () => { setSpeaking(false); onFinished?.(); };
+      utterance.onerror = () => { setSpeaking(false); onFinished?.(); };
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setSpeaking(false);
+      onFinished?.();
+    }
+  }, [lang]);
 
   const speak = useCallback(async (text: string, onFinished?: () => void) => {
     if (!token || mutedRef.current || !text.trim()) {
@@ -377,7 +406,7 @@ export default function InterviewPage() {
       });
       if (!res.ok) {
         setTtsLoading(false);
-        onFinished?.();
+        speakWithBrowserFallback(text, onFinished);
         return;
       }
       const blob = await res.blob();
@@ -403,15 +432,15 @@ export default function InterviewPage() {
       await audio.play().catch(() => {
         if (speakSeqRef.current === seq) {
           setSpeaking(false);
-          onFinished?.();
+          speakWithBrowserFallback(text, onFinished);
         }
       });
     } catch {
       setTtsLoading(false);
       setSpeaking(false);
-      onFinished?.();
+      speakWithBrowserFallback(text, onFinished);
     }
-  }, [token, lang, stopTts]);
+  }, [token, lang, stopTts, speakWithBrowserFallback]);
 
   const toggleMute = () => {
     const next = !muted;
