@@ -9,7 +9,14 @@ const corsHeaders = {
 const ADMIN_EMAIL = "support@nivra-telecom.com";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-type Answer = { question_id: string; answer_text: string };
+type Answer = {
+  question_id: string;
+  answer_text: string;
+  video_url?: string;
+  video_duration_seconds?: number;
+  transcript?: string;
+  transcript_lang?: string;
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -53,7 +60,13 @@ Deno.serve(async (req) => {
       .map(a => ({
         applicant_id: applicant.id,
         question_id: a.question_id,
-        answer_text: (a.answer_text || "").slice(0, 4000),
+        answer_text: (a.transcript || a.answer_text || "").slice(0, 4000),
+        video_url: a.video_url || null,
+        video_duration_seconds: Number.isFinite(a.video_duration_seconds as number)
+          ? Math.max(0, Math.min(3600, Math.round(a.video_duration_seconds as number)))
+          : null,
+        transcript: a.transcript ? String(a.transcript).slice(0, 4000) : null,
+        transcript_lang: a.transcript_lang || lang,
       }));
     if (answerRows.length === 0) {
       return new Response(JSON.stringify({ error: "no_valid_answers" }), { status: 400, headers: corsHeaders });

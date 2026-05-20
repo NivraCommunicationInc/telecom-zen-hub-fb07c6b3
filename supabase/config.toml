@@ -267,3 +267,10 @@ verify_jwt = true
 
 [functions.elevenlabs-stt-token]
 verify_jwt = true
+
+[functions.interview-tts]
+verify_jwt = false
+
+[functions.interview-transcribe]
+verify_jwt = false
+
