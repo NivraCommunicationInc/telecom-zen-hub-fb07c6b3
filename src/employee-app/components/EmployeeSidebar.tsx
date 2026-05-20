@@ -9,7 +9,7 @@ import {
   ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText, GraduationCap,
-  Package, UserCheck, Wifi, Mail, LayoutGrid, PhoneCall,
+  Package, UserCheck, Wifi, Mail, LayoutGrid, PhoneCall, AlertCircle,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { useState, useEffect } from "react";
@@ -43,6 +43,7 @@ const navGroups = [
     items: [
       { label: "Tickets support", href: `${EMP_BASE}/support`, icon: Headphones, badge: "Nouveau" },
       { label: "Tickets Internet", href: `${EMP_BASE}/internet-tickets`, icon: Wifi, badge: "Nouveau" },
+      { label: "Plaintes clients", href: `${EMP_BASE}/complaints`, icon: AlertCircle },
       { label: "Rendez-vous", href: `${EMP_BASE}/appointments`, icon: Calendar, badge: "Nouveau" },
     ],
   },
