@@ -148,8 +148,12 @@ export default function CoreApplicationsPage() {
 
   const downloadCv = async (path: string) => {
     if (!path) return;
-    const { data } = await supabase.storage.from("cv-uploads").createSignedUrl(path, 60);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    const { data, error } = await supabase.storage.from("job-applications").createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast.error("Impossible d'ouvrir le CV", { description: error?.message });
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
   };
 
   const startHire = (a: any) => {
