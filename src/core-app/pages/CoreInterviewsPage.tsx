@@ -528,6 +528,58 @@ export default function CoreInterviewsPage() {
         </Card>
       )}
 
+      {/* Panneau Formulaires d'embauche soumis */}
+      {(submittedForms.length > 0 || pendingFormsCount > 0) && (
+        <Card className="p-3 border-violet-500/40 bg-violet-500/5">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 text-violet-600" />
+              <span className="text-sm font-bold">Formulaires d'embauche</span>
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
+                {submittedForms.length} soumis
+              </Badge>
+              <Badge variant="outline" className="text-[10px] bg-amber-500/15 text-amber-700 border-amber-500/30">
+                {pendingFormsCount} en attente
+              </Badge>
+            </div>
+          </div>
+          {submittedForms.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun formulaire encore soumis par les candidats.</p>
+          ) : (
+            <div className="grid gap-1.5">
+              {submittedForms.map((f: any) => {
+                const applicant = (applicants as any[]).find((a) => a.id === f.applicant_id);
+                const isReviewed = f.status === "reviewed";
+                return (
+                  <div key={f.id} className="flex items-center gap-2 p-2 rounded border bg-background hover:border-violet-500/40 transition-colors">
+                    <Badge variant="outline" className={`text-[10px] ${isReviewed ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" : "bg-violet-500/15 text-violet-700 border-violet-500/30"}`}>
+                      {isReviewed ? "Révisé" : "Soumis"}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {f.full_legal_name || (applicant ? `${applicant.first_name} ${applicant.last_name}` : "—")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {f.email || applicant?.email || "—"} • Soumis le {f.submitted_at ? format(new Date(f.submitted_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[11px]"
+                      disabled={!applicant}
+                      onClick={() => applicant && openDetail(applicant, "embauche")}
+                    >
+                      <Eye className="h-3 w-3 mr-1" /> Voir le formulaire
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
