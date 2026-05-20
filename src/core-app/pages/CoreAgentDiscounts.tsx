@@ -439,12 +439,12 @@ export default function CoreAgentDiscounts() {
                         : a.role
                           ? `Rôle: ${a.role}`
                           : a.agent_id
-                            ? `Agent: ${a.agent_id.slice(0, 8)}…`
+                            ? null
                             : "—";
                       return (
                         <TableRow key={a.id}>
                           <TableCell>{d?.name || a.discount_id.slice(0, 8)}</TableCell>
-                          <TableCell>{target}</TableCell>
+                          <TableCell>{target ?? <ProfileName userId={a.agent_id} />}</TableCell>
                           <TableCell>{new Date(a.assigned_at).toLocaleDateString("fr-CA")}</TableCell>
                           <TableCell className="text-right">
                             <Button size="sm" variant="ghost" onClick={() => revokeAssignment(a.id)}>
