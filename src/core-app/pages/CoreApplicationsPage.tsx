@@ -197,7 +197,7 @@ export default function CoreApplicationsPage() {
       setWorkflowApp(null);
       setWorkflowAction(null);
     },
-    onError: (e: any) => toast.error("Action impossible", { description: e.message }),
+    onError: (e: unknown) => toast.error("Action impossible", { description: errorMessage(e) }),
   });
 
   const hireMut = useMutation({
@@ -247,17 +247,17 @@ export default function CoreApplicationsPage() {
 
       return data.employee;
     },
-    onSuccess: (emp: any) => {
+    onSuccess: (emp: CreatedEmployee) => {
       toast.success("Candidat embauché", {
         description: `Employé ${emp?.employee_number || ""} créé · invitation portail envoyée à ${emp?.email || ""}`,
       });
       qc.invalidateQueries({ queryKey: ["core-applications-pipeline"] });
       setHireApp(null);
     },
-    onError: (e: any) => toast.error("Erreur d'embauche", { description: e.message }),
+    onError: (e: unknown) => toast.error("Erreur d'embauche", { description: errorMessage(e) }),
   });
 
-  const filtered = apps.filter((a: any) => {
+  const filtered = apps.filter((a) => {
     if (!search) return true;
     const s = search.toLowerCase();
     return (a.full_name || "").toLowerCase().includes(s)
@@ -265,13 +265,13 @@ export default function CoreApplicationsPage() {
       || (a.position || "").toLowerCase().includes(s);
   });
 
-  const byStage = (stage: string) => filtered.filter((a: any) => (a.stage || a.status || "new") === stage);
+  const byStage = (stage: string) => filtered.filter((a) => (a.stage || a.status || "new") === stage);
 
   const stats = useMemo(() => {
-    const active = filtered.filter((a: any) => !["hired", "rejected"].includes(getStageKey(a))).length;
-    const interviews = filtered.filter((a: any) => getStageKey(a) === "interview" || a.interview_date).length;
-    const offers = filtered.filter((a: any) => getStageKey(a) === "offer").length;
-    const hired = filtered.filter((a: any) => getStageKey(a) === "hired").length;
+    const active = filtered.filter((a) => !["hired", "rejected"].includes(getStageKey(a))).length;
+    const interviews = filtered.filter((a) => getStageKey(a) === "interview" || a.interview_date).length;
+    const offers = filtered.filter((a) => getStageKey(a) === "offer").length;
+    const hired = filtered.filter((a) => getStageKey(a) === "hired").length;
     return { active, interviews, offers, hired };
   }, [filtered]);
 
@@ -285,7 +285,7 @@ export default function CoreApplicationsPage() {
     window.open(data.signedUrl, "_blank");
   };
 
-  const startHire = (a: any) => {
+  const startHire = (a: JobApplication) => {
     const [first, ...rest] = (a.full_name || "").split(" ");
     setHireForm({
       first_name: first || "",
@@ -301,7 +301,7 @@ export default function CoreApplicationsPage() {
     setHireApp(a);
   };
 
-  const openWorkflow = (app: any, action: "interview" | "offer" | "reject") => {
+  const openWorkflow = (app: JobApplication, action: WorkflowAction) => {
     const currentInterviewDate = app.interview_date
       ? format(new Date(app.interview_date), "yyyy-MM-dd'T'HH:mm")
       : "";
