@@ -4,7 +4,7 @@
  * 4-tab detail view (Profil / Entrevue / Emails / Actions),
  * CSV export, accept/reject decisions.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -110,6 +110,43 @@ export default function CoreInterviewsPage() {
     () => (allForms as any[]).filter((f) => f.status === "pending").length,
     [allForms]
   );
+
+  // Realtime: refresh when a candidate submits/updates their onboarding form or when a new applicant arrives
+  useEffect(() => {
+    const channel = supabase
+      .channel("interviews-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "employee_onboarding_forms" },
+        (payload: any) => {
+          qc.invalidateQueries({ queryKey: ["all-onboarding-forms"] });
+          qc.invalidateQueries({ queryKey: ["onboarding-form"] });
+          const newRow = payload.new;
+          const oldRow = payload.old;
+          if (
+            payload.eventType === "UPDATE" &&
+            newRow?.status === "submitted" &&
+            oldRow?.status !== "submitted"
+          ) {
+            toast.success("Nouveau formulaire d'embauche reçu", {
+              description: newRow.full_legal_name || newRow.email || "Candidat",
+            });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_applicants" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["job-applicants-interviews"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
 
   const { data: answers = [] } = useQuery({
     enabled: !!selected,
