@@ -439,8 +439,9 @@ export default function CoreInterviewsPage() {
     else setSelectedIds(new Set(filtered.map((a: any) => a.id)));
   };
 
-  const openDetail = (a: any) => {
+  const openDetail = (a: any, tab: string = "profil") => {
     setSelected(a);
+    setDetailTab(tab);
     setNotesDraft(a.notes || "");
   };
 
