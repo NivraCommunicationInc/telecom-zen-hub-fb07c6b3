@@ -604,7 +604,7 @@ export default function InterviewPage() {
     setRecordSeconds(0);
   };
 
-  // ---------- Validate (upload + transcribe) ----------
+  // ---------- Validate (advance immediately; upload + transcribe in background, in parallel) ----------
   const validateAndNext = async () => {
     if (!currentQuestion || !currentAnswer || !token) return;
     if (currentAnswer.durationSeconds < MIN_SECONDS) {
@@ -613,69 +613,66 @@ export default function InterviewPage() {
     }
     setError(null);
 
-    try {
-      let uploadedPath = currentAnswer.uploadedPath;
-      let transcript = currentAnswer.transcript;
+    const q = currentQuestion;
+    const ans = currentAnswer;
+    const isLast = step >= questions.length - 1;
 
-      if (!uploadedPath) {
-        setProcessing("uploading");
-        const path = `${token}/${currentQuestion.id}.webm`;
-        const { error: upErr } = await supabase
-          .storage
+    // Kick off upload + transcription in parallel (don't await before advancing)
+    const path = ans.uploadedPath || `${token}/${q.id}.webm`;
+    const uploadPromise: Promise<string> = ans.uploadedPath
+      ? Promise.resolve(ans.uploadedPath)
+      : supabase.storage
           .from("interview-videos")
-          .upload(path, currentAnswer.blob, {
-            contentType: VIDEO_MIME,
-            upsert: true,
+          .upload(path, ans.blob, { contentType: VIDEO_MIME, upsert: true })
+          .then(({ error: upErr }) => {
+            if (upErr) throw upErr;
+            return path;
           });
-        if (upErr) throw upErr;
-        uploadedPath = path;
-      }
 
-      if (!transcript) {
-        setProcessing("transcribing");
-        const ttUrl = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-transcribe?token=${encodeURIComponent(token)}&lang=${lang}`;
-        const res = await fetch(ttUrl, {
-          method: "POST",
-          headers: { "Content-Type": VIDEO_MIME },
-          body: currentAnswer.blob,
-        });
-        if (res.ok) {
-          const j = await res.json();
-          transcript = String(j?.transcript || "").trim();
-        } else {
-          transcript = "";
-        }
-      }
+    const transcribePromise: Promise<string> = ans.transcript
+      ? Promise.resolve(ans.transcript)
+      : fetch(
+          `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-transcribe?token=${encodeURIComponent(token)}&lang=${lang}`,
+          { method: "POST", headers: { "Content-Type": VIDEO_MIME }, body: ans.blob },
+        )
+          .then(async (res) => {
+            if (!res.ok) return "";
+            const j = await res.json().catch(() => ({}));
+            return String(j?.transcript || "").trim();
+          })
+          .catch(() => "");
 
-      setAnswers(prev => ({
-        ...prev,
-        [currentQuestion.id]: {
-          ...currentAnswer,
-          uploadedPath,
-          transcript: transcript || "",
-        },
-      }));
+    const finalize = Promise.all([uploadPromise, transcribePromise])
+      .then(([uploadedPath, transcript]) => {
+        setAnswers((prev) => ({
+          ...prev,
+          [q.id]: { ...ans, uploadedPath, transcript: transcript || "" },
+        }));
+        return { uploadedPath, transcript: transcript || "" };
+      });
 
-      setProcessing(null);
-
-      if (step < questions.length - 1) {
-        stopTts();
-        setQuestionSpoken(false);
-        setStep(s => s + 1);
-        setRecordSeconds(0);
-      } else {
+    if (!isLast) {
+      // Advance immediately for snappy UX
+      stopTts();
+      setQuestionSpoken(false);
+      setStep((s) => s + 1);
+      setRecordSeconds(0);
+      // Surface background errors if upload fails
+      finalize.catch((e: any) => setError(e?.message || "upload_failed"));
+    } else {
+      // Last question: wait for upload+transcript then submit
+      setProcessing("uploading");
+      try {
+        const { uploadedPath, transcript } = await finalize;
+        setProcessing(null);
         await submitAll({
           ...answers,
-          [currentQuestion.id]: {
-            ...currentAnswer,
-            uploadedPath,
-            transcript: transcript || "",
-          },
+          [q.id]: { ...ans, uploadedPath, transcript },
         });
+      } catch (e: any) {
+        setProcessing(null);
+        setError(e?.message || "upload_failed");
       }
-    } catch (e: any) {
-      setProcessing(null);
-      setError(e?.message || "upload_failed");
     }
   };
 
