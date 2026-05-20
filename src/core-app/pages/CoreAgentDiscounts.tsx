@@ -23,6 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Plus, Power, Trash2, Pencil, X } from "lucide-react";
+import { ProfileName } from "@/hooks/useProfileName";
 
 interface AgentDiscount {
   id: string;
