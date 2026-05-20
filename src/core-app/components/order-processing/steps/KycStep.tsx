@@ -509,7 +509,7 @@ export function KycStep({ proc }: Props) {
                 {kycSession?.reviewed_by && (
                   <div className="flex justify-between">
                     <span className="text-slate-500">Révisé par</span>
-                    <span className="text-slate-100 font-mono">{String(kycSession.reviewed_by).slice(0, 8)}…</span>
+                    <span className="text-slate-100">{reviewerName}</span>
                   </div>
                 )}
                 {kycSession?.review_reason && (
