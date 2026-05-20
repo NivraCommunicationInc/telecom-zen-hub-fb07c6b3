@@ -54,6 +54,7 @@ type RecordedAnswer = {
   transcript?: string;
 };
 
+const EDGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const MIN_SECONDS = 15;
 const MAX_SECONDS = 180;
 const VIDEO_MIME =
@@ -136,6 +137,8 @@ const T = {
     progress: "Question",
     of: "sur",
     novaSpeaking: "Nova parle…",
+    novaPreparing: "Nova prépare la mise en situation…",
+    listenFirst: "Écoutez Nova avant de répondre.",
     listenAgain: "Réécouter la question",
     notReadyYet: "Préparation de votre réponse…",
     record: "Démarrer l'enregistrement",
@@ -230,6 +233,8 @@ const T = {
     progress: "Question",
     of: "of",
     novaSpeaking: "Nova is speaking…",
+    novaPreparing: "Nova is preparing the scenario…",
+    listenFirst: "Listen to Nova before answering.",
     listenAgain: "Replay the question",
     notReadyYet: "Preparing your answer…",
     record: "Start recording",
