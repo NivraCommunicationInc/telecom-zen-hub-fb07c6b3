@@ -198,8 +198,8 @@ export default function ComplaintPage() {
 
       const priorityLabel = "Normale";
       const slaLabel = "72 heures";
-      const portalUrl =
-        typeof window !== "undefined" ? `${window.location.origin}/plainte` : "/plainte";
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const portalUrl = `${origin}/plainte/suivi/${(complaint as any).public_token}`;
 
       await supabase.from("email_queue").insert([
         {
