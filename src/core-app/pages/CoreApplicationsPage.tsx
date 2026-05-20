@@ -19,9 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  UserPlus, Search, Loader2, Download, ArrowRight, Check, X, Mail, Phone, Briefcase,
+  UserPlus, Search, Loader2, Download, Check, X, Mail, Phone, Briefcase,
   Calendar, FileText, Eye, AlertCircle, ClipboardCheck, CalendarPlus, Send, UserCheck,
-  MailCheck, CheckCircle2, ExternalLink, RotateCcw,
+  CheckCircle2, ExternalLink, RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -36,15 +36,6 @@ const STAGES = [
   { key: "hired", label: "Embauché", color: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
   { key: "rejected", label: "Refusé", color: "bg-red-500/15 text-red-600 border-red-500/30" },
 ];
-
-const NEXT_STAGE: Record<string, string | null> = {
-  new: "reviewing",
-  reviewing: "interview",
-  interview: "offer",
-  offer: "hired",
-  hired: null,
-  rejected: null,
-};
 
 const WORKFLOW_STEPS = [
   { stage: "reviewing", title: "1. Examen RH", text: "Lire le formulaire, CV, notes et qualifier le candidat.", icon: ClipboardCheck },
