@@ -4106,11 +4106,11 @@ export function renderQueueTemplate(
       const firstName = esc(v.first_name || clientName);
       const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
       return {
-        subject: "Comment s est passée votre installation? — Nivra Telecom",
+        subject: "Comment s'est passée votre installation? — Nivra Telecom",
         html: shell({
           preheader: "Votre avis nous aide à améliorer notre service.",
           badge: "VOTRE AVIS COMPTE",
-          heroTitle: "Bienvenue chez Nivra! Comment ca s est passé?",
+          heroTitle: "Bienvenue chez Nivra! Comment ça s'est passé?",
           icon: "check",
           greeting: `Bonjour ${firstName},`,
           bodyText:
@@ -4166,7 +4166,7 @@ export function renderQueueTemplate(
           heroTitle: "Un client a soumis un avis",
           icon: "info",
           greeting: "Équipe Nivra,",
-          bodyText: `Un nouvel avis client vient d être soumis. Note: ${rating}/5 étoiles.`,
+          bodyText: `Un nouvel avis client vient d'être soumis. Note: ${rating}/5 étoiles.`,
           cardTitle: "Détails",
           cardRows: [
             ["Client", firstName],
@@ -4263,7 +4263,7 @@ export function renderQueueTemplate(
           icon: "info",
           greeting: `Bonjour ${firstName},`,
           bodyText:
-            "Le statut de votre plainte vient d être mis à jour. Vous pouvez en consulter les détails sur votre espace client.",
+            "Le statut de votre plainte vient d'être mis à jour. Vous pouvez en consulter les détails sur votre espace client.",
           cardTitle: "Détails",
           cardRows: [
             ["Ticket", ticket],
@@ -4287,7 +4287,7 @@ export function renderQueueTemplate(
         html: shell({
           preheader: "Notre équipe vient de vous répondre.",
           badge: "RÉPONSE DE NIVRA",
-          heroTitle: "L équipe Nivra vous a répondu",
+          heroTitle: "L'équipe Nivra vous a répondu",
           icon: "info",
           greeting: `Bonjour ${firstName},`,
           bodyText: preview
@@ -4311,7 +4311,7 @@ export function renderQueueTemplate(
       return {
         subject: `Votre plainte est résolue — ${ticket} — Nivra Telecom`,
         html: shell({
-          preheader: "Bonne nouvelle : votre plainte vient d être résolue.",
+          preheader: "Bonne nouvelle : votre plainte vient d'être résolue.",
           badge: "PLAINTE RÉSOLUE",
           heroTitle: "Votre plainte a été résolue!",
           icon: "check",
