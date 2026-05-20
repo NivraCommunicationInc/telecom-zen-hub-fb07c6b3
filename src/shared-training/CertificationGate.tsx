@@ -29,6 +29,18 @@ export default function CertificationGate({ portal, children }: Props) {
         if (mounted) setState("blocked");
         return;
       }
+      // Exempt Core/Admin/Supervisor users from training gate
+      const exemptRoles = ["admin", "supervisor", "owner", "core"] as const;
+      for (const role of exemptRoles) {
+        const { data: hasRole } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: role as never,
+        });
+        if (hasRole === true) {
+          if (mounted) setState("ok");
+          return;
+        }
+      }
       const { data, error } = await supabase.rpc("fn_check_portal_certification", {
         _user_id: session.user.id,
         _portal: portal,

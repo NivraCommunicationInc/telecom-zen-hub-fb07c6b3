@@ -476,6 +476,7 @@ import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
 import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
 import CertificationGate from "@/shared-training/CertificationGate";
+import AcademyPortal from "@/shared-training/AcademyPortal";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
@@ -1009,7 +1010,7 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
           <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
           <Route path="complaints" element={<Suspense fallback={null}><EmployeeComplaintsPage /></Suspense>} />
-          <Route path="academy" element={<Navigate to="/employee/hub?section=formation" replace />} />
+          <Route path="academy" element={<Suspense fallback={null}><AcademyPortal portal="cs" /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
           <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><EmployeeCreateOrder /></CertificationGate></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />
@@ -1080,7 +1081,8 @@ const AppRoutes = () => {
           <Route path="crm" element={<Suspense fallback={null}><FieldCrm /></Suspense>} />
           <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
-          <Route path="training" element={<Navigate to="/field/hub?section=formation" replace />} />
+          <Route path="academy" element={<Suspense fallback={null}><AcademyPortal portal="field" /></Suspense>} />
+          <Route path="training" element={<Navigate to="/field/academy" replace />} />
           <Route path="badge" element={<Suspense fallback={null}><FieldBadgePage /></Suspense>} />
           <Route path="procedures" element={<Suspense fallback={null}><FieldProcedures /></Suspense>} />
           {/* Nivra Source Hub — unified */}
