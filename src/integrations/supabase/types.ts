@@ -4383,6 +4383,232 @@ export type Database = {
         }
         Relationships: []
       }
+      complaint_attachments: {
+        Row: {
+          complaint_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          complaint_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          complaint_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaint_attachments_complaint_id_fkey"
+            columns: ["complaint_id"]
+            isOneToOne: false
+            referencedRelation: "complaints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaint_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "complaint_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      complaint_responses: {
+        Row: {
+          author_id: string | null
+          author_name: string
+          complaint_id: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          response_text: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name: string
+          complaint_id: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          response_text: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string
+          complaint_id?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          response_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaint_responses_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "complaint_responses_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "complaint_responses_complaint_id_fkey"
+            columns: ["complaint_id"]
+            isOneToOne: false
+            referencedRelation: "complaints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      complaints: {
+        Row: {
+          account_id: string | null
+          assigned_to: string | null
+          category: string
+          closed_at: string | null
+          created_at: string
+          description: string
+          escalated_at: string | null
+          escalated_by: string | null
+          id: string
+          priority: string
+          resolved_at: string | null
+          sla_deadline: string | null
+          status: string
+          subject: string
+          submitted_by_email: string
+          submitted_by_name: string | null
+          submitted_by_phone: string | null
+          submitted_by_user_id: string | null
+          ticket_number: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          assigned_to?: string | null
+          category: string
+          closed_at?: string | null
+          created_at?: string
+          description: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          sla_deadline?: string | null
+          status?: string
+          subject: string
+          submitted_by_email: string
+          submitted_by_name?: string | null
+          submitted_by_phone?: string | null
+          submitted_by_user_id?: string | null
+          ticket_number?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          assigned_to?: string | null
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          description?: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          sla_deadline?: string | null
+          status?: string
+          subject?: string
+          submitted_by_email?: string
+          submitted_by_name?: string | null
+          submitted_by_phone?: string | null
+          submitted_by_user_id?: string | null
+          ticket_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaints_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaints_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "complaints_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "complaints_escalated_by_fkey"
+            columns: ["escalated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "complaints_escalated_by_fkey"
+            columns: ["escalated_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "complaints_submitted_by_user_id_fkey"
+            columns: ["submitted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "complaints_submitted_by_user_id_fkey"
+            columns: ["submitted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
       contact_requests: {
         Row: {
           address_apartment: string | null
@@ -24990,6 +25216,7 @@ export type Database = {
         Returns: boolean
       }
       is_audit_session_active: { Args: { _user_id: string }; Returns: boolean }
+      is_complaint_staff: { Args: { _uid: string }; Returns: boolean }
       is_field_sales: { Args: { _user_id?: string }; Returns: boolean }
       is_first_client_order: {
         Args: { p_order_id: string; p_user_id: string }
