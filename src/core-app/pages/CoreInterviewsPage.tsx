@@ -55,6 +55,7 @@ export default function CoreInterviewsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<any | null>(null);
+  const [detailTab, setDetailTab] = useState<string>("profil");
   const [bulkSending, setBulkSending] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [notesDraft, setNotesDraft] = useState("");
