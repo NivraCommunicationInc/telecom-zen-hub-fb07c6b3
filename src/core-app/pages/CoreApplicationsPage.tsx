@@ -367,7 +367,7 @@ export default function CoreApplicationsPage() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-3">
           {STAGES.map((stage) => {
             const items = byStage(stage.key);
             return (
@@ -375,50 +375,77 @@ export default function CoreApplicationsPage() {
                 <div className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded border ${stage.color}`}>
                   {stage.label} ({items.length})
                 </div>
-                <div className="space-y-1.5 min-h-[100px]">
+                <div className="space-y-2 min-h-[180px]">
                   {items.length === 0 ? (
-                    <p className="text-[10px] text-muted-foreground text-center py-3">—</p>
+                    <div className="rounded-md border border-dashed bg-card/40 px-3 py-8 text-center">
+                      <p className="text-[11px] text-muted-foreground">Aucune candidature</p>
+                    </div>
                   ) : items.map((a: any) => (
                     <Card
                       key={a.id}
-                      className="p-2 hover:border-primary/40 transition-colors cursor-pointer"
+                      className="p-3 hover:border-primary/40 transition-colors cursor-pointer"
                       onClick={() => setDetailApp(a)}
                     >
-                      <p className="text-xs font-medium text-foreground truncate">{a.full_name || "Anonyme"}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{a.email}</p>
-                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{a.full_name || "Anonyme"}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{a.email}</p>
+                        </div>
+                        {a.interview_date && <Badge variant="outline" className="text-[9px] shrink-0">Entrevue</Badge>}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-1">
                         {a.position || jobMap[a.job_id] || "—"}
                       </p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
                         {format(new Date(a.created_at), "d MMM", { locale: fr })}
                       </p>
-                      <div className="flex gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
-                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0"
+                      <div className="grid grid-cols-2 gap-1 mt-3" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="outline" className="h-8 px-2 text-[11px] justify-start gap-1"
                           onClick={() => setDetailApp(a)} title="Voir le formulaire">
                           <Eye className="h-3 w-3" />
+                          Détails
                         </Button>
                         {a.cv_path && (
-                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0"
+                          <Button size="sm" variant="outline" className="h-8 px-2 text-[11px] justify-start gap-1"
                             onClick={() => downloadCv(a.cv_path)} title="CV">
                             <Download className="h-3 w-3" />
+                            CV
                           </Button>
                         )}
-                        {NEXT_STAGE[stage.key] && (
-                          <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] gap-0.5"
-                            disabled={moveStage.isPending}
-                            onClick={() => {
-                              if (NEXT_STAGE[stage.key] === "hired") startHire(a);
-                              else moveStage.mutate({ id: a.id, stage: NEXT_STAGE[stage.key]! });
-                            }}>
-                            <ArrowRight className="h-2.5 w-2.5" />
-                            {NEXT_STAGE[stage.key] === "hired" ? "Embaucher" : "Suivant"}
+                        {stage.key === "new" && (
+                          <Button size="sm" className="h-8 px-2 text-[11px] justify-start gap-1" disabled={moveStage.isPending}
+                            onClick={() => moveStage.mutate({ id: a.id, stage: "reviewing" })}>
+                            <ClipboardCheck className="h-3 w-3" /> Examiner
+                          </Button>
+                        )}
+                        {["new", "reviewing"].includes(stage.key) && (
+                          <Button size="sm" variant="secondary" className="h-8 px-2 text-[11px] justify-start gap-1" disabled={workflowMut.isPending}
+                            onClick={() => openWorkflow(a, "interview")}>
+                            <CalendarPlus className="h-3 w-3" /> Entrevue
+                          </Button>
+                        )}
+                        {stage.key === "interview" && (
+                          <Button size="sm" className="h-8 px-2 text-[11px] justify-start gap-1" disabled={workflowMut.isPending}
+                            onClick={() => openWorkflow(a, "offer")}>
+                            <Send className="h-3 w-3" /> Offre
+                          </Button>
+                        )}
+                        {stage.key === "offer" && (
+                          <Button size="sm" className="h-8 px-2 text-[11px] justify-start gap-1" disabled={hireMut.isPending}
+                            onClick={() => startHire(a)}>
+                            <UserCheck className="h-3 w-3" /> Embaucher
+                          </Button>
+                        )}
+                        {stage.key === "rejected" && (
+                          <Button size="sm" variant="secondary" className="h-8 px-2 text-[11px] justify-start gap-1" disabled={moveStage.isPending}
+                            onClick={() => moveStage.mutate({ id: a.id, stage: "reviewing" })}>
+                            <RotateCcw className="h-3 w-3" /> Réouvrir
                           </Button>
                         )}
                         {stage.key !== "rejected" && stage.key !== "hired" && (
-                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-destructive"
-                            disabled={moveStage.isPending}
-                            onClick={() => moveStage.mutate({ id: a.id, stage: "rejected" })}>
-                            <X className="h-3 w-3" />
+                          <Button size="sm" variant="destructive" className="h-8 px-2 text-[11px] justify-start gap-1" disabled={workflowMut.isPending}
+                            onClick={() => openWorkflow(a, "reject")}>
+                            <X className="h-3 w-3" /> Refuser
                           </Button>
                         )}
                       </div>
