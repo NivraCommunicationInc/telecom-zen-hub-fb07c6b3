@@ -908,3 +908,97 @@ export default function CoreInterviewsPage() {
   );
 }
 
+function AnswerCard({ ans, index, lang }: { ans: any; index: number; lang?: string }) {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+
+  const loadVideo = async () => {
+    if (videoUrl || !ans.video_url) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from("interview-videos")
+        .createSignedUrl(ans.video_url, 3600);
+      if (error) throw error;
+      setVideoUrl(data?.signedUrl || null);
+    } catch (e: any) {
+      toast.error("Vidéo indisponible", { description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const questionText =
+    (lang === "en" ? ans.interview_questions?.question_en : ans.interview_questions?.question_fr) || "—";
+  const dur = ans.video_duration_seconds || 0;
+  const mm = String(Math.floor(dur / 60)).padStart(2, "0");
+  const ss = String(dur % 60).padStart(2, "0");
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[10px] uppercase text-muted-foreground">
+          Q{index + 1} • {ans.interview_questions?.category}
+        </div>
+        <div className="flex items-center gap-2">
+          {dur > 0 && (
+            <Badge variant="outline" className="text-[10px]">{mm}:{ss}</Badge>
+          )}
+          {ans.video_url && !videoUrl && (
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={loadVideo} disabled={loading}>
+              {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+              Charger la vidéo
+            </Button>
+          )}
+          {videoUrl && (
+            <a
+              href={videoUrl}
+              download={`reponse-q${index + 1}.webm`}
+              className="inline-flex items-center text-[11px] text-primary hover:underline"
+            >
+              <Download className="h-3 w-3 mr-1" /> Télécharger
+            </a>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs font-medium">{questionText}</p>
+
+      {videoUrl && (
+        <video
+          src={videoUrl}
+          controls
+          playsInline
+          className="w-full rounded border bg-black max-h-80"
+        />
+      )}
+
+      {ans.transcript && (
+        <div className="rounded border bg-muted/30 p-2">
+          <button
+            onClick={() => setShowTranscript((v) => !v)}
+            className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"
+          >
+            <FileText className="h-3 w-3" />
+            Transcription {ans.transcript_lang ? `(${ans.transcript_lang.toUpperCase()})` : ""}
+            <span className="ml-1 text-muted-foreground/70">{showTranscript ? "▲" : "▼"}</span>
+          </button>
+          {showTranscript && (
+            <p className="text-sm whitespace-pre-wrap text-foreground/90 mt-1.5">{ans.transcript}</p>
+          )}
+        </div>
+      )}
+
+      {ans.answer_text && ans.answer_text !== ans.transcript && (
+        <p className="text-sm whitespace-pre-wrap text-foreground/90">{ans.answer_text}</p>
+      )}
+
+      {!ans.video_url && !ans.transcript && !ans.answer_text && (
+        <p className="text-xs italic text-muted-foreground">Aucune réponse enregistrée.</p>
+      )}
+    </Card>
+  );
+}
+
+
