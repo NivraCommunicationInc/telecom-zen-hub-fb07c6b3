@@ -21,6 +21,7 @@ import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { AssignTechnicianDialog } from "@/employee-app/components/AssignTechnicianDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { ProfileName } from "@/hooks/useProfileName";
 
 export default function EmployeeSupportDetail() {
   const { ticketId } = useParams<{ ticketId: string }>();
