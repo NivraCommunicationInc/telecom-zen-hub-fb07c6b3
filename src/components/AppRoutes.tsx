@@ -833,6 +833,8 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           {/* Dashboard */}
           <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
+          <Route path="ai-console" element={<Suspense fallback={null}><CoreAIConsolePage /></Suspense>} />
+
           <Route path="activity" element={<Suspense fallback={null}><CoreActivityPage /></Suspense>} />
           <Route path="live-activity" element={<Suspense fallback={null}><CoreLiveActivityPage /></Suspense>} />
           <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
