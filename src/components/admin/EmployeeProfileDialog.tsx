@@ -414,8 +414,8 @@ export const EmployeeProfileDialog = ({
                   <div className="grid grid-cols-2 gap-2">
                     <span className="text-muted-foreground">Email employé:</span>
                     <span className="font-mono">{employee.email}</span>
-                    <span className="text-muted-foreground">ID employé (table):</span>
-                    <span className="font-mono text-xs">{employee.id.slice(0, 8)}...</span>
+                    <span className="text-muted-foreground">Employé:</span>
+                    <span className="text-xs">{employee.full_name || employee.email || "Agent inconnu"}</span>
                     <span className="text-muted-foreground">Accès trouvés:</span>
                     <span className={accessLogs?.length ? "text-emerald-500" : "text-red-500"}>
                       {accessLoading ? "..." : accessLogs?.length || 0}
