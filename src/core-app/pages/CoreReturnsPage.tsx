@@ -28,6 +28,7 @@ import { Loader2, RotateCcw, Filter, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ProfileName } from "@/hooks/useProfileName";
 
 type ReturnRow = {
   id: string;
