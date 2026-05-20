@@ -402,7 +402,7 @@ export default function CoreApplicationsPage() {
                     <div className="rounded-md border border-dashed bg-card/40 px-3 py-8 text-center">
                       <p className="text-[11px] text-muted-foreground">Aucune candidature</p>
                     </div>
-                  ) : items.map((a: any) => (
+                  ) : items.map((a) => (
                     <Card
                       key={a.id}
                       className="p-3 hover:border-primary/40 transition-colors cursor-pointer"
@@ -700,7 +700,7 @@ export default function CoreApplicationsPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Rôle / Portail d'accès *</Label>
-              <Select value={hireForm.role} onValueChange={(v: any) => setHireForm({ ...hireForm, role: v })}>
+              <Select value={hireForm.role} onValueChange={(v) => setHireForm({ ...hireForm, role: v as HireRole })}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">Employé — portail Employé + RH</SelectItem>
