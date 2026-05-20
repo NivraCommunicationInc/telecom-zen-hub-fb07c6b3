@@ -25,6 +25,8 @@ export default function CoreProtectedRoute() {
   const [state, setState] = useState<"loading" | "authorized" | "unauthorized" | "no_hub">("loading");
   const location = useLocation();
   const lastActivityRef = useRef(Date.now());
+  const requestedPath = `${location.pathname}${location.search}${location.hash}`;
+  const coreLoginPath = `/nivra-secure-hub-2617-internal/login?portal=core&redirect=${encodeURIComponent(requestedPath)}`;
 
   // Track user activity and update hub session
   const handleActivity = useCallback(() => {
@@ -142,11 +144,11 @@ export default function CoreProtectedRoute() {
   }
 
   if (state === "no_hub") {
-    return <Navigate to="/nivra-secure-hub-2617-internal" state={{ from: location }} replace />;
+    return <Navigate to={coreLoginPath} state={{ from: location }} replace />;
   }
 
   if (state === "unauthorized") {
-    return <Navigate to="/nivra-secure-hub-2617-internal" state={{ from: location }} replace />;
+    return <Navigate to={coreLoginPath} state={{ from: location }} replace />;
   }
 
   return <Outlet />;
