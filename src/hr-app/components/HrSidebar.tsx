@@ -3,12 +3,13 @@
  * Clean professional design with indigo/violet accent.
  */
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
-  Briefcase, Target, Inbox, Upload, LayoutGrid, IdCard,
+  Briefcase, Target, Inbox, Upload, LayoutGrid, IdCard, UserPlus, Brain,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { useState, useEffect } from "react";
@@ -74,9 +75,26 @@ export default function HrSidebar() {
   const navigate = useNavigate();
   const { isTablet, isDesktop } = usePortalBreakpoint();
   const { data: hubUnread = 0 } = useHubUnreadCount();
+  const { data: canManageRecruitment = false } = useQuery({
+    queryKey: ["hr-sidebar-can-manage-recruitment"],
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return false;
+      const { data } = await supabase.rpc("has_role", {
+        _user_id: session.user.id,
+        _role: "admin",
+      });
+      return Boolean(data);
+    },
+  });
   const [collapsed, setCollapsed] = useState<boolean>(() =>
     typeof window !== "undefined" && window.innerWidth < 1280
   );
+
+  const visibleNavGroups = canManageRecruitment
+    ? navGroups
+    : navGroups.filter((group) => group.label !== "Recrutement");
 
   // Auto-adjust on viewport changes (rotation, resize)
   useEffect(() => {
@@ -128,7 +146,7 @@ export default function HrSidebar() {
 
         <ScrollArea className="flex-1 py-1">
           <nav className="px-1.5">
-            {navGroups.map((group) => (
+            {visibleNavGroups.map((group) => (
               <div key={group.label} className="mb-1">
                 {!collapsed && (
                   <div className="px-2 pt-3 pb-1">
