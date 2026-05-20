@@ -29,10 +29,13 @@ import {
 import {
   Briefcase, Plus, Pencil, MapPin, Users, X, Loader2, Pause, Play,
   Eye, Download, Calendar, UserPlus, Mail, FileText, MessageSquare,
+  ExternalLink, Brain, Globe, ClipboardList, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
 
 // ─── Static labels ──────────────────────────────────────────────────────────
 const TYPE_LABEL: Record<string, string> = {
@@ -494,17 +497,56 @@ export default function CoreCareersPage() {
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4 max-w-7xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-primary" />
-            Recrutement — Postes ouverts
-          </h1>
-          <p className="text-xs text-muted-foreground">{jobs.length} poste(s) au total</p>
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              Recrutement — Postes ouverts
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {jobs.length} poste(s) · publie un poste → il apparaît sur le site carrières public → candidats postulent → entrevues IA → embauche & invitation portail Employé.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <a href="/careers" target="_blank" rel="noopener noreferrer">
+                <Globe className="h-3.5 w-3.5" /> Aperçu public
+                <ExternalLink className="h-3 w-3 ml-0.5 opacity-60" />
+              </a>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <Link to={corePath("/hr/applications")}>
+                <UserPlus className="h-3.5 w-3.5" /> Candidatures
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-1.5">
+              <Link to={corePath("/hr/interviews")}>
+                <Brain className="h-3.5 w-3.5" /> Entrevues IA
+              </Link>
+            </Button>
+            <Button size="sm" onClick={openCreate} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Nouveau poste
+            </Button>
+          </div>
         </div>
-        <Button size="sm" onClick={openCreate} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Nouveau poste
-        </Button>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          {[
+            { icon: ClipboardList, title: "1. Publier le poste", text: "Crée et active le poste — il devient visible sur /careers." },
+            { icon: Users, title: "2. Recevoir candidatures", text: "Les candidats postulent via le site public ou un lien direct." },
+            { icon: Brain, title: "3. Entrevue IA", text: "Lance une entrevue IA et reçois la transcription + score." },
+            { icon: UserPlus, title: "4. Embaucher", text: "Convertis le dossier en employé + invitation portail automatique." },
+          ].map((step) => (
+            <div key={step.title} className="rounded-md border bg-background p-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <step.icon className="h-4 w-4 text-primary" />
+                {step.title}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{step.text}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ─── SECTION 1 — Postings table ────────────────────────────────────── */}
@@ -513,7 +555,21 @@ export default function CoreCareersPage() {
           {isLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : jobs.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">Aucune offre d'emploi.</p>
+            <div className="py-12 px-6 text-center space-y-4">
+              <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <Briefcase className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Aucun poste publié pour l'instant</h3>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
+                  Crée ton premier poste pour activer la chaîne complète : affichage sur le site carrières public, réception des candidatures, entrevues IA et embauche.
+                </p>
+              </div>
+              <Button size="sm" onClick={openCreate} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Créer mon premier poste
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -564,6 +620,11 @@ export default function CoreCareersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button asChild size="sm" variant="ghost" className="h-6 w-6 p-0" title="Aperçu public">
+                            <a href={`/careers#positions`} target="_blank" rel="noopener noreferrer">
+                              <Globe className="h-3 w-3" />
+                            </a>
+                          </Button>
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0" title="Voir candidatures"
                             onClick={() => setPipelineJob(j)}>
                             <Eye className="h-3 w-3" />
