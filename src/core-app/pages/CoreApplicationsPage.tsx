@@ -37,6 +37,37 @@ const STAGES = [
   { key: "rejected", label: "Refusé", color: "bg-red-500/15 text-red-600 border-red-500/30" },
 ];
 
+type HireRole = "employee" | "admin" | "field_sales";
+type WorkflowAction = "interview" | "offer" | "reject";
+
+interface JobApplication {
+  id: string;
+  created_at: string;
+  cv_filename: string | null;
+  cv_path: string | null;
+  email: string;
+  full_name: string;
+  hired_employee_id: string | null;
+  interview_date: string | null;
+  job_id: string | null;
+  message: string | null;
+  phone: string;
+  position: string;
+  rejection_reason: string | null;
+  score: number | null;
+  source: string | null;
+  stage: string;
+  stage_changed_at: string | null;
+  stage_changed_by: string | null;
+  status: string;
+  tags: string[] | null;
+}
+
+interface JobOption { id: string; title: string; }
+interface CreatedEmployee { id: string; employee_number?: string | null; email?: string | null; }
+
+const errorMessage = (e: unknown) => e instanceof Error ? e.message : String(e || "Erreur inconnue");
+
 const WORKFLOW_STEPS = [
   { stage: "reviewing", title: "1. Examen RH", text: "Lire le formulaire, CV, notes et qualifier le candidat.", icon: ClipboardCheck },
   { stage: "interview", title: "2. Entrevue", text: "Planifier l'entrevue et garder la date au dossier.", icon: CalendarPlus },
@@ -44,7 +75,7 @@ const WORKFLOW_STEPS = [
   { stage: "hired", title: "4. Embauche", text: "Créer l'employé, son rôle et envoyer l'invitation portail.", icon: UserCheck },
 ];
 
-const getStageKey = (app: any) => app?.stage || app?.status || "new";
+const getStageKey = (app: Pick<JobApplication, "stage" | "status"> | null | undefined) => app?.stage || app?.status || "new";
 
 const mergeTags = (tags: string[] | null | undefined, next: string) => {
   const current = Array.isArray(tags) ? tags : [];
