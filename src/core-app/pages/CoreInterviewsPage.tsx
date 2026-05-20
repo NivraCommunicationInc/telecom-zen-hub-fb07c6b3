@@ -706,17 +706,12 @@ export default function CoreInterviewsPage() {
                     <p className="text-sm text-muted-foreground italic">Aucune réponse encore.</p>
                   )}
                   {answers.map((ans: any, i: number) => (
-                    <Card key={ans.id} className="p-3">
-                      <div className="text-[10px] uppercase text-muted-foreground mb-1">
-                        Q{i + 1} • {ans.interview_questions?.category}
-                      </div>
-                      <p className="text-xs font-medium mb-1.5">
-                        {(selected.interview_language === "en"
-                          ? ans.interview_questions?.question_en
-                          : ans.interview_questions?.question_fr) || "—"}
-                      </p>
-                      <p className="text-sm whitespace-pre-wrap text-foreground/90">{ans.answer_text}</p>
-                    </Card>
+                    <AnswerCard
+                      key={ans.id}
+                      ans={ans}
+                      index={i}
+                      lang={selected.interview_language}
+                    />
                   ))}
                 </div>
               </TabsContent>
