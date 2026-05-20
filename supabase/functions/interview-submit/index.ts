@@ -9,7 +9,14 @@ const corsHeaders = {
 const ADMIN_EMAIL = "support@nivra-telecom.com";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-type Answer = { question_id: string; answer_text: string };
+type Answer = {
+  question_id: string;
+  answer_text: string;
+  video_url?: string;
+  video_duration_seconds?: number;
+  transcript?: string;
+  transcript_lang?: string;
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
