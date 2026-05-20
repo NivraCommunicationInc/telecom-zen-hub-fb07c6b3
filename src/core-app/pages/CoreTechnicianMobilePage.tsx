@@ -891,10 +891,10 @@ export default function CoreTechnicianMobilePage() {
         <MessageCircle className="w-7 h-7 text-blue-400 mx-auto mb-2" />
         <p className="text-sm text-slate-200">Contacter le support</p>
         <a
-          href="mailto:support@nivratelecom.ca"
+          href="mailto:support@nivra-telecom.ca"
           className="text-xs text-blue-300 underline mt-1 inline-block"
         >
-          support@nivratelecom.ca
+          support@nivra-telecom.ca
         </a>
       </div>
     </div>
@@ -903,7 +903,7 @@ export default function CoreTechnicianMobilePage() {
   // Trigger mail client when Support tab opens
   useEffect(() => {
     if (activeTab === "support") {
-      window.location.href = "mailto:support@nivratelecom.ca";
+      window.location.href = "mailto:support@nivra-telecom.ca";
     }
   }, [activeTab]);
 

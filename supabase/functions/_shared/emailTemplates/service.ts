@@ -135,7 +135,7 @@ export const serviceSuspended = (params: BaseParams & {
   amountDue?: number;
   reactivationUrl?: string;
 }): string => {
-  const { clientName, serviceName, suspensionDate, suspensionReason, amountDue, reactivationUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, serviceName, suspensionDate, suspensionReason, amountDue, reactivationUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -193,7 +193,7 @@ export const serviceReactivated = (params: BaseParams & {
   reactivationDate: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, serviceName, reactivationDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, serviceName, reactivationDate, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -247,7 +247,7 @@ export const planChangeConfirmed = (params: BaseParams & {
   proratedAmount?: number;
   portalUrl?: string;
 }): string => {
-  const { clientName, oldPlan, newPlan, effectiveDate, newMonthlyPrice, proratedAmount, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, oldPlan, newPlan, effectiveDate, newMonthlyPrice, proratedAmount, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -299,7 +299,7 @@ export const simLostReported = (params: BaseParams & {
   replacementFee?: number;
   portalUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, reportedAt, replacementFee, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, phoneNumber, reportedAt, replacementFee, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}

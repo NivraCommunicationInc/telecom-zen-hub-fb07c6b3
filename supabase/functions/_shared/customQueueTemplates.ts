@@ -25,7 +25,7 @@
 
 const APP_URL = "https://nivra-telecom.ca";
 const PORTAL_URL = `${APP_URL}/portail`;
-const SUPPORT_EMAIL = "support@nivratelecom.ca";
+const SUPPORT_EMAIL = "support@nivra-telecom.ca";
 
 // Brand palette — "Violet Bold" template (matches uploaded reference)
 const BRAND_PRIMARY = "#7c3aed";       // primary violet
@@ -4363,9 +4363,6 @@ export function renderQueueTemplate(
         }),
       };
     }
-
-
-
 
     default:
       return null;

@@ -474,7 +474,7 @@ export const serviceReactivated = (params: BaseParams & {
   reactivationDate: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, reactivationDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, reactivationDate, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -519,7 +519,7 @@ export const creditApplied = (params: BaseParams & {
   newBalance?: number;
   portalUrl?: string;
 }): string => {
-  const { clientName, creditAmount, creditReason, newBalance, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, creditAmount, creditReason, newBalance, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -573,7 +573,7 @@ export const paymentReminder = (params: BaseParams & {
   daysUntilDue: number;
   paymentUrl?: string;
 }): string => {
-  const { clientName, invoiceNumber, amount, dueDate, daysUntilDue, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, invoiceNumber, amount, dueDate, daysUntilDue, paymentUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -629,7 +629,7 @@ export const paymentMethodChanged = (params: BaseParams & {
   changedAt: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, newPaymentMethod, lastFourDigits, changedAt, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, newPaymentMethod, lastFourDigits, changedAt, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
