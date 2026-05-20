@@ -231,8 +231,34 @@ const Support = () => {
         </div>
       </section>
 
+      {/* Complaint CTA banner */}
+      <section className="py-6 bg-destructive/5 border-y border-destructive/20">
+        <div className="container mx-auto px-4 max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <AlertCircle className="w-6 h-6 text-destructive shrink-0" />
+            <div>
+              <p className="font-semibold text-foreground">
+                {isFr ? "Vous avez une plainte à formuler?" : "Have a complaint to file?"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {isFr
+                  ? "Notre équipe traite chaque plainte avec un SLA garanti."
+                  : "Our team handles every complaint with a guaranteed SLA."}
+              </p>
+            </div>
+          </div>
+          <Link to="/plainte">
+            <Button variant="destructive" size="lg">
+              <AlertCircle className="w-4 h-4 mr-2" />
+              {isFr ? "Soumettre une plainte" : "Submit a complaint"}
+            </Button>
+          </Link>
+        </div>
+      </section>
+
       {/* Section 1 — Guides PDF */}
       <section className="py-16">
+
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-10">
             <h2 className="mb-3">{isFr ? "Guides d'installation" : "Installation Guides"}</h2>

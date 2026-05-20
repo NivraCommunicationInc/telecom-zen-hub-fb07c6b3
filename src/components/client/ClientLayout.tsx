@@ -15,6 +15,7 @@ import {
   User,
   Search,
   LayoutGrid,
+  AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -530,6 +531,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
             <Link to="/conditions-de-service" className="hover:text-[#6b21e8] transition-colors">Conditions</Link>
             <span className="text-slate-400">·</span>
             <Link to="/contact" className="hover:text-[#6b21e8] transition-colors">Support</Link>
+            <span className="text-slate-400">·</span>
+            <Link to="/plainte" className="inline-flex items-center gap-1 hover:text-[#6b21e8] transition-colors">
+              <AlertCircle className="w-3.5 h-3.5" />
+              Soumettre une plainte
+            </Link>
           </div>
         </div>
       </footer>
