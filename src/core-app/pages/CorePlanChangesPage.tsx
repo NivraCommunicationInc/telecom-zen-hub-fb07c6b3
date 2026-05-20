@@ -355,12 +355,14 @@ export default function CorePlanChangesPage() {
   const rejectMut = useMutation({
     mutationFn: async (r: Row) => {
       if (!rejectReason.trim()) throw new Error("Motif de rejet requis");
+      const { data: { user } } = await supabase.auth.getUser();
       const newNotes = [r.notes, `Rejet: ${rejectReason.trim()}`].filter(Boolean).join("\n");
       const { error } = await supabase
         .from("service_change_requests")
         .update({
           status: "rejected",
           approved_at: new Date().toISOString(),
+          approved_by: user?.id ?? null,
           notes: newNotes,
         })
         .eq("id", r.id);
