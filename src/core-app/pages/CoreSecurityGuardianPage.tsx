@@ -14,6 +14,7 @@ import { Shield, Search, Eye, RefreshCcw, Lock, CheckCircle, AlertTriangle, User
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { ProfileName } from "@/hooks/useProfileName";
 
 export default function CoreSecurityGuardianPage() {
   const [tab, setTab] = useState("sessions");
@@ -198,7 +199,7 @@ export default function CoreSecurityGuardianPage() {
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {filterList(otpSessions).slice(0, 100).map((o: any) => (
                   <tr key={o.id} className="hover:bg-[hsl(220,15%,12%)]">
-                    <td className="p-2.5 text-white font-mono text-[10px]">{o.admin_user_id?.slice(0, 8)}</td>
+                    <td className="p-2.5 text-white text-[11px]"><ProfileName userId={o.admin_user_id} /></td>
                     <td className="p-2.5 text-[hsl(220,10%,70%)]">
                       {o.verified_at ? format(new Date(o.verified_at), "dd MMM HH:mm", { locale: fr }) : "—"}
                     </td>
@@ -227,7 +228,7 @@ export default function CoreSecurityGuardianPage() {
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {filterList(secretAttempts).slice(0, 100).map((s: any) => (
                   <tr key={s.id} className="hover:bg-[hsl(220,15%,12%)]">
-                    <td className="p-2.5 text-white font-mono text-[10px]">{s.admin_user_id?.slice(0, 8)}</td>
+                    <td className="p-2.5 text-white text-[11px]"><ProfileName userId={s.admin_user_id} /></td>
                     <td className="p-2.5 text-[hsl(220,10%,70%)]">{s.attempts}</td>
                     <td className="p-2.5">
                       {s.locked_until ? (
@@ -262,8 +263,8 @@ export default function CoreSecurityGuardianPage() {
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {filterList(accessLogs).slice(0, 100).map((a: any) => (
                   <tr key={a.id} className="hover:bg-[hsl(220,15%,12%)]">
-                    <td className="p-2.5 text-white font-mono text-[10px]">{a.staff_user_id?.slice(0, 8)}</td>
-                    <td className="p-2.5 text-[hsl(220,10%,70%)] font-mono text-[10px]">{a.client_user_id?.slice(0, 8)}</td>
+                    <td className="p-2.5 text-white text-[11px]"><ProfileName userId={a.staff_user_id} /></td>
+                    <td className="p-2.5 text-[hsl(220,10%,70%)] text-[11px]"><ProfileName userId={a.client_user_id} /></td>
                     <td className="p-2.5"><Badge variant="outline" className="text-[10px]">{a.method}</Badge></td>
                     <td className="p-2.5 text-[hsl(220,10%,60%)] max-w-[150px] truncate">{a.reason}</td>
                     <td className="p-2.5">

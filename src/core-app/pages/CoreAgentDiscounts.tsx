@@ -23,6 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Plus, Power, Trash2, Pencil, X } from "lucide-react";
+import { ProfileName } from "@/hooks/useProfileName";
 
 interface AgentDiscount {
   id: string;
@@ -438,12 +439,12 @@ export default function CoreAgentDiscounts() {
                         : a.role
                           ? `Rôle: ${a.role}`
                           : a.agent_id
-                            ? `Agent: ${a.agent_id.slice(0, 8)}…`
+                            ? null
                             : "—";
                       return (
                         <TableRow key={a.id}>
                           <TableCell>{d?.name || a.discount_id.slice(0, 8)}</TableCell>
-                          <TableCell>{target}</TableCell>
+                          <TableCell>{target ?? <ProfileName userId={a.agent_id} />}</TableCell>
                           <TableCell>{new Date(a.assigned_at).toLocaleDateString("fr-CA")}</TableCell>
                           <TableCell className="text-right">
                             <Button size="sm" variant="ghost" onClick={() => revokeAssignment(a.id)}>
@@ -481,7 +482,7 @@ export default function CoreAgentDiscounts() {
                   <TableBody>
                     {usage.map((u) => (
                       <TableRow key={u.id}>
-                        <TableCell>{u.agent_id.slice(0, 8)}…</TableCell>
+                        <TableCell><ProfileName userId={u.agent_id} /></TableCell>
                         <TableCell>{u.customer_name || "—"}</TableCell>
                         <TableCell>{u.field_order_id ? u.field_order_id.slice(0, 8) + "…" : "—"}</TableCell>
                         <TableCell>{new Date(u.created_at).toLocaleDateString("fr-CA")}</TableCell>

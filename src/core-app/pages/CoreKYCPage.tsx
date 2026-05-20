@@ -15,6 +15,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { ProfileName, useProfileName } from "@/hooks/useProfileName";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: "En attente", color: "bg-amber-500/15 text-amber-400" },
@@ -33,6 +34,7 @@ export default function CoreKYCPage() {
   const [activeDocTab, setActiveDocTab] = useState<"front" | "back" | "selfie">("front");
   const [reviewReason, setReviewReason] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1);
+  const reviewerName = useProfileName(selected?.reviewed_by ?? null, "—");
 
   // ═══ QUERIES ═══
   const { data: sessions = [], isLoading } = useQuery({
@@ -359,7 +361,7 @@ export default function CoreKYCPage() {
             <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
               <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Vérification</h3>
               <div className="space-y-1.5 text-[12px]">
-                <Row label="Agent vérificateur" value={selected.reviewed_by?.slice(0, 12) || "—"} mono />
+                <Row label="Agent vérificateur" value={selected.reviewed_by ? reviewerName : "—"} />
                 <Row label="Révisé le" value={selected.reviewed_at ? format(new Date(selected.reviewed_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"} />
                 <Row label="Rétention" value={selected.retention_status} />
               </div>
@@ -494,7 +496,7 @@ export default function CoreKYCPage() {
                       </td>
                       <td className="px-3 py-2.5"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${stRow.color}`}>{stRow.label}</span></td>
                       <td className="px-3 py-2.5 text-[#94A3B8]">{s.submitted_at ? format(new Date(s.submitted_at), "dd MMM HH:mm", { locale: fr }) : s.created_at ? format(new Date(s.created_at), "dd MMM HH:mm", { locale: fr }) : "—"}</td>
-                      <td className="px-3 py-2.5 text-[#94A3B8] font-mono text-[10px]">{s.reviewed_by?.slice(0, 8) || "—"}</td>
+                      <td className="px-3 py-2.5 text-[#94A3B8] text-[11px]">{s.reviewed_by ? <ProfileName userId={s.reviewed_by} /> : "—"}</td>
                       <td className="px-3 py-2.5">
                         <button className="h-6 w-6 flex items-center justify-center rounded border border-[hsl(220,15%,20%)] text-[#94A3B8] hover:text-[#F8FAFC] hover:border-emerald-500/40 transition-colors">
                           <Eye className="h-3 w-3" />

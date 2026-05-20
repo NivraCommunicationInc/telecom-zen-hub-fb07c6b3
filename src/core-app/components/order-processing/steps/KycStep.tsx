@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
+import { useProfileName } from "@/hooks/useProfileName";
 
 interface Props { proc: any; }
 
@@ -43,6 +44,7 @@ export function KycStep({ proc }: Props) {
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
+  const reviewerName = useProfileName(kycSession?.reviewed_by ?? null, "—");
 
   const sessionId = kycSession?.id;
   // Source of truth: orders.kyc_status takes precedence over kycSession.status
@@ -245,7 +247,7 @@ export function KycStep({ proc }: Props) {
         {(rawStatus === "approved" || rawStatus === "rejected") && (
           <StepCompletionCard
             title={rawStatus === "approved" ? "Identité vérifiée et approuvée" : "Identité rejetée"}
-            by={kycSession?.reviewed_by ? `Agent ${String(kycSession.reviewed_by).slice(0, 8)}` : null}
+            by={kycSession?.reviewed_by ? reviewerName : null}
             at={kycSession?.reviewed_at || order?.id_verified_at || order?.updated_at}
             details={[
               { label: "Décision", value: rawStatus === "approved" ? "Approuvé" : "Rejeté" },
@@ -507,7 +509,7 @@ export function KycStep({ proc }: Props) {
                 {kycSession?.reviewed_by && (
                   <div className="flex justify-between">
                     <span className="text-slate-500">Révisé par</span>
-                    <span className="text-slate-100 font-mono">{String(kycSession.reviewed_by).slice(0, 8)}…</span>
+                    <span className="text-slate-100">{reviewerName}</span>
                   </div>
                 )}
                 {kycSession?.review_reason && (

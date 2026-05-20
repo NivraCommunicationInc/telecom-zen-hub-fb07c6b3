@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { SetPasswordDialog } from "@/components/admin/users/SetPasswordDialog";
+import { ProfileName } from "@/hooks/useProfileName";
 import {
   User,
   Mail,
@@ -647,8 +648,8 @@ export function RepresentativeDetailDialog({
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">ID utilisateur</span>
-                    <span className="text-white font-mono text-xs">{representative.user_id.slice(0, 8)}...</span>
+                    <span className="text-slate-400">Représentant</span>
+                    <span className="text-white text-xs"><ProfileName userId={representative.user_id} /></span>
                   </div>
                   <Separator className="bg-slate-700" />
                   <div className="flex justify-between">

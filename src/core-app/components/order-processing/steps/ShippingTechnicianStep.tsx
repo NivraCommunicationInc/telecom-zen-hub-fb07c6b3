@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
 import { AppointmentSlotPicker } from "@/core-app/components/appointments/AppointmentSlotPicker";
+import { useProfileName } from "@/hooks/useProfileName";
 
 interface TechnicianOption {
   id: string;
@@ -31,6 +32,8 @@ const labelClass = "text-[10px] uppercase tracking-wider text-slate-500 mb-1 blo
 
 export function ShippingTechnicianStep({ proc }: Props) {
   const { order, appointment, installationEstimate, items } = proc;
+  const technicianName = useProfileName(appointment?.technician_id ?? null, "—");
+
 
   // ── INTELLIGENT FULFILLMENT ROUTING ──
   // Determine what was ordered to show ONLY relevant sections.
@@ -326,7 +329,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
           title="Installation complétée par le technicien"
           at={appointment.scheduled_at}
           details={[
-            { label: "Technicien", value: appointment.technician_id ? String(appointment.technician_id).slice(0, 8) : null, mono: true },
+            { label: "Technicien", value: appointment.technician_id ? technicianName : null },
             { label: "Rendez-vous", value: appointment.scheduled_at ? fmtDateTime(appointment.scheduled_at) : null },
             { label: "Adresse", value: appointment.service_address },
             { label: "Méthode", value: appointment.installation_method },
@@ -372,7 +375,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
                 </div>
                 {appointment.technician_id && (
                   <div className="flex items-center gap-1.5 text-xs text-green-300">
-                    <User className="h-3 w-3" /> Technicien: <span className="font-mono">{appointment.technician_id.slice(0, 8)}</span>
+                    <User className="h-3 w-3" /> Technicien: <span>{technicianName}</span>
                   </div>
                 )}
                 {appointment.status !== "completed" && appointment.status !== "cancelled" && (
