@@ -54,6 +54,7 @@ type RecordedAnswer = {
   transcript?: string;
 };
 
+const EDGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const MIN_SECONDS = 15;
 const MAX_SECONDS = 180;
 const VIDEO_MIME =
@@ -136,6 +137,8 @@ const T = {
     progress: "Question",
     of: "sur",
     novaSpeaking: "Nova parle…",
+    novaPreparing: "Nova prépare la mise en situation…",
+    listenFirst: "Écoutez Nova avant de répondre.",
     listenAgain: "Réécouter la question",
     notReadyYet: "Préparation de votre réponse…",
     record: "Démarrer l'enregistrement",
@@ -230,6 +233,8 @@ const T = {
     progress: "Question",
     of: "of",
     novaSpeaking: "Nova is speaking…",
+    novaPreparing: "Nova is preparing the scenario…",
+    listenFirst: "Listen to Nova before answering.",
     listenAgain: "Replay the question",
     notReadyYet: "Preparing your answer…",
     record: "Start recording",
@@ -270,6 +275,8 @@ export default function InterviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [questionSpoken, setQuestionSpoken] = useState(false);
   const [permState, setPermState] = useState<"idle" | "asking" | "granted" | "denied">("idle");
   const [audioLevel, setAudioLevel] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -279,6 +286,7 @@ export default function InterviewPage() {
   const mutedRef = useRef(false);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  const speakSeqRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -338,40 +346,101 @@ export default function InterviewPage() {
 
   // ---------- ElevenLabs TTS ----------
   const stopTts = useCallback(() => {
+    speakSeqRef.current += 1;
     if (audioElRef.current) {
       try { audioElRef.current.pause(); } catch { /* noop */ }
+    }
+    if ("speechSynthesis" in window) {
+      try { window.speechSynthesis.cancel(); } catch { /* noop */ }
     }
     if (audioUrlRef.current) {
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
     }
+    setTtsLoading(false);
     setSpeaking(false);
   }, []);
 
-  const speak = useCallback(async (text: string) => {
-    if (!token || mutedRef.current || !text.trim()) return;
+  const speakWithBrowserFallback = useCallback((text: string, onFinished?: () => void) => {
+    if (!text.trim() || !("speechSynthesis" in window)) {
+      onFinished?.();
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang === "fr" ? "fr-CA" : "en-CA";
+      utterance.rate = 0.82;
+      utterance.pitch = 0.95;
+      utterance.volume = 1;
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.lang.toLowerCase() === utterance.lang.toLowerCase())
+        || voices.find(v => v.lang.toLowerCase().startsWith(lang));
+      if (preferred) utterance.voice = preferred;
+      setSpeaking(true);
+      utterance.onend = () => { setSpeaking(false); onFinished?.(); };
+      utterance.onerror = () => { setSpeaking(false); onFinished?.(); };
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setSpeaking(false);
+      onFinished?.();
+    }
+  }, [lang]);
+
+  const speak = useCallback(async (text: string, onFinished?: () => void) => {
+    if (!token || mutedRef.current || !text.trim()) {
+      onFinished?.();
+      return;
+    }
+    const seq = speakSeqRef.current + 1;
+    speakSeqRef.current = seq;
     stopTts();
     try {
-      setSpeaking(true);
-      const url = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-tts`;
+      speakSeqRef.current = seq;
+      setTtsLoading(true);
+      const url = `${EDGE_BASE_URL}/interview-tts`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, text, lang }),
       });
-      if (!res.ok) { setSpeaking(false); return; }
+      if (!res.ok) {
+        setTtsLoading(false);
+        speakWithBrowserFallback(text, onFinished);
+        return;
+      }
       const blob = await res.blob();
+      if (speakSeqRef.current !== seq) return;
       const blobUrl = URL.createObjectURL(blob);
       audioUrlRef.current = blobUrl;
       const audio = new Audio(blobUrl);
       audioElRef.current = audio;
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => setSpeaking(false);
-      await audio.play().catch(() => setSpeaking(false));
+      audio.onended = () => {
+        if (speakSeqRef.current === seq) {
+          setSpeaking(false);
+          onFinished?.();
+        }
+      };
+      audio.onerror = () => {
+        if (speakSeqRef.current === seq) {
+          setSpeaking(false);
+          onFinished?.();
+        }
+      };
+      setTtsLoading(false);
+      setSpeaking(true);
+      await audio.play().catch(() => {
+        if (speakSeqRef.current === seq) {
+          setSpeaking(false);
+          speakWithBrowserFallback(text, onFinished);
+        }
+      });
     } catch {
+      setTtsLoading(false);
       setSpeaking(false);
+      speakWithBrowserFallback(text, onFinished);
     }
-  }, [token, lang, stopTts]);
+  }, [token, lang, stopTts, speakWithBrowserFallback]);
 
   const toggleMute = () => {
     const next = !muted;
@@ -460,8 +529,16 @@ export default function InterviewPage() {
   const currentQuestion = phase === "interview" ? questions[step] : null;
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
 
+  const buildQuestionNarration = useCallback((question: Question) => {
+    const questionText = lang === "fr" ? question.question_fr : question.question_en;
+    if (lang === "fr") {
+      return `Question ${step + 1}. Mise en situation Nivra Telecom. ${questionText} Prenez quelques secondes pour structurer votre réponse. Quand vous êtes prêt, répondez comme si j'étais le client devant vous.`;
+    }
+    return `Question ${step + 1}. Nivra Telecom scenario. ${questionText} Take a few seconds to structure your answer. When you are ready, answer as if I were the customer in front of you.`;
+  }, [lang, step]);
+
   const startRecording = () => {
-    if (!streamRef.current || recording) return;
+    if (!streamRef.current || recording || speaking || ttsLoading || !questionSpoken) return;
     recordedChunksRef.current = [];
     try {
       const rec = new MediaRecorder(streamRef.current, { mimeType: VIDEO_MIME });
@@ -583,6 +660,7 @@ export default function InterviewPage() {
 
       if (step < questions.length - 1) {
         stopTts();
+        setQuestionSpoken(false);
         setStep(s => s + 1);
         setRecordSeconds(0);
       } else {
@@ -648,11 +726,12 @@ export default function InterviewPage() {
 
   useEffect(() => {
     if (phase !== "interview" || !currentQuestion) return;
-    const text = lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en;
-    const id = setTimeout(() => speak(text), 250);
+    setQuestionSpoken(false);
+    const text = buildQuestionNarration(currentQuestion);
+    const id = setTimeout(() => speak(text, () => setQuestionSpoken(true)), 250);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, step, currentQuestion?.id, lang]);
+  }, [phase, step, currentQuestion?.id, lang, buildQuestionNarration]);
 
   const progress = useMemo(() => {
     if (phase !== "interview" || questions.length === 0) return 0;
@@ -706,7 +785,11 @@ export default function InterviewPage() {
         <div className="leading-tight">
           <div className="text-sm font-bold text-foreground">{t.novaTitle}</div>
           <div className="text-[11px] text-muted-foreground">
-            {speaking ? (
+            {ttsLoading ? (
+              <span className="inline-flex items-center gap-1 text-primary font-medium">
+                <Loader2 className="h-3 w-3 animate-spin" /> {t.novaPreparing}
+              </span>
+            ) : speaking ? (
               <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                 <Mic className="h-3 w-3" /> {t.novaSpeaking}
               </span>
@@ -900,13 +983,20 @@ export default function InterviewPage() {
                 title={t.listenAgain}
                 aria-label={t.listenAgain}
                 onClick={() =>
-                  speak(lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en)
+                  speak(buildQuestionNarration(currentQuestion), () => setQuestionSpoken(true))
                 }
-                disabled={muted || speaking}
+                disabled={muted || speaking || ttsLoading}
               >
                 <Volume2 className="h-4 w-4" />
               </Button>
             </div>
+
+            {!questionSpoken && !currentAnswer && (
+              <div className="rounded-lg bg-primary/5 border border-primary/20 text-sm text-primary p-3 mb-4 flex items-center gap-2">
+                {ttsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+                {ttsLoading || speaking ? t.novaSpeaking : t.listenFirst}
+              </div>
+            )}
 
             {/* Video stage */}
             <div className="aspect-video w-full rounded-lg overflow-hidden bg-black mb-3 relative">
@@ -954,8 +1044,8 @@ export default function InterviewPage() {
             {/* Controls */}
             <div className="flex flex-wrap gap-3 justify-end">
               {!currentAnswer && !recording && (
-                <Button onClick={startRecording} disabled={!!processing} size="lg">
-                  <Video className="h-4 w-4 mr-2" /> {t.record}
+                <Button onClick={startRecording} disabled={!!processing || speaking || ttsLoading || !questionSpoken} size="lg">
+                  <Video className="h-4 w-4 mr-2" /> {questionSpoken ? t.record : t.notReadyYet}
                 </Button>
               )}
               {recording && (
