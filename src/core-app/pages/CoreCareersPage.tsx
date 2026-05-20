@@ -620,6 +620,11 @@ export default function CoreCareersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button asChild size="sm" variant="ghost" className="h-6 w-6 p-0" title="Aperçu public">
+                            <a href={`/careers#positions`} target="_blank" rel="noopener noreferrer">
+                              <Globe className="h-3 w-3" />
+                            </a>
+                          </Button>
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0" title="Voir candidatures"
                             onClick={() => setPipelineJob(j)}>
                             <Eye className="h-3 w-3" />
