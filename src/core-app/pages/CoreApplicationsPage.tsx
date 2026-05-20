@@ -202,7 +202,11 @@ export default function CoreApplicationsPage() {
                   {items.length === 0 ? (
                     <p className="text-[10px] text-muted-foreground text-center py-3">—</p>
                   ) : items.map((a: any) => (
-                    <Card key={a.id} className="p-2 hover:border-primary/40 transition-colors">
+                    <Card
+                      key={a.id}
+                      className="p-2 hover:border-primary/40 transition-colors cursor-pointer"
+                      onClick={() => setDetailApp(a)}
+                    >
                       <p className="text-xs font-medium text-foreground truncate">{a.full_name || "Anonyme"}</p>
                       <p className="text-[10px] text-muted-foreground truncate">{a.email}</p>
                       <p className="text-[10px] text-muted-foreground truncate mt-0.5">
@@ -211,7 +215,11 @@ export default function CoreApplicationsPage() {
                       <p className="text-[9px] text-muted-foreground mt-0.5">
                         {format(new Date(a.created_at), "d MMM", { locale: fr })}
                       </p>
-                      <div className="flex gap-1 mt-1.5">
+                      <div className="flex gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0"
+                          onClick={() => setDetailApp(a)} title="Voir le formulaire">
+                          <Eye className="h-3 w-3" />
+                        </Button>
                         {a.cv_path && (
                           <Button size="sm" variant="ghost" className="h-5 w-5 p-0"
                             onClick={() => downloadCv(a.cv_path)} title="CV">
