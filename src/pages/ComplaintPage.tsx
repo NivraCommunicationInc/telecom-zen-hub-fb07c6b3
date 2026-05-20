@@ -241,7 +241,7 @@ export default function ComplaintPage() {
         },
       ] as any);
 
-      setSuccess({ ticket: complaint.ticket_number });
+      setSuccess({ ticket: complaint.ticket_number, trackingUrl: portalUrl });
     } catch (err: any) {
       setError(err?.message ?? "Une erreur est survenue. Veuillez réessayer.");
     } finally {
