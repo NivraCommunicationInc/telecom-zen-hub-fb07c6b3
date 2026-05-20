@@ -578,10 +578,11 @@ export default function CoreInterviewsPage() {
 
           {selected && (
             <Tabs defaultValue="profil" className="w-full">
-              <TabsList className="grid grid-cols-4 w-full">
+              <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="profil"><User className="h-3.5 w-3.5 mr-1" />Profil</TabsTrigger>
                 <TabsTrigger value="entrevue"><MessageSquare className="h-3.5 w-3.5 mr-1" />Entrevue</TabsTrigger>
                 <TabsTrigger value="emails"><Mail className="h-3.5 w-3.5 mr-1" />Emails</TabsTrigger>
+                <TabsTrigger value="embauche"><ClipboardCheck className="h-3.5 w-3.5 mr-1" />Embauche</TabsTrigger>
                 <TabsTrigger value="actions"><FileText className="h-3.5 w-3.5 mr-1" />Actions</TabsTrigger>
               </TabsList>
 
