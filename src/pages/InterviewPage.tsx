@@ -785,7 +785,11 @@ export default function InterviewPage() {
         <div className="leading-tight">
           <div className="text-sm font-bold text-foreground">{t.novaTitle}</div>
           <div className="text-[11px] text-muted-foreground">
-            {speaking ? (
+            {ttsLoading ? (
+              <span className="inline-flex items-center gap-1 text-primary font-medium">
+                <Loader2 className="h-3 w-3 animate-spin" /> {t.novaPreparing}
+              </span>
+            ) : speaking ? (
               <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                 <Mic className="h-3 w-3" /> {t.novaSpeaking}
               </span>
@@ -979,13 +983,20 @@ export default function InterviewPage() {
                 title={t.listenAgain}
                 aria-label={t.listenAgain}
                 onClick={() =>
-                  speak(lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en)
+                  speak(buildQuestionNarration(currentQuestion), () => setQuestionSpoken(true))
                 }
-                disabled={muted || speaking}
+                disabled={muted || speaking || ttsLoading}
               >
                 <Volume2 className="h-4 w-4" />
               </Button>
             </div>
+
+            {!questionSpoken && !currentAnswer && (
+              <div className="rounded-lg bg-primary/5 border border-primary/20 text-sm text-primary p-3 mb-4 flex items-center gap-2">
+                {ttsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+                {ttsLoading || speaking ? t.novaSpeaking : t.listenFirst}
+              </div>
+            )}
 
             {/* Video stage */}
             <div className="aspect-video w-full rounded-lg overflow-hidden bg-black mb-3 relative">
@@ -1033,8 +1044,8 @@ export default function InterviewPage() {
             {/* Controls */}
             <div className="flex flex-wrap gap-3 justify-end">
               {!currentAnswer && !recording && (
-                <Button onClick={startRecording} disabled={!!processing} size="lg">
-                  <Video className="h-4 w-4 mr-2" /> {t.record}
+                <Button onClick={startRecording} disabled={!!processing || speaking || ttsLoading || !questionSpoken} size="lg">
+                  <Video className="h-4 w-4 mr-2" /> {questionSpoken ? t.record : t.notReadyYet}
                 </Button>
               )}
               {recording && (
