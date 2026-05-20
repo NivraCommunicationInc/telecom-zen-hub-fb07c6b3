@@ -4991,7 +4991,12 @@ export type Database = {
       }
       coverage_zones: {
         Row: {
+          center_lat: number | null
+          center_lng: number | null
           city: string | null
+          client_count: number | null
+          color: string | null
+          coverage_type: string | null
           created_at: string
           id: string
           internet_available: boolean
@@ -5000,7 +5005,9 @@ export type Database = {
           name: string
           notes: string | null
           postal_code_prefix: string | null
+          postal_codes: string[] | null
           province: string
+          radius_km: number | null
           region: string
           security_available: boolean
           status: string
@@ -5008,7 +5015,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          center_lat?: number | null
+          center_lng?: number | null
           city?: string | null
+          client_count?: number | null
+          color?: string | null
+          coverage_type?: string | null
           created_at?: string
           id?: string
           internet_available?: boolean
@@ -5017,7 +5029,9 @@ export type Database = {
           name: string
           notes?: string | null
           postal_code_prefix?: string | null
+          postal_codes?: string[] | null
           province?: string
+          radius_km?: number | null
           region: string
           security_available?: boolean
           status?: string
@@ -5025,7 +5039,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          center_lat?: number | null
+          center_lng?: number | null
           city?: string | null
+          client_count?: number | null
+          color?: string | null
+          coverage_type?: string | null
           created_at?: string
           id?: string
           internet_available?: boolean
@@ -5034,7 +5053,9 @@ export type Database = {
           name?: string
           notes?: string | null
           postal_code_prefix?: string | null
+          postal_codes?: string[] | null
           province?: string
+          radius_km?: number | null
           region?: string
           security_available?: boolean
           status?: string
