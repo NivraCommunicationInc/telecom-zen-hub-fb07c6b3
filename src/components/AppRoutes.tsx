@@ -157,6 +157,7 @@ const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"
 const CoreReturnsPage = lazy(() => import("@/core-app/pages/CoreReturnsPage"));
 const CoreRmaPage = lazy(() => import("@/core-app/pages/CoreRmaPage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
+const CoreReviewsPage = lazy(() => import("@/core-app/pages/CoreReviewsPage"));
 const CorePlanChangesPage = lazy(() => import("@/core-app/pages/CorePlanChangesPage"));
 const CorePauseRequestsPage = lazy(() => import("@/core-app/pages/CorePauseRequestsPage"));
 const CoreTechnicianMapPage = lazy(() => import("@/core-app/pages/CoreTechnicianMapPage"));
