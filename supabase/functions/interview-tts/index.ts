@@ -9,8 +9,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Charlotte (FR natural female) and Sarah (EN natural female)
-const VOICE_FR = "XB0fDUnXU5powFXDhCwa";
+// Alice (clear multilingual premium) and Sarah (natural English)
+const VOICE_FR = "Xb7hH8MSUJpSbSDYk0k2";
 const VOICE_EN = "EXAVITQu4vr4xnSDxMaL";
 
 Deno.serve(async (req) => {
@@ -60,6 +60,12 @@ Deno.serve(async (req) => {
 
     const safeText = String(text).slice(0, 4000);
     const voiceId = lang === "en" ? VOICE_EN : VOICE_FR;
+    const preparedText = lang === "fr"
+      ? safeText
+          .replace(/Nivra Telecom/g, "Nivra Télécom")
+          .replace(/Bell/g, "Belle")
+          .replace(/\?/g, "? ...")
+      : safeText.replace(/\?/g, "? ...");
 
     const res = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=mp3_44100_128`,
@@ -70,14 +76,14 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: safeText,
+          text: preparedText,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.55,
-            similarity_boost: 0.8,
-            style: 0.3,
+            stability: 0.68,
+            similarity_boost: 0.9,
+            style: 0.22,
             use_speaker_boost: true,
-            speed: 0.95,
+            speed: 0.82,
           },
         }),
       },
