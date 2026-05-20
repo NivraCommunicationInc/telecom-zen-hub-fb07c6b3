@@ -13,7 +13,7 @@ import {
   DollarSign, User, Lock, LogOut, ShoppingCart, PhoneCall,
   Target, Users, Map, Calendar, Tag, Sparkles, Zap,
   ChevronLeft, ChevronRight, LayoutGrid, IdCard,
-  GraduationCap, BookOpen, ClipboardList,
+  GraduationCap, BookOpen, ClipboardList, AlertCircle,
 } from "lucide-react";
 import { useHubUnreadCount } from "@/hooks/useHubUnreadCount";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,6 +51,10 @@ const toolsNav = [
 
 const hubNav = [
   { label: "Nivra Source", href: `${FIELD_BASE}/hub`, icon: LayoutGrid, badgeKey: "hub" as const },
+];
+
+const supportNav = [
+  { label: "Plaintes clients", href: `${FIELD_BASE}/complaints`, icon: AlertCircle },
 ];
 
 const bottomItems = [
@@ -209,6 +213,7 @@ export default function FieldSidebar({ collapsed, onToggleCollapsed }: FieldSide
           <NavSection title="Revenus" items={revenueNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
           <NavSection title="Outils" items={toolsNav} isActive={isActive} badges={{}} collapsed={collapsed} />
           <NavSection title="Nivra Source" items={hubNav} isActive={isActive} badges={badgeCounts} collapsed={collapsed} />
+          <NavSection title="Support" items={supportNav} isActive={isActive} badges={{}} collapsed={collapsed} />
         </ScrollArea>
 
         {/* Bottom — profile + logout */}

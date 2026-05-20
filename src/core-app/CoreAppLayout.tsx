@@ -16,7 +16,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap, Brain, Star,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap, Brain, Star, AlertCircle,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -169,6 +169,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Headphones,
     items: [
       { icon: Ticket, label: "Customer Tickets", href: "/support" },
+      { icon: AlertCircle, label: "Plaintes", href: "/complaints" },
       { icon: MessageCircle, label: "Live Chat", href: "/support/live-chat" },
       { icon: MessageSquare, label: "Internal Tickets", href: "/internal-tickets" },
       { icon: Mail, label: "Web Forms", href: "/web-forms" },
