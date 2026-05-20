@@ -263,8 +263,8 @@ export default function CoreSecurityGuardianPage() {
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {filterList(accessLogs).slice(0, 100).map((a: any) => (
                   <tr key={a.id} className="hover:bg-[hsl(220,15%,12%)]">
-                    <td className="p-2.5 text-white font-mono text-[10px]">{a.staff_user_id?.slice(0, 8)}</td>
-                    <td className="p-2.5 text-[hsl(220,10%,70%)] font-mono text-[10px]">{a.client_user_id?.slice(0, 8)}</td>
+                    <td className="p-2.5 text-white text-[11px]"><ProfileName userId={a.staff_user_id} /></td>
+                    <td className="p-2.5 text-[hsl(220,10%,70%)] text-[11px]"><ProfileName userId={a.client_user_id} /></td>
                     <td className="p-2.5"><Badge variant="outline" className="text-[10px]">{a.method}</Badge></td>
                     <td className="p-2.5 text-[hsl(220,10%,60%)] max-w-[150px] truncate">{a.reason}</td>
                     <td className="p-2.5">
