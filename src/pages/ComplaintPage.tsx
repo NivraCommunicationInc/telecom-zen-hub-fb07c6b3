@@ -170,7 +170,7 @@ export default function ComplaintPage() {
           priority: "normal",
           status: "new",
         } as any)
-        .select("id, ticket_number")
+        .select("id, ticket_number, public_token")
         .single();
 
       if (insErr || !complaint) {
