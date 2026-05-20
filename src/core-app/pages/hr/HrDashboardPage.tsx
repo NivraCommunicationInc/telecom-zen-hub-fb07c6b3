@@ -158,7 +158,7 @@ export default function HrDashboardPage() {
     { label: "Commissions à payer", value: stats?.pendingComm ?? 0, icon: Coins, color: "text-amber-600", href: "/hr/commissions", isMoney: true },
     { label: "Demandes en attente", value: stats?.pendingReq ?? 0, icon: Inbox, color: "text-orange-600", href: "/hr/requests", isMoney: false },
     { label: "Postes ouverts", value: stats?.openJobs ?? 0, icon: Briefcase, color: "text-blue-600", href: "/hr/careers", isMoney: false },
-    { label: "Candidatures", value: stats?.activeApps ?? 0, icon: UserPlus, color: "text-primary", href: "/hr/applications", isMoney: false },
+    { label: "Applications / Candidatures", value: stats?.activeApps ?? 0, icon: UserPlus, color: "text-primary", href: "/hr/applications", isMoney: false },
   ];
 
   return (
@@ -170,7 +170,7 @@ export default function HrDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Button asChild className="justify-between h-11">
-          <Link to={corePath("/hr/applications")}>Candidatures <UserPlus className="h-4 w-4" /></Link>
+          <Link to={corePath("/hr/applications")}>Applications / Candidatures <UserPlus className="h-4 w-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between h-11">
           <Link to={corePath("/hr/careers")}>Postes ouverts <Briefcase className="h-4 w-4" /></Link>

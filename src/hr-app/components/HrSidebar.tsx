@@ -60,7 +60,7 @@ const navGroups = [
     label: "Recrutement",
     items: [
       { label: "Postes", href: "/core/hr/careers", icon: Briefcase },
-      { label: "Candidatures", href: "/core/hr/applications", icon: UserPlus },
+      { label: "Applications / Candidatures", href: "/core/hr/applications", icon: UserPlus },
       { label: "Entrevues IA", href: "/core/hr/interviews", icon: Brain },
     ],
   },
