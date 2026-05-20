@@ -34,6 +34,7 @@ export default function CoreKYCPage() {
   const [activeDocTab, setActiveDocTab] = useState<"front" | "back" | "selfie">("front");
   const [reviewReason, setReviewReason] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1);
+  const reviewerName = useProfileName(selected?.reviewed_by ?? null, "—");
 
   // ═══ QUERIES ═══
   const { data: sessions = [], isLoading } = useQuery({
