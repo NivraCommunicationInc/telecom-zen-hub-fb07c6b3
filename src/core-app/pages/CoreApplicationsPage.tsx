@@ -404,8 +404,19 @@ export default function CoreApplicationsPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Courriel travail</Label>
-              <Input type="email" value={hireForm.work_email} onChange={(e) => setHireForm({ ...hireForm, work_email: e.target.value })} className="h-8 text-xs" />
+              <Label className="text-xs">Courriel professionnel * <span className="text-muted-foreground font-normal">(utilisé pour l'invitation portail)</span></Label>
+              <Input type="email" required value={hireForm.work_email} onChange={(e) => setHireForm({ ...hireForm, work_email: e.target.value })} className="h-8 text-xs" placeholder="prenom.nom@nivra-telecom.ca" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Rôle / Portail d'accès *</Label>
+              <Select value={hireForm.role} onValueChange={(v: any) => setHireForm({ ...hireForm, role: v })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employé — portail Employé + RH</SelectItem>
+                  <SelectItem value="field_sales">Représentant terrain — portail Field</SelectItem>
+                  <SelectItem value="admin">Administrateur — accès Core complet</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
