@@ -247,7 +247,7 @@ export function KycStep({ proc }: Props) {
         {(rawStatus === "approved" || rawStatus === "rejected") && (
           <StepCompletionCard
             title={rawStatus === "approved" ? "Identité vérifiée et approuvée" : "Identité rejetée"}
-            by={kycSession?.reviewed_by ? `Agent ${String(kycSession.reviewed_by).slice(0, 8)}` : null}
+            by={kycSession?.reviewed_by ? reviewerName : null}
             at={kycSession?.reviewed_at || order?.id_verified_at || order?.updated_at}
             details={[
               { label: "Décision", value: rawStatus === "approved" ? "Approuvé" : "Rejeté" },
