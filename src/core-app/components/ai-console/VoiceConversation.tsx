@@ -7,7 +7,7 @@
  * - No intro / "how it works" — direct conversation
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useScribe } from "@elevenlabs/react";
+import { useScribe, CommitStrategy } from "@elevenlabs/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,7 +32,7 @@ export default function VoiceConversation({ client }: Props) {
 
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
-    commitStrategy: "vad",
+    commitStrategy: CommitStrategy.VAD,
     onCommittedTranscript: (data: any) => {
       const text = String(data?.text ?? "").trim();
       if (text) handleSend(text);
@@ -178,7 +178,7 @@ export default function VoiceConversation({ client }: Props) {
     }
   }, [recording, scribe, stopAudio]);
 
-  useEffect(() => () => { scribe.disconnect().catch(() => {}); stopAudio(); }, []);
+  useEffect(() => () => { try { scribe.disconnect(); } catch {} stopAudio(); }, []);
 
   return (
     <div className="flex flex-col h-[calc(100vh-280px)] min-h-[480px] rounded-2xl border border-core-border bg-core-card overflow-hidden">
