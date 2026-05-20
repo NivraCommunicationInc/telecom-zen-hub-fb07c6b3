@@ -108,7 +108,7 @@ export default function ComplaintPage() {
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ ticket: string } | null>(null);
+  const [success, setSuccess] = useState<{ ticket: string; trackingUrl: string } | null>(null);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit =
