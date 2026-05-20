@@ -4099,6 +4099,90 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // CLIENT REVIEWS — activation / deactivation / internal notification
+    // ===================================================================
+    case "review_request_activation": {
+      const firstName = esc(v.first_name || clientName);
+      const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
+      return {
+        subject: "Comment s est passée votre installation? — Nivra Telecom",
+        html: shell({
+          preheader: "Votre avis nous aide à améliorer notre service.",
+          badge: "VOTRE AVIS COMPTE",
+          heroTitle: "Bienvenue chez Nivra! Comment ca s est passé?",
+          icon: "check",
+          greeting: `Bonjour ${firstName},`,
+          bodyText:
+            "Votre service Nivra Telecom est maintenant actif. Votre avis nous aide à améliorer notre service pour tous nos clients. Cela prend moins de 2 minutes.",
+          cardTitle: "Informations",
+          cardRows: [
+            ["Temps requis", "Moins de 2 minutes"],
+            ["Votre avis est", "Confidentiel"],
+          ],
+          ctaPrimaryUrl: reviewUrl,
+          ctaPrimaryLabel: "Laisser mon avis",
+          helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "review_request_deactivation": {
+      const firstName = esc(v.first_name || clientName);
+      const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
+      return {
+        subject: "Merci d avoir été client Nivra — Votre avis nous importe",
+        html: shell({
+          preheader: "Votre feedback nous aide à nous améliorer.",
+          badge: "VOTRE AVIS COMPTE",
+          heroTitle: "Merci pour votre confiance",
+          icon: "info",
+          greeting: `Bonjour ${firstName},`,
+          bodyText:
+            "Vous avez récemment mis fin à votre service Nivra Telecom. Votre feedback nous aide à nous améliorer. Cela prend 2 minutes.",
+          cardTitle: "Informations",
+          cardRows: [
+            ["Temps requis", "Moins de 2 minutes"],
+            ["Votre avis est", "Confidentiel"],
+          ],
+          ctaPrimaryUrl: reviewUrl,
+          ctaPrimaryLabel: "Partager mon expérience",
+          helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "review_submitted_internal": {
+      const firstName = esc(v.first_name || "Client");
+      const rating = esc(v.rating || "");
+      const triggerType = esc(v.trigger_type || "");
+      const reviewId = esc(v.review_id || "");
+      const adminUrl = `${APP_URL}/core/reviews`;
+      return {
+        subject: `[Avis reçu] ${firstName} — ${rating} étoiles`,
+        html: shell({
+          preheader: `Nouvel avis client reçu — ${rating}/5`,
+          badge: "NOUVEL AVIS CLIENT",
+          heroTitle: "Un client a soumis un avis",
+          icon: "info",
+          greeting: "Équipe Nivra,",
+          bodyText: `Un nouvel avis client vient d être soumis. Note: ${rating}/5 étoiles.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Client", firstName],
+            ["Note globale", `${rating} / 5`],
+            ["Type", triggerType === "activation" ? "Activation" : "Résiliation"],
+            ["Référence", reviewId],
+          ],
+          ctaPrimaryUrl: adminUrl,
+          ctaPrimaryLabel: "Voir l avis dans Nivra Core",
+          helpHtml: `Géré depuis <a href="${adminUrl}" style="color:${BRAND_PRIMARY};">Nivra Core → Avis clients</a>`,
+        }),
+      };
+    }
+
+
+
     default:
       return null;
   }
