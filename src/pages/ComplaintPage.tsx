@@ -340,28 +340,6 @@ export default function ComplaintPage() {
           </p>
         </header>
 
-        {/* SLA bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs sm:text-sm mb-8">
-          {[
-            { label: "Urgent", sla: "4h", dot: "#EF4444" },
-            { label: "Élevée", sla: "24h", dot: "#F97316" },
-            { label: "Normale", sla: "72h", dot: "#F59E0B" },
-            { label: "Faible", sla: "7 j", dot: "#10B981" },
-          ].map((p) => (
-            <div
-              key={p.label}
-              className="rounded-lg px-3 py-2 text-center"
-              style={{ background: C.card, border: `1px solid ${C.border}`, color: C.textSecondary }}
-            >
-              <span
-                className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
-                style={{ background: p.dot }}
-              />
-              <span className="font-semibold" style={{ color: C.textPrimary }}>{p.label}</span>
-              <span> · {p.sla}</span>
-            </div>
-          ))}
-        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* SECTION 1 */}
