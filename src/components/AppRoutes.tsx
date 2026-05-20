@@ -1101,6 +1101,10 @@ const AppRoutes = () => {
           <Route path="demandes" element={<Suspense fallback={null}><HrRequests /></Suspense>} />
           <Route path="documents" element={<Suspense fallback={null}><HrDocuments /></Suspense>} />
           <Route path="badges" element={<Suspense fallback={null}><HrBadgePage /></Suspense>} />
+          <Route path="postes" element={<Navigate to="/core/hr/careers" replace />} />
+          <Route path="candidatures" element={<Navigate to="/core/hr/applications" replace />} />
+          <Route path="applications" element={<Navigate to="/core/hr/applications" replace />} />
+          <Route path="entrevues" element={<Navigate to="/core/hr/interviews" replace />} />
           {/* Nivra Source Hub — unified */}
           <Route path="hub" element={<Suspense fallback={null}><NivraSourceHub portal="hr" /></Suspense>} />
           <Route path="hub/annonces" element={<Navigate to="/hr/hub?section=annonces" replace />} />
