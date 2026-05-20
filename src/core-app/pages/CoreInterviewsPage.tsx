@@ -179,6 +179,7 @@ export default function CoreInterviewsPage() {
     onSuccess: () => {
       toast.success("Dossier marqué comme révisé");
       qc.invalidateQueries({ queryKey: ["onboarding-form", selected?.id] });
+      qc.invalidateQueries({ queryKey: ["all-onboarding-forms"] });
     },
     onError: (e: any) => toast.error("Erreur", { description: e.message }),
   });
