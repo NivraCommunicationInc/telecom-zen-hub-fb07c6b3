@@ -32,6 +32,15 @@ const INTERNAL_ROLES = [
   "sales", "kyc_agent", "billing_admin", "techops", "support", "field_sales"
 ];
 
+const getSafePortalRedirect = (redirect: string | null, fallback: string) => {
+  if (!redirect) return fallback;
+  if (!redirect.startsWith("/") || redirect.startsWith("//")) return fallback;
+  if (redirect.startsWith("/core") || redirect.startsWith("/hr") || redirect.startsWith("/employee") || redirect.startsWith("/field") || redirect.startsWith("/staff") || redirect.startsWith("/marketing")) {
+    return redirect;
+  }
+  return fallback;
+};
+
 type Stage = "login" | "mfa_enroll" | "mfa_verify" | "redirecting";
 
 export default function HubLoginPage() {
@@ -40,6 +49,7 @@ export default function HubLoginPage() {
   const { theme, themeClass, toggleTheme } = useInternalTheme();
   const portalId = searchParams.get("portal");
   const portal = portalId ? PORTAL_CONFIG[portalId] : null;
+  const portalRedirect = getSafePortalRedirect(searchParams.get("redirect"), portal?.href ?? "/nivra-secure-hub-2617-internal");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -150,7 +160,7 @@ export default function HubLoginPage() {
     }
 
     setStage("redirecting");
-    navigate(portal.href, { replace: true });
+    navigate(portalRedirect, { replace: true });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -337,7 +347,7 @@ export default function HubLoginPage() {
               createHubSession(session.user.id);
               await auditAccess("hub_access", portalId!);
               await auditAccess("portal_entry", portalId!);
-              navigate(portal.href, { replace: true });
+              navigate(portalRedirect, { replace: true });
             }
           }}
           onLogout={handleLogout}
