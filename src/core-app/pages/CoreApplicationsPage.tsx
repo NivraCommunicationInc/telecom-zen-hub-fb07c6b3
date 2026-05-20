@@ -452,7 +452,7 @@ export default function CoreApplicationsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setHireApp(null)}>Annuler</Button>
-            <Button size="sm" disabled={!hireForm.first_name || !hireForm.last_name || hireMut.isPending}
+            <Button size="sm" disabled={!hireForm.first_name || !hireForm.last_name || !hireForm.work_email || hireMut.isPending}
               onClick={() => hireMut.mutate()}>
               {hireMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Check className="h-3.5 w-3.5 mr-1" />Embaucher</>}
             </Button>
