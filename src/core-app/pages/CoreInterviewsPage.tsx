@@ -610,6 +610,24 @@ export default function CoreInterviewsPage() {
                         {a.interview_red_flags.length} flag(s)
                       </Badge>
                     )}
+                    {(() => {
+                      const f = formsByApplicant.get(a.id);
+                      if (!f) return null;
+                      const isSubmitted = f.status === "submitted" || f.status === "reviewed";
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openDetail(a, "embauche"); }}
+                          className="inline-flex"
+                          title="Voir le formulaire d'embauche"
+                        >
+                          <Badge variant="outline" className={`text-[10px] cursor-pointer ${isSubmitted ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" : "bg-amber-500/15 text-amber-700 border-amber-500/30"}`}>
+                            <ClipboardCheck className="h-2.5 w-2.5 mr-0.5" />
+                            {f.status === "reviewed" ? "Formulaire révisé" : isSubmitted ? "Formulaire soumis" : "Formulaire en attente"}
+                          </Badge>
+                        </button>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{a.email} • {a.phone || "—"}</p>
                   <p className="text-[10px] text-muted-foreground">
