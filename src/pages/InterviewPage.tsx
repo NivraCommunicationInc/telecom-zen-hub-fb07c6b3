@@ -346,6 +346,7 @@ export default function InterviewPage() {
 
   // ---------- ElevenLabs TTS ----------
   const stopTts = useCallback(() => {
+    speakSeqRef.current += 1;
     if (audioElRef.current) {
       try { audioElRef.current.pause(); } catch { /* noop */ }
     }
@@ -353,31 +354,62 @@ export default function InterviewPage() {
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
     }
+    setTtsLoading(false);
     setSpeaking(false);
   }, []);
 
-  const speak = useCallback(async (text: string) => {
-    if (!token || mutedRef.current || !text.trim()) return;
+  const speak = useCallback(async (text: string, onFinished?: () => void) => {
+    if (!token || mutedRef.current || !text.trim()) {
+      onFinished?.();
+      return;
+    }
+    const seq = speakSeqRef.current + 1;
+    speakSeqRef.current = seq;
     stopTts();
     try {
-      setSpeaking(true);
-      const url = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-tts`;
+      speakSeqRef.current = seq;
+      setTtsLoading(true);
+      const url = `${EDGE_BASE_URL}/interview-tts`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, text, lang }),
       });
-      if (!res.ok) { setSpeaking(false); return; }
+      if (!res.ok) {
+        setTtsLoading(false);
+        onFinished?.();
+        return;
+      }
       const blob = await res.blob();
+      if (speakSeqRef.current !== seq) return;
       const blobUrl = URL.createObjectURL(blob);
       audioUrlRef.current = blobUrl;
       const audio = new Audio(blobUrl);
       audioElRef.current = audio;
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => setSpeaking(false);
-      await audio.play().catch(() => setSpeaking(false));
+      audio.onended = () => {
+        if (speakSeqRef.current === seq) {
+          setSpeaking(false);
+          onFinished?.();
+        }
+      };
+      audio.onerror = () => {
+        if (speakSeqRef.current === seq) {
+          setSpeaking(false);
+          onFinished?.();
+        }
+      };
+      setTtsLoading(false);
+      setSpeaking(true);
+      await audio.play().catch(() => {
+        if (speakSeqRef.current === seq) {
+          setSpeaking(false);
+          onFinished?.();
+        }
+      });
     } catch {
+      setTtsLoading(false);
       setSpeaking(false);
+      onFinished?.();
     }
   }, [token, lang, stopTts]);
 
