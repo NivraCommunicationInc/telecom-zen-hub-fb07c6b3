@@ -4183,9 +4183,193 @@ export function renderQueueTemplate(
 
 
 
+    // ===================================================================
+    // COMPLAINTS — confirmation / assigned / status / response / resolved / escalated
+    // ===================================================================
+    case "complaint_confirmation": {
+      const firstName = esc(v.first_name || clientName || "Client");
+      const ticket = esc(v.ticket_number || "");
+      const category = esc(v.category_label || v.category || "");
+      const priority = esc(v.priority_label || v.priority || "Normale");
+      const sla = esc(v.sla_label || "72 heures");
+      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      return {
+        subject: `Votre plainte a été reçue — ${ticket} — Nivra Telecom`,
+        html: shell({
+          preheader: "Nous avons bien reçu votre plainte et nous la traiterons rapidement.",
+          badge: "PLAINTE REÇUE",
+          heroTitle: "Nous avons reçu votre plainte",
+          icon: "check",
+          greeting: `Bonjour ${firstName},`,
+          bodyText:
+            "Votre plainte a été enregistrée et sera traitée selon nos délais de service. Vous recevrez une notification par courriel à chaque étape.",
+          cardTitle: "Détails de votre plainte",
+          cardRows: [
+            ["Numéro de ticket", ticket],
+            ["Catégorie", category],
+            ["Priorité", priority],
+            ["Délai de traitement", sla],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Suivre ma plainte",
+          helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "complaint_assigned": {
+      const ticket = esc(v.ticket_number || "");
+      const client = esc(v.client_name || "Client");
+      const category = esc(v.category_label || v.category || "");
+      const priority = esc(v.priority_label || v.priority || "Normale");
+      const sla = esc(v.sla_deadline || "");
+      const coreUrl = String(v.core_complaint_url || `${APP_URL}/core/complaints`);
+      return {
+        subject: `[Plainte assignée] ${ticket} — Priorité ${priority}`,
+        html: shell({
+          preheader: `Une plainte vous a été assignée — ${ticket}`,
+          badge: "PLAINTE ASSIGNÉE",
+          heroTitle: "Une plainte vous a été assignée",
+          icon: "info",
+          greeting: "Bonjour,",
+          bodyText:
+            "Une plainte client vient de vous être assignée. Merci de la prendre en charge dans les délais SLA.",
+          cardTitle: "Informations",
+          cardRows: [
+            ["Ticket", ticket],
+            ["Client", client],
+            ["Catégorie", category],
+            ["Priorité", priority],
+            ["Délai SLA", sla],
+          ],
+          ctaPrimaryUrl: coreUrl,
+          ctaPrimaryLabel: "Voir la plainte",
+          helpHtml: `Géré depuis <a href="${coreUrl}" style="color:${BRAND_PRIMARY};">Nivra Core → Plaintes</a>`,
+        }),
+      };
+    }
+
+    case "complaint_status_update": {
+      const firstName = esc(v.first_name || clientName || "Client");
+      const ticket = esc(v.ticket_number || "");
+      const newStatus = esc(v.new_status_label || v.new_status || "");
+      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      return {
+        subject: `Mise à jour — ${ticket} — Nivra Telecom`,
+        html: shell({
+          preheader: `Statut de votre plainte mis à jour — ${newStatus}`,
+          badge: "MISE À JOUR",
+          heroTitle: "Statut de votre plainte mis à jour",
+          icon: "info",
+          greeting: `Bonjour ${firstName},`,
+          bodyText:
+            "Le statut de votre plainte vient d être mis à jour. Vous pouvez en consulter les détails sur votre espace client.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Ticket", ticket],
+            ["Nouveau statut", newStatus],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Voir les détails",
+          helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "complaint_response": {
+      const firstName = esc(v.first_name || clientName || "Client");
+      const ticket = esc(v.ticket_number || "");
+      const previewRaw = String(v.response_preview || "");
+      const preview = esc(previewRaw.slice(0, 200));
+      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      return {
+        subject: `Réponse de Nivra Telecom — ${ticket}`,
+        html: shell({
+          preheader: "Notre équipe vient de vous répondre.",
+          badge: "RÉPONSE DE NIVRA",
+          heroTitle: "L équipe Nivra vous a répondu",
+          icon: "info",
+          greeting: `Bonjour ${firstName},`,
+          bodyText: preview
+            ? `« ${preview}${previewRaw.length > 200 ? "…" : ""} »`
+            : "Notre équipe vient de publier une réponse sur votre plainte. Consultez-la dans votre espace.",
+          cardTitle: "Référence",
+          cardRows: [["Ticket", ticket]],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Lire la réponse complète",
+          helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "complaint_resolved": {
+      const firstName = esc(v.first_name || clientName || "Client");
+      const ticket = esc(v.ticket_number || "");
+      const resolvedDate = esc(v.resolved_date || "");
+      const resolution = esc(v.resolution_summary || "");
+      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      return {
+        subject: `Votre plainte est résolue — ${ticket} — Nivra Telecom`,
+        html: shell({
+          preheader: "Bonne nouvelle : votre plainte vient d être résolue.",
+          badge: "PLAINTE RÉSOLUE",
+          heroTitle: "Votre plainte a été résolue!",
+          icon: "check",
+          greeting: `Bonjour ${firstName},`,
+          bodyText: resolution || "Notre équipe a résolu votre plainte. Merci de votre patience.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Ticket", ticket],
+            ["Résolu le", resolvedDate],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Confirmer la résolution",
+          helpHtml: `Si le problème persiste, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "complaint_escalated": {
+      const ticket = esc(v.ticket_number || "");
+      const client = esc(v.client_name || v.submitted_by_name || "Client");
+      const email = esc(v.submitted_by_email || "");
+      const phone = esc(v.submitted_by_phone || "—");
+      const category = esc(v.category_label || v.category || "");
+      const priority = esc(v.priority_label || v.priority || "");
+      const subjectLine = esc(v.subject || "");
+      const description = esc(String(v.description || "").slice(0, 600));
+      const coreUrl = String(v.core_complaint_url || `${APP_URL}/core/complaints`);
+      return {
+        subject: `[URGENT] Plainte escaladée — ${ticket}`,
+        html: shell({
+          preheader: `Plainte escaladée — ${ticket} — action requise`,
+          badge: "ESCALADE URGENTE",
+          heroTitle: "Action requise — Plainte escaladée",
+          icon: "warning",
+          greeting: "Équipe Nivra,",
+          bodyText: `Sujet: ${subjectLine}\n\n${description}`,
+          cardTitle: "Détails complets",
+          cardRows: [
+            ["Ticket", ticket],
+            ["Client", client],
+            ["Courriel", email],
+            ["Téléphone", phone],
+            ["Catégorie", category],
+            ["Priorité", priority],
+          ],
+          ctaPrimaryUrl: coreUrl,
+          ctaPrimaryLabel: "Traiter immédiatement",
+          helpHtml: `Géré depuis <a href="${coreUrl}" style="color:${BRAND_PRIMARY};">Nivra Core → Plaintes</a>`,
+        }),
+      };
+    }
+
+
     default:
       return null;
   }
 }
+
+
 
 
