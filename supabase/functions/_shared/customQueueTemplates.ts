@@ -3335,6 +3335,68 @@ export function renderQueueTemplate(
       };
     }
 
+    case "service_pause_rejected": {
+      const reason = esc(v.reason || (isEn ? "Not specified" : "Non précisée"));
+      return {
+        subject: isEn
+          ? `Service pause request reviewed — Nivra Telecom`
+          : `Votre demande de suspension — Nivra Telecom`,
+        html: shell({
+          preheader: isEn
+            ? `Your pause request was not approved.`
+            : `Votre demande de suspension n'a pas été approuvée.`,
+          badge: t("DEMANDE EXAMINÉE", "REQUEST REVIEWED", lang),
+          heroTitle: t("Demande non approuvée", "Request not approved", lang),
+          icon: "alert",
+          greeting,
+          bodyText: isEn
+            ? `After review, your service pause request could not be approved. Our support team can help you find an alternative.`
+            : `Après examen, votre demande de suspension de service n'a pas pu être approuvée. Notre équipe de support peut vous aider à trouver une alternative.`,
+          cardTitle: t("Détails", "Details", lang),
+          cardRows: [
+            [t("Motif", "Reason", lang), reason],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: t("Contacter le support", "Contact support", lang),
+          helpHtml: isEn
+            ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Besoin d'aide ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "service_pause_resumed": {
+      const resumedAt = esc(v.resumed_at || (isEn ? "today" : "aujourd'hui"));
+      return {
+        subject: isEn
+          ? `Your service has been resumed — Nivra Telecom`
+          : `Votre service a été repris — Nivra Telecom`,
+        html: shell({
+          preheader: isEn
+            ? `Your service is active again.`
+            : `Votre service est de nouveau actif.`,
+          badge: t("SERVICE REPRIS", "SERVICE RESUMED", lang),
+          heroTitle: t("Service réactivé ✓", "Service resumed ✓", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Good news — your service has been resumed on ${resumedAt}. You can now use your services normally and billing resumes at the next cycle.`
+            : `Bonne nouvelle — votre service a été repris le ${resumedAt}. Vous pouvez maintenant utiliser vos services normalement et la facturation reprend au prochain cycle.`,
+          cardTitle: t("Résumé", "Summary", lang),
+          cardRows: [
+            [t("Date de reprise", "Resume date", lang), resumedAt],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/services`,
+          ctaPrimaryLabel: t("Voir mes services", "View my services", lang),
+          helpHtml: isEn
+            ? `Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Une question ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+
+
     case "service_resumed": {
       const planName = esc(v.plan_name || (isEn ? "your plan" : "votre forfait"));
       return {
