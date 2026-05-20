@@ -59,6 +59,8 @@ const reasonCodeLabels: Record<string, string> = {
   billing_issue: "Problème de facturation", other: "Autre raison",
 };
 
+const PAGE_SIZE = 10;
+
 export default function CoreCancellationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -68,10 +70,12 @@ export default function CoreCancellationsPage() {
   const [publicMessage, setPublicMessage] = useState("");
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["core-cancellations"],
     staleTime: 30_000,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_cancellation_requests")
@@ -147,6 +151,32 @@ export default function CoreCancellationsPage() {
         .maybeSingle();
 
       const result: any = { id, ...update, _sideEffects: { subscription: false, sim: false, equipment: false, invoice: null as null | "voided" | "marked_overdue", account: false, email: false, note: false } };
+
+      // Lifecycle emails for non-approved transitions
+      if (fields.status === "declined" || fields.status === "completed") {
+        try {
+          const { data: cp } = req.user_id
+            ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
+            : { data: null };
+          if (cp?.email) {
+            await supabase.functions.invoke("send-cancellation-notification", {
+              body: {
+                template: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
+                to_email: cp.email,
+                client_name: cp.full_name ?? "Client",
+                request_number: req.request_number ?? id.slice(0, 8),
+                service_type: req.service_type,
+                effective_date: (fields.effective_date as string) || req.effective_date || "",
+                decline_reason: (fields.decline_reason as string) || "",
+                public_message: (fields.public_message as string) || "",
+              },
+            });
+            result._sideEffects.email = true;
+          }
+        } catch (e: any) {
+          console.error("[CoreCancellations] lifecycle email failed:", e?.message ?? e);
+        }
+      }
 
       // Side-effects only run on approval transitions
       if (fields.status !== "approved" || !req) return result;
@@ -600,44 +630,66 @@ export default function CoreCancellationsPage() {
               Aucune demande de résiliation.
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {filtered.map((r: any) => {
-                const cfg = statusConfig[r.status as CancellationStatus] ?? statusConfig.requested;
-                const Icon = cfg.icon;
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() => openDetail(r)}
-                    className="w-full text-left px-4 py-3 hover:bg-secondary/40 transition-colors flex items-center gap-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="font-mono text-xs text-foreground">{r.request_number ?? r.id.slice(0, 8)}</span>
-                        <Badge variant="outline" className={cfg.tone}>
-                          <Icon className="h-3 w-3 mr-1" />
-                          {cfg.label}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {serviceTypeLabels[r.service_type] ?? r.service_type}
-                        </span>
+            <>
+              <div className="divide-y divide-border">
+                {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r: any) => {
+                  const cfg = statusConfig[r.status as CancellationStatus] ?? statusConfig.requested;
+                  const Icon = cfg.icon;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => openDetail(r)}
+                      className="w-full text-left px-4 py-3 hover:bg-secondary/40 transition-colors flex items-center gap-4"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-mono text-xs text-foreground">{r.request_number ?? r.id.slice(0, 8)}</span>
+                          <Badge variant="outline" className={cfg.tone}>
+                            <Icon className="h-3 w-3 mr-1" />
+                            {cfg.label}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {serviceTypeLabels[r.service_type] ?? r.service_type}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm text-foreground truncate">
+                          {r.profile?.full_name ?? "Client"} · {r.profile?.email ?? "—"}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {reasonCodeLabels[r.reason_code] ?? r.reason_code}
+                          {r.requested_effective_date && (
+                            <> · Souhaitée: {format(new Date(r.requested_effective_date), "d MMM yyyy", { locale: fr })}</>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm text-foreground truncate">
-                        {r.profile?.full_name ?? "Client"} · {r.profile?.email ?? "—"}
+                      <div className="text-[11px] text-muted-foreground text-right shrink-0">
+                        {format(new Date(r.created_at), "d MMM yyyy HH:mm", { locale: fr })}
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        {reasonCodeLabels[r.reason_code] ?? r.reason_code}
-                        {r.requested_effective_date && (
-                          <> · Souhaitée: {format(new Date(r.requested_effective_date), "d MMM yyyy", { locale: fr })}</>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground text-right shrink-0">
-                      {format(new Date(r.created_at), "d MMM yyyy HH:mm", { locale: fr })}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {filtered.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground">
+                  <span>
+                    Page {page} / {Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))} — {filtered.length} demande{filtered.length > 1 ? "s" : ""}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= Math.ceil(filtered.length / PAGE_SIZE)}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
