@@ -275,6 +275,8 @@ export default function InterviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [questionSpoken, setQuestionSpoken] = useState(false);
   const [permState, setPermState] = useState<"idle" | "asking" | "granted" | "denied">("idle");
   const [audioLevel, setAudioLevel] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -284,6 +286,7 @@ export default function InterviewPage() {
   const mutedRef = useRef(false);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  const speakSeqRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
