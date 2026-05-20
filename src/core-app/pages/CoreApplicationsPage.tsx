@@ -43,6 +43,7 @@ export default function CoreApplicationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [hireApp, setHireApp] = useState<any | null>(null);
+  const [detailApp, setDetailApp] = useState<any | null>(null);
   const [hireForm, setHireForm] = useState({
     first_name: "", last_name: "", work_email: "",
     job_title: "", department: "", hire_date: format(new Date(), "yyyy-MM-dd"),
