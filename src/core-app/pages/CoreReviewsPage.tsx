@@ -104,7 +104,7 @@ function StatCard({
 
 export default function CoreReviewsPage() {
   const { user } = useAuth();
-  const { isAdmin, loading: roleLoading } = useIsCoreAdmin();
+  const { isAdmin, isLoading: roleLoading } = useIsCoreAdmin();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
