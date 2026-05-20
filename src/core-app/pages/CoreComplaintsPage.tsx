@@ -53,6 +53,7 @@ type Complaint = {
   sla_deadline: string | null;
   created_at: string;
   updated_at: string;
+  public_token?: string | null;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
