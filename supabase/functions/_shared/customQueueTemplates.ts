@@ -3927,11 +3927,11 @@ export function renderQueueTemplate(
         html: shell({
           preheader: isEnglish
             ? "Welcome to the Nivra team."
-            : "Bienvenue dans l équipe Nivra.",
+            : "Bienvenue dans l'équipe Nivra.",
           badge: isEnglish ? "APPLICATION ACCEPTED" : "CANDIDATURE ACCEPTÉE",
           heroTitle: isEnglish
             ? "Welcome to the Nivra team!"
-            : "Bienvenue dans l équipe Nivra!",
+            : "Bienvenue dans l'équipe Nivra!",
           icon: "check",
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
@@ -4192,7 +4192,7 @@ export function renderQueueTemplate(
       const category = esc(v.category_label || v.category || "");
       const priority = esc(v.priority_label || v.priority || "Normale");
       const sla = esc(v.sla_label || "72 heures");
-      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      const portalUrl = String(v.tracking_url || v.portal_url || (v.public_token ? `${APP_URL}/plainte/suivi/${v.public_token}` : `${APP_URL}/plainte`));
       return {
         subject: `Votre plainte a été reçue — ${ticket} — Nivra Telecom`,
         html: shell({
@@ -4253,7 +4253,7 @@ export function renderQueueTemplate(
       const firstName = esc(v.first_name || clientName || "Client");
       const ticket = esc(v.ticket_number || "");
       const newStatus = esc(v.new_status_label || v.new_status || "");
-      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      const portalUrl = String(v.tracking_url || v.portal_url || (v.public_token ? `${APP_URL}/plainte/suivi/${v.public_token}` : `${APP_URL}/plainte`));
       return {
         subject: `Mise à jour — ${ticket} — Nivra Telecom`,
         html: shell({
@@ -4270,7 +4270,7 @@ export function renderQueueTemplate(
             ["Nouveau statut", newStatus],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Voir les détails",
+          ctaPrimaryLabel: "Voir le statut",
           helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
@@ -4281,7 +4281,7 @@ export function renderQueueTemplate(
       const ticket = esc(v.ticket_number || "");
       const previewRaw = String(v.response_preview || "");
       const preview = esc(previewRaw.slice(0, 200));
-      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      const portalUrl = String(v.tracking_url || v.portal_url || (v.public_token ? `${APP_URL}/plainte/suivi/${v.public_token}` : `${APP_URL}/plainte`));
       return {
         subject: `Réponse de Nivra Telecom — ${ticket}`,
         html: shell({
@@ -4296,7 +4296,7 @@ export function renderQueueTemplate(
           cardTitle: "Référence",
           cardRows: [["Ticket", ticket]],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Lire la réponse complète",
+          ctaPrimaryLabel: "Lire la réponse",
           helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
@@ -4307,7 +4307,7 @@ export function renderQueueTemplate(
       const ticket = esc(v.ticket_number || "");
       const resolvedDate = esc(v.resolved_date || "");
       const resolution = esc(v.resolution_summary || "");
-      const portalUrl = String(v.portal_url || `${APP_URL}/plainte`);
+      const portalUrl = String(v.tracking_url || v.portal_url || (v.public_token ? `${APP_URL}/plainte/suivi/${v.public_token}` : `${APP_URL}/plainte`));
       return {
         subject: `Votre plainte est résolue — ${ticket} — Nivra Telecom`,
         html: shell({
