@@ -32,6 +32,8 @@ const labelClass = "text-[10px] uppercase tracking-wider text-slate-500 mb-1 blo
 
 export function ShippingTechnicianStep({ proc }: Props) {
   const { order, appointment, installationEstimate, items } = proc;
+  const technicianName = useProfileName(appointment?.technician_id ?? null, "—");
+
 
   // ── INTELLIGENT FULFILLMENT ROUTING ──
   // Determine what was ordered to show ONLY relevant sections.
