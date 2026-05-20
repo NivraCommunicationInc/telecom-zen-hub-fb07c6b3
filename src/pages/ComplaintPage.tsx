@@ -295,16 +295,25 @@ export default function ComplaintPage() {
           <p className="text-sm mb-6" style={{ color: C.textSecondary }}>
             <strong style={{ color: C.textPrimary }}>Délai de traitement :</strong> 72 heures
           </p>
-          <button
-            type="button"
-            onClick={() => (window.location.href = "/")}
-            className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
-            style={{ background: C.accent, color: "#FFFFFF" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = C.accentHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = C.accent)}
-          >
-            Retour à l accueil
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={success.trackingUrl}
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
+              style={{ background: C.accent, color: "#FFFFFF" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.accentHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = C.accent)}
+            >
+              Suivre ma plainte
+            </a>
+            <button
+              type="button"
+              onClick={() => (window.location.href = "/")}
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
+              style={{ background: "transparent", color: C.textPrimary, border: `1px solid ${C.border}` }}
+            >
+              Retour à l'accueil
+            </button>
+          </div>
         </div>
       </div>
     );
