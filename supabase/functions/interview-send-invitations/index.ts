@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       const lang = (a.interview_language || "fr") as string;
 
       const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: `interview_invite_${a.id}`,
+        event_key: `interview_invite_${a.id}_${Date.now()}`,
         to_email: a.email,
         template_key: "interview_invitation",
         template_vars: {
