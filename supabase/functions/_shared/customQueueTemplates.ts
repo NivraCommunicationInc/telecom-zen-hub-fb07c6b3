@@ -4364,6 +4364,32 @@ export function renderQueueTemplate(
       };
     }
 
+    case "onboarding_form_invitation": {
+      const firstName = esc(v.first_name || "");
+      const onboardingUrl = String(v.onboarding_url || `${APP_URL}/onboarding`);
+      return {
+        subject: "Action requise — Formulaire d embauche Nivra Telecom",
+        html: shell({
+          preheader: "Complétez votre dossier d embauche en ligne.",
+          badge: "FORMULAIRE D EMBAUCHE",
+          heroTitle: "Complétez votre dossier d embauche",
+          icon: "info",
+          greeting: `Bonjour ${firstName},`,
+          bodyText:
+            "Votre candidature chez Nivra Telecom a été acceptée. Pour finaliser votre embauche, veuillez compléter votre formulaire d embauche en ligne.\n\nCe formulaire est sécurisé et chiffré. Seule l équipe RH de Nivra Telecom aura accès à vos informations.\n\nLe lien expire dans 7 jours.",
+          cardTitle: "Informations clés",
+          cardRows: [
+            ["Délai", "7 jours pour compléter"],
+            ["Sécurité", "Chiffré et confidentiel"],
+            ["Documents requis", "Pièce d identité + Spécimen de chèque"],
+          ],
+          ctaPrimaryUrl: onboardingUrl,
+          ctaPrimaryLabel: "Compléter mon formulaire",
+          helpHtml: `Ce lien est personnel et unique. Ne le partagez pas. Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
 
     default:
       return null;
