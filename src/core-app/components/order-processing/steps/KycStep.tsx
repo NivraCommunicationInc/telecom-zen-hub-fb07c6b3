@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
+import { useProfileName } from "@/hooks/useProfileName";
 
 interface Props { proc: any; }
 
