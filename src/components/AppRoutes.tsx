@@ -102,6 +102,7 @@ const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const NivraSourceHub = lazy(() => import("@/components/hub/NivraSourceHub"));
 const CoreHubManagementPage = lazy(() => import("@/core-app/pages/CoreHubManagementPage"));
 const CoreEmailComposePage = lazy(() => import("@/core-app/pages/CoreEmailComposePage"));
+const CoreAIConsolePage = lazy(() => import("@/core-app/pages/CoreAIConsolePage"));
 const EmployeeEmailComposePage = lazy(() => import("@/employee-app/pages/EmployeeEmailComposePage"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
 const CoreLoginPage = lazy(() => import("@/core-app/pages/CoreLoginPage"));
