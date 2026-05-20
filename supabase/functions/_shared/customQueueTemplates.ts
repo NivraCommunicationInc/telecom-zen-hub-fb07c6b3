@@ -3206,6 +3206,40 @@ export function renderQueueTemplate(
       };
     }
 
+    case "plan_change_rejected": {
+      const toPlan = esc(v.requested_plan_name || "—");
+      const reason = esc(v.reason || (isEn ? "Not specified" : "Non précisée"));
+      return {
+        subject: isEn
+          ? `Plan change request reviewed — Nivra Telecom`
+          : `Votre demande de changement de forfait — Nivra Telecom`,
+        html: shell({
+          preheader: isEn
+            ? `Your plan change request was not approved.`
+            : `Votre demande de changement de forfait n'a pas été approuvée.`,
+          badge: t("DEMANDE EXAMINÉE", "REQUEST REVIEWED", lang),
+          heroTitle: t("Demande non approuvée", "Request not approved", lang),
+          icon: "alert",
+          greeting,
+          bodyText: isEn
+            ? `After review, your request to switch to ${toPlan} could not be approved at this time. Our support team can help you find an alternative.`
+            : `Après examen, votre demande de passage à ${toPlan} n'a pas pu être approuvée pour le moment. Notre équipe de support peut vous aider à trouver une alternative.`,
+          cardTitle: t("Détails", "Details", lang),
+          cardRows: [
+            [t("Forfait demandé", "Requested plan", lang), toPlan],
+            [t("Motif", "Reason", lang), reason],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: t("Contacter le support", "Contact support", lang),
+          helpHtml: isEn
+            ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Besoin d'aide ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+
+
     // ===================================================================
     // SERVICE PAUSE — client self-serve (Feature: pause service online)
     // ===================================================================
