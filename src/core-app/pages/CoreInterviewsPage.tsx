@@ -80,6 +80,37 @@ export default function CoreInterviewsPage() {
     },
   });
 
+  const { data: allForms = [] } = useQuery({
+    queryKey: ["all-onboarding-forms"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("employee_onboarding_forms")
+        .select("id, applicant_id, status, full_legal_name, email, phone, submitted_at, token_expires_at, created_at")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const formsByApplicant = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const f of allForms as any[]) {
+      if (!f.applicant_id) continue;
+      const existing = m.get(f.applicant_id);
+      // Prefer submitted/reviewed over pending
+      if (!existing || (existing.status === "pending" && f.status !== "pending")) m.set(f.applicant_id, f);
+    }
+    return m;
+  }, [allForms]);
+
+  const submittedForms = useMemo(
+    () => (allForms as any[]).filter((f) => f.status === "submitted" || f.status === "reviewed"),
+    [allForms]
+  );
+  const pendingFormsCount = useMemo(
+    () => (allForms as any[]).filter((f) => f.status === "pending").length,
+    [allForms]
+  );
+
   const { data: answers = [] } = useQuery({
     enabled: !!selected,
     queryKey: ["interview-answers", selected?.id],
