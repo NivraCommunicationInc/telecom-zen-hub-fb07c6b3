@@ -59,6 +59,8 @@ const reasonCodeLabels: Record<string, string> = {
   billing_issue: "Problème de facturation", other: "Autre raison",
 };
 
+const PAGE_SIZE = 10;
+
 export default function CoreCancellationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -68,6 +70,7 @@ export default function CoreCancellationsPage() {
   const [publicMessage, setPublicMessage] = useState("");
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["core-cancellations"],
