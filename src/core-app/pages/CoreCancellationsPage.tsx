@@ -152,6 +152,32 @@ export default function CoreCancellationsPage() {
 
       const result: any = { id, ...update, _sideEffects: { subscription: false, sim: false, equipment: false, invoice: null as null | "voided" | "marked_overdue", account: false, email: false, note: false } };
 
+      // Lifecycle emails for non-approved transitions
+      if (fields.status === "declined" || fields.status === "completed") {
+        try {
+          const { data: cp } = req.user_id
+            ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
+            : { data: null };
+          if (cp?.email) {
+            await supabase.functions.invoke("send-cancellation-notification", {
+              body: {
+                template: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
+                to_email: cp.email,
+                client_name: cp.full_name ?? "Client",
+                request_number: req.request_number ?? id.slice(0, 8),
+                service_type: req.service_type,
+                effective_date: (fields.effective_date as string) || req.effective_date || "",
+                decline_reason: (fields.decline_reason as string) || "",
+                public_message: (fields.public_message as string) || "",
+              },
+            });
+            result._sideEffects.email = true;
+          }
+        } catch (e: any) {
+          console.error("[CoreCancellations] lifecycle email failed:", e?.message ?? e);
+        }
+      }
+
       // Side-effects only run on approval transitions
       if (fields.status !== "approved" || !req) return result;
 
