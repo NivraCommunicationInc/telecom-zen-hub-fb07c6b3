@@ -3931,7 +3931,7 @@ export function renderQueueTemplate(
           badge: isEnglish ? "APPLICATION ACCEPTED" : "CANDIDATURE ACCEPTÉE",
           heroTitle: isEnglish
             ? "Welcome to the Nivra team!"
-            : "Bienvenue dans l équipe Nivra!",
+            : "Bienvenue dans l'équipe Nivra!",
           icon: "check",
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
