@@ -4363,9 +4363,93 @@ export function renderQueueTemplate(
         }),
       };
     }
+    case "all_documents_sent": {
+      const firstName = String(v.first_name || clientName);
+      return {
+        subject: isEn ? "Your documents — Nivra Telecom" : "Vos documents — Nivra Telecom",
+        html: shell({
+          badge: isEn ? "DOCUMENTS SENT" : "DOCUMENTS ENVOYÉS",
+          heroTitle: isEn ? "All your documents have been sent" : "Tous vos documents ont été envoyés",
+          greeting: `${isEn ? "Hello" : "Bonjour"} ${firstName},`,
+          bodyText: isEn
+            ? "All requested documents have been successfully sent to your email address."
+            : "Tous les documents demandés ont été envoyés avec succès à votre adresse courriel.",
+          ctaPrimaryUrl: "https://nivra-telecom.ca/portal",
+          ctaPrimaryLabel: isEn ? "Access my account" : "Accéder à mon compte",
+        }),
+      };
+    }
 
+    case "employee_badge_ready": {
+      const firstName = String(v.first_name || "");
+      const badgeUrl = String(v.badge_url || "#");
+      const agentNumber = String(v.agent_number || "");
+      return {
+        subject: "Votre badge numérique — Nivra Telecom",
+        html: shell({
+          badge: "BADGE NUMÉRIQUE PRÊT",
+          heroTitle: "Votre badge numérique est prêt!",
+          greeting: `Bonjour ${firstName},`,
+          bodyText: "Votre badge d'identification numérique Nivra Telecom est maintenant disponible.",
+          cardRows: [
+            ["Numéro d'agent", agentNumber],
+            ["Format", "Badge numérique officiel"],
+          ],
+          ctaPrimaryUrl: badgeUrl,
+          ctaPrimaryLabel: "Télécharger mon badge",
+        }),
+      };
+    }
 
+    case "technician_assigned": {
+      const firstName = String(v.first_name || clientName);
+      const techName = String(v.technician_name || (isEn ? "Our technician" : "Notre technicien"));
+      const installDate = String(v.install_date || "");
+      const installTime = String(v.install_time || "");
+      return {
+        subject: isEn
+          ? "Your technician is assigned — Nivra Telecom"
+          : "Votre technicien est assigné — Nivra Telecom",
+        html: shell({
+          badge: isEn ? "TECHNICIAN ASSIGNED" : "TECHNICIEN ASSIGNÉ",
+          heroTitle: isEn ? "Your technician has been assigned!" : "Votre technicien a été assigné!",
+          greeting: `${isEn ? "Hello" : "Bonjour"} ${firstName},`,
+          bodyText: isEn
+            ? `${techName} will be at your home for the installation.`
+            : `${techName} se rendra chez vous pour l'installation.`,
+          cardRows: isEn
+            ? [["Technician", techName], ["Date", installDate], ["Time", installTime]]
+            : [["Technicien", techName], ["Date", installDate], ["Heure", installTime]],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/portal",
+          ctaPrimaryLabel: isEn ? "Track my installation" : "Suivre mon installation",
+        }),
+      };
+    }
 
+    case "ticket_reply": {
+      const firstName = String(v.first_name || clientName);
+      const ticketNumber = String(v.ticket_number || "");
+      const replyText = String(v.reply_text || "");
+      const ticketUrl = String(v.ticket_url || "https://nivra-telecom.ca/portal");
+      return {
+        subject: isEn
+          ? `Reply to your ticket ${ticketNumber} — Nivra Telecom`
+          : `Réponse à votre ticket ${ticketNumber} — Nivra Telecom`,
+        html: shell({
+          badge: isEn ? "SUPPORT REPLY" : "RÉPONSE SUPPORT",
+          heroTitle: isEn ? "The Nivra team has replied" : "L'équipe Nivra vous a répondu",
+          greeting: `${isEn ? "Hello" : "Bonjour"} ${firstName},`,
+          bodyText: replyText.length > 0
+            ? replyText.substring(0, 300) + (replyText.length > 300 ? "..." : "")
+            : (isEn
+                ? "A new reply has been added to your support ticket."
+                : "Une nouvelle réponse a été ajoutée à votre ticket de support."),
+          cardRows: [["Ticket", ticketNumber]],
+          ctaPrimaryUrl: ticketUrl,
+          ctaPrimaryLabel: isEn ? "Read the full reply" : "Lire la réponse complète",
+        }),
+      };
+    }
 
     default:
       return null;
