@@ -375,7 +375,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
                 </div>
                 {appointment.technician_id && (
                   <div className="flex items-center gap-1.5 text-xs text-green-300">
-                    <User className="h-3 w-3" /> Technicien: <span className="font-mono">{appointment.technician_id.slice(0, 8)}</span>
+                    <User className="h-3 w-3" /> Technicien: <span>{technicianName}</span>
                   </div>
                 )}
                 {appointment.status !== "completed" && appointment.status !== "cancelled" && (
