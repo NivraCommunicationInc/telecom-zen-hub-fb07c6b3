@@ -265,6 +265,7 @@ export default function CorePlanChangesPage() {
   // ---------- Mutations ----------
   const approveMut = useMutation({
     mutationFn: async (r: Row) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const meta = r.subscription_id ? subMeta?.[r.subscription_id] : undefined;
       const newPrice = r.requested_plan_id ? planPrices?.[r.requested_plan_id] ?? null : null;
       const currentPrice = meta?.plan_price ?? null;
@@ -304,7 +305,11 @@ export default function CorePlanChangesPage() {
 
       const { error: upErr } = await supabase
         .from("service_change_requests")
-        .update({ status: "approved", approved_at: new Date().toISOString() })
+        .update({
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          approved_by: user?.id ?? null,
+        })
         .eq("id", r.id);
       if (upErr) throw upErr;
 
