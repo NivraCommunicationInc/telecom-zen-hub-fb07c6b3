@@ -329,7 +329,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
           title="Installation complétée par le technicien"
           at={appointment.scheduled_at}
           details={[
-            { label: "Technicien", value: appointment.technician_id ? String(appointment.technician_id).slice(0, 8) : null, mono: true },
+            { label: "Technicien", value: appointment.technician_id ? technicianName : null },
             { label: "Rendez-vous", value: appointment.scheduled_at ? fmtDateTime(appointment.scheduled_at) : null },
             { label: "Adresse", value: appointment.service_address },
             { label: "Méthode", value: appointment.installation_method },
