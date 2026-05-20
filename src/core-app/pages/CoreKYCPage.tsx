@@ -496,7 +496,7 @@ export default function CoreKYCPage() {
                       </td>
                       <td className="px-3 py-2.5"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${stRow.color}`}>{stRow.label}</span></td>
                       <td className="px-3 py-2.5 text-[#94A3B8]">{s.submitted_at ? format(new Date(s.submitted_at), "dd MMM HH:mm", { locale: fr }) : s.created_at ? format(new Date(s.created_at), "dd MMM HH:mm", { locale: fr }) : "—"}</td>
-                      <td className="px-3 py-2.5 text-[#94A3B8] font-mono text-[10px]">{s.reviewed_by?.slice(0, 8) || "—"}</td>
+                      <td className="px-3 py-2.5 text-[#94A3B8] text-[11px]">{s.reviewed_by ? <ProfileName userId={s.reviewed_by} /> : "—"}</td>
                       <td className="px-3 py-2.5">
                         <button className="h-6 w-6 flex items-center justify-center rounded border border-[hsl(220,15%,20%)] text-[#94A3B8] hover:text-[#F8FAFC] hover:border-emerald-500/40 transition-colors">
                           <Eye className="h-3 w-3" />
