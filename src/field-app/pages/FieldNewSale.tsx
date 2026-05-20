@@ -453,6 +453,9 @@ export default function FieldNewSale() {
         },
       });
       if (error) throw error;
+      if (data && (data.ok === false || (data.error && !data.intent_id))) {
+        throw new Error(data.error || "Erreur lors du traitement de la carte.");
+      }
       if (!data?.intent_id) throw new Error("Réponse invalide du backend (intent_id manquant).");
 
       const intentId: string = data.intent_id;
