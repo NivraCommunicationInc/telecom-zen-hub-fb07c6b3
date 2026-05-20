@@ -13,9 +13,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { UserPlus, Search, Loader2, Download, ArrowRight, Check, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { UserPlus, Search, Loader2, Download, ArrowRight, Check, X, Mail, Phone, Briefcase, Calendar, FileText, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
