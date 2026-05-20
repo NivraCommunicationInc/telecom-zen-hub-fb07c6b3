@@ -660,6 +660,7 @@ export default function InterviewPage() {
 
       if (step < questions.length - 1) {
         stopTts();
+        setQuestionSpoken(false);
         setStep(s => s + 1);
         setRecordSeconds(0);
       } else {
@@ -725,11 +726,12 @@ export default function InterviewPage() {
 
   useEffect(() => {
     if (phase !== "interview" || !currentQuestion) return;
-    const text = lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en;
-    const id = setTimeout(() => speak(text), 250);
+    setQuestionSpoken(false);
+    const text = buildQuestionNarration(currentQuestion);
+    const id = setTimeout(() => speak(text, () => setQuestionSpoken(true)), 250);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, step, currentQuestion?.id, lang]);
+  }, [phase, step, currentQuestion?.id, lang, buildQuestionNarration]);
 
   const progress = useMemo(() => {
     if (phase !== "interview" || questions.length === 0) return 0;
