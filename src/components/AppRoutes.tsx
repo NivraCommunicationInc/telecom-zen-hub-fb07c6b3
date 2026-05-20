@@ -159,6 +159,7 @@ const CoreRmaPage = lazy(() => import("@/core-app/pages/CoreRmaPage"));
 const CoreCancellationsPage = lazy(() => import("@/core-app/pages/CoreCancellationsPage"));
 const CoreReviewsPage = lazy(() => import("@/core-app/pages/CoreReviewsPage"));
 const ComplaintPage = lazy(() => import("@/pages/ComplaintPage"));
+const ComplaintTrackingPage = lazy(() => import("@/pages/ComplaintTrackingPage"));
 const CoreComplaintsPage = lazy(() => import("@/core-app/pages/CoreComplaintsPage"));
 const FieldComplaintsPage = lazy(() => import("@/field-app/pages/FieldComplaintsPage"));
 const EmployeeComplaintsPage = lazy(() => import("@/employee-app/pages/EmployeeComplaintsPage"));
@@ -557,6 +558,7 @@ const AppRoutes = () => {
       <Route path="/nps/:token" element={<MaintenanceGuard><PublicLayout><NPSSurvey /></PublicLayout></MaintenanceGuard>} />
       <Route path="/avis/:token" element={<ClientReviewPage />} />
       <Route path="/plainte" element={<Suspense fallback={null}><ComplaintPage /></Suspense>} />
+      <Route path="/plainte/suivi/:token" element={<Suspense fallback={null}><ComplaintTrackingPage /></Suspense>} />
       <Route path="/entrevue/:token" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><InterviewPage /></Suspense></MaintenanceGuard>} />
       <Route path="/presse" element={<MaintenanceGuard><PublicLayout><Presse /></PublicLayout></MaintenanceGuard>} />
       <Route path="/contact" element={<MaintenanceGuard><PublicLayout><Contact /></PublicLayout></MaintenanceGuard>} />

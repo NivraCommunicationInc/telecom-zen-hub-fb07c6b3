@@ -108,7 +108,7 @@ export default function ComplaintPage() {
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ ticket: string } | null>(null);
+  const [success, setSuccess] = useState<{ ticket: string; trackingUrl: string } | null>(null);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit =
@@ -170,7 +170,7 @@ export default function ComplaintPage() {
           priority: "normal",
           status: "new",
         } as any)
-        .select("id, ticket_number")
+        .select("id, ticket_number, public_token")
         .single();
 
       if (insErr || !complaint) {
@@ -198,8 +198,8 @@ export default function ComplaintPage() {
 
       const priorityLabel = "Normale";
       const slaLabel = "72 heures";
-      const portalUrl =
-        typeof window !== "undefined" ? `${window.location.origin}/plainte` : "/plainte";
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const portalUrl = `${origin}/plainte/suivi/${(complaint as any).public_token}`;
 
       await supabase.from("email_queue").insert([
         {
@@ -241,7 +241,7 @@ export default function ComplaintPage() {
         },
       ] as any);
 
-      setSuccess({ ticket: complaint.ticket_number });
+      setSuccess({ ticket: complaint.ticket_number, trackingUrl: portalUrl });
     } catch (err: any) {
       setError(err?.message ?? "Une erreur est survenue. Veuillez réessayer.");
     } finally {
@@ -295,16 +295,25 @@ export default function ComplaintPage() {
           <p className="text-sm mb-6" style={{ color: C.textSecondary }}>
             <strong style={{ color: C.textPrimary }}>Délai de traitement :</strong> 72 heures
           </p>
-          <button
-            type="button"
-            onClick={() => (window.location.href = "/")}
-            className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
-            style={{ background: C.accent, color: "#FFFFFF" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = C.accentHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = C.accent)}
-          >
-            Retour à l accueil
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={success.trackingUrl}
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
+              style={{ background: C.accent, color: "#FFFFFF" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.accentHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = C.accent)}
+            >
+              Suivre ma plainte
+            </a>
+            <button
+              type="button"
+              onClick={() => (window.location.href = "/")}
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
+              style={{ background: "transparent", color: C.textPrimary, border: `1px solid ${C.border}` }}
+            >
+              Retour à l'accueil
+            </button>
+          </div>
         </div>
       </div>
     );

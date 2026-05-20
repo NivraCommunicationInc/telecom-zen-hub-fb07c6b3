@@ -4502,6 +4502,7 @@ export type Database = {
           escalated_by: string | null
           id: string
           priority: string
+          public_token: string
           resolved_at: string | null
           sla_deadline: string | null
           status: string
@@ -4524,6 +4525,7 @@ export type Database = {
           escalated_by?: string | null
           id?: string
           priority?: string
+          public_token?: string
           resolved_at?: string | null
           sla_deadline?: string | null
           status?: string
@@ -4546,6 +4548,7 @@ export type Database = {
           escalated_by?: string | null
           id?: string
           priority?: string
+          public_token?: string
           resolved_at?: string | null
           sla_deadline?: string | null
           status?: string
@@ -25060,6 +25063,10 @@ export type Database = {
           token_expires_at: string
           trigger_type: string
         }[]
+      }
+      get_complaint_by_public_token: {
+        Args: { p_token: string }
+        Returns: Json
       }
       get_contract_for_signing: { Args: { p_token: string }; Returns: Json }
       get_customer_unpaid_invoices: {
