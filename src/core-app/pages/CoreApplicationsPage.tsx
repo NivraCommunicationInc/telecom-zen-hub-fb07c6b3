@@ -2,13 +2,15 @@
  * CoreApplicationsPage — Recruitment pipeline: kanban-style stages with hire workflow.
  * Phase 8 rebuild — move stage, reject, hire (creates employee_records).
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -16,10 +18,15 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Search, Loader2, Download, ArrowRight, Check, X, Mail, Phone, Briefcase, Calendar, FileText, Eye, AlertCircle } from "lucide-react";
+import {
+  UserPlus, Search, Loader2, Download, ArrowRight, Check, X, Mail, Phone, Briefcase,
+  Calendar, FileText, Eye, AlertCircle, ClipboardCheck, CalendarPlus, Send, UserCheck,
+  MailCheck, CheckCircle2, ExternalLink, RotateCcw,
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { corePath } from "@/core-app/lib/corePaths";
 
 const STAGES = [
   { key: "new", label: "Nouvelles", color: "bg-sky-500/15 text-sky-600 border-sky-500/30" },
@@ -39,11 +46,32 @@ const NEXT_STAGE: Record<string, string | null> = {
   rejected: null,
 };
 
+const WORKFLOW_STEPS = [
+  { stage: "reviewing", title: "1. Examen RH", text: "Lire le formulaire, CV, notes et qualifier le candidat.", icon: ClipboardCheck },
+  { stage: "interview", title: "2. Entrevue", text: "Planifier l'entrevue et garder la date au dossier.", icon: CalendarPlus },
+  { stage: "offer", title: "3. Offre", text: "Préparer l'offre et confirmer les conditions avant embauche.", icon: Send },
+  { stage: "hired", title: "4. Embauche", text: "Créer l'employé, son rôle et envoyer l'invitation portail.", icon: UserCheck },
+];
+
+const getStageKey = (app: any) => app?.stage || app?.status || "new";
+
+const mergeTags = (tags: string[] | null | undefined, next: string) => {
+  const current = Array.isArray(tags) ? tags : [];
+  return current.includes(next) ? current : [...current, next];
+};
+
 export default function CoreApplicationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [hireApp, setHireApp] = useState<any | null>(null);
   const [detailApp, setDetailApp] = useState<any | null>(null);
+  const [workflowApp, setWorkflowApp] = useState<any | null>(null);
+  const [workflowAction, setWorkflowAction] = useState<"interview" | "offer" | "reject" | null>(null);
+  const [workflowForm, setWorkflowForm] = useState({
+    interview_date: "",
+    offer_note: "",
+    rejection_reason: "",
+  });
   const [hireForm, setHireForm] = useState({
     first_name: "", last_name: "", work_email: "",
     job_title: "", department: "", hire_date: format(new Date(), "yyyy-MM-dd"),
