@@ -482,7 +482,7 @@ export default function CoreAgentDiscounts() {
                   <TableBody>
                     {usage.map((u) => (
                       <TableRow key={u.id}>
-                        <TableCell>{u.agent_id.slice(0, 8)}…</TableCell>
+                        <TableCell><ProfileName userId={u.agent_id} /></TableCell>
                         <TableCell>{u.customer_name || "—"}</TableCell>
                         <TableCell>{u.field_order_id ? u.field_order_id.slice(0, 8) + "…" : "—"}</TableCell>
                         <TableCell>{new Date(u.created_at).toLocaleDateString("fr-CA")}</TableCell>
