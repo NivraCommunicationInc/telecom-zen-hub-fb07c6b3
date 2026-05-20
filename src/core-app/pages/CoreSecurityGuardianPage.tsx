@@ -14,6 +14,7 @@ import { Shield, Search, Eye, RefreshCcw, Lock, CheckCircle, AlertTriangle, User
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { ProfileName } from "@/hooks/useProfileName";
 
 export default function CoreSecurityGuardianPage() {
   const [tab, setTab] = useState("sessions");
