@@ -16,7 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Search, Loader2, Download, ArrowRight, Check, X, Mail, Phone, Briefcase, Calendar, FileText, Eye } from "lucide-react";
+import { UserPlus, Search, Loader2, Download, ArrowRight, Check, X, Mail, Phone, Briefcase, Calendar, FileText, Eye, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -51,14 +51,15 @@ export default function CoreApplicationsPage() {
     role: "employee" as "employee" | "admin" | "field_sales",
   });
 
-  const { data: apps = [], isLoading } = useQuery({
+  const { data: apps = [], isLoading, isError, error } = useQuery({
     queryKey: ["core-applications-pipeline"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("job_applications")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
+      if (error) throw error;
       return data ?? [];
     },
   });
@@ -66,7 +67,8 @@ export default function CoreApplicationsPage() {
   const { data: jobs = [] } = useQuery({
     queryKey: ["core-applications-jobs"],
     queryFn: async () => {
-      const { data } = await supabase.from("jobs").select("id, title");
+      const { data, error } = await supabase.from("jobs").select("id, title");
+      if (error) throw error;
       return data ?? [];
     },
   });
@@ -204,6 +206,18 @@ export default function CoreApplicationsPage() {
 
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : isError ? (
+        <Card className="border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">Impossible de charger les candidatures</p>
+              <p className="text-xs text-muted-foreground">
+                Ton compte doit avoir un rôle interne actif avec accès Nivra Core/RH. Détail: {(error as Error)?.message || "accès refusé"}
+              </p>
+            </div>
+          </div>
+        </Card>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {STAGES.map((stage) => {
