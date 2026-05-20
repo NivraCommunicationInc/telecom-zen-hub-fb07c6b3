@@ -75,6 +75,7 @@ export default function CoreCancellationsPage() {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["core-cancellations"],
     staleTime: 30_000,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_cancellation_requests")
