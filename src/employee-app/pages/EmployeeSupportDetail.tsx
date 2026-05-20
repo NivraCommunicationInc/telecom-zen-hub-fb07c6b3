@@ -389,7 +389,7 @@ export default function EmployeeSupportDetail() {
           {/* Traceability */}
           <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground font-mono">
             <span>ticket: {ticket.id.slice(0, 8)}</span>
-            {ticket.user_id && <span>· client: {ticket.user_id.slice(0, 8)}</span>}
+            {ticket.user_id && <span className="font-sans">· client: <ProfileName userId={ticket.user_id} /></span>}
             {ticket.related_order_id && <span>· order: {ticket.related_order_id.slice(0, 8)}</span>}
           </div>
         </div>
