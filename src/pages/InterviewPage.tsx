@@ -529,8 +529,16 @@ export default function InterviewPage() {
   const currentQuestion = phase === "interview" ? questions[step] : null;
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
 
+  const buildQuestionNarration = useCallback((question: Question) => {
+    const questionText = lang === "fr" ? question.question_fr : question.question_en;
+    if (lang === "fr") {
+      return `Question ${step + 1}. Mise en situation Nivra Telecom. ${questionText} Prenez quelques secondes pour structurer votre réponse. Quand vous êtes prêt, répondez comme si j'étais le client devant vous.`;
+    }
+    return `Question ${step + 1}. Nivra Telecom scenario. ${questionText} Take a few seconds to structure your answer. When you are ready, answer as if I were the customer in front of you.`;
+  }, [lang, step]);
+
   const startRecording = () => {
-    if (!streamRef.current || recording) return;
+    if (!streamRef.current || recording || speaking || ttsLoading || !questionSpoken) return;
     recordedChunksRef.current = [];
     try {
       const rec = new MediaRecorder(streamRef.current, { mimeType: VIDEO_MIME });
