@@ -1,16 +1,33 @@
 /**
- * /entrevue/:token — Public AI interview page for job applicants.
- * Token-gated via RPC get_applicant_by_token. Submits to edge function interview-submit.
- * Features: Nova AI voice (Web Speech API TTS), 100-char minimum answers, bilingual FR/EN.
+ * /entrevue/:token — Public AI interview page (video + voice edition).
+ *
+ * Flow: welcome → "how it works" instructions → camera/mic permission &
+ * test → per-question video recording (Nova asks via ElevenLabs TTS,
+ * candidate answers on webcam) → auto transcription → submit.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle2, AlertCircle, Volume2, VolumeX, Sparkles, Mic } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  Mic,
+  Video,
+  Camera,
+  RotateCcw,
+  Square,
+  Play,
+  Clock,
+  ShieldCheck,
+  PhoneCall,
+} from "lucide-react";
 
 type Applicant = {
   id: string;
@@ -29,7 +46,24 @@ type Question = {
   order_index: number;
 };
 
-const MIN_CHARS = 100;
+type RecordedAnswer = {
+  blob: Blob;
+  url: string;
+  durationSeconds: number;
+  uploadedPath?: string;
+  transcript?: string;
+};
+
+const MIN_SECONDS = 15;
+const MAX_SECONDS = 180;
+const VIDEO_MIME =
+  typeof MediaRecorder !== "undefined"
+    ? (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+        ? "video/webm;codecs=vp8,opus"
+        : "video/webm")
+    : "video/webm";
 
 const T = {
   fr: {
@@ -37,145 +71,236 @@ const T = {
     invalid: "Lien invalide ou expiré.",
     alreadyDone: "Vous avez déjà complété cette entrevue. Merci!",
     novaTitle: "Nova — Assistante RH Nivra Telecom",
-    novaSubtitle: "Entrevue virtuelle assistée par IA",
+    novaSubtitle: "Entrevue virtuelle vidéo assistée par IA",
     welcomeTitle: "Bienvenue chez Nivra Telecom",
-    intro: (n: string) =>
-      `Bonjour ${n}. Je suis Nova, l'assistante RH de Nivra Telecom. Je suis là pour apprendre à vous connaître. Cette entrevue dure environ 15 minutes. Prenez votre temps pour répondre. Êtes-vous prêt à commencer?`,
-    start: "Je suis prêt — commencer",
+    welcomeBody: (n: string) =>
+      `Bonjour ${n}. Je suis Nova, votre interlocutrice virtuelle. Nous allons faire ensemble une courte entrevue vidéo pour mieux vous connaître. Préparez‑vous, prenez une grande respiration, et cliquez sur « Voir comment ça fonctionne » lorsque vous êtes prêt.`,
+    nextHow: "Voir comment ça fonctionne",
+    howTitle: "Comment fonctionne votre entrevue",
+    howIntro:
+      "Voici exactement ce qui va se passer. Lisez attentivement avant de commencer — vous serez ensuite prêt à répondre avec confiance.",
+    howSteps: [
+      {
+        icon: "speaker",
+        title: "Nova vous parle",
+        body:
+          "À chaque étape, Nova lit la question à voix haute avec une voix naturelle. Vous pouvez la réécouter autant de fois que nécessaire.",
+      },
+      {
+        icon: "video",
+        title: "Vous répondez par vidéo",
+        body:
+          "Votre caméra et votre micro sont utilisés pour enregistrer votre réponse. C'est comme un appel vidéo — regardez la caméra, parlez naturellement.",
+      },
+      {
+        icon: "scenario",
+        title: "Mises en situation télécom",
+        body:
+          "Plusieurs questions sont des mises en situation réelles de porte-à-porte (ex.: un client refuse, un client est satisfait avec Bell, etc.). Répondez comme si vous étiez devant la porte.",
+      },
+      {
+        icon: "rec",
+        title: "15 à 180 secondes par réponse",
+        body:
+          "Prenez au moins 15 secondes pour développer. Vous pouvez réécouter et refaire votre vidéo avant de la valider. Une fois validée, on passe à la suivante.",
+      },
+      {
+        icon: "shield",
+        title: "Confidentiel et sécurisé",
+        body:
+          "Vos vidéos sont stockées de façon chiffrée et accessibles uniquement à l'équipe RH de Nivra Telecom. Elles ne seront jamais partagées.",
+      },
+    ],
+    tipsTitle: "Conseils pour réussir",
+    tips: [
+      "Trouvez un endroit calme, bien éclairé (lumière en face de vous).",
+      "Tenez votre téléphone ou ordinateur stable, à hauteur du visage.",
+      "Parlez clairement, naturellement, comme dans une vraie conversation.",
+      "Soyez honnête : Nova évalue l'authenticité, pas la perfection.",
+    ],
+    duration: "Durée totale estimée : 15 à 20 minutes",
+    nextSetup: "Continuer — autoriser caméra et micro",
+    setupTitle: "Test de votre caméra et de votre micro",
+    setupBody:
+      "Cliquez sur le bouton ci-dessous pour autoriser l'accès. Vous verrez ensuite votre image et un niveau audio. Vérifiez que tout fonctionne avant de commencer.",
+    askPerm: "Autoriser caméra et micro",
+    permDeniedTitle: "Accès refusé",
+    permDeniedBody:
+      "Nous n'avons pas pu accéder à votre caméra ou votre micro. Vérifiez les permissions de votre navigateur puis recliquez sur le bouton.",
+    retryPerm: "Réessayer",
+    audioLevel: "Niveau audio",
+    audioHint:
+      "Parlez normalement. La barre verte doit bouger lorsque vous parlez.",
+    cameraOk: "Caméra et micro prêts.",
+    startInterview: "Je suis prêt — commencer l'entrevue",
     progress: "Question",
     of: "sur",
-    placeholder: "Votre réponse (minimum 100 caractères, soyez précis et honnête)…",
-    minChars: `Minimum ${MIN_CHARS} caractères pour passer à la suivante.`,
-    charsCount: (n: number) => `${n} / ${MIN_CHARS} caractères minimum`,
-    next: "Suivante",
-    previous: "Précédente",
-    submit: "Soumettre l'entrevue",
-    submitting: "Analyse en cours…",
+    novaSpeaking: "Nova parle…",
+    listenAgain: "Réécouter la question",
+    notReadyYet: "Préparation de votre réponse…",
+    record: "Démarrer l'enregistrement",
+    stop: "Arrêter",
+    redo: "Refaire",
+    review: "Revoir ma vidéo",
+    validate: "Valider et continuer",
+    submitInterview: "Terminer et soumettre",
+    submitting: "Envoi et analyse en cours…",
+    transcribing: "Transcription de votre réponse…",
+    uploading: "Téléversement…",
+    minSec: (s: number) =>
+      `Minimum ${MIN_SECONDS} secondes (actuellement ${s}s).`,
+    maxSec: `Limite ${MAX_SECONDS} secondes atteinte — arrêt automatique.`,
+    elapsed: "Temps écoulé",
     doneTitle: "Entrevue complétée — Merci!",
-    doneText: "Votre entrevue a été soumise et analysée. Notre équipe vous contactera sous 24-48h ouvrables.",
+    doneText:
+      "Votre entrevue vidéo a été envoyée et analysée. Notre équipe RH la révisera et vous reviendra sous 24 à 48 heures ouvrables.",
     errorTitle: "Erreur",
-    speaking: "Nova parle…",
+    needRecord: "Veuillez enregistrer une vidéo de réponse pour continuer.",
     muteOn: "Activer la voix de Nova",
     muteOff: "Couper la voix de Nova",
-    listenAgain: "Réécouter la question",
+    cancelRetake: "Annuler",
   },
   en: {
     loading: "Loading…",
     invalid: "Invalid or expired link.",
     alreadyDone: "You have already completed this interview. Thank you!",
     novaTitle: "Nova — HR Assistant at Nivra Telecom",
-    novaSubtitle: "AI-assisted virtual interview",
+    novaSubtitle: "AI-assisted virtual video interview",
     welcomeTitle: "Welcome to Nivra Telecom",
-    intro: (n: string) =>
-      `Hello ${n}. I am Nova, the HR assistant at Nivra Telecom. I am here to learn about you. This interview takes about 15 minutes. Take your time to answer each question. Are you ready to begin?`,
-    start: "I'm ready — start",
+    welcomeBody: (n: string) =>
+      `Hello ${n}. I am Nova, your virtual interviewer. We will do a short video interview together to get to know you. Take a deep breath, then click "See how it works" when you are ready.`,
+    nextHow: "See how it works",
+    howTitle: "How your interview works",
+    howIntro:
+      "Here is exactly what is going to happen. Read carefully before starting — you will then be ready to answer with confidence.",
+    howSteps: [
+      {
+        icon: "speaker",
+        title: "Nova speaks to you",
+        body:
+          "At each step, Nova reads the question aloud with a natural voice. You can replay it as many times as you need.",
+      },
+      {
+        icon: "video",
+        title: "You answer on video",
+        body:
+          "Your camera and microphone are used to record your answer. It is like a video call — look at the camera and speak naturally.",
+      },
+      {
+        icon: "scenario",
+        title: "Real telecom scenarios",
+        body:
+          "Several questions are real door-to-door scenarios (e.g. a customer refuses, a customer is happy with Bell, etc.). Answer as if you were standing at the door.",
+      },
+      {
+        icon: "rec",
+        title: "15 to 180 seconds per answer",
+        body:
+          "Take at least 15 seconds to develop your answer. You can replay and re-record before validating. Once validated, we move to the next.",
+      },
+      {
+        icon: "shield",
+        title: "Confidential and secure",
+        body:
+          "Your videos are stored securely and accessible only to the Nivra Telecom HR team. They will never be shared.",
+      },
+    ],
+    tipsTitle: "Tips to succeed",
+    tips: [
+      "Find a quiet, well-lit spot (light facing you).",
+      "Hold your phone or laptop steady, at face height.",
+      "Speak clearly and naturally, like a real conversation.",
+      "Be honest — Nova evaluates authenticity, not perfection.",
+    ],
+    duration: "Estimated total duration: 15 to 20 minutes",
+    nextSetup: "Continue — allow camera and microphone",
+    setupTitle: "Test your camera and microphone",
+    setupBody:
+      "Click the button below to allow access. You will then see your image and an audio level. Check that everything works before starting.",
+    askPerm: "Allow camera and microphone",
+    permDeniedTitle: "Access denied",
+    permDeniedBody:
+      "We could not access your camera or microphone. Check your browser permissions and try again.",
+    retryPerm: "Retry",
+    audioLevel: "Audio level",
+    audioHint:
+      "Speak normally. The green bar should move when you talk.",
+    cameraOk: "Camera and microphone ready.",
+    startInterview: "I'm ready — start the interview",
     progress: "Question",
     of: "of",
-    placeholder: "Your answer (minimum 100 characters, be specific and honest)…",
-    minChars: `Minimum ${MIN_CHARS} characters to continue.`,
-    charsCount: (n: number) => `${n} / ${MIN_CHARS} characters minimum`,
-    next: "Next",
-    previous: "Previous",
-    submit: "Submit interview",
-    submitting: "Analyzing…",
+    novaSpeaking: "Nova is speaking…",
+    listenAgain: "Replay the question",
+    notReadyYet: "Preparing your answer…",
+    record: "Start recording",
+    stop: "Stop",
+    redo: "Re-record",
+    review: "Review my video",
+    validate: "Validate and continue",
+    submitInterview: "Finish and submit",
+    submitting: "Sending and analyzing…",
+    transcribing: "Transcribing your answer…",
+    uploading: "Uploading…",
+    minSec: (s: number) => `Minimum ${MIN_SECONDS} seconds (currently ${s}s).`,
+    maxSec: `Limit of ${MAX_SECONDS} seconds reached — stopping automatically.`,
+    elapsed: "Elapsed",
     doneTitle: "Interview completed — Thank you!",
-    doneText: "Your interview has been submitted and analyzed. Our team will contact you within 24-48 business hours.",
+    doneText:
+      "Your video interview has been submitted and analyzed. Our HR team will review it and get back to you within 24 to 48 business hours.",
     errorTitle: "Error",
-    speaking: "Nova is speaking…",
+    needRecord: "Please record a video answer to continue.",
     muteOn: "Turn on Nova's voice",
     muteOff: "Mute Nova's voice",
-    listenAgain: "Replay question",
+    cancelRetake: "Cancel",
   },
 };
+
+type Phase = "welcome" | "how" | "setup" | "interview";
 
 export default function InterviewPage() {
   const { token } = useParams<{ token: string }>();
   const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [step, setStep] = useState(-1); // -1 = welcome, 0..n-1 = questions
+  const [answers, setAnswers] = useState<Record<string, RecordedAnswer>>({});
+  const [phase, setPhase] = useState<Phase>("welcome");
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [tried, setTried] = useState(false);
+  const [permState, setPermState] = useState<"idle" | "asking" | "granted" | "denied">("idle");
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [processing, setProcessing] = useState<null | "uploading" | "transcribing">(null);
+
   const mutedRef = useRef(false);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordStartRef = useRef<number>(0);
+  const recordTimerRef = useRef<number | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const meterRafRef = useRef<number | null>(null);
 
   const lang = (applicant?.interview_language || "fr") as "fr" | "en";
   const t = T[lang];
 
-  // ---------- Nova TTS ----------
-  const speak = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (mutedRef.current) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === "fr" ? "fr-CA" : "en-US";
-      utterance.rate = 0.95;
-      utterance.pitch = 1.1;
-      utterance.volume = 1;
-      // Prefer a female-sounding voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const pref = voices.find(
-        (v) =>
-          v.lang.toLowerCase().startsWith(lang === "fr" ? "fr" : "en") &&
-          /female|femme|google|samantha|amelie|amélie|virginie|nathalie/i.test(v.name)
-      ) || voices.find((v) => v.lang.toLowerCase().startsWith(lang === "fr" ? "fr" : "en"));
-      if (pref) utterance.voice = pref;
-      utterance.onstart = () => setSpeaking(true);
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    } catch { setSpeaking(false); }
-  };
-
-  const stopSpeaking = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    setSpeaking(false);
-  };
-
-  const toggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    mutedRef.current = next;
-    if (next) stopSpeaking();
-  };
-
-  // Warm up voices on mount (some browsers lazy-load voices)
-  useEffect(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.getVoices();
-      const handler = () => window.speechSynthesis.getVoices();
-      window.speechSynthesis.addEventListener?.("voiceschanged", handler);
-      return () => {
-        window.speechSynthesis.removeEventListener?.("voiceschanged", handler);
-        window.speechSynthesis.cancel();
-      };
-    }
-  }, []);
-
-  // Speak the current question when it changes
-  useEffect(() => {
-    if (step < 0) return;
-    const q = questions[step];
-    if (!q) return;
-    setTried(false);
-    const text = lang === "fr" ? q.question_fr : q.question_en;
-    // Slight delay so the UI mounts cleanly
-    const id = setTimeout(() => speak(text), 200);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, questions, lang]);
-
+  // ---------- Load applicant + questions ----------
   useEffect(() => {
     (async () => {
       if (!token) { setError("invalid"); setLoading(false); return; }
       try {
-        const { data: appRes, error: appErr } = await supabase.rpc("get_applicant_by_token", { _token: token });
+        const { data: appRes, error: appErr } = await supabase.rpc(
+          "get_applicant_by_token",
+          { _token: token },
+        );
         if (appErr || !appRes || (Array.isArray(appRes) && appRes.length === 0)) {
           setError("invalid"); setLoading(false); return;
         }
@@ -198,42 +323,312 @@ export default function InterviewPage() {
     })();
   }, [token]);
 
-  // Speak welcome intro once applicant is loaded (requires user gesture in some browsers,
-  // but we attempt; the start button will also trigger it again indirectly).
+  // ---------- Cleanup on unmount ----------
   useEffect(() => {
-    if (applicant && step === -1 && !done) {
-      const id = setTimeout(() => speak(t.intro(applicant.first_name)), 400);
-      return () => clearTimeout(id);
-    }
+    return () => {
+      stopTts();
+      stopStream();
+      stopAudioMeter();
+      Object.values(answers).forEach(a => {
+        if (a.url) URL.revokeObjectURL(a.url);
+      });
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applicant, step, done]);
+  }, []);
 
-  const startInterview = async () => {
-    stopSpeaking();
-    setStep(0);
-    if (applicant) {
-      try { await supabase.rpc("mark_interview_started", { _token: token! }); } catch { /* noop */ }
+  // ---------- ElevenLabs TTS ----------
+  const stopTts = useCallback(() => {
+    if (audioElRef.current) {
+      try { audioElRef.current.pause(); } catch { /* noop */ }
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setSpeaking(false);
+  }, []);
+
+  const speak = useCallback(async (text: string) => {
+    if (!token || mutedRef.current || !text.trim()) return;
+    stopTts();
+    try {
+      setSpeaking(true);
+      const url = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-tts`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, text, lang }),
+      });
+      if (!res.ok) { setSpeaking(false); return; }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      audioUrlRef.current = blobUrl;
+      const audio = new Audio(blobUrl);
+      audioElRef.current = audio;
+      audio.onended = () => setSpeaking(false);
+      audio.onerror = () => setSpeaking(false);
+      await audio.play().catch(() => setSpeaking(false));
+    } catch {
+      setSpeaking(false);
+    }
+  }, [token, lang, stopTts]);
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    mutedRef.current = next;
+    if (next) stopTts();
+  };
+
+  // ---------- Camera / Mic ----------
+  const stopStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
     }
   };
 
-  const current = step >= 0 ? questions[step] : null;
-  const currentAnswer = current ? (answers[current.id] || "") : "";
-  const charCount = currentAnswer.trim().length;
-  const canAdvance = charCount >= MIN_CHARS;
+  const stopAudioMeter = () => {
+    if (meterRafRef.current) {
+      cancelAnimationFrame(meterRafRef.current);
+      meterRafRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try { audioCtxRef.current.close(); } catch { /* noop */ }
+      audioCtxRef.current = null;
+    }
+    analyserRef.current = null;
+    setAudioLevel(0);
+  };
 
-  const submit = async () => {
+  const startAudioMeter = (stream: MediaStream) => {
+    try {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+      const ctx: AudioContext = new Ctx();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / data.length;
+        setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
+        meterRafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch { /* noop */ }
+  };
+
+  const askPermission = async () => {
+    setPermState("asking");
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      streamRef.current = stream;
+      if (videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+        videoPreviewRef.current.muted = true;
+        videoPreviewRef.current.play().catch(() => { /* noop */ });
+      }
+      startAudioMeter(stream);
+      setPermState("granted");
+    } catch (e) {
+      console.warn("getUserMedia failed", e);
+      setPermState("denied");
+    }
+  };
+
+  // Re-bind preview when phase or step changes if we already have a stream
+  useEffect(() => {
+    if (streamRef.current && videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = streamRef.current;
+      videoPreviewRef.current.muted = true;
+      videoPreviewRef.current.play().catch(() => { /* noop */ });
+    }
+  }, [phase, step]);
+
+  // ---------- Recording ----------
+  const currentQuestion = phase === "interview" ? questions[step] : null;
+  const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
+
+  const startRecording = () => {
+    if (!streamRef.current || recording) return;
+    recordedChunksRef.current = [];
+    try {
+      const rec = new MediaRecorder(streamRef.current, { mimeType: VIDEO_MIME });
+      recorderRef.current = rec;
+      rec.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) recordedChunksRef.current.push(ev.data);
+      };
+      rec.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: VIDEO_MIME });
+        const url = URL.createObjectURL(blob);
+        const duration = Math.max(1, Math.round((Date.now() - recordStartRef.current) / 1000));
+        if (currentQuestion) {
+          setAnswers(prev => {
+            const old = prev[currentQuestion.id];
+            if (old?.url) URL.revokeObjectURL(old.url);
+            return {
+              ...prev,
+              [currentQuestion.id]: { blob, url, durationSeconds: duration },
+            };
+          });
+        }
+        setRecording(false);
+        if (recordTimerRef.current) {
+          window.clearInterval(recordTimerRef.current);
+          recordTimerRef.current = null;
+        }
+      };
+      stopTts();
+      recordStartRef.current = Date.now();
+      setRecordSeconds(0);
+      rec.start();
+      setRecording(true);
+      recordTimerRef.current = window.setInterval(() => {
+        const elapsed = Math.floor((Date.now() - recordStartRef.current) / 1000);
+        setRecordSeconds(elapsed);
+        if (elapsed >= MAX_SECONDS) {
+          stopRecording();
+        }
+      }, 250);
+    } catch (e) {
+      console.warn("MediaRecorder failed", e);
+      setError(String((e as Error)?.message || e));
+    }
+  };
+
+  const stopRecording = () => {
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    } catch { /* noop */ }
+  };
+
+  const redoCurrent = () => {
+    if (!currentQuestion) return;
+    const old = answers[currentQuestion.id];
+    if (old?.url) URL.revokeObjectURL(old.url);
+    setAnswers(prev => {
+      const copy = { ...prev };
+      delete copy[currentQuestion.id];
+      return copy;
+    });
+    setRecordSeconds(0);
+  };
+
+  // ---------- Validate (upload + transcribe) ----------
+  const validateAndNext = async () => {
+    if (!currentQuestion || !currentAnswer || !token) return;
+    if (currentAnswer.durationSeconds < MIN_SECONDS) {
+      setError(t.minSec(currentAnswer.durationSeconds));
+      return;
+    }
+    setError(null);
+
+    try {
+      let uploadedPath = currentAnswer.uploadedPath;
+      let transcript = currentAnswer.transcript;
+
+      if (!uploadedPath) {
+        setProcessing("uploading");
+        const path = `${token}/${currentQuestion.id}.webm`;
+        const { error: upErr } = await supabase
+          .storage
+          .from("interview-videos")
+          .upload(path, currentAnswer.blob, {
+            contentType: VIDEO_MIME,
+            upsert: true,
+          });
+        if (upErr) throw upErr;
+        uploadedPath = path;
+      }
+
+      if (!transcript) {
+        setProcessing("transcribing");
+        const ttUrl = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-transcribe?token=${encodeURIComponent(token)}&lang=${lang}`;
+        const res = await fetch(ttUrl, {
+          method: "POST",
+          headers: { "Content-Type": VIDEO_MIME },
+          body: currentAnswer.blob,
+        });
+        if (res.ok) {
+          const j = await res.json();
+          transcript = String(j?.transcript || "").trim();
+        } else {
+          transcript = "";
+        }
+      }
+
+      setAnswers(prev => ({
+        ...prev,
+        [currentQuestion.id]: {
+          ...currentAnswer,
+          uploadedPath,
+          transcript: transcript || "",
+        },
+      }));
+
+      setProcessing(null);
+
+      if (step < questions.length - 1) {
+        stopTts();
+        setStep(s => s + 1);
+        setRecordSeconds(0);
+      } else {
+        await submitAll({
+          ...answers,
+          [currentQuestion.id]: {
+            ...currentAnswer,
+            uploadedPath,
+            transcript: transcript || "",
+          },
+        });
+      }
+    } catch (e: any) {
+      setProcessing(null);
+      setError(e?.message || "upload_failed");
+    }
+  };
+
+  const submitAll = async (finalAnswers: Record<string, RecordedAnswer>) => {
     if (!token) return;
     setSubmitting(true);
     setError(null);
-    stopSpeaking();
+    stopTts();
     try {
       const payload = {
         token,
-        answers: questions.map(q => ({ question_id: q.id, answer_text: answers[q.id] || "" })),
+        answers: questions.map(q => {
+          const a = finalAnswers[q.id];
+          return {
+            question_id: q.id,
+            answer_text: a?.transcript || "",
+            transcript: a?.transcript || "",
+            transcript_lang: lang,
+            video_url: a?.uploadedPath || null,
+            video_duration_seconds: a?.durationSeconds || 0,
+          };
+        }),
       };
-      const { data, error: fnErr } = await supabase.functions.invoke("interview-submit", { body: payload });
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "interview-submit",
+        { body: payload },
+      );
       if (fnErr) throw fnErr;
       if ((data as any)?.error) throw new Error((data as any).error);
+      stopStream();
+      stopAudioMeter();
       setDone(true);
     } catch (e: any) {
       setError(e?.message || "submit_failed");
@@ -242,10 +637,29 @@ export default function InterviewPage() {
     }
   };
 
+  // ---------- Speak welcome / question text ----------
+  useEffect(() => {
+    if (!applicant) return;
+    if (phase === "welcome") {
+      const id = setTimeout(() => speak(t.welcomeBody(applicant.first_name)), 400);
+      return () => clearTimeout(id);
+    }
+  }, [applicant, phase, speak, t]);
+
+  useEffect(() => {
+    if (phase !== "interview" || !currentQuestion) return;
+    const text = lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en;
+    const id = setTimeout(() => speak(text), 250);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, step, currentQuestion?.id, lang]);
+
   const progress = useMemo(() => {
-    if (step < 0 || questions.length === 0) return 0;
+    if (phase !== "interview" || questions.length === 0) return 0;
     return Math.round(((step + 1) / questions.length) * 100);
-  }, [step, questions.length]);
+  }, [phase, step, questions.length]);
+
+  // ---------- Render ----------
 
   if (loading) {
     return (
@@ -294,7 +708,7 @@ export default function InterviewPage() {
           <div className="text-[11px] text-muted-foreground">
             {speaking ? (
               <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
-                <Mic className="h-3 w-3" /> {t.speaking}
+                <Mic className="h-3 w-3" /> {t.novaSpeaking}
               </span>
             ) : t.novaSubtitle}
           </div>
@@ -314,42 +728,169 @@ export default function InterviewPage() {
     </div>
   );
 
+  const StepIcon = ({ icon }: { icon: string }) => {
+    const cls = "h-5 w-5 text-primary";
+    if (icon === "speaker") return <Volume2 className={cls} />;
+    if (icon === "video") return <Video className={cls} />;
+    if (icon === "scenario") return <PhoneCall className={cls} />;
+    if (icon === "rec") return <Clock className={cls} />;
+    if (icon === "shield") return <ShieldCheck className={cls} />;
+    return <Sparkles className={cls} />;
+  };
+
   return (
     <div className="min-h-screen bg-background py-10 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <div className="text-3xl font-extrabold tracking-tight text-primary">NIVRA</div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">Telecom — Recrutement</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">
+            Telecom — Recrutement
+          </div>
         </div>
 
-        {step === -1 && (
+        {/* ---------- WELCOME ---------- */}
+        {phase === "welcome" && (
           <Card className="p-8">
             <NovaHeader />
             <h1 className="text-2xl font-bold mb-3">{t.welcomeTitle}</h1>
-            <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-line">
-              {t.intro(applicant.first_name)}
+            <p className="text-muted-foreground leading-relaxed mb-6 whitespace-pre-line">
+              {t.welcomeBody(applicant.first_name)}
             </p>
-            <p className="text-sm text-muted-foreground mb-5">
-              {questions.length} {lang === "fr" ? "questions" : "questions"} • ~15 min
-            </p>
-            <Button size="lg" className="w-full" onClick={startInterview}>{t.start}</Button>
+            <Button size="lg" className="w-full" onClick={() => { stopTts(); setPhase("how"); }}>
+              {t.nextHow}
+            </Button>
           </Card>
         )}
 
-        {current && (
+        {/* ---------- HOW IT WORKS ---------- */}
+        {phase === "how" && (
           <Card className="p-8">
             <NovaHeader />
+            <h1 className="text-2xl font-bold mb-2">{t.howTitle}</h1>
+            <p className="text-muted-foreground mb-6">{t.howIntro}</p>
+
+            <div className="space-y-4 mb-6">
+              {t.howSteps.map((s, i) => (
+                <div key={i} className="flex items-start gap-3 p-4 rounded-lg border bg-muted/30">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <StepIcon icon={s.icon} />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm mb-1">{s.title}</div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">{s.body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 mb-6">
+              <div className="text-sm font-semibold mb-2 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> {t.tipsTitle}
+              </div>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                {t.tips.map((tip, i) => <li key={i}>{tip}</li>)}
+              </ul>
+            </div>
+
+            <div className="text-xs text-muted-foreground text-center mb-4">{t.duration}</div>
+            <Button size="lg" className="w-full" onClick={() => { stopTts(); setPhase("setup"); }}>
+              {t.nextSetup}
+            </Button>
+          </Card>
+        )}
+
+        {/* ---------- SETUP / PERMISSION ---------- */}
+        {phase === "setup" && (
+          <Card className="p-8">
+            <NovaHeader />
+            <h1 className="text-2xl font-bold mb-2">{t.setupTitle}</h1>
+            <p className="text-muted-foreground mb-5">{t.setupBody}</p>
+
+            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black mb-4 flex items-center justify-center">
+              {permState === "granted" ? (
+                <video
+                  ref={videoPreviewRef}
+                  className="w-full h-full object-cover"
+                  playsInline
+                  muted
+                />
+              ) : (
+                <Camera className="h-16 w-16 text-white/30" />
+              )}
+            </div>
+
+            {permState === "granted" && (
+              <>
+                <div className="text-xs font-medium mb-1 flex justify-between">
+                  <span>{t.audioLevel}</span>
+                  <span className="text-muted-foreground">{audioLevel}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
+                  <div
+                    className="h-full bg-emerald-500 transition-[width] duration-100"
+                    style={{ width: `${audioLevel}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mb-5">{t.audioHint}</p>
+
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium p-3 mb-5 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> {t.cameraOk}
+                </div>
+
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={async () => {
+                    stopTts();
+                    try { await supabase.rpc("mark_interview_started", { _token: token! }); } catch { /* noop */ }
+                    setPhase("interview");
+                    setStep(0);
+                  }}
+                >
+                  {t.startInterview}
+                </Button>
+              </>
+            )}
+
+            {permState !== "granted" && (
+              <>
+                {permState === "denied" && (
+                  <div className="rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 mb-4">
+                    <div className="font-semibold mb-1">{t.permDeniedTitle}</div>
+                    <div>{t.permDeniedBody}</div>
+                  </div>
+                )}
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={askPermission}
+                  disabled={permState === "asking"}
+                >
+                  {permState === "asking" ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.askPerm}</>
+                  ) : permState === "denied" ? t.retryPerm : t.askPerm}
+                </Button>
+              </>
+            )}
+          </Card>
+        )}
+
+        {/* ---------- INTERVIEW (PER QUESTION) ---------- */}
+        {phase === "interview" && currentQuestion && (
+          <Card className="p-8">
+            <NovaHeader />
+
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{t.progress} {step + 1} {t.of} {questions.length}</span>
-                <span className="uppercase tracking-wide">{current.category}</span>
+                <span className="uppercase tracking-wide">{currentQuestion.category}</span>
               </div>
               <Progress value={progress} />
             </div>
 
-            <div className="flex items-start gap-2 mb-4">
+            <div className="flex items-start gap-2 mb-5">
               <h2 className="text-xl font-semibold leading-snug flex-1">
-                {lang === "fr" ? current.question_fr : current.question_en}
+                {lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en}
               </h2>
               <Button
                 type="button"
@@ -358,63 +899,96 @@ export default function InterviewPage() {
                 className="h-8 w-8 shrink-0"
                 title={t.listenAgain}
                 aria-label={t.listenAgain}
-                onClick={() => speak(lang === "fr" ? current.question_fr : current.question_en)}
-                disabled={muted}
+                onClick={() =>
+                  speak(lang === "fr" ? currentQuestion.question_fr : currentQuestion.question_en)
+                }
+                disabled={muted || speaking}
               >
                 <Volume2 className="h-4 w-4" />
               </Button>
             </div>
 
-            <Textarea
-              rows={6}
-              placeholder={t.placeholder}
-              value={currentAnswer}
-              onChange={(e) => setAnswers(prev => ({ ...prev, [current.id]: e.target.value }))}
-              maxLength={4000}
-              className={tried && !canAdvance ? "border-destructive focus-visible:ring-destructive" : ""}
-            />
-            <div className="flex justify-between items-center text-xs mt-2">
-              <span className={canAdvance ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
-                {t.charsCount(charCount)}
-              </span>
-              {!canAdvance && tried && (
-                <span className="text-destructive font-medium">{t.minChars}</span>
+            {/* Video stage */}
+            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black mb-3 relative">
+              {currentAnswer ? (
+                <video
+                  src={currentAnswer.url}
+                  className="w-full h-full object-cover"
+                  controls
+                  playsInline
+                />
+              ) : (
+                <video
+                  ref={videoPreviewRef}
+                  className="w-full h-full object-cover"
+                  playsInline
+                  muted
+                />
+              )}
+              {recording && (
+                <div className="absolute top-3 left-3 flex items-center gap-2 bg-red-600/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+                  <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                  REC {String(Math.floor(recordSeconds / 60)).padStart(1, "0")}:
+                  {String(recordSeconds % 60).padStart(2, "0")}
+                </div>
+              )}
+              {!recording && currentAnswer && (
+                <div className="absolute top-3 left-3 flex items-center gap-2 bg-emerald-600/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {String(Math.floor(currentAnswer.durationSeconds / 60)).padStart(1, "0")}:
+                  {String(currentAnswer.durationSeconds % 60).padStart(2, "0")}
+                </div>
               )}
             </div>
 
-            {error && error !== "invalid" && (
-              <div className="text-sm text-destructive mt-3">{t.errorTitle}: {error}</div>
+            {recording && (
+              <div className="text-xs text-muted-foreground mb-3">
+                {t.elapsed}: {recordSeconds}s • Max {MAX_SECONDS}s
+              </div>
             )}
 
-            <div className="flex gap-3 justify-between mt-5">
-              <Button
-                variant="outline"
-                disabled={step === 0 || submitting}
-                onClick={() => { stopSpeaking(); setStep(s => Math.max(0, s - 1)); }}
-              >
-                {t.previous}
-              </Button>
-              {step < questions.length - 1 ? (
-                <Button
-                  disabled={submitting}
-                  onClick={() => {
-                    if (!canAdvance) { setTried(true); return; }
-                    stopSpeaking();
-                    setStep(s => s + 1);
-                  }}
-                >
-                  {t.next}
+            {error && (
+              <div className="text-sm text-destructive mb-3">{t.errorTitle}: {error}</div>
+            )}
+
+            {/* Controls */}
+            <div className="flex flex-wrap gap-3 justify-end">
+              {!currentAnswer && !recording && (
+                <Button onClick={startRecording} disabled={!!processing} size="lg">
+                  <Video className="h-4 w-4 mr-2" /> {t.record}
                 </Button>
-              ) : (
-                <Button
-                  disabled={submitting}
-                  onClick={() => {
-                    if (!canAdvance) { setTried(true); return; }
-                    submit();
-                  }}
-                >
-                  {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.submitting}</> : t.submit}
+              )}
+              {recording && (
+                <Button onClick={stopRecording} variant="destructive" size="lg">
+                  <Square className="h-4 w-4 mr-2" /> {t.stop}
                 </Button>
+              )}
+              {currentAnswer && !recording && (
+                <>
+                  <Button variant="outline" onClick={redoCurrent} disabled={!!processing || submitting}>
+                    <RotateCcw className="h-4 w-4 mr-2" /> {t.redo}
+                  </Button>
+                  <Button
+                    onClick={validateAndNext}
+                    disabled={!!processing || submitting}
+                    size="lg"
+                  >
+                    {processing === "uploading" && (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.uploading}</>
+                    )}
+                    {processing === "transcribing" && (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.transcribing}</>
+                    )}
+                    {!processing && submitting && (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.submitting}</>
+                    )}
+                    {!processing && !submitting && (
+                      step < questions.length - 1
+                        ? <><Play className="h-4 w-4 mr-2" /> {t.validate}</>
+                        : <><CheckCircle2 className="h-4 w-4 mr-2" /> {t.submitInterview}</>
+                    )}
+                  </Button>
+                </>
               )}
             </div>
           </Card>
