@@ -553,24 +553,104 @@ export default function CoreApplicationsPage() {
 
           <DialogFooter className="flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setDetailApp(null)}>Fermer</Button>
-            {detailApp && NEXT_STAGE[detailApp.stage || detailApp.status || "new"] && (
-              <Button size="sm" disabled={moveStage.isPending}
-                onClick={() => {
-                  const next = NEXT_STAGE[detailApp.stage || detailApp.status || "new"]!;
-                  if (next === "hired") { startHire(detailApp); setDetailApp(null); }
-                  else { moveStage.mutate({ id: detailApp.id, stage: next }); setDetailApp(null); }
-                }}>
-                <ArrowRight className="h-3.5 w-3.5 mr-1" />
-                Passer à : {STAGES.find(s => s.key === NEXT_STAGE[detailApp.stage || detailApp.status || "new"])?.label}
+            {detailApp && ["new", "reviewing"].includes(getStageKey(detailApp)) && (
+              <Button size="sm" variant="secondary" disabled={workflowMut.isPending}
+                onClick={() => { openWorkflow(detailApp, "interview"); setDetailApp(null); }}>
+                <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                Planifier entrevue
               </Button>
             )}
-            {detailApp && detailApp.stage !== "rejected" && detailApp.stage !== "hired" && (
-              <Button variant="destructive" size="sm" disabled={moveStage.isPending}
-                onClick={() => { moveStage.mutate({ id: detailApp.id, stage: "rejected" }); setDetailApp(null); }}>
+            {detailApp && getStageKey(detailApp) === "interview" && (
+              <Button size="sm" disabled={workflowMut.isPending}
+                onClick={() => { openWorkflow(detailApp, "offer"); setDetailApp(null); }}>
+                <Send className="h-3.5 w-3.5 mr-1" />
+                Passer en offre
+              </Button>
+            )}
+            {detailApp && getStageKey(detailApp) === "offer" && (
+              <Button size="sm" disabled={hireMut.isPending}
+                onClick={() => { startHire(detailApp); setDetailApp(null); }}>
+                <UserCheck className="h-3.5 w-3.5 mr-1" />
+                Embaucher + inviter
+              </Button>
+            )}
+            {detailApp && getStageKey(detailApp) !== "rejected" && getStageKey(detailApp) !== "hired" && (
+              <Button variant="destructive" size="sm" disabled={workflowMut.isPending}
+                onClick={() => { openWorkflow(detailApp, "reject"); setDetailApp(null); }}>
                 <X className="h-3.5 w-3.5 mr-1" />
                 Refuser
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Workflow action dialog */}
+      <Dialog open={!!workflowApp && !!workflowAction} onOpenChange={(o) => { if (!o) { setWorkflowApp(null); setWorkflowAction(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {workflowAction === "interview" && <CalendarPlus className="h-5 w-5 text-primary" />}
+              {workflowAction === "offer" && <Send className="h-5 w-5 text-primary" />}
+              {workflowAction === "reject" && <X className="h-5 w-5 text-destructive" />}
+              {workflowAction === "interview" && "Planifier l'entrevue"}
+              {workflowAction === "offer" && "Passer le candidat en offre"}
+              {workflowAction === "reject" && "Refuser la candidature"}
+            </DialogTitle>
+            <DialogDescription>{workflowApp?.full_name} — {workflowApp?.position || jobMap[workflowApp?.job_id] || "Candidature"}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {workflowAction === "interview" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date et heure d'entrevue *</Label>
+                <Input
+                  type="datetime-local"
+                  value={workflowForm.interview_date}
+                  onChange={(e) => setWorkflowForm({ ...workflowForm, interview_date: e.target.value })}
+                  className="h-9 text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">La candidature sera déplacée dans la colonne Entrevue.</p>
+              </div>
+            )}
+
+            {workflowAction === "offer" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Note interne pour l'offre</Label>
+                <Textarea
+                  value={workflowForm.offer_note}
+                  onChange={(e) => setWorkflowForm({ ...workflowForm, offer_note: e.target.value })}
+                  placeholder="Conditions, salaire, horaire, prochaines étapes…"
+                  className="min-h-24 text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">Ensuite, le bouton Embaucher crée l'employé et envoie l'invitation portail.</p>
+              </div>
+            )}
+
+            {workflowAction === "reject" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Motif de refus *</Label>
+                <Textarea
+                  value={workflowForm.rejection_reason}
+                  onChange={(e) => setWorkflowForm({ ...workflowForm, rejection_reason: e.target.value })}
+                  placeholder="Raison interne du refus…"
+                  className="min-h-24 text-xs"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setWorkflowApp(null); setWorkflowAction(null); }}>Annuler</Button>
+            <Button
+              size="sm"
+              variant={workflowAction === "reject" ? "destructive" : "default"}
+              disabled={workflowMut.isPending || !workflowApp || !workflowAction}
+              onClick={() => workflowApp && workflowAction && workflowMut.mutate({ app: workflowApp, action: workflowAction })}
+            >
+              {workflowMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+              Confirmer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
