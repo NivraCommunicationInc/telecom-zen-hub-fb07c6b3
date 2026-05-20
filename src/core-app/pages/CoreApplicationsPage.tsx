@@ -85,10 +85,10 @@ const mergeTags = (tags: string[] | null | undefined, next: string) => {
 export default function CoreApplicationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [hireApp, setHireApp] = useState<any | null>(null);
-  const [detailApp, setDetailApp] = useState<any | null>(null);
-  const [workflowApp, setWorkflowApp] = useState<any | null>(null);
-  const [workflowAction, setWorkflowAction] = useState<"interview" | "offer" | "reject" | null>(null);
+  const [hireApp, setHireApp] = useState<JobApplication | null>(null);
+  const [detailApp, setDetailApp] = useState<JobApplication | null>(null);
+  const [workflowApp, setWorkflowApp] = useState<JobApplication | null>(null);
+  const [workflowAction, setWorkflowAction] = useState<WorkflowAction | null>(null);
   const [workflowForm, setWorkflowForm] = useState({
     interview_date: "",
     offer_note: "",
@@ -98,7 +98,7 @@ export default function CoreApplicationsPage() {
     first_name: "", last_name: "", work_email: "",
     job_title: "", department: "", hire_date: format(new Date(), "yyyy-MM-dd"),
     employment_type: "full-time", hourly_rate: "",
-    role: "employee" as "employee" | "admin" | "field_sales",
+    role: "employee" as HireRole,
   });
 
   const { data: apps = [], isLoading, isError, error } = useQuery({
@@ -110,7 +110,7 @@ export default function CoreApplicationsPage() {
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as JobApplication[];
     },
   });
 
@@ -119,10 +119,10 @@ export default function CoreApplicationsPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("jobs").select("id, title");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as JobOption[];
     },
   });
-  const jobMap = Object.fromEntries(jobs.map((j: any) => [j.id, j.title]));
+  const jobMap = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
 
   const moveStage = useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
@@ -142,13 +142,13 @@ export default function CoreApplicationsPage() {
       toast.success("Étape mise à jour");
       qc.invalidateQueries({ queryKey: ["core-applications-pipeline"] });
     },
-    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+    onError: (e: unknown) => toast.error("Erreur", { description: errorMessage(e) }),
   });
 
   const workflowMut = useMutation({
-    mutationFn: async ({ app, action }: { app: any; action: "interview" | "offer" | "reject" }) => {
+    mutationFn: async ({ app, action }: { app: JobApplication; action: WorkflowAction }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const baseUpdate: Record<string, any> = {
+      const baseUpdate: Record<string, string | string[] | null> = {
         stage_changed_at: new Date().toISOString(),
         stage_changed_by: user?.id ?? null,
       };
