@@ -362,7 +362,27 @@ const ClientDashboard = () => {
           </div>
         )}
 
+        {/* Submit a complaint */}
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="border-l-4 border-red-500 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Une insatisfaction à signaler?</h2>
+                <p className="text-sm text-slate-600">Soumettez une plainte officielle. SLA de traitement garanti.</p>
+              </div>
+            </div>
+            <Link to="/plainte" className="shrink-0">
+              <Button variant="outline" className="border-red-500 text-red-600 hover:bg-red-50">
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Soumettre une plainte
+              </Button>
+            </Link>
+          </div>
+        </div>
+
         {/* Recent Orders - Rogers style */}
+
         {orders && orders.length > 0 && (
           <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
             <div className="border-l-4 border-teal-600 px-6 py-4 flex items-center justify-between">
