@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import {
   Users, Clock, DollarSign, Coins, Inbox, Briefcase,
-  ArrowRight, Loader2,
+  ArrowRight, Loader2, UserPlus, Brain,
 } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -48,6 +48,7 @@ export default function HrDashboardPage() {
         pendingComm,
         pendingReq,
         openJobs,
+        activeApps,
       ] = await Promise.all([
         supabase.from("employee_records").select("id", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("time_entries").select("total_hours")
@@ -59,6 +60,7 @@ export default function HrDashboardPage() {
           .in("status", ["pending", "pending_activation", "validated", "payable"]),
         supabase.from("hr_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("jobs").select("id", { count: "exact", head: true }).eq("is_active", true),
+        supabase.from("job_applications").select("id", { count: "exact", head: true }).not("status", "in", "(hired,rejected)"),
       ]);
 
       const hoursMonth = (timeEntries.data ?? []).reduce(
@@ -81,6 +83,7 @@ export default function HrDashboardPage() {
         pendingComm: pendingCommTotal,
         pendingReq: pendingReq.count ?? 0,
         openJobs: openJobs.count ?? 0,
+        activeApps: activeApps.count ?? 0,
       };
     },
   });
@@ -155,6 +158,7 @@ export default function HrDashboardPage() {
     { label: "Commissions à payer", value: stats?.pendingComm ?? 0, icon: Coins, color: "text-amber-600", href: "/hr/commissions", isMoney: true },
     { label: "Demandes en attente", value: stats?.pendingReq ?? 0, icon: Inbox, color: "text-orange-600", href: "/hr/requests", isMoney: false },
     { label: "Postes ouverts", value: stats?.openJobs ?? 0, icon: Briefcase, color: "text-blue-600", href: "/hr/careers", isMoney: false },
+    { label: "Candidatures", value: stats?.activeApps ?? 0, icon: UserPlus, color: "text-primary", href: "/hr/applications", isMoney: false },
   ];
 
   return (
@@ -164,8 +168,20 @@ export default function HrDashboardPage() {
         <p className="text-sm text-muted-foreground">Centre opérationnel des ressources humaines</p>
       </div>
 
-      {/* KPIs — 6 cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Button asChild className="justify-between h-11">
+          <Link to={corePath("/hr/applications")}>Candidatures <UserPlus className="h-4 w-4" /></Link>
+        </Button>
+        <Button asChild variant="outline" className="justify-between h-11">
+          <Link to={corePath("/hr/careers")}>Postes ouverts <Briefcase className="h-4 w-4" /></Link>
+        </Button>
+        <Button asChild variant="outline" className="justify-between h-11">
+          <Link to={corePath("/hr/interviews")}>Entrevues IA <Brain className="h-4 w-4" /></Link>
+        </Button>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {cards.map((card) => (
           <Link key={card.label} to={corePath(card.href)}>
             <Card className="hover:border-primary/40 transition-colors cursor-pointer h-full">
