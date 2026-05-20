@@ -744,6 +744,79 @@ export default function CoreInterviewsPage() {
                 )}
               </TabsContent>
 
+              {/* TAB: Embauche (onboarding form review) */}
+              <TabsContent value="embauche" className="space-y-3 mt-3">
+                {!onboarding ? (
+                  <Card className="p-4 text-sm text-muted-foreground">
+                    Aucun formulaire d'embauche envoyé. Utilisez l'onglet <strong>Actions</strong> pour envoyer le formulaire.
+                  </Card>
+                ) : onboarding.status === "pending" ? (
+                  <Card className="p-4 space-y-2">
+                    <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30">En attente</Badge>
+                    <div className="text-sm">Formulaire envoyé — candidat n'a pas encore soumis.</div>
+                    <div className="text-xs text-muted-foreground">
+                      Expire le {format(new Date(onboarding.token_expires_at), "PPP", { locale: fr })}
+                    </div>
+                    <div className="text-xs">
+                      Lien: <a className="underline text-primary" href={`https://nivra-telecom.ca/onboarding/${onboarding.token}`} target="_blank" rel="noreferrer">ouvrir</a>
+                      <Button size="sm" variant="ghost" className="ml-2 h-6 px-2"
+                        onClick={() => { navigator.clipboard.writeText(`https://nivra-telecom.ca/onboarding/${onboarding.token}`); toast.success("Lien copié"); }}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge className={onboarding.status === "reviewed" ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" : "bg-violet-500/15 text-violet-700 border-violet-500/30"}>
+                        {onboarding.status === "reviewed" ? "Révisé" : "Soumis"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Soumis le {onboarding.submitted_at ? format(new Date(onboarding.submitted_at), "PPP p", { locale: fr }) : "—"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-muted-foreground">Nom légal:</span> <strong>{onboarding.full_legal_name || "—"}</strong></div>
+                      <div><span className="text-muted-foreground">DDN:</span> {onboarding.date_of_birth || "—"}</div>
+                      <div><span className="text-muted-foreground">Téléphone:</span> {onboarding.phone || "—"}</div>
+                      <div><span className="text-muted-foreground">Email:</span> {onboarding.email || "—"}</div>
+                      <div className="col-span-2"><span className="text-muted-foreground">Adresse:</span> {[onboarding.address_street, onboarding.address_city, onboarding.address_province, onboarding.address_postal].filter(Boolean).join(", ") || "—"}</div>
+                      <div className="col-span-2"><span className="text-muted-foreground">Statut résidentiel:</span> {onboarding.residential_status || "—"}{onboarding.residential_status_other ? ` (${onboarding.residential_status_other})` : ""}</div>
+                      <div><span className="text-muted-foreground">Type ID:</span> {onboarding.id_document_type || "—"}</div>
+                      <div><span className="text-muted-foreground">Titulaire compte:</span> {onboarding.bank_account_name || "—"}</div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2 border-t">
+                      <Button size="sm" variant="outline" disabled={!onboarding.id_document_path} onClick={() => openDoc(onboarding.id_document_path)}>
+                        <Eye className="h-3.5 w-3.5 mr-1" /> Pièce d'identité
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={!onboarding.work_permit_path} onClick={() => openDoc(onboarding.work_permit_path)}>
+                        <Eye className="h-3.5 w-3.5 mr-1" /> Permis de travail
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={!onboarding.void_cheque_path} onClick={() => openDoc(onboarding.void_cheque_path)}>
+                        <Eye className="h-3.5 w-3.5 mr-1" /> Spécimen chèque
+                      </Button>
+                    </div>
+
+                    {onboarding.signature_data && (
+                      <div className="border rounded p-2 bg-muted/30">
+                        <div className="text-[10px] uppercase text-muted-foreground mb-1">Signature électronique (IP {onboarding.signature_ip || "—"})</div>
+                        <img src={onboarding.signature_data} alt="Signature" className="max-h-24 bg-white border rounded" />
+                      </div>
+                    )}
+
+                    {onboarding.status !== "reviewed" && (
+                      <Button className="w-full" disabled={markReviewed.isPending}
+                        onClick={() => markReviewed.mutate(onboarding.id)}>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Marquer le dossier comme révisé
+                      </Button>
+                    )}
+                  </Card>
+                )}
+              </TabsContent>
+
               {/* TAB: Actions */}
               <TabsContent value="actions" className="space-y-3 mt-3">
                 <Card className="p-4 space-y-3">
