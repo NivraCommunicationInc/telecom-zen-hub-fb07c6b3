@@ -149,7 +149,7 @@ export const ticketResolved = (params: BaseParams & {
   resolvedAt: string;
   feedbackUrl?: string;
 }): string => {
-  const { clientName, ticketNumber, subject, resolution, resolvedAt, feedbackUrl = 'https://nivratelecom.ca/feedback', supportEmail } = params;
+  const { clientName, ticketNumber, subject, resolution, resolvedAt, feedbackUrl = 'https://nivra-telecom.ca/feedback', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -205,7 +205,7 @@ export const ticketAutoClosed = (params: BaseParams & {
   closedAt: string;
   reopenUrl?: string;
 }): string => {
-  const { clientName, ticketNumber, subject, closedAt, reopenUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, ticketNumber, subject, closedAt, reopenUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
