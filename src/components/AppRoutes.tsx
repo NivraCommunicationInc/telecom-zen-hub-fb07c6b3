@@ -102,6 +102,7 @@ const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const NivraSourceHub = lazy(() => import("@/components/hub/NivraSourceHub"));
 const CoreHubManagementPage = lazy(() => import("@/core-app/pages/CoreHubManagementPage"));
 const CoreEmailComposePage = lazy(() => import("@/core-app/pages/CoreEmailComposePage"));
+const CoreAIConsolePage = lazy(() => import("@/core-app/pages/CoreAIConsolePage"));
 const EmployeeEmailComposePage = lazy(() => import("@/employee-app/pages/EmployeeEmailComposePage"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
 const CoreLoginPage = lazy(() => import("@/core-app/pages/CoreLoginPage"));
@@ -832,6 +833,8 @@ const AppRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           {/* Dashboard */}
           <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
+          <Route path="ai-console" element={<Suspense fallback={null}><CoreAIConsolePage /></Suspense>} />
+
           <Route path="activity" element={<Suspense fallback={null}><CoreActivityPage /></Suspense>} />
           <Route path="live-activity" element={<Suspense fallback={null}><CoreLiveActivityPage /></Suspense>} />
           <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
