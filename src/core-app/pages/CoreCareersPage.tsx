@@ -29,10 +29,13 @@ import {
 import {
   Briefcase, Plus, Pencil, MapPin, Users, X, Loader2, Pause, Play,
   Eye, Download, Calendar, UserPlus, Mail, FileText, MessageSquare,
+  ExternalLink, Brain, Globe, ClipboardList, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
 
 // ─── Static labels ──────────────────────────────────────────────────────────
 const TYPE_LABEL: Record<string, string> = {
