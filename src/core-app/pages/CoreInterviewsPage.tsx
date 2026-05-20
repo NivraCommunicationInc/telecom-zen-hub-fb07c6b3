@@ -611,7 +611,7 @@ export default function CoreInterviewsPage() {
           </DialogHeader>
 
           {selected && (
-            <Tabs defaultValue="profil" className="w-full">
+            <Tabs value={detailTab} onValueChange={setDetailTab} className="w-full">
               <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="profil"><User className="h-3.5 w-3.5 mr-1" />Profil</TabsTrigger>
                 <TabsTrigger value="entrevue"><MessageSquare className="h-3.5 w-3.5 mr-1" />Entrevue</TabsTrigger>
