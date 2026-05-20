@@ -107,6 +107,50 @@ export default function CoreInterviewsPage() {
     },
   });
 
+  const { data: onboarding } = useQuery({
+    enabled: !!selected,
+    queryKey: ["onboarding-form", selected?.id],
+    queryFn: async () => {
+      if (!selected) return null;
+      const { data } = await supabase
+        .from("employee_onboarding_forms")
+        .select("*")
+        .eq("applicant_id", selected.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const signDocUrl = async (path: string | null | undefined) => {
+    if (!path) return null;
+    const { data } = await supabase.storage.from("employee-documents").createSignedUrl(path, 300);
+    return data?.signedUrl ?? null;
+  };
+
+  const openDoc = async (path: string | null | undefined) => {
+    const url = await signDocUrl(path);
+    if (url) window.open(url, "_blank");
+    else toast.error("Document indisponible");
+  };
+
+  const markReviewed = useMutation({
+    mutationFn: async (formId: string) => {
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("employee_onboarding_forms")
+        .update({ status: "reviewed", reviewed_at: new Date().toISOString(), reviewed_by: u.user?.id ?? null })
+        .eq("id", formId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Dossier marqué comme révisé");
+      qc.invalidateQueries({ queryKey: ["onboarding-form", selected?.id] });
+    },
+    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+  });
+
   const sendInvite = useMutation({
     mutationFn: async (ids: string[]) => {
       const { data, error } = await supabase.functions.invoke("interview-send-invitations", {
