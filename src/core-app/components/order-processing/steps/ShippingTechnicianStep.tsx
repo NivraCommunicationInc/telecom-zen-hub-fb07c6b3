@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
 import { AppointmentSlotPicker } from "@/core-app/components/appointments/AppointmentSlotPicker";
+import { useProfileName } from "@/hooks/useProfileName";
 
 interface TechnicianOption {
   id: string;
