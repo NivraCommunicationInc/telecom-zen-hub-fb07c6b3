@@ -541,9 +541,12 @@ const AppRoutes = () => {
       <Route path="/compare" element={<MaintenanceGuard><PublicLayout><ComparePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/television-sur-mesure" element={<MaintenanceGuard><PublicLayout><TVConfigurator /></PublicLayout></MaintenanceGuard>} />
       <Route path="/careers" element={<MaintenanceGuard><PublicLayout><Careers /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/carrieres" element={<Navigate to="/careers" replace />} />
       <Route path="/emplois" element={<MaintenanceGuard><PublicLayout><JobListings /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/postuler" element={<Navigate to="/apply" replace />} />
       <Route path="/apply" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
       <Route path="/apply/:jobId" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/postuler/:jobId" element={<Navigate to="/apply/:jobId" replace />} />
       <Route path="/faq" element={<MaintenanceGuard><PublicLayout><FAQ /></PublicLayout></MaintenanceGuard>} />
       <Route path="/nps/:token" element={<MaintenanceGuard><PublicLayout><NPSSurvey /></PublicLayout></MaintenanceGuard>} />
       <Route path="/entrevue/:token" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><InterviewPage /></Suspense></MaintenanceGuard>} />
