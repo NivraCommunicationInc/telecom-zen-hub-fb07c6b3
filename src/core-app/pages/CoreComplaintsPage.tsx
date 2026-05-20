@@ -386,6 +386,10 @@ export function ComplaintDetailDialog({
   });
 
   const queueEmail = async (template_key: string, vars: Record<string, any>, suffix = "") => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const trackingUrl = complaint.public_token
+      ? `${origin}/plainte/suivi/${complaint.public_token}`
+      : `${origin}/plainte`;
     await supabase.from("email_queue").insert({
       event_key: `${template_key}_${complaint.id}_${suffix || Date.now()}`,
       to_email: complaint.submitted_by_email,
@@ -393,7 +397,7 @@ export function ComplaintDetailDialog({
       template_vars: {
         first_name: (complaint.submitted_by_name ?? "Client").split(" ")[0],
         ticket_number: complaint.ticket_number,
-        portal_url: typeof window !== "undefined" ? `${window.location.origin}/plainte` : "/plainte",
+        portal_url: trackingUrl,
         ...vars,
       },
       status: "queued",
