@@ -304,7 +304,7 @@ const CoreReturnsPage = () => {
                       <TableCell className="text-sm">
                         {format(parseISO(r.requested_at), "d MMM yyyy", { locale: fr })}
                       </TableCell>
-                      <TableCell className="text-xs font-mono">{r.client_user_id.slice(0, 8)}…</TableCell>
+                      <TableCell className="text-xs"><ProfileName userId={r.client_user_id} /></TableCell>
                       <TableCell className="text-xs font-mono">
                         {r.equipment_inventory_id ? r.equipment_inventory_id.slice(0, 8) + "…" : "—"}
                       </TableCell>
