@@ -29,12 +29,12 @@ export default function CoreFinancePage() {
       const start30 = new Date(Date.now() - 30 * 86400_000).toISOString();
 
       const [pay, pend, fail, ref, mrrRow, last30, subs] = await Promise.all([
-        backendClient.from("billing_payments").select("amount,created_at,status").gte("created_at", todayIso).eq("status", "completed"),
+        backendClient.from("billing_payments").select("amount,created_at,status").gte("created_at", todayIso).eq("status", "confirmed"),
         backendClient.from("billing_invoices").select("id", { count: "exact", head: true }).eq("status", "pending"),
         backendClient.from("billing_payments").select("id", { count: "exact", head: true }).gte("created_at", todayIso).eq("status", "failed"),
         backendClient.from("billing_payments").select("amount,created_at,status").gte("created_at", todayIso).eq("status", "refunded"),
         backendClient.from("mrr_metrics" as any).select("*").maybeSingle(),
-        backendClient.from("billing_payments").select("amount,created_at,status").gte("created_at", start30).eq("status", "completed"),
+        backendClient.from("billing_payments").select("amount,created_at,status").gte("created_at", start30).eq("status", "confirmed"),
         backendClient.from("billing_subscriptions").select("service_category,status").eq("status", "active"),
       ]);
 

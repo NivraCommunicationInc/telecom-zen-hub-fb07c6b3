@@ -998,7 +998,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         .from("billing_payments")
         .select("amount")
         .eq("invoice_id", targetInvoice.id)
-        .in("status", ["confirmed", "completed"]);
+        .eq("status", "confirmed");
 
       const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       const invoiceTotal = Number(targetInvoice.total || 0);
@@ -1083,7 +1083,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         .from("billing_payments")
         .select("amount")
         .eq("invoice_id", targetInvoice.id)
-        .in("status", ["confirmed", "completed"]);
+        .eq("status", "confirmed");
 
       const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       const invoiceTotal = Number(targetInvoice.total || 0);
@@ -1169,7 +1169,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         .from("billing_payments")
         .select("amount")
         .eq("invoice_id", targetInvoice.id)
-        .in("status", ["confirmed", "completed"]);
+        .eq("status", "confirmed");
 
       const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       const invoiceTotal = Number(targetInvoice.total || 0);
