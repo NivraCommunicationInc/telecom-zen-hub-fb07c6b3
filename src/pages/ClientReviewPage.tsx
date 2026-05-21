@@ -3,10 +3,10 @@
  * Route: /avis/:token (anonymous, no auth)
  */
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Star, CheckCircle2, ThumbsUp, ThumbsDown, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Loader2, Star, CheckCircle2, ThumbsUp, ThumbsDown, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -80,15 +80,6 @@ function ShellCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-4 py-10 md:py-16">
-        <div className="mb-6">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour à l'accueil
-          </Link>
-        </div>
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-primary text-primary-foreground">
             N
