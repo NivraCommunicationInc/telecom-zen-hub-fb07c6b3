@@ -12,7 +12,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShoppingCart, ExternalLink, Clock } from "lucide-react";
+import { Loader2, ShoppingCart, Clock } from "lucide-react";
 
 type StatusKey =
   | "pending_payment" | "pending_client" | "on_hold"
