@@ -856,6 +856,8 @@ const AppRoutes = () => {
           <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
           <Route path="system-health" element={<Suspense fallback={null}><CoreSystemHealthPage /></Suspense>} />
           <Route path="analytics" element={<Suspense fallback={null}><CoreAnalyticsPage /></Suspense>} />
+          <Route path="monitor" element={<Suspense fallback={null}><CoreAgentMonitorPage /></Suspense>} />
+          <Route path="analytics-ai" element={<Suspense fallback={null}><CoreAnalyticsDashboardPage /></Suspense>} />
           <Route path="finance" element={<Suspense fallback={null}><CoreFinancePage /></Suspense>} />
           <Route path="sops" element={<Suspense fallback={null}><CoreSOPsPage /></Suspense>} />
           <Route path="support-metrics" element={<Suspense fallback={null}><CoreSupportMetricsPage /></Suspense>} />
