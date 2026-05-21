@@ -1106,6 +1106,22 @@ serve(async (req: Request) => {
                   throw new Error(`Email queue insert failed: ${queueErr.message}`);
                 }
                 console.log(`[admin-manage-staff] Field Sales invitation queued: to=${email} user=${userId}`);
+
+                // BCC copy to support@nivra-telecom.ca (email_queue has no bcc column → duplicate row)
+                await adminClient.from("email_queue").insert({
+                  event_key: `staff_invite_field_sales_${userId}_bcc_support`,
+                  to_email: "support@nivra-telecom.ca",
+                  template_key: "staff_invitation_field_sales",
+                  template_vars: {
+                    first_name: firstName,
+                    invite_url: setupLink,
+                    role: "field_sales",
+                    agent_number: agentNumber,
+                    professional_email: proEmail,
+                  },
+                  status: "queued",
+                } as any);
+
               } else {
                 await sendStaffEmail(adminClient, {
                   to: email,
