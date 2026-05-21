@@ -1,7 +1,10 @@
 /**
  * agent-crm-optimizer — Nightly CRM scoring + morning briefing.
- * Runs at 2h UTC: scores all contacts, reorganizes priority.
- * Runs at 7h UTC: generates and sends morning briefing to active agents.
+ *
+ * Phase 1 (cron 2h UTC, action=optimize): Score all contacts in batches of 50.
+ *   Returns immediately; processing continues in background via EdgeRuntime.waitUntil.
+ * Phase 2 (cron 7h UTC, action=send_briefing): Read pre-scored data + send briefing.
+ *   Fast (< 5s) — no scoring work.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -13,7 +16,9 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const MAX_CONTACTS = 1000;
+const BATCH_SIZE = 50;
+const INTER_BATCH_DELAY_MS = 100;
+const MAX_BATCHES = 200; // safety cap (10k contacts)
 
 async function logAudit(supabase: any, action: string, result: string, details: unknown, ms: number, err?: string) {
   await supabase.from("agent_audit_log").insert({
@@ -34,26 +39,60 @@ function scoreContact(c: any, callStats: { calls: number; lastCalled: string | n
   return Math.max(0, Math.min(100, s));
 }
 
-async function runOptimize(supabase: any) {
-  const { data: contacts } = await supabase.from("crm_contacts")
-    .select("id, city, phone, email, tags, call_status, callback_scheduled_at, call_attempts, last_called_at")
-    .not("call_status", "in", "(sold,do_not_call,not_interested)")
-    .limit(MAX_CONTACTS);
+async function processBatch(supabase: any, contacts: any[]): Promise<number> {
+  const ids = contacts.map((c) => c.id);
+  const { data: logs } = await supabase.from("crm_call_logs")
+    .select("contact_id, outcome, created_at")
+    .in("contact_id", ids);
 
-  if (!contacts?.length) return { scored: 0 };
+  const byContact = new Map<string, { calls: number; sales: number; lastCalled: string | null }>();
+  for (const id of ids) byContact.set(id, { calls: 0, sales: 0, lastCalled: null });
+  for (const l of (logs ?? [])) {
+    const agg = byContact.get(l.contact_id)!;
+    agg.calls++;
+    if (l.outcome === "sold") agg.sales++;
+    if (!agg.lastCalled || l.created_at > agg.lastCalled) agg.lastCalled = l.created_at;
+  }
 
   let updated = 0;
   for (const c of contacts) {
-    const { data: logs } = await supabase.from("crm_call_logs")
-      .select("outcome, duration_seconds, called_at:created_at").eq("contact_id", c.id);
-    const calls = logs?.length ?? 0;
-    const sales = (logs ?? []).filter((l: any) => l.outcome === "sold").length;
-    const lastCalled = (logs ?? []).map((l: any) => l.called_at).sort().pop() ?? null;
-    const score = scoreContact(c, { calls, lastCalled, sales });
-    await supabase.from("crm_contacts").update({ priority: score }).eq("id", c.id);
-    updated++;
+    const stats = byContact.get(c.id)!;
+    const score = scoreContact(c, stats);
+    const { error } = await supabase.from("crm_contacts").update({ priority: score }).eq("id", c.id);
+    if (!error) updated++;
   }
-  return { scored: updated };
+  return updated;
+}
+
+async function runOptimizeBackground(supabase: any, jobStart: number) {
+  let totalScored = 0;
+  let batchesProcessed = 0;
+  let offset = 0;
+  try {
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const { data: contacts, error } = await supabase.from("crm_contacts")
+        .select("id, city, phone, email, tags, call_status, callback_scheduled_at")
+        .not("call_status", "in", "(sold,do_not_call,not_interested)")
+        .order("id", { ascending: true })
+        .range(offset, offset + BATCH_SIZE - 1);
+      if (error) throw error;
+      if (!contacts || contacts.length === 0) break;
+
+      totalScored += await processBatch(supabase, contacts);
+      batchesProcessed++;
+      offset += BATCH_SIZE;
+
+      if (contacts.length < BATCH_SIZE) break;
+      await new Promise((r) => setTimeout(r, INTER_BATCH_DELAY_MS));
+    }
+    await logAudit(supabase, "optimize", "success",
+      { scored: totalScored, batches: batchesProcessed },
+      Date.now() - jobStart);
+  } catch (e) {
+    await logAudit(supabase, "optimize", "failure",
+      { scored: totalScored, batches: batchesProcessed },
+      Date.now() - jobStart, String(e));
+  }
 }
 
 async function geminiBriefing(stats: any) {
@@ -124,7 +163,6 @@ async function runBriefing(supabase: any) {
     top_contacts: top10 ?? [],
   });
 
-  // Send to active employees + field sales agents
   const { data: emps } = await supabase.from("profiles")
     .select("email, first_name, full_name")
     .in("role", ["field_sales", "employee", "cs"])
@@ -167,12 +205,21 @@ Deno.serve(async (req) => {
     if (body.action === "send_briefing") {
       const r = await runBriefing(supabase);
       await logAudit(supabase, "briefing", "success", r, Date.now() - startedAt);
-      return new Response(JSON.stringify({ ok: true, ...r }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, ...r }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const r = await runOptimize(supabase);
-    await logAudit(supabase, "optimize", "success", r, Date.now() - startedAt);
-    return new Response(JSON.stringify({ ok: true, ...r }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Phase 1: optimize — kick off in background, return immediately.
+    // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime
+    EdgeRuntime.waitUntil(runOptimizeBackground(supabase, startedAt));
+    return new Response(JSON.stringify({
+      ok: true,
+      queued: true,
+      mode: "background",
+      batch_size: BATCH_SIZE,
+      message: "Optimization started in background; check agent_audit_log for results.",
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     await logAudit(supabase, "error", "failure", null, Date.now() - startedAt, String(e));
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
