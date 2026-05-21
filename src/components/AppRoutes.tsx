@@ -708,6 +708,8 @@ const AppRoutes = () => {
           <Route index element={<Suspense fallback={null}><TechDashboard /></Suspense>} />
           <Route path="dashboard" element={<Navigate to="/tech" replace />} />
           <Route path="assignments" element={<Suspense fallback={null}><TechAssignments /></Suspense>} />
+          <Route path="active" element={<Suspense fallback={null}><TechActive /></Suspense>} />
+          <Route path="installation/:id" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
           <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
           <Route path="scanner" element={<Suspense fallback={null}><TechScanner /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
