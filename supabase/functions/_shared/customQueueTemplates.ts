@@ -5137,9 +5137,157 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // TECHNICIAN INSTALLATION FLOW (tech portal triggers)
+    // ===================================================================
+    case "tech_en_route": {
+      const techName = esc(v.tech_name || "Votre technicien");
+      const eta = esc(v.eta || "sous peu");
+      const techPhone = esc(v.tech_phone || SUPPORT_EMAIL);
+      return {
+        subject: "Votre technicien Nivra est en route",
+        html: shell({
+          preheader: `${techName} est en route vers votre domicile.`,
+          badge: "TECHNICIEN EN ROUTE",
+          heroTitle: "Votre technicien est en route!",
+          icon: "truck",
+          greeting,
+          bodyText: "Votre technicien Nivra Telecom est en route vers votre domicile. Veuillez vous assurer d'être présent à l'adresse d'installation.",
+          cardTitle: "Détails de l'arrivée",
+          cardRows: [
+            ["Technicien", techName],
+            ["Heure d'arrivée estimée", eta],
+            ["Contact", techPhone],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
+    case "tech_next": {
+      const techName = esc(v.tech_name || "Votre technicien");
+      const eta = esc(v.eta || "30-45 minutes");
+      return {
+        subject: "Votre installation Nivra est la prochaine",
+        html: shell({
+          preheader: "Vous êtes le prochain rendez-vous d'installation.",
+          badge: "VOUS ÊTES LE PROCHAIN",
+          heroTitle: "Votre installation est la prochaine!",
+          icon: "calendar",
+          greeting,
+          bodyText: "Votre technicien terminera l'installation en cours et sera chez vous dans environ 30 à 45 minutes. Merci de votre patience.",
+          cardTitle: "Prochaine étape",
+          cardRows: [
+            ["Technicien", techName],
+            ["Arrivée estimée", eta],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
+    case "tech_missed": {
+      const scheduled = fmtDate(v.scheduled_date);
+      return {
+        subject: "Rendez-vous d'installation manqué — Nivra Telecom",
+        html: shell({
+          preheader: "Nous n'avons pas pu effectuer votre installation aujourd'hui.",
+          badge: "RENDEZ-VOUS MANQUÉ",
+          heroTitle: "Rendez-vous d'installation manqué",
+          icon: "alert",
+          greeting,
+          bodyText: "Nous n'avons malheureusement pas pu effectuer votre installation aujourd'hui. Veuillez contacter Nivra Telecom dans les meilleurs délais afin de replanifier votre rendez-vous.",
+          cardTitle: "Référence",
+          cardRows: [
+            ["Date prévue", scheduled],
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
+    case "tech_completed": {
+      const planName = esc(v.plan_name || "Forfait Nivra");
+      const renewal = esc(v.renewal_date || fmtDate(new Date(Date.now() + 30*86400000).toISOString()));
+      const speed = esc(v.speed || "Optimale");
+      const today = fmtDate(new Date().toISOString());
+      return {
+        subject: "Votre service Nivra est maintenant actif",
+        html: shell({
+          preheader: "Installation complétée — votre service est actif.",
+          badge: "INSTALLATION COMPLÉTÉE",
+          heroTitle: "Votre service Nivra est actif!",
+          icon: "check",
+          greeting,
+          bodyText: "Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé.",
+          cardTitle: "Détails du service",
+          cardRows: [
+            ["Forfait activé", planName],
+            ["Date d'activation", today],
+            ["Prochain renouvellement", renewal],
+            ["Vitesse mesurée", speed],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon compte",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT PROFILE ACTIONS (Core admin triggers)
+    // ===================================================================
+    case "password_reset_request": {
+      const resetUrl = String(v.reset_url || `${APP_URL}/portail/creer-mot-de-passe`);
+      return {
+        subject: "Réinitialisez votre mot de passe Nivra",
+        html: shell({
+          preheader: "Lien de réinitialisation de mot de passe à l'intérieur.",
+          badge: "RÉINITIALISATION MOT DE PASSE",
+          heroTitle: "Réinitialisez votre mot de passe",
+          icon: "pen",
+          greeting,
+          bodyText: "Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe. Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer ce courriel.",
+          ctaPrimaryUrl: resetUrl,
+          ctaPrimaryLabel: "Réinitialiser mon mot de passe",
+        }),
+      };
+    }
+
+    case "account_summary": {
+      const planName = esc(v.plan_name || "Aucun forfait actif");
+      const monthly = money(v.monthly_amount);
+      const renewal = fmtDate(v.renewal_date);
+      const status = esc(v.status || "Actif");
+      return {
+        subject: "Résumé de votre compte Nivra Telecom",
+        html: shell({
+          preheader: "Voici un résumé de votre compte.",
+          badge: "RÉSUMÉ DE VOTRE COMPTE",
+          heroTitle: "Votre compte Nivra Telecom",
+          icon: "doc",
+          greeting,
+          bodyText: "Voici un résumé à jour de votre compte Nivra Telecom.",
+          cardTitle: "Détails du compte",
+          cardRows: [
+            ["Forfait actif", planName],
+            ["Prix mensuel", `${monthly} + taxes`],
+            ["Prochain renouvellement", renewal],
+            ["Statut", status],
+            ["Mode de paiement", "PayPal"],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Accéder à mon compte",
+        }),
+      };
+    }
+
     default:
       return null;
-  }
+    }
 }
 
 
