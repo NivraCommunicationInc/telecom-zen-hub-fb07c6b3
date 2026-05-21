@@ -17,6 +17,7 @@ export interface TechAssignment {
   coaxial_status: string | null;
   coaxial_notes: string | null;
   installation_steps: any[];
+  equipment_scanned: any[];
   network_test_results: Record<string, any>;
   download_speed: number | null;
   upload_speed: number | null;
