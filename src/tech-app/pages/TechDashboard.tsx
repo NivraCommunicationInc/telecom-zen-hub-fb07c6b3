@@ -9,15 +9,12 @@ import { useTechAssignments } from "../lib/useTechAssignments";
 
 export default function TechDashboard() {
   const { data: assignments = [], isLoading } = useTechAssignments();
-
-  const today = useMemo(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  }, []);
-
-  const todays = assignments.filter((a) => a.scheduled_date === today);
-  const completedToday = todays.filter((a) => a.status === "completed").length;
-  const next = todays.find((a) => !["completed", "cancelled", "missed"].includes(a.status));
+  const activeAssignments = useMemo(
+    () => assignments.filter((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status)),
+    [assignments],
+  );
+  const completed = assignments.filter((a) => a.status === "completed").length;
+  const next = activeAssignments[0];
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -37,26 +34,26 @@ export default function TechDashboard() {
           </p>
         </section>
 
-        {/* Today's missions */}
+        {/* Active missions */}
         <section className="rounded-2xl bg-violet-600/10 border border-violet-600/30 p-5">
           <div className="flex items-center gap-2 text-violet-300 text-xs font-semibold uppercase tracking-wider mb-2">
-            <Clock className="h-4 w-4" /> Missions du jour
+            <Clock className="h-4 w-4" /> Rendez-vous disponibles et assignés
           </div>
           {isLoading ? (
             <p className="text-slate-400 text-sm">Chargement...</p>
-          ) : todays.length === 0 ? (
-            <p className="text-slate-200 text-base">Aucune installation prévue aujourd'hui.</p>
+          ) : activeAssignments.length === 0 ? (
+            <p className="text-slate-200 text-base">Aucune installation active.</p>
           ) : (
             <>
               <p className="text-3xl font-bold text-white">
-                {completedToday}/{todays.length}
+                {activeAssignments.length}
               </p>
-              <p className="text-sm text-slate-300 mt-1">complétées</p>
+              <p className="text-sm text-slate-300 mt-1">missions à traiter, même hors date du jour</p>
               {next && (
                 <div className="mt-4 rounded-xl bg-slate-900/60 p-3">
-                  <p className="text-xs text-slate-400">Prochain rendez-vous</p>
+                  <p className="text-xs text-slate-400">Priorité terrain</p>
                   <p className="text-base font-semibold text-white mt-1">
-                    {next.scheduled_time_start?.slice(0, 5)} — {next.client_name || "Client"}
+                    {next.scheduled_date} · {next.scheduled_time_start?.slice(0, 5)} — {next.client_name || "Client"}
                   </p>
                   {next.client_address && (
                     <p className="text-xs text-slate-400 mt-1 flex items-start gap-1">
@@ -97,13 +94,13 @@ export default function TechDashboard() {
             <div>
               <p className="text-2xl font-bold text-white flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                {completedToday}
+                {completed}
               </p>
-              <p className="text-xs text-slate-400 mt-1">Complétées</p>
+              <p className="text-xs text-slate-400 mt-1">Complétées total</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{todays.length - completedToday}</p>
-              <p className="text-xs text-slate-400 mt-1">Restantes</p>
+              <p className="text-2xl font-bold text-white">{activeAssignments.length}</p>
+              <p className="text-xs text-slate-400 mt-1">Actives</p>
             </div>
           </div>
         </section>
