@@ -4,7 +4,7 @@
  */
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Terminal, Briefcase, MapPin, Shield, ChevronRight, UserCheck, Megaphone } from "lucide-react";
+import { Terminal, Briefcase, MapPin, Shield, ChevronRight, UserCheck, Megaphone, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
@@ -69,6 +69,14 @@ const PORTALS: PortalOption[] = [
     label: "Nivra HR",
     description: "Dossier employé — Fiches de paie, documents fiscaux, horaires, lettres d'emploi.",
     icon: UserCheck,
+    iconColor: "text-foreground",
+    iconBg: "bg-secondary",
+  },
+  {
+    id: "technician",
+    label: "Nivra Technician",
+    description: "Portail mobile installation — Assignations, étapes, tests réseau, scanner.",
+    icon: Wrench,
     iconColor: "text-foreground",
     iconBg: "bg-secondary",
   },
