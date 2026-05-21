@@ -139,6 +139,19 @@ export function EquipmentStep({ proc }: Props) {
     staleTime: 30_000,
   });
 
+  // Noms de catalogue distincts pour le mode manuel (filtré par type)
+  const { data: catalogNames } = useQuery({
+    queryKey: ["equipment-catalog-names", manualType],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("equipment_inventory")
+        .select("catalog_name").eq("category", manualType).limit(500);
+      if (error) throw error;
+      const set = new Set<string>();
+      (data || []).forEach((r: any) => { if (r.catalog_name) set.add(r.catalog_name); });
+      return Array.from(set).sort();
+    },
+  });
+
   const hasExistingAssignment = (assignedItems?.length ?? 0) > 0;
   const isItemAvailable = (item: InventoryItem) => item.status === "in_stock";
   const isItemAssignedToThisOrder = (item: InventoryItem) => item.order_id === order.id;
