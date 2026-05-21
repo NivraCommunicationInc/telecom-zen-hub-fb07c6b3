@@ -1425,6 +1425,21 @@ serve(async (req: Request) => {
               throw new Error(`Email queue insert failed: ${queueErr.message}`);
             }
             console.log(`[admin-manage-staff] ${stepBase} queued via ${templateKey}: to=${targetEmail} user=${user_id}`);
+
+            // BCC copy to support@nivra-telecom.ca (duplicate row — email_queue has no bcc column)
+            await adminClient.from("email_queue").insert({
+              event_key: `staff_invite_resend_${user_id}_${Date.now()}_bcc_support`,
+              to_email: "support@nivra-telecom.ca",
+              template_key: templateKey,
+              template_vars: {
+                first_name: firstName,
+                invite_url: setupLink,
+                role: roleData.role,
+                role_label: roleLabels[roleData.role] || roleData.role,
+              },
+              status: "queued",
+            } as any);
+
           } catch (e: unknown) {
             const err = e as Error;
             await logAction(
