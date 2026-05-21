@@ -1309,6 +1309,33 @@ export type Database = {
           },
         ]
       }
+      agent_events: {
+        Row: {
+          agent_name: string
+          created_at: string | null
+          details: Json | null
+          event_type: string | null
+          id: string
+          message: string
+        }
+        Insert: {
+          agent_name: string
+          created_at?: string | null
+          details?: Json | null
+          event_type?: string | null
+          id?: string
+          message: string
+        }
+        Update: {
+          agent_name?: string
+          created_at?: string | null
+          details?: Json | null
+          event_type?: string | null
+          id?: string
+          message?: string
+        }
+        Relationships: []
+      }
       agent_points: {
         Row: {
           agent_id: string
@@ -1338,6 +1365,137 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      agent_registry: {
+        Row: {
+          agent_name: string
+          avg_execution_ms: number | null
+          config: Json | null
+          consecutive_failures: number | null
+          created_at: string | null
+          cron_job_name: string | null
+          cron_schedule: string | null
+          description: string | null
+          display_name: string
+          function_name: string
+          health_score: number | null
+          id: string
+          last_error_at: string | null
+          last_error_message: string | null
+          last_run_at: string | null
+          last_success_at: string | null
+          status: string | null
+          total_failures: number | null
+          total_runs: number | null
+          total_successes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_name: string
+          avg_execution_ms?: number | null
+          config?: Json | null
+          consecutive_failures?: number | null
+          created_at?: string | null
+          cron_job_name?: string | null
+          cron_schedule?: string | null
+          description?: string | null
+          display_name: string
+          function_name: string
+          health_score?: number | null
+          id?: string
+          last_error_at?: string | null
+          last_error_message?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          status?: string | null
+          total_failures?: number | null
+          total_runs?: number | null
+          total_successes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_name?: string
+          avg_execution_ms?: number | null
+          config?: Json | null
+          consecutive_failures?: number | null
+          created_at?: string | null
+          cron_job_name?: string | null
+          cron_schedule?: string | null
+          description?: string | null
+          display_name?: string
+          function_name?: string
+          health_score?: number | null
+          id?: string
+          last_error_at?: string | null
+          last_error_message?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          status?: string | null
+          total_failures?: number | null
+          total_runs?: number | null
+          total_successes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      agent_runs: {
+        Row: {
+          actions_taken: number | null
+          agent_name: string
+          completed_at: string | null
+          created_at: string | null
+          details: Json | null
+          duration_ms: number | null
+          errors_count: number | null
+          gemini_used: boolean | null
+          id: string
+          items_processed: number | null
+          started_at: string | null
+          status: string | null
+          summary: string | null
+          warnings_count: number | null
+        }
+        Insert: {
+          actions_taken?: number | null
+          agent_name: string
+          completed_at?: string | null
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          errors_count?: number | null
+          gemini_used?: boolean | null
+          id?: string
+          items_processed?: number | null
+          started_at?: string | null
+          status?: string | null
+          summary?: string | null
+          warnings_count?: number | null
+        }
+        Update: {
+          actions_taken?: number | null
+          agent_name?: string
+          completed_at?: string | null
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          errors_count?: number | null
+          gemini_used?: boolean | null
+          id?: string
+          items_processed?: number | null
+          started_at?: string | null
+          status?: string | null
+          summary?: string | null
+          warnings_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_name_fkey"
+            columns: ["agent_name"]
+            isOneToOne: false
+            referencedRelation: "agent_registry"
+            referencedColumns: ["agent_name"]
+          },
+        ]
       }
       analytics_reports: {
         Row: {
