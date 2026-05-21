@@ -1,9 +1,9 @@
 /**
- * TechAssignments — List of all assignments for the technician.
+ * TechAssignments — List of all assignments (mine + available to claim).
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Clock, MapPin, Truck, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Clock, MapPin, Truck, AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -32,12 +32,34 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Annulé",
 };
 
-type Filter = "today" | "tomorrow" | "week";
+type Filter = "mine" | "available" | "all";
 
 export default function TechAssignments() {
   const { data = [], isLoading } = useTechAssignments();
-  const [filter, setFilter] = useState<Filter>("today");
+  const [filter, setFilter] = useState<Filter>("mine");
+  const [uid, setUid] = useState<string | null>(null);
   const qc = useQueryClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUid(data.user?.id ?? null));
+  }, []);
+
+  const claim = useMutation({
+    mutationFn: async (id: string) => {
+      if (!uid) throw new Error("Non authentifié");
+      const { error } = await supabase
+        .from("technician_assignments")
+        .update({ technician_id: uid })
+        .eq("id", id)
+        .is("technician_id", null);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
+      toast.success("Mission acceptée");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status, vars }: { id: string; status: string; vars?: any }) => {
@@ -50,7 +72,6 @@ export default function TechAssignments() {
         .eq("id", id);
       if (error) throw error;
 
-      // Trigger client email for en_route / missed
       if (status === "en_route" || status === "missed") {
         const a = data.find((x) => x.id === id);
         if (a?.order_id) {
@@ -77,31 +98,27 @@ export default function TechAssignments() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tech-assignments-self"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       toast.success("Statut mis à jour");
     },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
   });
 
   const filtered = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-    const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-    if (filter === "today") return data.filter((a) => a.scheduled_date === today);
-    if (filter === "tomorrow") return data.filter((a) => a.scheduled_date === tomorrow);
-    return data.filter((a) => a.scheduled_date >= today && a.scheduled_date <= weekEnd);
-  }, [data, filter]);
+    if (filter === "mine") return data.filter((a) => a.technician_id === uid);
+    if (filter === "available") return data.filter((a) => !a.technician_id);
+    return data;
+  }, [data, filter, uid]);
 
   return (
     <div>
-      <TechTopBar title="Mes missions" />
+      <TechTopBar title="Missions" />
       <div className="px-4 py-4">
-        {/* Filter tabs */}
         <div role="tablist" className="flex gap-2 mb-4 overflow-x-auto -mx-1 px-1">
           {([
-            ["today", "Aujourd'hui"],
-            ["tomorrow", "Demain"],
-            ["week", "Cette semaine"],
+            ["mine", "Mes missions"],
+            ["available", "Disponibles"],
+            ["all", "Toutes"],
           ] as const).map(([k, lbl]) => (
             <button
               key={k}
@@ -124,7 +141,7 @@ export default function TechAssignments() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
-            <p className="text-slate-300">Aucune mission pour cette période</p>
+            <p className="text-slate-300">Aucune mission</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -132,6 +149,8 @@ export default function TechAssignments() {
               <AssignmentCard
                 key={a.id}
                 assignment={a}
+                isMine={a.technician_id === uid}
+                onClaim={() => claim.mutate(a.id)}
                 onEnRoute={() => {
                   const eta = window.prompt("Heure d'arrivée estimée (ex: 14h30)", "");
                   if (eta !== null) setStatus.mutate({ id: a.id, status: "en_route", vars: { eta } });
@@ -152,25 +171,40 @@ export default function TechAssignments() {
 
 function AssignmentCard({
   assignment: a,
+  isMine,
+  onClaim,
   onEnRoute,
   onMissed,
 }: {
   assignment: TechAssignment;
+  isMine: boolean;
+  onClaim: () => void;
   onEnRoute: () => void;
   onMissed: () => void;
 }) {
   const badge = STATUS_STYLES[a.status] || STATUS_STYLES.scheduled;
   const isDone = ["completed", "cancelled", "missed"].includes(a.status);
+  const unassigned = !a.technician_id;
+
   return (
     <li className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 text-white font-semibold">
           <Clock className="h-4 w-4 text-violet-400" />
-          <span>{a.scheduled_time_start?.slice(0, 5)} – {a.scheduled_time_end?.slice(0, 5)}</span>
+          <span>
+            {a.scheduled_date} · {a.scheduled_time_start?.slice(0, 5)} – {a.scheduled_time_end?.slice(0, 5)}
+          </span>
         </div>
-        <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full border ${badge}`}>
-          {STATUS_LABELS[a.status]}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full border ${badge}`}>
+            {STATUS_LABELS[a.status]}
+          </span>
+          {unassigned && (
+            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full border bg-violet-500/20 text-violet-300 border-violet-500/40">
+              Disponible
+            </span>
+          )}
+        </div>
       </div>
 
       <div>
@@ -189,7 +223,15 @@ function AssignmentCard({
         {a.order_number && <span> · #{a.order_number}</span>}
       </div>
 
-      {!isDone && (
+      {unassigned ? (
+        <button
+          onClick={onClaim}
+          className="w-full min-h-[48px] rounded-full bg-violet-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <UserPlus className="h-4 w-4" />
+          Accepter cette mission
+        </button>
+      ) : isMine && !isDone ? (
         <div className="grid grid-cols-3 gap-2 pt-2">
           <button
             onClick={onEnRoute}
@@ -202,7 +244,7 @@ function AssignmentCard({
             to={`/tech/installation/${a.id}`}
             className="min-h-[48px] rounded-full bg-violet-600 text-white text-sm font-semibold flex items-center justify-center"
           >
-            Détails
+            Installer
           </Link>
           <button
             onClick={onMissed}
@@ -212,6 +254,15 @@ function AssignmentCard({
             Manqué
           </button>
         </div>
+      ) : isMine ? (
+        <Link
+          to={`/tech/installation/${a.id}`}
+          className="block w-full text-center min-h-[44px] py-3 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold"
+        >
+          Voir détails
+        </Link>
+      ) : (
+        <p className="text-xs text-slate-500 italic">Assignée à un autre technicien</p>
       )}
     </li>
   );

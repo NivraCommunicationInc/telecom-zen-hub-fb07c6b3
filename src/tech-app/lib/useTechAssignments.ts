@@ -36,17 +36,17 @@ export interface TechAssignment {
 
 export function useTechAssignments() {
   return useQuery({
-    queryKey: ["tech-assignments-self"],
+    queryKey: ["tech-assignments-all"],
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async (): Promise<TechAssignment[]> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
+      // Fetch all assignments: assigned to me OR unassigned (available to claim)
       const { data, error } = await supabase
         .from("technician_assignments")
         .select("*")
-        .eq("technician_id", user.id)
         .order("scheduled_date", { ascending: true })
         .order("scheduled_time_start", { ascending: true });
 
@@ -78,6 +78,7 @@ export function useTechAssignments() {
     },
   });
 }
+
 
 export function useTechAssignment(id: string | undefined) {
   return useQuery({
