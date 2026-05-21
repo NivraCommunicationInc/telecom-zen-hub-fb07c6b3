@@ -36,7 +36,7 @@ type Filter = "mine" | "available" | "all";
 
 export default function TechAssignments() {
   const { data = [], isLoading } = useTechAssignments();
-  const [filter, setFilter] = useState<Filter>("mine");
+  const [filter, setFilter] = useState<Filter>("all");
   const [uid, setUid] = useState<string | null>(null);
   const qc = useQueryClient();
 
@@ -105,7 +105,7 @@ export default function TechAssignments() {
   });
 
   const filtered = useMemo(() => {
-    if (filter === "mine") return data.filter((a) => a.technician_id === uid);
+    if (filter === "mine") return data.filter((a) => a.technician_id === uid || !a.technician_id);
     if (filter === "available") return data.filter((a) => !a.technician_id);
     return data;
   }, [data, filter, uid]);
@@ -116,9 +116,9 @@ export default function TechAssignments() {
       <div className="px-4 py-4">
         <div role="tablist" className="flex gap-2 mb-4 overflow-x-auto -mx-1 px-1">
           {([
+            ["all", "Toutes"],
             ["mine", "Mes missions"],
             ["available", "Disponibles"],
-            ["all", "Toutes"],
           ] as const).map(([k, lbl]) => (
             <button
               key={k}
