@@ -26459,6 +26459,15 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
+      tech_update_assignment_status: {
+        Args: {
+          p_assignment_id: string
+          p_eta?: string
+          p_note?: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       transition_order_status: {
         Args: {
           p_domain: string
