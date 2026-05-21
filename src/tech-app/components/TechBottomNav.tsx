@@ -6,9 +6,9 @@ import { NavLink } from "react-router-dom";
 import { Home, ClipboardList, ScanLine, User } from "lucide-react";
 
 const tabs = [
-  { to: "/tech/dashboard", icon: Home, label: "Accueil" },
+  { to: "/tech", icon: Home, label: "Accueil" },
   { to: "/tech/assignments", icon: ClipboardList, label: "Missions" },
-  { to: "/tech/scanner", icon: ScanLine, label: "Scanner" },
+  { to: "/tech/scanner", icon: ScanLine, label: "Vérifier" },
   { to: "/tech/profile", icon: User, label: "Profil" },
 ];
 
@@ -23,6 +23,7 @@ export default function TechBottomNav() {
           <li key={to} className="flex-1">
             <NavLink
               to={to}
+              end={to === "/tech"}
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center gap-1 py-3 min-h-[64px] text-xs font-medium transition-colors ${
                   isActive ? "text-violet-400" : "text-slate-400"

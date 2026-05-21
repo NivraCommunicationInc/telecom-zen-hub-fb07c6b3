@@ -4,7 +4,7 @@
  */
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2, PackageCheck, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,6 +34,8 @@ export default function TechInstallation() {
   const [upload, setUpload] = useState("");
   const [ping, setPing] = useState("");
   const [signal, setSignal] = useState("");
+  const [scanCode, setScanCode] = useState("");
+  const [scannedEquipment, setScannedEquipment] = useState<any[]>([]);
 
   const totalSteps = steps.length;
   const progress = totalSteps ? Math.round(((stepIdx + 1) / totalSteps) * 100) : 0;
@@ -48,6 +50,45 @@ export default function TechInstallation() {
     [doneSteps, steps],
   );
 
+  const existingScanned = useMemo(
+    () => Array.isArray(assignment?.equipment_scanned) ? assignment.equipment_scanned : [],
+    [assignment?.equipment_scanned],
+  );
+
+  const allScannedEquipment = useMemo(
+    () => [...existingScanned, ...scannedEquipment],
+    [existingScanned, scannedEquipment],
+  );
+
+  const scanEquipment = async () => {
+    const code = scanCode.trim();
+    if (!code) return;
+    if (allScannedEquipment.some((e: any) => e.serial_number === code || e.mac_address === code)) {
+      toast.info("Équipement déjà scanné");
+      setScanCode("");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("equipment_inventory")
+      .select("id, catalog_name, category, serial_number, mac_address, status")
+      .or(`serial_number.eq.${code},mac_address.eq.${code}`)
+      .maybeSingle();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (!data) {
+      toast.error("Équipement introuvable dans l'inventaire");
+      return;
+    }
+    setScannedEquipment((items) => [
+      ...items,
+      { ...data, scanned_at: new Date().toISOString(), source: "installation" },
+    ]);
+    setScanCode("");
+    toast.success("Équipement ajouté à l'installation");
+  };
+
   const complete = useMutation({
     mutationFn: async () => {
       if (!id) throw new Error("ID manquant");
@@ -60,6 +101,7 @@ export default function TechInstallation() {
           step_order: steps[i]?.step_order,
           title: steps[i]?.title_fr,
         })),
+        equipment_scanned: allScannedEquipment,
       };
       if (download) payload.download_speed = parseFloat(download);
       if (upload) payload.upload_speed = parseFloat(upload);
@@ -180,7 +222,7 @@ export default function TechInstallation() {
                 </button>
               )}
               {currentStep.requires_scan && (
-                <button className="min-h-[48px] flex-1 rounded-full bg-slate-800 border border-slate-700 px-4 text-sm font-medium text-white flex items-center justify-center gap-2">
+                <button onClick={() => document.getElementById("tech-equipment-scan")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-h-[48px] flex-1 rounded-full bg-slate-800 border border-slate-700 px-4 text-sm font-medium text-white flex items-center justify-center gap-2">
                   <ScanLine className="h-4 w-4" /> Scanner
                 </button>
               )}
@@ -211,6 +253,48 @@ export default function TechInstallation() {
             </div>
           </section>
         )}
+
+        {/* Equipment scan during install */}
+        <section id="tech-equipment-scan" className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3 scroll-mt-20">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Équipement installé</h3>
+              <p className="text-xs text-slate-400 mt-1">Scanner ou entrer le numéro de série / MAC pendant l'installation.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-violet-600/20 px-3 py-1 text-xs font-bold text-violet-300">{allScannedEquipment.length}</span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={scanCode}
+              onChange={(e) => setScanCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && scanEquipment()}
+              placeholder="S/N ou MAC..."
+              className="min-h-[50px] flex-1 rounded-full bg-slate-800 border border-slate-700 text-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            <button onClick={scanEquipment} disabled={!scanCode.trim()} className="min-h-[50px] min-w-[56px] rounded-full bg-violet-600 text-white flex items-center justify-center disabled:opacity-40" aria-label="Ajouter équipement scanné">
+              <ScanLine className="h-5 w-5" />
+            </button>
+          </div>
+          {allScannedEquipment.length > 0 && (
+            <ul className="space-y-2">
+              {allScannedEquipment.map((item: any, idx: number) => (
+                <li key={`${item.id || item.serial_number}-${idx}`} className="flex items-start gap-3 rounded-xl bg-slate-800/70 border border-slate-700 p-3">
+                  <PackageCheck className="h-5 w-5 text-emerald-400 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white truncate">{item.catalog_name || item.category || "Équipement"}</p>
+                    <p className="text-xs text-slate-400">S/N: {item.serial_number || "—"}</p>
+                    {item.mac_address && <p className="text-xs text-slate-400">MAC: {item.mac_address}</p>}
+                  </div>
+                  {idx >= existingScanned.length && (
+                    <button onClick={() => setScannedEquipment((items) => items.filter((_, i) => i !== idx - existingScanned.length))} className="h-10 w-10 rounded-full text-slate-400 hover:bg-slate-700" aria-label="Retirer équipement">
+                      <X className="h-4 w-4 mx-auto" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* Coaxial */}
         {(assignment.service_type === "internet" || assignment.service_type === "bundle") && (
