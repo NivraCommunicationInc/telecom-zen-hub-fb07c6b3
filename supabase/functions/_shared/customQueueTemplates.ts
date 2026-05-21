@@ -4105,6 +4105,7 @@ export function renderQueueTemplate(
     case "review_request_activation": {
       const firstName = esc(v.first_name || clientName);
       const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
+      const googleReviewUrl = String(v.google_review_url || "https://g.page/r/Cc0xn5zgYussEBM/review");
       return {
         subject: "Comment s'est passée votre installation? — Nivra Telecom",
         html: shell({
@@ -4122,6 +4123,8 @@ export function renderQueueTemplate(
           ],
           ctaPrimaryUrl: reviewUrl,
           ctaPrimaryLabel: "Laisser mon avis",
+          ctaSecondaryUrl: googleReviewUrl,
+          ctaSecondaryLabel: "Laisser un avis Google",
           helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
@@ -4130,6 +4133,7 @@ export function renderQueueTemplate(
     case "review_request_deactivation": {
       const firstName = esc(v.first_name || clientName);
       const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
+      const googleReviewUrl = String(v.google_review_url || "https://g.page/r/Cc0xn5zgYussEBM/review");
       return {
         subject: "Merci d'avoir été client Nivra — Votre avis nous importe",
         html: shell({
@@ -4147,6 +4151,8 @@ export function renderQueueTemplate(
           ],
           ctaPrimaryUrl: reviewUrl,
           ctaPrimaryLabel: "Partager mon expérience",
+          ctaSecondaryUrl: googleReviewUrl,
+          ctaSecondaryLabel: "Laisser un avis Google",
           helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
@@ -4308,6 +4314,7 @@ export function renderQueueTemplate(
       const resolvedDate = esc(v.resolved_date || "");
       const resolution = esc(v.resolution_summary || "");
       const portalUrl = String(v.tracking_url || v.portal_url || (v.public_token ? `${APP_URL}/plainte/suivi/${v.public_token}` : `${APP_URL}/plainte`));
+      const googleReviewUrl = String(v.google_review_url || "https://g.page/r/Cc0xn5zgYussEBM/review");
       return {
         subject: `Votre plainte est résolue — ${ticket} — Nivra Telecom`,
         html: shell({
@@ -4324,6 +4331,8 @@ export function renderQueueTemplate(
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Confirmer la résolution",
+          ctaSecondaryUrl: googleReviewUrl,
+          ctaSecondaryLabel: "Laisser un avis Google",
           helpHtml: `Si le problème persiste, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
