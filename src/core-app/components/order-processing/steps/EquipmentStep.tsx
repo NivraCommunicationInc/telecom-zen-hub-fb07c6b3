@@ -80,9 +80,18 @@ export function EquipmentStep({ proc }: Props) {
   const [manualMode, setManualMode] = useState(false);
   const [manualSerial, setManualSerial] = useState("");
   const [manualMac, setManualMac] = useState("");
-  const [manualType, setManualType] = useState("router");
+  const [manualType, setManualType] = useState("borne_wifi");
+  const [manualCatalogName, setManualCatalogName] = useState("");
   const [saving, setSaving] = useState(false);
   const [showAssignedDetails, setShowAssignedDetails] = useState(true);
+
+  // Limites par commande
+  const WIFI_CATS = ["borne_wifi", "router", "modem"];
+  const TV_CATS = ["tv_box", "terminal"];
+  const MAX_WIFI = 1;
+  const MAX_TV = 4;
+  const countCats = (items: { category: string }[], cats: string[]) =>
+    items.filter(i => cats.includes(i.category)).length;
 
   const { data: inventoryItems, isLoading: inventoryLoading, refetch: refetchInventory } = useQuery({
     queryKey: ["equipment-inventory-full", selectedCategory, statusFilter, searchTerm],
