@@ -1806,8 +1806,88 @@ Cochez la case pour confirmer votre acceptation.</div>
     }
 
     // ===================================================================
+    // STAFF — Field Sales welcome confirmation (post setup) — Violet Bold
+    // ===================================================================
+    case "agent_welcome_confirmed": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || clientName || "Agent");
+      const supervisorName = esc(v.supervisor_name || "Marvens");
+      const portalLoginUrl = "https://nivra-telecom.ca/nivra-secure-hub-2617-internal/login";
+
+      const stepCardCss = `margin:0 0 14px 0;padding:16px 18px;background:#ffffff;border:1px solid #ddd6fe;border-left:4px solid #7c3aed;border-radius:8px;`;
+      const stepTitleCss = `font-weight:700;color:#1f2937;font-size:15px;margin:0 0 8px 0;line-height:1.4;`;
+      const stepBodyCss = `font-size:14px;color:#4b5563;line-height:1.65;margin:0;white-space:pre-line;`;
+
+      const firstStepsHtml = `
+        <div style="margin:28px 0 12px 0;padding:18px 20px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;">
+          <div style="font-weight:800;color:#5b21b6;font-size:17px;margin:0;">Vos premières étapes</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">🔐 Étape 1 — Connectez-vous à votre portail</div>
+          <div style="${stepBodyCss}">Accédez à votre espace de travail :
+<a href="${portalLoginUrl}" style="color:#7c3aed;font-weight:600;">${portalLoginUrl}</a>
+
+1. Sélectionnez « Nivra Field »
+2. Entrez votre adresse courriel
+3. Entrez votre mot de passe
+4. Entrez le code de votre application Authenticator
+5. Vous êtes dans votre tableau de bord Nivra Field!</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">🎓 Étape 2 — Complétez votre formation Nivra Academy</div>
+          <div style="${stepBodyCss}">Dans votre tableau de bord, cliquez sur « Nivra Academy ».
+Complétez TOUS les modules de formation dans l'ordre :
+• Introduction à Nivra Telecom
+• Nos produits et forfaits
+• Vos commissions et revenus
+• Techniques de vente porte-à-porte
+• Comment se présenter
+• Politiques internes
+• Lois et règlements
+• Facturation et contrats
+
+⚠️ La formation est OBLIGATOIRE avant votre première journée terrain.</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">🏆 Étape 3 — Obtenez votre certification</div>
+          <div style="${stepBodyCss}">Une fois tous les modules complétés et les quiz réussis (80% minimum), vous obtiendrez votre certificat Nivra Telecom.
+Votre superviseur ${supervisorName} vous donnera ensuite votre première journée sur le terrain.
+
+Bonne chance et bienvenue dans l'équipe! 🎉</div>
+        </div>
+      `;
+
+      return {
+        subject: `Bienvenue chez Nivra Telecom, ${firstName}! Votre compte est activé`,
+        html: shell({
+          preheader: "Votre compte Nivra Field est maintenant activé.",
+          badge: "COMPTE ACTIVÉ",
+          heroTitle: "Bienvenue dans l'équipe Nivra Telecom!",
+          heroSub: "Votre compte est prêt à l'emploi.",
+          icon: "check",
+          greeting: `Bonjour ${firstName},`,
+          bodyText: `Félicitations! Votre compte Nivra Telecom est maintenant activé et prêt à l'emploi.<br/><br/>Votre superviseur <strong>${supervisorName}</strong> vous contactera prochainement pour vous accueillir dans l'équipe et répondre à vos questions.`,
+          cardTitle: "Votre compte",
+          cardRows: [
+            ["Votre rôle", "Agent Terrain — Nivra Telecom"],
+            ["Votre superviseur", supervisorName],
+            ["Statut du compte", "Activé ✅"],
+            ["Prochaine étape", "Compléter la formation"],
+          ],
+          ctaPrimaryUrl: portalLoginUrl,
+          ctaPrimaryLabel: "Accéder à mon portail Nivra Field",
+          extraBodyHtml: firstStepsHtml,
+          helpHtml: `Pour toute question, contactez votre superviseur ${supervisorName} ou écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // STAFF — Generic internal invitation (Violet Bold)
     // ===================================================================
+
     case "staff_invitation": {
       const firstName = esc(v.first_name || v.FIRST_NAME || "");
       const inviteUrl = String(v.invite_url || v.INVITE_URL || v.setup_link || "#");
