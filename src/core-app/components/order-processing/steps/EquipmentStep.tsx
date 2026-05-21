@@ -80,9 +80,18 @@ export function EquipmentStep({ proc }: Props) {
   const [manualMode, setManualMode] = useState(false);
   const [manualSerial, setManualSerial] = useState("");
   const [manualMac, setManualMac] = useState("");
-  const [manualType, setManualType] = useState("router");
+  const [manualType, setManualType] = useState("borne_wifi");
+  const [manualCatalogName, setManualCatalogName] = useState("");
   const [saving, setSaving] = useState(false);
   const [showAssignedDetails, setShowAssignedDetails] = useState(true);
+
+  // Limites par commande
+  const WIFI_CATS = ["borne_wifi", "router", "modem"];
+  const TV_CATS = ["tv_box", "terminal"];
+  const MAX_WIFI = 1;
+  const MAX_TV = 4;
+  const countCats = (items: { category: string }[], cats: string[]) =>
+    items.filter(i => cats.includes(i.category)).length;
 
   const { data: inventoryItems, isLoading: inventoryLoading, refetch: refetchInventory } = useQuery({
     queryKey: ["equipment-inventory-full", selectedCategory, statusFilter, searchTerm],
@@ -130,6 +139,19 @@ export function EquipmentStep({ proc }: Props) {
     staleTime: 30_000,
   });
 
+  // Noms de catalogue distincts pour le mode manuel (filtré par type)
+  const { data: catalogNames } = useQuery({
+    queryKey: ["equipment-catalog-names", manualType],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("equipment_inventory")
+        .select("catalog_name").eq("category", manualType).limit(500);
+      if (error) throw error;
+      const set = new Set<string>();
+      (data || []).forEach((r: any) => { if (r.catalog_name) set.add(r.catalog_name); });
+      return Array.from(set).sort();
+    },
+  });
+
   const hasExistingAssignment = (assignedItems?.length ?? 0) > 0;
   const isItemAvailable = (item: InventoryItem) => item.status === "in_stock";
   const isItemAssignedToThisOrder = (item: InventoryItem) => item.order_id === order.id;
@@ -140,12 +162,28 @@ export function EquipmentStep({ proc }: Props) {
       return;
     }
     const exists = selectedItems.find(i => i.id === item.id);
-    if (exists) setSelectedItems(selectedItems.filter(i => i.id !== item.id));
-    else setSelectedItems([...selectedItems, item]);
+    if (exists) { setSelectedItems(selectedItems.filter(i => i.id !== item.id)); return; }
+
+    // Validation limites (assignés existants + nouvelle sélection)
+    const projected = [...(assignedItems || []), ...selectedItems, item];
+    if (WIFI_CATS.includes(item.category) && countCats(projected, WIFI_CATS) > MAX_WIFI) {
+      toast.error(`Maximum ${MAX_WIFI} borne WiFi / routeur par commande`);
+      return;
+    }
+    if (TV_CATS.includes(item.category) && countCats(projected, TV_CATS) > MAX_TV) {
+      toast.error(`Maximum ${MAX_TV} terminaux TV par commande`);
+      return;
+    }
+    setSelectedItems([...selectedItems, item]);
   };
 
   const handleAssignFromInventory = async () => {
     if (selectedItems.length === 0) { toast.error("Sélectionnez au moins un article"); return; }
+    const missingSerial = selectedItems.filter(i => !i.serial_number?.trim());
+    if (missingSerial.length > 0) {
+      toast.error(`Numéro de série obligatoire — manquant pour : ${missingSerial.map(i => i.catalog_name).join(", ")}`);
+      return;
+    }
     setSaving(true);
     try {
       const now = new Date().toISOString();
@@ -205,17 +243,28 @@ export function EquipmentStep({ proc }: Props) {
   };
 
   const handleManualAssign = async () => {
-    if (!manualSerial && !manualMac) { toast.error("Entrez au minimum un numéro de série ou MAC"); return; }
+    if (!manualSerial.trim()) { toast.error("Le numéro de série est obligatoire"); return; }
+    if (!manualCatalogName.trim()) { toast.error("Sélectionnez ou saisissez le nom de l'équipement"); return; }
+    // Limites
+    const existing = assignedItems || [];
+    if (WIFI_CATS.includes(manualType) && countCats([...existing, { category: manualType } as any], WIFI_CATS) > MAX_WIFI) {
+      toast.error(`Maximum ${MAX_WIFI} borne WiFi / routeur par commande`); return;
+    }
+    if (TV_CATS.includes(manualType) && countCats([...existing, { category: manualType } as any], TV_CATS) > MAX_TV) {
+      toast.error(`Maximum ${MAX_TV} terminaux TV par commande`); return;
+    }
     setSaving(true);
     try {
-      const equipmentDetails = [{
-        id: crypto.randomUUID(), type: manualType, label: `Manuel — ${manualType}`,
-        serial_number: manualSerial, mac_address: manualMac, iccid: "", imei: "", esim_ref: "",
+      const currentDetails = Array.isArray(order.equipment_details) ? order.equipment_details : [];
+      const newEntry = {
+        id: crypto.randomUUID(), type: manualType, label: manualCatalogName.trim(),
+        serial_number: manualSerial.trim(), mac_address: manualMac.trim(), iccid: "", imei: "", esim_ref: "",
         status: "assigned", source: "manual",
-      }];
-      const fields: Record<string, any> = { equipment_details: equipmentDetails, equipment_id: manualType.toUpperCase() };
-      if (manualSerial) fields.serial_number = manualSerial;
+      };
+      const equipmentDetails = [...currentDetails, newEntry];
+      const fields: Record<string, any> = { equipment_details: equipmentDetails, equipment_id: manualType.toUpperCase(), serial_number: manualSerial.trim() };
       await proc.assignEquipment(fields);
+      setManualSerial(""); setManualMac(""); setManualCatalogName("");
       toast.success("Équipement assigné manuellement");
     } catch (err: any) {
       toast.error(err?.message || "Erreur");
@@ -439,7 +488,7 @@ export function EquipmentStep({ proc }: Props) {
         <>
           <div className="bg-amber-950/50 border border-amber-700/50 text-amber-300 rounded-lg px-3 py-2 text-sm mb-4 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5" />
-            <span>Saisie manuelle — uniquement si l'article n'est pas dans l'inventaire.</span>
+            <span>Saisie manuelle — uniquement si l'article n'est pas dans l'inventaire. Limites par commande : 1 borne WiFi, 4 terminaux TV. Numéro de série obligatoire.</span>
           </div>
           <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
             <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
@@ -448,20 +497,37 @@ export function EquipmentStep({ proc }: Props) {
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <Label className={labelClass}>Type</Label>
-                <Select value={manualType} onValueChange={setManualType}>
+                <Select value={manualType} onValueChange={(v) => { setManualType(v); setManualCatalogName(""); }}>
                   <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="router">Routeur</SelectItem>
-                    <SelectItem value="borne_wifi">Borne WiFi</SelectItem>
-                    <SelectItem value="tv_box">Terminal TV</SelectItem>
+                    <SelectItem value="borne_wifi">Borne WiFi (max 1)</SelectItem>
+                    <SelectItem value="router">Routeur (max 1)</SelectItem>
+                    <SelectItem value="modem">Modem (max 1)</SelectItem>
+                    <SelectItem value="terminal">Terminal TV (max 4)</SelectItem>
+                    <SelectItem value="tv_box">TV Box (max 4)</SelectItem>
                     <SelectItem value="sim">Carte SIM</SelectItem>
-                    <SelectItem value="modem">Modem</SelectItem>
                     <SelectItem value="other">Autre</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className={labelClass}>Numéro de série</Label>
+                <Label className={labelClass}>Nom de l'équipement <span className="text-red-400">*</span></Label>
+                {catalogNames && catalogNames.length > 0 ? (
+                  <Select value={manualCatalogName} onValueChange={setManualCatalogName}>
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue placeholder="Sélectionner un modèle…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={manualCatalogName} onChange={(e) => setManualCatalogName(e.target.value)}
+                    placeholder="Nom du modèle…" className={inputClass} />
+                )}
+              </div>
+              <div>
+                <Label className={labelClass}>Numéro de série <span className="text-red-400">*</span></Label>
                 <Input value={manualSerial} onChange={(e) => setManualSerial(e.target.value)} placeholder="S/N…" className={cn(inputClass, "font-mono")} />
               </div>
               <div>
