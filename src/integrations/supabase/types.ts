@@ -11934,6 +11934,51 @@ export type Database = {
           },
         ]
       }
+      installation_steps_template: {
+        Row: {
+          created_at: string
+          description_en: string | null
+          description_fr: string
+          id: string
+          is_mandatory: boolean | null
+          requires_photo: boolean | null
+          requires_scan: boolean | null
+          requires_test: boolean | null
+          service_type: string
+          step_order: number
+          title_en: string | null
+          title_fr: string
+        }
+        Insert: {
+          created_at?: string
+          description_en?: string | null
+          description_fr: string
+          id?: string
+          is_mandatory?: boolean | null
+          requires_photo?: boolean | null
+          requires_scan?: boolean | null
+          requires_test?: boolean | null
+          service_type: string
+          step_order: number
+          title_en?: string | null
+          title_fr: string
+        }
+        Update: {
+          created_at?: string
+          description_en?: string | null
+          description_fr?: string
+          id?: string
+          is_mandatory?: boolean | null
+          requires_photo?: boolean | null
+          requires_scan?: boolean | null
+          requires_test?: boolean | null
+          service_type?: string
+          step_order?: number
+          title_en?: string | null
+          title_fr?: string
+        }
+        Relationships: []
+      }
       installations: {
         Row: {
           appointment_date: string | null
@@ -22141,6 +22186,126 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      technician_assignments: {
+        Row: {
+          client_notified_en_route: boolean | null
+          client_notified_missed: boolean | null
+          client_notified_next: boolean | null
+          coaxial_notes: string | null
+          coaxial_status: string | null
+          completed_at: string | null
+          created_at: string
+          download_speed: number | null
+          equipment_scanned: Json | null
+          id: string
+          installation_photos: Json | null
+          installation_steps: Json | null
+          missed_at: string | null
+          network_test_results: Json | null
+          order_id: string | null
+          ping_ms: number | null
+          scheduled_date: string
+          scheduled_time_end: string
+          scheduled_time_start: string
+          signal_strength: number | null
+          status: string
+          technician_id: string | null
+          technician_notes: string | null
+          updated_at: string
+          upload_speed: number | null
+        }
+        Insert: {
+          client_notified_en_route?: boolean | null
+          client_notified_missed?: boolean | null
+          client_notified_next?: boolean | null
+          coaxial_notes?: string | null
+          coaxial_status?: string | null
+          completed_at?: string | null
+          created_at?: string
+          download_speed?: number | null
+          equipment_scanned?: Json | null
+          id?: string
+          installation_photos?: Json | null
+          installation_steps?: Json | null
+          missed_at?: string | null
+          network_test_results?: Json | null
+          order_id?: string | null
+          ping_ms?: number | null
+          scheduled_date: string
+          scheduled_time_end: string
+          scheduled_time_start: string
+          signal_strength?: number | null
+          status?: string
+          technician_id?: string | null
+          technician_notes?: string | null
+          updated_at?: string
+          upload_speed?: number | null
+        }
+        Update: {
+          client_notified_en_route?: boolean | null
+          client_notified_missed?: boolean | null
+          client_notified_next?: boolean | null
+          coaxial_notes?: string | null
+          coaxial_status?: string | null
+          completed_at?: string | null
+          created_at?: string
+          download_speed?: number | null
+          equipment_scanned?: Json | null
+          id?: string
+          installation_photos?: Json | null
+          installation_steps?: Json | null
+          missed_at?: string | null
+          network_test_results?: Json | null
+          order_id?: string | null
+          ping_ms?: number | null
+          scheduled_date?: string
+          scheduled_time_end?: string
+          scheduled_time_start?: string
+          signal_strength?: number | null
+          status?: string
+          technician_id?: string | null
+          technician_notes?: string | null
+          updated_at?: string
+          upload_speed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technician_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
       }
       technician_locations: {
         Row: {
