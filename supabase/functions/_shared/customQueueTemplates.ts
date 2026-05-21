@@ -5210,6 +5210,78 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "tech_arrived": {
+      const techName = esc(v.tech_name || "Votre technicien");
+      const arrival = esc(v.arrival_time || new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }));
+      return {
+        subject: "Votre technicien est arrivé — Nivra Telecom",
+        html: shell({
+          preheader: `${techName} est arrivé à votre porte.`,
+          badge: "TECHNICIEN ARRIVÉ 📍",
+          heroTitle: "Votre technicien est à votre porte!",
+          icon: "truck",
+          greeting,
+          bodyText: "Votre technicien Nivra Telecom est arrivé à votre domicile. Veuillez lui ouvrir la porte afin de commencer l'installation.",
+          cardTitle: "Détails de l'arrivée",
+          cardRows: [
+            ["Technicien", techName],
+            ["Heure d'arrivée", arrival],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
+    case "tech_in_progress": {
+      const techName = esc(v.tech_name || "Votre technicien");
+      const start = esc(v.start_time || new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }));
+      return {
+        subject: "Installation en cours — Nivra Telecom",
+        html: shell({
+          preheader: "Votre installation a commencé.",
+          badge: "INSTALLATION EN COURS 🔧",
+          heroTitle: "Votre installation est en cours!",
+          icon: "check",
+          greeting,
+          bodyText: "Votre technicien Nivra Telecom est en train d'installer votre service. Durée estimée: 30 à 60 minutes.",
+          cardTitle: "Suivi de l'installation",
+          cardRows: [
+            ["Technicien", techName],
+            ["Début de l'installation", start],
+            ["Durée estimée", "30-60 minutes"],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
+    case "tech_rescheduled": {
+      const techName = esc(v.tech_name || "Votre technicien");
+      const newDate = fmtDate(v.new_date || v.scheduled_date);
+      const newTime = esc(v.new_time || v.scheduled_time || "à confirmer");
+      return {
+        subject: "Installation replanifiée — Nivra Telecom",
+        html: shell({
+          preheader: "Votre rendez-vous d'installation a été replanifié.",
+          badge: "RENDEZ-VOUS REPLANIFIÉ 📅",
+          heroTitle: "Votre installation a été replanifiée",
+          icon: "calendar",
+          greeting,
+          bodyText: "Votre rendez-vous d'installation a été replanifié. Vous trouverez ci-dessous les nouveaux détails. Pour toute question, contactez notre équipe support.",
+          cardTitle: "Nouveau rendez-vous",
+          cardRows: [
+            ["Nouvelle date", newDate],
+            ["Nouvelle heure", newTime],
+            ["Technicien", techName],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
     case "tech_completed": {
       const planName = esc(v.plan_name || "Forfait Nivra");
       const renewal = esc(v.renewal_date || fmtDate(new Date(Date.now() + 30*86400000).toISOString()));
@@ -5223,7 +5295,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre service Nivra est actif!",
           icon: "check",
           greeting,
-          bodyText: "Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé.",
+          bodyText: "Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé. Votre avis nous aide à grandir — laissez-nous une note Google!",
           cardTitle: "Détails du service",
           cardRows: [
             ["Forfait activé", planName],
@@ -5233,6 +5305,8 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Accéder à mon compte",
+          ctaSecondaryUrl: "https://g.page/r/Cc0xn5zgYussEBM/review",
+          ctaSecondaryLabel: "Laisser un avis Google",
         }),
       };
     }
