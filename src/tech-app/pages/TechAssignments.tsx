@@ -3,7 +3,7 @@
  */
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Clock, MapPin, Truck, AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
+import { Clock, MapPin, Truck, AlertCircle, CheckCircle2, UserPlus, Phone, PlayCircle, RotateCcw, XCircle, Wrench, PackageCheck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
   missed: "bg-red-500/20 text-red-300 border-red-500/40",
   rescheduled: "bg-purple-500/20 text-purple-300 border-purple-500/40",
   cancelled: "bg-slate-500/20 text-slate-300 border-slate-500/40",
+  no_show: "bg-red-500/20 text-red-300 border-red-500/40",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -30,7 +31,10 @@ const STATUS_LABELS: Record<string, string> = {
   missed: "Manqué",
   rescheduled: "Replanifié",
   cancelled: "Annulé",
+  no_show: "Absent",
 };
+
+const terminalStatuses = ["completed", "cancelled", "missed", "no_show"];
 
 type Filter = "mine" | "available" | "all";
 
@@ -63,13 +67,12 @@ export default function TechAssignments() {
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status, vars }: { id: string; status: string; vars?: any }) => {
-      const { error } = await supabase
-        .from("technician_assignments")
-        .update({
-          status,
-          ...(status === "missed" ? { missed_at: new Date().toISOString() } : {}),
-        })
-        .eq("id", id);
+      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: status,
+        p_note: vars?.note ?? null,
+        p_eta: vars?.eta ?? null,
+      });
       if (error) throw error;
 
       if (status === "en_route" || status === "missed") {
@@ -99,6 +102,7 @@ export default function TechAssignments() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignment"] });
       toast.success("Statut mis à jour");
     },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
