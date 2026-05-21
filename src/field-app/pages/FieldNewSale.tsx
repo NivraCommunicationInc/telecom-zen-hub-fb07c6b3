@@ -538,6 +538,7 @@ export default function FieldNewSale() {
             customer_address: draft.customer.address || "",
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
+            customer_date_of_birth: draft.customer.date_of_birth || null,
             services: [
               ...draft.services.map((service) => ({
                 ...service,
