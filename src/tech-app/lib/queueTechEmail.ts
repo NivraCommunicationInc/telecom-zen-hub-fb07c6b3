@@ -66,9 +66,8 @@ export async function queueTechEmail({
 
     await supabase.from("email_queue").insert({
       to_email: order.client_email,
-      bcc: SUPPORT_BCC,
       template_key: templateKey,
-      template_vars: baseVars,
+      template_vars: { ...baseVars, bcc: SUPPORT_BCC },
       status: "queued",
       language: "fr",
     });
