@@ -22,6 +22,7 @@ const Index = () => {
     <div className="min-h-screen">
       <SEOHead {...SEO_DATA.home} />
       <LocalBusinessSchema />
+      <SchemaMarkup includeBrand={false} includeHomeFaq includeProducts />
       <Header />
       <HomeStatusBanner />
       <main id="main-content" tabIndex={-1}>
