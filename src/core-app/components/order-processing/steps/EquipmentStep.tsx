@@ -166,6 +166,11 @@ export function EquipmentStep({ proc }: Props) {
 
   const handleAssignFromInventory = async () => {
     if (selectedItems.length === 0) { toast.error("Sélectionnez au moins un article"); return; }
+    const missingSerial = selectedItems.filter(i => !i.serial_number?.trim());
+    if (missingSerial.length > 0) {
+      toast.error(`Numéro de série obligatoire — manquant pour : ${missingSerial.map(i => i.catalog_name).join(", ")}`);
+      return;
+    }
     setSaving(true);
     try {
       const now = new Date().toISOString();
