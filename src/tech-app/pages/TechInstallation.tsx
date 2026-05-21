@@ -209,7 +209,7 @@ export default function TechInstallation() {
         })),
         equipment_scanned: allScannedEquipment,
         installation_photos: [
-          ...(Array.isArray(assignment?.installation_photos) ? assignment.installation_photos : []),
+          ...(Array.isArray((assignment as any)?.installation_photos) ? (assignment as any).installation_photos : []),
           ...photos,
           ...(signature ? [{ url: signature, step: "Signature client", at: finishedAt, kind: "signature" }] : []),
         ],
