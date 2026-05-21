@@ -1,7 +1,6 @@
 /**
  * ClientReviewPage — public review page accessed via secure token.
  * Route: /avis/:token (anonymous, no auth)
- * Uses RPCs `get_client_review_by_token` and `submit_client_review_by_token`.
  */
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -9,6 +8,10 @@ import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Star, CheckCircle2, ThumbsUp, ThumbsDown, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
 type ReviewRow = {
   id: string;
@@ -56,12 +59,10 @@ function StarPicker({
             onMouseLeave={() => setHover(null)}
             onClick={() => onChange(n)}
             className={cn(
-              "transition-all rounded-full focus:outline-none focus-visible:ring-2",
+              "transition-all rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              active ? "text-yellow-500" : "text-border",
               size === "lg" ? "p-1 min-w-[44px] min-h-[44px]" : "p-0.5 min-w-[28px] min-h-[28px]"
             )}
-            style={{
-              color: active ? "#F59E0B" : "#2E2E45",
-            }}
           >
             <Star
               className={cn(size === "lg" ? "w-10 h-10 md:w-12 md:h-12" : "w-6 h-6")}
@@ -77,26 +78,20 @@ function StarPicker({
 
 function ShellCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen w-full" style={{ background: "#0A0A0F", color: "#F8F8FF" }}>
+    <div className="min-h-screen w-full bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-4 py-10 md:py-16">
         <div className="flex items-center gap-3 mb-8">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center font-bold"
-            style={{ background: "#8B5CF6", color: "#FFFFFF" }}
-          >
+          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-primary text-primary-foreground">
             N
           </div>
-          <div className="text-lg font-semibold tracking-tight" style={{ color: "#F8F8FF" }}>
+          <div className="text-lg font-semibold tracking-tight text-foreground">
             Nivra Telecom
           </div>
         </div>
-        <div
-          className="rounded-2xl p-6 md:p-10 shadow-2xl"
-          style={{ background: "#111118", border: "1px solid #1E1E2E" }}
-        >
-          {children}
-        </div>
-        <p className="text-center text-xs mt-6" style={{ color: "#A0A0B0" }}>
+        <Card className="rounded-2xl shadow-2xl">
+          <CardContent className="p-6 md:p-10">{children}</CardContent>
+        </Card>
+        <p className="text-center text-xs mt-6 text-muted-foreground">
           © Nivra Telecom — Votre avis est confidentiel
         </p>
       </div>
@@ -189,7 +184,7 @@ export default function ClientReviewPage() {
     return (
       <ShellCard>
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#8B5CF6" }} />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       </ShellCard>
     );
@@ -203,16 +198,13 @@ export default function ClientReviewPage() {
         </Helmet>
         <ShellCard>
           <div className="text-center py-8">
-            <div
-              className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500"
-              style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid #10B981" }}
-            >
-              <CheckCircle2 className="w-12 h-12" style={{ color: "#10B981" }} strokeWidth={1.5} />
+            <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500 bg-green-500/15 border border-green-500">
+              <CheckCircle2 className="w-12 h-12 text-green-500" strokeWidth={1.5} />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: "#F8F8FF" }}>
+            <h1 className="text-2xl md:text-3xl font-bold mb-3 text-foreground">
               Merci {submittedName}!
             </h1>
-            <p className="max-w-md mx-auto" style={{ color: "#A0A0B0" }}>
+            <p className="max-w-md mx-auto text-muted-foreground">
               Votre avis a été soumis avec succès. Toute notre équipe vous remercie de
               contribuer à améliorer Nivra Telecom.
             </p>
@@ -226,9 +218,9 @@ export default function ClientReviewPage() {
     return (
       <ShellCard>
         <div className="text-center py-10">
-          <ShieldAlert className="w-12 h-12 mx-auto mb-4" style={{ color: "#F59E0B" }} />
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#F8F8FF" }}>Lien invalide</h1>
-          <p style={{ color: "#A0A0B0" }}>Ce lien d'avis n'est pas reconnu.</p>
+          <ShieldAlert className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+          <h1 className="text-2xl font-bold mb-2 text-foreground">Lien invalide</h1>
+          <p className="text-muted-foreground">Ce lien d'avis n'est pas reconnu.</p>
         </div>
       </ShellCard>
     );
@@ -237,9 +229,9 @@ export default function ClientReviewPage() {
     return (
       <ShellCard>
         <div className="text-center py-10">
-          <ShieldAlert className="w-12 h-12 mx-auto mb-4" style={{ color: "#F59E0B" }} />
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#F8F8FF" }}>Ce lien a expiré</h1>
-          <p style={{ color: "#A0A0B0" }}>Merci tout de même de votre intérêt pour Nivra Telecom!</p>
+          <ShieldAlert className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+          <h1 className="text-2xl font-bold mb-2 text-foreground">Ce lien a expiré</h1>
+          <p className="text-muted-foreground">Merci tout de même de votre intérêt pour Nivra Telecom!</p>
         </div>
       </ShellCard>
     );
@@ -248,9 +240,9 @@ export default function ClientReviewPage() {
     return (
       <ShellCard>
         <div className="text-center py-10">
-          <CheckCircle2 className="w-12 h-12 mx-auto mb-4" style={{ color: "#10B981" }} />
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#F8F8FF" }}>Merci!</h1>
-          <p style={{ color: "#A0A0B0" }}>Votre avis a déjà été soumis.</p>
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
+          <h1 className="text-2xl font-bold mb-2 text-foreground">Merci!</h1>
+          <p className="text-muted-foreground">Votre avis a déjà été soumis.</p>
         </div>
       </ShellCard>
     );
@@ -266,16 +258,13 @@ export default function ClientReviewPage() {
       </Helmet>
       <ShellCard>
         <div className="mb-8">
-          <div
-            className="inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-wide mb-3"
-            style={{ background: "rgba(139, 92, 246, 0.15)", color: "#A78BFA", border: "1px solid #2E2E45" }}
-          >
+          <Badge variant="secondary" className="mb-3 bg-primary/15 text-primary border border-border">
             VOTRE AVIS COMPTE
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: "#F8F8FF" }}>
+          </Badge>
+          <h1 className="text-2xl md:text-3xl font-bold mb-2 text-foreground">
             Bonjour {data.first_name}
           </h1>
-          <p style={{ color: "#A0A0B0" }}>
+          <p className="text-muted-foreground">
             {data.trigger_type === "activation"
               ? "Comment s'est passée votre installation? Cela prend moins de 2 minutes."
               : "Merci d'avoir été client. Votre feedback nous aide à nous améliorer."}
@@ -284,49 +273,49 @@ export default function ClientReviewPage() {
 
         {/* Section 1 — Overall rating */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3" style={{ color: "#F8F8FF" }}>
-            Note globale <span style={{ color: "#EF4444" }}>*</span>
+          <h2 className="text-lg font-semibold mb-3 text-foreground">
+            Note globale <span className="text-destructive">*</span>
           </h2>
           <div className="flex flex-col items-center gap-3 py-4">
             <StarPicker value={rating} onChange={setRating} ariaLabel="Note globale" />
-            <div className="h-6 text-sm" style={{ color: "#A0A0B0" }}>
+            <div className="h-6 text-sm text-muted-foreground">
               {rating > 0 ? RATING_LABELS[rating] : "Sélectionnez une note"}
             </div>
           </div>
         </section>
 
         {/* Section 2 — Detailed ratings */}
-        <section className="mb-8 space-y-4 pt-6" style={{ borderTop: "1px solid #1E1E2E" }}>
-          <h2 className="text-lg font-semibold" style={{ color: "#F8F8FF" }}>Notes détaillées</h2>
+        <section className="mb-8 space-y-4 pt-6 border-t border-border">
+          <h2 className="text-lg font-semibold text-foreground">Notes détaillées</h2>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <span className="text-sm" style={{ color: "#A0A0B0" }}>Qualité du service Internet</span>
+            <span className="text-sm text-muted-foreground">Qualité du service Internet</span>
             <StarPicker value={service} onChange={setService} size="sm" ariaLabel="Qualité du service Internet" />
           </div>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <span className="text-sm" style={{ color: "#A0A0B0" }}>Qualité du support client</span>
+            <span className="text-sm text-muted-foreground">Qualité du support client</span>
             <StarPicker value={support} onChange={setSupport} size="sm" ariaLabel="Qualité du support client" />
           </div>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <span className="text-sm" style={{ color: "#A0A0B0" }}>Rapport qualité/prix</span>
+            <span className="text-sm text-muted-foreground">Rapport qualité/prix</span>
             <StarPicker value={value} onChange={setValue} size="sm" ariaLabel="Rapport qualité/prix" />
           </div>
         </section>
 
         {/* Section 3 — Would recommend */}
-        <section className="mb-8 pt-6" style={{ borderTop: "1px solid #1E1E2E" }}>
-          <h2 className="text-lg font-semibold mb-3" style={{ color: "#F8F8FF" }}>
-            Recommanderiez-vous Nivra Telecom à vos proches? <span style={{ color: "#EF4444" }}>*</span>
+        <section className="mb-8 pt-6 border-t border-border">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">
+            Recommanderiez-vous Nivra Telecom à vos proches? <span className="text-destructive">*</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setRecommend(true)}
-              className="min-h-[56px] rounded-xl px-4 py-3 flex items-center justify-center gap-3 font-semibold transition-all"
-              style={
+              className={cn(
+                "min-h-[56px] rounded-xl px-4 py-3 flex items-center justify-center gap-3 font-semibold transition-all border-2",
                 recommend === true
-                  ? { background: "rgba(16, 185, 129, 0.1)", border: "2px solid #10B981", color: "#34D399" }
-                  : { background: "#111118", border: "2px solid #2E2E45", color: "#A0A0B0" }
-              }
+                  ? "bg-green-500/10 border-green-500 text-green-500"
+                  : "bg-card border-border text-muted-foreground hover:border-muted-foreground"
+              )}
             >
               <ThumbsUp className="w-5 h-5" />
               Oui, je recommande
@@ -334,12 +323,12 @@ export default function ClientReviewPage() {
             <button
               type="button"
               onClick={() => setRecommend(false)}
-              className="min-h-[56px] rounded-xl px-4 py-3 flex items-center justify-center gap-3 font-semibold transition-all"
-              style={
+              className={cn(
+                "min-h-[56px] rounded-xl px-4 py-3 flex items-center justify-center gap-3 font-semibold transition-all border-2",
                 recommend === false
-                  ? { background: "rgba(239, 68, 68, 0.1)", border: "2px solid #EF4444", color: "#F87171" }
-                  : { background: "#111118", border: "2px solid #2E2E45", color: "#A0A0B0" }
-              }
+                  ? "bg-destructive/10 border-destructive text-destructive"
+                  : "bg-card border-border text-muted-foreground hover:border-muted-foreground"
+              )}
             >
               <ThumbsDown className="w-5 h-5" />
               Non, pas pour l'instant
@@ -348,37 +337,25 @@ export default function ClientReviewPage() {
         </section>
 
         {/* Section 4 — Free comment */}
-        <section className="mb-8 pt-6" style={{ borderTop: "1px solid #1E1E2E" }}>
-          <h2 className="text-lg font-semibold mb-3" style={{ color: "#F8F8FF" }}>Votre commentaire</h2>
-          <textarea
+        <section className="mb-8 pt-6 border-t border-border">
+          <h2 className="text-lg font-semibold mb-3 text-foreground">Votre commentaire</h2>
+          <Textarea
             value={text}
             onChange={(e) => setText(e.target.value.slice(0, 1000))}
             placeholder="Partagez votre expérience..."
             rows={5}
             maxLength={1000}
-            className="w-full rounded-lg px-3 py-2 focus:outline-none transition-colors resize-y"
-            style={{
-              background: "#1A1A28",
-              border: "1px solid #2E2E45",
-              color: "#F8F8FF",
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "#8B5CF6")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "#2E2E45")}
+            className="resize-y"
           />
-          <div className="text-right text-xs mt-1.5" style={{ color: "#606080" }}>{text.length} / 1000</div>
+          <div className="text-right text-xs mt-1.5 text-muted-foreground">{text.length} / 1000</div>
         </section>
 
         {/* Section 5 — Submit */}
-        <button
+        <Button
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="w-full h-12 rounded-lg text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: "#8B5CF6", color: "#FFFFFF" }}
-          onMouseEnter={(e) => {
-            if (!e.currentTarget.disabled) e.currentTarget.style.background = "#7C3AED";
-          }}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#8B5CF6")}
+          className="w-full h-12 text-base font-semibold"
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">
@@ -387,9 +364,9 @@ export default function ClientReviewPage() {
           ) : (
             "Soumettre mon avis"
           )}
-        </button>
+        </Button>
         {!canSubmit && !submitting && (
-          <p className="text-center text-xs mt-3" style={{ color: "#A0A0B0" }}>
+          <p className="text-center text-xs mt-3 text-muted-foreground">
             La note globale et votre recommandation sont requises.
           </p>
         )}

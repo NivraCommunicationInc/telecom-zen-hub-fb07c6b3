@@ -1,12 +1,6 @@
 /**
  * ComplaintPage — public complaint submission form.
  * Route: /plainte (anonymous, no auth required)
- *
- * Inserts into `complaints`, uploads optional attachments into the
- * `complaint-attachments` bucket, links them via `complaint_attachments`,
- * and queues two emails:
- *   - complaint_confirmation → submitter
- *   - complaint_escalated    → nivratelecom@gmail.com (internal alert)
  */
 import { useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
@@ -16,6 +10,14 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 const CATEGORIES: { value: string; label: string; emoji: string }[] = [
   { value: "technique", label: "Problème technique", emoji: "🔧" },
@@ -31,29 +33,13 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   CATEGORIES.map((c) => [c.value, `${c.emoji} ${c.label}`])
 );
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_FILES = 5;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4"];
 
 const SUBJECT_MAX = 150;
 const DESC_MIN = 50;
 const DESC_MAX = 2000;
-
-// Design tokens
-const C = {
-  bg: "#0A0A0F",
-  card: "#111118",
-  border: "#1E1E2E",
-  accent: "#8B5CF6",
-  accentHover: "#7C3AED",
-  textPrimary: "#F8F8FF",
-  textSecondary: "#A0A0B0",
-  inputBg: "#1A1A28",
-  inputBorder: "#2E2E45",
-  placeholder: "#606080",
-  success: "#10B981",
-  error: "#EF4444",
-};
 
 function fileIcon(type: string) {
   if (type.startsWith("image/")) return ImageIcon;
@@ -66,33 +52,6 @@ function bytes(n: number) {
   if (n < 1024) return `${n} o`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} Ko`;
   return `${(n / 1024 / 1024).toFixed(2)} Mo`;
-}
-
-const inputBaseStyle: React.CSSProperties = {
-  background: C.inputBg,
-  border: `1px solid ${C.inputBorder}`,
-  color: C.textPrimary,
-};
-
-const inputClass =
-  "w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors min-h-[44px]";
-
-function DarkInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={cn(inputClass, props.className)}
-      style={{ ...inputBaseStyle, ...(props.style || {}) }}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = C.accent;
-        props.onFocus?.(e);
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = C.inputBorder;
-        props.onBlur?.(e);
-      }}
-    />
-  );
 }
 
 export default function ComplaintPage() {
@@ -254,73 +213,57 @@ export default function ComplaintPage() {
 
   if (success) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4 py-12"
-        style={{ background: C.bg, color: C.textPrimary }}
-      >
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-background text-foreground">
         <Helmet>
           <title>Plainte soumise — Nivra Telecom</title>
           <meta name="robots" content="noindex,nofollow" />
         </Helmet>
-        <div
-          className="max-w-xl w-full text-center rounded-2xl p-8 shadow-2xl"
-          style={{ background: C.card, border: `1px solid ${C.border}` }}
-        >
-          <div
-            className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-in zoom-in-95"
-            style={{ background: "rgba(16, 185, 129, 0.15)", border: `1px solid ${C.success}` }}
-          >
-            <CheckCircle2 className="w-12 h-12" style={{ color: C.success }} strokeWidth={2.5} />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: C.textPrimary }}>
-            Plainte soumise avec succès!
-          </h1>
-          <p className="mb-6" style={{ color: C.textSecondary }}>
-            Votre plainte a bien été enregistrée. Nous vous contacterons rapidement.
-          </p>
-          <div
-            className="rounded-xl px-5 py-4 mb-5"
-            style={{ background: C.inputBg, border: `1px solid ${C.border}` }}
-          >
-            <div className="text-xs uppercase tracking-wide mb-1" style={{ color: C.textSecondary }}>
-              Votre numéro de ticket
+        <Card className="max-w-xl w-full text-center rounded-2xl shadow-2xl">
+          <CardContent className="p-8">
+            <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-in zoom-in-95 bg-green-500/15 border border-green-500">
+              <CheckCircle2 className="w-12 h-12 text-green-500" strokeWidth={2.5} />
             </div>
-            <div className="text-2xl font-mono font-bold" style={{ color: C.textPrimary }}>
-              {success.ticket}
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-foreground">
+              Plainte soumise avec succès!
+            </h1>
+            <p className="mb-6 text-muted-foreground">
+              Votre plainte a bien été enregistrée. Nous vous contacterons rapidement.
+            </p>
+            <div className="rounded-xl px-5 py-4 mb-5 bg-muted border border-border">
+              <div className="text-xs uppercase tracking-wide mb-1 text-muted-foreground">
+                Votre numéro de ticket
+              </div>
+              <div className="text-2xl font-mono font-bold text-foreground">
+                {success.ticket}
+              </div>
             </div>
-          </div>
-          <p className="text-sm mb-2" style={{ color: C.textSecondary }}>
-            Vous recevrez une confirmation par courriel sous quelques minutes.
-          </p>
-          <p className="text-sm mb-6" style={{ color: C.textSecondary }}>
-            <strong style={{ color: C.textPrimary }}>Délai de traitement :</strong> 72 heures
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href={success.trackingUrl}
-              className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
-              style={{ background: C.accent, color: "#FFFFFF" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = C.accentHover)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = C.accent)}
-            >
-              Suivre ma plainte
-            </a>
-            <button
-              type="button"
-              onClick={() => (window.location.href = "/")}
-              className="inline-flex items-center justify-center h-12 px-6 rounded-lg font-semibold transition-colors"
-              style={{ background: "transparent", color: C.textPrimary, border: `1px solid ${C.border}` }}
-            >
-              Retour à l'accueil
-            </button>
-          </div>
-        </div>
+            <p className="text-sm mb-2 text-muted-foreground">
+              Vous recevrez une confirmation par courriel sous quelques minutes.
+            </p>
+            <p className="text-sm mb-6 text-muted-foreground">
+              <strong className="text-foreground">Délai de traitement :</strong> 72 heures
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button asChild className="h-12 px-6">
+                <a href={success.trackingUrl}>Suivre ma plainte</a>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 px-6"
+                onClick={() => (window.location.href = "/")}
+              >
+                Retour à l'accueil
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ background: C.bg, color: C.textPrimary }}>
+    <div className="min-h-screen bg-background text-foreground">
       <Helmet>
         <title>Soumettre une plainte — Nivra Telecom</title>
         <meta name="description" content="Soumettez une plainte à Nivra Telecom. Délais de réponse garantis." />
@@ -331,270 +274,238 @@ export default function ComplaintPage() {
         {/* Header */}
         <header className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center font-bold"
-              style={{ background: C.accent, color: "#FFFFFF" }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-primary text-primary-foreground">
               N
             </div>
-            <span className="text-xl font-bold tracking-tight" style={{ color: C.textPrimary }}>
+            <span className="text-xl font-bold tracking-tight text-foreground">
               Nivra Telecom
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3" style={{ color: C.textPrimary }}>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-foreground">
             Soumettre une plainte
           </h1>
-          <p className="max-w-xl mx-auto" style={{ color: C.textSecondary }}>
+          <p className="max-w-xl mx-auto text-muted-foreground">
             Nous prenons chaque plainte au sérieux. Délai de réponse garanti.
           </p>
         </header>
 
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* SECTION 1 */}
-          <section className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: C.textPrimary }}>
-              Vos coordonnées
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="firstName" className="text-sm font-medium" style={{ color: C.textSecondary }}>
-                  Prénom *
-                </label>
-                <DarkInput
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                />
+          <Card className="rounded-2xl">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4 text-foreground">
+                Vos coordonnées
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Prénom *</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Nom *</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Courriel *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Téléphone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="account">Numéro de compte Nivra</Label>
+                  <Input
+                    id="account"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Trouvez votre numéro dans votre courriel de confirmation.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label htmlFor="lastName" className="text-sm font-medium" style={{ color: C.textSecondary }}>
-                  Nom *
-                </label>
-                <DarkInput
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium" style={{ color: C.textSecondary }}>
-                  Courriel *
-                </label>
-                <DarkInput
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="phone" className="text-sm font-medium" style={{ color: C.textSecondary }}>
-                  Téléphone
-                </label>
-                <DarkInput
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <label htmlFor="account" className="text-sm font-medium" style={{ color: C.textSecondary }}>
-                  Numéro de compte Nivra
-                </label>
-                <DarkInput
-                  id="account"
-                  value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
-                />
-                <p className="text-xs" style={{ color: C.textSecondary }}>
-                  Trouvez votre numéro dans votre courriel de confirmation.
-                </p>
-              </div>
-            </div>
-          </section>
+            </CardContent>
+          </Card>
 
           {/* SECTION 2 */}
-          <section className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: C.textPrimary }}>
-              Votre plainte
-            </h2>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" style={{ color: C.textSecondary }}>
-                  Catégorie *
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  required
-                  className={inputClass}
-                  style={inputBaseStyle}
-                >
-                  <option value="" disabled>
-                    Choisir une catégorie
-                  </option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value} style={{ background: C.card, color: C.textPrimary }}>
-                      {c.emoji} {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <Card className="rounded-2xl">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4 text-foreground">
+                Votre plainte
+              </h2>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Catégorie *</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.emoji} {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <label htmlFor="subject" className="flex justify-between text-sm font-medium" style={{ color: C.textSecondary }}>
-                  <span>Sujet *</span>
-                  <span className="text-xs" style={{ color: subjectLeft < 0 ? C.error : C.textSecondary }}>
-                    {subjectLeft} restants
-                  </span>
-                </label>
-                <DarkInput
-                  id="subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value.slice(0, SUBJECT_MAX))}
-                  maxLength={SUBJECT_MAX}
-                  required
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subject" className="flex justify-between">
+                    <span>Sujet *</span>
+                    <span className={cn("text-xs", subjectLeft < 0 ? "text-destructive" : "text-muted-foreground")}>
+                      {subjectLeft} restants
+                    </span>
+                  </Label>
+                  <Input
+                    id="subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value.slice(0, SUBJECT_MAX))}
+                    maxLength={SUBJECT_MAX}
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <label htmlFor="description" className="flex justify-between text-sm font-medium" style={{ color: C.textSecondary }}>
-                  <span>Description *</span>
-                  <span
-                    className="text-xs"
-                    style={{
-                      color:
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="flex justify-between">
+                    <span>Description *</span>
+                    <span
+                      className={cn(
+                        "text-xs",
                         description.length < DESC_MIN
-                          ? "#F59E0B"
+                          ? "text-yellow-500"
                           : descLeft < 0
-                          ? C.error
-                          : C.textSecondary,
-                    }}
-                  >
-                    {description.length < DESC_MIN
-                      ? `${DESC_MIN - description.length} caractères minimum`
-                      : `${descLeft} restants`}
-                  </span>
-                </label>
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value.slice(0, DESC_MAX))}
-                  rows={7}
-                  required
-                  placeholder="Décrivez votre problème en détail. Plus vous donnez d informations, plus nous pourrons vous aider rapidement."
-                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors resize-y"
-                  style={inputBaseStyle}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = C.inputBorder)}
-                />
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {description.length < DESC_MIN
+                        ? `${DESC_MIN - description.length} caractères minimum`
+                        : `${descLeft} restants`}
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value.slice(0, DESC_MAX))}
+                    rows={7}
+                    required
+                    placeholder="Décrivez votre problème en détail. Plus vous donnez d'informations, plus nous pourrons vous aider rapidement."
+                    className="resize-y"
+                  />
+                </div>
               </div>
-            </div>
-          </section>
+            </CardContent>
+          </Card>
 
           {/* SECTION 3 — Files */}
-          <section className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: C.textPrimary }}>
-              Pièces jointes (optionnel)
-            </h2>
-            <label
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-              className="block border-2 border-dashed rounded-xl px-4 py-8 text-center cursor-pointer transition-colors"
-              style={{
-                borderColor: dragging ? C.accent : C.inputBorder,
-                background: dragging ? "rgba(139, 92, 246, 0.08)" : C.inputBg,
-              }}
-            >
-              <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: C.accent }} />
-              <div className="text-sm" style={{ color: C.textPrimary }}>
-                Glissez vos fichiers ici ou cliquez
-              </div>
-              <div className="text-xs mt-1" style={{ color: C.textSecondary }}>
-                JPG, PNG, WEBP, PDF, MP4 — max 10 Mo chacun · {MAX_FILES} fichiers max
-              </div>
-              <input
-                type="file"
-                multiple
-                accept={ALLOWED_TYPES.join(",")}
-                className="hidden"
-                onChange={(e) => e.target.files && onPickFiles(e.target.files)}
-              />
-            </label>
+          <Card className="rounded-2xl">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4 text-foreground">
+                Pièces jointes (optionnel)
+              </h2>
+              <label
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+                className={cn(
+                  "block border-2 border-dashed rounded-xl px-4 py-8 text-center cursor-pointer transition-colors",
+                  dragging ? "border-primary bg-primary/5" : "border-border bg-muted"
+                )}
+              >
+                <Upload className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <div className="text-sm text-foreground">
+                  Glissez vos fichiers ici ou cliquez
+                </div>
+                <div className="text-xs mt-1 text-muted-foreground">
+                  JPG, PNG, WEBP, PDF, MP4 — max 10 Mo chacun · {MAX_FILES} fichiers max
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  accept={ALLOWED_TYPES.join(",")}
+                  className="hidden"
+                  onChange={(e) => e.target.files && onPickFiles(e.target.files)}
+                />
+              </label>
 
-            {files.length > 0 && (
-              <ul className="mt-4 space-y-2">
-                {files.map((f, i) => {
-                  const Icon = fileIcon(f.type);
-                  const isImage = f.type.startsWith("image/");
-                  const url = isImage ? URL.createObjectURL(f) : null;
-                  return (
-                    <li
-                      key={i}
-                      className="flex items-center gap-3 rounded-lg p-2"
-                      style={{ background: C.inputBg, border: `1px solid ${C.border}` }}
-                    >
-                      {url ? (
-                        <img src={url} alt="" className="w-12 h-12 rounded object-cover" />
-                      ) : (
-                        <div
-                          className="w-12 h-12 rounded flex items-center justify-center"
-                          style={{ background: "rgba(139, 92, 246, 0.15)" }}
-                        >
-                          <Icon className="w-5 h-5" style={{ color: C.accent }} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm truncate" style={{ color: C.textPrimary }}>{f.name}</div>
-                        <div className="text-xs" style={{ color: C.textSecondary }}>{bytes(f.size)}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(i)}
-                        className="p-2 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                        style={{ color: C.textSecondary }}
-                        aria-label={`Retirer ${f.name}`}
+              {files.length > 0 && (
+                <ul className="mt-4 space-y-2">
+                  {files.map((f, i) => {
+                    const Icon = fileIcon(f.type);
+                    const isImage = f.type.startsWith("image/");
+                    const url = isImage ? URL.createObjectURL(f) : null;
+                    return (
+                      <li
+                        key={i}
+                        className="flex items-center gap-3 rounded-lg p-2 bg-muted border border-border"
                       >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+                        {url ? (
+                          <img src={url} alt="" className="w-12 h-12 rounded object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded flex items-center justify-center bg-primary/15">
+                            <Icon className="w-5 h-5 text-primary" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm truncate text-foreground">{f.name}</div>
+                          <div className="text-xs text-muted-foreground">{bytes(f.size)}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          className="p-2 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground"
+                          aria-label={`Retirer ${f.name}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
 
           {error && (
-            <div
-              className="flex items-start gap-2 rounded-lg p-3 text-sm"
-              style={{ border: `1px solid ${C.error}`, background: "rgba(239, 68, 68, 0.1)", color: "#FCA5A5" }}
-            >
+            <div className="flex items-start gap-2 rounded-lg p-3 text-sm border border-destructive bg-destructive/10 text-destructive">
               <ShieldAlert className="w-5 h-5 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={!canSubmit}
-            className="w-full h-12 rounded-lg text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ background: C.accent, color: "#FFFFFF" }}
-            onMouseEnter={(e) => {
-              if (!e.currentTarget.disabled) e.currentTarget.style.background = C.accentHover;
-            }}
-            onMouseLeave={(e) => (e.currentTarget.style.background = C.accent)}
+            className="w-full h-12 text-base font-semibold"
           >
-            {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+            {submitting && <Loader2 className="w-5 h-5 animate-spin mr-2" />}
             Soumettre ma plainte
-          </button>
+          </Button>
 
-          <p className="text-center text-xs" style={{ color: C.textSecondary }}>
+          <p className="text-center text-xs text-muted-foreground">
             Nous vous répondrons par courriel dans les plus brefs délais.
           </p>
         </form>
