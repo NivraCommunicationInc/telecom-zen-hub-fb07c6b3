@@ -2712,6 +2712,59 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_sends: {
+        Row: {
+          account_id: string | null
+          campaign_id: string | null
+          clicked_at: string | null
+          client_name: string | null
+          converted_at: string | null
+          created_at: string | null
+          email: string
+          id: string
+          opened_at: string | null
+          personalization_vars: Json | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          campaign_id?: string | null
+          clicked_at?: string | null
+          client_name?: string | null
+          converted_at?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          opened_at?: string | null
+          personalization_vars?: Json | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          campaign_id?: string | null
+          clicked_at?: string | null
+          client_name?: string | null
+          converted_at?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          opened_at?: string | null
+          personalization_vars?: Json | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       card_payment_intents: {
         Row: {
           agent_id: string
@@ -13464,6 +13517,87 @@ export type Database = {
           },
         ]
       }
+      marketing_campaigns: {
+        Row: {
+          ai_generated: boolean | null
+          ai_personalization_notes: string | null
+          body_en: string | null
+          body_fr: string
+          campaign_type: string | null
+          click_count: number | null
+          conversion_count: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+          offer_type: string | null
+          offer_valid_days: number | null
+          offer_value: number | null
+          open_count: number | null
+          promo_code: string | null
+          revenue_generated: number | null
+          scheduled_at: string | null
+          sent_count: number | null
+          status: string | null
+          subject_en: string | null
+          subject_fr: string
+          target_segment: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          ai_personalization_notes?: string | null
+          body_en?: string | null
+          body_fr: string
+          campaign_type?: string | null
+          click_count?: number | null
+          conversion_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+          offer_type?: string | null
+          offer_valid_days?: number | null
+          offer_value?: number | null
+          open_count?: number | null
+          promo_code?: string | null
+          revenue_generated?: number | null
+          scheduled_at?: string | null
+          sent_count?: number | null
+          status?: string | null
+          subject_en?: string | null
+          subject_fr: string
+          target_segment?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          ai_personalization_notes?: string | null
+          body_en?: string | null
+          body_fr?: string
+          campaign_type?: string | null
+          click_count?: number | null
+          conversion_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+          offer_type?: string | null
+          offer_valid_days?: number | null
+          offer_value?: number | null
+          open_count?: number | null
+          promo_code?: string | null
+          revenue_generated?: number | null
+          scheduled_at?: string | null
+          sent_count?: number | null
+          status?: string | null
+          subject_en?: string | null
+          subject_fr?: string
+          target_segment?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       marketing_conversations: {
         Row: {
           ai_enabled: boolean
@@ -18874,6 +19008,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      retention_actions: {
+        Row: {
+          account_id: string | null
+          action_type: string | null
+          created_at: string | null
+          id: string
+          offer_details: Json | null
+          outcome: string | null
+          responded_at: string | null
+          revenue_saved: number | null
+          risk_factors: Json | null
+          risk_score: number | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          action_type?: string | null
+          created_at?: string | null
+          id?: string
+          offer_details?: Json | null
+          outcome?: string | null
+          responded_at?: string | null
+          revenue_saved?: number | null
+          risk_factors?: Json | null
+          risk_score?: number | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          action_type?: string | null
+          created_at?: string | null
+          id?: string
+          offer_details?: Json | null
+          outcome?: string | null
+          responded_at?: string | null
+          revenue_saved?: number | null
+          risk_factors?: Json | null
+          risk_score?: number | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
       }
       rma_requests: {
         Row: {
