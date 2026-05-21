@@ -1,5 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import SEO from "@/components/seo/SEO";
+import SchemaMarkup from "@/components/seo/SchemaMarkup";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { 
@@ -75,6 +77,12 @@ const APropos = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="À propos de Nivra Telecom | Fournisseur Internet Québec"
+        description="Nivra Telecom est un fournisseur Internet et TV québécois qui offre des services prépayés sans contrat. Notre mission: rendre Internet accessible à tous."
+        canonical="https://nivra-telecom.ca/a-propos"
+      />
+      <SchemaMarkup includeBrand />
       <Header />
       
       {/* Hero Section */}

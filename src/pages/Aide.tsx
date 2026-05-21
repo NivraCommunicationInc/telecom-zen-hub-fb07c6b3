@@ -1,5 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import SEO from "@/components/seo/SEO";
+import SchemaMarkup from "@/components/seo/SchemaMarkup";
 import {
   Accordion,
   AccordionContent,
@@ -84,6 +86,12 @@ const Aide = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Aide & Support | Nivra Telecom Internet & TV"
+        description="Centre d'aide Nivra Telecom. Trouvez des réponses à vos questions sur nos forfaits Internet, TV et mobile au Québec."
+        canonical="https://nivra-telecom.ca/aide"
+      />
+      <SchemaMarkup includeBrand />
       <Header />
       
       {/* Hero */}

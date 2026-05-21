@@ -1,93 +1,127 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
   <!-- Main Pages -->
   <url>
     <loc>https://nivra-telecom.ca/</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://nivra-telecom.ca/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nivra-telecom.ca/en/"/>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/about</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/a-propos</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/contact</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-
-  <!-- Services -->
-  <url>
-    <loc>https://nivra-telecom.ca/services</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://nivra-telecom.ca/forfaits</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://nivra-telecom.ca/internet</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://nivra-telecom.ca/tv</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://nivra-telecom.ca/television</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://nivra-telecom.ca/mobile</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://nivra-telecom.ca/streaming</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Support -->
-  <url>
-    <loc>https://nivra-telecom.ca/faq</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/aide</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/faq</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
-  <!-- Careers -->
+  <!-- Services -->
+  <url>
+    <loc>https://nivra-telecom.ca/services</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/forfaits</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/internet</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/tv</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/mobile</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/streaming</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/couverture</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/compare</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- SEO Landing Pages -->
+  <url>
+    <loc>https://nivra-telecom.ca/internet-sans-contrat-montreal</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/alternative-bell-videotron-quebec</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/internet-montreal-nord</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nivra-telecom.ca/internet-prepaye-quebec</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Support -->
   <url>
     <loc>https://nivra-telecom.ca/careers</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -95,67 +129,67 @@
   <!-- Legal Pages -->
   <url>
     <loc>https://nivra-telecom.ca/privacy</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/terms</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/conditions-de-service</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/politique-de-confidentialite</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/modalites-paiement</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/equipement-garantie</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/support-et-plaintes</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/confidentialite-loi25</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/frais-possibles</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/refund-policy</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://nivra-telecom.ca/installation-rendezvous</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2026-05-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

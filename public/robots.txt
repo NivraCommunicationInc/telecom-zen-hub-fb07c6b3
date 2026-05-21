@@ -32,9 +32,20 @@ Disallow: /hr
 Disallow: /hr/
 Disallow: /rh
 Disallow: /rh/
+Disallow: /marketing/
+Disallow: /nivra-secure-hub-2617-internal/
+Disallow: /onboarding/
+Disallow: /entrevue/
+Disallow: /avis/
+Disallow: /plainte/suivi/
 Disallow: /dashboard
 Disallow: /api
 Disallow: /.env
 
 # Sitemap
 Sitemap: https://nivra-telecom.ca/sitemap.xml
+
+# Googlebot
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
