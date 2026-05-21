@@ -4882,6 +4882,40 @@ export function renderQueueTemplate(
       };
     }
 
+    case "sync_alert": {
+      const affectedOrders = String(v.affected_orders ?? 0);
+      const incompleteProfiles = String(v.incomplete_profiles ?? 0);
+      const unlinkedComplaints = String(v.unlinked_complaints ?? 0);
+      const autoFixes = String(v.auto_fixes ?? 0);
+      const recs = Array.isArray(v.recommendations) ? (v.recommendations as string[]) : [];
+      const recsHtml = recs.slice(0, 6).map((r) =>
+        `<li style="margin-bottom:6px;color:${BRAND_TEXT_BODY};">${esc(r)}</li>`
+      ).join("");
+      return {
+        subject: "Alerte synchronisation — Nivra Telecom",
+        html: shell({
+          preheader: `${affectedOrders} commande(s), ${incompleteProfiles} profil(s) incomplet(s).`,
+          badge: "ALERTE SYNCHRONISATION",
+          heroTitle: "Problèmes de sync détectés",
+          icon: "warn",
+          greeting,
+          bodyText: "L'agent de synchronisation a détecté des incohérences entre les portails qui requièrent votre attention.",
+          cardTitle: "Synthèse",
+          cardRows: [
+            ["Commandes affectées", affectedOrders],
+            ["Profils incomplets", incompleteProfiles],
+            ["Plaintes non liées", unlinkedComplaints],
+            ["Corrections auto", autoFixes],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/sync-monitor`,
+          ctaPrimaryLabel: "Voir le rapport",
+          helpHtml: recsHtml
+            ? `<strong style="color:#1a1a2e;">Recommandations :</strong><ul style="padding-left:20px;margin:8px 0 0 0;">${recsHtml}</ul>`
+            : "",
+        }),
+      };
+    }
+
     default:
       return null;
   }
