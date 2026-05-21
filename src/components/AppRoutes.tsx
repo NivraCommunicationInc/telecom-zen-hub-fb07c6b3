@@ -698,19 +698,20 @@ const AppRoutes = () => {
         element={
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">Chargement…</div>}>
             <AuthProvider>
-              <TechProtectedRoute>
-                <TechAppLayout />
-              </TechProtectedRoute>
+              <TechProtectedRoute />
             </AuthProvider>
           </Suspense>
         }
       >
-        <Route index element={<Suspense fallback={null}><TechDashboard /></Suspense>} />
-        <Route path="assignments" element={<Suspense fallback={null}><TechAssignments /></Suspense>} />
-        <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
-        <Route path="scanner" element={<Suspense fallback={null}><TechScanner /></Suspense>} />
-        <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
+        <Route element={<Suspense fallback={null}><TechAppLayout /></Suspense>}>
+          <Route index element={<Suspense fallback={null}><TechDashboard /></Suspense>} />
+          <Route path="assignments" element={<Suspense fallback={null}><TechAssignments /></Suspense>} />
+          <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
+          <Route path="scanner" element={<Suspense fallback={null}><TechScanner /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
+        </Route>
       </Route>
+
 
 
       
