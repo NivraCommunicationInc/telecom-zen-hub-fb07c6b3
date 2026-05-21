@@ -4916,10 +4916,73 @@ export function renderQueueTemplate(
       };
     }
 
+    case "agent_supervisor_alert": {
+      const globalHealth = String(v.global_health ?? 0);
+      const activeCount = String(v.active_count ?? 0);
+      const errorCount = String(v.error_count ?? 0);
+      const failing = Array.isArray(v.failing_agents) ? (v.failing_agents as Array<Record<string, unknown>>) : [];
+      const failingHtml = failing.slice(0, 10).map((f) =>
+        `<li style="margin-bottom:6px;color:${BRAND_TEXT_BODY};"><strong>${esc(String(f.display_name ?? f.agent ?? ""))}</strong> — santé ${esc(String(f.health ?? "?"))}/100${f.last_error ? ` — <em>${esc(String(f.last_error))}</em>` : ""}</li>`
+      ).join("");
+      return {
+        subject: "Alerte superviseur IA — Action requise",
+        html: shell({
+          preheader: `Santé globale ${globalHealth}/100 — ${errorCount} agent(s) en erreur.`,
+          badge: "ALERTE SUPERVISEUR IA",
+          heroTitle: "Agent(s) en difficulté — Action requise",
+          icon: "warn",
+          greeting,
+          bodyText: "Le superviseur des agents IA a détecté un ou plusieurs agents en difficulté. Une revue est requise.",
+          cardTitle: "Synthèse",
+          cardRows: [
+            ["Agents actifs", activeCount],
+            ["Agents en erreur", errorCount],
+            ["Score santé global", `${globalHealth}/100`],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/agents`,
+          ctaPrimaryLabel: "Voir le centre de contrôle",
+          helpHtml: failingHtml
+            ? `<strong style="color:#1a1a2e;">Agents en difficulté :</strong><ul style="padding-left:20px;margin:8px 0 0 0;">${failingHtml}</ul>`
+            : "",
+        }),
+      };
+    }
+
+    case "sale_assigned_notification": {
+      const agentName = String(v.agent_name ?? "agent");
+      const customerName = String(v.customer_name ?? "");
+      const planName = String(v.plan_name ?? "Service Nivra");
+      const commissionAmount = String(v.commission_amount ?? 0);
+      const orderReference = String(v.order_reference ?? "");
+      return {
+        subject: "Nouvelle vente confirmée — Nivra Telecom",
+        html: shell({
+          preheader: `Vente confirmée pour ${customerName} — commission ${commissionAmount}$.`,
+          badge: "NOUVELLE VENTE CONFIRMÉE",
+          heroTitle: "Félicitations! Vente confirmée",
+          icon: "ok",
+          greeting: `Bonjour ${esc(agentName)},`,
+          bodyText: "Votre vente a été confirmée et votre commission a été calculée.",
+          cardTitle: "Détails de la vente",
+          cardRows: [
+            ["Client", customerName],
+            ["Référence", orderReference],
+            ["Forfait", planName],
+            ["Commission", `${commissionAmount}$`],
+            ["Statut", "En attente de versement"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/field/commissions`,
+          ctaPrimaryLabel: "Voir mes commissions",
+          helpHtml: `Pour toute question, écrivez à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
 }
+
 
 
 
