@@ -259,17 +259,7 @@ export default function FieldOrders() {
                       </div>
                     )}
                     <div className="mt-2 flex justify-end gap-2">
-                      {r.kind === "intent" && r.paypal_approval_url && (
-                        <a
-                          href={r.paypal_approval_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 text-[11px] font-bold"
-                        >
-                          Reprendre <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-              {r.kind === "intent" && !r.paypal_approval_url && (
+                      {r.kind === "intent" && (
                         <Link
                           to="/field/sale/new"
                           state={{ resumeIntentId: r.id, resumeQuoteId: r.quote_id }}
