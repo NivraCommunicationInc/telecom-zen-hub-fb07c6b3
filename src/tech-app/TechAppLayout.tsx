@@ -1,6 +1,6 @@
 /**
  * TechAppLayout — Root layout for the Nivra Technician portal.
- * Mobile-first dark theme, bottom navigation, safe-area aware.
+ * Mobile-first dark violet theme, sticky header + bottom navigation, safe-area aware.
  */
 import { Outlet } from "react-router-dom";
 import TechBottomNav from "./components/TechBottomNav";

@@ -1801,6 +1801,47 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_records: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          punch_in_at: string
+          punch_out_at: string | null
+          total_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          punch_in_at?: string
+          punch_out_at?: string | null
+          total_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          punch_in_at?: string
+          punch_out_at?: string | null
+          total_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       auth_login_alerts_sent: {
         Row: {
           email_attempted: string
