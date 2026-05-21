@@ -4,10 +4,11 @@
  */
 import { useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, Loader2, Upload, X, FileText, Image as ImageIcon, Film,
-  ShieldAlert,
+  ShieldAlert, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -271,6 +272,15 @@ export default function ComplaintPage() {
       </Helmet>
 
       <div className="max-w-3xl mx-auto px-4 py-10 sm:py-14">
+        <div className="mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour à l'accueil
+          </Link>
+        </div>
         {/* Header */}
         <header className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
