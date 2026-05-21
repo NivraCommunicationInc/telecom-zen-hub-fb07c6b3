@@ -6,9 +6,9 @@ import { NavLink } from "react-router-dom";
 import { Home, ClipboardList, ScanLine, User } from "lucide-react";
 
 const tabs = [
-  { to: "/tech/dashboard", icon: Home, label: "Accueil" },
+  { to: "/tech", icon: Home, label: "Accueil" },
   { to: "/tech/assignments", icon: ClipboardList, label: "Missions" },
-  { to: "/tech/scanner", icon: ScanLine, label: "Scanner" },
+  { to: "/tech/scanner", icon: ScanLine, label: "Vérifier" },
   { to: "/tech/profile", icon: User, label: "Profil" },
 ];
 
