@@ -35,7 +35,7 @@ const INTERNAL_ROLES = [
 const getSafePortalRedirect = (redirect: string | null, fallback: string) => {
   if (!redirect) return fallback;
   if (!redirect.startsWith("/") || redirect.startsWith("//")) return fallback;
-  if (redirect.startsWith("/core") || redirect.startsWith("/hr") || redirect.startsWith("/employee") || redirect.startsWith("/field") || redirect.startsWith("/staff") || redirect.startsWith("/marketing")) {
+  if (redirect.startsWith("/core") || redirect.startsWith("/hr") || redirect.startsWith("/employee") || redirect.startsWith("/field") || redirect.startsWith("/staff") || redirect.startsWith("/marketing") || redirect.startsWith("/tech")) {
     return redirect;
   }
   return fallback;
