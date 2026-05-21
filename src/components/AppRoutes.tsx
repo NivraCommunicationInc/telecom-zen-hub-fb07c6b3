@@ -21,6 +21,15 @@ const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/Empl
 // Field Portal (lazy-loaded, fully isolated)
 const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
 
+// Tech Portal (lazy-loaded, fully isolated mobile-first PWA)
+const TechAppLayout = lazy(() => import("@/tech-app/TechAppLayout"));
+const TechProtectedRoute = lazy(() => import("@/tech-app/components/TechProtectedRoute"));
+const TechDashboard = lazy(() => import("@/tech-app/pages/TechDashboard"));
+const TechAssignments = lazy(() => import("@/tech-app/pages/TechAssignments"));
+const TechInstallation = lazy(() => import("@/tech-app/pages/TechInstallation"));
+const TechScanner = lazy(() => import("@/tech-app/pages/TechScanner"));
+const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
+
 // HR Portal (lazy-loaded, fully isolated)
 const HrAppLayout = lazy(() => import("@/hr-app/HrAppLayout"));
 const HrProtectedRoute = lazy(() => import("@/hr-app/components/HrProtectedRoute"));
@@ -676,9 +685,9 @@ const AppRoutes = () => {
       )}
       
       {/* LEGACY STAFF ROUTES */}
-      <Route path="/technician/*" element={<Navigate to="/staff" replace />} />
-      <Route path="/technician" element={<Navigate to="/staff" replace />} />
+      {/* /technician/* now goes to the new mobile Tech portal */}
       <Route path="/portal/login" element={<Navigate to="/portal/auth" replace />} />
+
       
       {/* ============================================ */}
       {/* CLIENT PORTAL ROUTES - Wrapped with MaintenanceGuard */}
