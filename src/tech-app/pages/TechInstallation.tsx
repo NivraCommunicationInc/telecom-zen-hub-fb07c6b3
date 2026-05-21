@@ -2,9 +2,9 @@
  * TechInstallation — Step-by-step wizard for a single installation.
  * Mobile-first, large touch targets, supports notes, coaxial state, network test results.
  */
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2, PackageCheck, X } from "lucide-react";
+import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2, PackageCheck, X, MapPin, Phone, Clock, Wrench, Truck, RotateCcw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -55,10 +55,55 @@ export default function TechInstallation() {
     [assignment?.equipment_scanned],
   );
 
+  useEffect(() => {
+    if (!assignment) return;
+    setCoax(assignment.coaxial_status ?? "");
+    setCoaxNotes(assignment.coaxial_notes ?? "");
+    setNotes(assignment.technician_notes ?? "");
+    setDownload(assignment.download_speed ? String(assignment.download_speed) : "");
+    setUpload(assignment.upload_speed ? String(assignment.upload_speed) : "");
+    setPing(assignment.ping_ms ? String(assignment.ping_ms) : "");
+    setSignal(assignment.signal_strength ? String(assignment.signal_strength) : "");
+  }, [assignment?.id]);
+
   const allScannedEquipment = useMemo(
     () => [...existingScanned, ...scannedEquipment],
     [existingScanned, scannedEquipment],
   );
+
+  const serviceLabels = useMemo(
+    () => [
+      assignment?.service_type,
+      assignment?.category,
+      ...(assignment?.order_items ?? []).map((item: any) => item.plan_name || item.description).filter(Boolean),
+    ].filter(Boolean),
+    [assignment?.service_type, assignment?.category, assignment?.order_items],
+  );
+
+  const plannedEquipment = useMemo(() => {
+    if (Array.isArray(assignment?.equipment_details)) return assignment.equipment_details;
+    if (assignment?.equipment_details) return [assignment.equipment_details];
+    return [];
+  }, [assignment?.equipment_details]);
+
+  const setFieldStatus = useMutation({
+    mutationFn: async ({ status, note, eta }: { status: string; note?: string | null; eta?: string | null }) => {
+      if (!id) throw new Error("ID manquant");
+      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: status,
+        p_note: note ?? null,
+        p_eta: eta ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
+      toast.success("Statut rendez-vous mis à jour");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
 
   const scanEquipment = async () => {
     const code = scanCode.trim();
