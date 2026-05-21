@@ -329,7 +329,7 @@ Deno.serve(async (req) => {
           const backfill: Record<string, unknown> = {};
           if (!existing?.first_name && bfFn) backfill.first_name = bfFn;
           if (!existing?.last_name && bfLn) backfill.last_name = bfLn;
-          if (!existing?.full_name && sale.customer_name) backfill.full_name = sale.customer_name;
+          if ((!existing?.full_name || existing.full_name === "Client" || existing.full_name.trim() === "") && sale.customer_name) backfill.full_name = sale.customer_name;
           if (!existing?.phone && sale.customer_phone) backfill.phone = sale.customer_phone;
           if (!existing?.service_address && sale.customer_address) backfill.service_address = sale.customer_address;
           if (!existing?.service_city && sale.customer_city) backfill.service_city = sale.customer_city;
