@@ -73,6 +73,14 @@ const PORTALS: PortalOption[] = [
     iconBg: "bg-secondary",
   },
   {
+    id: "technician",
+    label: "Nivra Technician",
+    description: "Portail mobile installation — Assignations, étapes, tests réseau, scanner.",
+    icon: Wrench,
+    iconColor: "text-foreground",
+    iconBg: "bg-secondary",
+  },
+  {
     id: "marketing",
     label: "Marketing Hub",
     description: "CRM · Campagnes SMS/Email · Agent IA · Live Chat — Réservé aux administrateurs.",
