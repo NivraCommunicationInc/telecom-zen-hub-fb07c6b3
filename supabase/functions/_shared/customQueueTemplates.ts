@@ -1714,6 +1714,71 @@ export function renderQueueTemplate(
       const inviteUrl = String(v.invite_url || v.INVITE_URL || v.setup_link || "#");
       const agentNumber = esc(v.agent_number || v.AGENT_NUMBER || "En cours d'attribution");
       const proEmail = esc(v.professional_email || v.PROFESSIONAL_EMAIL || "À venir");
+
+      const stepCardCss = `margin:0 0 14px 0;padding:16px 18px;background:#ffffff;border:1px solid #ddd6fe;border-left:4px solid #7c3aed;border-radius:8px;`;
+      const stepTitleCss = `font-weight:700;color:#1f2937;font-size:15px;margin:0 0 8px 0;line-height:1.4;`;
+      const stepBodyCss = `font-size:14px;color:#4b5563;line-height:1.65;margin:0;white-space:pre-line;`;
+
+      const onboardingStepsHtml = `
+        <div style="margin:28px 0 12px 0;padding:18px 20px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;">
+          <div style="font-weight:800;color:#5b21b6;font-size:17px;margin:0 0 4px 0;">Comment compléter votre inscription</div>
+          <div style="font-size:13px;color:#6d28d9;margin:0;">Suivez ces étapes dans l'ordre</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">🔑 Étape 1 — Créez votre mot de passe</div>
+          <div style="${stepBodyCss}">Choisissez un mot de passe fort contenant au minimum :
+• 8 caractères
+• 1 lettre majuscule (ex: A, B, C)
+• 1 lettre minuscule (ex: a, b, c)
+• 1 chiffre (ex: 1, 2, 3)
+• 1 caractère spécial (ex: !, @, #, $)
+
+Exemple : Nivra2026!
+
+Confirmez votre mot de passe en le saisissant une deuxième fois.</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">🔒 Étape 2 — Choisissez votre NIP de sécurité</div>
+          <div style="${stepBodyCss}">Créez un NIP à 6 chiffres unique que vous seul connaissez.
+Ce NIP vous sera demandé lors de certaines actions sensibles sur votre compte.
+Confirmez votre NIP en le saisissant une deuxième fois.
+
+⚠️ Ne partagez jamais votre NIP.</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">📱 Étape 3 — Configurez l'authentification à deux facteurs (2FA)</div>
+          <div style="${stepBodyCss}">1. Téléchargez l'application Google Authenticator ou Microsoft Authenticator sur votre téléphone.
+2. Ouvrez l'application et scannez le code QR affiché sur votre écran.
+3. L'application va générer un code à 6 chiffres.
+4. Saisissez ce code dans le champ prévu à cet effet.
+
+✅ Votre 2FA est maintenant configuré.</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">📋 Étape 4 — Lisez et acceptez les conditions</div>
+          <div style="${stepBodyCss}">Prenez le temps de lire attentivement :
+• Les termes et conditions d'utilisation
+• La politique de confidentialité
+• Les règles de conformité Nivra Telecom
+
+Cochez la case pour confirmer votre acceptation.</div>
+        </div>
+
+        <div style="${stepCardCss}">
+          <div style="${stepTitleCss}">✉️ Étape 5 — Vérification par courriel</div>
+          <div style="${stepBodyCss}">Pour finaliser votre inscription :
+1. Sélectionnez la vérification par courriel comme méthode de double authentification.
+2. Vérifiez votre boîte courriel — vous recevrez un NIP à 6 chiffres.
+3. Saisissez ce NIP dans le champ prévu à cet effet.
+
+🎉 Votre compte est maintenant activé!</div>
+        </div>
+      `;
+
       return {
         subject: "Invitation — Portail Nivra Field & RH",
         html: shell({
@@ -1734,6 +1799,8 @@ export function renderQueueTemplate(
           ],
           ctaPrimaryUrl: inviteUrl,
           ctaPrimaryLabel: "Créer mon compte",
+          extraBodyHtml: onboardingStepsHtml,
+          helpHtml: `Besoin d'aide ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>`,
         }),
       };
     }
