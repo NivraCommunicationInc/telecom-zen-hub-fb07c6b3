@@ -120,6 +120,11 @@ const CoreRetentionPage = lazy(() => import("@/core-app/pages/CoreRetentionPage"
 const CoreSupportAIPage = lazy(() => import("@/core-app/pages/CoreSupportAIPage"));
 const CoreSyncMonitorPage = lazy(() => import("@/core-app/pages/CoreSyncMonitorPage"));
 const CoreAgentControlCenter = lazy(() => import("@/core-app/pages/CoreAgentControlCenter"));
+const CoreSEOPage = lazy(() => import("@/core-app/pages/CoreSEOPage"));
+const SeoInternetSansContrat = lazy(() => import("@/pages/seo/InternetSansContrat"));
+const SeoAlternativeBell = lazy(() => import("@/pages/seo/AlternativeBell"));
+const SeoInternetMontrealNord = lazy(() => import("@/pages/seo/InternetMontrealNord"));
+const SeoInternetPrepaye = lazy(() => import("@/pages/seo/InternetPrepaye"));
 const CoreFinancePage = lazy(() => import("@/core-app/pages/CoreFinancePage"));
 const CoreSOPsPage = lazy(() => import("@/core-app/pages/CoreSOPsPage"));
 const CoreSupportMetricsPage = lazy(() => import("@/core-app/pages/CoreSupportMetricsPage"));
@@ -586,6 +591,12 @@ const AppRoutes = () => {
       <Route path="/frais-possibles" element={<MaintenanceGuard><PublicLayout><FraisPossibles /></PublicLayout></MaintenanceGuard>} />
       <Route path="/refund-policy" element={<MaintenanceGuard><PublicLayout><RefundPolicy /></PublicLayout></MaintenanceGuard>} />
 
+      {/* SEO Landing Pages */}
+      <Route path="/internet-sans-contrat-montreal" element={<MaintenanceGuard><Suspense fallback={null}><SeoInternetSansContrat /></Suspense></MaintenanceGuard>} />
+      <Route path="/alternative-bell-videotron-quebec" element={<MaintenanceGuard><Suspense fallback={null}><SeoAlternativeBell /></Suspense></MaintenanceGuard>} />
+      <Route path="/internet-montreal-nord" element={<MaintenanceGuard><Suspense fallback={null}><SeoInternetMontrealNord /></Suspense></MaintenanceGuard>} />
+      <Route path="/internet-prepaye-quebec" element={<MaintenanceGuard><Suspense fallback={null}><SeoInternetPrepaye /></Suspense></MaintenanceGuard>} />
+
       {/* Public unsubscribe — no layout, no auth, no maintenance gate (must always be reachable for compliance) */}
       <Route path="/unsubscribe" element={<Unsubscribe />} />
       {/* Public Field-sale payment landing page — no auth required */}
@@ -868,6 +879,7 @@ const AppRoutes = () => {
           <Route path="support-ai" element={<Suspense fallback={null}><CoreSupportAIPage /></Suspense>} />
           <Route path="sync-monitor" element={<Suspense fallback={null}><CoreSyncMonitorPage /></Suspense>} />
           <Route path="agents" element={<Suspense fallback={null}><CoreAgentControlCenter /></Suspense>} />
+          <Route path="seo" element={<Suspense fallback={null}><CoreSEOPage /></Suspense>} />
           <Route path="finance" element={<Suspense fallback={null}><CoreFinancePage /></Suspense>} />
           <Route path="sops" element={<Suspense fallback={null}><CoreSOPsPage /></Suspense>} />
           <Route path="support-metrics" element={<Suspense fallback={null}><CoreSupportMetricsPage /></Suspense>} />
