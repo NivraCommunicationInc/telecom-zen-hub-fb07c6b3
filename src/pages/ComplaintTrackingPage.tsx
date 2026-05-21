@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertCircle, MessageSquare, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, AlertCircle, MessageSquare, CheckCircle2, Clock, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -118,6 +118,15 @@ export default function ComplaintTrackingPage() {
       </Helmet>
 
       <div className="max-w-3xl mx-auto px-4 py-10 sm:py-14">
+        <div className="mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour à l'accueil
+          </Link>
+        </div>
         <header className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
             <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-primary text-primary-foreground">
