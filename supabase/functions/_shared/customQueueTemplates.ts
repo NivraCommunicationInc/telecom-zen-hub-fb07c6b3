@@ -4474,6 +4474,188 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // AI AGENTS GROUP 2 — Marketing / Billing / Retention
+    // ===================================================================
+    case "marketing_promotion": {
+      const heroTitle = esc(v.hero_title ?? v.subject ?? "Offre exclusive Nivra");
+      const bodyHtml = String(v.body_html ?? "Une offre personnalisée vous attend.");
+      const offerDetails = esc(v.offer_details ?? "Offre spéciale");
+      const promoCode = esc(v.promo_code ?? "");
+      const validUntil = fmtDate(v.offer_valid_until);
+      return {
+        subject: heroTitle,
+        html: shell({
+          preheader: `${offerDetails} — valide jusqu'au ${validUntil}.`,
+          badge: "OFFRE EXCLUSIVE",
+          heroTitle,
+          icon: "star",
+          greeting,
+          bodyText: bodyHtml,
+          cardTitle: "Votre offre",
+          cardRows: [
+            ["Offre", offerDetails],
+            ["Code promo", promoCode || "—"],
+            ["Valide jusqu'au", validUntil],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Profiter de l'offre",
+          helpHtml: `Vous recevez cet email car vous êtes client Nivra Telecom. Pour vous désabonner, contactez <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "payment_reminder_7": {
+      const planName = esc(v.plan_name ?? "Votre forfait");
+      const amount = money(v.amount);
+      const renewal = fmtDate(v.renewal_date);
+      return {
+        subject: "Votre service Nivra se renouvelle dans 7 jours",
+        html: shell({
+          preheader: `Renouvellement le ${renewal} — ${amount}.`,
+          badge: "RENOUVELLEMENT À VENIR",
+          heroTitle: "Votre service se renouvelle dans 7 jours",
+          icon: "check",
+          greeting,
+          bodyText: "Assurez-vous que votre compte PayPal dispose des fonds nécessaires pour un renouvellement sans interruption.",
+          cardTitle: "Détails du renouvellement",
+          cardRows: [
+            ["Forfait", planName],
+            ["Montant", `${amount} + taxes`],
+            ["Date de renouvellement", renewal],
+            ["Mode de paiement", "PayPal automatique"],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Gérer mon compte",
+        }),
+      };
+    }
+
+    case "payment_reminder_3": {
+      const planName = esc(v.plan_name ?? "Votre forfait");
+      const amount = money(v.amount);
+      const renewal = fmtDate(v.renewal_date);
+      return {
+        subject: "Rappel important — Renouvellement dans 3 jours",
+        html: shell({
+          preheader: `Action requise avant le ${renewal}.`,
+          badge: "RAPPEL IMPORTANT",
+          heroTitle: "Renouvellement dans 3 jours",
+          icon: "warn",
+          greeting,
+          bodyText: "Votre renouvellement approche. Vérifiez dès maintenant que votre moyen de paiement est à jour pour éviter toute interruption de service.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Forfait", planName],
+            ["Montant", `${amount} + taxes`],
+            ["Date de renouvellement", renewal],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Vérifier mon paiement",
+          helpVariant: "warning",
+        }),
+      };
+    }
+
+    case "payment_failed_notice": {
+      const amount = money(v.amount);
+      const planName = esc(v.plan_name ?? "");
+      return {
+        subject: "Paiement échoué — Action requise",
+        html: shell({
+          preheader: `Échec du paiement de ${amount}.`,
+          badge: "PAIEMENT ÉCHOUÉ",
+          heroTitle: "Problème avec votre paiement",
+          icon: "x",
+          greeting,
+          bodyText: "Nous n'avons pas pu traiter votre paiement. Sans mise à jour rapide, votre service Nivra pourrait être suspendu.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Montant", amount],
+            ["Forfait", planName || "—"],
+            ["Statut", "Paiement échoué"],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Mettre à jour mon paiement",
+          helpVariant: "warning",
+          helpHtml: `Besoin d'aide ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "grace_period_offer": {
+      const amount = money(v.amount);
+      const deadline = fmtDate(v.deadline);
+      return {
+        subject: "On vous donne 48 heures supplémentaires",
+        html: shell({
+          preheader: `Délai accordé jusqu'au ${deadline}.`,
+          badge: "OFFRE SPÉCIALE",
+          heroTitle: "On vous donne 48 heures supplémentaires",
+          icon: "check",
+          greeting,
+          bodyText: "Nous savons que ça peut arriver. Voici 48 heures supplémentaires pour régler votre paiement et garder votre service Nivra actif.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Montant dû", amount],
+            ["Délai accordé", deadline],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: "Effectuer mon paiement",
+        }),
+      };
+    }
+
+    case "retention_offer": {
+      const heroTitle = esc(v.hero_title ?? "Une offre rien que pour vous");
+      const bodyHtml = String(v.body_html ?? "Nous tenons à vous garder dans la famille Nivra.");
+      const offerType = esc(v.offer_type ?? "");
+      const offerValue = esc(v.offer_value ?? "");
+      const urgency = String(v.urgency_days ?? 7);
+      return {
+        subject: heroTitle,
+        html: shell({
+          preheader: `Offre personnalisée — valide ${urgency} jours.`,
+          badge: "OFFRE PERSONNALISÉE",
+          heroTitle,
+          icon: "star",
+          greeting,
+          bodyText: bodyHtml,
+          cardTitle: "Votre offre",
+          cardRows: [
+            ["Type", offerType || "Offre spéciale"],
+            ["Valeur", String(offerValue || "—")],
+            ["Validité", `${urgency} jours`],
+          ],
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: esc(v.cta_label ?? "Voir mon offre"),
+          helpHtml: `Pour vous désabonner des offres : <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "winback_offer": {
+      return {
+        subject: "On vous manque — Revenez chez Nivra",
+        html: shell({
+          preheader: "Offre exclusive de retour.",
+          badge: "ON VOUS MANQUE!",
+          heroTitle: "Revenez chez Nivra — Offre exclusive",
+          icon: "star",
+          greeting,
+          bodyText: "Depuis votre départ, nous avons amélioré nos forfaits et notre support local. On aimerait vous revoir parmi nos clients — voici une offre spéciale pour votre retour.",
+          cardTitle: "Pourquoi revenir ?",
+          cardRows: [
+            ["Aucun contrat", "Toujours"],
+            ["Support local", "Québécois"],
+            ["Offre de retour", "Activation gratuite"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/commander`,
+          ctaPrimaryLabel: "Revenir chez Nivra",
+        }),
+      };
+    }
+
     default:
       return null;
   }
