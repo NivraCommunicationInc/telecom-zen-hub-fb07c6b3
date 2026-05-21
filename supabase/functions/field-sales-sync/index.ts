@@ -296,19 +296,54 @@ Deno.serve(async (req) => {
           clientUserId = createdUser.user.id;
 
           // Ensure a profile row exists (some projects rely on profile trigger; we enforce it here)
+          const { firstName: newFn, lastName: newLn } = splitName(sale.customer_name);
+          const profilePayload: Record<string, unknown> = {
+            user_id: clientUserId,
+            email: customerEmail,
+            full_name: sale.customer_name || null,
+            first_name: newFn || null,
+            last_name: newLn || null,
+            phone: sale.customer_phone || null,
+            service_address: sale.customer_address || null,
+            service_city: sale.customer_city || null,
+            service_postal_code: sale.customer_postal_code || null,
+          };
+          if (sale.customer_date_of_birth) {
+            profilePayload.date_of_birth = sale.customer_date_of_birth;
+            profilePayload.dob_locked = true;
+          }
           const { error: upsertProfileError } = await supabaseAdmin
             .from("profiles")
-            .upsert(
-              {
-                user_id: clientUserId,
-                email: customerEmail,
-                full_name: sale.customer_name || null,
-                phone: sale.customer_phone || null,
-              } as any,
-              { onConflict: "user_id" }
-            );
+            .upsert(profilePayload as any, { onConflict: "user_id" });
           if (upsertProfileError) {
             console.warn("[field-sales-sync] profile upsert warning:", upsertProfileError);
+          }
+        } else {
+          // Existing profile: backfill missing fields (never overwrite locked DOB)
+          const { firstName: bfFn, lastName: bfLn } = splitName(sale.customer_name);
+          const { data: existing } = await supabaseAdmin
+            .from("profiles")
+            .select("first_name, last_name, date_of_birth, dob_locked, service_address, service_city, service_postal_code, phone, full_name")
+            .eq("user_id", clientUserId)
+            .maybeSingle();
+          const backfill: Record<string, unknown> = {};
+          if (!existing?.first_name && bfFn) backfill.first_name = bfFn;
+          if (!existing?.last_name && bfLn) backfill.last_name = bfLn;
+          if (!existing?.full_name && sale.customer_name) backfill.full_name = sale.customer_name;
+          if (!existing?.phone && sale.customer_phone) backfill.phone = sale.customer_phone;
+          if (!existing?.service_address && sale.customer_address) backfill.service_address = sale.customer_address;
+          if (!existing?.service_city && sale.customer_city) backfill.service_city = sale.customer_city;
+          if (!existing?.service_postal_code && sale.customer_postal_code) backfill.service_postal_code = sale.customer_postal_code;
+          if (!existing?.date_of_birth && !existing?.dob_locked && sale.customer_date_of_birth) {
+            backfill.date_of_birth = sale.customer_date_of_birth;
+            backfill.dob_locked = true;
+          }
+          if (Object.keys(backfill).length > 0) {
+            const { error: bfErr } = await supabaseAdmin
+              .from("profiles")
+              .update(backfill)
+              .eq("user_id", clientUserId);
+            if (bfErr) console.warn("[field-sales-sync] profile backfill warning:", bfErr);
           }
         }
 
