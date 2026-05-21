@@ -230,17 +230,28 @@ export function EquipmentStep({ proc }: Props) {
   };
 
   const handleManualAssign = async () => {
-    if (!manualSerial && !manualMac) { toast.error("Entrez au minimum un numéro de série ou MAC"); return; }
+    if (!manualSerial.trim()) { toast.error("Le numéro de série est obligatoire"); return; }
+    if (!manualCatalogName.trim()) { toast.error("Sélectionnez ou saisissez le nom de l'équipement"); return; }
+    // Limites
+    const existing = assignedItems || [];
+    if (WIFI_CATS.includes(manualType) && countCats([...existing, { category: manualType } as any], WIFI_CATS) > MAX_WIFI) {
+      toast.error(`Maximum ${MAX_WIFI} borne WiFi / routeur par commande`); return;
+    }
+    if (TV_CATS.includes(manualType) && countCats([...existing, { category: manualType } as any], TV_CATS) > MAX_TV) {
+      toast.error(`Maximum ${MAX_TV} terminaux TV par commande`); return;
+    }
     setSaving(true);
     try {
-      const equipmentDetails = [{
-        id: crypto.randomUUID(), type: manualType, label: `Manuel — ${manualType}`,
-        serial_number: manualSerial, mac_address: manualMac, iccid: "", imei: "", esim_ref: "",
+      const currentDetails = Array.isArray(order.equipment_details) ? order.equipment_details : [];
+      const newEntry = {
+        id: crypto.randomUUID(), type: manualType, label: manualCatalogName.trim(),
+        serial_number: manualSerial.trim(), mac_address: manualMac.trim(), iccid: "", imei: "", esim_ref: "",
         status: "assigned", source: "manual",
-      }];
-      const fields: Record<string, any> = { equipment_details: equipmentDetails, equipment_id: manualType.toUpperCase() };
-      if (manualSerial) fields.serial_number = manualSerial;
+      };
+      const equipmentDetails = [...currentDetails, newEntry];
+      const fields: Record<string, any> = { equipment_details: equipmentDetails, equipment_id: manualType.toUpperCase(), serial_number: manualSerial.trim() };
       await proc.assignEquipment(fields);
+      setManualSerial(""); setManualMac(""); setManualCatalogName("");
       toast.success("Équipement assigné manuellement");
     } catch (err: any) {
       toast.error(err?.message || "Erreur");
