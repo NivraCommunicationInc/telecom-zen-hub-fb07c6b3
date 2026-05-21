@@ -26599,6 +26599,7 @@ export type Database = {
         | "failed"
         | "cancelled"
         | "refunded"
+        | "completed"
       billing_subscription_status:
         | "active"
         | "pending"
@@ -27076,6 +27077,7 @@ export const Constants = {
         "failed",
         "cancelled",
         "refunded",
+        "completed",
       ],
       billing_subscription_status: [
         "active",
