@@ -627,7 +627,7 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
         .from("billing_payments")
         .select("id, amount, status, method, provider_payment_id, payment_number, provider")
         .eq("invoice_id", selectedInvoice)
-        .in("status", ["confirmed", "completed", "captured"] as any[])
+        .eq("status", "confirmed" as any)
         .order("created_at", { ascending: false });
       setPayments(data || []);
       if (data?.length) setSelectedPaymentId(data[0].id);
