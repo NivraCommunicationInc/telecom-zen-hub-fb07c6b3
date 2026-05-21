@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" role="img" aria-label="Nivra Telecom">
+  <defs>
+    <linearGradient id="nv-gl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 8)">
+    <rect width="48" height="48" rx="14" fill="url(#nv-gl)"/>
+    <path d="M14 36 L14 12 L20 12 L34 28 L34 12 L40 12 L40 36 L34 36 L20 20 L20 36 Z" fill="#0A0A12"/>
+    <circle cx="40" cy="14" r="3" fill="#0A0A12"/>
+  </g>
+  <g transform="translate(72 0)" fill="#F8F8FF" font-family="Inter, system-ui, sans-serif">
+    <text x="0" y="36" font-size="26" font-weight="700" letter-spacing="-0.5">Nivra</text>
+    <text x="0" y="54" font-size="11" font-weight="500" letter-spacing="2" fill="#A78BFA">TELECOM</text>
+  </g>
+</svg>

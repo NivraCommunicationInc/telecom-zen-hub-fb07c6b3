@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 600" role="img" aria-label="Nivra Telecom hero banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A0A12"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.2" cy="0.3" r="0.5">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.85" cy="0.8" r="0.45">
+      <stop offset="0%" stop-color="#4C1D95" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#4C1D95" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="txt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F8F8FF"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="600" fill="url(#bg)"/>
+  <rect width="1920" height="600" fill="url(#glow1)"/>
+  <rect width="1920" height="600" fill="url(#glow2)"/>
+  <g opacity="0.08" stroke="#A78BFA" stroke-width="1">
+    <path d="M0 480 Q 480 360 960 480 T 1920 480"/>
+    <path d="M0 520 Q 480 400 960 520 T 1920 520"/>
+    <path d="M0 560 Q 480 440 960 560 T 1920 560"/>
+  </g>
+  <g font-family="Inter, system-ui, sans-serif" fill="#F8F8FF">
+    <text x="160" y="220" font-size="22" letter-spacing="6" fill="#A78BFA" font-weight="500">NIVRA TELECOM</text>
+    <text x="160" y="340" font-size="96" font-weight="700" letter-spacing="-2" fill="url(#txt)">Connecté autrement.</text>
+    <text x="160" y="410" font-size="28" font-weight="400" fill="#A0A0B0">Prépayé. Transparent. Sans engagement.</text>
+  </g>
+  <g transform="translate(1500 240)">
+    <circle r="140" fill="none" stroke="#7C3AED" stroke-opacity="0.3" stroke-width="2"/>
+    <circle r="100" fill="none" stroke="#7C3AED" stroke-opacity="0.5" stroke-width="2"/>
+    <circle r="60" fill="none" stroke="#7C3AED" stroke-opacity="0.7" stroke-width="2"/>
+    <circle r="22" fill="#7C3AED"/>
+  </g>
+</svg>
