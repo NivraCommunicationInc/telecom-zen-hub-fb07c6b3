@@ -23,6 +23,7 @@ export default function TechBottomNav() {
           <li key={to} className="flex-1">
             <NavLink
               to={to}
+              end={to === "/tech"}
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center gap-1 py-3 min-h-[64px] text-xs font-medium transition-colors ${
                   isActive ? "text-violet-400" : "text-slate-400"
