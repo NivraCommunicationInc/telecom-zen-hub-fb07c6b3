@@ -226,6 +226,7 @@ interface ShellOpts {
   helpHtml?: string;          // inner HTML of help-box
   helpVariant?: "info" | "warning"; // border-left color
   afterCardText?: string;     // optional paragraph between card and CTA
+  extraBodyHtml?: string;     // optional raw HTML rendered AFTER the CTA block
 }
 
 // All rendering is delegated to the central Nivra shell so every email in
@@ -253,8 +254,10 @@ function shell(opts: ShellOpts): string {
     helpHtml: opts.helpHtml,
     helpVariant: opts.helpVariant,
     afterCardHtml: opts.afterCardText,
+    extraBodyHtml: opts.extraBodyHtml,
   });
 }
+
 
 // ---------------------------------------------------------------------------
 // Public API
