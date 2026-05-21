@@ -4175,7 +4175,7 @@ export function renderQueueTemplate(
             ["Référence", reviewId],
           ],
           ctaPrimaryUrl: adminUrl,
-          ctaPrimaryLabel: "Voir l avis dans Nivra Core",
+          ctaPrimaryLabel: "Voir l'avis dans Nivra Core",
           helpHtml: `Géré depuis <a href="${adminUrl}" style="color:${BRAND_PRIMARY};">Nivra Core → Avis clients</a>`,
         }),
       };
