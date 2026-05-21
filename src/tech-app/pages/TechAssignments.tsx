@@ -1,17 +1,25 @@
 /**
- * TechAssignments — List of all assignments (mine + available to claim).
+ * TechAssignments — Mobile-first list of missions with status actions.
+ * Day filters (Today / Tomorrow / Week), full client info, large touch buttons.
  */
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Clock, MapPin, Truck, AlertCircle, CheckCircle2, UserPlus, Phone, PlayCircle, RotateCcw, XCircle, Wrench, PackageCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Clock, MapPin, Package, Wrench, Truck, PlayCircle, XCircle,
+  UserPlus, Loader2, AlertCircle, Phone,
+} from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import TechTopBar from "../components/TechTopBar";
+import TechHeader from "../components/TechHeader";
 import { useTechAssignments, type TechAssignment } from "../lib/useTechAssignments";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const STATUS_STYLES: Record<string, string> = {
-  scheduled: "bg-blue-500/20 text-blue-300 border-blue-500/40",
+  scheduled: "bg-slate-700/50 text-slate-200 border-slate-600",
   en_route: "bg-orange-500/20 text-orange-300 border-orange-500/40 animate-pulse",
   arrived: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40",
   in_progress: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40",
@@ -24,24 +32,27 @@ const STATUS_STYLES: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "Planifié",
-  en_route: "En route",
+  en_route: "En route 🚗",
   arrived: "Arrivé",
-  in_progress: "En cours",
-  completed: "Complété",
-  missed: "Manqué",
+  in_progress: "En cours 🔧",
+  completed: "Complété ✅",
+  missed: "Manqué ❌",
   rescheduled: "Replanifié",
   cancelled: "Annulé",
-  no_show: "Absent",
+  no_show: "Manqué ❌",
 };
 
-const terminalStatuses = ["completed", "cancelled", "missed", "no_show"];
+type DayFilter = "today" | "tomorrow" | "week" | "all";
 
-type Filter = "mine" | "available" | "all";
+function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 
 export default function TechAssignments() {
+  const navigate = useNavigate();
   const { data = [], isLoading } = useTechAssignments();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<DayFilter>("today");
   const [uid, setUid] = useState<string | null>(null);
+  const [missingFor, setMissingFor] = useState<TechAssignment | null>(null);
+  const [missReason, setMissReason] = useState("");
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -54,84 +65,106 @@ export default function TechAssignments() {
       const { error } = await supabase
         .from("technician_assignments")
         .update({ technician_id: uid })
-        .eq("id", id)
-        .is("technician_id", null);
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
-      toast.success("Mission acceptée");
+      toast.success("Mission acceptée ✅");
     },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
   });
 
   const setStatus = useMutation({
-    mutationFn: async ({ id, status, vars }: { id: string; status: string; vars?: any }) => {
-      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
-        p_assignment_id: id,
-        p_status: status,
-        p_note: vars?.note ?? null,
-        p_eta: vars?.eta ?? null,
-      });
+    mutationFn: async ({ a, status, note }: { a: TechAssignment; status: string; note?: string }) => {
+      const update: any = { status };
+      if (status === "missed") update.missed_at = new Date().toISOString();
+      if (note) update.technician_notes = note;
+      const { error } = await supabase
+        .from("technician_assignments")
+        .update(update)
+        .eq("id", a.id);
       if (error) throw error;
 
-      if (status === "en_route" || status === "missed") {
-        const a = data.find((x) => x.id === id);
-        if (a?.order_id) {
-          const { data: o } = await supabase
-            .from("orders")
-            .select("client_email, client_first_name, order_number")
-            .eq("id", a.order_id)
-            .maybeSingle();
-          if (o?.client_email) {
-            await supabase.from("email_queue").insert({
-              to_email: o.client_email,
-              template_key: status === "en_route" ? "tech_en_route" : "tech_missed",
-              template_vars: {
-                first_name: o.client_first_name || "Client",
-                tech_name: "Votre technicien Nivra",
-                eta: vars?.eta || "sous peu",
-                scheduled_date: a.scheduled_date,
-                order_number: o.order_number,
-              },
-              status: "queued",
-            });
-          }
+      // Queue notification email
+      if (a.order_id && (status === "en_route" || status === "missed")) {
+        const { data: o } = await supabase
+          .from("orders")
+          .select("client_email, client_first_name, order_number")
+          .eq("id", a.order_id)
+          .maybeSingle();
+        if (o?.client_email) {
+          await supabase.from("email_queue").insert({
+            to_email: o.client_email,
+            template_key: status === "en_route" ? "tech_en_route" : "tech_missed",
+            template_vars: {
+              first_name: o.client_first_name || "Client",
+              tech_name: "Votre technicien Nivra",
+              eta: "sous peu",
+              scheduled_date: a.scheduled_date,
+              order_number: o.order_number,
+            },
+            status: "queued",
+            language: "fr",
+          });
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
-      qc.invalidateQueries({ queryKey: ["tech-assignment"] });
-      toast.success("Statut mis à jour");
+      const msg = vars.status === "en_route" ? "Client notifié ✅" : "Statut mis à jour";
+      toast.success(msg);
     },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
   });
 
   const filtered = useMemo(() => {
-    if (filter === "mine") return data.filter((a) => a.technician_id === uid || !a.technician_id);
-    if (filter === "available") return data.filter((a) => !a.technician_id);
+    const today = isoDate(new Date());
+    const tomorrow = isoDate(new Date(Date.now() + 86400_000));
+    const weekEnd = isoDate(new Date(Date.now() + 7 * 86400_000));
+    if (filter === "today") return data.filter((a) => a.scheduled_date === today);
+    if (filter === "tomorrow") return data.filter((a) => a.scheduled_date === tomorrow);
+    if (filter === "week") return data.filter((a) => a.scheduled_date >= today && a.scheduled_date <= weekEnd);
     return data;
-  }, [data, filter, uid]);
+  }, [data, filter]);
+
+  function confirmMissed() {
+    if (!missingFor) return;
+    if (!missReason.trim()) {
+      toast.error("Raison obligatoire");
+      return;
+    }
+    setStatus.mutate(
+      { a: missingFor, status: "missed", note: missReason.trim() },
+      {
+        onSuccess: () => {
+          setMissingFor(null);
+          setMissReason("");
+        },
+      },
+    );
+  }
 
   return (
     <div>
-      <TechTopBar title="Missions" />
+      <TechHeader title="Mes Missions" />
       <div className="px-4 py-4">
-        <div role="tablist" className="flex gap-2 mb-4 overflow-x-auto -mx-1 px-1">
+        {/* Day filters */}
+        <div role="tablist" className="grid grid-cols-4 gap-2 mb-4">
           {([
+            ["today", "Aujourd'hui"],
+            ["tomorrow", "Demain"],
+            ["week", "Semaine"],
             ["all", "Toutes"],
-            ["mine", "Mes missions"],
-            ["available", "Disponibles"],
           ] as const).map(([k, lbl]) => (
             <button
               key={k}
               role="tab"
               aria-selected={filter === k}
               onClick={() => setFilter(k)}
-              className={`min-h-[44px] px-5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`min-h-[44px] px-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
                 filter === k
-                  ? "bg-violet-600 text-white"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-500/30"
                   : "bg-slate-900 border border-slate-800 text-slate-300"
               }`}
             >
@@ -140,207 +173,149 @@ export default function TechAssignments() {
           ))}
         </div>
 
+        {/* Missions list */}
         {isLoading ? (
-          <p className="text-center text-slate-400 py-12">Chargement...</p>
+          <div className="text-center py-16 text-slate-400 flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+            Chargement...
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
-            <p className="text-slate-300">Aucune mission</p>
+          <div className="text-center py-16">
+            <AlertCircle className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+            <p className="text-base font-semibold text-white">Aucune mission pour cette période</p>
+            <p className="text-sm text-slate-400 mt-1">Vérifiez avec votre coordinateur.</p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {filtered.map((a) => (
-              <AssignmentCard
-                key={a.id}
-                assignment={a}
-                isMine={a.technician_id === uid}
-                onClaim={() => claim.mutate(a.id)}
-                onEnRoute={() => {
-                  const eta = window.prompt("Heure d'arrivée estimée (ex: 14h30)", "");
-                  if (eta !== null) setStatus.mutate({ id: a.id, status: "en_route", vars: { eta } });
-                }}
-                onArrived={() => setStatus.mutate({ id: a.id, status: "arrived" })}
-                onInProgress={() => setStatus.mutate({ id: a.id, status: "in_progress" })}
-                onReschedule={() => {
-                  const note = window.prompt("Note pour replanification :", "");
-                  if (note !== null) setStatus.mutate({ id: a.id, status: "rescheduled", vars: { note } });
-                }}
-                onCancel={() => {
-                  const note = window.prompt("Raison de l'annulation :", "");
-                  if (note !== null) setStatus.mutate({ id: a.id, status: "cancelled", vars: { note } });
-                }}
-                onMissed={() => {
-                  const note = window.prompt("Raison du rendez-vous manqué / client absent :", "Client absent");
-                  if (note !== null) {
-                    setStatus.mutate({ id: a.id, status: "missed", vars: { note } });
-                  }
-                }}
-              />
-            ))}
+            {filtered.map((a) => {
+              const terminal = ["completed", "cancelled", "missed", "no_show"].includes(a.status);
+              const isMine = a.technician_id === uid;
+              const isUnassigned = !a.technician_id;
+              return (
+                <li key={a.id} className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+                  {/* Header */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`inline-flex items-center text-xs font-bold px-3 py-1 rounded-full border ${STATUS_STYLES[a.status] ?? STATUS_STYLES.scheduled}`}>
+                      {STATUS_LABELS[a.status] ?? a.status}
+                    </span>
+                    <span className="text-sm font-bold text-white tabular-nums flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-violet-400" />
+                      {a.scheduled_time_start?.slice(0, 5)}
+                    </span>
+                  </div>
+
+                  {/* Client */}
+                  <div className="space-y-1.5">
+                    <p className="text-base font-bold text-white flex items-center gap-2">
+                      👤 {a.client_name || "Client"}
+                    </p>
+                    {a.client_address && (
+                      <p className="text-sm text-slate-300 flex items-start gap-2">
+                        <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-violet-400" />
+                        <span>{a.client_address}</span>
+                      </p>
+                    )}
+                    {a.client_phone && (
+                      <a href={`tel:${a.client_phone}`} className="text-sm text-violet-300 flex items-center gap-2">
+                        <Phone className="h-4 w-4 shrink-0" />
+                        {a.client_phone}
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Services & equipment */}
+                  {a.order_items && a.order_items.length > 0 && (
+                    <div className="rounded-xl bg-slate-950 border border-slate-800 p-3 space-y-1.5">
+                      {a.order_items.map((i: any) => (
+                        <p key={i.id} className="text-xs text-slate-300 flex items-start gap-2">
+                          {i.fulfillment_type === "equipment" ? <Wrench className="h-3.5 w-3.5 mt-0.5 text-orange-400 shrink-0" /> : <Package className="h-3.5 w-3.5 mt-0.5 text-violet-400 shrink-0" />}
+                          <span>{i.plan_name || i.description}{i.quantity > 1 ? ` × ${i.quantity}` : ""}</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  {!terminal && (
+                    <div className="space-y-2 pt-1">
+                      {isUnassigned && !isMine ? (
+                        <button
+                          onClick={() => claim.mutate(a.id)}
+                          disabled={claim.isPending}
+                          className="w-full min-h-[48px] rounded-full bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          Accepter cette mission
+                        </button>
+                      ) : (
+                        <>
+                          {a.status === "scheduled" && (
+                            <button
+                              onClick={() => setStatus.mutate({ a, status: "en_route" })}
+                              disabled={setStatus.isPending}
+                              className="w-full min-h-[48px] rounded-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                            >
+                              <Truck className="h-4 w-4" />
+                              En Route
+                            </button>
+                          )}
+                          <button
+                            onClick={() => navigate(`/tech/installation/${a.id}`)}
+                            className="w-full min-h-[48px] rounded-full bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white text-sm font-bold flex items-center justify-center gap-2"
+                          >
+                            <PlayCircle className="h-4 w-4" />
+                            Démarrer l'installation
+                          </button>
+                          <button
+                            onClick={() => setMissingFor(a)}
+                            className="w-full min-h-[44px] rounded-full bg-transparent border-2 border-red-600/60 text-red-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-red-600/10"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Rendez-vous manqué
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
-    </div>
-  );
-}
 
-function AssignmentCard({
-  assignment: a,
-  isMine,
-  onClaim,
-  onEnRoute,
-  onArrived,
-  onInProgress,
-  onReschedule,
-  onCancel,
-  onMissed,
-}: {
-  assignment: TechAssignment;
-  isMine: boolean;
-  onClaim: () => void;
-  onEnRoute: () => void;
-  onArrived: () => void;
-  onInProgress: () => void;
-  onReschedule: () => void;
-  onCancel: () => void;
-  onMissed: () => void;
-}) {
-  const effectiveStatus = a.appointment_status === "no_show" ? "missed" : a.status;
-  const badge = STATUS_STYLES[effectiveStatus] || STATUS_STYLES.scheduled;
-  const isDone = terminalStatuses.includes(effectiveStatus);
-  const unassigned = !a.technician_id;
-  const serviceLabels = [
-    a.service_type,
-    a.category,
-    ...(a.order_items ?? []).map((item: any) => item.plan_name || item.description).filter(Boolean),
-  ].filter(Boolean);
-  const equipmentCount = Array.isArray(a.equipment_details) ? a.equipment_details.length : a.equipment_details ? 1 : 0;
-  const channelCount = Array.isArray(a.selected_channels) ? a.selected_channels.length : 0;
-
-  return (
-    <li className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-4 shadow-lg shadow-slate-950/40">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 text-white font-semibold">
-          <Clock className="h-4 w-4 text-violet-400" />
-          <span>
-            {a.scheduled_date} · {a.scheduled_time_start?.slice(0, 5)} – {a.scheduled_time_end?.slice(0, 5)}
-          </span>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full border ${badge}`}>
-            {STATUS_LABELS[effectiveStatus]}
-          </span>
-          {unassigned && (
-            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full border bg-violet-500/20 text-violet-300 border-violet-500/40">
-              Disponible
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-base font-semibold text-white">{a.client_name || "Client"}</p>
-        {a.client_address && (
-          <p className="text-sm text-slate-300 flex items-start gap-2 leading-relaxed">
-            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" />
-            <span>{a.client_address}</span>
+      {/* Missed reason dialog */}
+      <Dialog open={!!missingFor} onOpenChange={(o) => !o && setMissingFor(null)}>
+        <DialogContent className="bg-slate-900 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Confirmer le rendez-vous manqué</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-300">
+            Cette action notifiera le client par courriel. Veuillez fournir une raison.
           </p>
-        )}
-        {a.client_phone && (
-          <a href={`tel:${a.client_phone}`} className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-slate-700 bg-slate-800/70 px-3 text-sm font-semibold text-violet-300">
-            <Phone className="h-4 w-4" /> {a.client_phone}
-          </a>
-        )}
-      </div>
-
-      <div className="rounded-xl bg-slate-950/60 border border-slate-800 p-3 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300">
-          <Wrench className="h-4 w-4" /> Services à installer
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {serviceLabels.length ? serviceLabels.slice(0, 5).map((label, idx) => (
-            <span key={`${label}-${idx}`} className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-200">
-              {String(label)}
-            </span>
-          )) : <span className="text-xs text-slate-500">Service non précisé</span>}
-          {a.order_number && <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-mono text-slate-300">#{a.order_number}</span>}
-          {a.appointment_number && <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-mono text-slate-300">RDV {a.appointment_number}</span>}
-        </div>
-        {(equipmentCount > 0 || channelCount > 0 || a.appointment_notes) && (
-          <div className="grid gap-2 text-xs text-slate-400">
-            {equipmentCount > 0 && <span className="inline-flex items-center gap-1"><PackageCheck className="h-3.5 w-3.5" /> {equipmentCount} équipement(s) prévu(s)</span>}
-            {channelCount > 0 && <span>{channelCount} chaîne(s) TV sélectionnée(s)</span>}
-            {a.appointment_notes && <p className="line-clamp-2">Note: {a.appointment_notes}</p>}
-          </div>
-        )}
-      </div>
-
-      {unassigned ? (
-        <button
-          onClick={onClaim}
-          className="w-full min-h-[48px] rounded-full bg-violet-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
-        >
-          <UserPlus className="h-4 w-4" />
-          Accepter cette mission
-        </button>
-      ) : isMine && !isDone ? (
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <button
-            onClick={onEnRoute}
-            className="min-h-[48px] rounded-full bg-orange-600/20 border border-orange-600/40 text-orange-300 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <Truck className="h-4 w-4" />
-            En route
-          </button>
-          <button
-            onClick={onArrived}
-            className="min-h-[48px] rounded-full bg-blue-600/20 border border-blue-600/40 text-blue-300 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <MapPin className="h-4 w-4" />
-            Arrivé
-          </button>
-          <Link
-            to={`/tech/installation/${a.id}`}
-            className="min-h-[48px] rounded-full bg-violet-600 text-white text-sm font-semibold flex items-center justify-center"
-          >
-            <PlayCircle className="h-4 w-4 mr-1" /> Installer
-          </Link>
-          <button
-            onClick={onInProgress}
-            className="min-h-[48px] rounded-full bg-violet-600/20 border border-violet-600/40 text-violet-300 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            Démarrer
-          </button>
-          <button
-            onClick={onMissed}
-            className="min-h-[48px] rounded-full bg-red-600/20 border border-red-600/40 text-red-300 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <AlertCircle className="h-4 w-4" />
-            Manqué
-          </button>
-          <button
-            onClick={onReschedule}
-            className="min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <RotateCcw className="h-4 w-4" /> Replanifier
-          </button>
-          <button
-            onClick={onCancel}
-            className="min-h-[48px] rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <XCircle className="h-4 w-4" /> Annuler
-          </button>
-        </div>
-      ) : isMine ? (
-        <Link
-          to={`/tech/installation/${a.id}`}
-          className="block w-full text-center min-h-[44px] py-3 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold"
-        >
-          Voir détails
-        </Link>
-      ) : (
-        <p className="text-xs text-slate-500 italic">Assignée à un autre technicien</p>
-      )}
-    </li>
+          <Textarea
+            placeholder="Raison (obligatoire) — ex: client absent, accès refusé..."
+            value={missReason}
+            onChange={(e) => setMissReason(e.target.value)}
+            className="min-h-[100px] bg-slate-950 border-slate-700 text-white"
+          />
+          <DialogFooter className="gap-2">
+            <button
+              onClick={() => setMissingFor(null)}
+              className="min-h-[44px] px-5 rounded-full bg-slate-800 text-slate-200 text-sm font-semibold"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmMissed}
+              disabled={setStatus.isPending}
+              className="min-h-[44px] px-5 rounded-full bg-red-600 text-white text-sm font-bold disabled:opacity-60"
+            >
+              {setStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmer manqué"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
