@@ -231,10 +231,8 @@ Deno.serve(async (req) => {
     last_run_at: completedAt.toISOString(),
     last_success_at: completedAt.toISOString(),
     consecutive_failures: 0,
-    total_runs: ((agents?.length ?? 0) > 0 ? undefined : undefined) as never,
   }).eq("agent_name", AGENT);
-  // increment counters atomically via RPC-like update
-  await supabase.rpc("agent_registry_increment", { p_agent: AGENT, p_success: true, p_duration_ms: duration }).then(() => null, () => null);
+
 
   return new Response(JSON.stringify({ ok: true, global_health: globalHealth, actions, agents: metrics.length }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
