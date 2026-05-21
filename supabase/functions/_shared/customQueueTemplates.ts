@@ -4364,6 +4364,116 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // AI AGENTS — site monitor + analytics digests
+    // ===================================================================
+    case "site_health_alert": {
+      const score = Number(v.health_score ?? 0);
+      const criticalCount = Number(v.critical_count ?? 0);
+      const totalIssues = Number(v.total_issues ?? 0);
+      const summary = esc(v.summary ?? "Problèmes critiques détectés sur la plateforme.");
+      const issues = Array.isArray(v.issues) ? (v.issues as Array<{ title?: string; description?: string }>) : [];
+      const issuesHtml = issues.slice(0, 10).map((i) =>
+        `<li style="margin-bottom:8px;"><strong style="color:#1a1a2e;">${esc(i.title ?? "")}</strong>${i.description ? `<br/><span style="color:${BRAND_TEXT_MUTED};">${esc(i.description)}</span>` : ""}</li>`
+      ).join("");
+      return {
+        subject: `[ALERTE CRITIQUE] Problème détecté — Nivra Telecom`,
+        html: shell({
+          preheader: `${criticalCount} problème(s) critique(s) détecté(s) — action requise.`,
+          badge: "ALERTE SYSTÈME",
+          heroTitle: "Action requise — Problème détecté",
+          heroSub: `Score de santé : ${score}/100`,
+          icon: "warn",
+          greeting: `Bonjour ${clientName},`,
+          bodyText: summary,
+          cardTitle: "Synthèse",
+          cardRows: [
+            ["Score de santé", `${score}/100`],
+            ["Problèmes critiques", String(criticalCount)],
+            ["Total des alertes", String(totalIssues)],
+            ["Détecté le", fmtDate(new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/monitor`,
+          ctaPrimaryLabel: "Voir le tableau de bord",
+          helpHtml: issues.length > 0
+            ? `<strong style="color:#1a1a2e;">Problèmes critiques :</strong><ul style="padding-left:20px;margin:8px 0 0 0;color:${BRAND_TEXT_BODY};">${issuesHtml}</ul>`
+            : `Connectez-vous au tableau de bord pour les détails.`,
+        }),
+      };
+    }
+
+    case "weekly_analytics_report": {
+      const periodStart = fmtDate(v.period_start);
+      const periodEnd = fmtDate(v.period_end);
+      const mrr = money(v.mrr);
+      const revenue = money(v.revenue);
+      const newClients = String(v.new_clients ?? 0);
+      const newOrders = String(v.new_orders ?? 0);
+      const activeClients = String(v.active_clients ?? 0);
+      const complaints = String(v.total_complaints ?? 0);
+      const aiSummary = esc(v.ai_summary ?? "Rapport généré.");
+      const recos = Array.isArray(v.recommendations) ? (v.recommendations as string[]) : [];
+      const recosHtml = recos.slice(0, 5).map((r) => `<li style="margin-bottom:6px;">${esc(r)}</li>`).join("");
+      return {
+        subject: `Rapport hebdomadaire Nivra — Semaine du ${periodEnd}`,
+        html: shell({
+          preheader: `MRR ${mrr} — ${newClients} nouveaux clients, ${newOrders} commandes.`,
+          badge: "RAPPORT HEBDOMADAIRE",
+          heroTitle: `Votre rapport Nivra — Semaine du ${periodEnd}`,
+          heroSub: `${periodStart} → ${periodEnd}`,
+          icon: "check",
+          greeting,
+          bodyText: aiSummary,
+          cardTitle: "Indicateurs clés",
+          cardRows: [
+            ["MRR actuel", mrr],
+            ["Revenu de la période", revenue],
+            ["Clients actifs", activeClients],
+            ["Nouveaux clients", newClients],
+            ["Nouvelles commandes", newOrders],
+            ["Plaintes ouvertes", complaints],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/analytics-ai`,
+          ctaPrimaryLabel: "Voir le rapport complet",
+          helpHtml: recos.length > 0
+            ? `<strong style="color:#1a1a2e;">Recommandations prioritaires :</strong><ol style="padding-left:20px;margin:8px 0 0 0;color:${BRAND_TEXT_BODY};">${recosHtml}</ol>`
+            : `Connectez-vous au tableau de bord pour les détails.`,
+        }),
+      };
+    }
+
+    case "daily_analytics_report": {
+      const periodEnd = fmtDate(v.period_end);
+      const mrr = money(v.mrr);
+      const revenue = money(v.revenue);
+      const newClients = String(v.new_clients ?? 0);
+      const newOrders = String(v.new_orders ?? 0);
+      const complaints = String(v.total_complaints ?? 0);
+      const aiSummary = esc(v.ai_summary ?? "Rapport quotidien.");
+      return {
+        subject: `Rapport quotidien Nivra — ${periodEnd}`,
+        html: shell({
+          preheader: `${newOrders} commandes, ${newClients} nouveaux clients aujourd'hui.`,
+          badge: "RAPPORT QUOTIDIEN",
+          heroTitle: `Rapport du jour — ${periodEnd}`,
+          heroSub: "Activité des dernières 24 heures",
+          icon: "check",
+          greeting,
+          bodyText: aiSummary,
+          cardTitle: "Aujourd'hui",
+          cardRows: [
+            ["Revenu (24h)", revenue],
+            ["MRR actuel", mrr],
+            ["Nouvelles commandes", newOrders],
+            ["Nouveaux clients", newClients],
+            ["Plaintes reçues", complaints],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/analytics-ai`,
+          ctaPrimaryLabel: "Voir les détails",
+        }),
+      };
+    }
+
     default:
       return null;
   }
