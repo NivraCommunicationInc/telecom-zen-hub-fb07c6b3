@@ -2,9 +2,9 @@
  * TechInstallation — Step-by-step wizard for a single installation.
  * Mobile-first, large touch targets, supports notes, coaxial state, network test results.
  */
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2, PackageCheck, X } from "lucide-react";
+import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2, PackageCheck, X, MapPin, Phone, Clock, Wrench, Truck, RotateCcw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -55,10 +55,55 @@ export default function TechInstallation() {
     [assignment?.equipment_scanned],
   );
 
+  useEffect(() => {
+    if (!assignment) return;
+    setCoax(assignment.coaxial_status ?? "");
+    setCoaxNotes(assignment.coaxial_notes ?? "");
+    setNotes(assignment.technician_notes ?? "");
+    setDownload(assignment.download_speed ? String(assignment.download_speed) : "");
+    setUpload(assignment.upload_speed ? String(assignment.upload_speed) : "");
+    setPing(assignment.ping_ms ? String(assignment.ping_ms) : "");
+    setSignal(assignment.signal_strength ? String(assignment.signal_strength) : "");
+  }, [assignment?.id]);
+
   const allScannedEquipment = useMemo(
     () => [...existingScanned, ...scannedEquipment],
     [existingScanned, scannedEquipment],
   );
+
+  const serviceLabels = useMemo(
+    () => [
+      assignment?.service_type,
+      assignment?.category,
+      ...(assignment?.order_items ?? []).map((item: any) => item.plan_name || item.description).filter(Boolean),
+    ].filter(Boolean),
+    [assignment?.service_type, assignment?.category, assignment?.order_items],
+  );
+
+  const plannedEquipment = useMemo(() => {
+    if (Array.isArray(assignment?.equipment_details)) return assignment.equipment_details;
+    if (assignment?.equipment_details) return [assignment.equipment_details];
+    return [];
+  }, [assignment?.equipment_details]);
+
+  const setFieldStatus = useMutation({
+    mutationFn: async ({ status, note, eta }: { status: string; note?: string | null; eta?: string | null }) => {
+      if (!id) throw new Error("ID manquant");
+      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: status,
+        p_note: note ?? null,
+        p_eta: eta ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
+      toast.success("Statut rendez-vous mis à jour");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  });
 
   const scanEquipment = async () => {
     const code = scanCode.trim();
@@ -93,7 +138,6 @@ export default function TechInstallation() {
     mutationFn: async () => {
       if (!id) throw new Error("ID manquant");
       const payload: any = {
-        status: "completed",
         technician_notes: notes || null,
         coaxial_status: coax || null,
         coaxial_notes: coaxNotes || null,
@@ -117,9 +161,16 @@ export default function TechInstallation() {
       }
       const { error } = await supabase.from("technician_assignments").update(payload).eq("id", id);
       if (error) throw error;
+      const { error: statusError } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: "completed",
+        p_note: notes || null,
+        p_eta: null,
+      });
+      if (statusError) throw statusError;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tech-assignments-self"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
       toast.success("Installation complétée — service activé!");
       setTimeout(() => navigate("/tech/assignments"), 800);
@@ -132,18 +183,16 @@ export default function TechInstallation() {
       const reason = window.prompt("Raison du rendez-vous manqué :", "");
       if (reason === null) return;
       if (!id) return;
-      const { error } = await supabase
-        .from("technician_assignments")
-        .update({
-          status: "missed",
-          missed_at: new Date().toISOString(),
-          technician_notes: reason,
-        })
-        .eq("id", id);
+      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: "missed",
+        p_note: reason || "Client absent / rendez-vous manqué",
+        p_eta: null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tech-assignments-self"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       toast.success("Marqué comme manqué");
       navigate("/tech/assignments");
     },
@@ -174,20 +223,83 @@ export default function TechInstallation() {
     <div>
       <TechTopBar title={`Installation #${assignment.order_number ?? ""}`} back />
       <div className="px-4 py-4 space-y-4">
-        {/* Client header */}
-        <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
-          <p className="text-base font-bold text-white">{assignment.client_name}</p>
-          {assignment.client_address && (
-            <p className="text-sm text-slate-400 mt-1">{assignment.client_address}</p>
-          )}
-          {assignment.client_phone && (
-            <a href={`tel:${assignment.client_phone}`} className="text-sm text-violet-400 mt-2 inline-block">
-              📞 {assignment.client_phone}
-            </a>
-          )}
-          <p className="text-xs text-slate-500 mt-2 capitalize">
-            {assignment.service_type} {assignment.category && `· ${assignment.category}`}
-          </p>
+        {/* Mission command center */}
+        <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-4 shadow-lg shadow-slate-950/40">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-base font-bold text-white">{assignment.client_name || "Client"}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {assignment.appointment_number ? `RDV ${assignment.appointment_number}` : "Rendez-vous"}
+                {assignment.order_number ? ` · Commande #${assignment.order_number}` : ""}
+              </p>
+            </div>
+            <span className="rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-300">
+              {assignment.appointment_status || assignment.status}
+            </span>
+          </div>
+
+          <div className="grid gap-2 text-sm">
+            <p className="flex items-start gap-2 text-slate-300 leading-relaxed">
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" />
+              <span>{assignment.client_address || "Adresse non disponible"}</span>
+            </p>
+            <p className="flex items-center gap-2 text-slate-400">
+              <Clock className="h-4 w-4 shrink-0 text-slate-500" />
+              <span>{assignment.scheduled_date} · {assignment.scheduled_time_start?.slice(0, 5)} – {assignment.scheduled_time_end?.slice(0, 5)}</span>
+            </p>
+            {assignment.client_phone && (
+              <a href={`tel:${assignment.client_phone}`} className="inline-flex min-h-[44px] w-fit items-center gap-2 rounded-full border border-slate-700 bg-slate-800/70 px-3 text-sm font-semibold text-violet-300">
+                <Phone className="h-4 w-4" /> {assignment.client_phone}
+              </a>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-slate-950/60 border border-slate-800 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300">
+              <Wrench className="h-4 w-4" /> Services / matériel à installer
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {serviceLabels.length ? serviceLabels.slice(0, 6).map((label, idx) => (
+                <span key={`${label}-${idx}`} className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-200">
+                  {String(label)}
+                </span>
+              )) : <span className="text-xs text-slate-500">Aucun détail de service</span>}
+            </div>
+            {plannedEquipment.length > 0 && (
+              <ul className="space-y-1 pt-1">
+                {plannedEquipment.slice(0, 5).map((item: any, idx: number) => (
+                  <li key={idx} className="text-xs text-slate-400 flex items-start gap-2">
+                    <PackageCheck className="h-3.5 w-3.5 mt-0.5 text-emerald-400" />
+                    <span>{item.catalog_name || item.name || item.category || item.sku || "Équipement prévu"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!!assignment.selected_channels?.length && (
+              <p className="text-xs text-slate-400">Chaînes TV: {assignment.selected_channels.length} sélectionnée(s)</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => {
+              const eta = window.prompt("Heure d'arrivée estimée (ex: 14h30)", "");
+              if (eta !== null) setFieldStatus.mutate({ status: "en_route", eta });
+            }} className="min-h-[48px] rounded-full bg-orange-600/20 border border-orange-600/40 text-orange-300 text-sm font-semibold flex items-center justify-center gap-2">
+              <Truck className="h-4 w-4" /> En route
+            </button>
+            <button onClick={() => setFieldStatus.mutate({ status: "arrived" })} className="min-h-[48px] rounded-full bg-blue-600/20 border border-blue-600/40 text-blue-300 text-sm font-semibold flex items-center justify-center gap-2">
+              <MapPin className="h-4 w-4" /> Arrivé
+            </button>
+            <button onClick={() => setFieldStatus.mutate({ status: "in_progress" })} className="min-h-[48px] rounded-full bg-violet-600 text-white text-sm font-semibold flex items-center justify-center gap-2">
+              Démarrer
+            </button>
+            <button onClick={() => {
+              const note = window.prompt("Note pour replanification :", "");
+              if (note !== null) setFieldStatus.mutate({ status: "rescheduled", note });
+            }} className="min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-2">
+              <RotateCcw className="h-4 w-4" /> Replanifier
+            </button>
+          </div>
         </section>
 
         {/* Progress */}
