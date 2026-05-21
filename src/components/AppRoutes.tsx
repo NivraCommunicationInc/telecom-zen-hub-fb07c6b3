@@ -686,7 +686,33 @@ const AppRoutes = () => {
       
       {/* LEGACY STAFF ROUTES */}
       {/* /technician/* now goes to the new mobile Tech portal */}
+      <Route path="/technician" element={<Navigate to="/tech" replace />} />
+      <Route path="/technician/*" element={<Navigate to="/tech" replace />} />
       <Route path="/portal/login" element={<Navigate to="/portal/auth" replace />} />
+
+      {/* ============================================ */}
+      {/* TECH PORTAL — Mobile-first PWA for technicians */}
+      {/* ============================================ */}
+      <Route
+        path="/tech"
+        element={
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">Chargement…</div>}>
+            <AuthProvider>
+              <TechProtectedRoute />
+            </AuthProvider>
+          </Suspense>
+        }
+      >
+        <Route element={<Suspense fallback={null}><TechAppLayout /></Suspense>}>
+          <Route index element={<Suspense fallback={null}><TechDashboard /></Suspense>} />
+          <Route path="assignments" element={<Suspense fallback={null}><TechAssignments /></Suspense>} />
+          <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
+          <Route path="scanner" element={<Suspense fallback={null}><TechScanner /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
+        </Route>
+      </Route>
+
+
 
       
       {/* ============================================ */}
