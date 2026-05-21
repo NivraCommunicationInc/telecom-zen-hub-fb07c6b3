@@ -21601,6 +21601,86 @@ export type Database = {
           },
         ]
       }
+      support_tickets_ai: {
+        Row: {
+          account_id: string | null
+          ai_confidence: number | null
+          ai_escalated: boolean | null
+          ai_response: string | null
+          ai_response_sent: boolean | null
+          assigned_to: string | null
+          body: string
+          category: string | null
+          created_at: string | null
+          escalation_reason: string | null
+          from_email: string
+          from_name: string | null
+          id: string
+          priority: string | null
+          resolved_at: string | null
+          sentiment: string | null
+          source: string | null
+          status: string | null
+          subject: string | null
+          ticket_number: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          ai_confidence?: number | null
+          ai_escalated?: boolean | null
+          ai_response?: string | null
+          ai_response_sent?: boolean | null
+          assigned_to?: string | null
+          body: string
+          category?: string | null
+          created_at?: string | null
+          escalation_reason?: string | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          sentiment?: string | null
+          source?: string | null
+          status?: string | null
+          subject?: string | null
+          ticket_number?: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          ai_confidence?: number | null
+          ai_escalated?: boolean | null
+          ai_response?: string | null
+          ai_response_sent?: boolean | null
+          assigned_to?: string | null
+          body?: string
+          category?: string | null
+          created_at?: string | null
+          escalation_reason?: string | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          sentiment?: string | null
+          source?: string | null
+          status?: string | null
+          subject?: string | null
+          ticket_number?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_ai_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
