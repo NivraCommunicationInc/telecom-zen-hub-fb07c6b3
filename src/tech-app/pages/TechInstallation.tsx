@@ -4,7 +4,7 @@
  */
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2, PackageCheck, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,6 +34,8 @@ export default function TechInstallation() {
   const [upload, setUpload] = useState("");
   const [ping, setPing] = useState("");
   const [signal, setSignal] = useState("");
+  const [scanCode, setScanCode] = useState("");
+  const [scannedEquipment, setScannedEquipment] = useState<any[]>([]);
 
   const totalSteps = steps.length;
   const progress = totalSteps ? Math.round(((stepIdx + 1) / totalSteps) * 100) : 0;
@@ -48,6 +50,45 @@ export default function TechInstallation() {
     [doneSteps, steps],
   );
 
+  const existingScanned = useMemo(
+    () => Array.isArray(assignment?.equipment_scanned) ? assignment.equipment_scanned : [],
+    [assignment?.equipment_scanned],
+  );
+
+  const allScannedEquipment = useMemo(
+    () => [...existingScanned, ...scannedEquipment],
+    [existingScanned, scannedEquipment],
+  );
+
+  const scanEquipment = async () => {
+    const code = scanCode.trim();
+    if (!code) return;
+    if (allScannedEquipment.some((e: any) => e.serial_number === code || e.mac_address === code)) {
+      toast.info("Équipement déjà scanné");
+      setScanCode("");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("equipment_inventory")
+      .select("id, catalog_name, category, serial_number, mac_address, status")
+      .or(`serial_number.eq.${code},mac_address.eq.${code}`)
+      .maybeSingle();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (!data) {
+      toast.error("Équipement introuvable dans l'inventaire");
+      return;
+    }
+    setScannedEquipment((items) => [
+      ...items,
+      { ...data, scanned_at: new Date().toISOString(), source: "installation" },
+    ]);
+    setScanCode("");
+    toast.success("Équipement ajouté à l'installation");
+  };
+
   const complete = useMutation({
     mutationFn: async () => {
       if (!id) throw new Error("ID manquant");
@@ -60,6 +101,7 @@ export default function TechInstallation() {
           step_order: steps[i]?.step_order,
           title: steps[i]?.title_fr,
         })),
+        equipment_scanned: allScannedEquipment,
       };
       if (download) payload.download_speed = parseFloat(download);
       if (upload) payload.upload_speed = parseFloat(upload);
