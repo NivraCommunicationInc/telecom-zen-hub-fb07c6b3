@@ -3826,8 +3826,8 @@ export function renderQueueTemplate(
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
             ? "Thank you for your interest in the Field Agent position at Nivra Telecom. We have received your application and would like to invite you to complete a virtual interview with our intelligent HR assistant. The interview takes about 15 minutes. Answer at your own pace."
-            : "Merci pour votre intérêt pour le poste d Agent Terrain chez Nivra Telecom. Nous avons bien reçu votre candidature et nous souhaitons vous inviter à passer une entrevue virtuelle avec notre assistant RH intelligent. L entrevue dure environ 15 minutes. Répondez à votre rythme.",
-          cardTitle: isEnglish ? "Interview details" : "Détails de l entrevue",
+            : "Merci pour votre intérêt pour le poste d'Agent Terrain chez Nivra Telecom. Nous avons bien reçu votre candidature et nous souhaitons vous inviter à passer une entrevue virtuelle avec notre assistant RH intelligent. L'entrevue dure environ 15 minutes. Répondez à votre rythme.",
+          cardTitle: isEnglish ? "Interview details" : "Détails de l'entrevue",
           cardRows,
           ctaPrimaryUrl: interviewUrl,
           ctaPrimaryLabel: isEnglish ? "Start my interview" : "Commencer mon entrevue",
@@ -3900,7 +3900,7 @@ export function renderQueueTemplate(
           heroSub: `Score global: ${score}/10`,
           icon: "check",
           greeting: "Bonjour équipe RH,",
-          bodyText: `Le candidat <strong>${firstName} ${lastName}</strong> a complété son entrevue virtuelle. Voici le rapport complet généré par l assistant IA.`,
+          bodyText: `Le candidat <strong>${firstName} ${lastName}</strong> a complété son entrevue virtuelle. Voici le rapport complet généré par l'assistant IA.`,
           cardTitle: "Informations candidat",
           cardRows: [
             ["Nom", `${firstName} ${lastName}`],
@@ -3912,7 +3912,7 @@ export function renderQueueTemplate(
           afterCardText: extraHtml,
           ctaPrimaryUrl: `${APP_URL}/hr/recruitment`,
           ctaPrimaryLabel: "Voir le dossier complet",
-          helpHtml: `Action requise: examiner ce candidat et décider de l accepter ou non.`,
+          helpHtml: `Action requise: examiner ce candidat et décider de l'accepter ou non.`,
         }),
       };
     }
@@ -3936,7 +3936,7 @@ export function renderQueueTemplate(
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
             ? "Congratulations! After reviewing your interview, we are excited to offer you a position as Field Agent at Nivra Telecom. The next step is to sign your commission agreement and complete onboarding. Our HR team will contact you shortly with your starter kit, territory and training schedule."
-            : "Félicitations! Après examen de votre entrevue, nous sommes ravis de vous offrir un poste d Agent Terrain chez Nivra Telecom. La prochaine étape est de signer votre entente de commission et compléter l intégration. Notre équipe RH vous contactera sous peu avec votre trousse de départ, votre territoire et l horaire de formation.",
+            : "Félicitations! Après examen de votre entrevue, nous sommes ravis de vous offrir un poste d'Agent Terrain chez Nivra Telecom. La prochaine étape est de signer votre entente de commission et compléter l'intégration. Notre équipe RH vous contactera sous peu avec votre trousse de départ, votre territoire et l'horaire de formation.",
           cardTitle: isEnglish ? "Next steps" : "Prochaines étapes",
           cardRows: isEnglish
             ? [
@@ -3947,7 +3947,7 @@ export function renderQueueTemplate(
               ]
             : [
                 ["1.", "Signer votre entente de commission"],
-                ["2.", "Compléter la formation d intégration"],
+                ["2.", "Compléter la formation d'intégration"],
                 ["3.", "Recevoir votre assignation de territoire"],
                 ["4.", "Commencer à gagner des commissions sur chaque vente"],
               ],
@@ -3977,7 +3977,7 @@ export function renderQueueTemplate(
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
             ? "Thank you for taking the time to apply for the Field Agent position at Nivra Telecom and for completing the virtual interview. After careful review, we have decided not to move forward with your application at this time. This decision was not easy and does not reflect on your value as a professional. We encourage you to reapply in approximately three months as our hiring needs evolve. We sincerely appreciate the time and energy you invested in this process and wish you great success in your career."
-            : "Merci d avoir pris le temps de postuler pour le poste d Agent Terrain chez Nivra Telecom et d avoir complété l entrevue virtuelle. Après une analyse attentive, nous avons décidé de ne pas aller de l avant avec votre candidature pour le moment. Cette décision n a pas été facile et ne reflète en rien votre valeur professionnelle. Nous vous encourageons à postuler à nouveau dans environ trois mois, nos besoins de recrutement évoluant régulièrement. Nous apprécions sincèrement le temps et l énergie investis dans ce processus et vous souhaitons un grand succès dans votre carrière.",
+            : "Merci d'avoir pris le temps de postuler pour le poste d'Agent Terrain chez Nivra Telecom et d'avoir complété l'entrevue virtuelle. Après une analyse attentive, nous avons décidé de ne pas aller de l'avant avec votre candidature pour le moment. Cette décision n'a pas été facile et ne reflète en rien votre valeur professionnelle. Nous vous encourageons à postuler à nouveau dans environ trois mois, nos besoins de recrutement évoluant régulièrement. Nous apprécions sincèrement le temps et l'énergie investis dans ce processus et vous souhaitons un grand succès dans votre carrière.",
           ctaPrimaryUrl: `${APP_URL}/emplois`,
           ctaPrimaryLabel: isEnglish ? "View future openings" : "Voir les futurs postes",
           helpHtml: isEnglish
@@ -3994,11 +3994,11 @@ export function renderQueueTemplate(
       return {
         subject: isEnglish
           ? "Action required — Nivra Telecom Onboarding Form"
-          : "Action requise — Formulaire d embauche Nivra Telecom",
+          : "Action requise — Formulaire d'embauche Nivra Telecom",
         html: shell({
           preheader: isEnglish
             ? "Complete your onboarding file to finalize your hiring."
-            : "Complétez votre dossier d embauche pour finaliser votre embauche.",
+            : "Complétez votre dossier d'embauche pour finaliser votre embauche.",
           badge: isEnglish ? "ONBOARDING FORM" : "FORMULAIRE D EMBAUCHE",
           heroTitle: isEnglish
             ? "Congratulations! Complete your file"
@@ -4007,7 +4007,7 @@ export function renderQueueTemplate(
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
             ? "Your application at Nivra Telecom has been accepted. To finalize your hiring, please complete your onboarding form online. This form is secured and encrypted. Only the Nivra Telecom HR team will have access to your information. The link expires in 7 days."
-            : "Votre candidature chez Nivra Telecom a été acceptée. Pour finaliser votre embauche, veuillez compléter votre formulaire d embauche en ligne. Ce formulaire est sécurisé et chiffré. Seule l équipe RH de Nivra Telecom aura accès à vos informations. Le lien expire dans 7 jours.",
+            : "Votre candidature chez Nivra Telecom a été acceptée. Pour finaliser votre embauche, veuillez compléter votre formulaire d'embauche en ligne. Ce formulaire est sécurisé et chiffré. Seule l'équipe RH de Nivra Telecom aura accès à vos informations. Le lien expire dans 7 jours.",
           cardTitle: isEnglish ? "What you need to know" : "Ce que vous devez savoir",
           cardRows: isEnglish
             ? [
@@ -4018,7 +4018,7 @@ export function renderQueueTemplate(
             : [
                 ["Délai", "7 jours pour compléter"],
                 ["Sécurité", "Chiffré et confidentiel"],
-                ["Documents requis", "Pièce d identité + Spécimen de chèque"],
+                ["Documents requis", "Pièce d'identité + Spécimen de chèque"],
               ],
           ctaPrimaryUrl: onboardingUrl,
           ctaPrimaryLabel: isEnglish ? "Complete my form" : "Compléter mon formulaire",
@@ -4037,14 +4037,14 @@ export function renderQueueTemplate(
       const residential = esc(v.residential_status || "—");
       const reviewUrl = `${APP_URL}/core/hr/interviews`;
       return {
-        subject: `[Formulaire soumis] ${fullName} — Dossier d embauche complet`,
+        subject: `[Formulaire soumis] ${fullName} — Dossier d'embauche complet`,
         html: shell({
-          preheader: `Nouveau formulaire d embauche soumis: ${fullName}`,
+          preheader: `Nouveau formulaire d'embauche soumis: ${fullName}`,
           badge: "FORMULAIRE SOUMIS",
-          heroTitle: "Nouveau dossier d embauche à réviser",
+          heroTitle: "Nouveau dossier d'embauche à réviser",
           icon: "check",
           greeting: "Bonjour équipe RH,",
-          bodyText: `Un candidat vient de soumettre son formulaire d embauche complet. Toutes les informations et documents sont disponibles dans le portail Nivra Core pour révision.`,
+          bodyText: `Un candidat vient de soumettre son formulaire d'embauche complet. Toutes les informations et documents sont disponibles dans le portail Nivra Core pour révision.`,
           cardTitle: "Informations soumises",
           cardRows: [
             ["Nom légal", fullName],
@@ -4070,14 +4070,14 @@ export function renderQueueTemplate(
         html: shell({
           preheader: isEnglish
             ? "We have received your onboarding file."
-            : "Nous avons reçu votre dossier d embauche.",
+            : "Nous avons reçu votre dossier d'embauche.",
           badge: isEnglish ? "FILE RECEIVED" : "DOSSIER REÇU",
           heroTitle: isEnglish ? "Thank you! File received" : "Merci! Dossier reçu",
           icon: "check",
           greeting: isEnglish ? `Hello ${firstName},` : `Bonjour ${firstName},`,
           bodyText: isEnglish
             ? "We have received your complete onboarding file. Our HR team will review your information and contact you within 24 to 48 hours with your next steps: training, territory assignment, and starter kit."
-            : "Nous avons bien reçu votre dossier d embauche complet. Notre équipe RH va réviser vos informations et vous contactera sous 24 à 48 heures avec les prochaines étapes: formation, assignation de territoire et trousse de départ.",
+            : "Nous avons bien reçu votre dossier d'embauche complet. Notre équipe RH va réviser vos informations et vous contactera sous 24 à 48 heures avec les prochaines étapes: formation, assignation de territoire et trousse de départ.",
           cardTitle: isEnglish ? "Next steps" : "Prochaines étapes",
           cardRows: isEnglish
             ? [
@@ -4089,7 +4089,7 @@ export function renderQueueTemplate(
             : [
                 ["1.", "Révision de votre dossier par RH"],
                 ["2.", "Appel de confirmation sous 24-48h"],
-                ["3.", "Planification de la formation d intégration"],
+                ["3.", "Planification de la formation d'intégration"],
                 ["4.", "Assignation de votre territoire"],
               ],
           helpHtml: isEnglish
@@ -4131,7 +4131,7 @@ export function renderQueueTemplate(
       const firstName = esc(v.first_name || clientName);
       const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
       return {
-        subject: "Merci d avoir été client Nivra — Votre avis nous importe",
+        subject: "Merci d'avoir été client Nivra — Votre avis nous importe",
         html: shell({
           preheader: "Votre feedback nous aide à nous améliorer.",
           badge: "VOTRE AVIS COMPTE",

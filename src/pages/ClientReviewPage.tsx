@@ -228,7 +228,7 @@ export default function ClientReviewPage() {
         <div className="text-center py-10">
           <ShieldAlert className="w-12 h-12 mx-auto mb-4" style={{ color: "#F59E0B" }} />
           <h1 className="text-2xl font-bold mb-2" style={{ color: "#F8F8FF" }}>Lien invalide</h1>
-          <p style={{ color: "#A0A0B0" }}>Ce lien d avis n est pas reconnu.</p>
+          <p style={{ color: "#A0A0B0" }}>Ce lien d'avis n'est pas reconnu.</p>
         </div>
       </ShellCard>
     );
@@ -277,8 +277,8 @@ export default function ClientReviewPage() {
           </h1>
           <p style={{ color: "#A0A0B0" }}>
             {data.trigger_type === "activation"
-              ? "Comment s est passée votre installation? Cela prend moins de 2 minutes."
-              : "Merci d avoir été client. Votre feedback nous aide à nous améliorer."}
+              ? "Comment s'est passée votre installation? Cela prend moins de 2 minutes."
+              : "Merci d'avoir été client. Votre feedback nous aide à nous améliorer."}
           </p>
         </div>
 
@@ -342,7 +342,7 @@ export default function ClientReviewPage() {
               }
             >
               <ThumbsDown className="w-5 h-5" />
-              Non, pas pour l instant
+              Non, pas pour l'instant
             </button>
           </div>
         </section>
