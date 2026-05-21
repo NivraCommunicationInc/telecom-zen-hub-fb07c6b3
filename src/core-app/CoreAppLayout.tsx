@@ -243,7 +243,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Settings,
     items: [
       { icon: Shield, label: "Surveillance IA", href: "/monitor", adminOnly: true },
-      { icon: Activity, label: "Analytics IA", href: "/analytics-ai", adminOnly: true },
+      { icon: BarChart3, label: "Analytics IA", href: "/analytics-ai", adminOnly: true },
       { icon: Settings, label: "Settings", href: "/settings" },
       { icon: ExternalLink, label: "Site", href: "/site-settings" },
       { icon: Users, label: "Users", href: "/users-access" },
