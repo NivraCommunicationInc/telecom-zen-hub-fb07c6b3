@@ -380,7 +380,7 @@ export default function CoreInterviewsPage() {
         email_type: "onboarding_invitation",
         sent_to: applicant.email,
         status: "queued",
-        subject: "Action requise — Formulaire d embauche Nivra Telecom",
+        subject: "Action requise — Formulaire d'embauche Nivra Telecom",
       });
       return applicant.email;
     },
