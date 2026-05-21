@@ -246,6 +246,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: BarChart3, label: "Analytics IA", href: "/analytics-ai", adminOnly: true },
       { icon: Megaphone, label: "Agent Marketing", href: "/marketing-agent", adminOnly: true },
       { icon: Heart, label: "Rétention IA", href: "/retention", adminOnly: true },
+      { icon: Bot, label: "Support IA", href: "/support-ai", adminOnly: true },
       { icon: Settings, label: "Settings", href: "/settings" },
       { icon: ExternalLink, label: "Site", href: "/site-settings" },
       { icon: Users, label: "Users", href: "/users-access" },
