@@ -413,6 +413,89 @@ const CoreClientProfile = () => {
             clientEmail={profile.email}
             clientName={displayName}
           />
+          <button
+            onClick={async () => {
+              if (!profile?.email) { toast.error("Email manquant"); return; }
+              const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+                redirectTo: `${window.location.origin}/portail/creer-mot-de-passe`,
+              });
+              if (error) { toast.error(error.message); return; }
+              await supabase.from("email_queue").insert({
+                to_email: profile.email,
+                template_key: "password_reset_request",
+                template_vars: { first_name: profile.first_name || "Client" },
+                status: "queued",
+                language: "fr",
+              });
+              toast.success("Email de réinitialisation envoyé");
+            }}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-cyan-500/20 text-[10px] font-medium text-cyan-400 hover:bg-cyan-500/10 min-w-[80px]"
+          >
+            <Shield className="h-4 w-4" /> Reset MDP
+          </button>
+          <button
+            onClick={async () => {
+              if (!profile?.email) { toast.error("Email manquant"); return; }
+              await supabase.from("email_queue").insert({
+                to_email: profile.email,
+                template_key: "account_welcome",
+                template_vars: { first_name: profile.first_name || "Client" },
+                status: "queued",
+                language: "fr",
+              });
+              toast.success("Email de bienvenue renvoyé");
+            }}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-emerald-500/20 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 min-w-[80px]"
+          >
+            <Mail className="h-4 w-4" /> Bienvenue
+          </button>
+          <button
+            onClick={async () => {
+              if (!profile?.email) { toast.error("Email manquant"); return; }
+              await supabase.from("email_queue").insert({
+                to_email: profile.email,
+                template_key: "account_summary",
+                template_vars: {
+                  first_name: profile.first_name || "Client",
+                  plan_name: (account as any)?.plan_name || "Forfait Nivra",
+                  monthly_amount: (account as any)?.monthly_amount || 0,
+                  renewal_date: (account as any)?.next_renewal_at || null,
+                  status: account?.status === "active" ? "Actif ✅" : (account?.status || "Inactif"),
+                },
+                status: "queued",
+                language: "fr",
+              });
+              toast.success("Résumé du compte envoyé");
+            }}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-violet-500/20 text-[10px] font-medium text-violet-400 hover:bg-violet-500/10 min-w-[80px]"
+          >
+            <FileText className="h-4 w-4" /> Résumé
+          </button>
+          {account && (
+            <button
+              onClick={async () => {
+                const isActive = account.status === "active";
+                const action = isActive ? "suspendre" : "réactiver";
+                const reason = prompt(`Raison pour ${action} le compte:`);
+                if (reason === null) return;
+                const newStatus = isActive ? "suspended" : "active";
+                const { error } = await supabase
+                  .from("accounts")
+                  .update({ status: newStatus, updated_at: new Date().toISOString() })
+                  .eq("id", account.id);
+                if (error) { toast.error(error.message); return; }
+                toast.success(`Compte ${isActive ? "suspendu" : "réactivé"}`);
+                queryClient.invalidateQueries({ queryKey: ["core-client-profile"] });
+              }}
+              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg border min-w-[80px] text-[10px] font-medium ${
+                account.status === "active"
+                  ? "border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/10"
+                  : "border-green-500/20 text-green-400 hover:bg-green-500/10"
+              }`}
+            >
+              {account.status === "active" ? <><PauseCircle className="h-4 w-4" /> Suspendre</> : <><PlayCircle className="h-4 w-4" /> Réactiver</>}
+            </button>
+          )}
         </div>
       </div>
 
