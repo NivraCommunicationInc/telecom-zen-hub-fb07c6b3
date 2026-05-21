@@ -234,23 +234,6 @@ body {
     --core-success:      160 84% 39%;    /* #10B981 green */
     --core-warning:      38 92% 50%;     /* #F59E0B amber */
     --core-danger:       0 84% 60%;      /* #EF4444 red */
-
-    /* ═══ Nivra Brand Tokens — single source of truth ═══
-       Used across all public pages for brand-consistent styling.
-       HSL values; consume via hsl(var(--brand-*)). */
-    --brand-primary:    263 84% 58%;   /* #7C3AED violet */
-    --brand-secondary:  263 67% 35%;   /* #4C1D95 deep purple */
-    --brand-bg-dark:    240 22% 6%;    /* #0A0A12 */
-    --brand-card-dark:  240 22% 8%;    /* #0D0D1A */
-    --brand-border-dark: 240 16% 15%;  /* #1E1E2E */
-    --brand-text:       240 100% 99%;  /* #F8F8FF */
-    --brand-text-muted: 240 10% 66%;   /* #A0A0B0 */
-    --brand-success:    160 84% 39%;   /* #10B981 */
-    --brand-error:      0 84% 60%;     /* #EF4444 */
-    --brand-warning:    38 92% 50%;    /* #F59E0B */
-    --brand-gradient:   linear-gradient(135deg, hsl(263 84% 58%) 0%, hsl(263 67% 35%) 100%);
-    --brand-gradient-soft: linear-gradient(135deg, hsl(263 84% 58% / 0.12) 0%, hsl(263 67% 35% / 0.12) 100%);
-    --brand-glow:       0 10px 40px -10px hsl(263 84% 58% / 0.45);
   }
 
   .dark {

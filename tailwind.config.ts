@@ -88,18 +88,6 @@ export default {
           300: "hsl(var(--teal-300))",
           200: "hsl(var(--teal-200))",
         },
-        brand: {
-          primary: "hsl(var(--brand-primary))",
-          secondary: "hsl(var(--brand-secondary))",
-          bg: "hsl(var(--brand-bg-dark))",
-          card: "hsl(var(--brand-card-dark))",
-          border: "hsl(var(--brand-border-dark))",
-          text: "hsl(var(--brand-text))",
-          "text-muted": "hsl(var(--brand-text-muted))",
-          success: "hsl(var(--brand-success))",
-          error: "hsl(var(--brand-error))",
-          warning: "hsl(var(--brand-warning))",
-        },
         cyan: {
           500: "hsl(var(--cyan-500))",
           400: "hsl(var(--cyan-400))",
