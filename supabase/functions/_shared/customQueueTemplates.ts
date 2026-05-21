@@ -4656,10 +4656,237 @@ export function renderQueueTemplate(
       };
     }
 
+    // ===================================================================
+    // AI AGENTS GROUP 3 — Support / CRM / Recruitment / Sales
+    // ===================================================================
+    case "support_ai_response": {
+      const ticketNumber = esc(v.ticket_number ?? "");
+      const aiResponse = String(v.ai_response ?? "Merci pour votre message. Nous reviendrons vers vous sous peu.");
+      return {
+        subject: `Réponse — Ticket ${ticketNumber}`,
+        html: shell({
+          preheader: `Réponse à votre demande — Ticket ${ticketNumber}`,
+          badge: "RÉPONSE SUPPORT NIVRA",
+          heroTitle: "Réponse à votre demande",
+          icon: "check",
+          greeting,
+          bodyText: aiResponse,
+          cardTitle: "Détails du ticket",
+          cardRows: [
+            ["Numéro de ticket", ticketNumber || "—"],
+            ["Statut", "Répondu"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/plainte`,
+          ctaPrimaryLabel: "Répondre ou poser une question",
+          helpHtml: `Si cette réponse ne résout pas votre problème, soumettez une plainte en cliquant sur le bouton ci-dessus, ou écrivez à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "support_escalation_alert": {
+      const ticketNumber = esc(v.ticket_number ?? "");
+      const fromName = esc(v.from_name ?? "Client");
+      const fromEmail = esc(v.from_email ?? "");
+      const category = esc(v.category ?? "other");
+      const priority = esc(v.priority ?? "normal");
+      const sentiment = esc(v.sentiment ?? "neutral");
+      const reason = esc(v.escalation_reason ?? "Confiance insuffisante");
+      const origBody = esc(v.original_body ?? "").replace(/\n/g, "<br/>");
+      const origSubject = esc(v.original_subject ?? "");
+      return {
+        subject: `[ESCALADE] Ticket ${ticketNumber} — ${category}`,
+        html: shell({
+          preheader: `Escalade ${priority} — ${category} — ${fromName}`,
+          badge: "ESCALADE SUPPORT",
+          heroTitle: "Ticket escaladé — Action requise",
+          icon: "warn",
+          greeting: "Équipe Nivra,",
+          bodyText: "Un ticket support a été escaladé par l'IA et nécessite une intervention humaine.",
+          cardTitle: "Détails du ticket",
+          cardRows: [
+            ["Ticket", ticketNumber],
+            ["Client", `${fromName} (${fromEmail})`],
+            ["Catégorie", category],
+            ["Priorité", priority],
+            ["Sentiment", sentiment],
+            ["Raison escalade", reason],
+            ["Sujet original", origSubject || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/core/support-ai`,
+          ctaPrimaryLabel: "Traiter ce ticket",
+          helpHtml: `<strong style="color:#1a1a2e;">Email original :</strong><div style="margin-top:8px;padding:12px;background:${BRAND_HERO_BG};border-radius:6px;color:${BRAND_TEXT_BODY};">${origBody}</div>`,
+        }),
+      };
+    }
+
+    case "crm_morning_briefing": {
+      const available = String(v.available ?? 0);
+      const callbacks = String(v.callbacks ?? 0);
+      const objectives = esc(v.objectives ?? "30 appels — 3 ventes");
+      const summary = esc(v.summary ?? "Bonne journée!");
+      const strategy = esc(v.strategy ?? "");
+      const scripts = Array.isArray(v.scripts) ? (v.scripts as string[]) : [];
+      const topPriorities = Array.isArray(v.top_priorities) ? (v.top_priorities as string[]) : [];
+      const topContacts = Array.isArray(v.top_contacts) ? (v.top_contacts as any[]) : [];
+      const firstName = esc(v.first_name ?? "Agent");
+      const scriptsHtml = scripts.slice(0, 3).map((s) => `<li style="margin-bottom:6px;">${esc(s)}</li>`).join("");
+      const contactsHtml = topContacts.slice(0, 10).map((c: any, i: number) =>
+        `<li style="margin-bottom:6px;"><strong>${esc(c.full_name ?? c.first_name ?? c.email ?? "")}</strong>${c.city ? ` — ${esc(c.city)}` : ""}${topPriorities[i] ? `<br/><span style="color:${BRAND_TEXT_MUTED};">${esc(topPriorities[i])}</span>` : ""}</li>`
+      ).join("");
+      return {
+        subject: `Briefing CRM du matin — ${new Date().toLocaleDateString("fr-CA")}`,
+        html: shell({
+          preheader: `${available} contacts disponibles — ${callbacks} rappels aujourd'hui.`,
+          badge: "BRIEFING CRM DU MATIN",
+          heroTitle: `Bonjour ${firstName}! Voici vos priorités du jour`,
+          icon: "star",
+          greeting,
+          bodyText: summary + (strategy ? `<br/><br/><strong>Stratégie :</strong> ${strategy}` : ""),
+          cardTitle: "Vos chiffres",
+          cardRows: [
+            ["Contacts disponibles", available],
+            ["Rappels aujourd'hui", callbacks],
+            ["Objectif du jour", objectives],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/field/crm`,
+          ctaPrimaryLabel: "Ouvrir le CRM",
+          helpHtml: (contactsHtml ? `<strong style="color:#1a1a2e;">Top 10 contacts prioritaires :</strong><ol style="padding-left:20px;margin:8px 0 16px 0;color:${BRAND_TEXT_BODY};">${contactsHtml}</ol>` : "")
+            + (scriptsHtml ? `<strong style="color:#1a1a2e;">Scripts d'approche :</strong><ul style="padding-left:20px;margin:8px 0 0 0;color:${BRAND_TEXT_BODY};">${scriptsHtml}</ul>` : ""),
+        }),
+      };
+    }
+
+    case "interview_invitation": {
+      const interviewUrl = esc(v.interview_url ?? `${APP_URL}/`);
+      const daysValid = String(v.days_valid ?? 7);
+      return {
+        subject: "Invitation à votre entrevue Nivra Telecom",
+        html: shell({
+          preheader: `Votre lien d'entrevue est prêt — valide ${daysValid} jours.`,
+          badge: "INVITATION ENTREVUE",
+          heroTitle: "Bienvenue chez Nivra Telecom!",
+          icon: "star",
+          greeting,
+          bodyText: "Nous avons reçu votre candidature et souhaitons en savoir plus. Complétez votre entrevue en ligne de 15 minutes au moment qui vous convient.",
+          cardTitle: "Détails de l'entrevue",
+          cardRows: [
+            ["Durée", "15 minutes"],
+            ["Format", "En ligne, à votre rythme"],
+            ["Lien valide", `${daysValid} jours`],
+          ],
+          ctaPrimaryUrl: interviewUrl,
+          ctaPrimaryLabel: "Commencer mon entrevue",
+        }),
+      };
+    }
+
+    case "interview_reminder": {
+      const interviewUrl = esc(v.interview_url ?? `${APP_URL}/`);
+      const daysValid = String(v.days_valid ?? 3);
+      return {
+        subject: "Rappel — Votre entrevue Nivra vous attend",
+        html: shell({
+          preheader: `Votre lien expire dans ${daysValid} jours.`,
+          badge: "RAPPEL ENTREVUE",
+          heroTitle: "Votre entrevue vous attend!",
+          icon: "warn",
+          greeting,
+          bodyText: "Nous n'avons pas encore reçu votre entrevue. Votre lien personnalisé reste actif mais expire bientôt — ne manquez pas cette opportunité.",
+          cardTitle: "Détails",
+          cardRows: [
+            ["Lien valide encore", `${daysValid} jours`],
+            ["Durée", "15 minutes"],
+          ],
+          ctaPrimaryUrl: interviewUrl,
+          ctaPrimaryLabel: "Commencer mon entrevue",
+        }),
+      };
+    }
+
+    case "interview_rejection_polite": {
+      return {
+        subject: "Suivi de votre candidature Nivra Telecom",
+        html: shell({
+          preheader: "Suivi de votre candidature.",
+          badge: "SUIVI CANDIDATURE",
+          heroTitle: "Merci pour votre intérêt",
+          icon: "check",
+          greeting,
+          bodyText: "Nous vous remercions sincèrement d'avoir postulé chez Nivra Telecom. Après examen attentif de votre candidature, nous ne sommes malheureusement pas en mesure d'aller de l'avant à ce moment-ci. Nous vous souhaitons beaucoup de succès dans vos démarches professionnelles.",
+          cardTitle: "Pour la suite",
+          cardRows: [
+            ["Statut", "Candidature non retenue"],
+            ["Réessayer", "Possible dans 6 mois"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/`,
+          ctaPrimaryLabel: "Visiter Nivra Telecom",
+        }),
+      };
+    }
+
+    case "recruitment_pipeline_summary": {
+      const pipelineDate = fmtDate(v.pipeline_date);
+      return {
+        subject: `Pipeline recrutement — ${pipelineDate}`,
+        html: shell({
+          preheader: `${v.new_count ?? 0} nouveaux candidats — ${v.pending_decision ?? 0} en attente.`,
+          badge: "PIPELINE RECRUTEMENT",
+          heroTitle: `Résumé du pipeline — ${pipelineDate}`,
+          icon: "check",
+          greeting: "Équipe RH,",
+          bodyText: "Voici l'état actuel du pipeline de recrutement.",
+          cardTitle: "Indicateurs",
+          cardRows: [
+            ["Nouveaux candidats", String(v.new_count ?? 0)],
+            ["Invitations envoyées", String(v.invited_count ?? 0)],
+            ["Entrevues complétées", String(v.completed_count ?? 0)],
+            ["En attente de décision", String(v.pending_decision ?? 0)],
+            ["Acceptés cette semaine", String(v.hired_week ?? 0)],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/hr/interviews`,
+          ctaPrimaryLabel: "Gérer les candidats",
+        }),
+      };
+    }
+
+    case "sales_opportunity_offer": {
+      const heroTitle = esc(v.hero_title ?? "Une offre pour vous");
+      const hook = esc(v.hook ?? "");
+      const bodyHtml = String(v.body_html ?? "Découvrez votre offre personnalisée.");
+      const currentPlan = esc(v.current_plan ?? "—");
+      const currentPrice = money(v.current_price);
+      const offerLabel = esc(v.offer_label ?? "Offre spéciale");
+      const newPlanValue = esc(v.new_plan_value ?? "");
+      const urgency = String(v.urgency_days ?? 14);
+      const portalUrlSafe = esc(v.portal_url ?? portalUrl);
+      return {
+        subject: heroTitle,
+        html: shell({
+          preheader: `${offerLabel} — valide ${urgency} jours.`,
+          badge: "OFFRE POUR VOUS",
+          heroTitle,
+          icon: "star",
+          greeting,
+          bodyText: (hook ? `<strong>${hook}</strong><br/><br/>` : "") + bodyHtml,
+          cardTitle: "Votre offre",
+          cardRows: [
+            ["Forfait actuel", `${currentPlan} (${currentPrice})`],
+            ["Offre", offerLabel],
+            ["Valeur ajoutée", newPlanValue || "—"],
+            ["Validité", `${urgency} jours`],
+          ],
+          ctaPrimaryUrl: portalUrlSafe,
+          ctaPrimaryLabel: "Voir l'offre",
+          helpHtml: `Vous recevez cet email car vous êtes client Nivra Telecom. Pour vous désabonner des offres, contactez <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     default:
       return null;
   }
 }
+
 
 
 
