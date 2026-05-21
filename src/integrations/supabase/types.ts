@@ -21771,6 +21771,51 @@ export type Database = {
           },
         ]
       }
+      sync_audit_log: {
+        Row: {
+          auto_fixed: boolean | null
+          checked_at: string | null
+          created_at: string | null
+          fix_description: string | null
+          id: string
+          issues_found: Json | null
+          record_id: string
+          record_reference: string | null
+          requires_manual_review: boolean | null
+          source_portal: string | null
+          sync_status: string | null
+          sync_type: string
+        }
+        Insert: {
+          auto_fixed?: boolean | null
+          checked_at?: string | null
+          created_at?: string | null
+          fix_description?: string | null
+          id?: string
+          issues_found?: Json | null
+          record_id: string
+          record_reference?: string | null
+          requires_manual_review?: boolean | null
+          source_portal?: string | null
+          sync_status?: string | null
+          sync_type: string
+        }
+        Update: {
+          auto_fixed?: boolean | null
+          checked_at?: string | null
+          created_at?: string | null
+          fix_description?: string | null
+          id?: string
+          issues_found?: Json | null
+          record_id?: string
+          record_reference?: string | null
+          requires_manual_review?: boolean | null
+          source_portal?: string | null
+          sync_status?: string | null
+          sync_type?: string
+        }
+        Relationships: []
+      }
       system_status: {
         Row: {
           affected_services: Json | null
