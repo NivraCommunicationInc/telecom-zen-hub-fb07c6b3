@@ -27,6 +27,7 @@ const TechProtectedRoute = lazy(() => import("@/tech-app/components/TechProtecte
 const TechDashboard = lazy(() => import("@/tech-app/pages/TechDashboard"));
 const TechAssignments = lazy(() => import("@/tech-app/pages/TechAssignments"));
 const TechInstallation = lazy(() => import("@/tech-app/pages/TechInstallation"));
+const TechActive = lazy(() => import("@/tech-app/pages/TechActive"));
 const TechScanner = lazy(() => import("@/tech-app/pages/TechScanner"));
 const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
 
