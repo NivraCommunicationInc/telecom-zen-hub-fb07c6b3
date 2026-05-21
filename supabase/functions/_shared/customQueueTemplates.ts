@@ -5188,6 +5188,28 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "tech_missed": {
+      const scheduled = fmtDate(v.scheduled_date);
+      return {
+        subject: "Rendez-vous d'installation manqué — Nivra Telecom",
+        html: shell({
+          preheader: "Nous n'avons pas pu effectuer votre installation aujourd'hui.",
+          badge: "RENDEZ-VOUS MANQUÉ",
+          heroTitle: "Rendez-vous d'installation manqué",
+          icon: "alert",
+          greeting,
+          bodyText: "Nous n'avons malheureusement pas pu effectuer votre installation aujourd'hui. Veuillez contacter Nivra Telecom dans les meilleurs délais afin de replanifier votre rendez-vous.",
+          cardTitle: "Référence",
+          cardRows: [
+            ["Date prévue", scheduled],
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
     case "tech_arrived": {
       const techName = esc(v.tech_name || "Votre technicien");
       const arrival = esc(v.arrival_time || new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }));
