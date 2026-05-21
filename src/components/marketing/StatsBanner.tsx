@@ -5,25 +5,73 @@ export default function StatsBanner() {
   const isFr = language === "fr";
 
   const stats = [
-    { number: isFr ? "Sans contrat" : "No contract", label: isFr ? "Résiliez à tout moment, 0 frais" : "Cancel anytime, $0 fees" },
-    { number: "4.9★", label: isFr ? "Note de nos premiers clients" : "Rating from our first clients" },
-    { number: isFr ? "Dès 45$" : "From $45", label: isFr ? "Par mois, taxes incluses" : "Per month, taxes included" },
-    { number: "10 min", label: isFr ? "Activation en ligne" : "Online activation" },
+    {
+      number: isFr ? "Sans contrat" : "No contract",
+      label: isFr ? "Liberté absolue" : "Absolute freedom",
+    },
+    {
+      number: "4.9 ★",
+      label: isFr ? "Note satisfaction" : "Satisfaction rating",
+    },
+    {
+      number: isFr ? "Dès 45$" : "From $45",
+      label: isFr ? "Taxes incluses" : "Taxes included",
+    },
+    {
+      number: "10 min",
+      label: isFr ? "Activation rapide" : "Quick activation",
+    },
   ];
 
   return (
-    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} style={{ background: '#F7F7F7' }}>
-      <div className="grid grid-cols-2 md:grid-cols-4 max-w-[1100px] mx-auto">
-        {stats.map((s, i) => (
-          <div
-            key={i}
-            className={`py-5 px-4 md:py-8 md:px-6 text-center ${i < stats.length - 1 ? "border-r" : ""} ${i >= 2 ? "border-t md:border-t-0" : ""}`}
-            style={{ borderColor: '#EEEEEE' }}
-          >
-            <div className="text-xl md:text-[36px] font-extrabold mb-1" style={{ color: '#7C3AED' }}>{s.number}</div>
-            <div className="text-[11px] md:text-sm" style={{ color: '#555555' }}>{s.label}</div>
-          </div>
-        ))}
+    <section
+      aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"}
+      style={{ background: "#0A0A1A" }}
+    >
+      <div className="max-w-[1180px] mx-auto px-5 sm:px-10 pb-16 -mt-10 relative z-10">
+        <div
+          className="grid grid-cols-2 md:grid-cols-4 overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 28,
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          {stats.map((s, i) => (
+            <div
+              key={i}
+              className="text-center py-8 px-4 md:py-10 md:px-6 group transition-colors"
+              style={{
+                borderRight:
+                  i < stats.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                borderTop:
+                  i >= 2 ? "1px solid rgba(255,255,255,0.06)" : "none",
+              }}
+            >
+              <div
+                className="font-bold mb-2 transition-colors group-hover:text-[#A78BFA]"
+                style={{
+                  color: i === 1 ? "#A78BFA" : "#FFFFFF",
+                  fontSize: "clamp(22px, 3vw, 32px)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {s.number}
+              </div>
+              <div
+                className="uppercase font-bold"
+                style={{
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: 10.5,
+                  letterSpacing: "0.18em",
+                }}
+              >
+                {s.label}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
