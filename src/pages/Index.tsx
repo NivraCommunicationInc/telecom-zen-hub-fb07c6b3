@@ -6,6 +6,7 @@ import ComparisonTable from "@/components/ComparisonTable";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import SchemaMarkup from "@/components/seo/SchemaMarkup";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import HomeStatusBanner from "@/components/HomeStatusBanner";
 import LaunchOfferPopup from "@/components/marketing/LaunchOfferPopup";
