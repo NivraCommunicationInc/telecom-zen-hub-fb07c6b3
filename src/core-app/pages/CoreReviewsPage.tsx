@@ -508,7 +508,7 @@ export default function CoreReviewsPage() {
                 >
                   {selected.would_recommend === true
                     ? "✅ Ce client recommande Nivra Telecom"
-                    : "⚠️ Ce client ne recommande pas Nivra Telecom pour l instant"}
+                    : "⚠️ Ce client ne recommande pas Nivra Telecom pour l'instant"}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -561,7 +561,7 @@ export default function CoreReviewsPage() {
                 </div>
 
                 <div className="rounded-lg border p-3 space-y-2">
-                  <div className="text-sm font-medium">Réponse de l équipe Nivra</div>
+                  <div className="text-sm font-medium">Réponse de l'équipe Nivra</div>
                   {selected.admin_response && (
                     <div className="text-xs text-muted-foreground">
                       Dernière mise à jour:{" "}
