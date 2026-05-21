@@ -113,6 +113,8 @@ const CoreLiveActivityPage = lazy(() => import("@/core-app/pages/CoreLiveActivit
 const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatusPage"));
 const CoreSystemHealthPage = lazy(() => import("@/core-app/pages/CoreSystemHealthPage"));
 const CoreAnalyticsPage = lazy(() => import("@/core-app/pages/CoreAnalyticsPage"));
+const CoreAgentMonitorPage = lazy(() => import("@/core-app/pages/CoreAgentMonitorPage"));
+const CoreAnalyticsDashboardPage = lazy(() => import("@/core-app/pages/CoreAnalyticsDashboardPage"));
 const CoreFinancePage = lazy(() => import("@/core-app/pages/CoreFinancePage"));
 const CoreSOPsPage = lazy(() => import("@/core-app/pages/CoreSOPsPage"));
 const CoreSupportMetricsPage = lazy(() => import("@/core-app/pages/CoreSupportMetricsPage"));
