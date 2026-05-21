@@ -149,8 +149,19 @@ export function EquipmentStep({ proc }: Props) {
       return;
     }
     const exists = selectedItems.find(i => i.id === item.id);
-    if (exists) setSelectedItems(selectedItems.filter(i => i.id !== item.id));
-    else setSelectedItems([...selectedItems, item]);
+    if (exists) { setSelectedItems(selectedItems.filter(i => i.id !== item.id)); return; }
+
+    // Validation limites (assignés existants + nouvelle sélection)
+    const projected = [...(assignedItems || []), ...selectedItems, item];
+    if (WIFI_CATS.includes(item.category) && countCats(projected, WIFI_CATS) > MAX_WIFI) {
+      toast.error(`Maximum ${MAX_WIFI} borne WiFi / routeur par commande`);
+      return;
+    }
+    if (TV_CATS.includes(item.category) && countCats(projected, TV_CATS) > MAX_TV) {
+      toast.error(`Maximum ${MAX_TV} terminaux TV par commande`);
+      return;
+    }
+    setSelectedItems([...selectedItems, item]);
   };
 
   const handleAssignFromInventory = async () => {
