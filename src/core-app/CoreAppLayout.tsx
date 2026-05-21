@@ -242,7 +242,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "System",
     icon: Settings,
     items: [
-      { icon: Cpu, label: "Centre IA", href: "/agents", adminOnly: true },
       { icon: Shield, label: "Surveillance IA", href: "/monitor", adminOnly: true },
       { icon: BarChart3, label: "Analytics IA", href: "/analytics-ai", adminOnly: true },
       { icon: Megaphone, label: "Agent Marketing", href: "/marketing-agent", adminOnly: true },
@@ -436,6 +435,45 @@ const CoreAppLayout = () => {
 
         {/* Navigation groups */}
         <nav className="flex-1 overflow-y-auto py-1 px-1.5 space-y-0.5 core-scrollbar">
+          {/* Centre IA — always first, visually distinct */}
+          {collapsed ? (
+            (isAdmin || isAdminLoading) && (
+              <button
+                key="centre-ia"
+                onClick={() => {
+                  setCollapsed(false);
+                  navigate(corePath("/agents"));
+                }}
+                title="Centre IA"
+                className={cn(
+                  "relative w-full flex items-center justify-center py-2 rounded-md transition-colors mb-1",
+                  isActive("/agents")
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+                )}
+              >
+                <Cpu className="h-5 w-5" />
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse ring-2 ring-sidebar" />
+              </button>
+            )
+          ) : (
+            (isAdmin || isAdminLoading) && (
+              <Link
+                key="centre-ia"
+                to={corePath("/agents")}
+                className={cn(
+                  "flex items-center gap-2 mx-1.5 mb-2 px-2.5 py-2 rounded-md border-l-2 border-primary bg-primary/10 transition-colors",
+                  isActive("/agents")
+                    ? "text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-primary/20"
+                )}
+              >
+                <Cpu className="w-5 h-5 shrink-0" />
+                <span className="text-[13px] font-medium truncate">Centre IA</span>
+                <span className="ml-auto h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              </Link>
+            )
+          )}
           {collapsed ? (
             /* Collapsed: show only group icons */
             visibleGroups.map((group) => {
