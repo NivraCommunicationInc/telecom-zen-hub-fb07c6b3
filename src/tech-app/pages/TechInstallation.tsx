@@ -138,7 +138,6 @@ export default function TechInstallation() {
     mutationFn: async () => {
       if (!id) throw new Error("ID manquant");
       const payload: any = {
-        status: "completed",
         technician_notes: notes || null,
         coaxial_status: coax || null,
         coaxial_notes: coaxNotes || null,
@@ -162,9 +161,16 @@ export default function TechInstallation() {
       }
       const { error } = await supabase.from("technician_assignments").update(payload).eq("id", id);
       if (error) throw error;
+      const { error: statusError } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: "completed",
+        p_note: notes || null,
+        p_eta: null,
+      });
+      if (statusError) throw statusError;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tech-assignments-self"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
       toast.success("Installation complétée — service activé!");
       setTimeout(() => navigate("/tech/assignments"), 800);
@@ -177,18 +183,16 @@ export default function TechInstallation() {
       const reason = window.prompt("Raison du rendez-vous manqué :", "");
       if (reason === null) return;
       if (!id) return;
-      const { error } = await supabase
-        .from("technician_assignments")
-        .update({
-          status: "missed",
-          missed_at: new Date().toISOString(),
-          technician_notes: reason,
-        })
-        .eq("id", id);
+      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: "missed",
+        p_note: reason || "Client absent / rendez-vous manqué",
+        p_eta: null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tech-assignments-self"] });
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       toast.success("Marqué comme manqué");
       navigate("/tech/assignments");
     },
