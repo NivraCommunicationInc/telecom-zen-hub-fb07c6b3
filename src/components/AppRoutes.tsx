@@ -117,6 +117,7 @@ const CoreAgentMonitorPage = lazy(() => import("@/core-app/pages/CoreAgentMonito
 const CoreAnalyticsDashboardPage = lazy(() => import("@/core-app/pages/CoreAnalyticsDashboardPage"));
 const CoreMarketingAgentPage = lazy(() => import("@/core-app/pages/CoreMarketingAgentPage"));
 const CoreRetentionPage = lazy(() => import("@/core-app/pages/CoreRetentionPage"));
+const CoreSupportAIPage = lazy(() => import("@/core-app/pages/CoreSupportAIPage"));
 const CoreFinancePage = lazy(() => import("@/core-app/pages/CoreFinancePage"));
 const CoreSOPsPage = lazy(() => import("@/core-app/pages/CoreSOPsPage"));
 const CoreSupportMetricsPage = lazy(() => import("@/core-app/pages/CoreSupportMetricsPage"));
@@ -862,6 +863,7 @@ const AppRoutes = () => {
           <Route path="analytics-ai" element={<Suspense fallback={null}><CoreAnalyticsDashboardPage /></Suspense>} />
           <Route path="marketing-agent" element={<Suspense fallback={null}><CoreMarketingAgentPage /></Suspense>} />
           <Route path="retention" element={<Suspense fallback={null}><CoreRetentionPage /></Suspense>} />
+          <Route path="support-ai" element={<Suspense fallback={null}><CoreSupportAIPage /></Suspense>} />
           <Route path="finance" element={<Suspense fallback={null}><CoreFinancePage /></Suspense>} />
           <Route path="sops" element={<Suspense fallback={null}><CoreSOPsPage /></Suspense>} />
           <Route path="support-metrics" element={<Suspense fallback={null}><CoreSupportMetricsPage /></Suspense>} />
