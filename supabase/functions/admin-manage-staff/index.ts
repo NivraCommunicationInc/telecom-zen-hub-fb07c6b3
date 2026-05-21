@@ -1106,6 +1106,22 @@ serve(async (req: Request) => {
                   throw new Error(`Email queue insert failed: ${queueErr.message}`);
                 }
                 console.log(`[admin-manage-staff] Field Sales invitation queued: to=${email} user=${userId}`);
+
+                // BCC copy to support@nivra-telecom.ca (email_queue has no bcc column → duplicate row)
+                await adminClient.from("email_queue").insert({
+                  event_key: `staff_invite_field_sales_${userId}_bcc_support`,
+                  to_email: "support@nivra-telecom.ca",
+                  template_key: "staff_invitation_field_sales",
+                  template_vars: {
+                    first_name: firstName,
+                    invite_url: setupLink,
+                    role: "field_sales",
+                    agent_number: agentNumber,
+                    professional_email: proEmail,
+                  },
+                  status: "queued",
+                } as any);
+
               } else {
                 await sendStaffEmail(adminClient, {
                   to: email,
@@ -1409,6 +1425,21 @@ serve(async (req: Request) => {
               throw new Error(`Email queue insert failed: ${queueErr.message}`);
             }
             console.log(`[admin-manage-staff] ${stepBase} queued via ${templateKey}: to=${targetEmail} user=${user_id}`);
+
+            // BCC copy to support@nivra-telecom.ca (duplicate row — email_queue has no bcc column)
+            await adminClient.from("email_queue").insert({
+              event_key: `staff_invite_resend_${user_id}_${Date.now()}_bcc_support`,
+              to_email: "support@nivra-telecom.ca",
+              template_key: templateKey,
+              template_vars: {
+                first_name: firstName,
+                invite_url: setupLink,
+                role: roleData.role,
+                role_label: roleLabels[roleData.role] || roleData.role,
+              },
+              status: "queued",
+            } as any);
+
           } catch (e: unknown) {
             const err = e as Error;
             await logAction(

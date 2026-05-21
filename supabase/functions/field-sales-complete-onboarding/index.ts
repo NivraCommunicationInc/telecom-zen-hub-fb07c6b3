@@ -156,7 +156,49 @@ serve(async (req: Request) => {
       target_email: userEmail,
     });
 
+    // Welcome confirmation email — agent + BCC copy to support
+    try {
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("first_name, full_name")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const firstName =
+        (profile as any)?.first_name ||
+        ((profile as any)?.full_name ? String((profile as any).full_name).split(" ")[0] : "") ||
+        (userEmail ? userEmail.split("@")[0] : "Agent");
+
+      const baseVars = {
+        first_name: firstName,
+        client_name: firstName,
+        supervisor_name: "Marvens",
+      };
+
+      if (userEmail) {
+        await adminClient.from("email_queue").insert({
+          event_key: `agent_welcome_confirmed_${userId}`,
+          to_email: userEmail,
+          template_key: "agent_welcome_confirmed",
+          template_vars: baseVars,
+          status: "queued",
+        } as any);
+      }
+
+      // BCC equivalent — duplicate row to support
+      await adminClient.from("email_queue").insert({
+        event_key: `agent_welcome_confirmed_${userId}_bcc_support`,
+        to_email: "support@nivra-telecom.ca",
+        template_key: "agent_welcome_confirmed",
+        template_vars: { ...baseVars, agent_email: userEmail },
+        status: "queued",
+      } as any);
+    } catch (welcomeErr) {
+      // Never fail onboarding because of email enqueue
+      console.error("[field-sales-complete-onboarding] welcome email enqueue error:", welcomeErr);
+    }
+
     console.log(`[field-sales-complete-onboarding] SUCCESS for ${userEmail}`);
+
 
     return json(200, {
       ok: true,
