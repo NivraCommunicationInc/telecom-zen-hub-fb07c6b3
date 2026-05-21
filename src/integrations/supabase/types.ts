@@ -1159,6 +1159,39 @@ export type Database = {
           },
         ]
       }
+      agent_audit_log: {
+        Row: {
+          action: string
+          agent_name: string
+          created_at: string | null
+          details: Json | null
+          error_message: string | null
+          execution_time_ms: number | null
+          id: string
+          result: string | null
+        }
+        Insert: {
+          action: string
+          agent_name: string
+          created_at?: string | null
+          details?: Json | null
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          result?: string | null
+        }
+        Update: {
+          action?: string
+          agent_name?: string
+          created_at?: string | null
+          details?: Json | null
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          result?: string | null
+        }
+        Relationships: []
+      }
       agent_discount_assignments: {
         Row: {
           agent_id: string | null
@@ -1303,6 +1336,45 @@ export type Database = {
           total_points?: number
           training_points?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      analytics_reports: {
+        Row: {
+          ai_analysis: string | null
+          ai_recommendations: Json | null
+          generated_at: string | null
+          id: string
+          metrics: Json
+          period_end: string
+          period_start: string
+          report_type: string
+          sent_at: string | null
+          sent_to: string[] | null
+        }
+        Insert: {
+          ai_analysis?: string | null
+          ai_recommendations?: Json | null
+          generated_at?: string | null
+          id?: string
+          metrics: Json
+          period_end: string
+          period_start: string
+          report_type: string
+          sent_at?: string | null
+          sent_to?: string[] | null
+        }
+        Update: {
+          ai_analysis?: string | null
+          ai_recommendations?: Json | null
+          generated_at?: string | null
+          id?: string
+          metrics?: Json
+          period_end?: string
+          period_start?: string
+          report_type?: string
+          sent_at?: string | null
+          sent_to?: string[] | null
         }
         Relationships: []
       }
@@ -19922,6 +19994,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_health_checks: {
+        Row: {
+          auto_fix_description: string | null
+          auto_fixed: boolean | null
+          check_type: string
+          created_at: string | null
+          description: string | null
+          details: Json | null
+          id: string
+          notified_at: string | null
+          requires_attention: boolean | null
+          resolved_at: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          auto_fix_description?: string | null
+          auto_fixed?: boolean | null
+          check_type: string
+          created_at?: string | null
+          description?: string | null
+          details?: Json | null
+          id?: string
+          notified_at?: string | null
+          requires_attention?: boolean | null
+          resolved_at?: string | null
+          status: string
+          title: string
+        }
+        Update: {
+          auto_fix_description?: string | null
+          auto_fixed?: boolean | null
+          check_type?: string
+          created_at?: string | null
+          description?: string | null
+          details?: Json | null
+          id?: string
+          notified_at?: string | null
+          requires_attention?: boolean | null
+          resolved_at?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: []
       }
       site_offers: {
         Row: {
