@@ -26459,6 +26459,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
+      tech_can_access_order: { Args: { p_order_id: string }; Returns: boolean }
       tech_update_assignment_status: {
         Args: {
           p_assignment_id: string
