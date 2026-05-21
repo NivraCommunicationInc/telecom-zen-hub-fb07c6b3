@@ -849,7 +849,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Protected: All /core/* routes behind auth gate */}
-      <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
+      <Route path="/core" element={<AuthProvider><Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense></AuthProvider>}>
         <Route element={<CoreAppLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           {/* Dashboard */}
