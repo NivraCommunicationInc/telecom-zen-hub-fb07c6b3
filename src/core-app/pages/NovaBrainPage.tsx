@@ -164,55 +164,26 @@ export default function NovaBrainPage() {
     const userMsg: ChatMsg = { role: "user", content: text.trim(), ts: Date.now() };
     const nextMsgs = [...messages, userMsg];
     setMessages(nextMsgs); setInput(""); setStreaming(true); setNovaStatus("Analyse en cours…");
-    setMessages((prev) => [...prev, { role: "assistant", content: "", ts: Date.now() }]);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const resp = await fetch(NOVA_FN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
-        body: JSON.stringify({ messages: nextMsgs.map((m) => ({ role: m.role, content: m.content })), conversation_id: conversationId }),
+      const { data, error } = await supabase.functions.invoke("nova-brain", {
+        body: {
+          messages: nextMsgs.map((m) => ({ role: m.role, content: m.content })),
+          conversation_id: conversationId,
+        },
       });
-      if (!resp.ok || !resp.body) { const err = await resp.text(); throw new Error(err || `HTTP ${resp.status}`); }
-      const conf = resp.headers.get("X-Nova-Confidence");
-      if (conf) setConfidence(Number(conf));
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = ""; let assistantText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buffer.indexOf("\n")) !== -1) {
-          let line = buffer.slice(0, nl); buffer = buffer.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (!json || json === "[DONE]") continue;
-          try {
-            const evt = JSON.parse(json);
-            if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
-              assistantText += evt.delta.text;
-              setMessages((prev) => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { ...copy[copy.length - 1], content: assistantText };
-                return copy;
-              });
-            }
-          } catch { buffer = line + "\n" + buffer; break; }
-        }
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.detail || data.error);
+      if (typeof data?.confidence === "number") setConfidence(Math.round(data.confidence * 100));
+      const assistantText: string = data?.content ?? "";
       const finalMsgs: ChatMsg[] = [...nextMsgs, { role: "assistant", content: assistantText, ts: Date.now() }];
       setMessages(finalMsgs);
       parseActions(assistantText, finalMsgs.length - 1);
       await persistConversation(finalMsgs);
       setNovaStatus("Veille active");
-      // Trigger learning after 10 messages
       if (finalMsgs.length >= 10) triggerLearning(finalMsgs, conversationId);
     } catch (e: any) {
-      console.error("nova stream", e);
+      console.error("nova invoke", e);
       toast.error("Erreur NOVA: " + (e?.message ?? "inconnue"));
-      setMessages((prev) => prev.slice(0, -1));
       setNovaStatus("Veille active");
     } finally { setStreaming(false); }
   };
