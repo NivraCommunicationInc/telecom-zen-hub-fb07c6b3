@@ -268,7 +268,11 @@ export default function TechInstallation() {
         signature: !!signature,
       });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+    onError: (e: any) => {
+      // eslint-disable-next-line no-console
+      console.error("Complete error:", e);
+      toast.error(`Erreur: ${e?.message ?? "inconnue"}${e?.code ? ` (code: ${e.code})` : ""}`);
+    },
   });
 
   const reschedule = useMutation({
@@ -502,7 +506,7 @@ export default function TechInstallation() {
             </div>
 
             {currentStep.requires_photo && (
-              <PhotoCapture onCapture={onPhotoCaptured} label="📷 Prendre une photo" />
+              <PhotoCapture stepId={String(currentStep?.step_order ?? stepIdx)} onCapture={onPhotoCaptured} label="📷 Prendre une photo" />
             )}
 
             {currentStep.requires_scan && (

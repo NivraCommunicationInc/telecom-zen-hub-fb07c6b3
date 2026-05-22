@@ -26215,6 +26215,14 @@ export type Database = {
         }
         Returns: string
       }
+      queue_tech_status_email: {
+        Args: {
+          p_assignment_id: string
+          p_extra?: Json
+          p_template_key: string
+        }
+        Returns: string
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

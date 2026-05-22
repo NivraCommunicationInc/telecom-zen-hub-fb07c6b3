@@ -148,7 +148,7 @@ export default function TechProfile() {
             onClick={async () => {
               if (!confirm("Se déconnecter ?")) return;
               await supabase.auth.signOut();
-              navigate("/", { replace: true });
+              navigate("/nivra-secure-hub-2617-internal/login", { replace: true });
             }}
             className="w-full min-h-[56px] rounded-2xl bg-red-600/15 border border-red-600/50 text-red-300 text-base font-semibold flex items-center justify-center gap-2"
           >

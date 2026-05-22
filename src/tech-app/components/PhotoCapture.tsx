@@ -11,9 +11,11 @@ import { toast } from "sonner";
 export interface PhotoCaptureProps {
   onCapture: (url: string) => void;
   label?: string;
+  stepId?: string;
 }
 
-export default function PhotoCapture({ onCapture, label = "Prendre une photo" }: PhotoCaptureProps) {
+export default function PhotoCapture({ onCapture, label = "Prendre une photo", stepId = "default" }: PhotoCaptureProps) {
+  const inputId = `photo-capture-${stepId}`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -65,6 +67,7 @@ export default function PhotoCapture({ onCapture, label = "Prendre une photo" }:
     <div className="space-y-3">
       <input
         ref={inputRef}
+        id={inputId}
         type="file"
         accept="image/*"
         capture="environment"
