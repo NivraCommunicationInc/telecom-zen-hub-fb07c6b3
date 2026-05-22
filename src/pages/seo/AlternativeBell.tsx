@@ -21,7 +21,7 @@ const FAQS = [
   },
   {
     q: "La vitesse Internet est-elle comparable à Bell ou Vidéotron?",
-    a: "Oui. Notre forfait GIGA offre 940 Mbps réels, équivalent ou supérieur aux forfaits standards de Bell et Vidéotron.",
+    a: "Oui. Notre forfait GIGA offre 1 010 Mbps réels, équivalent ou supérieur aux forfaits standards de Bell et Vidéotron.",
   },
   {
     q: "Y a-t-il des frais cachés?",

@@ -225,7 +225,7 @@ export default function TestVitesse() {
                     {[
                       { plan: "Internet 100 Mbps", down: "~90 Mbps", up: "~20 Mbps" },
                       { plan: "Internet 500 Mbps", down: "~450 Mbps", up: "~50 Mbps" },
-                      { plan: "Internet Giga", down: "~900 Mbps", up: "~100 Mbps" },
+                      { plan: "Internet Giga", down: "~1 000 Mbps", up: "~100 Mbps" },
                     ].map((row) => (
                       <tr key={row.plan} style={{ borderTop: `1px solid ${COLORS.border}` }}>
                         <td style={{ padding: "14px 18px", fontSize: 14, fontWeight: 600 }}>{row.plan}</td>

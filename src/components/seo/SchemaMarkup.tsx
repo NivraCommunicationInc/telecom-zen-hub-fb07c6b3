@@ -74,7 +74,7 @@ export const INTERNET_GIGA_PRODUCT = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Internet GIGA — Nivra Telecom",
-  description: "Forfait Internet 940 Mbps prépayé sans contrat au Québec",
+  description: "Forfait Internet 1 010 Mbps prépayé sans contrat au Québec",
   brand: { "@type": "Brand", name: "Nivra Telecom" },
   offers: {
     "@type": "Offer",
@@ -90,7 +90,7 @@ export const BUNDLE_GIGA_TV_PRODUCT = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Bundle GIGA + TV — Nivra Telecom",
-  description: "Internet 940 Mbps + télévision IPTV sans contrat au Québec",
+  description: "Internet 1 010 Mbps + télévision IPTV sans contrat au Québec",
   brand: { "@type": "Brand", name: "Nivra Telecom" },
   offers: {
     "@type": "Offer",

@@ -66,7 +66,7 @@ function extractPlanMeta(plan: ServicePublic) {
   if (name.match(/GIGA/i) || name.match(/1010\s*Mbps/i) || name.match(/1\s*Gbps/i)) speed = "GIGA";
   else if (name.match(/500/)) speed = "500 Mbps";
   else if (name.match(/100/)) speed = "100 Mbps";
-  else if (name.match(/940/)) speed = "940 Mbps";
+  else if (name.match(/1010/) || name.match(/1\s*010/)) speed = "1 010 Mbps";
 
   // Extract channel count from description
   const channelMatch = desc.match(/(\d+)\s*chaînes?/);

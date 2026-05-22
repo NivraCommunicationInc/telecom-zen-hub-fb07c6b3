@@ -66,7 +66,7 @@ const FAQ = () => {
         },
         {
           q: isFr ? 'Quelle est la vitesse Internet disponible chez Nivra Telecom ?' : 'What Internet speeds are available at Nivra Telecom?',
-          a: isFr ? 'Nous offrons des forfaits de 400 Mbps, 600 Mbps et 1 Gbps (1000 Mbps) selon votre région. La vitesse est symétrique sur certains forfaits fibre optique.' : 'We offer plans from 400 Mbps, 600 Mbps and 1 Gbps (1000 Mbps) depending on your region. Speed is symmetric on some fiber plans.',
+          a: isFr ? 'Nous offrons des forfaits de 100 Mbps, 500 Mbps et GIGA (1 010 Mbps) selon votre région. La vitesse est symétrique sur certains forfaits fibre optique.' : 'We offer plans of 100 Mbps, 500 Mbps and GIGA (1,010 Mbps) depending on your region. Speed is symmetric on some fiber plans.',
         },
         {
           q: isFr ? 'Nivra Telecom offre-t-il la télévision ?' : 'Does Nivra Telecom offer television?',

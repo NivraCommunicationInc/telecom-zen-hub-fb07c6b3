@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, forwardRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const testimonials = [
-  { name: "Marie-Claude B.", location: "Rosemont, Montréal", rating: 5, text: "J'en avais assez de payer Bell 95$ par mois avec un contrat de 2 ans. Avec Nivra, je paie moins et je peux changer quand je veux.", service: "Internet 400 Mbps" },
-  { name: "Jean-François L.", location: "Laval, QC", rating: 5, text: "On vient d'emménager et on voulait pas signer un contrat. Nivra était parfait — activé en ligne, le modem livré en 2 jours.", service: "Internet 600 Mbps" },
+  { name: "Marie-Claude B.", location: "Rosemont, Montréal", rating: 5, text: "J'en avais assez de payer Bell 95$ par mois avec un contrat de 2 ans. Avec Nivra, je paie moins et je peux changer quand je veux.", service: "Internet 100 Mbps" },
+  { name: "Jean-François L.", location: "Laval, QC", rating: 5, text: "On vient d'emménager et on voulait pas signer un contrat. Nivra était parfait — activé en ligne, le modem livré en 2 jours.", service: "Internet GIGA" },
   { name: "Thanh N.", location: "Brossard, QC", rating: 5, text: "Le support parle français ET vietnamien, c'est rare. J'ai eu de l'aide pour la configuration en moins d'une heure.", service: "Internet + TV" },
-  { name: "Sophie T.", location: "Plateau-Mont-Royal", rating: 5, text: "Étudiante, je déménage chaque année. Avec Nivra, pas de stress de résiliation. J'amène mon forfait avec moi ou j'annule sans frais.", service: "Internet 400 Mbps" },
+  { name: "Sophie T.", location: "Plateau-Mont-Royal", rating: 5, text: "Étudiante, je déménage chaque année. Avec Nivra, pas de stress de résiliation. J'amène mon forfait avec moi ou j'annule sans frais.", service: "Internet 500 Mbps" },
 ];
 
 const TestimonialsSection = forwardRef<HTMLElement>((_props, ref) => {

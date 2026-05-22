@@ -14,7 +14,7 @@ const FAQS = [
   },
   {
     q: "Quelle vitesse offre le forfait Internet GIGA?",
-    a: "Le forfait Internet GIGA offre jusqu'à 940 Mbps de vitesse réelle, idéal pour le streaming 4K, le télétravail et le gaming.",
+    a: "Le forfait Internet GIGA offre jusqu'à 1 010 Mbps de vitesse réelle, idéal pour le streaming 4K, le télétravail et le gaming.",
   },
   {
     q: "Faites-vous une vérification de crédit?",
@@ -45,7 +45,7 @@ export default function InternetSansContrat() {
     <div className="min-h-screen">
       <SEO
         title="Internet Sans Contrat à Montréal | 60$/mois | Nivra Telecom"
-        description="Internet GIGA sans contrat à Montréal. 940 Mbps à 60$/mois. Sans engagement, sans vérification de crédit. Alternative à Bell et Vidéotron. Annulez quand vous voulez."
+        description="Internet GIGA sans contrat à Montréal. 1 010 Mbps à 60$/mois. Sans engagement, sans vérification de crédit. Alternative à Bell et Vidéotron. Annulez quand vous voulez."
         canonical="https://nivra-telecom.ca/internet-sans-contrat-montreal"
         keywords={[
           "internet sans contrat montréal",
@@ -65,7 +65,7 @@ export default function InternetSansContrat() {
               Internet Sans Contrat à Montréal — <span className="text-primary">60$/mois</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              940 Mbps de vitesse réelle. Aucun engagement. Aucune vérification de crédit.
+              1 010 Mbps de vitesse réelle. Aucun engagement. Aucune vérification de crédit.
               Annulez quand vous voulez.
             </p>
             <Button asChild size="lg" className="text-lg">
@@ -84,7 +84,7 @@ export default function InternetSansContrat() {
               {[
                 { icon: ShieldCheck, title: "Aucun contrat", desc: "Liberté totale, annulez quand vous voulez." },
                 { icon: Wallet, title: "Aucune vérification de crédit", desc: "Tout le monde est accepté." },
-                { icon: Zap, title: "940 Mbps réels", desc: "Vitesse fibre optique, idéal 4K et gaming." },
+                { icon: Zap, title: "1 010 Mbps réels", desc: "Vitesse fibre optique, idéal 4K et gaming." },
                 { icon: Headphones, title: "Support local québécois", desc: "Équipe à Montréal en français." },
                 { icon: MapPin, title: "Prix fixe sans surprise", desc: "60$/mois garantis, jamais d'augmentation." },
                 { icon: Check, title: "Installation rapide", desc: "Activation en 2 à 3 jours ouvrables." },

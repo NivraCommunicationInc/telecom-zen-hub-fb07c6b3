@@ -59,7 +59,7 @@ export default function InternetMontrealNord() {
               Internet à <span className="text-primary">Montréal-Nord</span> — Sans Contrat
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              GIGA 940 Mbps à 60$/mois. Disponible maintenant dans votre quartier.
+              GIGA 1 010 Mbps à 60$/mois. Disponible maintenant dans votre quartier.
             </p>
             <Button asChild size="lg" className="text-lg">
               <Link to="/couverture">Vérifier ma disponibilité</Link>
@@ -76,7 +76,7 @@ export default function InternetMontrealNord() {
               {[
                 { icon: ShieldCheck, title: "Aucun contrat", desc: "Liberté totale." },
                 { icon: Wallet, title: "Aucun crédit requis", desc: "Tout le monde accepté." },
-                { icon: Zap, title: "940 Mbps réels", desc: "Vitesse fibre optique." },
+                { icon: Zap, title: "1 010 Mbps réels", desc: "Vitesse fibre optique." },
                 { icon: Headphones, title: "Support local QC", desc: "Équipe québécoise." },
                 { icon: MapPin, title: "Couverture complète", desc: "Tout Montréal-Nord." },
                 { icon: Check, title: "Installation 2-3 jours", desc: "Activation rapide." },

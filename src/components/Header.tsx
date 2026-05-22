@@ -261,11 +261,11 @@ const Header = () => {
         <div className="container mx-auto px-6 max-w-[1200px] flex items-center justify-between h-9">
           <div className="flex items-center gap-5 text-xs font-medium" style={{ color: '#6B7280' }}>
             <Link to="/" className="hover:text-[#0D0D0D] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors" style={{ color: '#6B7280' }}>{isFr ? "Entreprise" : "Business"}</Link>
+            <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors" style={{ color: '#6B7280' }}>{isFr ? "Nous contacter" : "Contact Us"}</Link>
           </div>
           <div className="flex items-center gap-5 text-xs" style={{ color: '#6B7280' }}>
             <Link to="/aide" className="hover:text-[#0D0D0D] transition-colors">
-              {isFr ? "Trouver un point de vente" : "Find a store"}
+              {isFr ? "Centre d'aide" : "Help Center"}
             </Link>
             <Link to="/a-propos" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "À propos" : "About"}

@@ -40,12 +40,12 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Centre de support" : "Support Center", to: "/support" },
     { label: "FAQ", to: "/faq" },
     { label: isFr ? "Activation WiFi" : "WiFi Activation", to: "/portail" },
-    { label: isFr ? "Terminal Nivra TV" : "Nivra TV Terminal", to: "/support" },
+    { label: isFr ? "Terminal Nivra TV" : "Nivra TV Terminal", to: "/tv" },
     { label: isFr ? "Suivre ma commande" : "Track Order", to: "/track-order" },
     { label: isFr ? "Test de vitesse" : "Speed Test", to: "/test-vitesse" },
     { label: isFr ? "Nous contacter" : "Contact Us", to: "/contact" },
     { label: isFr ? "Soumettre une plainte" : "Submit a complaint", to: "/plainte" },
-    { label: isFr ? "Carrières — Postuler" : "Careers — Apply", to: "/careers" },
+    { label: isFr ? "Carrières — Postuler" : "Careers — Apply", to: "/emplois" },
     { label: "Presse", to: "/presse" },
   ];
 

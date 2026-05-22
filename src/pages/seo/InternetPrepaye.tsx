@@ -61,7 +61,7 @@ export default function InternetPrepaye() {
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Payez mois par mois. Aucun contrat. Aucun engagement. Annulez quand vous voulez.
-              60$/mois pour 940 Mbps.
+              60$/mois pour 1 010 Mbps.
             </p>
             <Button asChild size="lg" className="text-lg">
               <Link to="/couverture">Vérifier ma disponibilité</Link>
@@ -79,7 +79,7 @@ export default function InternetPrepaye() {
                 { icon: Calendar, title: "Mois par mois", desc: "Payez seulement ce que vous utilisez." },
                 { icon: ShieldCheck, title: "Aucun engagement", desc: "Annulez quand vous voulez." },
                 { icon: Wallet, title: "Aucun crédit requis", desc: "Tout le monde accepté." },
-                { icon: Zap, title: "940 Mbps réels", desc: "Vitesse fibre optique." },
+                { icon: Zap, title: "1 010 Mbps réels", desc: "Vitesse fibre optique." },
               ].map((item) => (
                 <Card key={item.title}>
                   <CardContent className="pt-6">
