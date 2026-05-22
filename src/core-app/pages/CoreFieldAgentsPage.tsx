@@ -250,7 +250,28 @@ export default function CoreFieldAgentsPage() {
         const p = pm.get(r.user_id) as any;
         const c = cm.get(r.user_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
         return { user_id: r.user_id, full_name: p?.full_name, email: p?.email, phone: p?.phone, is_active: r.is_active !== false, created_at: r.created_at, total_sales: sm.get(r.user_id) || 0, total_commission: c.total, pending_commission: c.pending, approved_commission: c.approved, paid_commission: c.paid };
-      });
+  });
+
+  const { data: tracking = new Map<string, AgentTracking>() } = useQuery({
+    queryKey: ["core-field", "agents-tracking", agents.map(a => a.user_id).join(",")],
+    enabled: agents.length > 0,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const ids = agents.map(a => a.user_id);
+      const { data, error } = await supabase.rpc("core_get_agent_tracking" as any, { _user_ids: ids });
+      if (error || !data) return new Map<string, AgentTracking>();
+      const m = new Map<string, AgentTracking>();
+      for (const r of data as any[]) {
+        m.set(r.user_id, {
+          last_sign_in_at: r.last_sign_in_at,
+          email_confirmed_at: r.email_confirmed_at,
+          mfa_enrolled: !!r.mfa_enrolled,
+        });
+      }
+      return m;
+    },
+  });
+
     },
   });
 
