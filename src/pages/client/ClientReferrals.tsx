@@ -170,7 +170,7 @@ const ClientReferrals = () => {
   };
 
   const shareCode = () => {
-    const text = `Utilise mon code ${referralCode} chez Nivra Télécom et économise sur ton service ! Moi, je reçois 25$ de rabais/mois pendant 10 mois 🎁 ${referralLink}`;
+    const text = `Utilise mon code ${referralCode} chez Nivra Télécom : tu reçois 5$/mois × 10 mois = 50$ de rabais total, et moi je reçois 25$ 🎁 ${referralLink}`;
     if (navigator.share) {
       navigator.share({ title: "Nivra Parrainage", text }).catch(() => {});
     } else {
@@ -216,9 +216,9 @@ const ClientReferrals = () => {
             Programme de parrainage
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Parrainez vos proches et recevez <strong>25 $/mois pendant 10 mois</strong> de rabais
-            (250 $ au total) pour chaque parrainage qualifié — payable en PayPal, Interac
-            e-Transfer ou carte-cadeau Visa/Mastercard.
+            Parrainez vos proches : ils reçoivent <strong>5$/mois × 10 mois = 50$ de rabais total</strong>,
+            et vous recevez <strong>25$ (versement unique)</strong> par parrainage qualifié — payable en
+            PayPal, Interac e-Transfer ou carte-cadeau Visa/Mastercard.
           </p>
         </div>
 
@@ -270,7 +270,7 @@ const ClientReferrals = () => {
                   <li>Partagez votre code avec un proche</li>
                   <li>Il l'utilise lors de sa commande sur nivra-telecom.ca</li>
                   <li>Après <strong>2 cycles mensuels payés</strong>, vous êtes qualifié</li>
-                  <li>Vous recevez <strong>25 $/mois pendant 10 mois</strong> selon votre mode de versement</li>
+                  <li>Vous recevez <strong>25$ (versement unique)</strong> selon votre mode de versement</li>
                 </ol>
               </div>
             </div>
@@ -379,7 +379,7 @@ const ClientReferrals = () => {
               </div>
               <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
                 <p className="text-xs text-muted-foreground">En attente</p>
-                <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{stats.rewardsPending * 250}$</p>
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{stats.rewardsPending * 25}$</p>
               </div>
               <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-900/20">
                 <p className="text-xs text-muted-foreground">Qualifiés</p>
@@ -492,7 +492,7 @@ const ClientReferrals = () => {
                             : "bg-muted text-muted-foreground"
                         }`}>
                           <CreditCard className="w-3.5 h-3.5" />
-                          <span className="text-sm font-semibold">{r.reward_amount || 250}$</span>
+                          <span className="text-sm font-semibold">{r.reward_amount || 25}$</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-1">Total récompense</p>
                       </div>
@@ -516,7 +516,7 @@ const ClientReferrals = () => {
         <div className="text-xs text-muted-foreground space-y-1 p-4 bg-muted/40 rounded-xl border">
           <p className="font-medium text-foreground">Conditions du programme</p>
           <ul className="list-disc list-inside space-y-0.5">
-            <li>Récompense : 25 $/mois pendant 10 mois (250 $ au total) par parrainage qualifié</li>
+            <li>Récompense parrain : 25$ versement unique • Rabais filleul : 5$/mois × 10 mois = 50$ de rabais total</li>
             <li>Le client référé doit compléter <strong>2 cycles mensuels payés</strong> pour qualifier</li>
             <li>Versements au choix : PayPal, Interac e-Transfer ou carte-cadeau Visa/Mastercard</li>
             <li>L'auto-parrainage est interdit</li>

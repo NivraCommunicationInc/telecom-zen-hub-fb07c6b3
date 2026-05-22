@@ -180,7 +180,7 @@ const CoreReferralRewardsPage = () => {
       updates: {
         reward_status: "reward_issued",
         reward_issued_at: new Date().toISOString(),
-        reward_amount: referral.reward_amount || 250,
+        reward_amount: referral.reward_amount || 25,
         reward_type: "visa_mastercard_gift_card",
         status: "reward_issued",
       },
@@ -364,7 +364,7 @@ const CoreReferralRewardsPage = () => {
     {
       key: "reward_amount",
       label: "Amount",
-      render: (r) => <span className="text-sm text-foreground">{r.reward_amount ? `$${r.reward_amount}` : "$250"}</span>,
+      render: (r) => <span className="text-sm text-foreground">{r.reward_amount ? `$${r.reward_amount}` : "$25"}</span>,
     },
 
     {
@@ -397,7 +397,7 @@ const CoreReferralRewardsPage = () => {
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">Referral Management</h1>
-        <p className="text-sm text-muted-foreground">Full referral lifecycle, reward issuance & fraud monitoring — 25 $/mo × 10 months (250 $ total) — PayPal / Interac / Gift Card</p>
+        <p className="text-sm text-muted-foreground">Full referral lifecycle, reward issuance & fraud monitoring — Récompense parrain : 25$ versement unique • Rabais filleul : 5$/mois × 10 mois — PayPal / Interac / Gift Card</p>
       </div>
 
       {/* KPI Cards */}
@@ -553,7 +553,7 @@ const CoreReferralRewardsPage = () => {
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Reward Management</h3>
                   <div className="rounded-md bg-secondary/50 p-3 space-y-1.5 text-sm">
                     <DetailRow label="Reward Status" value={REWARD_STATUS_LABELS[selectedReferral.reward_status] || selectedReferral.reward_status} />
-                    <DetailRow label="Amount" value={`$${selectedReferral.reward_amount || 250}`} />
+                    <DetailRow label="Amount" value={`$${selectedReferral.reward_amount || 25}`} />
                     <DetailRow label="Payout" value={PAYMENT_METHOD_LABELS[selectedReferral.payment_method] || selectedReferral.payment_method || "PayPal"} />
                     <DetailRow label="Type" value={selectedReferral.reward_type || "Referral credit"} />
 

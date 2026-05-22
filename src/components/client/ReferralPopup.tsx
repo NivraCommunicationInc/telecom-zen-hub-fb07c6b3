@@ -66,24 +66,24 @@ export const ReferralPopup = () => {
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full pointer-events-auto animate-in zoom-in-95 fade-in duration-300 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full pointer-events-auto animate-in zoom-in-95 fade-in duration-300 overflow-hidden">
           {/* Header stripe */}
-          <div className="bg-[#003366] px-6 py-5 relative">
+          <div className="bg-primary px-6 py-5 relative">
             <button
               onClick={dismiss}
-              className="absolute top-3 right-3 text-white/60 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+              className="absolute top-3 right-3 text-primary-foreground/60 hover:text-primary-foreground p-1 rounded-full hover:bg-primary-foreground/10 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                <Gift className="w-6 h-6 text-emerald-400" />
+              <div className="w-12 h-12 rounded-full bg-primary-foreground/10 flex items-center justify-center shrink-0">
+                <Gift className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-lg font-bold text-primary-foreground">
                   Gagnez 25$ par parrainage
                 </h3>
-                <p className="text-white/70 text-sm">
+                <p className="text-primary-foreground/70 text-sm">
                   Carte-cadeau Visa/Mastercard prépayée
                 </p>
               </div>
@@ -92,15 +92,15 @@ export const ReferralPopup = () => {
 
           {/* Body */}
           <div className="px-6 py-5 space-y-4">
-            <p className="text-slate-600 text-sm leading-relaxed">
-              {profile.first_name ? `${profile.first_name}, invitez` : "Invitez"} vos proches chez Nivra et recevez une carte-cadeau de <span className="font-semibold text-slate-900">25$</span> après leur 3e cycle mensuel payé.
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {profile.first_name ? `${profile.first_name}, invitez` : "Invitez"} vos proches chez Nivra et recevez une carte-cadeau de <span className="font-semibold text-foreground">25$</span> après leur 3e cycle mensuel payé.
             </p>
 
             {/* Code block */}
-            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-xl border border-border">
               <div className="flex-1">
-                <p className="text-xs text-slate-500 mb-0.5">Votre code de parrainage</p>
-                <p className="text-xl font-bold font-mono tracking-wider text-[#003366]">
+                <p className="text-xs text-muted-foreground mb-0.5">Votre code de parrainage</p>
+                <p className="text-xl font-bold font-mono tracking-wider text-primary">
                   {profile.referral_code}
                 </p>
               </div>
@@ -116,11 +116,11 @@ export const ReferralPopup = () => {
             </div>
 
             {/* Quick steps */}
-            <div className="flex items-start gap-3 text-xs text-slate-500">
+            <div className="flex items-start gap-3 text-xs text-muted-foreground">
               <div className="flex gap-6">
-                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-[#003366] text-white flex items-center justify-center text-[10px] font-bold">1</span> Partagez</span>
-                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-[#003366] text-white flex items-center justify-center text-[10px] font-bold">2</span> Il s'abonne</span>
-                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-[#003366] text-white flex items-center justify-center text-[10px] font-bold">3</span> Vous gagnez</span>
+                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">1</span> Partagez</span>
+                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">2</span> Il s'abonne</span>
+                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">3</span> Vous gagnez</span>
               </div>
             </div>
           </div>
@@ -128,7 +128,7 @@ export const ReferralPopup = () => {
           {/* Footer */}
           <div className="px-6 pb-5 flex gap-2">
             <Button
-              className="flex-1 bg-[#003366] hover:bg-[#002244] gap-2 rounded-xl h-10"
+              className="flex-1 bg-primary hover:bg-primary/90 gap-2 rounded-xl h-10"
               asChild
             >
               <Link to="/portal/referrals" onClick={dismiss}>
@@ -139,7 +139,7 @@ export const ReferralPopup = () => {
             <Button
               variant="ghost"
               onClick={dismiss}
-              className="text-slate-500 hover:text-slate-700 rounded-xl h-10"
+              className="text-muted-foreground hover:text-foreground rounded-xl h-10"
             >
               Plus tard
             </Button>
