@@ -89,24 +89,27 @@ export async function executeNovaAction(
 
       case "send_alert": {
         const { title, message, severity } = action.payload;
-        const { error } = await supabase.from("internal_notifications").insert({
-          title,
-          message,
-          severity: severity ?? "warning",
-          source: "nova",
+        const { error } = await (supabase as any).from("nova_decisions").insert({
+          situation: title ?? "Alerte NOVA",
+          context: { severity: severity ?? "warning", source: "nova" },
+          decision_made: message ?? "",
+          reasoning: "Alerte émise par NOVA",
+          made_by: "nova",
         });
         if (error) throw error;
-        return { success: true, message: "Alerte envoyée" };
+        return { success: true, message: "Alerte enregistrée" };
       }
 
       case "create_ticket": {
         const { subject, body, priority } = action.payload;
-        const { error } = await supabase.from("internal_tickets").insert({
-          subject,
-          body,
+        const { error } = await (supabase as any).from("internal_tickets").insert({
+          subject: subject ?? "Ticket NOVA",
+          description: body ?? "",
           priority: priority ?? "normal",
           status: "open",
-          source: "nova",
+          category: "nova",
+          created_by_name: "NOVA Digital Brain",
+          created_by_role: "system",
         });
         if (error) throw error;
         return { success: true, message: "Ticket créé" };
