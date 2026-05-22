@@ -268,7 +268,11 @@ export default function TechInstallation() {
         signature: !!signature,
       });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+    onError: (e: any) => {
+      // eslint-disable-next-line no-console
+      console.error("Complete error:", e);
+      toast.error(`Erreur: ${e?.message ?? "inconnue"}${e?.code ? ` (code: ${e.code})` : ""}`);
+    },
   });
 
   const reschedule = useMutation({
