@@ -14292,6 +14292,202 @@ export type Database = {
         }
         Relationships: []
       }
+      nova_actions: {
+        Row: {
+          action_payload: Json
+          action_type: string
+          approved_at: string | null
+          approved_by: string | null
+          conversation_id: string | null
+          created_at: string | null
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          requires_approval: boolean | null
+          result: Json | null
+          status: string | null
+        }
+        Insert: {
+          action_payload: Json
+          action_type: string
+          approved_at?: string | null
+          approved_by?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          requires_approval?: boolean | null
+          result?: Json | null
+          status?: string | null
+        }
+        Update: {
+          action_payload?: Json
+          action_type?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          requires_approval?: boolean | null
+          result?: Json | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nova_actions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "nova_actions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "nova_actions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "nova_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nova_conversations: {
+        Row: {
+          actions_taken: Json | null
+          context_snapshot: Json | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          messages: Json | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actions_taken?: Json | null
+          context_snapshot?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          messages?: Json | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actions_taken?: Json | null
+          context_snapshot?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          messages?: Json | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nova_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "nova_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["profile_user_id"]
+          },
+        ]
+      }
+      nova_decisions: {
+        Row: {
+          context: Json | null
+          created_at: string | null
+          decision_made: string
+          id: string
+          made_by: string | null
+          outcome: string | null
+          reasoning: string | null
+          situation: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string | null
+          decision_made: string
+          id?: string
+          made_by?: string | null
+          outcome?: string | null
+          reasoning?: string | null
+          situation: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string | null
+          decision_made?: string
+          id?: string
+          made_by?: string | null
+          outcome?: string | null
+          reasoning?: string | null
+          situation?: string
+        }
+        Relationships: []
+      }
+      nova_memory: {
+        Row: {
+          access_count: number | null
+          category: string
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          importance: number | null
+          is_active: boolean | null
+          last_accessed: string | null
+          memory_type: string
+          source: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          access_count?: number | null
+          category: string
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          importance?: number | null
+          is_active?: boolean | null
+          last_accessed?: string | null
+          memory_type: string
+          source?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          access_count?: number | null
+          category?: string
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          importance?: number | null
+          is_active?: boolean | null
+          last_accessed?: string | null
+          memory_type?: string
+          source?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       nps_surveys: {
         Row: {
           account_id: string | null
@@ -25930,6 +26126,7 @@ export type Database = {
           other_reference_number: string
         }[]
       }
+      get_nova_context: { Args: never; Returns: Json }
       get_onboarding_form_by_token: {
         Args: { p_token: string }
         Returns: {

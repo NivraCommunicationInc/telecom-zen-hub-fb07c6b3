@@ -68,6 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Dashboard",
     icon: LayoutDashboard,
     items: [
+      { icon: Brain, label: "🧠 NOVA — Digital Brain", href: "/brain", adminOnly: true },
       { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
       { icon: Brain, label: "Nivra AI Console", href: "/ai-console" },
       { icon: Activity, label: "Activity", href: "/activity" },
