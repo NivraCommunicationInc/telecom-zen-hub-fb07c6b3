@@ -233,6 +233,7 @@ export default function EmployeeCreateOrder() {
         .from("orders")
         .insert({
           user_id: selectedClient.user_id,
+          account_id: accountId,
           order_number: orderNumber,
           status: "submitted",
           payment_status: "pending",
