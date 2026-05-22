@@ -3599,10 +3599,54 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // REFERRAL — qualified notification (after 2 paid cycles)
+    // ===================================================================
+    case "referral_qualified_notification": {
+      const methodRaw = String(v.payment_method || "paypal");
+      const methodLabel = methodRaw === "interac"
+        ? (isEn ? "Interac e-Transfer" : "Interac e-Transfer")
+        : methodRaw === "gift_card"
+        ? (isEn ? "Visa/Mastercard gift card" : "Carte-cadeau Visa/Mastercard")
+        : "PayPal";
+      return {
+        subject: isEn
+          ? `Your referral is qualified — 25$/mo for 10 months`
+          : `Votre parrainage est qualifié — 25 $/mois pendant 10 mois`,
+        html: shell({
+          preheader: isEn
+            ? `Your referral has completed 2 paid cycles. Reward starts now.`
+            : `Votre filleul a complété 2 cycles payés. La récompense démarre maintenant.`,
+          badge: t("PARRAINAGE QUALIFIÉ", "REFERRAL QUALIFIED", lang),
+          heroTitle: t("Félicitations 🎉", "Congratulations 🎉", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? `Your referral has reached the 2-paid-cycles milestone. You'll now receive 25$/month for 10 months (250$ total) via ${methodLabel}.`
+            : `Votre filleul a atteint le seuil de 2 cycles payés. Vous recevrez maintenant 25 $/mois pendant 10 mois (250 $ au total) via ${methodLabel}.`,
+          cardTitle: t("Détails de la récompense", "Reward details", lang),
+          cardRows: [
+            [t("Récompense mensuelle", "Monthly reward", lang), money(25)],
+            [t("Durée", "Duration", lang), t("10 mois", "10 months", lang)],
+            [t("Total", "Total", lang), money(250)],
+            [t("Mode de versement", "Payout method", lang), methodLabel],
+          ],
+          ctaPrimaryUrl: `${portalUrl}/referrals`,
+          ctaPrimaryLabel: t("Voir mes parrainages", "View my referrals", lang),
+        }),
+      };
+    }
+
+    // ===================================================================
     // REFERRAL — reward issued
     // ===================================================================
     case "referral_reward_issued": {
       const amt = money(v.reward_amount ?? 25);
+      const methodRaw = String(v.payment_method || "paypal");
+      const methodLabel = methodRaw === "interac"
+        ? "Interac e-Transfer"
+        : methodRaw === "gift_card"
+        ? (isEn ? "Visa/Mastercard gift card" : "Carte-cadeau Visa/Mastercard")
+        : "PayPal";
       return {
         subject: isEn ? `Your referral reward has been issued` : `Votre récompense de parrainage est émise`,
         html: shell({
@@ -3612,18 +3656,20 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           icon: "check",
           greeting,
           bodyText: isEn
-            ? `Great news — your referral has qualified. A reward of ${amt} has been issued to your account.`
-            : `Excellente nouvelle — votre filleul est qualifié. Une récompense de ${amt} a été émise sur votre compte.`,
+            ? `Great news — your referral has qualified. A reward of ${amt} has been issued via ${methodLabel}.`
+            : `Excellente nouvelle — votre filleul est qualifié. Une récompense de ${amt} a été émise via ${methodLabel}.`,
           cardTitle: t("Détails", "Details", lang),
           cardRows: [
             [t("Récompense", "Reward", lang), amt],
             [t("Type", "Type", lang), t("Crédit parrainage", "Referral credit", lang)],
+            [t("Mode de versement", "Payout method", lang), methodLabel],
           ],
           ctaPrimaryUrl: `${portalUrl}/referrals`,
           ctaPrimaryLabel: t("Voir mes parrainages", "View my referrals", lang),
         }),
       };
     }
+
 
     // ===================================================================
     // MAINTENANCE — notification to all clients
