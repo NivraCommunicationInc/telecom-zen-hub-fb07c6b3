@@ -502,7 +502,7 @@ export default function TechInstallation() {
             </div>
 
             {currentStep.requires_photo && (
-              <PhotoCapture onCapture={onPhotoCaptured} label="📷 Prendre une photo" />
+              <PhotoCapture stepId={String(currentStep?.step_order ?? stepIdx)} onCapture={onPhotoCaptured} label="📷 Prendre une photo" />
             )}
 
             {currentStep.requires_scan && (
