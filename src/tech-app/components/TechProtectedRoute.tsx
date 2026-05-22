@@ -53,7 +53,7 @@ export default function TechProtectedRoute() {
         <h2 className="text-xl font-bold text-white mb-2">Connexion requise</h2>
         <p className="text-sm text-slate-400 mb-6">Connectez-vous pour accéder au portail technicien.</p>
         <button
-          onClick={() => navigate("/portal/auth?redirect=/tech")}
+          onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
           className="rounded-full bg-violet-600 px-8 py-3 text-base font-semibold text-white"
         >
           Se connecter
