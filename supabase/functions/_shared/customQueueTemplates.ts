@@ -4254,28 +4254,24 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     case "review_request_activation": {
       const firstName = esc(v.first_name || clientName);
-      const reviewUrl = String(v.review_url || `${APP_URL}/avis`);
       const googleReviewUrl = String(v.google_review_url || "https://g.page/r/Cc0xn5zgYussEBM/review");
       return {
         subject: "Comment s'est passée votre installation? — Nivra Telecom",
         html: shell({
-          preheader: "Votre avis nous aide à améliorer notre service.",
+          preheader: "Votre avis Google nous aide à améliorer notre service.",
           badge: "VOTRE AVIS COMPTE",
           heroTitle: "Bienvenue chez Nivra! Comment ça s'est passé?",
           icon: "check",
           greeting: `Bonjour ${firstName},`,
           bodyText:
-            "Votre service Nivra Telecom est maintenant actif. Votre avis nous aide à améliorer notre service pour tous nos clients. Cela prend moins de 2 minutes.",
+            "Merci de faire confiance à Nivra Telecom. Votre avis sur Google nous aide à améliorer notre service et à aider d'autres Québécois à nous trouver. Cela prend moins de 2 minutes.",
           cardTitle: "Informations",
           cardRows: [
             ["Temps requis", "Moins de 2 minutes"],
-            ["Votre avis est", "Confidentiel"],
             ["Avis Google", "Visible publiquement"],
           ],
-          ctaPrimaryUrl: reviewUrl,
-          ctaPrimaryLabel: "Laisser mon avis",
-          ctaSecondaryUrl: googleReviewUrl,
-          ctaSecondaryLabel: "Laisser un avis Google",
+          ctaPrimaryUrl: googleReviewUrl,
+          ctaPrimaryLabel: "Laisser mon avis Google",
           helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
