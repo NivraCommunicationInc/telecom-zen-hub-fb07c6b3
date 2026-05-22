@@ -129,15 +129,14 @@ Format action (ajoute à la fin si action requise):
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-    let anthropicStream: ReadableStream<Uint8Array>;
+    let response;
     try {
-      const stream = client.messages.stream({
+      response = await client.messages.create({
         model: "claude-3-haiku-20240307",
-        max_tokens: 4096,
+        max_tokens: 2048,
         system: systemPrompt,
         messages,
       });
-      anthropicStream = stream.toReadableStream();
     } catch (err) {
       return new Response(
         JSON.stringify({ error: "anthropic_error", detail: err instanceof Error ? err.message : String(err) }),
@@ -145,7 +144,6 @@ Format action (ajoute à la fin si action requise):
       );
     }
 
-    // Log reasoning chain (best-effort, fire and forget)
     const confidenceScore = Math.min(1, 0.5 + (memories?.length ?? 0) * 0.02 + (oldoClone?.length ?? 0) * 0.02);
     admin.from("nova_reasoning_log").insert({
       conversation_id: conversation_id ?? null,
@@ -155,53 +153,19 @@ Format action (ajoute à la fin si action requise):
       confidence: confidenceScore,
     }).then(() => {}, () => {});
 
-    // Convert SDK's JSON-object stream into SSE format expected by the frontend
-    const encoder = new TextEncoder();
-    const sseStream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        const reader = anthropicStream.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            let idx: number;
-            while ((idx = buffer.indexOf("\n")) !== -1) {
-              const line = buffer.slice(0, idx).trim();
-              buffer = buffer.slice(idx + 1);
-              if (!line) continue;
-              try {
-                const evt = JSON.parse(line);
-                controller.enqueue(encoder.encode(`event: ${evt.type}\ndata: ${JSON.stringify(evt)}\n\n`));
-              } catch {
-                controller.enqueue(encoder.encode(`data: ${line}\n\n`));
-              }
-            }
-          }
-          if (buffer.trim()) {
-            try {
-              const evt = JSON.parse(buffer.trim());
-              controller.enqueue(encoder.encode(`event: ${evt.type}\ndata: ${JSON.stringify(evt)}\n\n`));
-            } catch { /* ignore */ }
-          }
-        } catch (e) {
-          controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: e instanceof Error ? e.message : "stream_error" })}\n\n`));
-        } finally {
-          controller.close();
-        }
-      },
-    });
+    const firstBlock = response.content?.[0];
+    const text = firstBlock && firstBlock.type === "text" ? firstBlock.text : "";
 
-    return new Response(sseStream, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "X-Nova-Confidence": String(Math.round(confidenceScore * 100)),
+    return new Response(
+      JSON.stringify({ content: text, usage: response.usage, confidence: confidenceScore }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-Nova-Confidence": String(Math.round(confidenceScore * 100)),
+        },
       },
-    });
+    );
   } catch (e) {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
