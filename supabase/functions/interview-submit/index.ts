@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Look up applicant by token
     const { data: applicant, error: aErr } = await supabase
       .from("job_applicants")
-      .select("id, first_name, last_name, email, interview_language, status, interview_completed_at")
+      .select("id, first_name, last_name, email, interview_language, status, interview_completed_at, interview_started_at")
       .eq("interview_token", token)
       .maybeSingle();
     if (aErr || !applicant) {
