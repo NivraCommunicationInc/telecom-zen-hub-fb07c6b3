@@ -200,6 +200,28 @@ export default function EmployeeCreateOrder() {
         appliedDiscount = selectedDiscount;
       }
 
+      // Resolve or create account (DB trigger fn_require_order_account_id mandates account_id)
+      let accountId = selectedClient.account_id;
+      if (!accountId) {
+        const { data: existingAcc } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("client_id", selectedClient.user_id)
+          .maybeSingle();
+        if (existingAcc?.id) {
+          accountId = existingAcc.id;
+        } else {
+          const newAccountNumber = `ACC-${Date.now().toString(36).toUpperCase()}`;
+          const { data: createdAcc, error: accErr } = await supabase
+            .from("accounts")
+            .insert({ client_id: selectedClient.user_id, account_number: newAccountNumber })
+            .select("id")
+            .single();
+          if (accErr) throw new Error(`Création compte échouée: ${accErr.message}`);
+          accountId = createdAcc.id;
+        }
+      }
+
       // Create the order via direct insert (canonical-sync will handle billing)
       const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
