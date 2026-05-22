@@ -303,13 +303,8 @@ export default function CorePauseRequestsPage() {
         .eq("id", r.id);
       if (error) throw error;
 
-      if (r.subscription_id) {
-        await supabase
-          .from("billing_subscriptions")
-          .update({ status: "active" })
-          .eq("id", r.subscription_id)
-          .eq("status", "pause_requested");
-      }
+      // Note: rejected pause requests never touch the subscription status
+      // (subscription stays "active" until an approval flips it to "suspended").
 
       await logActivity(r.id, "rejected", { reason: rejectReason.trim() });
 
