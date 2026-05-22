@@ -216,7 +216,7 @@ export default function HrCommissions() {
           commission_id: disputeOpen.id,
           agent_id: userId,
           reason: disputeReason.trim(),
-          status: "pending",
+          status: "open",
         });
       if (error) throw error;
     },
