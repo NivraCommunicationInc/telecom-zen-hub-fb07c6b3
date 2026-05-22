@@ -1,0 +1,1 @@
+DELETE FROM hr_requests WHERE reason='TEST_LOT5';
