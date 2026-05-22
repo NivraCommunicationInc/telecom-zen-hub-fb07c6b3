@@ -146,6 +146,56 @@ Deno.serve(async (req) => {
     }
 
     // ═══════════════════════════════════════
+    // DAILY REPORT (end-of-day summary)
+    // ═══════════════════════════════════════
+
+    if (req.method === "GET" && action === "daily-report") {
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const startIso = start.toISOString();
+
+      let agentName: string | null = null;
+      try {
+        const { data: prof } = await admin.from("profiles").select("first_name, last_name, full_name").eq("user_id", userId).maybeSingle();
+        if (prof) agentName = (prof as any).full_name || [(prof as any).first_name, (prof as any).last_name].filter(Boolean).join(" ") || null;
+      } catch (_) { /* ignore */ }
+
+      const [salesRes, leadsRes, commRes] = await Promise.all([
+        admin.from("field_sales_orders")
+          .select("id, customer_name, customer_address, total_amount, payment_status, sync_status, created_at")
+          .eq("salesperson_id", userId).gte("created_at", startIso).order("created_at", { ascending: false }),
+        admin.from("field_leads")
+          .select("id, first_name, last_name, status, service_need, created_at")
+          .eq("agent_id", userId).gte("created_at", startIso).order("created_at", { ascending: false }),
+        admin.from("field_commissions")
+          .select("commission_amount, created_at")
+          .eq("agent_id", userId).gte("created_at", startIso),
+      ]);
+
+      const sales = salesRes.data || [];
+      const leads = leadsRes.data || [];
+      const commissions = commRes.data || [];
+
+      const totalRevenue = sales.reduce((a: number, s: any) => a + Number(s.total_amount || 0), 0);
+      const totalCommissions = commissions.reduce((a: number, c: any) => a + Number(c.commission_amount || 0), 0);
+      const paidSales = sales.filter((s: any) => s.payment_status === "paid").length;
+      const syncedSales = sales.filter((s: any) => s.sync_status === "synced").length;
+
+      return new Response(JSON.stringify({
+        agentName,
+        sales,
+        leads,
+        salesCount: sales.length,
+        leadsCount: leads.length,
+        totalRevenue,
+        totalCommissions,
+        paidSales,
+        syncedSales,
+      }), { headers });
+    }
+
+
+
+    // ═══════════════════════════════════════
     // LEADS
     // ═══════════════════════════════════════
 
