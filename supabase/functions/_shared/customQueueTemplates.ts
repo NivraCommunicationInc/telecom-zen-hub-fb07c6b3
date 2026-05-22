@@ -4257,44 +4257,17 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const googleReviewUrl = "https://g.page/r/Cc0xn5zgYussEBM/review";
       return {
         subject: "Comment s'est passée votre installation? — Nivra Telecom",
-        html: `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Comment s'est passée votre installation? — Nivra Telecom</title>
-</head>
-<body style="margin:0;padding:0;background:#f7f7f7;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-  <div style="display:none;max-height:0;overflow:hidden;">Votre avis Google nous aide à améliorer notre service.</div>
-  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#f7f7f7;">
-    <tr>
-      <td style="padding:32px 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
-          <tr>
-            <td style="padding:28px 40px;border-bottom:3px solid #0066CC;">
-              <h1 style="margin:0;font-size:26px;line-height:1.2;color:#0066CC;font-weight:700;">Nivra Telecom</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px 40px;">
-              <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#111111;font-weight:600;">Bonjour ${firstName},</p>
-              <h2 style="margin:0 0 16px;font-size:24px;line-height:1.25;color:#111111;font-weight:700;">Bienvenue chez Nivra! Comment ça s'est passé?</h2>
-              <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#4b5563;">Merci de faire confiance à Nivra Telecom. Votre avis sur Google nous aide à améliorer notre service et à aider d'autres Québécois à nous trouver. Cela prend moins de 2 minutes.</p>
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 8px;">
-                <tr>
-                  <td style="background:#0066CC;border-radius:6px;text-align:center;">
-                    <a href="${googleReviewUrl}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">Laisser mon avis Google</a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`,
+        html: shell({
+          preheader: "Votre avis Google nous aide à améliorer notre service.",
+          badge: "VOTRE AVIS COMPTE",
+          heroTitle: "Bienvenue chez Nivra! Comment ça s'est passé?",
+          icon: "star",
+          greeting: `Bonjour ${firstName},`,
+          bodyText:
+            "Merci de faire confiance à Nivra Telecom. Votre avis sur Google nous aide à améliorer notre service et à aider d'autres Québécois à nous trouver. Cela prend moins de 2 minutes.",
+          ctaPrimaryUrl: googleReviewUrl,
+          ctaPrimaryLabel: "Laisser mon avis Google",
+        }),
       };
     }
 
