@@ -1,0 +1,1 @@
+DELETE FROM orders WHERE notes='Test lot 4'; DELETE FROM accounts WHERE account_number LIKE 'ACC-TEST-%';
