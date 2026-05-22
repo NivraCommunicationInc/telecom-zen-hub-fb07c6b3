@@ -180,7 +180,7 @@ const CoreReferralRewardsPage = () => {
       updates: {
         reward_status: "reward_issued",
         reward_issued_at: new Date().toISOString(),
-        reward_amount: referral.reward_amount || 25,
+        reward_amount: referral.reward_amount || 250,
         reward_type: "visa_mastercard_gift_card",
         status: "reward_issued",
       },
