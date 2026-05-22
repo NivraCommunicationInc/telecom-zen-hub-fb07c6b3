@@ -79,7 +79,7 @@ interface ActivityLog {
 
 interface SaleRecord {
   id: string;
-  order_number: string;
+  local_id: string | null;
   customer_name: string;
   total_amount: number;
   payment_status: string;
@@ -128,7 +128,7 @@ export function RepresentativeDetailDialog({
     queryFn: async () => {
       const { data, error } = await adminSupabase
         .from("field_sales_orders")
-        .select("id, order_number, customer_name, total_amount, payment_status, sync_status, created_at")
+        .select("id, local_id, customer_name, total_amount, payment_status, sync_status, created_at")
         .eq("salesperson_id", representative!.user_id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -456,7 +456,7 @@ export function RepresentativeDetailDialog({
                             <div>
                               <p className="font-medium text-white">{sale.customer_name}</p>
                               <p className="text-sm text-slate-400">
-                                {sale.order_number || sale.id.slice(0, 8)} • {format(new Date(sale.created_at), "d MMM HH:mm", { locale: fr })}
+                                {sale.local_id || sale.id.slice(0, 8)} • {format(new Date(sale.created_at), "d MMM HH:mm", { locale: fr })}
                               </p>
                             </div>
                             <div className="text-right">
