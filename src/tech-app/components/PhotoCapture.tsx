@@ -67,6 +67,7 @@ export default function PhotoCapture({ onCapture, label = "Prendre une photo", s
     <div className="space-y-3">
       <input
         ref={inputRef}
+        id={inputId}
         type="file"
         accept="image/*"
         capture="environment"
