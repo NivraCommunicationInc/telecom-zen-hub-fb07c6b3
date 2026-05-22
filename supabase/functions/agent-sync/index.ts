@@ -65,7 +65,7 @@ async function checkFieldOrders(supabase: ReturnType<typeof createClient>) {
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const { data: orders } = await supabase
     .from("field_sales_orders")
-    .select("id, order_number, customer_name, customer_email, customer_phone, customer_address, customer_city, customer_postal_code")
+    .select("id, local_id, customer_name, customer_email, customer_phone, customer_address, customer_city, customer_postal_code")
     .gte("created_at", since)
     .limit(500);
 
@@ -121,7 +121,7 @@ async function checkFieldOrders(supabase: ReturnType<typeof createClient>) {
       sync_type: "order",
       source_portal: "field",
       record_id: String(o.id),
-      record_reference: o.order_number ?? null,
+      record_reference: o.local_id ?? null,
       issues,
       auto_fixed: autoFix,
       fix_description: fixDesc,
