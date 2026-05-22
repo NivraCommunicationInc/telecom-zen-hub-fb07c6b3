@@ -378,7 +378,7 @@ const CoreReferralRewardsPage = () => {
             <Eye className="h-3.5 w-3.5" />
           </Button>
           {(r.status === "qualified" || r.reward_status === "qualified" || r.reward_status === "reward_pending") && r.reward_status !== "reward_issued" && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400 hover:text-emerald-300" onClick={() => issueReward(r)} title="Issue reward">
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" onClick={() => issueReward(r)} title="Issue reward">
               <CreditCard className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -406,7 +406,7 @@ const CoreReferralRewardsPage = () => {
           { icon: Users, label: "Total Referrals", value: kpis.total, color: "text-foreground" },
           { icon: TrendingUp, label: "In Progress", value: kpis.inProgress, color: "text-sky-400" },
           { icon: CheckCircle, label: "Qualified", value: kpis.qualified, color: "text-amber-400" },
-          { icon: Gift, label: "Rewards Issued", value: kpis.issued, color: "text-emerald-400" },
+          { icon: Gift, label: "Rewards Issued", value: kpis.issued, color: "text-primary" },
           { icon: DollarSign, label: "Total Issued", value: `$${kpis.totalAmount}`, color: "text-primary" },
           { icon: ShieldAlert, label: "Fraud Flags", value: kpis.fraudCount, color: "text-red-400" },
         ].map((kpi) => (
