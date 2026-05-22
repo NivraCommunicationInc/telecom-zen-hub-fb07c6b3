@@ -5350,6 +5350,178 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // HUNGRY SALES AGENTS (Agents 13-18)
+    // ===================================================================
+    case "crm_promo_blast": {
+      const subject = String(v.subject || "Internet GIGA 60$/mois — Sans contrat, sans crédit");
+      const heroTitle = String(v.hero_title || subject);
+      const bodyText = String(v.body_fr || "Découvrez l'Internet GIGA 940 Mbps à 60$/mois, sans contrat et sans vérification de crédit.");
+      const ctaLabel = String(v.cta_label || "Voir nos forfaits");
+      const firstName = String(v.first_name || clientName);
+      return {
+        subject,
+        html: shell({
+          preheader: "Offre exclusive Nivra Telecom — Internet GIGA sans contrat.",
+          badge: "OFFRE EXCLUSIVE",
+          heroTitle,
+          icon: "spark",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "Nos offres réelles",
+          cardRows: [
+            ["Internet GIGA 940 Mbps", "60$/mois"],
+            ["Sans contrat", "Aucun engagement"],
+            ["Sans crédit", "Tout le monde accepté"],
+            ["Alternative à Bell", "Économisez 35$/mois"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaPrimaryLabel: ctaLabel,
+          ctaSecondaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaSecondaryLabel: "Voir tous nos forfaits",
+          helpHtml: "Vous recevez ce courriel car vous avez exprimé de l'intérêt pour nos services. Pour vous désabonner, répondez STOP.",
+        }),
+      };
+    }
+
+    case "crm_followup": {
+      const subject = String(v.subject || "On pensait à vous — Internet sans contrat");
+      const heroTitle = String(v.hero_title || subject);
+      const bodyText = String(v.body_fr || "Vous avez montré de l'intérêt pour Nivra Telecom. On voulait s'assurer que vous n'avez pas raté nos offres sans contrat et sans crédit.");
+      const ctaLabel = String(v.cta_label || "Reprendre où vous étiez");
+      const firstName = String(v.first_name || clientName);
+      return {
+        subject,
+        html: shell({
+          preheader: "Un petit rappel amical de Nivra Telecom.",
+          badge: "ON PENSAIT À VOUS",
+          heroTitle,
+          icon: "heart",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "Pourquoi Nivra ?",
+          cardRows: [
+            ["Liberté totale", "Aucun contrat"],
+            ["Accessible à tous", "Sans vérification crédit"],
+            ["Support local", "Équipe québécoise"],
+            ["Internet GIGA", "60$/mois"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaPrimaryLabel: ctaLabel,
+          ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
+          ctaSecondaryLabel: "Parler à un humain",
+          helpHtml: "Vous recevez ce courriel car vous avez exprimé de l'intérêt pour nos services. Pour vous désabonner, répondez STOP.",
+        }),
+      };
+    }
+
+    case "google_ads_alert": {
+      const campaignName = esc(v.campaign_name || "Campagne inconnue");
+      const status = esc(v.status || "—");
+      const issue = String(v.issue_description || "Problème détecté sur la campagne.");
+      const recommendation = String(v.recommendation || "Vérifier dans Google Ads.");
+      return {
+        subject: `⚠ Alerte Google Ads — ${campaignName}`,
+        html: shell({
+          preheader: "Une campagne Google Ads requiert votre attention.",
+          badge: "ALERTE GOOGLE ADS",
+          heroTitle: "Action requise — Google Ads",
+          icon: "warn",
+          greeting,
+          bodyText: issue,
+          cardTitle: "Détails de l'alerte",
+          cardRows: [
+            ["Campagne", campaignName],
+            ["Statut", status],
+            ["Problème", esc(issue)],
+            ["Recommandation", esc(recommendation)],
+          ],
+          ctaPrimaryUrl: "https://ads.google.com",
+          ctaPrimaryLabel: "Voir Google Ads",
+          helpVariant: "warning",
+          helpHtml: "Cette alerte a été générée automatiquement par l'agent Google Ads Monitor.",
+        }),
+      };
+    }
+
+    case "seo_weekly_report": {
+      const indexedCount = esc(v.indexed_count ?? "—");
+      const avgMs = esc(v.avg_load_ms ?? "—");
+      const seoScore = esc(v.seo_score ?? "—");
+      const topRec = String(v.top_recommendation || "Continuer la production de contenu local.");
+      return {
+        subject: `Rapport SEO hebdomadaire — Score ${seoScore}/100`,
+        html: shell({
+          preheader: "Votre rapport SEO de la semaine.",
+          badge: "RAPPORT SEO HEBDOMADAIRE",
+          heroTitle: "Rapport SEO — Nivra Telecom",
+          icon: "doc",
+          greeting,
+          bodyText: "Voici le résumé de la performance SEO de la semaine.",
+          cardTitle: "Indicateurs clés",
+          cardRows: [
+            ["Pages indexées", String(indexedCount)],
+            ["Vitesse moyenne", `${avgMs} ms`],
+            ["Score SEO", `${seoScore}/100`],
+            ["Recommandation", esc(topRec)],
+          ],
+          ctaPrimaryUrl: "https://search.google.com/search-console",
+          ctaPrimaryLabel: "Ouvrir Search Console",
+        }),
+      };
+    }
+
+    case "directories_reminder": {
+      const pendingList = Array.isArray(v.pending_directories)
+        ? v.pending_directories as Array<{ name: string; url: string }>
+        : [];
+      const rows: Array<[string, string]> = pendingList.slice(0, 10).map((d) => [esc(d.name), esc(d.url)]);
+      const pendingCount = pendingList.length;
+      return {
+        subject: `Action requise — Soumettre Nivra dans ${pendingCount} répertoires gratuits`,
+        html: shell({
+          preheader: "Améliorez la visibilité locale de Nivra en quelques clics.",
+          badge: "ACTION REQUISE — RÉPERTOIRES",
+          heroTitle: "Soumettez Nivra dans ces répertoires gratuits",
+          icon: "spark",
+          greeting,
+          bodyText: "Voici les répertoires gratuits où Nivra Telecom devrait être listé pour améliorer sa visibilité en ligne. Cliquez sur les liens pour soumettre manuellement.",
+          cardTitle: `${pendingCount} répertoires en attente`,
+          cardRows: rows.length > 0 ? rows : [["Aucun répertoire en attente", "—"]],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/core/agents",
+          ctaPrimaryLabel: "Commencer les soumissions",
+        }),
+      };
+    }
+
+    case "social_post_ready": {
+      const postType = esc(v.post_type || "promotion");
+      const hashtags = Array.isArray(v.hashtags) ? (v.hashtags as string[]).join(" ") : String(v.hashtags || "");
+      const preview = String(v.post_text || "").slice(0, 300);
+      return {
+        subject: `Nouveau post réseaux sociaux à approuver (${postType})`,
+        html: shell({
+          preheader: "Un post Facebook/Instagram est prêt pour approbation.",
+          badge: "POST RÉSEAUX SOCIAUX PRÊT",
+          heroTitle: "Nouveau post à approuver",
+          icon: "spark",
+          greeting,
+          bodyText: preview,
+          cardTitle: "Détails du post",
+          cardRows: [
+            ["Plateforme", "Facebook + Instagram"],
+            ["Type", postType],
+            ["Hashtags", esc(hashtags)],
+            ["Généré par", "Nova (Gemini)"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/core/social-media",
+          ctaPrimaryLabel: "Approuver et publier",
+          ctaSecondaryUrl: "https://nivra-telecom.ca/core/social-media",
+          ctaSecondaryLabel: "Voir tous les posts",
+        }),
+      };
+    }
+
     default:
       return null;
     }

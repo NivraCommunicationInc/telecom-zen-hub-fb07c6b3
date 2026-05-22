@@ -6325,6 +6325,48 @@ export type Database = {
         }
         Relationships: []
       }
+      directory_submissions: {
+        Row: {
+          created_at: string
+          directory_name: string
+          directory_url: string
+          id: string
+          listing_url: string | null
+          notes: string | null
+          status: string
+          submission_url: string | null
+          submitted_at: string | null
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          directory_name: string
+          directory_url: string
+          id?: string
+          listing_url?: string | null
+          notes?: string | null
+          status?: string
+          submission_url?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          directory_name?: string
+          directory_url?: string
+          id?: string
+          listing_url?: string | null
+          notes?: string | null
+          status?: string
+          submission_url?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       dob_validation_debug: {
         Row: {
           calculated_age: number | null
@@ -20955,6 +20997,57 @@ export type Database = {
           status?: string
           to_phone?: string
           to_user_id?: string | null
+        }
+        Relationships: []
+      }
+      social_media_posts: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          facebook_post_id: string | null
+          generated_by: string | null
+          hashtags: string[] | null
+          id: string
+          likes: number
+          platform: string
+          post_text: string
+          post_type: string | null
+          published_at: string | null
+          reach: number
+          shares: number
+          status: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          facebook_post_id?: string | null
+          generated_by?: string | null
+          hashtags?: string[] | null
+          id?: string
+          likes?: number
+          platform?: string
+          post_text: string
+          post_type?: string | null
+          published_at?: string | null
+          reach?: number
+          shares?: number
+          status?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          facebook_post_id?: string | null
+          generated_by?: string | null
+          hashtags?: string[] | null
+          id?: string
+          likes?: number
+          platform?: string
+          post_text?: string
+          post_type?: string | null
+          published_at?: string | null
+          reach?: number
+          shares?: number
+          status?: string
         }
         Relationships: []
       }

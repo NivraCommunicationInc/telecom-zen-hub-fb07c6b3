@@ -127,6 +127,7 @@ const CoreAnalyticsPage = lazy(() => import("@/core-app/pages/CoreAnalyticsPage"
 const CoreAgentMonitorPage = lazy(() => import("@/core-app/pages/CoreAgentMonitorPage"));
 const CoreAnalyticsDashboardPage = lazy(() => import("@/core-app/pages/CoreAnalyticsDashboardPage"));
 const CoreMarketingAgentPage = lazy(() => import("@/core-app/pages/CoreMarketingAgentPage"));
+const CoreSocialMediaPage = lazy(() => import("@/core-app/pages/CoreSocialMediaPage"));
 const CoreRetentionPage = lazy(() => import("@/core-app/pages/CoreRetentionPage"));
 const CoreSupportAIPage = lazy(() => import("@/core-app/pages/CoreSupportAIPage"));
 const CoreSyncMonitorPage = lazy(() => import("@/core-app/pages/CoreSyncMonitorPage"));
@@ -916,6 +917,7 @@ const AppRoutes = () => {
           <Route path="monitor" element={<Suspense fallback={null}><CoreAgentMonitorPage /></Suspense>} />
           <Route path="analytics-ai" element={<Suspense fallback={null}><CoreAnalyticsDashboardPage /></Suspense>} />
           <Route path="marketing-agent" element={<Suspense fallback={null}><CoreMarketingAgentPage /></Suspense>} />
+          <Route path="social-media" element={<Suspense fallback={null}><CoreSocialMediaPage /></Suspense>} />
           <Route path="retention" element={<Suspense fallback={null}><CoreRetentionPage /></Suspense>} />
           <Route path="support-ai" element={<Suspense fallback={null}><CoreSupportAIPage /></Suspense>} />
           <Route path="sync-monitor" element={<Suspense fallback={null}><CoreSyncMonitorPage /></Suspense>} />
