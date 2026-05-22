@@ -14367,6 +14367,7 @@ export type Database = {
           created_by: string | null
           id: string
           messages: Json | null
+          pinned: boolean | null
           title: string | null
           updated_at: string | null
         }
@@ -14377,6 +14378,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           messages?: Json | null
+          pinned?: boolean | null
           title?: string | null
           updated_at?: string | null
         }
@@ -14387,6 +14389,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           messages?: Json | null
+          pinned?: boolean | null
           title?: string | null
           updated_at?: string | null
         }
@@ -14487,6 +14490,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      nova_reasoning_log: {
+        Row: {
+          confidence: number | null
+          context_snapshot: Json | null
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          reasoning_chain: Json | null
+          user_message: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          context_snapshot?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          reasoning_chain?: Json | null
+          user_message?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          context_snapshot?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          reasoning_chain?: Json | null
+          user_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nova_reasoning_log_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "nova_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nps_surveys: {
         Row: {
