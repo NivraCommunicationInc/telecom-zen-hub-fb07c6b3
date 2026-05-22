@@ -155,7 +155,7 @@ async function checkComplaints(supabase: ReturnType<typeof createClient>) {
       const uid = (profile as { user_id?: string } | null)?.user_id;
       if (uid) {
         const { data: account } = await supabase
-          .from("accounts").select("id").eq("user_id", uid).maybeSingle();
+          .from("accounts").select("id").eq("client_id", uid).maybeSingle();
         const aid = (account as { id?: string } | null)?.id;
         if (aid) {
           const { error } = await supabase.from("complaints").update({ account_id: aid }).eq("id", c.id);
