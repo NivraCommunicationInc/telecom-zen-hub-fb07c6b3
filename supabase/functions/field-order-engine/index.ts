@@ -146,6 +146,56 @@ Deno.serve(async (req) => {
     }
 
     // ═══════════════════════════════════════
+    // DAILY REPORT (end-of-day summary)
+    // ═══════════════════════════════════════
+
+    if (req.method === "GET" && action === "daily-report") {
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const startIso = start.toISOString();
+
+      let agentName: string | null = null;
+      try {
+        const { data: prof } = await admin.from("profiles").select("first_name, last_name, full_name").eq("user_id", userId).maybeSingle();
+        if (prof) agentName = (prof as any).full_name || [(prof as any).first_name, (prof as any).last_name].filter(Boolean).join(" ") || null;
+      } catch (_) { /* ignore */ }
+
+      const [salesRes, leadsRes, commRes] = await Promise.all([
+        admin.from("field_sales_orders")
+          .select("id, customer_name, customer_address, total_amount, payment_status, sync_status, created_at")
+          .eq("salesperson_id", userId).gte("created_at", startIso).order("created_at", { ascending: false }),
+        admin.from("field_leads")
+          .select("id, first_name, last_name, status, service_need, created_at")
+          .eq("agent_id", userId).gte("created_at", startIso).order("created_at", { ascending: false }),
+        admin.from("field_commissions")
+          .select("commission_amount, created_at")
+          .eq("agent_id", userId).gte("created_at", startIso),
+      ]);
+
+      const sales = salesRes.data || [];
+      const leads = leadsRes.data || [];
+      const commissions = commRes.data || [];
+
+      const totalRevenue = sales.reduce((a: number, s: any) => a + Number(s.total_amount || 0), 0);
+      const totalCommissions = commissions.reduce((a: number, c: any) => a + Number(c.commission_amount || 0), 0);
+      const paidSales = sales.filter((s: any) => s.payment_status === "paid").length;
+      const syncedSales = sales.filter((s: any) => s.sync_status === "synced").length;
+
+      return new Response(JSON.stringify({
+        agentName,
+        sales,
+        leads,
+        salesCount: sales.length,
+        leadsCount: leads.length,
+        totalRevenue,
+        totalCommissions,
+        paidSales,
+        syncedSales,
+      }), { headers });
+    }
+
+
+
+    // ═══════════════════════════════════════
     // LEADS
     // ═══════════════════════════════════════
 
@@ -203,6 +253,49 @@ Deno.serve(async (req) => {
         await admin.from("field_leads").update({ status: "submitted", submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", leadId);
 
         return new Response(JSON.stringify({ success: true, message: "Lead converti" }), { headers });
+      }
+
+      if (req.method === "POST" && action === "create-lead") {
+        const body = await req.json();
+        const firstName = sanitizeString(body.first_name || "", 100);
+        const lastName = sanitizeString(body.last_name || "", 100);
+        const phone = sanitizeString(body.phone || "", 30);
+        if (!firstName || !lastName || !phone) {
+          return new Response(JSON.stringify({ error: "first_name, last_name et phone requis" }), { status: 400, headers });
+        }
+
+        let agentName: string | null = null;
+        try {
+          const { data: prof } = await admin.from("profiles").select("first_name, last_name, full_name").eq("user_id", userId).maybeSingle();
+          if (prof) agentName = (prof as any).full_name || [(prof as any).first_name, (prof as any).last_name].filter(Boolean).join(" ") || null;
+        } catch (_) { /* ignore */ }
+
+        const insertRow: Record<string, unknown> = {
+          agent_id: userId,
+          agent_name: agentName,
+          status: "new",
+          lead_stage: "new",
+          source_channel: "door_to_door",
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          email: sanitizeString(body.email || "", 255) || null,
+          address: sanitizeString(body.address || "", 255) || null,
+          city: sanitizeString(body.city || "", 100) || null,
+          postal_code: sanitizeString(body.postal_code || "", 20) || null,
+          service_need: sanitizeString(body.service_need || "", 100) || null,
+          eligibility_notes: sanitizeString(body.eligibility_notes || "", 2000) || null,
+          payment_method_intent: sanitizeString(body.payment_method_intent || "", 100) || null,
+          notes: sanitizeString(body.notes || "", 2000) || null,
+        };
+
+        const { data, error } = await admin.from("field_leads").insert(insertRow).select("id").single();
+        if (error) {
+          console.error("[create-lead] insert failed", error);
+          return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
+        }
+
+        return new Response(JSON.stringify({ success: true, lead_id: data.id }), { headers });
       }
 
       return new Response(JSON.stringify({ error: "Action leads inconnue" }), { status: 400, headers });
