@@ -203,6 +203,10 @@ export default function EmployeeCreateOrder() {
       // Create the order via direct insert (canonical-sync will handle billing)
       const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
+      const nameParts = (selectedClient.full_name || "").trim().split(/\s+/);
+      const firstName = nameParts.shift() || selectedClient.full_name || "Client";
+      const lastName = nameParts.join(" ") || "";
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -214,22 +218,28 @@ export default function EmployeeCreateOrder() {
           total_amount: selectedPlan.price,
           environment: "live",
           source: "employee_portal",
-          customer_name: selectedClient.full_name,
-          customer_email: selectedClient.email,
-          customer_phone: selectedClient.phone ?? null,
-          service_address: address.street || null,
-          service_city: address.city || null,
-          service_postal_code: address.postal || null,
+          created_by: user.id,
+          created_by_agent_id: user.id,
+          agent_name: agentProfile?.full_name ?? user.email ?? null,
+          client_first_name: firstName,
+          client_last_name: lastName,
+          client_email: selectedClient.email,
+          client_phone: selectedClient.phone ?? null,
+          client_full_address: [address.street, address.city, address.postal].filter(Boolean).join(", ") || null,
+          shipping_address: address.street || null,
+          shipping_city: address.city || null,
+          shipping_postal_code: address.postal || null,
           notes: agentNotes || null,
-          selected_plan: selectedPlan.name,
           discount_code: appliedDiscount?.id ?? null,
           discount_amount: appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
-          metadata: {
-            created_by_agent: agentProfile?.full_name ?? user.email,
-            created_by_agent_id: user.id,
+          pricing_snapshot: {
             portal: "employee",
             plan_id: selectedPlan.id,
+            plan_name: selectedPlan.name,
+            plan_price: selectedPlan.price,
             plan_category: selectedPlan.category,
+            created_by_agent: agentProfile?.full_name ?? user.email,
+            created_by_agent_id: user.id,
             agent_discount: appliedDiscount
               ? {
                   id: appliedDiscount.id,
