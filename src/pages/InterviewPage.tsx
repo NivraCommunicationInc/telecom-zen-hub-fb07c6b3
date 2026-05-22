@@ -700,7 +700,20 @@ export default function InterviewPage() {
         "interview-submit",
         { body: payload },
       );
-      if (fnErr) throw fnErr;
+      // FunctionsHttpError carries the raw Response — extract the real error message
+      if (fnErr) {
+        let serverMessage = "";
+        try {
+          const ctx: any = (fnErr as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            serverMessage = body?.error || body?.message || "";
+          } else if (ctx && typeof ctx.text === "function") {
+            serverMessage = await ctx.text();
+          }
+        } catch { /* ignore parse errors */ }
+        throw new Error(serverMessage || fnErr.message || "submit_failed");
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
       stopStream();
       stopAudioMeter();
