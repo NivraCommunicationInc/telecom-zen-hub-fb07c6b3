@@ -53,6 +53,12 @@ interface AgentRow {
   paid_commission: number;
 }
 
+interface AgentTracking {
+  last_sign_in_at: string | null;
+  email_confirmed_at: string | null;
+  mfa_enrolled: boolean;
+}
+
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending: { label: "En attente", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800" },
   pending_activation: { label: "Att. activation", cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800" },
