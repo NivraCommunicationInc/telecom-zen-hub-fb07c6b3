@@ -397,7 +397,7 @@ const CoreReferralRewardsPage = () => {
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">Referral Management</h1>
-        <p className="text-sm text-muted-foreground">Full referral lifecycle, reward issuance & fraud monitoring — $25 Visa/MC gift cards</p>
+        <p className="text-sm text-muted-foreground">Full referral lifecycle, reward issuance & fraud monitoring — 25 $/mo × 10 months (250 $ total) — PayPal / Interac / Gift Card</p>
       </div>
 
       {/* KPI Cards */}
