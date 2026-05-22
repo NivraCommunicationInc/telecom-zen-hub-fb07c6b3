@@ -188,6 +188,70 @@ const GuestCheckout = () => {
     }
   }, [searchParams, services]);
 
+  // ── Referral code capture: URL ?ref=CODE → localStorage (30-day expiry) ──
+  useEffect(() => {
+    const refFromUrl = searchParams.get("ref");
+    if (refFromUrl && refFromUrl.trim().length > 0) {
+      try {
+        localStorage.setItem(
+          "nivra_ref_code",
+          JSON.stringify({
+            code: refFromUrl.trim().toUpperCase(),
+            expires: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          })
+        );
+      } catch { /* localStorage may be blocked — non-fatal */ }
+    }
+  }, [searchParams]);
+
+  // ── Auto-apply stored referral code once email is provided ──
+  useEffect(() => {
+    if (appliedReferral) return;
+    if (!email || !email.includes("@")) return;
+    let stored: { code: string; expires: number } | null = null;
+    try {
+      const raw = localStorage.getItem("nivra_ref_code");
+      if (raw) stored = JSON.parse(raw);
+    } catch { /* ignore parse errors */ }
+    if (!stored || !stored.code) return;
+    if (stored.expires <= Date.now()) {
+      try { localStorage.removeItem("nivra_ref_code"); } catch { /* noop */ }
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("validate-promo", {
+          body: {
+            code: stored!.code,
+            client_email: email,
+            client_id: undefined,
+            cart_items: [],
+            subtotal_before_discount: 0,
+          },
+        });
+        if (cancelled) return;
+        if (data?.valid && (data.is_client_referral || data.is_referral_code)) {
+          setAppliedReferral({
+            code: data.promo?.code || stored!.code,
+            type: data.is_client_referral ? "client" : "influencer",
+            referrer_user_id: data.referrer_user_id,
+            referrer_name: data.referrer_name,
+            referral_code_id: data.referral_code_id,
+            influencer_id: data.influencer_id,
+            discount_type: data.promo?.discount_type || "fixed_amount",
+            discount_value: data.promo?.discount_value || 0,
+            discount_amount: data.discount_amount || 0,
+            applies_to: data.promo?.applies_to || {},
+            duration: data.promo?.duration,
+            name: data.promo?.name || "Code de parrainage",
+          });
+        }
+      } catch { /* non-blocking — user can still enter the code manually */ }
+    })();
+    return () => { cancelled = true; };
+  }, [email, appliedReferral]);
+
   // ── Live activity tracking for funnel steps ──
   const lastTrackedStep = useRef<number>(0);
   useEffect(() => {
@@ -675,7 +739,64 @@ const GuestCheckout = () => {
         }
       }
 
-      // Step 6b: Post-order data integrity check (non-blocking, logs to billing_system_alerts)
+      // Step 6c: Client-referral tracking (non-blocking).
+      // For client codes (peer-to-peer), record in client_referrals and activate the
+      // 5$/mois × 10 mois discount on the new billing_subscription.
+      // Influencer codes continue to flow through promotion_redemptions / referral_attributions.
+      if (appliedReferral && appliedReferral.type === "client" && appliedReferral.referrer_user_id) {
+        try {
+          // Resolve referrer's account_id
+          const { data: referrerAcct } = await supabase
+            .from("accounts")
+            .select("id")
+            .eq("client_id", appliedReferral.referrer_user_id)
+            .limit(1)
+            .maybeSingle();
+
+          await supabase.from("client_referrals" as any).insert({
+            referral_code_used: appliedReferral.code,
+            referrer_user_id: appliedReferral.referrer_user_id,
+            referrer_account_id: referrerAcct?.id || null,
+            referred_user_id: userId,
+            referred_account_id: accountId,
+            referred_order_id: response.order_id,
+            status: "pending",
+            qualifying_cycles_paid: 0,
+            required_cycles: 2,
+            reward_status: "not_eligible",
+            reward_type: "gift_card",
+            reward_amount: 25.00,
+            discount_total_months: 10,
+          });
+
+          // Activate referral discount on the new subscription tied to this account.
+          // billing_subscriptions.customer_id → billing_customers.id ; billing_customers.user_id → accounts.client_id
+          const { data: bcRows } = await supabase
+            .from("billing_customers")
+            .select("id")
+            .eq("user_id", userId)
+            .limit(1);
+          const bcId = bcRows?.[0]?.id;
+          if (bcId) {
+            await supabase
+              .from("billing_subscriptions")
+              .update({
+                referral_discount_active: true,
+                referral_discount_amount: 5.00,
+                referral_discount_months_remaining: 10,
+                referral_code_used: appliedReferral.code,
+              } as any)
+              .eq("customer_id", bcId)
+              .eq("order_id", response.order_id);
+          }
+
+          // Clear the saved referral code — used now.
+          try { localStorage.removeItem("nivra_ref_code"); } catch { /* noop */ }
+        } catch (e) {
+          console.warn("[GuestCheckout] Client-referral tracking failed (non-blocking):", e);
+        }
+      }
+
       try {
         const checks = await Promise.allSettled([
           supabase.from("profiles").select("id").eq("user_id", userId).maybeSingle(),

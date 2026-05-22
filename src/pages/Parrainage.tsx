@@ -1,6 +1,7 @@
 /**
  * Parrainage — Public landing page for the Nivra referral program
- * Full explanation, FAQ, trust signals
+ * Full explanation, FAQ, trust signals.
+ * Uses semantic design-system tokens (bg-background, text-foreground, bg-primary, …).
  */
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -20,19 +21,19 @@ const steps = [
     icon: Gift,
     num: "2",
     title: "Votre proche s'abonne",
-    desc: "Le nouveau client entre votre code lors de sa commande Nivra. Le parrainage est automatiquement lié à votre compte dès la commande complétée.",
+    desc: "Le nouveau client entre votre code lors de sa commande Nivra. Il obtient automatiquement un rabais de 5$/mois pendant 10 mois (50$ d'économies au total).",
   },
   {
     icon: Clock,
     num: "3",
-    title: "3 cycles mensuels payés",
-    desc: "Le nouveau client doit maintenir son service actif et payer 3 cycles de facturation mensuels consécutifs. Vous pouvez suivre la progression en temps réel dans votre portail.",
+    title: "2 cycles mensuels payés",
+    desc: "Le nouveau client doit maintenir son service actif et payer 2 cycles de facturation mensuels consécutifs. Vous suivez la progression en temps réel dans votre portail.",
   },
   {
     icon: CreditCard,
     num: "4",
-    title: "Recevez votre carte-cadeau",
-    desc: "Une fois les 3 cycles payés, votre récompense est automatiquement mise en file d'attente. Vous recevez une carte-cadeau Visa/Mastercard prépayée de 25$.",
+    title: "Recevez votre 25$",
+    desc: "Une fois les 2 cycles payés, votre récompense de 25$ est mise en file d'attente. Choisissez votre mode de versement : PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac.",
   },
 ];
 
@@ -43,18 +44,22 @@ const faq = [
   },
   {
     q: "Quand est-ce que je reçois ma récompense ?",
-    a: "La récompense est émise après que la personne parrainée ait payé 3 cycles de facturation mensuels. Vous pouvez suivre la progression dans votre portail.",
+    a: "La récompense est émise après que la personne parrainée ait payé 2 cycles de facturation mensuels. Vous pouvez suivre la progression dans votre portail.",
   },
   {
-    q: "Sous quelle forme est la récompense ?",
-    a: "Carte-cadeau Visa/Mastercard prépayée de 25$, utilisable partout où Visa/Mastercard est accepté.",
+    q: "Quel rabais reçoit la personne que je parraine ?",
+    a: "Votre filleul reçoit automatiquement un rabais de 5$/mois pendant 10 mois, soit 50$ d'économies au total sur son forfait Nivra.",
+  },
+  {
+    q: "Sous quelle forme est ma récompense ?",
+    a: "Vous choisissez : versement PayPal, carte-cadeau Visa/Mastercard prépayée, ou virement Interac. Le choix se fait dans votre portail dès qu'un parrainage est qualifié.",
   },
   {
     q: "Puis-je me parrainer moi-même ?",
     a: "Non. L'auto-parrainage est interdit et détecté automatiquement par notre système anti-fraude.",
   },
   {
-    q: "Que se passe-t-il si le client annule avant 3 mois ?",
+    q: "Que se passe-t-il si le client annule avant 2 mois ?",
     a: "Le parrainage est annulé et la récompense n'est pas émise. Le statut est visible dans votre portail en temps réel.",
   },
   {
@@ -65,34 +70,31 @@ const faq = [
 
 const Parrainage = () => {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <SEOHead
-        title="Programme de parrainage | Nivra Telecom — Gagnez 25$ par parrainage"
-        description="Parrainez vos proches chez Nivra Telecom et recevez une carte-cadeau Visa/Mastercard de 25$ pour chaque parrainage qualifié. Sans limite, transparent et simple."
+        title="Programme de parrainage | Nivra Telecom — 25$ pour vous, 50$ pour votre proche"
+        description="Parrainez vos proches chez Nivra Telecom : 25$ pour vous après 2 mois, 5$/mois pendant 10 mois (50$) pour votre proche. Sans limite, transparent et simple."
       />
       <Header />
 
       <main>
         {/* Hero */}
-        <section className="relative bg-[#003366] py-20 overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-emerald-500/10 to-transparent" />
-            <div className="absolute bottom-0 left-0 w-1/3 h-1/2 bg-gradient-to-tr from-white/5 to-transparent" />
-          </div>
+        <section className="relative bg-primary py-20 overflow-hidden">
           <div className="container mx-auto px-4 max-w-5xl relative text-center">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-emerald-300 text-sm font-medium mb-6 border border-white/10">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-foreground/10 text-primary-foreground text-sm font-medium mb-6 border border-primary-foreground/15">
               <Gift className="w-4 h-4" />
               Programme de parrainage Nivra
             </span>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-5">
-              Parrainez un proche,<br />recevez <span className="text-emerald-400">25$</span>
+            <h1 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-5">
+              Vous recevez <span className="underline decoration-primary-foreground/40">25$</span>,<br />
+              votre proche économise <span className="underline decoration-primary-foreground/40">50$</span>
             </h1>
-            <p className="text-lg text-white/75 max-w-2xl mx-auto mb-8 leading-relaxed">
-              Partagez votre code de parrainage avec vos proches. Après 3 mois de service payé, vous recevez une carte-cadeau Visa/Mastercard prépayée de 25$. Sans limite de parrainages.
+            <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto mb-8 leading-relaxed">
+              Partagez votre code de parrainage. Après 2 mois de service payé, vous recevez 25$. Votre filleul économise 5$ par mois pendant 10 mois (50$ au total). Sans limite de parrainages.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button
-                className="bg-white text-[#003366] hover:bg-slate-100 rounded-full px-8 h-12 font-semibold gap-2 text-base"
+                className="bg-background text-foreground hover:bg-background/90 rounded-full px-8 h-12 font-semibold gap-2 text-base"
                 asChild
               >
                 <Link to="/portal/referrals">
@@ -102,11 +104,11 @@ const Parrainage = () => {
               </Button>
               <Button
                 variant="outline"
-                className="border-white/30 text-white hover:bg-white/10 rounded-full px-8 h-12 font-semibold gap-2 text-base"
+                className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground rounded-full px-8 h-12 font-semibold gap-2 text-base"
                 asChild
               >
-                <Link to="/portal/auth">
-                  Créer mon compte
+                <Link to="/commander">
+                  Commander avec un code
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </Button>
@@ -115,24 +117,24 @@ const Parrainage = () => {
         </section>
 
         {/* Steps */}
-        <section className="py-20 bg-white">
+        <section className="py-20 bg-background">
           <div className="container mx-auto px-4 max-w-5xl">
             <div className="text-center mb-14">
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">Comment ça fonctionne</h2>
-              <p className="text-slate-600 text-lg">Un processus simple et transparent en 4 étapes</p>
+              <h2 className="text-3xl font-bold text-foreground mb-3">Comment ça fonctionne</h2>
+              <p className="text-muted-foreground text-lg">Un processus simple et transparent en 4 étapes</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {steps.map((step, i) => (
-                <div key={i} className="flex gap-5 p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                  <div className="shrink-0 w-12 h-12 rounded-xl bg-[#003366] text-white flex items-center justify-center text-lg font-bold">
+                <div key={i} className="flex gap-5 p-6 bg-card text-card-foreground rounded-2xl border border-border">
+                  <div className="shrink-0 w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold">
                     {step.num}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <step.icon className="w-5 h-5 text-emerald-600" />
-                      <h3 className="font-semibold text-slate-900">{step.title}</h3>
+                      <step.icon className="w-5 h-5 text-primary" />
+                      <h3 className="font-semibold text-foreground">{step.title}</h3>
                     </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">{step.desc}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
                   </div>
                 </div>
               ))}
@@ -141,48 +143,40 @@ const Parrainage = () => {
         </section>
 
         {/* Trust */}
-        <section className="py-16 bg-slate-50 border-y border-slate-200">
+        <section className="py-16 bg-card border-y border-border">
           <div className="container mx-auto px-4 max-w-5xl">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="w-7 h-7 text-emerald-600" />
+              {[
+                { Icon: ShieldCheck, title: "Système sécurisé", desc: "Suivi automatique, anti-fraude intégré, traçabilité complète de chaque parrainage." },
+                { Icon: CheckCircle, title: "Transparent", desc: "Suivez la progression de vos parrainages en temps réel depuis votre portail client." },
+                { Icon: CreditCard, title: "Récompense au choix", desc: "PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac : 25$ versés à votre convenance." },
+              ].map(({ Icon, title, desc }, i) => (
+                <div key={i}>
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Icon className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-1">{title}</h3>
+                  <p className="text-sm text-muted-foreground">{desc}</p>
                 </div>
-                <h3 className="font-semibold text-slate-900 mb-1">Système sécurisé</h3>
-                <p className="text-sm text-slate-600">Suivi automatique, anti-fraude intégré, traçabilité complète de chaque parrainage.</p>
-              </div>
-              <div>
-                <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-7 h-7 text-emerald-600" />
-                </div>
-                <h3 className="font-semibold text-slate-900 mb-1">Transparent</h3>
-                <p className="text-sm text-slate-600">Suivez la progression de vos parrainages en temps réel depuis votre portail client.</p>
-              </div>
-              <div>
-                <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                  <CreditCard className="w-7 h-7 text-emerald-600" />
-                </div>
-                <h3 className="font-semibold text-slate-900 mb-1">Récompense réelle</h3>
-                <p className="text-sm text-slate-600">Carte-cadeau Visa/Mastercard prépayée de 25$, utilisable partout, sans restriction.</p>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* FAQ */}
-        <section className="py-20 bg-white">
+        <section className="py-20 bg-background">
           <div className="container mx-auto px-4 max-w-3xl">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">Questions fréquentes</h2>
+              <h2 className="text-3xl font-bold text-foreground mb-3">Questions fréquentes</h2>
             </div>
             <div className="space-y-4">
               {faq.map((item, i) => (
-                <div key={i} className="p-5 rounded-xl border border-slate-200 bg-white">
+                <div key={i} className="p-5 rounded-xl border border-border bg-card text-card-foreground">
                   <div className="flex gap-3">
-                    <HelpCircle className="w-5 h-5 text-[#003366] shrink-0 mt-0.5" />
+                    <HelpCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-slate-900 mb-1">{item.q}</h3>
-                      <p className="text-sm text-slate-600">{item.a}</p>
+                      <h3 className="font-semibold text-foreground mb-1">{item.q}</h3>
+                      <p className="text-sm text-muted-foreground">{item.a}</p>
                     </div>
                   </div>
                 </div>
@@ -192,12 +186,12 @@ const Parrainage = () => {
         </section>
 
         {/* Final CTA */}
-        <section className="py-16 bg-[#003366]">
+        <section className="py-16 bg-primary">
           <div className="container mx-auto px-4 max-w-3xl text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">Prêt à parrainer ?</h2>
-            <p className="text-white/70 mb-8">Connectez-vous à votre compte pour accéder à votre code et commencer à gagner des récompenses.</p>
+            <h2 className="text-3xl font-bold text-primary-foreground mb-4">Prêt à parrainer ?</h2>
+            <p className="text-primary-foreground/80 mb-8">Connectez-vous à votre compte pour accéder à votre code et commencer à gagner des récompenses.</p>
             <Button
-              className="bg-white text-[#003366] hover:bg-slate-100 rounded-full px-8 h-12 font-semibold gap-2 text-base"
+              className="bg-background text-foreground hover:bg-background/90 rounded-full px-8 h-12 font-semibold gap-2 text-base"
               asChild
             >
               <Link to="/portal/referrals">
@@ -209,14 +203,15 @@ const Parrainage = () => {
         </section>
 
         {/* Terms */}
-        <section className="py-10 bg-slate-50 border-t border-slate-200">
+        <section className="py-10 bg-card border-t border-border">
           <div className="container mx-auto px-4 max-w-3xl">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Conditions du programme</h3>
-            <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
-              <li>La récompense de 25$ est sous forme de carte-cadeau Visa/Mastercard prépayée</li>
-              <li>Le client référé doit compléter 3 cycles de facturation mensuelle payés</li>
-              <li>L'auto-parrainage est interdit et détecté automatiquement</li>
-              <li>Un seul parrainage par nouveau client</li>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Conditions du programme</h3>
+            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+              <li>La récompense référent est de 25$ (PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac, au choix)</li>
+              <li>Le rabais filleul est de 5$/mois pendant 10 mois (50$ d'économies au total)</li>
+              <li>Le client référé doit compléter 2 cycles de facturation mensuels payés pour que le référent soit qualifié</li>
+              <li>L'auto-parrainage est interdit et détecté automatiquement (même adresse, même courriel ou même mode de paiement)</li>
+              <li>Un seul code de parrainage par nouveau client</li>
               <li>Nivra se réserve le droit de disqualifier les parrainages frauduleux</li>
               <li>Programme sujet à modification sans préavis</li>
             </ul>

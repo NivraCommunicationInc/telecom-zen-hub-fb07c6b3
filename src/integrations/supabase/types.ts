@@ -2750,6 +2750,11 @@ export type Database = {
           recurring_setup_status:
             | Database["public"]["Enums"]["recurring_setup_status"]
             | null
+          referral_code_used: string | null
+          referral_credit_id: string | null
+          referral_discount_active: boolean | null
+          referral_discount_amount: number | null
+          referral_discount_months_remaining: number | null
           service_category: string | null
           source_id: string | null
           source_type: string | null
@@ -2783,6 +2788,11 @@ export type Database = {
           recurring_setup_status?:
             | Database["public"]["Enums"]["recurring_setup_status"]
             | null
+          referral_code_used?: string | null
+          referral_credit_id?: string | null
+          referral_discount_active?: boolean | null
+          referral_discount_amount?: number | null
+          referral_discount_months_remaining?: number | null
           service_category?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -2816,6 +2826,11 @@ export type Database = {
           recurring_setup_status?:
             | Database["public"]["Enums"]["recurring_setup_status"]
             | null
+          referral_code_used?: string | null
+          referral_credit_id?: string | null
+          referral_discount_active?: boolean | null
+          referral_discount_amount?: number | null
+          referral_discount_months_remaining?: number | null
           service_category?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -4039,6 +4054,8 @@ export type Database = {
       client_referrals: {
         Row: {
           created_at: string
+          discount_applied_months: number | null
+          discount_total_months: number | null
           disqualification_reason: string | null
           disqualified_at: string | null
           fraud_checked_at: string | null
@@ -4047,6 +4064,9 @@ export type Database = {
           fraud_review_notes: string | null
           id: string
           notes: string | null
+          payment_email: string | null
+          payment_method: string | null
+          payment_reference: string | null
           qualified_at: string | null
           qualifying_cycles_paid: number
           referral_code_used: string
@@ -4073,6 +4093,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          discount_applied_months?: number | null
+          discount_total_months?: number | null
           disqualification_reason?: string | null
           disqualified_at?: string | null
           fraud_checked_at?: string | null
@@ -4081,6 +4103,9 @@ export type Database = {
           fraud_review_notes?: string | null
           id?: string
           notes?: string | null
+          payment_email?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
           qualified_at?: string | null
           qualifying_cycles_paid?: number
           referral_code_used: string
@@ -4107,6 +4132,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          discount_applied_months?: number | null
+          discount_total_months?: number | null
           disqualification_reason?: string | null
           disqualified_at?: string | null
           fraud_checked_at?: string | null
@@ -4115,6 +4142,9 @@ export type Database = {
           fraud_review_notes?: string | null
           id?: string
           notes?: string | null
+          payment_email?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
           qualified_at?: string | null
           qualifying_cycles_paid?: number
           referral_code_used?: string
@@ -18751,9 +18781,14 @@ export type Database = {
       referral_codes: {
         Row: {
           code: string
+          code_type: string | null
           created_at: string
           id: string
-          influencer_id: string
+          influencer_id: string | null
+          owner_account_id: string | null
+          owner_user_id: string | null
+          referred_discount_amount: number | null
+          referred_discount_months: number | null
           status: string
           updated_at: string
           usage_count: number
@@ -18762,9 +18797,14 @@ export type Database = {
         }
         Insert: {
           code: string
+          code_type?: string | null
           created_at?: string
           id?: string
-          influencer_id: string
+          influencer_id?: string | null
+          owner_account_id?: string | null
+          owner_user_id?: string | null
+          referred_discount_amount?: number | null
+          referred_discount_months?: number | null
           status?: string
           updated_at?: string
           usage_count?: number
@@ -18773,9 +18813,14 @@ export type Database = {
         }
         Update: {
           code?: string
+          code_type?: string | null
           created_at?: string
           id?: string
-          influencer_id?: string
+          influencer_id?: string | null
+          owner_account_id?: string | null
+          owner_user_id?: string | null
+          referred_discount_amount?: number | null
+          referred_discount_months?: number | null
           status?: string
           updated_at?: string
           usage_count?: number
@@ -18803,6 +18848,7 @@ export type Database = {
           discount_stacks: boolean
           id: string
           min_cashout_amount: number
+          required_cycles: number
           updated_at: string
         }
         Insert: {
@@ -18815,6 +18861,7 @@ export type Database = {
           discount_stacks?: boolean
           id?: string
           min_cashout_amount?: number
+          required_cycles?: number
           updated_at?: string
         }
         Update: {
@@ -18827,6 +18874,7 @@ export type Database = {
           discount_stacks?: boolean
           id?: string
           min_cashout_amount?: number
+          required_cycles?: number
           updated_at?: string
         }
         Relationships: []
@@ -25632,6 +25680,10 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_referral_discount: {
+        Args: { p_account_id: string; p_invoice_amount: number }
+        Returns: number
+      }
       approve_kyc_session: {
         Args: { p_decision: string; p_note?: string; p_session_id: string }
         Returns: Json
@@ -26070,6 +26122,10 @@ export type Database = {
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_billing_renewals: { Args: never; Returns: undefined }
       generate_client_number: { Args: never; Returns: string }
+      generate_client_referral_code: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
       generate_contract_signature_token: {
