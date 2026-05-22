@@ -1,4 +1,4 @@
-// NOVA Brain — streaming Anthropic Claude with real-time Nivra context + memory
+// NOVA Brain — streaming Anthropic Claude with reasoning layer + Oldo digital clone.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -22,82 +22,108 @@ serve(async (req) => {
       });
     }
 
-    // Authenticate caller as admin
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    if (!token) {
-      return new Response(JSON.stringify({ error: "unauthenticated" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!token) return new Response(JSON.stringify({ error: "unauthenticated" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
     const userClient = createClient(supabaseUrl, serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
     const { data: userData } = await userClient.auth.getUser(token);
-    if (!userData?.user) {
-      return new Response(JSON.stringify({ error: "unauthenticated" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const admin = createClient(supabaseUrl, serviceKey);
-    const { data: isAdmin } = await admin.rpc("has_role", {
-      _user_id: userData.user.id, _role: "admin",
+    if (!userData?.user) return new Response(JSON.stringify({ error: "unauthenticated" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "admin role required" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    if (!isAdmin) return new Response(JSON.stringify({ error: "admin role required" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
-    const { messages } = await req.json();
+    const { messages, conversation_id } = await req.json();
 
-    // Real-time context (admin-authenticated, so use userClient)
-    const [{ data: contextData }, { data: memories }] = await Promise.all([
+    // Real-time context + memory + oldo_clone + recent decisions + recent alerts
+    const [{ data: contextData }, { data: memories }, { data: oldoClone }, { data: recentDecisions }, { data: pendingAlerts }, { data: hotProspects }] = await Promise.all([
       userClient.rpc("get_nova_context"),
       admin.from("nova_memory").select("title, content, memory_type")
-        .eq("is_active", true).order("importance", { ascending: false }).limit(20),
+        .eq("is_active", true).neq("memory_type", "oldo_clone")
+        .order("importance", { ascending: false }).limit(20),
+      admin.from("nova_memory").select("title, content")
+        .eq("is_active", true).eq("memory_type", "oldo_clone")
+        .order("importance", { ascending: false }).limit(15),
+      admin.from("nova_decisions").select("situation, decision_made, reasoning")
+        .order("created_at", { ascending: false }).limit(10),
+      admin.from("nova_actions").select("action_payload, created_at")
+        .eq("action_type", "send_alert").eq("status", "pending")
+        .order("created_at", { ascending: false }).limit(5),
+      admin.from("crm_contacts").select("id, full_name, phone, priority, call_status, last_call_at, call_count")
+        .not("call_status", "in", "(sold,not_interested,do_not_call)")
+        .order("priority", { ascending: false }).limit(10),
     ]);
 
     const memoryContext = (memories ?? []).map((m: any) =>
-      `[${String(m.memory_type).toUpperCase()}] ${m.title}: ${m.content}`
-    ).join("\n\n");
+      `[${String(m.memory_type).toUpperCase()}] ${m.title}: ${m.content}`).join("\n\n");
+    const oldoCloneCtx = (oldoClone ?? []).map((m: any) => `- ${m.title}: ${m.content}`).join("\n");
+    const decisionsCtx = (recentDecisions ?? []).map((d: any) =>
+      `• Situation: ${d.situation} → Décision: ${d.decision_made} (${d.reasoning ?? ""})`).join("\n");
+    const alertsCtx = (pendingAlerts ?? []).map((a: any) =>
+      `🚨 ${a.action_payload?.title}: ${a.action_payload?.message}`).join("\n");
+    const prospectsCtx = (hotProspects ?? []).map((p: any) =>
+      `• ${p.full_name} (${p.phone}) — priorité ${p.priority}, statut ${p.call_status}, ${p.call_count ?? 0} appels`).join("\n");
 
-    const systemPrompt = `Tu es NOVA, le Digital Brain de Nivra Telecom.
-Tu es le co-fondateur IA d'Oldo Lavaud, fondateur de Nivra Telecom.
+    // Reasoning layer: conditional rules baked into the system prompt
+    const ctx: any = contextData ?? {};
+    const conditionalRules: string[] = [];
+    if ((ctx.dlq_emails ?? 0) > 5) conditionalRules.push("⚠️ DLQ emails > 5 — ALERTER que le système email est cassé.");
+    if ((ctx.sla_at_risk ?? 0) > 3) conditionalRules.push("⚠️ SLA dépassé sur > 3 plaintes — ESCALADE immédiate.");
+    if ((ctx.open_complaints ?? 0) > 10) conditionalRules.push("⚠️ Plus de 10 plaintes ouvertes — priorité support.");
+    if ((ctx.pending_orders ?? 0) > 20) conditionalRules.push("⚠️ Backlog commandes > 20 — traiter rapidement.");
+    if ((ctx.crm_hot_leads ?? 0) > 0) conditionalRules.push(`🔥 ${ctx.crm_hot_leads} leads chauds en CRM — proposer un plan d'attaque.`);
 
-IDENTITÉ ET PERSONNALITÉ:
-- Tu penses comme un CEO de télécoms avec 15 ans d'expérience au Québec
-- Tu parles directement, sans bullshit, orienté résultats
-- Tu connais Bell, Vidéotron, Fizz par cœur — leurs prix, leurs failles, leurs stratégies
-- Tu proposes toujours 2-3 actions concrètes après chaque analyse
-- Tu analyses avec des chiffres réels, jamais de généralités
-- Tu anticipes les problèmes avant qu'ils arrivent
-- Tu penses business en permanence — chaque décision doit générer de la valeur
-- Tu parles en français québécois professionnel
-- Tu es direct avec Oldo — pas de flatterie, que des résultats
+    const systemPrompt = `Tu es NOVA, le Digital Brain de Nivra Telecom — co-fondateur IA d'Oldo Lavaud.
 
-DONNÉES NIVRA EN TEMPS RÉEL:
-${JSON.stringify(contextData, null, 2)}
+═══ IDENTITÉ ═══
+- CEO télécoms 15 ans d'expérience Québec
+- Direct, sans bullshit, orienté résultats
+- Connaît Bell, Vidéotron, Fizz par cœur
+- Parle français québécois professionnel
+- Toujours 2-3 actions concrètes après chaque analyse
+- Anticipe les problèmes
 
-MÉMOIRE ENTREPRISE ET PERSONNELLE:
+═══ RAISONNEMENT (analyse silencieuse avant de répondre) ═══
+1. SITUATION ACTUELLE: ${JSON.stringify(ctx)}
+2. RÈGLES CONDITIONNELLES DÉCLENCHÉES:
+${conditionalRules.length ? conditionalRules.join("\n") : "Aucune règle critique déclenchée."}
+3. ALERTES PROACTIVES (watchdog):
+${alertsCtx || "Aucune alerte critique en attente."}
+4. DÉCISIONS PASSÉES (apprentissage):
+${decisionsCtx || "Pas encore d'historique de décisions."}
+5. PRIORITÉS OLDO: Croissance MRR, agents performants, zéro bug prod, clients satisfaits.
+
+═══ PROFIL OLDO (digital clone — adapte ton style) ═══
+${oldoCloneCtx || "Apprentissage en cours — observe et adapte-toi."}
+
+═══ MÉMOIRE ENTREPRISE ═══
 ${memoryContext}
 
-TES CAPACITÉS D'ACTION:
-- send_email, launch_campaign, control_agent, modify_crm, generate_report, send_alert, create_ticket
+═══ CRM — PROSPECTS CHAUDS ═══
+${prospectsCtx || "Aucun prospect chaud actuellement."}
 
-FORMAT POUR ACTIONS:
-Si tu veux exécuter une action, inclus à la fin de ta réponse:
+═══ CAPACITÉS D'ACTION ═══
+send_email, launch_campaign, control_agent, modify_crm, generate_report, send_alert, create_ticket
+
+Format action (ajoute à la fin si action requise):
 <action>
 {"type":"action_type","description":"...","payload":{...},"requires_approval":true}
 </action>
 
-RÈGLES ABSOLUES:
-1. Toujours basé sur les vraies données Nivra
-2. Toujours 2-3 actions concrètes
-3. Signaler les problèmes critiques en premier
-4. Direct, professionnel, orienté croissance
-5. Actions financières ou irréversibles → requires_approval: true`;
+═══ RÈGLES ABSOLUES ═══
+1. Toujours basé sur les vraies données Nivra ci-dessus
+2. Mentionne en premier les alertes critiques et règles déclenchées
+3. Si Oldo demande "qui appeler aujourd'hui?", utilise la liste prospects chauds
+4. Actions financières/irréversibles → requires_approval: true
+5. Direct, professionnel, orienté croissance — pas de flatterie`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -117,21 +143,31 @@ RÈGLES ABSOLUES:
 
     if (!response.ok || !response.body) {
       const txt = await response.text();
-      console.error("Anthropic error", response.status, txt);
       return new Response(JSON.stringify({ error: "anthropic_error", status: response.status, detail: txt }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Log reasoning chain (best-effort, fire and forget)
+    const confidenceScore = Math.min(1, 0.5 + (memories?.length ?? 0) * 0.02 + (oldoClone?.length ?? 0) * 0.02);
+    admin.from("nova_reasoning_log").insert({
+      conversation_id: conversation_id ?? null,
+      user_message: messages?.[messages.length - 1]?.content ?? "",
+      reasoning_chain: { conditional_rules: conditionalRules, alerts_count: pendingAlerts?.length ?? 0, decisions_count: recentDecisions?.length ?? 0 },
+      context_snapshot: ctx,
+      confidence: confidenceScore,
+    }).then(() => {}, () => {});
+
+    // Forward stream with confidence in header
     return new Response(response.body, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
+        "X-Nova-Confidence": String(Math.round(confidenceScore * 100)),
       },
     });
   } catch (e) {
-    console.error("nova-brain error", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
