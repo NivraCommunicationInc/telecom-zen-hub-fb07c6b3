@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Look up applicant by token
     const { data: applicant, error: aErr } = await supabase
       .from("job_applicants")
-      .select("id, first_name, last_name, email, interview_language, status, interview_completed_at")
+      .select("id, first_name, last_name, email, interview_language, status, interview_completed_at, interview_started_at")
       .eq("interview_token", token)
       .maybeSingle();
     if (aErr || !applicant) {
@@ -203,48 +203,67 @@ Règles:
     }
 
     const nowIso = new Date().toISOString();
-    await supabase
+    const updatePayload: Record<string, unknown> = {
+      status: "interview_completed",
+      interview_completed_at: nowIso,
+      interview_score: aiScore,
+      interview_recommendation: aiRecommendation,
+      interview_notes: aiSummary,
+      interview_strengths: aiStrengths,
+      interview_concerns: aiConcerns,
+      interview_red_flags: aiRedFlags,
+    };
+    // Only set interview_started_at if it was never set (don't overwrite real start time)
+    if (!applicant.interview_started_at) {
+      updatePayload.interview_started_at = nowIso;
+    }
+    const { error: updErr } = await supabase
       .from("job_applicants")
-      .update({
-        status: "interview_completed",
-        interview_completed_at: nowIso,
-        interview_started_at: applicant.status === "interview_started" ? undefined : nowIso,
-        interview_score: aiScore,
-        interview_recommendation: aiRecommendation,
-        interview_notes: aiSummary,
-        interview_strengths: aiStrengths,
-        interview_concerns: aiConcerns,
-        interview_red_flags: aiRedFlags,
-      })
+      .update(updatePayload)
       .eq("id", applicant.id);
+    if (updErr) {
+      console.error("[interview-submit] job_applicants update failed", updErr);
+      throw new Error(`update_failed: ${updErr.message}`);
+    }
 
-    // Queue admin notification email
-    await supabase.from("email_queue").insert({
-      event_key: `interview_done_${applicant.id}`,
-      to_email: ADMIN_EMAIL,
-      template_key: "interview_completed_admin",
-      template_vars: {
-        first_name: applicant.first_name,
-        last_name: applicant.last_name,
-        email: applicant.email,
-        score: aiScore,
-        recommendation: aiRecommendation,
-        summary: aiSummary,
-        strengths: aiStrengths,
-        concerns: aiConcerns,
-        red_flags: aiRedFlags,
-        review_url: `https://www.nivra-telecom.ca/hr/applications`,
-      },
-      language: "fr",
-      status: "queued",
-    });
+    // Queue admin notification email — NEVER block submission on email failure
+    try {
+      const { error: qErr } = await supabase.from("email_queue").insert({
+        event_key: `interview_done_${applicant.id}`,
+        to_email: ADMIN_EMAIL,
+        template_key: "interview_completed_admin",
+        template_vars: {
+          first_name: applicant.first_name,
+          last_name: applicant.last_name,
+          email: applicant.email,
+          score: aiScore,
+          recommendation: aiRecommendation,
+          summary: aiSummary,
+          strengths: aiStrengths,
+          concerns: aiConcerns,
+          red_flags: aiRedFlags,
+          review_url: `https://www.nivra-telecom.ca/hr/applications`,
+        },
+        language: "fr",
+        status: "queued",
+      });
+      if (qErr) console.error("[interview-submit] email_queue insert failed", qErr);
+    } catch (e) {
+      console.error("[interview-submit] email_queue insert threw", e);
+    }
 
-    await supabase.from("applicant_emails").insert({
-      applicant_id: applicant.id,
-      email_type: "interview_completed_admin",
-      to_email: ADMIN_EMAIL,
-      subject: `Entrevue IA terminée — ${applicant.first_name} ${applicant.last_name} (${aiScore}/100)`,
-    });
+    // Audit row — column is `sent_to` (NOT NULL), not `to_email`. Never block submission.
+    try {
+      const { error: aeErr } = await supabase.from("applicant_emails").insert({
+        applicant_id: applicant.id,
+        email_type: "interview_completed_admin",
+        sent_to: ADMIN_EMAIL,
+        subject: `Entrevue IA terminée — ${applicant.first_name} ${applicant.last_name} (${aiScore}/100)`,
+      });
+      if (aeErr) console.error("[interview-submit] applicant_emails insert failed", aeErr);
+    } catch (e) {
+      console.error("[interview-submit] applicant_emails insert threw", e);
+    }
 
     return new Response(JSON.stringify({
       success: true,
