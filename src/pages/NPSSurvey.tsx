@@ -30,12 +30,13 @@ export default function NPSSurvey() {
   const submit = async () => {
     if (score === null) return;
     setLoading(true);
-    const { error } = await supabase
-      .from("nps_surveys")
-      .update({ score, comment: comment || null, responded_at: new Date().toISOString() })
-      .eq("public_token", token!);
+    setError(null);
+    const { data, error } = await supabase.functions.invoke("submit-nps-survey", {
+      body: { token, score, comment: comment || null },
+    });
     setLoading(false);
-    if (error) setError(error.message);
+    const errKey = (data as { error?: string } | null)?.error;
+    if (error || errKey) setError(errKey || error?.message || "Erreur");
     else setSubmitted(true);
   };
 
