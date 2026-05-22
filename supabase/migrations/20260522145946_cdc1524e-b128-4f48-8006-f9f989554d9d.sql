@@ -1,0 +1,1 @@
+DELETE FROM job_applications WHERE message='TEST_LOT6';
