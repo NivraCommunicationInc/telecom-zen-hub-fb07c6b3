@@ -339,7 +339,16 @@ const CoreReferralRewardsPage = () => {
     {
       key: "qualifying_cycles_paid",
       label: "Cycles",
-      render: (r) => cycleProgress(r.qualifying_cycles_paid || 0, r.required_cycles || 3),
+      render: (r) => cycleProgress(r.qualifying_cycles_paid || 0, r.required_cycles || 2),
+    },
+    {
+      key: "payment_method",
+      label: "Payout",
+      render: (r) => (
+        <span className="text-xs text-muted-foreground">
+          {r.payment_method ? PAYMENT_METHOD_LABELS[r.payment_method] || r.payment_method : "—"}
+        </span>
+      ),
     },
     {
       key: "reward_status",
@@ -355,8 +364,9 @@ const CoreReferralRewardsPage = () => {
     {
       key: "reward_amount",
       label: "Amount",
-      render: (r) => <span className="text-sm text-foreground">{r.reward_amount ? `$${r.reward_amount}` : "$25"}</span>,
+      render: (r) => <span className="text-sm text-foreground">{r.reward_amount ? `$${r.reward_amount}` : "$250"}</span>,
     },
+
     {
       key: "actions",
       label: "Actions",
