@@ -1,3 +1,4 @@
+// Redeployed: 2026-05-22-NOVA-FIX
 // NOVA Email Handler — autonomously responds to support tickets. Cron every 5 min.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -57,7 +58,7 @@ Retourne UNIQUEMENT un JSON:
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
           body: JSON.stringify({
-            model: "claude-3-5-sonnet-20241022",
+            model: "claude-3-haiku-20240307",
             max_tokens: 1024,
             messages: [{ role: "user", content: prompt }],
           }),

@@ -1,3 +1,4 @@
+// Redeployed: 2026-05-22-NOVA-FIX
 // NOVA Memory Update — extract insights from conversations and persist them.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -78,7 +79,7 @@ Règles:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-3-haiku-20240307",
         max_tokens: 2048,
         messages: [{ role: "user", content: extractionPrompt }],
       }),

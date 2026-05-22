@@ -1,3 +1,4 @@
+// Redeployed: 2026-05-22-NOVA-FIX
 // NOVA Brain — streaming Anthropic Claude with reasoning layer + Oldo digital clone.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
