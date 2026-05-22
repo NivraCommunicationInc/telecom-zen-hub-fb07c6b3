@@ -127,27 +127,22 @@ Format action (ajoute à la fin si action requise):
 4. Actions financières/irréversibles → requires_approval: true
 5. Direct, professionnel, orienté croissance — pas de flatterie`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+    let anthropicStream: ReadableStream<Uint8Array>;
+    try {
+      const stream = client.messages.stream({
         model: "claude-3-haiku-20240307",
         max_tokens: 4096,
-        stream: true,
         system: systemPrompt,
         messages,
-      }),
-    });
-
-    if (!response.ok || !response.body) {
-      const txt = await response.text();
-      return new Response(JSON.stringify({ error: "anthropic_error", status: response.status, detail: txt }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+      anthropicStream = stream.toReadableStream();
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ error: "anthropic_error", detail: err instanceof Error ? err.message : String(err) }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Log reasoning chain (best-effort, fire and forget)
@@ -160,8 +155,46 @@ Format action (ajoute à la fin si action requise):
       confidence: confidenceScore,
     }).then(() => {}, () => {});
 
-    // Forward stream with confidence in header
-    return new Response(response.body, {
+    // Convert SDK's JSON-object stream into SSE format expected by the frontend
+    const encoder = new TextEncoder();
+    const sseStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const reader = anthropicStream.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let idx: number;
+            while ((idx = buffer.indexOf("\n")) !== -1) {
+              const line = buffer.slice(0, idx).trim();
+              buffer = buffer.slice(idx + 1);
+              if (!line) continue;
+              try {
+                const evt = JSON.parse(line);
+                controller.enqueue(encoder.encode(`event: ${evt.type}\ndata: ${JSON.stringify(evt)}\n\n`));
+              } catch {
+                controller.enqueue(encoder.encode(`data: ${line}\n\n`));
+              }
+            }
+          }
+          if (buffer.trim()) {
+            try {
+              const evt = JSON.parse(buffer.trim());
+              controller.enqueue(encoder.encode(`event: ${evt.type}\ndata: ${JSON.stringify(evt)}\n\n`));
+            } catch { /* ignore */ }
+          }
+        } catch (e) {
+          controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: e instanceof Error ? e.message : "stream_error" })}\n\n`));
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(sseStream, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
