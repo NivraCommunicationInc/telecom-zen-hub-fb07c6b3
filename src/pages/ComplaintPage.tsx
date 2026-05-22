@@ -117,24 +117,25 @@ export default function ComplaintPage() {
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
 
-      const { data: complaint, error: insErr } = await supabase
-        .from("complaints")
-        .insert({
-          submitted_by_name: fullName,
-          submitted_by_email: email.trim(),
-          submitted_by_phone: phone.trim() || null,
-          category,
-          subject: subject.trim(),
-          description: description.trim(),
-          priority: "normal",
-          status: "new",
-        } as any)
-        .select("id, ticket_number, public_token")
-        .single();
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc(
+        "submit_public_complaint" as any,
+        {
+          p_name: fullName,
+          p_email: email.trim(),
+          p_phone: phone.trim() || null,
+          p_category: category,
+          p_subject: subject.trim(),
+          p_description: description.trim(),
+        }
+      );
 
-      if (insErr || !complaint) {
-        throw insErr || new Error("Échec de création de la plainte.");
+      if (rpcErr) throw rpcErr;
+      const res = rpcRes as { ok: boolean; error?: string; id?: string; ticket_number?: string; public_token?: string };
+      if (!res?.ok || !res.id) {
+        throw new Error(res?.error || "Échec de création de la plainte.");
       }
+      const complaint = { id: res.id, ticket_number: res.ticket_number!, public_token: res.public_token! };
+
 
       if (files.length > 0) {
         for (const f of files) {

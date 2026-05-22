@@ -1,0 +1,1 @@
+DELETE FROM public.complaints WHERE submitted_by_email='audit-rpc@test.invalid';
