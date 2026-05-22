@@ -23,12 +23,12 @@ import { toast } from "sonner";
 
 /* ── Status mappings ── */
 const REFERRAL_STATUS_LABELS: Record<string, string> = {
+  pending: "Code Used",
   code_used: "Code Used",
   order_created: "Order Created",
   service_activated: "Service Activated",
-  cycle_1_paid: "Billing Cycle 1/3",
-  cycle_2_paid: "Billing Cycle 2/3",
-  cycle_3_paid: "Billing Cycle 3/3",
+  cycle_1_paid: "Billing Cycle 1/2",
+  cycle_2_paid: "Billing Cycle 2/2",
   qualified: "Qualified",
   reward_pending: "Reward Pending",
   reward_issued: "Reward Issued",
@@ -36,6 +36,12 @@ const REFERRAL_STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
   disqualified: "Disqualified",
   fraud_review: "Fraud Review",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  paypal: "PayPal",
+  interac: "Interac",
+  gift_card: "Gift Card",
 };
 
 const REWARD_STATUS_LABELS: Record<string, string> = {
@@ -47,9 +53,10 @@ const REWARD_STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+
 function referralStatusVariant(status: string): StatusVariant {
   if (["qualified", "reward_issued", "reward_sent"].includes(status)) return "success";
-  if (["cycle_1_paid", "cycle_2_paid", "cycle_3_paid", "reward_pending", "order_created", "service_activated"].includes(status)) return "warning";
+  if (["cycle_1_paid", "cycle_2_paid", "reward_pending", "order_created", "service_activated"].includes(status)) return "warning";
   if (["fraud_review"].includes(status)) return "danger";
   if (["cancelled", "disqualified"].includes(status)) return "danger";
   if (["code_used"].includes(status)) return "info";
@@ -173,7 +180,7 @@ const CoreReferralRewardsPage = () => {
       updates: {
         reward_status: "reward_issued",
         reward_issued_at: new Date().toISOString(),
-        reward_amount: referral.reward_amount || 25,
+        reward_amount: referral.reward_amount || 250,
         reward_type: "visa_mastercard_gift_card",
         status: "reward_issued",
       },
@@ -332,7 +339,16 @@ const CoreReferralRewardsPage = () => {
     {
       key: "qualifying_cycles_paid",
       label: "Cycles",
-      render: (r) => cycleProgress(r.qualifying_cycles_paid || 0, r.required_cycles || 3),
+      render: (r) => cycleProgress(r.qualifying_cycles_paid || 0, r.required_cycles || 2),
+    },
+    {
+      key: "payment_method",
+      label: "Payout",
+      render: (r) => (
+        <span className="text-xs text-muted-foreground">
+          {r.payment_method ? PAYMENT_METHOD_LABELS[r.payment_method] || r.payment_method : "—"}
+        </span>
+      ),
     },
     {
       key: "reward_status",
@@ -348,8 +364,9 @@ const CoreReferralRewardsPage = () => {
     {
       key: "reward_amount",
       label: "Amount",
-      render: (r) => <span className="text-sm text-foreground">{r.reward_amount ? `$${r.reward_amount}` : "$25"}</span>,
+      render: (r) => <span className="text-sm text-foreground">{r.reward_amount ? `$${r.reward_amount}` : "$250"}</span>,
     },
+
     {
       key: "actions",
       label: "Actions",
@@ -380,7 +397,7 @@ const CoreReferralRewardsPage = () => {
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">Referral Management</h1>
-        <p className="text-sm text-muted-foreground">Full referral lifecycle, reward issuance & fraud monitoring — $25 Visa/MC gift cards</p>
+        <p className="text-sm text-muted-foreground">Full referral lifecycle, reward issuance & fraud monitoring — 25 $/mo × 10 months (250 $ total) — PayPal / Interac / Gift Card</p>
       </div>
 
       {/* KPI Cards */}
@@ -536,8 +553,10 @@ const CoreReferralRewardsPage = () => {
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Reward Management</h3>
                   <div className="rounded-md bg-secondary/50 p-3 space-y-1.5 text-sm">
                     <DetailRow label="Reward Status" value={REWARD_STATUS_LABELS[selectedReferral.reward_status] || selectedReferral.reward_status} />
-                    <DetailRow label="Amount" value={`$${selectedReferral.reward_amount || 25}`} />
-                    <DetailRow label="Type" value={selectedReferral.reward_type || "Visa/MC Gift Card"} />
+                    <DetailRow label="Amount" value={`$${selectedReferral.reward_amount || 250}`} />
+                    <DetailRow label="Payout" value={PAYMENT_METHOD_LABELS[selectedReferral.payment_method] || selectedReferral.payment_method || "PayPal"} />
+                    <DetailRow label="Type" value={selectedReferral.reward_type || "Referral credit"} />
+
                     {selectedReferral.reward_issued_at && (
                       <DetailRow label="Issued At" value={new Date(selectedReferral.reward_issued_at).toLocaleString("fr-CA")} />
                     )}

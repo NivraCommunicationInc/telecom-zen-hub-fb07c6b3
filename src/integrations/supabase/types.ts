@@ -25680,10 +25680,19 @@ export type Database = {
         }
         Returns: Json
       }
-      apply_referral_discount: {
-        Args: { p_account_id: string; p_invoice_amount: number }
-        Returns: number
-      }
+      apply_referral_discount:
+        | {
+            Args: { p_account_id: string; p_invoice_amount: number }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_account_id: string
+              p_invoice_amount: number
+              p_invoice_id?: string
+            }
+            Returns: number
+          }
       approve_kyc_session: {
         Args: { p_decision: string; p_note?: string; p_session_id: string }
         Returns: Json
