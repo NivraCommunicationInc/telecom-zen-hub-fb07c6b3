@@ -26751,6 +26751,17 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_public_complaint: {
+        Args: {
+          p_category: string
+          p_description: string
+          p_email: string
+          p_name: string
+          p_phone: string
+          p_subject: string
+        }
+        Returns: Json
+      }
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
