@@ -164,12 +164,19 @@ async function ingestWorkItems(supabase: any) {
   if (ticketRule) {
     const { data: tickets } = await supabase
       .from("support_tickets")
-      .select("id, ticket_number, status, priority, created_at, assigned_to_id, assigned_to_name, user_id")
+      .select("id, ticket_number, status, priority, created_at, assigned_to_user_id, user_id")
       .in("status", ["open", "in_progress"])
       .limit(100);
 
     if (tickets?.length) {
-      for (const t of tickets) {
+      // Resolve assignee names from profiles in one batch
+      const assigneeIds = Array.from(new Set((tickets as any[]).map(t => t.assigned_to_user_id).filter(Boolean)));
+      const nameMap: Record<string, string> = {};
+      if (assigneeIds.length) {
+        const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", assigneeIds);
+        (profs as any[] | null)?.forEach(p => { if (p?.id) nameMap[p.id] = p.full_name || ""; });
+      }
+      for (const t of tickets as any[]) {
         const slaDeadline = new Date(new Date(t.created_at).getTime() + ticketRule.sla_hours * 3600000);
         const { error } = await supabase.from("employee_work_items").upsert({
           item_type: "ticket",
@@ -177,8 +184,8 @@ async function ingestWorkItems(supabase: any) {
           source_reference: t.ticket_number || t.id.slice(0, 8),
           client_id: t.user_id,
           team: ticketRule.team,
-          assigned_to_id: t.assigned_to_id,
-          assigned_to_name: t.assigned_to_name,
+          assigned_to_id: t.assigned_to_user_id,
+          assigned_to_name: t.assigned_to_user_id ? (nameMap[t.assigned_to_user_id] || null) : null,
           priority: t.priority === "urgent" || t.priority === "high" ? "urgent" : "normal",
           sla_deadline_at: slaDeadline.toISOString(),
           updated_at: new Date().toISOString(),
