@@ -553,8 +553,10 @@ const CoreReferralRewardsPage = () => {
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Reward Management</h3>
                   <div className="rounded-md bg-secondary/50 p-3 space-y-1.5 text-sm">
                     <DetailRow label="Reward Status" value={REWARD_STATUS_LABELS[selectedReferral.reward_status] || selectedReferral.reward_status} />
-                    <DetailRow label="Amount" value={`$${selectedReferral.reward_amount || 25}`} />
-                    <DetailRow label="Type" value={selectedReferral.reward_type || "Visa/MC Gift Card"} />
+                    <DetailRow label="Amount" value={`$${selectedReferral.reward_amount || 250}`} />
+                    <DetailRow label="Payout" value={PAYMENT_METHOD_LABELS[selectedReferral.payment_method] || selectedReferral.payment_method || "PayPal"} />
+                    <DetailRow label="Type" value={selectedReferral.reward_type || "Referral credit"} />
+
                     {selectedReferral.reward_issued_at && (
                       <DetailRow label="Issued At" value={new Date(selectedReferral.reward_issued_at).toLocaleString("fr-CA")} />
                     )}
