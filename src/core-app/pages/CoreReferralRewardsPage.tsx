@@ -23,12 +23,12 @@ import { toast } from "sonner";
 
 /* ── Status mappings ── */
 const REFERRAL_STATUS_LABELS: Record<string, string> = {
+  pending: "Code Used",
   code_used: "Code Used",
   order_created: "Order Created",
   service_activated: "Service Activated",
-  cycle_1_paid: "Billing Cycle 1/3",
-  cycle_2_paid: "Billing Cycle 2/3",
-  cycle_3_paid: "Billing Cycle 3/3",
+  cycle_1_paid: "Billing Cycle 1/2",
+  cycle_2_paid: "Billing Cycle 2/2",
   qualified: "Qualified",
   reward_pending: "Reward Pending",
   reward_issued: "Reward Issued",
@@ -36,6 +36,12 @@ const REFERRAL_STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
   disqualified: "Disqualified",
   fraud_review: "Fraud Review",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  paypal: "PayPal",
+  interac: "Interac",
+  gift_card: "Gift Card",
 };
 
 const REWARD_STATUS_LABELS: Record<string, string> = {
@@ -46,6 +52,7 @@ const REWARD_STATUS_LABELS: Record<string, string> = {
   reward_issued: "Issued",
   cancelled: "Cancelled",
 };
+
 
 function referralStatusVariant(status: string): StatusVariant {
   if (["qualified", "reward_issued", "reward_sent"].includes(status)) return "success";
