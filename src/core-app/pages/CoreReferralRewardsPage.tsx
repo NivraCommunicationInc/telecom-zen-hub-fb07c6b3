@@ -56,7 +56,7 @@ const REWARD_STATUS_LABELS: Record<string, string> = {
 
 function referralStatusVariant(status: string): StatusVariant {
   if (["qualified", "reward_issued", "reward_sent"].includes(status)) return "success";
-  if (["cycle_1_paid", "cycle_2_paid", "cycle_3_paid", "reward_pending", "order_created", "service_activated"].includes(status)) return "warning";
+  if (["cycle_1_paid", "cycle_2_paid", "reward_pending", "order_created", "service_activated"].includes(status)) return "warning";
   if (["fraud_review"].includes(status)) return "danger";
   if (["cancelled", "disqualified"].includes(status)) return "danger";
   if (["code_used"].includes(status)) return "info";
