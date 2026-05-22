@@ -2,7 +2,7 @@
 // NOVA Brain — streaming Anthropic Claude via official SDK with reasoning layer + Oldo digital clone.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "npm:@anthropic-ai/sdk@0.32.1";
+
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -127,17 +127,33 @@ Format action (ajoute à la fin si action requise):
 4. Actions financières/irréversibles → requires_approval: true
 5. Direct, professionnel, orienté croissance — pas de flatterie`;
 
-    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-
-    let response;
+    let response: any;
     try {
-      response = await client.messages.create({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages,
+      const apiResp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages,
+        }),
       });
+      const bodyText = await apiResp.text();
+      if (!apiResp.ok) {
+        console.error("[nova-brain] anthropic", apiResp.status, bodyText);
+        return new Response(
+          JSON.stringify({ error: "anthropic_error", status: apiResp.status, detail: bodyText }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      response = JSON.parse(bodyText);
     } catch (err) {
+      console.error("[nova-brain] fetch error", err);
       return new Response(
         JSON.stringify({ error: "anthropic_error", detail: err instanceof Error ? err.message : String(err) }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
