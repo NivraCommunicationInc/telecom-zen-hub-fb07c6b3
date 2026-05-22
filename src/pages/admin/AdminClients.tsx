@@ -703,7 +703,7 @@ const AdminClients = () => {
           actionType: "subscription_change",
           entityType: "subscription",
           entityId: id,
-          summary: `Abonnement ${status === 'active' ? 'activé' : status === 'paused' ? 'suspendu' : 'modifié'}. ${reason}`,
+          summary: `Abonnement ${status === 'active' ? 'activé' : status === 'suspended' ? 'suspendu' : 'modifié'}. ${reason}`,
           afterData: { status },
         });
       }
@@ -713,7 +713,7 @@ const AdminClients = () => {
         newValue: status,
         reason: reason
       });
-      toast({ title: `Service ${status === 'active' ? 'activé' : status === 'paused' ? 'suspendu' : 'modifié'}` });
+      toast({ title: `Service ${status === 'active' ? 'activé' : status === 'suspended' ? 'suspendu' : 'modifié'}` });
     },
     onError: () => {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
@@ -1584,7 +1584,7 @@ const AdminClients = () => {
                                         </Badge>
                                       )}
                                       <Badge className={statusColors[sub.status] || statusColors.active}>
-                                        {sub.status === "active" ? "Actif" : sub.status === "paused" ? "Suspendu" : "Inactif"}
+                                        {sub.status === "active" ? "Actif" : sub.status === "suspended" ? "Suspendu" : "Inactif"}
                                       </Badge>
                                     </div>
                                   </div>
@@ -1593,7 +1593,7 @@ const AdminClients = () => {
                                       <Button size="sm" variant="outline" className="text-amber-500" onClick={() => {
                                         const reason = prompt("Raison de la suspension:");
                                         if (reason) {
-                                          updateSubscriptionMutation.mutate({ id: sub.id, status: 'paused', reason });
+                                          updateSubscriptionMutation.mutate({ id: sub.id, status: 'suspended', reason });
                                         }
                                       }}>
                                         <Pause className="w-4 h-4 mr-1" /> Suspendre

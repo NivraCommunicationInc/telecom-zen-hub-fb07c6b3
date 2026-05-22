@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
   const { data: runRow } = await supabase
     .from("agent_runs")
     .insert({ agent_name: AGENT, status: "running", started_at: startedAt.toISOString() })
-    .select("id").single();
+    .select("id").maybeSingle();
   const runId = (runRow as { id: string } | null)?.id ?? null;
 
   await logEvent(supabase, "info", "Scan assignation des ventes démarré");
@@ -157,14 +157,14 @@ Deno.serve(async (req) => {
       await supabase.from("email_queue").insert({
         to_email: email,
         template_key: "sale_assigned_notification",
-        variables: {
+        template_vars: {
           agent_name: (agent as any)?.full_name ?? "agent",
           customer_name: o.customer_name ?? "",
           plan_name: planName,
           commission_amount: amount,
           order_reference: o.local_id ?? o.id,
         },
-        status: "pending",
+        status: "queued",
       });
       await logEvent(supabase, "email_sent", `Notification de vente envoyée à ${email}`, { order_id: o.id });
     }

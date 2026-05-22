@@ -4,13 +4,15 @@
  */
 import {
   corsHeaders, makeClient, logEvent, logAudit, updateRegistry,
-  queueEmail, callGeminiJSON, jsonResponse,
+  queueEmail, callGeminiJSON, jsonResponse, requireServiceAuth,
 } from "../_shared/agentHelpers.ts";
 
 const AGENT = "followup";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const unauth = requireServiceAuth(req);
+  if (unauth) return unauth;
   const t0 = Date.now();
   const supabase = makeClient();
   try {

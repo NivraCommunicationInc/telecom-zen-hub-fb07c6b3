@@ -40,7 +40,7 @@ async function calcRisk(supabase: any, account: any, sub: any): Promise<{ score:
   factors.plan_value = amount >= 100 ? 0 : amount >= 60 ? 5 : 10;
 
   // Engagement (30 pts) — simplified to cancellation requests / pause
-  if (account.status === "paused") factors.engagement = 20;
+  if (account.status === "suspended") factors.engagement = 20;
   else factors.engagement = 0;
 
   const score = Math.min(100, Object.values(factors).reduce((a, b) => a + b, 0));

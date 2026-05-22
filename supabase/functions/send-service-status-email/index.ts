@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         case "active": case "resumed":
           smsMessage = SMS_TEMPLATES.serviceActivated({ clientName: client_first_name || "Client", serviceName: service_name });
           break;
-        case "paused": case "cancelled":
+        case "suspended": case "cancelled":
           smsMessage = SMS_TEMPLATES.serviceSuspended({ clientName: client_first_name || "Client", serviceName: service_name });
           break;
       }

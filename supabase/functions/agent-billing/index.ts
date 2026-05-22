@@ -44,6 +44,11 @@ async function logAudit(supabase: any, action: string, result: string, details: 
   });
 }
 
+function expectedTolerance(mrr: number): number {
+  // Allow ±15% tolerance vs expected MRR.
+  return Math.max(50, mrr * 0.15);
+}
+
 async function queueIfNotSent(
   supabase: any, templateKey: string, accountId: string, toEmail: string, vars: Record<string, unknown>, subject: string, withinDays: number,
 ) {
@@ -275,8 +280,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
-function expectedTolerance(mrr: number): number {
-  // Allow ±15% tolerance vs expected MRR.
-  return Math.max(50, mrr * 0.15);
-}

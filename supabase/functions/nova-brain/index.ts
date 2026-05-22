@@ -16,9 +16,10 @@ serve(async (req) => {
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
+      console.error("[nova-brain] ANTHROPIC_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not set" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "configuration_error", detail: "NOVA n'est pas configuré. Contactez l'administrateur." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -96,10 +97,9 @@ RÈGLES:
     return new Response(
       JSON.stringify({
         error: "nova_error",
-        detail: error?.message ?? String(error),
-        stack: error?.stack,
+        detail: error?.message ?? "Une erreur est survenue.",
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

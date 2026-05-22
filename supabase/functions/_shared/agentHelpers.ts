@@ -177,3 +177,25 @@ export function jsonResponse(body: unknown, status = 200): Response {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+/**
+ * Verifies the request bears the Supabase service role key (or a configured
+ * AGENT_SECRET) in the Authorization header. Use this on agent functions that
+ * are only invoked by pg_cron / supervisor / other server-side callers so that
+ * an anonymous public POST cannot trigger them (e.g. spam email blasts).
+ *
+ * Returns null when authorized, otherwise a 401 Response that the caller
+ * should return immediately.
+ */
+export function requireServiceAuth(req: Request): Response | null {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const expected = `Bearer ${SERVICE_KEY}`;
+  const agentSecret = Deno.env.get("AGENT_SECRET");
+  const agentExpected = agentSecret ? `Bearer ${agentSecret}` : null;
+  if (authHeader === expected) return null;
+  if (agentExpected && authHeader === agentExpected) return null;
+  return new Response(
+    JSON.stringify({ error: "unauthorized" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}

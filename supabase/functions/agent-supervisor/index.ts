@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     .from("agent_runs")
     .insert({ agent_name: AGENT, status: "running", started_at: startedAt.toISOString() })
     .select("id")
-    .single();
+    .maybeSingle();
   const runId = (runRow as { id: string } | null)?.id ?? null;
 
   await logEvent(supabase, AGENT, "info", "Supervisor scan démarré");
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
 
     let newHealth = 100 - (a.consecutive_failures ?? 0) * 20 - (err24 ?? 0) * 2 + (succ24 ?? 0) * 1;
     if (isLate) newHealth -= 15;
-    if (a.status === "paused") newHealth = Math.max(newHealth, 0);
+    if (a.status === "suspended") newHealth = Math.max(newHealth, 0);
     newHealth = Math.max(0, Math.min(100, newHealth));
 
     await supabase.from("agent_registry").update({ health_score: newHealth }).eq("agent_name", a.agent_name);
@@ -201,14 +201,14 @@ Deno.serve(async (req) => {
     await supabase.from("email_queue").insert({
       to_email: ALERT_EMAIL,
       template_key: "agent_supervisor_alert",
-      variables: {
+      template_vars: {
         global_health: globalHealth,
         active_count: activeCount,
         error_count: errorCount,
         failing_agents: failing,
         gemini_summary: geminiSummary,
       },
-      status: "pending",
+      status: "queued",
     });
     await logEvent(supabase, AGENT, "email_sent", `Alerte superviseur envoyée à ${ALERT_EMAIL}`);
   }

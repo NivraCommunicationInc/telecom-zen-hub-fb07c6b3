@@ -92,7 +92,6 @@ export function AdminSecretCodeDialog({
       setRequestId(data.request_id || null);
 
       if (data.ok && data.session_token) {
-        console.log("[AdminSecretCode] Verification successful");
         // CRITICAL: Mark success BEFORE calling onSuccess to prevent onCancel from firing
         verificationSucceededRef.current = true;
         onSuccess(data.session_token, data.session_expires_at!, data.using_default_code || false);
@@ -127,7 +126,6 @@ export function AdminSecretCodeDialog({
 
   const handleExplicitCancel = async () => {
     // Only sign out when the user explicitly clicks "Annuler"
-    console.log("[AdminSecretCode] User explicitly cancelled - signing out");
     try {
       await supabase.auth.signOut();
     } catch {
@@ -141,13 +139,11 @@ export function AdminSecretCodeDialog({
       // Dialog is closing
       if (verificationSucceededRef.current) {
         // SUCCESS PATH: Don't call onCancel, just let it close
-        console.log("[AdminSecretCode] Dialog closing after success - NOT calling onCancel");
         onOpenChange(false);
         return;
       }
       // CANCEL PATH: User closed without success (e.g., clicked outside, pressed Escape)
       // But we've disabled pointer-down-outside, so this is only Escape key
-      console.log("[AdminSecretCode] Dialog closing without success - calling onCancel");
       onCancel();
     }
     onOpenChange(isOpen);

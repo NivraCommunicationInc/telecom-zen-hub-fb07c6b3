@@ -177,8 +177,21 @@ async function runQueue(supabase: any) {
   return { processed: results.length, results };
 }
 
+function isAuthorized(req: Request): boolean {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader === `Bearer ${SERVICE_KEY}`) return true;
+  const agentSecret = Deno.env.get("AGENT_SECRET");
+  if (agentSecret && authHeader === `Bearer ${agentSecret}`) return true;
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (!isAuthorized(req)) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   const startedAt = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   try {

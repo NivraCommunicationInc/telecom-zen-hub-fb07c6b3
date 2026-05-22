@@ -154,11 +154,6 @@ export const QRVerificationStep = ({
       const hasSession = !!session;
       const tokenLength = accessToken.length;
 
-      console.log("[QR][TOKEN_STATE]", {
-        hasSession,
-        tokenLength,
-      });
-
       setDebugState((prev) => ({
         ...prev,
         requestUrl,
@@ -197,16 +192,6 @@ export const QRVerificationStep = ({
       if (options?.debugBypass) {
         headers["X-NIVRA-DEBUG"] = "1";
       }
-
-      console.log("[QR][REQUEST]", {
-        request_url: requestUrl,
-        method: "POST",
-        has_authorization: true,
-        has_debug_header: options?.debugBypass === true,
-        hasSession,
-        tokenLength,
-        payload,
-      });
 
       const response = await fetch(requestUrl, {
         method: "POST",
@@ -247,13 +232,6 @@ export const QRVerificationStep = ({
         checkoutMode,
       }));
 
-      console.log("[QR][RESPONSE]", {
-        request_url: requestUrl,
-        http_status: response.status,
-        request_id_header: requestIdHeader,
-        response_body: responseBody,
-      });
-
       if (!response.ok) {
         const typedBody = responseBody as Record<string, unknown> | string | null;
         const serverMessage =
@@ -291,7 +269,6 @@ export const QRVerificationStep = ({
             color: { dark: "#000000", light: "#FFFFFF" },
             errorCorrectionLevel: "H",
           });
-          console.log("[QR] Client-side QR generated successfully");
         } catch (qrErr) {
           console.error("[QR] Client-side QR fallback failed:", qrErr);
         }
@@ -308,14 +285,6 @@ export const QRVerificationStep = ({
       setRegenCount(data.qr_regeneration_count || 0);
       setMaxRegen(data.max_regen_allowed || 3);
 
-      console.log("[QR] ✅ Session created successfully", {
-        request_id: data.request_id || responseRequestId,
-        session_id: data.session_id,
-        expires_at: data.expires_at,
-        has_qr_png: !!(data.qr_png || data.qr_data_url),
-        regen_count: `${data.qr_regeneration_count || 0}/${data.max_regen_allowed || 3}`,
-        regenerated_from: regenerateSessionId || "none",
-      });
     } catch (err: any) {
       const debugRequestId = err?.requestId || err?.requestIdHeader || err?.responseBody?.request_id || null;
       const debugPreview = toPreview(err?.responseBody || err?.message || "Unknown error");
@@ -426,7 +395,6 @@ export const QRVerificationStep = ({
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     const oldSessionId = sessionId;
-    console.log(`[QR] Regenerating. Old session=${oldSessionId} will be expired, new session will be created.`);
     generateQR(oldSessionId || undefined);
   };
 
@@ -502,13 +470,6 @@ export const QRVerificationStep = ({
         responseBodyPreview: toPreview(responseBody),
         requestId: responseRequestId,
         timestamp: new Date().toISOString(),
-      });
-
-      console.log("[QR][THROTTLE_RESET]", {
-        request_url: usedUrl,
-        http_status: response.status,
-        request_id: responseRequestId,
-        response_body: responseBody,
       });
 
       if (!response.ok) {
