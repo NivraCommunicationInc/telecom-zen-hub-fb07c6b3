@@ -223,7 +223,7 @@ export default function CorePauseRequestsPage() {
         const { error } = await supabase
           .from("billing_subscriptions")
           .update({
-            status: "paused",
+            status: "suspended",
             paused_at: now.toISOString(),
             pause_until: pauseUntil.toISOString(),
             pause_reason: r.reason,
