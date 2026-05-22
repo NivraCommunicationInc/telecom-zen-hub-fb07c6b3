@@ -4270,6 +4270,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           cardRows: [
             ["Temps requis", "Moins de 2 minutes"],
             ["Votre avis est", "Confidentiel"],
+            ["Avis Google", "Visible publiquement"],
           ],
           ctaPrimaryUrl: reviewUrl,
           ctaPrimaryLabel: "Laisser mon avis",
