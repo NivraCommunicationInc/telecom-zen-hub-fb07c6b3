@@ -502,7 +502,11 @@ export default function FieldDashboard() {
         </button>
       </div>
 
+      {/* Pointage — punch-in / punch-out for the day */}
+      <FieldPunchCard />
+
       {/* KPI ROW 0 — Field commissions snapshot (field_commissions) */}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <KpiCard label="Ventes ce mois" value={`${fieldComm?.sales_count ?? 0}`} hint="Commissions générées" icon={ShoppingCart} accent="purple" />
         <KpiCard label="Commission ce mois" value={`${(fieldComm?.month_total ?? 0).toFixed(2)} $`} hint="Total gagné" icon={DollarSign} accent="success" />
