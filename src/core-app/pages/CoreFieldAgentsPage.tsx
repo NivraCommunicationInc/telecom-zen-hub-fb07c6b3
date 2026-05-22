@@ -250,6 +250,8 @@ export default function CoreFieldAgentsPage() {
         const p = pm.get(r.user_id) as any;
         const c = cm.get(r.user_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
         return { user_id: r.user_id, full_name: p?.full_name, email: p?.email, phone: p?.phone, is_active: r.is_active !== false, created_at: r.created_at, total_sales: sm.get(r.user_id) || 0, total_commission: c.total, pending_commission: c.pending, approved_commission: c.approved, paid_commission: c.paid };
+      });
+    },
   });
 
   const { data: tracking = new Map<string, AgentTracking>() } = useQuery({
@@ -269,9 +271,6 @@ export default function CoreFieldAgentsPage() {
         });
       }
       return m;
-    },
-  });
-
     },
   });
 
