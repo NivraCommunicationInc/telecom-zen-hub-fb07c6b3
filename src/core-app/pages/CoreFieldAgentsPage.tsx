@@ -53,6 +53,12 @@ interface AgentRow {
   paid_commission: number;
 }
 
+interface AgentTracking {
+  last_sign_in_at: string | null;
+  email_confirmed_at: string | null;
+  mfa_enrolled: boolean;
+}
+
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending: { label: "En attente", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800" },
   pending_activation: { label: "Att. activation", cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800" },
@@ -245,6 +251,26 @@ export default function CoreFieldAgentsPage() {
         const c = cm.get(r.user_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
         return { user_id: r.user_id, full_name: p?.full_name, email: p?.email, phone: p?.phone, is_active: r.is_active !== false, created_at: r.created_at, total_sales: sm.get(r.user_id) || 0, total_commission: c.total, pending_commission: c.pending, approved_commission: c.approved, paid_commission: c.paid };
       });
+    },
+  });
+
+  const { data: tracking = new Map<string, AgentTracking>() } = useQuery({
+    queryKey: ["core-field", "agents-tracking", agents.map(a => a.user_id).join(",")],
+    enabled: agents.length > 0,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const ids = agents.map(a => a.user_id);
+      const { data, error } = await supabase.rpc("core_get_agent_tracking" as any, { _user_ids: ids });
+      if (error || !data) return new Map<string, AgentTracking>();
+      const m = new Map<string, AgentTracking>();
+      for (const r of data as any[]) {
+        m.set(r.user_id, {
+          last_sign_in_at: r.last_sign_in_at,
+          email_confirmed_at: r.email_confirmed_at,
+          mfa_enrolled: !!r.mfa_enrolled,
+        });
+      }
+      return m;
     },
   });
 
@@ -1317,18 +1343,51 @@ export default function CoreFieldAgentsPage() {
             <Button size="sm" onClick={() => { setRepForm(initialRepForm); setCreateRepDialog(true); }}><Plus className="h-3.5 w-3.5 mr-1" /> Créer vendeur</Button>
           </div>
           {loadingAgents ? <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" /> : filtered.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun vendeur</p> : (
-            <div className="space-y-2">{filtered.map((a) => (
+            <div className="space-y-2">{filtered.map((a) => {
+              const t = tracking.get(a.user_id);
+              const lastSignIn = t?.last_sign_in_at ? new Date(t.last_sign_in_at) : null;
+              const minutesSince = lastSignIn ? (Date.now() - lastSignIn.getTime()) / 60000 : Infinity;
+              const online = minutesSince < 5;
+              const recent = !online && minutesSince < 60;
+              const neverSignedIn = !lastSignIn;
+              const emailConfirmed = !!t?.email_confirmed_at;
+              const mfa = !!t?.mfa_enrolled;
+              return (
               <div key={a.user_id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/30">
                 <div className="flex items-center gap-3 cursor-pointer min-w-0" onClick={() => setSelectedAgent(a)}>
-                  <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0", a.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300")}>{(a.full_name || "?")[0]?.toUpperCase()}</div>
-                  <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">{a.full_name || "Sans nom"} <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border ml-1", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Suspendu"}</span></p><p className="text-xs text-muted-foreground truncate">{a.email} · {a.total_sales} ventes · {fmtMoney(a.total_commission)}</p></div>
+                  <div className="relative shrink-0">
+                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold", a.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300")}>{(a.full_name || "?")[0]?.toUpperCase()}</div>
+                    <span
+                      title={online ? "En ligne" : recent ? "Actif récemment" : neverSignedIn ? "Jamais connecté" : "Hors ligne"}
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card",
+                        online ? "bg-emerald-500" : recent ? "bg-amber-500" : neverSignedIn ? "bg-muted-foreground/40" : "bg-gray-400"
+                      )}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1.5 flex-wrap">
+                      {a.full_name || "Sans nom"}
+                      <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Suspendu"}</span>
+                      <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border inline-flex items-center gap-0.5", mfa ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800")} title={mfa ? "2FA activé" : "2FA non configuré"}>
+                        <Shield className="h-2.5 w-2.5" />{mfa ? "2FA" : "Pas 2FA"}
+                      </span>
+                      {!emailConfirmed && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800" title="Email non vérifié">Email ✗</span>}
+                      {neverSignedIn && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-muted text-muted-foreground border-border">Jamais connecté</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {a.email} · {a.total_sales} ventes · {fmtMoney(a.total_commission)}
+                      {lastSignIn && <> · Vu {formatDistanceToNow(lastSignIn, { addSuffix: true, locale: fr })}</>}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <Button size="icon" variant="ghost" onClick={() => setSelectedAgent(a)}><Eye className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => { setEditAgent(a); setEditForm({ full_name: a.full_name || "", email: a.email || "", phone: a.phone || "" }); }}><Edit3 className="h-4 w-4" /></Button>
                 </div>
               </div>
-            ))}</div>
+              );
+            })}</div>
           )}
         </div>
       )}

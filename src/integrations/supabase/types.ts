@@ -25686,6 +25686,15 @@ export type Database = {
         }
         Returns: Json
       }
+      core_get_agent_tracking: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          email_confirmed_at: string
+          last_sign_in_at: string
+          mfa_enrolled: boolean
+          user_id: string
+        }[]
+      }
       create_activity_log: {
         Args: {
           p_action: string
