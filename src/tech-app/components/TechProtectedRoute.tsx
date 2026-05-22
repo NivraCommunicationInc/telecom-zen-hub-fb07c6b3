@@ -69,7 +69,7 @@ export default function TechProtectedRoute() {
         <h2 className="text-xl font-bold text-white mb-2">Accès refusé</h2>
         <p className="text-sm text-slate-400 mb-6">Votre compte n'a pas le rôle technicien.</p>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
           className="rounded-full bg-slate-800 px-8 py-3 text-base font-semibold text-white"
         >
           Retour à l'accueil
