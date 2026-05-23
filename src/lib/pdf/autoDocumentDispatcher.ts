@@ -6,6 +6,13 @@
  * (useDocumentJobWorker) to materialize PDFs from queued events.
  *
  * Contract: every entry returns `{ blob, filename, docNumber }` or throws.
+ *
+ * Hardening (2026-05):
+ *   - validatePayload() checks the required fields BEFORE rendering. If any
+ *     are missing/blank, we log a system alert so operators see the bad job
+ *     instead of receiving a PDF with "null" or "—" placeholders.
+ *   - The render still proceeds with the safer fallback text — the customer
+ *     receives a slightly incomplete document but never garbage.
  */
 import {
   generateWelcomeLetterPDF,
@@ -26,6 +33,65 @@ import {
   generateComplaintAcknowledgmentPDF,
   generatePreauthorizationConfirmationPDF,
 } from "./index";
+import { checkRequiredFields } from "./_pdfSanitize";
+import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Required fields per document type. If any of these are missing in the
+ * payload, the PDF is still generated (with `safeText` fallbacks) but a
+ * billing_system_alerts row is created so ops can fix the source data.
+ */
+const REQUIRED_FIELDS_BY_TYPE: Record<string, string[]> = {
+  welcome_letter:              ["client_name", "account_number"],
+  address_change:              ["client_name", "account_number", "old_address", "new_address", "effective_date"],
+  payment_method_change:       ["client_name", "account_number", "new_method"],
+  service_certificate:         ["client_name", "account_number", "service_name"],
+  suspension_notice:           ["client_name", "account_number", "suspension_date", "reason"],
+  cancellation_confirmation:   ["client_name", "account_number", "service_name", "effective_date"],
+  chargeback_notice:           ["client_name", "account_number", "amount", "chargeback_date"],
+  final_refund_receipt:        ["client_name", "account_number", "amount", "refund_date"],
+  delivery_slip:               ["client_name", "tracking_number"],
+  return_instructions:         ["client_name", "rma_number"],
+  installation_report:         ["client_name", "account_number", "service_address", "completion_date"],
+  activation_confirmation:     ["client_name", "account_number", "service_name", "activation_date"],
+  contract_amendment:          ["client_name", "account_number", "amendment_summary", "effective_date"],
+  formal_demand:               ["client_name", "account_number", "amount", "due_by"],
+  collections_transfer:        ["client_name", "account_number", "amount"],
+  complaint_acknowledgment:    ["client_name", "complaint_number"],
+  preauthorization_confirmation: ["client_name", "account_number", "amount", "expiry_date"],
+};
+
+/**
+ * Validate a payload against its document type's required fields. When
+ * fields are missing, raise a billing_system_alerts row (fire-and-forget)
+ * so operations can see and fix bad enqueues — but don't block rendering.
+ */
+function validatePayload(docType: string, payload: Record<string, unknown>): {
+  ok: boolean;
+  missing: string[];
+} {
+  const required = REQUIRED_FIELDS_BY_TYPE[docType];
+  if (!required || required.length === 0) return { ok: true, missing: [] };
+
+  const missing = checkRequiredFields(payload as Record<string, unknown>, required);
+  if (missing.length === 0) return { ok: true, missing: [] };
+
+  // Fire-and-forget alert. We use supabase.from() directly to keep this
+  // file dependency-light; no top-level await needed.
+  void supabase.from("billing_system_alerts").insert({
+    alert_type: "pdf_payload_incomplete",
+    entity_type: "pending_document_jobs",
+    entity_reference: docType,
+    details: {
+      doc_type: docType,
+      missing_fields: missing,
+      payload_keys: Object.keys(payload),
+      note: "PDF rendered with fallback placeholders. Fix source data and regenerate.",
+    },
+  }).then(() => undefined, () => undefined);
+
+  return { ok: false, missing: missing as string[] };
+}
 
 export type AutoDocType =
   | "welcome_letter"
@@ -79,6 +145,17 @@ export function dispatchAutoDocument(
   payload: Record<string, any>,
 ): DispatchResult {
   const safePayload = payload || {};
+
+  // Validate required fields. If anything is missing, we log a system alert
+  // but still render the PDF — the customer receives the document with
+  // "—" / "Non fourni" placeholders rather than crashing.
+  const validation = validatePayload(docType, safePayload);
+  if (!validation.ok) {
+    console.warn(
+      `[PDF] ${docType} rendered with missing fields:`,
+      validation.missing,
+    );
+  }
 
   switch (docType) {
     case "welcome_letter": {

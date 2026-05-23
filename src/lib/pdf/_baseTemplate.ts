@@ -4,6 +4,11 @@
  */
 import { jsPDF } from "jspdf";
 import { NIVRA } from "./companyInfo";
+import {
+  safeText,
+  safeMoney,
+  safeDate as sanitizeSafeDate,
+} from "./_pdfSanitize";
 
 export const NAVY: [number, number, number] = [30, 64, 120];
 export const TEAL: [number, number, number] = [20, 184, 166];
@@ -13,21 +18,48 @@ export const GREEN: [number, number, number] = [22, 163, 74];
 export const GREY_BG: [number, number, number] = [248, 250, 252];
 export const GREY_BORDER: [number, number, number] = [226, 232, 240];
 
-export const fmtCAD = (amount: number): string =>
-  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
+/**
+ * Formats numbers as Canadian currency. Accepts null/undefined/NaN safely.
+ *   fmtCAD(123.4)  → "123,40 $"
+ *   fmtCAD(0)      → "0,00 $"
+ *   fmtCAD(null)   → "—"
+ *
+ * Previously the old `amount || 0` collapsed null → 0,00 $ which hid bugs;
+ * we now use the central safeMoney() so the placeholder appears when data
+ * is genuinely missing.
+ */
+export const fmtCAD = (amount: number | null | undefined): string => safeMoney(amount);
 
-export const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "—";
-  const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (ymd) {
-    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
-    return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
-  }
-  return "—";
-};
+/**
+ * Formats a date string (YYYY-MM-DD or ISO) as "23 mai 2026".
+ * Returns "—" when the input is missing/invalid — never crashes on bad data.
+ */
+export const fmtDate = (dateStr: string | undefined | null): string =>
+  sanitizeSafeDate(dateStr, "long", "fr-CA");
 
 export function wrapText(doc: jsPDF, text: string, maxWidth: number): string[] {
-  return doc.splitTextToSize(text || "", maxWidth) as string[];
+  // Coerce nullish to empty so splitTextToSize doesn't choke; downstream
+  // callers should still prefer safeText() for explicit placeholders.
+  return doc.splitTextToSize(safeText(text, ""), maxWidth) as string[];
+}
+
+/**
+ * Drop-in wrapper for `doc.text(value, x, y, opts)` that NEVER writes
+ * "null" / "undefined" / "NaN" / garbage. Always coerces to safeText first.
+ *
+ *   safeDrawText(doc, profile?.full_name, 15, 50)
+ *   // renders "—" if full_name is null instead of literal "null"
+ */
+export function safeDrawText(
+  doc: jsPDF,
+  value: unknown,
+  x: number,
+  y: number,
+  opts?: { align?: "left" | "right" | "center"; maxWidth?: number; fallback?: string },
+): void {
+  const out = safeText(value, opts?.fallback ?? "—");
+  // jsPDF's TextOptionsLight matches the shape we pass.
+  doc.text(out, x, y, opts as any);
 }
 
 /** Standard 40mm navy header. */
