@@ -79,18 +79,34 @@ const ClientReferrals = () => {
   const qc = useQueryClient();
   const [savingMethod, setSavingMethod] = useState<string | null>(null);
 
-  // Source of truth: referral_codes (auto-created by trigger trg_auto_create_referral_code)
+  // Source of truth: referral_codes (auto-created by trigger trg_auto_create_referral_code).
+  // We also call ensure_client_referral_code to backfill any account created before
+  // the trigger existed, so the displayed code is never empty / never falls back to "—".
   const { data: codeRow } = useQuery({
     queryKey: ["client-referral-code", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase
+
+      let { data } = await supabase
         .from("referral_codes" as any)
         .select("code, status, usage_count")
         .eq("owner_user_id", user.id)
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
+
+      if (!data?.code) {
+        await supabase.rpc("ensure_client_referral_code" as any, { p_user_id: user.id });
+        const refetch = await supabase
+          .from("referral_codes" as any)
+          .select("code, status, usage_count")
+          .eq("owner_user_id", user.id)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        data = refetch.data;
+      }
+
       return data as any;
     },
     enabled: !!user?.id,
@@ -229,7 +245,7 @@ const ClientReferrals = () => {
               <div>
                 <p className="text-primary-foreground/70 text-sm font-medium mb-2">Votre code de parrainage</p>
                 <p className="text-3xl sm:text-4xl font-bold font-mono tracking-widest text-primary-foreground">
-                  {referralCode || "—"}
+                  {referralCode || "Génération en cours…"}
                 </p>
                 {codeRow?.usage_count !== undefined && (
                   <p className="text-primary-foreground/60 text-xs mt-2">
