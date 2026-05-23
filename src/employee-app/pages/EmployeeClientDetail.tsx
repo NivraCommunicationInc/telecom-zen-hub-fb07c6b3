@@ -27,6 +27,7 @@ import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
+import { CustomerTimeline } from "@/components/employee/CustomerTimeline";
 
 // Sub-components
 import { ClientHeader } from "@/employee-app/components/client360/ClientHeader";
@@ -518,36 +519,14 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             )}
           </Section>
 
-          {/* 12. Timeline section */}
-          <Section title="Activité récente" icon={<Clock className="h-4 w-4" />} defaultOpen={true}>
-            {notes.length === 0 ? (
-              <p className="text-xs text-[hsl(220,10%,30%)]">Aucune activité.</p>
-            ) : (
-              <div className="space-y-0 max-h-[400px] overflow-y-auto pr-1">
-                {notes.slice(0, 15).map((n: any, i: number) => {
-                  const isNote = n.action?.startsWith("Note:");
-                  return (
-                    <div key={i} className="relative pl-4 pb-3 last:pb-0">
-                      {i < Math.min(notes.length, 15) - 1 && (
-                        <div className="absolute left-[5px] top-[10px] bottom-0 w-px bg-[hsl(220,15%,12%)]" />
-                      )}
-                      <div className={cn(
-                        "absolute left-0 top-[5px] h-[10px] w-[10px] rounded-full border-2",
-                        isNote ? "bg-blue-500/20 border-blue-500/50" : "bg-[hsl(220,15%,12%)] border-[hsl(220,15%,17%)]"
-                      )} />
-                      <div>
-                        <p className={cn("text-xs font-medium", isNote ? "text-blue-300" : "text-white")}>
-                          {isNote ? n.action.replace("Note: ", "") : n.action}
-                        </p>
-                        <p className="text-[10px] text-[hsl(220,10%,32%)] mt-0.5">
-                          {n.actor_name ?? "Système"} · {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: fr })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          {/* 12. Timeline section — unified across 6 sources via v_customer_timeline.
+              Previously read from activity_logs only; now also surfaces billing
+              subscription changes, payments, support tickets, cancellation runs
+              and referral events in one chronological feed. */}
+          <Section title="Chronologie du client" icon={<Clock className="h-4 w-4" />} defaultOpen={true}>
+            <div className="max-h-[600px] overflow-y-auto pr-1">
+              <CustomerTimeline clientId={clientId} limit={50} />
+            </div>
           </Section>
         </div>
       </div>
