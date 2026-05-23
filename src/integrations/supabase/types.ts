@@ -26046,6 +26046,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      ensure_client_referral_code: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       expire_old_field_payment_intents: { Args: never; Returns: number }
       expire_stale_holds: { Args: never; Returns: number }
       extract_uuid_from_text: { Args: { p_text: string }; Returns: string }
