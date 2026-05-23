@@ -367,6 +367,56 @@ async function processRenewals(
           console.log(`[lifecycle] No active services for account ${acct.account_number}, skipping`);
           continue;
         }
+
+        // ──────────────────────────────────────────────────────────────
+        // AUTO-QUARANTINE — terminal errors that repeat every day.
+        // Previously, accounts missing billing_customer or active subs
+        // would error on every lifecycle run forever (6 daily errors in
+        // billing_automation_runs since at least 2026-05-18). The fix:
+        // raise a one-time alert and clear next_invoice_date so they
+        // stop being picked up. Operators resolve the alert manually.
+        // ──────────────────────────────────────────────────────────────
+        const TERMINAL_ERRORS = new Set([
+          "NO_BILLING_CUSTOMER",
+          "NO_ACTIVE_SUBSCRIPTIONS",
+          "ACCOUNT_NOT_FOUND",
+        ]);
+        if (TERMINAL_ERRORS.has(res.error)) {
+          // Has an open alert already? Skip silently to avoid spam.
+          const { data: existing } = await supabase
+            .from("billing_system_alerts")
+            .select("id")
+            .eq("alert_type", "renewal_terminal_error")
+            .eq("entity_id", acct.id)
+            .eq("resolved", false)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase.from("billing_system_alerts").insert({
+              alert_type: "renewal_terminal_error",
+              entity_type: "accounts",
+              entity_id: acct.id,
+              entity_reference: acct.account_number,
+              details: {
+                error: res.error,
+                reason: "Account cannot generate renewal — quarantined until operator review",
+                quarantined_at: new Date().toISOString(),
+              },
+            });
+          }
+
+          // Stop re-picking this account on subsequent daily runs.
+          await supabase
+            .from("accounts")
+            .update({ next_invoice_date: null })
+            .eq("id", acct.id);
+
+          console.log(
+            `[lifecycle] Quarantined account ${acct.account_number} (${res.error}) — next_invoice_date cleared`,
+          );
+          continue;
+        }
+
         stats.errors.push(`Account ${acct.account_number}: ${res.error}`);
         stats.errors_count++;
         continue;

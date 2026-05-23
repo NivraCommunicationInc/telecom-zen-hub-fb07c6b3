@@ -191,7 +191,13 @@ serve(async (req) => {
         .select("id, email, first_name, last_name, phone")
         .single();
 
-      if (createCustomerError) throw createCustomerError;
+      if (createCustomerError) {
+        // Wrap the Postgrest error so the catch handler sees a real Error
+        // instance with a human-readable message instead of a bare object.
+        throw new Error(
+          `[PayPal] billing_customers insert failed: ${createCustomerError.message ?? "unknown"} (code=${createCustomerError.code ?? "n/a"})`,
+        );
+      }
 
       if (!subscription) {
         const { data: createdSubscription, error: createSubscriptionError } = await adminSupabase
@@ -209,7 +215,11 @@ serve(async (req) => {
           )
           .single();
 
-        if (createSubscriptionError) throw createSubscriptionError;
+        if (createSubscriptionError) {
+          throw new Error(
+            `[PayPal] billing_subscriptions insert failed (new customer): ${createSubscriptionError.message ?? "unknown"} (code=${createSubscriptionError.code ?? "n/a"})`,
+          );
+        }
         subscription = createdSubscription;
         billingSubscriptionId = createdSubscription.id;
       }
@@ -231,7 +241,11 @@ serve(async (req) => {
         )
         .single();
 
-      if (createSubscriptionError) throw createSubscriptionError;
+      if (createSubscriptionError) {
+        throw new Error(
+          `[PayPal] billing_subscriptions insert failed (existing customer): ${createSubscriptionError.message ?? "unknown"} (code=${createSubscriptionError.code ?? "n/a"})`,
+        );
+      }
       subscription = createdSubscription;
       billingSubscriptionId = createdSubscription.id;
     }
@@ -408,22 +422,60 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
-    const errMsg =
-      error instanceof Error
-        ? error.message
-        : (() => {
-            try {
-              return JSON.stringify(error);
-            } catch {
-              return String(error);
-            }
-          })();
-    console.error("[PayPal] Error:", error);
+    // Robust error serialization. Previous version produced "[object Object]"
+    // when a Supabase PostgrestError (`{ message, code, details, hint }`) was
+    // thrown bare via `throw createCustomerError`, because its `.toString()`
+    // yields "[object Object]" and the catch block trusted `error.message`
+    // blindly. This handler now extracts the real signal even when message
+    // is empty or set to the stringified object.
+    const serializeError = (err: unknown): { msg: string; payload: Record<string, unknown> } => {
+      if (err == null) return { msg: "Unknown error (null)", payload: {} };
+      if (typeof err === "string") return { msg: err, payload: { raw: err } };
 
-    // Try to extract PayPal debug_id from error message
+      const errObj = err as Record<string, unknown>;
+      const errAsError = err as Error;
+      const hasUsefulMessage =
+        typeof errAsError?.message === "string" &&
+        errAsError.message.length > 0 &&
+        errAsError.message !== "[object Object]";
+
+      // Pull every common field telecom/supabase errors might carry
+      const payload: Record<string, unknown> = {};
+      for (const key of ["message", "code", "details", "hint", "status", "statusCode", "name", "cause"]) {
+        const v = errObj[key];
+        if (v != null) payload[key] = v;
+      }
+      if (errAsError?.stack) {
+        payload.stack = errAsError.stack.split("\n").slice(0, 6).join("\n");
+      }
+
+      let msg: string;
+      if (hasUsefulMessage) {
+        msg = errAsError.message;
+      } else {
+        // Fall back to a structured string the operator can read in logs.
+        try {
+          msg = JSON.stringify(payload);
+        } catch {
+          msg = Object.entries(payload)
+            .map(([k, v]) => `${k}=${String(v)}`)
+            .join(" | ") || "Unhandled error";
+        }
+      }
+      return { msg, payload };
+    };
+
+    const { msg: errMsg, payload: errPayload } = serializeError(error);
+    console.error("[PayPal] Error:", error, "serialized:", errPayload);
+
+    // Try to extract PayPal debug_id from error message OR the payload
     let debugId: string | null = null;
     const debugMatch = errMsg.match(/"debug_id":"([^"]+)"/);
     if (debugMatch) debugId = debugMatch[1];
+    if (!debugId && typeof errPayload.details === "string") {
+      const m = errPayload.details.match(/"debug_id":"([^"]+)"/);
+      if (m) debugId = m[1];
+    }
 
     if (attemptId) {
       try {
@@ -437,7 +489,7 @@ serve(async (req) => {
             completed_at: new Date().toISOString(),
           })
           .eq("id", attemptId);
-        await appendStep(adminSupabase, attemptId, "error", "error", { debugId, errMsg });
+        await appendStep(adminSupabase, attemptId, "error", "error", { debugId, errMsg, errPayload });
       } catch (logErr) {
         console.error("[PayPal] failed to log attempt error:", logErr);
       }
