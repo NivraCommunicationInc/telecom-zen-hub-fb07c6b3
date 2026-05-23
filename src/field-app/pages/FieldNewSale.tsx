@@ -893,7 +893,7 @@ export default function FieldNewSale() {
                     customer_name: customerName,
                     customer_email: draft.customer.email,
                     customer_phone: draft.customer.phone || null,
-                    customer_address: draft.customer.address || null,
+                    customer_address: draft.customer.address ? draft.customer.address + (draft.customer.apartment ? `, App. ${draft.customer.apartment}` : "") : null,
                     services: draft.services as any,
                     equipment: draft.equipment as any,
                     discount: { monthly: monthlyDiscountAmount, installation: installationDiscountAmount } as any,
