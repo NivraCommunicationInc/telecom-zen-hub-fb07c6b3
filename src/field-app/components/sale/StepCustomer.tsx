@@ -268,7 +268,10 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
 
       <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1"><MapPin className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-gray-50">Adresse de service</h3></div>
-        <div><label className={labelClass}>Adresse *</label><input value={customer.address} onChange={(e) => update("address", e.target.value)} className={inputClass} placeholder="123 rue Principale" /></div>
+        <div className="grid grid-cols-[1fr_140px] gap-3">
+          <div><label className={labelClass}>Adresse *</label><input value={customer.address} onChange={(e) => update("address", e.target.value)} className={inputClass} placeholder="123 rue Principale" /></div>
+          <div><label className={labelClass}>App. <span className="text-gray-400 font-normal">(optionnel)</span></label><input value={customer.apartment || ""} onChange={(e) => update("apartment" as any, e.target.value)} className={inputClass} placeholder="Ex. 3B" /></div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className={labelClass}>Ville *</label><input value={customer.city} onChange={(e) => update("city", e.target.value)} className={inputClass} /></div>
           <div><label className={labelClass}>Code postal *</label><input value={customer.postal_code} onChange={(e) => update("postal_code", e.target.value)} className={inputClass} placeholder="H1A 1A1" /></div>
