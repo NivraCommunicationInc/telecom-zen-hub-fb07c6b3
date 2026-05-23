@@ -468,6 +468,20 @@ serve(async (req) => {
     const { msg: errMsg, payload: errPayload } = serializeError(error);
     console.error("[PayPal] Error:", error, "serialized:", errPayload);
 
+    // Forward to Sentry (no-op if SENTRY_DSN missing). Fire-and-forget so we
+    // never delay the user-facing response.
+    try {
+      const { reportEdgeError } = await import("../_shared/sentry.ts");
+      reportEdgeError(error, {
+        function: "paypal-create-subscription",
+        attempt_id: attemptId,
+        user_id: userId,
+        serialized: errPayload,
+      }).catch(() => {});
+    } catch {
+      /* sentry import failed — ignore */
+    }
+
     // Try to extract PayPal debug_id from error message OR the payload
     let debugId: string | null = null;
     const debugMatch = errMsg.match(/"debug_id":"([^"]+)"/);

@@ -2,14 +2,20 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { initSentry, captureError } from "@/lib/sentry";
 import App from "./App.tsx";
 import "./index.css";
 import "./styles/internal-portal.css";
 import "./core-app/styles/core-dark-processing.css";
 
+// Initialize Sentry FIRST so it can capture any boot-time error.
+// No-op when VITE_SENTRY_DSN is not set (safe to ship without it).
+initSentry();
+
 // Global error handlers — catch async errors that escape React
 window.addEventListener("unhandledrejection", (event) => {
   console.error("[Unhandled Promise Rejection]", event.reason);
+  captureError(event.reason, { source: "unhandledrejection" });
   if (import.meta.env.PROD) {
     event.preventDefault();
   }
@@ -17,6 +23,14 @@ window.addEventListener("unhandledrejection", (event) => {
 
 window.addEventListener("error", (event) => {
   console.error("[Global Error]", event.error);
+  if (event.error) {
+    captureError(event.error, {
+      source: "window.onerror",
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+    });
+  }
 });
 
 // DEV: Prevent stale UI caused by previously-registered PWA service workers/caches.

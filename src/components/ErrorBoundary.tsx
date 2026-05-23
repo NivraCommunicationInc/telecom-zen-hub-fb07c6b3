@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from "react";
+import { captureError } from "@/lib/sentry";
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,12 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info);
+    // Forward to Sentry (no-op if not configured)
+    captureError(error, {
+      source: "ErrorBoundary",
+      component_stack: info.componentStack,
+      error_id: this.state.errorId,
+    });
 
     // Stale-chunk recovery: after a deploy, the cached index.html can reference
     // hashed chunks that no longer exist. Auto-reload once instead of showing

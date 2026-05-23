@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -592,6 +593,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error("[PayPal Capture] ✗ Error:", error);
+    reportEdgeError(error, { function: "paypal-capture-order" }).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

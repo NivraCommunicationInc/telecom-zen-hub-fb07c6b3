@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1647,6 +1648,14 @@ serve(async (req) => {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[lifecycle] Fatal error: ${msg}`);
+
+    // Alert ops via Sentry — lifecycle failing silently was a long-standing
+    // pain point. Now any fatal in the daily cron pages immediately.
+    reportEdgeError(error, {
+      function: "billing-lifecycle",
+      run_id: runId,
+      partial_stats: stats,
+    }).catch(() => {});
 
     if (runId) {
       await supabase

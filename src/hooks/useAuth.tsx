@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { adminClient as adminSupabase } from "@/integrations/backend/adminClient";
+import { setSentryUser } from "@/lib/sentry";
 
 type AppRole = "admin" | "client";
 
@@ -42,6 +43,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole("client");
     }
   };
+
+  // Push the current user to Sentry whenever it changes — improves error grouping
+  // and lets support reproduce a customer-reported crash by user_id.
+  useEffect(() => {
+    if (user) {
+      setSentryUser({
+        id: user.id,
+        email: user.email ?? undefined,
+        role: role ?? undefined,
+      });
+    } else {
+      setSentryUser(null);
+    }
+  }, [user, role]);
 
   useEffect(() => {
     let mounted = true;

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 /**
  * ============================================================================
@@ -940,6 +941,11 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error("[PayPal Webhook] Error:", error);
+    // Fire-and-forget — never block the webhook response.
+    reportEdgeError(error, {
+      function: "paypal-webhook",
+      transmission_id: req.headers.get("paypal-transmission-id"),
+    }).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
