@@ -245,7 +245,7 @@ const ClientReferrals = () => {
               <div>
                 <p className="text-primary-foreground/70 text-sm font-medium mb-2">Votre code de parrainage</p>
                 <p className="text-3xl sm:text-4xl font-bold font-mono tracking-widest text-primary-foreground">
-                  {referralCode || "—"}
+                  {referralCode || "Génération en cours…"}
                 </p>
                 {codeRow?.usage_count !== undefined && (
                   <p className="text-primary-foreground/60 text-xs mt-2">
