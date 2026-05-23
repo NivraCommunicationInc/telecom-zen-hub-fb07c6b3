@@ -3,18 +3,23 @@
  * Allows users with role 'technician' OR any admin/employee/supervisor/techops role.
  * Does NOT require hub session (techs may install the PWA and stay logged in).
  *
- * Security hardening: an idle timeout (default 30 minutes) signs the technician
- * out automatically. This protects customer data if the device is left
- * unattended at a customer site. Any user interaction (touch, keydown, scroll,
- * mouse move) resets the timer.
+ * Security hardening:
+ *  - Idle timeout (30 min) signs the tech out automatically if the device is
+ *    left unattended at a customer site.
+ *  - MFA enrolment + verification REQUIRED. A stolen phone with the PWA
+ *    installed must not give access to customer data without the TOTP code.
+ *    The check uses checkMfaStatus() — same helper as Employee/Field.
  */
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldAlert, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { checkMfaStatus } from "@/lib/security/mfaUtils";
+import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
+import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 
-type State = "loading" | "authorized" | "unauthorized" | "no_session";
+type State = "loading" | "authorized" | "unauthorized" | "no_session" | "mfa_enroll" | "mfa_verify";
 
 const ALLOWED_ROLES = ["technician", "admin", "employee", "supervisor", "techops"];
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -23,6 +28,7 @@ const IDLE_WARNING_MS = 28 * 60 * 1000; // warn 2 minutes before logout
 export default function TechProtectedRoute() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>("loading");
+  const [factorId, setFactorId] = useState<string | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
@@ -79,7 +85,27 @@ export default function TechProtectedRoute() {
       const ok = (roles ?? []).some(
         (r: any) => r.is_active && ALLOWED_ROLES.includes(r.role),
       );
-      if (mounted) setState(ok ? "authorized" : "unauthorized");
+      if (!ok) {
+        if (mounted) setState("unauthorized");
+        return;
+      }
+
+      // MFA gate — REQUIRED for tech because of the offline / mobile-PWA
+      // threat model (device theft at customer site).
+      const mfa = await checkMfaStatus();
+      if (!mfa.isEnrolled) {
+        if (mounted) setState("mfa_enroll");
+        return;
+      }
+      if (!mfa.isVerified) {
+        if (mounted) {
+          setFactorId(mfa.factorId ?? null);
+          setState("mfa_verify");
+        }
+        return;
+      }
+
+      if (mounted) setState("authorized");
     })();
     return () => { mounted = false; };
   }, []);
@@ -105,6 +131,31 @@ export default function TechProtectedRoute() {
           Se connecter
         </button>
       </div>
+    );
+  }
+
+  if (state === "mfa_enroll") {
+    return (
+      <MfaEnrollmentDialog
+        onComplete={() => window.location.reload()}
+        onCancel={async () => {
+          await supabase.auth.signOut();
+          navigate("/nivra-secure-hub-2617-internal/login");
+        }}
+      />
+    );
+  }
+
+  if (state === "mfa_verify" && factorId) {
+    return (
+      <MfaVerificationGate
+        factorId={factorId}
+        onVerified={() => setState("authorized")}
+        onLogout={async () => {
+          await supabase.auth.signOut();
+          navigate("/nivra-secure-hub-2617-internal/login");
+        }}
+      />
     );
   }
 

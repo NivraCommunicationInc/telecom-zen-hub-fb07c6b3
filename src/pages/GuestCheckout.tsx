@@ -329,7 +329,11 @@ const GuestCheckout = () => {
         if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
 
         const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
-        const result = await computeCheckoutPricing(cartItems, effectivePromoCode, email || null, null, 0);
+        // Pass the autopay discount ($5/mo) to the server pricing engine so
+        // it's reflected in totals, taxes and the displayed grand total.
+        // Without this the customer sees the wrong total before paying.
+        const preauthDiscount = enableAutoBilling && paymentMethod === "paypal" ? AUTOPAY_DISCOUNT : 0;
+        const result = await computeCheckoutPricing(cartItems, effectivePromoCode, email || null, null, preauthDiscount);
         setLiveServerPricing(result);
       } catch (err) {
         console.error("[GuestCheckout] Pricing error:", err);
@@ -339,7 +343,7 @@ const GuestCheckout = () => {
     }, 400);
 
     return () => { if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current); };
-  }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, terminalFee, wifiRouterQty, tvTerminalQty, appliedPromo?.code, appliedReferral?.code, email]);
+  }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, terminalFee, wifiRouterQty, tvTerminalQty, appliedPromo?.code, appliedReferral?.code, email, enableAutoBilling, paymentMethod]);
 
   const normalizedPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
   const todayTotal = toNonNegativeMoney(normalizedPricing?.grand_total ?? 0);
@@ -537,7 +541,10 @@ const GuestCheckout = () => {
 
       let rpcPricing: any;
       try {
-        rpcPricing = await computeCheckoutPricing(cartItems, appliedPromo?.code || null, email, userId, 0);
+        // Mirror the autopay discount that the user accepted on screen, so the
+        // server-authoritative totals match what they were quoted.
+        const preauthDiscountFinal = enableAutoBilling && paymentMethod === "paypal" ? AUTOPAY_DISCOUNT : 0;
+        rpcPricing = await computeCheckoutPricing(cartItems, appliedPromo?.code || null, email, userId, preauthDiscountFinal);
       } catch { rpcPricing = null; }
 
       const serverPricing = rpcPricing ? normalizeServerPricingResult(rpcPricing) : {
