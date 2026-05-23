@@ -50,86 +50,261 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // TOOL DEFINITIONS — what NOVA can DO, not just talk about.
-// Each tool is a Claude-compatible JSON schema. The handler dispatches to a
-// real Supabase RPC / table query / edge function.
+//
+// Two categories:
+//  (1) Read-only / safe — NOVA can call these freely (queries, lookups, memory)
+//  (2) Mutating — NOVA must explain what it's about to do, then act
+//      (suspend, credit, cancel, email customer with approval)
+//
+// Truly destructive actions (delete account, refund) stay OUT — those require
+// a human admin click in Core, not a voice command.
 // ──────────────────────────────────────────────────────────────────────────────
 const TOOLS = [
+  // ─── READ / LOOKUP ────────────────────────────────────────────────────────
   {
     name: "get_account_state",
     description:
-      "Get the canonical account state for a given account_id or account_number. " +
-      "Returns the unified state (active/suspended_non_payment/pending_kyc/etc.) " +
-      "along with all underlying signals (subscriptions, invoices, KYC). Use this " +
-      "whenever the user asks 'what's the status of customer X?'.",
+      "Get the canonical account state (active / suspended / pending_kyc / etc.) for an account. " +
+      "Use whenever the user asks 'what's the status of X?' or 'how is account NIV-ACCT-... ?'",
     input_schema: {
       type: "object",
       properties: {
         account_id: { type: "string", description: "UUID of the account (preferred)" },
-        account_number: { type: "string", description: "Human-readable account number, e.g. NIV-ACCT-000123" },
+        account_number: { type: "string", description: "Human account number, e.g. NIV-ACCT-000123" },
       },
     },
   },
   {
     name: "search_customers",
-    description:
-      "Search for customers by name, email, phone, or account number. Returns up to 10 matches " +
-      "with their account_id, name, email and current state.",
+    description: "Free-text search across name / email / phone / account_number. Returns up to 10 matches.",
     input_schema: {
       type: "object",
-      properties: {
-        query: { type: "string", description: "Free-text search term (name fragment, email, phone, etc.)" },
-      },
+      properties: { query: { type: "string" } },
       required: ["query"],
     },
   },
   {
     name: "get_business_metrics",
     description:
-      "Get the latest Nivra business metrics: active customers, MRR (monthly recurring revenue), " +
-      "open complaints, overdue invoices, latest payments. Use this for any 'how is the business doing' question.",
+      "Real-time Nivra business KPIs: active customers, MRR, churn, open complaints, " +
+      "overdue invoices, latest payments. Always prefer this over guessing numbers.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_customer_payments",
+    description:
+      "Last N payments for a customer (default 10), most recent first. Includes amount, method, status.",
     input_schema: {
       type: "object",
-      properties: {},
+      properties: {
+        account_id: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+      },
+      required: ["account_id"],
     },
   },
   {
+    name: "get_customer_invoices",
+    description: "Last N invoices for a customer (default 10). Includes total, balance_due, status, due_date.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+      },
+      required: ["account_id"],
+    },
+  },
+  {
+    name: "get_customer_subscriptions",
+    description: "All subscriptions for a customer with their current state and plan.",
+    input_schema: {
+      type: "object",
+      properties: { account_id: { type: "string" } },
+      required: ["account_id"],
+    },
+  },
+  {
+    name: "get_open_support_tickets",
+    description:
+      "List open / pending support tickets, optionally filtered by priority or account. Use for " +
+      "questions like 'show me the urgent tickets'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string", description: "Optional — filter to one customer" },
+        priority: { type: "string", enum: ["urgent", "high", "normal", "low"] },
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+      },
+    },
+  },
+  {
+    name: "get_sla_breaches",
+    description: "Items currently breaching SLA (overdue beyond their deadline). Used for 'what's on fire?'.",
+    input_schema: { type: "object", properties: {} },
+  },
+
+  // ─── MUTATING — require user confirmation in the prompt ───────────────────
+  {
+    name: "credit_account",
+    description:
+      "Apply a credit (positive amount) to a customer's account_adjustments. Use ONLY when the user " +
+      "explicitly asks you to credit a customer and tells you the amount + reason. NEVER guess the amount.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        amount: { type: "number", description: "Credit amount in CAD (positive number)" },
+        reason: { type: "string", description: "Why this credit is being applied" },
+        months: { type: "integer", description: "How many months this credit applies for (default 1)", minimum: 1, maximum: 36 },
+      },
+      required: ["account_id", "amount", "reason"],
+    },
+  },
+  {
+    name: "suspend_account",
+    description:
+      "Suspend a customer account. Use ONLY when the user explicitly asks. Records the staff member's " +
+      "identity in the audit trail. Will fail if there's no active subscription to suspend.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        reason: { type: "string" },
+      },
+      required: ["account_id", "reason"],
+    },
+  },
+  {
+    name: "reactivate_account",
+    description: "Reactivate a previously suspended account. Sets accounts.status='active'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        reason: { type: "string" },
+      },
+      required: ["account_id", "reason"],
+    },
+  },
+  {
+    name: "trigger_cancellation",
+    description:
+      "Trigger the orchestrated cancellation engine (cancel-account function). Cascades PayPal, " +
+      "subscriptions, invoices, commissions, email. Use ONLY when the user explicitly asks to cancel. " +
+      "scope='service' keeps the account open; scope='full' closes it permanently.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        scope: { type: "string", enum: ["service", "full"] },
+        reason: { type: "string" },
+      },
+      required: ["account_id", "scope", "reason"],
+    },
+  },
+  {
+    name: "create_support_ticket",
+    description:
+      "Open a support ticket on behalf of a customer. Use when the user describes a customer issue and " +
+      "says 'create a ticket' or similar.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        subject: { type: "string" },
+        body: { type: "string" },
+        priority: { type: "string", enum: ["urgent", "high", "normal", "low"] },
+        category: { type: "string" },
+      },
+      required: ["account_id", "subject", "body"],
+    },
+  },
+
+  // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
+  {
     name: "queue_internal_email",
     description:
-      "Queue an internal email to the operations team (nivratelecom@gmail.com). Use this when the user " +
-      "asks NOVA to 'send me a recap', 'email the team about X', 'remind me tomorrow', etc. NEVER use this " +
-      "to email a customer — that requires explicit human approval.",
+      "Queue an internal email to the ops team (nivratelecom@gmail.com). Use for recaps, alerts, " +
+      "'remind me about X'. NEVER use this to email a customer — that's queue_customer_email.",
     input_schema: {
       type: "object",
       properties: {
         subject: { type: "string" },
-        body_text: { type: "string", description: "Plain text body of the email" },
+        body_text: { type: "string" },
       },
       required: ["subject", "body_text"],
     },
   },
   {
-    name: "remember_for_later",
+    name: "queue_customer_email",
     description:
-      "Store a long-term memory in nova_memory. Use when the user says 'remember that X' or when you " +
-      "discover a fact NOVA should keep in context for future conversations (e.g. customer preferences, " +
-      "business rules learned). Memories are loaded automatically on every future call.",
+      "Queue an email TO A CUSTOMER. Requires explicit user confirmation in the prompt (e.g. " +
+      "'envoie-lui un courriel pour lui dire X — vas-y'). Returns the queue_id so the user can review.",
     input_schema: {
       type: "object",
       properties: {
-        title: { type: "string", description: "Short label, e.g. 'CEO preference about VIP clients'" },
-        content: { type: "string", description: "Full text of the fact to remember" },
+        account_id: { type: "string" },
+        subject: { type: "string" },
+        body_text: { type: "string" },
+        confirmed_by_user: {
+          type: "boolean",
+          description: "Must be true. NOVA should only set this when the user has explicitly approved sending.",
+        },
+      },
+      required: ["account_id", "subject", "body_text", "confirmed_by_user"],
+    },
+  },
+
+  // ─── MEMORY ──────────────────────────────────────────────────────────────
+  {
+    name: "remember_for_later",
+    description:
+      "Persist a long-term memory in nova_memory. Use when the user says 'remember that X' or when " +
+      "you discover a recurring fact NOVA should keep across sessions.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        content: { type: "string" },
         memory_type: {
           type: "string",
           enum: ["business_rule", "customer_pref", "system_fact", "user_pref", "decision"],
         },
-        importance: {
-          type: "integer",
-          description: "1-10. Higher = loaded first on every call.",
-          minimum: 1,
-          maximum: 10,
-        },
+        importance: { type: "integer", minimum: 1, maximum: 10 },
       },
       required: ["title", "content", "memory_type"],
+    },
+  },
+
+  // ─── FRONTEND COMMANDS — pilot the UI ────────────────────────────────────
+  {
+    name: "ui_navigate",
+    description:
+      "Tell the frontend to navigate to a Nivra admin page. Use when the user says 'open client X' or " +
+      "'go to the cancellation page'. The frontend listens to this tool result and changes route.",
+    input_schema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Target path, e.g. '/admin/clients/<uuid>', '/core/agents', '/employee/clients/<uuid>'.",
+        },
+        in_new_tab: { type: "boolean" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "ui_open_client_360",
+    description:
+      "Open the 360 view of a specific client in the Employee portal. Use when the user says " +
+      "'show me client X' or 'open Jean Tremblay'.",
+    input_schema: {
+      type: "object",
+      properties: { account_id: { type: "string" } },
+      required: ["account_id"],
     },
   },
 ];
@@ -204,6 +379,254 @@ async function executeTool(
         });
         if (error) return { ok: false, error: error.message };
         return { ok: true, result: { stored: true } };
+      }
+
+      // ─── READ-ONLY LOOKUPS ──────────────────────────────────────────
+      case "get_customer_payments": {
+        const limit = (input.limit as number) ?? 10;
+        const accountId = input.account_id as string;
+        const { data: account } = await supabase
+          .from("accounts").select("client_id").eq("id", accountId).maybeSingle();
+        if (!account) return { ok: false, error: "Account not found" };
+        const { data: customer } = await supabase
+          .from("billing_customers").select("id").eq("user_id", account.client_id).maybeSingle();
+        if (!customer) return { ok: true, result: [] };
+        const { data, error } = await supabase
+          .from("billing_payments")
+          .select("id, amount, status, payment_method, processed_at, created_at, invoice_id")
+          .eq("customer_id", customer.id)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: data ?? [] };
+      }
+
+      case "get_customer_invoices": {
+        const limit = (input.limit as number) ?? 10;
+        const accountId = input.account_id as string;
+        const { data: account } = await supabase
+          .from("accounts").select("client_id").eq("id", accountId).maybeSingle();
+        if (!account) return { ok: false, error: "Account not found" };
+        const { data: customer } = await supabase
+          .from("billing_customers").select("id").eq("user_id", account.client_id).maybeSingle();
+        if (!customer) return { ok: true, result: [] };
+        const { data, error } = await supabase
+          .from("billing_invoices")
+          .select("id, invoice_number, total, balance_due, status, due_date, created_at")
+          .eq("customer_id", customer.id)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: data ?? [] };
+      }
+
+      case "get_customer_subscriptions": {
+        const accountId = input.account_id as string;
+        const { data: account } = await supabase
+          .from("accounts").select("client_id").eq("id", accountId).maybeSingle();
+        if (!account) return { ok: false, error: "Account not found" };
+        const { data: customer } = await supabase
+          .from("billing_customers").select("id").eq("user_id", account.client_id).maybeSingle();
+        if (!customer) return { ok: true, result: [] };
+        const { data, error } = await supabase
+          .from("billing_subscriptions")
+          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, recurring_setup_status")
+          .eq("customer_id", customer.id)
+          .order("created_at", { ascending: false });
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: data ?? [] };
+      }
+
+      case "get_open_support_tickets": {
+        const limit = (input.limit as number) ?? 10;
+        let q = supabase
+          .from("support_tickets")
+          .select("id, ticket_number, subject, status, priority, created_at, user_id")
+          .in("status", ["open", "in_progress", "pending"])
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (input.account_id) {
+          const { data: account } = await supabase
+            .from("accounts").select("client_id").eq("id", input.account_id as string).maybeSingle();
+          if (account) q = q.eq("user_id", account.client_id);
+        }
+        if (input.priority) q = q.eq("priority", input.priority as string);
+        const { data, error } = await q;
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: data ?? [] };
+      }
+
+      case "get_sla_breaches": {
+        const { data, error } = await supabase
+          .from("employee_work_items")
+          .select("id, item_type, source_reference, client_name, priority, sla_deadline_at, assigned_to_name")
+          .eq("sla_status", "breached")
+          .order("sla_deadline_at", { ascending: true })
+          .limit(20);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: data ?? [] };
+      }
+
+      // ─── MUTATING ACTIONS ───────────────────────────────────────────
+      case "credit_account": {
+        const accountId = input.account_id as string;
+        const amount = Number(input.amount);
+        const reason = input.reason as string;
+        const months = (input.months as number) ?? 1;
+        if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: "Invalid amount" };
+        const { data, error } = await supabase
+          .from("account_adjustments")
+          .insert({
+            account_id: accountId,
+            type: "credit",
+            amount,
+            description: `[NOVA] ${reason}`,
+            months_total: months,
+            months_remaining: months,
+            status: "active",
+            created_by: "nova-brain",
+          })
+          .select("id")
+          .maybeSingle();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: { adjustment_id: data?.id, amount, months } };
+      }
+
+      case "suspend_account": {
+        const accountId = input.account_id as string;
+        const { error } = await supabase
+          .from("accounts")
+          .update({ status: "suspended", updated_at: new Date().toISOString() })
+          .eq("id", accountId);
+        if (error) return { ok: false, error: error.message };
+        // Audit row for the suspension
+        await supabase.from("activity_logs").insert({
+          entity_type: "account",
+          entity_id: accountId,
+          action: "suspend",
+          actor_name: "NOVA Digital Brain",
+          actor_role: "ai_agent",
+          details: { reason: input.reason },
+        }).then(() => undefined, () => undefined);
+        return { ok: true, result: { suspended: true, account_id: accountId } };
+      }
+
+      case "reactivate_account": {
+        const accountId = input.account_id as string;
+        const { error } = await supabase
+          .from("accounts")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", accountId);
+        if (error) return { ok: false, error: error.message };
+        await supabase.from("activity_logs").insert({
+          entity_type: "account",
+          entity_id: accountId,
+          action: "reactivate",
+          actor_name: "NOVA Digital Brain",
+          actor_role: "ai_agent",
+          details: { reason: input.reason },
+        }).then(() => undefined, () => undefined);
+        return { ok: true, result: { reactivated: true, account_id: accountId } };
+      }
+
+      case "trigger_cancellation": {
+        // Delegate to the cancel-account orchestrator built earlier — atomic + audited.
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/cancel-account`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SERVICE_KEY}`,
+          },
+          body: JSON.stringify({
+            account_id: input.account_id,
+            scope: input.scope,
+            reason: `[NOVA] ${input.reason}`,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) return { ok: false, error: data?.error ?? `cancel-account ${res.status}` };
+        return { ok: true, result: data };
+      }
+
+      case "create_support_ticket": {
+        const accountId = input.account_id as string;
+        const { data: account } = await supabase
+          .from("accounts").select("client_id").eq("id", accountId).maybeSingle();
+        const userId = account?.client_id;
+        if (!userId) return { ok: false, error: "Account / client not found" };
+        const { data, error } = await supabase
+          .from("support_tickets")
+          .insert({
+            user_id: userId,
+            subject: input.subject,
+            body: input.body,
+            priority: (input.priority as string) ?? "normal",
+            category: (input.category as string) ?? "general",
+            status: "open",
+            created_by_name: "NOVA Digital Brain",
+          })
+          .select("id, ticket_number")
+          .maybeSingle();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: data };
+      }
+
+      // ─── CUSTOMER EMAIL (must be confirmed by user) ─────────────────
+      case "queue_customer_email": {
+        if (input.confirmed_by_user !== true) {
+          return {
+            ok: false,
+            error: "Refused: customer email requires explicit user confirmation. Ask the user to say 'envoie' or 'confirm' before retrying with confirmed_by_user=true.",
+          };
+        }
+        const accountId = input.account_id as string;
+        const { data: account } = await supabase
+          .from("accounts").select("client_id").eq("id", accountId).maybeSingle();
+        const { data: profile } = await supabase
+          .from("profiles").select("email, full_name").eq("user_id", account?.client_id).maybeSingle();
+        if (!profile?.email) return { ok: false, error: "Customer has no email on file" };
+
+        const { data, error } = await supabase
+          .from("email_queue")
+          .insert({
+            event_key: `nova_customer_${Date.now()}`,
+            to_email: profile.email,
+            template_key: "generic_customer_message",
+            subject: input.subject,
+            template_vars: {
+              client_name: profile.full_name ?? "Client",
+              body_text: input.body_text,
+              sender: "NOVA via " + (account?.client_id ?? "system"),
+            },
+            status: "queued",
+          })
+          .select("id")
+          .maybeSingle();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: { queue_id: data?.id, to: profile.email } };
+      }
+
+      // ─── FRONTEND COMMANDS — the UI listens for these in the response ──
+      case "ui_navigate": {
+        return {
+          ok: true,
+          result: {
+            frontend_action: "navigate",
+            path: input.path,
+            in_new_tab: input.in_new_tab === true,
+          },
+        };
+      }
+
+      case "ui_open_client_360": {
+        return {
+          ok: true,
+          result: {
+            frontend_action: "open_client_360",
+            account_id: input.account_id,
+            path: `/employee/clients/${input.account_id}`,
+          },
+        };
       }
 
       default:
