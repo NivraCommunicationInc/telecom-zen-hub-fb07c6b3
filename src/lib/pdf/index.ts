@@ -1,9 +1,31 @@
 /**
  * Nivra PDF Templates - V3.0 TELUS-GRADE ENGINE
- * 
+ *
  * Usage:
  *   import { generateOrderDocuments, downloadPDF } from "@/lib/pdf";
  */
+
+// ============================================================================
+// BOOTSTRAP — runs once, hardens every jsPDF.text() call across the app.
+// MUST be the first import so the prototype patch is installed before any
+// template module instantiates a document.
+// ============================================================================
+import "./_pdfBootstrap";
+
+// ============================================================================
+// PUBLIC SANITIZE HELPERS — explicit safe formatters templates can use
+// directly when they want clearer call-sites than the implicit hardener.
+// ============================================================================
+export {
+  safeText, safeName, safeAddress, safeMoney, safeDate, safePhone, safeEmail,
+  sanitizeForPdfText, checkRequiredFields,
+  PDF_MISSING_VALUE_PLACEHOLDER, PDF_REQUIRED_FIELD_FALLBACK,
+} from "./_pdfSanitize";
+
+// Factory + lower-level hardener (for code that doesn't go through `new jsPDF`)
+export { createDoc } from "./_createDoc";
+export { hardenDoc, isDocHardened } from "./_pdfHarden";
+export { installPdfTextHardener } from "./_pdfBootstrap";
 
 // ============================================================================
 // COMPANY INFO — Single Source of Truth

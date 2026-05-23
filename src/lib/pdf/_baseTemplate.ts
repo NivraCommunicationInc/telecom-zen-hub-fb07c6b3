@@ -62,93 +62,309 @@ export function safeDrawText(
   doc.text(out, x, y, opts as any);
 }
 
-/** Standard 40mm navy header. */
-export function drawHeader(doc: jsPDF, docTitle: string, docNumber: string) {
+/**
+ * Premium Telus-style header — 42mm navy band with logo mark, brand wordmark,
+ * document title, document number, and the date on the right.
+ *
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │  ▌ NIVRA TELECOM                              FACTURE  No 12345    │
+ *   │    Service à la clientèle                              23 mai 2026 │
+ *   └────────────────────────────────────────────────────────────────────┘
+ */
+export function drawHeader(
+  doc: jsPDF,
+  docTitle: string,
+  docNumber: string,
+  options: { docDate?: string | Date | null; subtitle?: string } = {},
+) {
   const pw = doc.internal.pageSize.getWidth();
+
+  // Navy band (slightly taller for premium feel)
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(0, 0, pw, 40, "F");
+  doc.rect(0, 0, pw, 42, "F");
 
+  // Accent vertical bar — Telus uses a coloured stripe on the left of the wordmark
+  doc.setFillColor(TEAL[0], TEAL[1], TEAL[2]);
+  doc.rect(0, 0, 3, 42, "F");
+
+  // Wordmark
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setTextColor(255, 255, 255);
-  doc.text("NIVRA TELECOM", 15, 16);
+  doc.text("NIVRA TELECOM", 12, 17);
 
+  // Subtitle (division / tagline)
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(docTitle.toUpperCase(), 15, 28);
+  doc.setFontSize(8.5);
+  doc.setTextColor(180, 200, 220);
+  doc.text(safeText(options.subtitle, NIVRA.division), 12, 23);
 
+  // Document title (right side, prominent)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  doc.text(safeText(docTitle, "DOCUMENT").toUpperCase(), pw - 12, 17, { align: "right" });
+
+  // Document number + date (right side, under title)
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(200, 215, 230);
   if (docNumber) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(`No ${docNumber}`, pw - 15, 18, { align: "right" });
+    doc.text(`No ${safeText(docNumber, "—")}`, pw - 12, 23, { align: "right" });
   }
+  if (options.docDate) {
+    const dateStr = fmtDate(
+      options.docDate instanceof Date ? options.docDate.toISOString().split("T")[0] : String(options.docDate),
+    );
+    doc.text(dateStr, pw - 12, 29, { align: "right" });
+  }
+
+  // Reset for body content
+  doc.setTextColor(0, 0, 0);
+  doc.setLineWidth(0.2);
 }
 
-/** Canonical legal footer. */
-export function drawFooter(doc: jsPDF) {
+/**
+ * Canonical legal footer — appears on every page.
+ *
+ * Line 1: Company legal name + NEQ + email
+ * Line 2: GST (TPS) + QST (TVQ) registrations
+ * Line 3: Postal address
+ * Line 4: Page x of y (if pageInfo provided)
+ *
+ * Call once per page (drawFooter is automatically idempotent — wraps in
+ * setPage). For multi-page documents, prefer drawFooterOnAllPages() below.
+ */
+export function drawFooter(
+  doc: jsPDF,
+  pageInfo?: { current: number; total: number },
+) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
 
+  // Top thin separator line
+  doc.setDrawColor(GREY_BORDER[0], GREY_BORDER[1], GREY_BORDER[2]);
+  doc.setLineWidth(0.3);
+  doc.line(15, ph - 26, pw - 15, ph - 26);
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(7.5);
+  doc.setTextColor(80, 80, 80);
+
+  // Line 1 — legal identity
   doc.text(
-    `${NIVRA.tradeName} Inc. | ${NIVRA.email} | ${NIVRA.website}`,
-    pw / 2, ph - 18, { align: "center" }
+    `${NIVRA.legalName} | NEQ ${NIVRA.neq} | ${NIVRA.email} | ${NIVRA.website}`,
+    pw / 2, ph - 20, { align: "center" },
   );
+
+  // Line 2 — tax registrations
+  doc.setTextColor(110, 110, 110);
   doc.text(
     `${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`,
-    pw / 2, ph - 13, { align: "center" }
+    pw / 2, ph - 15, { align: "center" },
   );
-  doc.text(
-    `${NIVRA.address}`,
-    pw / 2, ph - 8, { align: "center" }
-  );
+
+  // Line 3 — postal address
+  doc.text(safeText(NIVRA.address, ""), pw / 2, ph - 10, { align: "center" });
+
+  // Line 4 — page x of y (if multi-page)
+  if (pageInfo && pageInfo.total > 1) {
+    doc.setFontSize(7);
+    doc.text(
+      `Page ${pageInfo.current} sur ${pageInfo.total}`,
+      pw - 15, ph - 5, { align: "right" },
+    );
+  }
+
+  doc.setTextColor(0, 0, 0);
+  doc.setLineWidth(0.2);
 }
 
-/** Client info block (returns new Y position). */
+/**
+ * Convenience: draw the footer on every page of a multi-page document.
+ * Call this AFTER all body content is rendered.
+ */
+export function drawFooterOnAllPages(doc: jsPDF) {
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    drawFooter(doc, { current: i, total });
+  }
+}
+
+/**
+ * Client info block (returns new Y position).
+ *
+ * Telus-style two-column layout:
+ *   ┌─ Client ────────────────────┐ ┌─ Adresse de service ────────────────┐
+ *   │ Jean Tremblay               │ │ 123 rue Example                    │
+ *   │ jean@example.com            │ │ Laval, QC H7T 2Y5                  │
+ *   │ (514) 555-1234              │ │                                    │
+ *   │ Compte: NIV-ACCT-000123     │ │                                    │
+ *   └─────────────────────────────┘ └────────────────────────────────────┘
+ *
+ * Every field is run through safeText() so missing data never renders as
+ * "null" or empty space.
+ */
 export function drawClientBlock(
   doc: jsPDF,
   startY: number,
   client: {
-    name: string;
-    email?: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    province?: string;
-    postal?: string;
-    account_number?: string;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    city?: string | null;
+    province?: string | null;
+    postal?: string | null;
+    account_number?: string | null;
   }
 ): number {
   let y = startY;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.text("Client", 15, y);
   if (client.address) doc.text("Adresse de service", 110, y);
   y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(client.name, 15, y);
-  if (client.address) doc.text(client.address, 110, y);
+  doc.setTextColor(30, 30, 30);
+  // Names + address — safeText handles null gracefully
+  doc.text(safeText(client.name, "Non fourni"), 15, y);
+  if (client.address) doc.text(safeText(client.address, "—"), 110, y);
   y += 5;
 
-  if (client.email) { doc.text(client.email, 15, y); }
-  if (client.city) {
-    doc.text(`${client.city}, ${client.province || "QC"} ${client.postal || ""}`, 110, y);
+  if (client.email) { doc.text(safeText(client.email, "—").toLowerCase(), 15, y); }
+  if (client.city || client.province || client.postal) {
+    const cityLine = [
+      safeText(client.city, ""),
+      safeText(client.province, "QC"),
+      safeText(client.postal, ""),
+    ].filter(Boolean).join(", ");
+    doc.text(cityLine || "—", 110, y);
   }
   y += 5;
 
-  if (client.phone) { doc.text(client.phone, 15, y); y += 5; }
+  if (client.phone) {
+    // Format E.164 / 10-digit into "(514) 555-1234"
+    const phoneRaw = String(client.phone).replace(/\D/g, "");
+    const phoneFmt =
+      phoneRaw.length === 10
+        ? `(${phoneRaw.slice(0, 3)}) ${phoneRaw.slice(3, 6)}-${phoneRaw.slice(6)}`
+        : safeText(client.phone, "—");
+    doc.text(phoneFmt, 15, y);
+    y += 5;
+  }
 
   if (client.account_number) {
     doc.setFontSize(8);
-    doc.text(`Compte: ${client.account_number}`, 15, y);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Compte: ${safeText(client.account_number, "—")}`, 15, y);
     y += 6;
   }
+  doc.setTextColor(0, 0, 0);
   return y + 4;
+}
+
+/**
+ * Totals block (Telus-style) — subtotal, discounts, taxes, total.
+ * Right-aligned column, takes a row list. Pass nulls safely.
+ *
+ *   drawTotalsBlock(doc, y, [
+ *     { label: "Sous-total",      amount: 100 },
+ *     { label: "Rabais bienvenue", amount: -100, muted: true },
+ *     { label: "TPS (5%)",         amount: 0 },
+ *     { label: "TVQ (9,975%)",     amount: 0 },
+ *     { label: "Total",            amount: 0, bold: true, separator: true },
+ *   ])
+ */
+export function drawTotalsBlock(
+  doc: jsPDF,
+  startY: number,
+  rows: Array<{
+    label: string;
+    amount: number | null | undefined;
+    bold?: boolean;
+    muted?: boolean;
+    separator?: boolean; // draw line above this row
+  }>,
+  options: { rightAlign?: number; leftAlign?: number } = {},
+): number {
+  const rightX = options.rightAlign ?? 195;
+  const leftX = options.leftAlign ?? 115;
+  let y = startY;
+
+  for (const row of rows) {
+    if (row.separator) {
+      doc.setDrawColor(GREY_BORDER[0], GREY_BORDER[1], GREY_BORDER[2]);
+      doc.line(leftX, y - 1, rightX, y - 1);
+      y += 2;
+    }
+    if (row.bold) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(row.muted ? 110 : 40, row.muted ? 110 : 40, row.muted ? 110 : 40);
+    }
+    doc.text(row.label, leftX, y);
+    doc.text(fmtCAD(row.amount ?? 0), rightX, y, { align: "right" });
+    y += row.bold ? 7 : 5;
+  }
+  doc.setTextColor(0, 0, 0);
+  return y + 3;
+}
+
+/**
+ * Premium amount-due box — used on invoices, suspension notices, refund
+ * receipts. Big rounded card with the amount in large type.
+ */
+export function drawAmountDueBox(
+  doc: jsPDF,
+  y: number,
+  amount: number | null | undefined,
+  label: string,
+  options: { tone?: "primary" | "warning" | "success" | "error" } = {},
+): number {
+  const pw = doc.internal.pageSize.getWidth();
+  const tone = options.tone ?? "primary";
+  const fillMap: Record<string, [number, number, number]> = {
+    primary: [240, 248, 255],
+    warning: [255, 247, 230],
+    success: [232, 246, 235],
+    error:   [253, 233, 233],
+  };
+  const borderMap: Record<string, [number, number, number]> = {
+    primary: NAVY,
+    warning: ORANGE,
+    success: GREEN,
+    error:   RED,
+  };
+  const fill = fillMap[tone];
+  const border = borderMap[tone];
+
+  doc.setFillColor(fill[0], fill[1], fill[2]);
+  doc.setDrawColor(border[0], border[1], border[2]);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(15, y, pw - 30, 24, 3, 3, "FD");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(80, 80, 80);
+  doc.text(label, 22, y + 9);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(border[0], border[1], border[2]);
+  doc.text(fmtCAD(amount ?? 0), pw - 22, y + 16, { align: "right" });
+
+  doc.setTextColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  return y + 30;
 }
 
 /** Section title (small bold heading). */
