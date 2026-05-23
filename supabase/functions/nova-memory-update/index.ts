@@ -2,6 +2,9 @@
 // NOVA Memory Update — extract insights from conversations and persist them.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { reportEdgeError } from "../_shared/sentry.ts";
+
+const AGENT = "nova-memory-update";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -130,10 +133,28 @@ Règles:
       }
       saved++;
     }
+    // Audit each memory-update run. Writing to nova_memory bypasses normal
+    // audit hooks, so without this, NOVA could silently persist "memories"
+    // (effectively rules) without any trace of who/what added them.
+    await admin.from("agent_audit_log").insert({
+      agent_name: AGENT,
+      action: "extract_and_persist",
+      result: "success",
+      details: { insights_saved: saved },
+    }).then(() => undefined, () => undefined);
+
     return new Response(JSON.stringify({ ok: true, insights: saved }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }),
+    const msg = e instanceof Error ? e.message : "unknown";
+    await admin.from("agent_audit_log").insert({
+      agent_name: AGENT,
+      action: "extract_and_persist",
+      result: "failure",
+      error_message: msg,
+    }).then(() => undefined, () => undefined);
+    reportEdgeError(e, { function: AGENT }).catch(() => {});
+    return new Response(JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

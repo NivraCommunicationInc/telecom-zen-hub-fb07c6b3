@@ -36,6 +36,24 @@ export function generateTemporaryPin(): string {
 
 /**
  * @deprecated — Do not use a shared default PIN for all accounts.
- * Use generateTemporaryPin() instead.
+ *
+ * SECURITY FIX (2026-05-23): Removed the hardcoded "3112" value. Anyone who
+ * knew the constant could authenticate against any account whose
+ * `pin_is_default` flag was still true. The new value is intentionally an
+ * empty string so the legacy `if (pin === DEFAULT_PIN)` check never succeeds.
+ *
+ * Existing clients with pin_is_default=true must now trigger an admin
+ * PIN reset (which calls generateTemporaryPin() and stores a HASHED unique
+ * PIN per account) before they can authenticate.
+ *
+ * If you genuinely need a per-environment fallback during local development,
+ * set VITE_DEV_DEFAULT_PIN in your .env (NEVER in prod). Reads default to
+ * empty string when the env var is absent.
  */
-export const DEFAULT_PIN = '3112';
+export const DEFAULT_PIN: string = (() => {
+  // Allow a dev-only override; production builds must leave this unset.
+  const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+  const fromEnv = env?.VITE_DEV_DEFAULT_PIN;
+  if (fromEnv && env?.DEV) return fromEnv;
+  return ""; // never matches a real 4-digit PIN entry
+})();

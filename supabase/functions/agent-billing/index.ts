@@ -151,7 +151,13 @@ async function checkFailedPayments(supabase: any) {
 }
 
 async function checkOverdueAccounts(supabase: any) {
-  const overdueCutoff = new Date(Date.now() - 3 * 86400_000).toISOString();
+  // FIX (2026-05-23): the documented suspension rule is "J+5" — suspend 5 days
+  // after the renewal/due date passed. The previous code used -3 days which
+  // suspended accounts 2 days too early, violating the grace-period contract
+  // promised to customers. Constant kept as a single named value so future
+  // changes happen in one obvious place.
+  const SUSPENSION_GRACE_DAYS = 5;
+  const overdueCutoff = new Date(Date.now() - SUSPENSION_GRACE_DAYS * 86400_000).toISOString();
   const { data: subs } = await supabase
     .from("billing_subscriptions")
     .select("customer_id, plan_name, plan_price, next_renewal_at, status")
@@ -194,6 +200,58 @@ async function checkOverdueAccounts(supabase: any) {
     }
   }
   return { suspended, grace };
+}
+
+// NEW (2026-05-23) — J+10 void. Per the documented billing rule:
+// "Modèle 100% prépayé, aucune dette" — after 10 days of being overdue
+// (i.e. 5 days after suspension at J+5), we void the unpaid invoices and
+// mark the subscription as 'not_renewed'. No collections, no debt accrual.
+async function checkVoidOverdue(supabase: any) {
+  const VOID_AT_DAYS = 10;
+  const voidCutoff = new Date(Date.now() - VOID_AT_DAYS * 86400_000).toISOString();
+  let invoicesVoided = 0;
+  let subscriptionsNotRenewed = 0;
+
+  // 1. Void overdue invoices that have been overdue past the threshold.
+  const { data: overdueInvoices } = await supabase
+    .from("billing_invoices")
+    .select("id, total, balance_due, subscription_id, due_date")
+    .in("status", ["overdue", "pending", "partially_paid"])
+    .lt("due_date", voidCutoff);
+
+  for (const inv of overdueInvoices ?? []) {
+    const { error } = await supabase
+      .from("billing_invoices")
+      .update({
+        status: "void",
+        balance_due: 0,
+        notes: `Auto-voided at J+${VOID_AT_DAYS} (prepaid model — no debt accrual)`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", inv.id);
+    if (!error) invoicesVoided++;
+  }
+
+  // 2. Mark the subscriptions that backed those invoices as not_renewed.
+  //    A future re-subscription requires a fresh cycle anchor — no carryover.
+  const subIds = Array.from(
+    new Set((overdueInvoices ?? []).map((i: any) => i.subscription_id).filter(Boolean)),
+  );
+  if (subIds.length > 0) {
+    const { data: subUpdated } = await supabase
+      .from("billing_subscriptions")
+      .update({
+        status: "not_renewed",
+        auto_billing_enabled: false,
+        updated_at: new Date().toISOString(),
+      })
+      .in("id", subIds)
+      .in("status", ["active", "suspended"])
+      .select("id");
+    subscriptionsNotRenewed = subUpdated?.length ?? 0;
+  }
+
+  return { invoices_voided: invoicesVoided, subscriptions_not_renewed: subscriptionsNotRenewed };
 }
 
 async function checkStuckOrders(supabase: any) {
@@ -263,14 +321,22 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, ...r }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const [r7, r3, failed, overdue, stuck] = await Promise.all([
+    const [r7, r3, failed, overdue, stuck, voided] = await Promise.all([
       check7DayRenewals(supabase),
       check3DayRenewals(supabase),
       checkFailedPayments(supabase),
       checkOverdueAccounts(supabase),
       checkStuckOrders(supabase),
+      checkVoidOverdue(supabase), // J+10 void per prepaid model
     ]);
-    const summary = { reminders_7: r7, reminders_3: r3, failed_payments_handled: failed, overdue: overdue, stuck_orders: stuck };
+    const summary = {
+      reminders_7: r7,
+      reminders_3: r3,
+      failed_payments_handled: failed,
+      overdue,
+      stuck_orders: stuck,
+      voided_at_j10: voided,
+    };
     await logAudit(supabase, "hourly_run", "success", summary, Date.now() - startedAt);
     return new Response(JSON.stringify({ ok: true, ...summary }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

@@ -2,6 +2,9 @@
 // NOVA Email Handler — autonomously responds to support tickets. Cron every 5 min.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { reportEdgeError } from "../_shared/sentry.ts";
+
+const AGENT = "nova-email-handler";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -17,12 +20,13 @@ const SENSITIVE_KEYWORDS = ["facture", "annulation", "remboursement", "résiliat
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const startedAt = Date.now();
+  const admin = createClient(supabaseUrl, serviceKey);
   try {
     if (!ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const admin = createClient(supabaseUrl, serviceKey);
 
     const { data: tickets } = await admin.from("support_tickets_ai")
       .select("id, ticket_number, from_email, from_name, subject, body, category, priority, account_id")
@@ -126,10 +130,29 @@ Retourne UNIQUEMENT un JSON:
       }
     }
 
+    // Audit: this cron previously ran fully untracked. Now we leave a trace
+    // every 5 min so ops can see "NOVA processed X tickets, escalated Y" at a glance.
+    await admin.from("agent_audit_log").insert({
+      agent_name: AGENT,
+      action: "ticket_response_pass",
+      result: "success",
+      execution_time_ms: Date.now() - startedAt,
+      details: { processed, auto, escalated },
+    }).then(() => undefined, () => undefined);
+
     return new Response(JSON.stringify({ ok: true, processed, auto, escalated }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }),
+    const msg = e instanceof Error ? e.message : "unknown";
+    await admin.from("agent_audit_log").insert({
+      agent_name: AGENT,
+      action: "ticket_response_pass",
+      result: "failure",
+      error_message: msg,
+      execution_time_ms: Date.now() - startedAt,
+    }).then(() => undefined, () => undefined);
+    reportEdgeError(e, { function: AGENT }).catch(() => {});
+    return new Response(JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

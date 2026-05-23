@@ -2,6 +2,7 @@
 // NOVA Watchdog — proactive monitoring, runs every 30 minutes via cron.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withNovaAudit } from "../_shared/novaAudit.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -21,9 +22,16 @@ interface Alert {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const admin = createClient(supabaseUrl, serviceKey);
   try {
-    const admin = createClient(supabaseUrl, serviceKey);
-    const alerts: Alert[] = [];
+    // withNovaAudit wraps the whole scan: any uncaught error is logged + sent
+    // to Sentry, and the summary returned here lands in agent_audit_log.details.
+    const summary = await withNovaAudit(
+      "nova-watchdog",
+      "scan",
+      admin as any,
+      async () => {
+        const alerts: Alert[] = [];
 
     // 1. DLQ emails
     const { count: dlq } = await admin.from("email_queue").select("*", { count: "exact", head: true }).eq("status", "dlq");
@@ -97,7 +105,12 @@ serve(async (req) => {
       inserted++;
     }
 
-    return new Response(JSON.stringify({ ok: true, checked: alerts.length, inserted }),
+        return { checked: alerts.length, inserted };
+      },
+      { alsoEvent: "info", eventMessage: "Watchdog scan complete" },
+    );
+
+    return new Response(JSON.stringify({ ok: true, ...summary }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }),
