@@ -1,10 +1,15 @@
 /**
  * ClientHeader — Client identity header with status indicators.
+ *
+ * Status is rendered via AccountStateBadge — the canonical cross-portal state
+ * from get_account_state(). The legacy `account.status` is only a fallback
+ * for the rare case where account.id is missing (billing-only customers).
  */
 import { Link } from "react-router-dom";
 import { User, Mail, Phone, Hash, MapPin, Wifi } from "lucide-react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
+import { AccountStateBadge } from "@/components/AccountStateBadge";
 
 interface Props {
   profile: any;
@@ -62,7 +67,11 @@ export function ClientHeader({ profile, account, subscriptions, address }: Props
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          {account?.status && <StatusBadge status={account.status} />}
+          {account?.id ? (
+            <AccountStateBadge accountId={account.id} />
+          ) : account?.status ? (
+            <StatusBadge status={account.status} />
+          ) : null}
         </div>
       </div>
     </div>

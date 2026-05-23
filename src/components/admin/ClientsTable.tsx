@@ -1,12 +1,17 @@
 /**
  * ClientsTable - Carrier-grade client list table
  * NO Card wrapper. Full-width table as primary surface.
+ *
+ * Status column uses AccountStateBadge — the canonical cross-portal state.
+ * Falls back to the legacy account_status badge when account_id is missing
+ * (e.g. billing-only customers without a real accounts row).
  */
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { AccountStateBadge } from "@/components/AccountStateBadge";
 
 interface Client {
   id: string;
@@ -16,6 +21,7 @@ interface Client {
   balance?: number;
   store_credit?: number;
   account_status?: string;
+  account_id?: string | null;
   account_number?: string;
   client_number?: string;
   created_at: string;
@@ -81,7 +87,7 @@ export function ClientsTable({ clients, isLoading, searchQuery, onViewDetails }:
           </thead>
           <tbody>
             {clients.map((client, index) => {
-              const statusConfig = getStatusConfig(client.account_status);
+              const legacyStatus = getStatusConfig(client.account_status);
               return (
                 <tr key={client.id} className={`border-b border-border/40 transition-colors hover:bg-primary/5 ${index % 2 === 1 ? "bg-secondary/15" : ""}`}>
                   <td className="px-4 py-2.5 font-mono text-sm">
@@ -104,9 +110,13 @@ export function ClientsTable({ clients, isLoading, searchQuery, onViewDetails }:
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Badge className={statusConfig.className}>
-                      {statusConfig.label}
-                    </Badge>
+                    {client.account_id ? (
+                      <AccountStateBadge accountId={client.account_id} size="sm" />
+                    ) : (
+                      <Badge className={legacyStatus.className}>
+                        {legacyStatus.label}
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-sm text-muted-foreground">
                     {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
