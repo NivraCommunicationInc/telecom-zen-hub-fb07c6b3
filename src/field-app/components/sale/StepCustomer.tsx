@@ -123,10 +123,18 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
   const isValidPhone = customer.phone.replace(/\D/g, "").length >= 10;
   const isValidDOB = /^\d{4}-\d{2}-\d{2}$/.test(customer.date_of_birth) && new Date(customer.date_of_birth) < new Date();
 
-  const canContinue =
-    customer.first_name.trim() && customer.last_name.trim() && isValidPhone && isValidEmail &&
-    isValidDOB && customer.address.trim() && customer.city.trim() && customer.postal_code.trim() &&
-    customer.serviceability_status === "available";
+  const missing: string[] = [];
+  if (!customer.first_name.trim()) missing.push("Prénom");
+  if (!customer.last_name.trim()) missing.push("Nom");
+  if (!isValidPhone) missing.push("Téléphone valide (10 chiffres)");
+  if (!isValidEmail) missing.push("Courriel valide");
+  if (!isValidDOB) missing.push("Date de naissance");
+  if (!customer.address.trim()) missing.push("Adresse");
+  if (!customer.city.trim()) missing.push("Ville");
+  if (!customer.postal_code.trim()) missing.push("Code postal");
+  if (customer.serviceability_status !== "available") missing.push("Vérification de disponibilité du service");
+
+  const canContinue = missing.length === 0;
 
   const inputClass = "w-full px-3 py-2.5 rounded-lg border border-border bg-gray-800 text-sm text-gray-50 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
   const labelClass = "text-xs font-medium text-gray-50 mb-1 block";
@@ -260,7 +268,10 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
 
       <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1"><MapPin className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-gray-50">Adresse de service</h3></div>
-        <div><label className={labelClass}>Adresse *</label><input value={customer.address} onChange={(e) => update("address", e.target.value)} className={inputClass} placeholder="123 rue Principale" /></div>
+        <div className="grid grid-cols-[1fr_140px] gap-3">
+          <div><label className={labelClass}>Adresse *</label><input value={customer.address} onChange={(e) => update("address", e.target.value)} className={inputClass} placeholder="123 rue Principale" /></div>
+          <div><label className={labelClass}>App. <span className="text-gray-400 font-normal">(optionnel)</span></label><input value={customer.apartment || ""} onChange={(e) => update("apartment" as any, e.target.value)} className={inputClass} placeholder="Ex. 3B" /></div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className={labelClass}>Ville *</label><input value={customer.city} onChange={(e) => update("city", e.target.value)} className={inputClass} /></div>
           <div><label className={labelClass}>Code postal *</label><input value={customer.postal_code} onChange={(e) => update("postal_code", e.target.value)} className={inputClass} placeholder="H1A 1A1" /></div>
@@ -329,6 +340,18 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
         <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-2">
           <label className={labelClass}>Notes internes</label>
           <textarea value={customer.notes} onChange={(e) => update("notes", e.target.value)} rows={2} className={inputClass} placeholder="Notes pour le dossier…" />
+        </div>
+      )}
+
+      {!canContinue && missing.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Pour continuer, complétez :</p>
+            <ul className="text-xs mt-1 list-disc list-inside space-y-0.5">
+              {missing.map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          </div>
         </div>
       )}
 

@@ -10,11 +10,21 @@ export interface FieldSaleCustomer {
   phone: string;
   date_of_birth: string;
   address: string;
+  apartment?: string;
   city: string;
   postal_code: string;
   province: string;
   notes: string;
   serviceability_status: "unknown" | "checking" | "available" | "unavailable";
+}
+
+/** Concatenates address + apartment for downstream consumers (orders, invoices). */
+export function composeFullAddress(c: Pick<FieldSaleCustomer, "address" | "apartment">): string {
+  const base = (c.address || "").trim();
+  const apt = (c.apartment || "").trim();
+  if (!base) return "";
+  if (!apt) return base;
+  return `${base}, App. ${apt}`;
 }
 
 export interface FieldSaleService {
@@ -118,6 +128,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     phone: "",
     date_of_birth: "",
     address: "",
+    apartment: "",
     city: "",
     postal_code: "",
     province: "QC",
