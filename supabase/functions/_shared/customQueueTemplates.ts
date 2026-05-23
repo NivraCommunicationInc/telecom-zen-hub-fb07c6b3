@@ -5568,6 +5568,44 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "appointment_updated": {
+      // Used by appointment-rescheduled / appointment-status-update flows.
+      // Variables: { client_name, appointment_date, appointment_time,
+      //              technician_name, service_address, status_label, notes? }
+      const apptDate = String(v.appointment_date || v.new_date || "—");
+      const apptTime = String(v.appointment_time || v.new_time || "—");
+      const techName = String(v.technician_name || "—");
+      const serviceAddr = String(v.service_address || v.address || "—");
+      const statusLabel = String(v.status_label || v.status || "Mis à jour");
+      const notes = v.notes ? String(v.notes) : "";
+      return {
+        subject: `Mise à jour de votre rendez-vous Nivra — ${statusLabel}`,
+        html: shell({
+          preheader: "Votre rendez-vous a été modifié.",
+          badge: "RENDEZ-VOUS",
+          heroTitle: "Mise à jour de votre rendez-vous",
+          icon: "calendar",
+          greeting,
+          bodyText:
+            "Voici les détails de votre rendez-vous mis à jour. " +
+            "Si vous avez des questions, répondez simplement à ce courriel.",
+          cardTitle: "Nouveaux détails",
+          cardRows: [
+            ["Statut", esc(statusLabel)],
+            ["Date", esc(apptDate)],
+            ["Heure", esc(apptTime)],
+            ["Technicien assigné", esc(techName)],
+            ["Adresse de service", esc(serviceAddr)],
+            ...(notes ? [["Notes", esc(notes)] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/portal/appointments",
+          ctaPrimaryLabel: "Voir mes rendez-vous",
+          ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
+          ctaSecondaryLabel: "Nous contacter",
+        }),
+      };
+    }
+
     default:
       return null;
     }
