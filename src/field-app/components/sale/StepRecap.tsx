@@ -128,7 +128,7 @@ export default function StepRecap({
           <div className="flex items-start gap-1.5 text-xs text-[hsl(var(--field-text-dim))] mt-2 pt-2 border-t border-[hsl(var(--field-border-subtle))]">
             <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
             <span>
-              {draft.customer.address}, {draft.customer.city}, {draft.customer.province}{" "}
+              {draft.customer.address}{draft.customer.apartment ? `, App. ${draft.customer.apartment}` : ""}, {draft.customer.city}, {draft.customer.province}{" "}
               {draft.customer.postal_code}
             </span>
           </div>
