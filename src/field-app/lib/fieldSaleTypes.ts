@@ -128,6 +128,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     phone: "",
     date_of_birth: "",
     address: "",
+    apartment: "",
     city: "",
     postal_code: "",
     province: "QC",
