@@ -1598,44 +1598,51 @@ const AdminClients = () => {
                                     </div>
                                   </div>
                                   <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
-                                    {sub.status === 'active' ? (
+                                    {/* Suspend / Reactivate — admin-only via canSuspendAccount.
+                                        Employees see no button; they escalate via EscalationRequestDialog. */}
+                                    {permissions.canSuspendAccount && (
+                                      sub.status === 'active' ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-amber-500"
+                                          onClick={() =>
+                                            setSubStatusDialog({
+                                              open: true,
+                                              subId: sub.id,
+                                              nextStatus: "suspended",
+                                              reason: "",
+                                            })
+                                          }
+                                        >
+                                          <Pause className="w-4 h-4 mr-1" /> Suspendre
+                                        </Button>
+                                      ) : (
+                                        <Button size="sm" variant="outline" className="text-emerald-500" onClick={() => {
+                                          updateSubscriptionMutation.mutate({ id: sub.id, status: 'active', reason: 'Service réactivé par admin' });
+                                        }}>
+                                          <Play className="w-4 h-4 mr-1" /> Activer
+                                        </Button>
+                                      )
+                                    )}
+                                    {/* Cancel subscription — admin-only via canCancelSubscription. */}
+                                    {permissions.canCancelSubscription && (
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="text-amber-500"
+                                        className="text-red-500"
                                         onClick={() =>
                                           setSubStatusDialog({
                                             open: true,
                                             subId: sub.id,
-                                            nextStatus: "suspended",
+                                            nextStatus: "cancelled",
                                             reason: "",
                                           })
                                         }
                                       >
-                                        <Pause className="w-4 h-4 mr-1" /> Suspendre
-                                      </Button>
-                                    ) : (
-                                      <Button size="sm" variant="outline" className="text-emerald-500" onClick={() => {
-                                        updateSubscriptionMutation.mutate({ id: sub.id, status: 'active', reason: 'Service réactivé par admin' });
-                                      }}>
-                                        <Play className="w-4 h-4 mr-1" /> Activer
+                                        <XCircle className="w-4 h-4 mr-1" /> Annuler
                                       </Button>
                                     )}
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-red-500"
-                                      onClick={() =>
-                                        setSubStatusDialog({
-                                          open: true,
-                                          subId: sub.id,
-                                          nextStatus: "cancelled",
-                                          reason: "",
-                                        })
-                                      }
-                                    >
-                                      <XCircle className="w-4 h-4 mr-1" /> Annuler
-                                    </Button>
                                   </div>
                                 </div>
                               );
@@ -2169,9 +2176,12 @@ const AdminClients = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleViewDocument(doc)}>
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteDocument(doc)}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
+                              {/* Delete document — admin-only (canDeleteRecords). */}
+                              {permissions.canDeleteRecords && (
+                                <Button size="sm" variant="ghost" onClick={() => handleDeleteDocument(doc)}>
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))
@@ -2666,12 +2676,14 @@ const AdminClients = () => {
                   </div>
                 </div>
 
-                {selectedPayment.status !== "completed" && (
-                  <Button 
-                    className="w-full bg-emerald-600 hover:bg-emerald-700" 
-                    onClick={() => approvePaymentMutation.mutate({ 
-                      paymentId: selectedPayment.id, 
-                      amount: Number(selectedPayment.amount) 
+                {/* Manual payment approval — admin only (canUpdatePaymentStatus also gates,
+                    but financial actions on payments need stricter check). */}
+                {selectedPayment.status !== "completed" && permissions.canIssueManualCredit && (
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => approvePaymentMutation.mutate({
+                      paymentId: selectedPayment.id,
+                      amount: Number(selectedPayment.amount)
                     })}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />

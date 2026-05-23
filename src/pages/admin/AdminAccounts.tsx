@@ -49,6 +49,7 @@ import { format, addMonths, setDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
@@ -71,6 +72,9 @@ const AdminAccounts = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  // Gate destructive actions behind the granular RBAC flags. Employees see
+  // the page but never the Suspend / Close buttons.
+  const { permissions } = useRoleAccess();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
@@ -556,9 +560,10 @@ const AdminAccounts = () => {
                       <Edit className="w-4 h-4 mr-2" />
                       Modifier le compte
                     </Button>
-                    {selectedAccount?.status !== "suspended" && (
-                      <Button 
-                        variant="outline" 
+                    {/* Suspend / Reactivate — admin-only via canSuspendAccount. */}
+                    {permissions.canSuspendAccount && selectedAccount?.status !== "suspended" && (
+                      <Button
+                        variant="outline"
                         size="sm"
                         className="text-amber-600 border-amber-300 hover:bg-amber-50"
                         onClick={() => {
@@ -570,9 +575,9 @@ const AdminAccounts = () => {
                         Suspendre
                       </Button>
                     )}
-                    {selectedAccount?.status === "suspended" && (
-                      <Button 
-                        variant="outline" 
+                    {permissions.canSuspendAccount && selectedAccount?.status === "suspended" && (
+                      <Button
+                        variant="outline"
                         size="sm"
                         className="text-green-600 border-green-300 hover:bg-green-50"
                         onClick={() => {
@@ -584,9 +589,10 @@ const AdminAccounts = () => {
                         Réactiver
                       </Button>
                     )}
-                    {selectedAccount?.status !== "closed" && (
-                      <Button 
-                        variant="outline" 
+                    {/* Close account is destructive — admin only via canDeleteRecords. */}
+                    {permissions.canDeleteRecords && selectedAccount?.status !== "closed" && (
+                      <Button
+                        variant="outline"
                         size="sm"
                         className="text-destructive border-destructive/30 hover:bg-destructive/10"
                         onClick={() => {
