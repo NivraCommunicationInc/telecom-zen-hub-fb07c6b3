@@ -123,10 +123,18 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
   const isValidPhone = customer.phone.replace(/\D/g, "").length >= 10;
   const isValidDOB = /^\d{4}-\d{2}-\d{2}$/.test(customer.date_of_birth) && new Date(customer.date_of_birth) < new Date();
 
-  const canContinue =
-    customer.first_name.trim() && customer.last_name.trim() && isValidPhone && isValidEmail &&
-    isValidDOB && customer.address.trim() && customer.city.trim() && customer.postal_code.trim() &&
-    customer.serviceability_status === "available";
+  const missing: string[] = [];
+  if (!customer.first_name.trim()) missing.push("Prénom");
+  if (!customer.last_name.trim()) missing.push("Nom");
+  if (!isValidPhone) missing.push("Téléphone valide (10 chiffres)");
+  if (!isValidEmail) missing.push("Courriel valide");
+  if (!isValidDOB) missing.push("Date de naissance");
+  if (!customer.address.trim()) missing.push("Adresse");
+  if (!customer.city.trim()) missing.push("Ville");
+  if (!customer.postal_code.trim()) missing.push("Code postal");
+  if (customer.serviceability_status !== "available") missing.push("Vérification de disponibilité du service");
+
+  const canContinue = missing.length === 0;
 
   const inputClass = "w-full px-3 py-2.5 rounded-lg border border-border bg-gray-800 text-sm text-gray-50 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
   const labelClass = "text-xs font-medium text-gray-50 mb-1 block";
