@@ -82,7 +82,9 @@ Règles:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
+        // claude-3-haiku-20240307 was deprecated (March 2025) → 404.
+        // Memory extraction is cheap, Haiku 4.5 is plenty.
+        model: Deno.env.get("NOVA_TRIAGE_MODEL") ?? "claude-haiku-4-5",
         max_tokens: 2048,
         messages: [{ role: "user", content: extractionPrompt }],
       }),

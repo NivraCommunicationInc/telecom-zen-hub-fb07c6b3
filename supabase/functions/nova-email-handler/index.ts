@@ -62,7 +62,9 @@ Retourne UNIQUEMENT un JSON:
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
           body: JSON.stringify({
-            model: "claude-3-haiku-20240307",
+            // claude-3-haiku-20240307 was deprecated (March 2025) → 404.
+            // Use Haiku 4.5 (cheap + fast) for ticket triage; override via NOVA_TRIAGE_MODEL.
+            model: Deno.env.get("NOVA_TRIAGE_MODEL") ?? "claude-haiku-4-5",
             max_tokens: 1024,
             messages: [{ role: "user", content: prompt }],
           }),

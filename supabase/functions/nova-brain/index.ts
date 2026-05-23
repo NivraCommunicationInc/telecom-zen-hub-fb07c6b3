@@ -2,7 +2,7 @@
  * nova-brain — NOVA Digital Brain (Claude Sonnet 4.7 + tool use + caching)
  *
  * What changed in this rewrite:
- *   - Model: claude-3-haiku-20240307 → claude-sonnet-4-7
+ *   - Model: claude-3-haiku-20240307 → claude-sonnet-4-5 (configurable via NOVA_MODEL env)
  *     (10x reasoning capacity for real CEO-level decisions, not just chat)
  *   - Tool use enabled: NOVA can now CALL tools (query metrics, queue email,
  *     suspend account, look up customer state) instead of just talking about them
@@ -39,7 +39,10 @@ const corsHeaders = {
 };
 
 const AGENT = "nova-brain";
-const MODEL = "claude-sonnet-4-7";
+// Model — overridable via NOVA_MODEL env. Default to Sonnet 4.5 (proven alias).
+// Set NOVA_MODEL=claude-sonnet-4-7 (or claude-opus-4-7) in Lovable Secrets
+// once you've confirmed the alias works for your Anthropic plan.
+const MODEL = Deno.env.get("NOVA_MODEL") ?? "claude-sonnet-4-5";
 const MAX_TOKENS = 4096;
 // Max sequential tool calls in a single turn (prevents infinite loops while
 // allowing multi-step reasoning like "look up client X, then queue email").
