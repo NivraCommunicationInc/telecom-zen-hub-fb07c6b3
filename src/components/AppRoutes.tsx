@@ -330,6 +330,7 @@ const RefundPolicy = lazy(() => import("@/pages/legal/RefundPolicy"));
 const Garantie30Jours = lazy(() => import("@/pages/legal/Garantie30Jours"));
 const PolitiqueAccessibilite = lazy(() => import("@/pages/legal/PolitiqueAccessibilite"));
 const SecuriteAntiFraude = lazy(() => import("@/pages/legal/SecuriteAntiFraude"));
+const StatusPage = lazy(() => import("@/pages/Status"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
 const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
 const ConformiteCRTC = lazy(() => import("@/pages/legal/ConformiteCRTC"));
@@ -619,6 +620,11 @@ const AppRoutes = () => {
       <Route path="/guarantee" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
       <Route path="/accessibilite" element={<MaintenanceGuard><PublicLayout><PolitiqueAccessibilite /></PublicLayout></MaintenanceGuard>} />
       <Route path="/securite-anti-fraude" element={<MaintenanceGuard><PublicLayout><SecuriteAntiFraude /></PublicLayout></MaintenanceGuard>} />
+      {/* /status is intentionally NOT wrapped in MaintenanceGuard: the status
+          page must remain accessible when the rest of the site is under
+          maintenance — that's literally what it's for. */}
+      <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
+      <Route path="/statut" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
       <Route path="/conformite-crtc" element={<MaintenanceGuard><PublicLayout><ConformiteCRTC /></PublicLayout></MaintenanceGuard>} />
