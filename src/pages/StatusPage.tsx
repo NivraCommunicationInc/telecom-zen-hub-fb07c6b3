@@ -67,6 +67,27 @@ const StatusPage = () => {
     refetchInterval: 60000,
   });
 
+  // Resolved incidents in the last 30 days — shown as transparency history
+  // so customers can see Nivra acknowledges and resolves incidents.
+  const { data: incidents } = useQuery({
+    queryKey: ["public-service-incidents"],
+    queryFn: async () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+      const { data, error } = await supabase
+        .from("service_incidents")
+        .select(
+          "id, service_name, service_display_name, status_at_incident, incident_title, incident_message, started_at, resolved_at, duration_minutes",
+        )
+        .not("resolved_at", "is", null)
+        .gte("started_at", thirtyDaysAgo)
+        .order("started_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 120_000, // less aggressive — history doesn't change often
+  });
+
   // Live health-check from edge function
   const { data: healthData } = useQuery({
     queryKey: ["health-check-live"],
@@ -302,6 +323,77 @@ const StatusPage = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Recent incidents (last 30 days) — transparency history */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold text-foreground mb-4">
+            {isFr ? "Incidents récents (30 derniers jours)" : "Recent incidents (last 30 days)"}
+          </h2>
+          {incidents === undefined && (
+            <div className="h-20 animate-pulse rounded-xl bg-muted" />
+          )}
+          {incidents !== undefined && incidents.length === 0 && (
+            <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900">
+              <CardContent className="p-6 text-center">
+                <CheckCircle className="mx-auto mb-2 h-10 w-10 text-green-500" />
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                  {isFr
+                    ? "Aucun incident résolu au cours des 30 derniers jours."
+                    : "No resolved incidents in the last 30 days."}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {incidents && incidents.length > 0 && (
+            <div className="space-y-3">
+              {incidents.map((inc: any) => (
+                <Card key={inc.id} className="border-border">
+                  <CardContent className="p-5">
+                    <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{inc.incident_title}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {inc.service_display_name ?? inc.service_name}
+                        </p>
+                      </div>
+                      <Badge className="bg-green-500 text-white">
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        {isFr ? "Résolu" : "Resolved"}
+                      </Badge>
+                    </div>
+                    {inc.incident_message && (
+                      <p className="mb-3 text-sm text-muted-foreground">{inc.incident_message}</p>
+                    )}
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {isFr ? "Début" : "Started"}:{" "}
+                        {format(new Date(inc.started_at), "dd MMM HH:mm", { locale: dateLocale })}
+                      </span>
+                      {inc.resolved_at && (
+                        <span className="inline-flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          {isFr ? "Résolu" : "Resolved"}:{" "}
+                          {format(new Date(inc.resolved_at), "dd MMM HH:mm", { locale: dateLocale })}
+                        </span>
+                      )}
+                      {inc.duration_minutes != null && (
+                        <span>
+                          {isFr ? "Durée" : "Duration"}:{" "}
+                          {inc.duration_minutes < 60
+                            ? `${inc.duration_minutes} min`
+                            : `${Math.floor(inc.duration_minutes / 60)} h ${
+                                inc.duration_minutes % 60
+                              } min`}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Contact Support */}
