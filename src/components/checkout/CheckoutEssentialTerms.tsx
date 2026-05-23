@@ -37,6 +37,7 @@ export const CheckoutEssentialTerms = ({
     delays: acknowledged,
     notices: acknowledged,
     etransfer: acknowledged,
+    rescission: acknowledged,
   });
 
   // Sync with parent's acknowledged state
@@ -47,6 +48,7 @@ export const CheckoutEssentialTerms = ({
         delays: true,
         notices: true,
         etransfer: true,
+        rescission: true,
       });
     }
   }, [acknowledged]);
