@@ -59,6 +59,8 @@ export default function TechInstallation() {
   const [missReason, setMissReason] = useState("");
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [summary, setSummary] = useState<null | Record<string, any>>(null);
+  // Replaces window.confirm() for completion — modal dialog works better on mobile.
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
   const totalSteps = steps.length;
   const progress = totalSteps ? Math.round(((stepIdx + 1) / totalSteps) * 100) : 0;
@@ -709,16 +711,53 @@ export default function TechInstallation() {
         <div className="space-y-3 pt-2 pb-8">
           <button
             disabled={!canComplete || complete.isPending}
-            onClick={() => {
-              if (window.confirm("Confirmer la complétion de l'installation ?")) {
-                complete.mutate();
-              }
-            }}
+            onClick={() => setShowCompleteConfirm(true)}
             className="w-full min-h-[60px] rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-base font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {complete.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
             Marquer l'installation complète
           </button>
+
+          {/* Mobile-friendly confirmation dialog (replaces window.confirm) */}
+          <Dialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>
+            <DialogContent className="bg-slate-900 border-slate-700 text-white">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-emerald-400">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Confirmer la complétion
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm text-slate-200">
+                <p>
+                  Vous êtes sur le point de marquer cette installation comme <strong>complète</strong>.
+                </p>
+                <p className="text-slate-400">
+                  Le client sera notifié et le service sera activé. Cette action ne peut pas être annulée depuis votre téléphone.
+                </p>
+              </div>
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setShowCompleteConfirm(false)}
+                  className="w-full min-h-[52px] rounded-full bg-slate-700 hover:bg-slate-600 text-white font-semibold"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={complete.isPending}
+                  onClick={() => {
+                    setShowCompleteConfirm(false);
+                    complete.mutate();
+                  }}
+                  className="w-full min-h-[52px] rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {complete.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Confirmer
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           {!canComplete && (
             <p className="text-xs text-slate-400 text-center">
               Complétez toutes les étapes obligatoires

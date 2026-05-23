@@ -127,6 +127,13 @@ export const PayPalButton = ({
   }, [normalizedAmount, invoiceId, orderId, description, customerSignature]);
 
   const lastRenderedKeyRef = useRef<string | null>(null);
+  // Guard against double-click: track in-flight createOrder/capture calls.
+  // PayPal SDK has its own protection but a fast double-tap can still trigger
+  // two createOrder calls before our isLoading state propagates.
+  const inFlightRef = useRef<{ create: boolean; capture: boolean }>({ create: false, capture: false });
+  // Cache the PayPal order id from the first createOrder call so a second call
+  // within the same session returns the same order rather than creating a new one.
+  const lastOrderIdRef = useRef<string | null>(null);
 
   // Load PayPal SDK
   useEffect(() => {
@@ -176,6 +183,16 @@ export const PayPalButton = ({
         height: 45,
       },
       createOrder: async () => {
+        // Double-click protection: if a createOrder is already in flight, reuse the
+        // previously returned PayPal order id. This prevents creating two parallel
+        // orders for the same checkout if the user double-taps the button.
+        if (inFlightRef.current.create) {
+          if (lastOrderIdRef.current) return lastOrderIdRef.current;
+          // Wait briefly for the in-flight request to settle.
+          await new Promise((r) => setTimeout(r, 250));
+          if (lastOrderIdRef.current) return lastOrderIdRef.current;
+        }
+        inFlightRef.current.create = true;
         setIsLoading(true);
         try {
           if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
@@ -198,6 +215,7 @@ export const PayPalButton = ({
           if (error) throw error;
           if (!data?.paypal_order_id) throw new Error("No order ID returned");
 
+          lastOrderIdRef.current = data.paypal_order_id;
           return data.paypal_order_id;
         } catch (err) {
           console.error("PayPal create order error:", err);
@@ -206,11 +224,18 @@ export const PayPalButton = ({
           callbacksRef.current.onError?.(errorMessage);
           throw err;
         } finally {
+          inFlightRef.current.create = false;
           setIsLoading(false);
         }
       },
 
       onApprove: async (data: { orderID: string }) => {
+        // Double-click / replay protection on capture as well.
+        if (inFlightRef.current.capture) {
+          console.warn("[PayPal] capture already in flight, ignoring duplicate onApprove");
+          return;
+        }
+        inFlightRef.current.capture = true;
         setIsLoading(true);
         try {
           const { data: captureData, error } = await supabase.functions.invoke("paypal-capture-order", {
@@ -242,6 +267,7 @@ export const PayPalButton = ({
           toast.error(errorMessage);
           callbacksRef.current.onError?.(errorMessage);
         } finally {
+          inFlightRef.current.capture = false;
           setIsLoading(false);
         }
       },

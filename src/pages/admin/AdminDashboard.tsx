@@ -101,7 +101,7 @@ const AdminDashboard = () => {
               icon={Users}
             />
           </Link>
-          <Link to="/admin/billing">
+          <Link to="/admin/invoices">
             <StatCard
               label="Revenus totaux"
               value={isLoading ? "—" : (stats?.revenue?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }) || "$0")}

@@ -2,19 +2,65 @@
  * TechProtectedRoute — Guards all /tech/* routes.
  * Allows users with role 'technician' OR any admin/employee/supervisor/techops role.
  * Does NOT require hub session (techs may install the PWA and stay logged in).
+ *
+ * Security hardening: an idle timeout (default 30 minutes) signs the technician
+ * out automatically. This protects customer data if the device is left
+ * unattended at a customer site. Any user interaction (touch, keydown, scroll,
+ * mouse move) resets the timer.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldAlert, LogIn } from "lucide-react";
+import { toast } from "sonner";
 
 type State = "loading" | "authorized" | "unauthorized" | "no_session";
 
 const ALLOWED_ROLES = ["technician", "admin", "employee", "supervisor", "techops"];
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_WARNING_MS = 28 * 60 * 1000; // warn 2 minutes before logout
 
 export default function TechProtectedRoute() {
   const navigate = useNavigate();
   const [state, setState] = useState<State>("loading");
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  // Idle-timeout logic — only attaches once authorized.
+  useEffect(() => {
+    if (state !== "authorized") return;
+
+    const performLogout = async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // continue regardless
+      }
+      toast.info("Session expirée après 30 minutes d'inactivité.");
+      navigate("/nivra-secure-hub-2617-internal/login");
+    };
+
+    const resetTimers = () => {
+      lastActivityRef.current = Date.now();
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = setTimeout(() => {
+        toast.warning("Votre session expirera dans 2 minutes faute d'activité.");
+      }, IDLE_WARNING_MS);
+      idleTimerRef.current = setTimeout(performLogout, IDLE_TIMEOUT_MS);
+    };
+
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "touchmove", "scroll"];
+    events.forEach((e) => window.addEventListener(e, resetTimers, { passive: true }));
+    resetTimers();
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetTimers));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    };
+  }, [state, navigate]);
 
   useEffect(() => {
     let mounted = true;

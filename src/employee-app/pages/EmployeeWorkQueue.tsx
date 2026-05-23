@@ -38,19 +38,42 @@ const SLA_CONFIG: Record<string, { label: string; color: string; bg: string; dot
 function SlaIndicator({ item }: { item: WorkItem }) {
   const sla = SLA_CONFIG[item.sla_status] || SLA_CONFIG.on_time;
   const deadline = item.sla_deadline_at ? new Date(item.sla_deadline_at) : null;
+  // Live ticker: re-render every 30s so the countdown stays accurate without a
+  // full data refetch. Without this, the timeLabel only updated when the parent
+  // query refetched, hiding imminent SLA breaches from the agent.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!deadline) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, [deadline?.getTime()]);
+
   const now = new Date();
-  
   let timeLabel = "";
   if (deadline) {
     const diff = deadline.getTime() - now.getTime();
     if (diff > 0) {
       const hours = Math.floor(diff / 3600000);
-      timeLabel = hours > 24 ? `${Math.floor(hours / 24)}j` : `${hours}h`;
+      const mins = Math.floor((diff % 3600000) / 60000);
+      timeLabel =
+        hours > 24
+          ? `${Math.floor(hours / 24)}j`
+          : hours > 0
+          ? `${hours}h${mins.toString().padStart(2, "0")}`
+          : `${mins}m`;
     } else {
       const overHours = Math.abs(Math.floor(diff / 3600000));
-      timeLabel = overHours > 24 ? `-${Math.floor(overHours / 24)}j` : `-${overHours}h`;
+      const overMins = Math.abs(Math.floor((diff % 3600000) / 60000));
+      timeLabel =
+        overHours > 24
+          ? `-${Math.floor(overHours / 24)}j`
+          : overHours > 0
+          ? `-${overHours}h${overMins.toString().padStart(2, "0")}`
+          : `-${overMins}m`;
     }
   }
+  // Silence unused warning — `tick` is intentionally used for re-render only.
+  void tick;
 
   return (
     <div className="flex items-center gap-2">

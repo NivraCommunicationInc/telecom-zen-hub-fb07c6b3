@@ -114,6 +114,15 @@ const AdminClients = () => {
   const [documentToDelete, setDocumentToDelete] = useState<any>(null);
   const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  // Dialog state for subscription status changes (suspend / cancel) — replaces
+  // the legacy window.prompt() flow so the UX matches the rest of the admin and
+  // the reason field can be properly validated.
+  const [subStatusDialog, setSubStatusDialog] = useState<{
+    open: boolean;
+    subId: string | null;
+    nextStatus: "suspended" | "cancelled" | null;
+    reason: string;
+  }>({ open: false, subId: null, nextStatus: null, reason: "" });
   const [equipmentEditOpen, setEquipmentEditOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
   const [newClient, setNewClient] = useState({
@@ -1590,12 +1599,19 @@ const AdminClients = () => {
                                   </div>
                                   <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
                                     {sub.status === 'active' ? (
-                                      <Button size="sm" variant="outline" className="text-amber-500" onClick={() => {
-                                        const reason = prompt("Raison de la suspension:");
-                                        if (reason) {
-                                          updateSubscriptionMutation.mutate({ id: sub.id, status: 'suspended', reason });
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-amber-500"
+                                        onClick={() =>
+                                          setSubStatusDialog({
+                                            open: true,
+                                            subId: sub.id,
+                                            nextStatus: "suspended",
+                                            reason: "",
+                                          })
                                         }
-                                      }}>
+                                      >
                                         <Pause className="w-4 h-4 mr-1" /> Suspendre
                                       </Button>
                                     ) : (
@@ -1605,12 +1621,19 @@ const AdminClients = () => {
                                         <Play className="w-4 h-4 mr-1" /> Activer
                                       </Button>
                                     )}
-                                    <Button size="sm" variant="outline" className="text-red-500" onClick={() => {
-                                      const reason = prompt("Raison de l'annulation:");
-                                      if (reason) {
-                                        updateSubscriptionMutation.mutate({ id: sub.id, status: 'cancelled', reason });
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-red-500"
+                                      onClick={() =>
+                                        setSubStatusDialog({
+                                          open: true,
+                                          subId: sub.id,
+                                          nextStatus: "cancelled",
+                                          reason: "",
+                                        })
                                       }
-                                    }}>
+                                    >
                                       <XCircle className="w-4 h-4 mr-1" /> Annuler
                                     </Button>
                                   </div>
@@ -2664,6 +2687,98 @@ const AdminClients = () => {
                 )}
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Subscription status change dialog (suspend / cancel with reason) */}
+        <Dialog
+          open={subStatusDialog.open}
+          onOpenChange={(open) =>
+            setSubStatusDialog((prev) => ({ ...prev, open }))
+          }
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {subStatusDialog.nextStatus === "suspended" ? (
+                  <>
+                    <Pause className="w-5 h-5 text-amber-500" />
+                    Suspendre l'abonnement
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-5 h-5 text-red-500" />
+                    Annuler l'abonnement
+                  </>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {subStatusDialog.nextStatus === "suspended"
+                  ? "Le client ne sera plus facturé pendant la suspension. Vous pourrez réactiver l'abonnement à tout moment."
+                  : "Cette action est définitive. Le client devra créer un nouvel abonnement pour reprendre le service."}
+              </p>
+              <div>
+                <Label className="text-sm font-medium">
+                  Raison <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  value={subStatusDialog.reason}
+                  onChange={(e) =>
+                    setSubStatusDialog((prev) => ({ ...prev, reason: e.target.value }))
+                  }
+                  placeholder={
+                    subStatusDialog.nextStatus === "suspended"
+                      ? "Ex: Demande client, paiement non reçu, déménagement temporaire..."
+                      : "Ex: Demande client, déménagement, insatisfaction..."
+                  }
+                  rows={3}
+                  className="mt-2"
+                />
+                {!subStatusDialog.reason.trim() && (
+                  <p className="text-xs text-red-500 mt-1">
+                    La raison est obligatoire pour conserver une trace d'audit.
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setSubStatusDialog({
+                    open: false,
+                    subId: null,
+                    nextStatus: null,
+                    reason: "",
+                  })
+                }
+              >
+                Annuler
+              </Button>
+              <Button
+                variant={subStatusDialog.nextStatus === "cancelled" ? "destructive" : "default"}
+                disabled={!subStatusDialog.reason.trim() || !subStatusDialog.subId}
+                onClick={() => {
+                  if (!subStatusDialog.subId || !subStatusDialog.nextStatus) return;
+                  if (!subStatusDialog.reason.trim()) return;
+                  updateSubscriptionMutation.mutate({
+                    id: subStatusDialog.subId,
+                    status: subStatusDialog.nextStatus,
+                    reason: subStatusDialog.reason.trim(),
+                  });
+                  setSubStatusDialog({
+                    open: false,
+                    subId: null,
+                    nextStatus: null,
+                    reason: "",
+                  });
+                }}
+              >
+                {subStatusDialog.nextStatus === "suspended" ? "Suspendre" : "Confirmer l'annulation"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

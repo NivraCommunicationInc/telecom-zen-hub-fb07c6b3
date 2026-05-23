@@ -156,6 +156,7 @@ const GuestCheckout = () => {
     delays: false,
     notices: false,
     etransfer: false,
+    rescission: false,
   });
 
   // ── Pricing ──

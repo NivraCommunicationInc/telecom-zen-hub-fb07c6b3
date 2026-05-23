@@ -328,6 +328,8 @@ const ConfidentialiteLoi25 = lazy(() => import("@/pages/legal/ConfidentialiteLoi
 const FraisPossibles = lazy(() => import("@/pages/legal/FraisPossibles"));
 const RefundPolicy = lazy(() => import("@/pages/legal/RefundPolicy"));
 const Garantie30Jours = lazy(() => import("@/pages/legal/Garantie30Jours"));
+const PolitiqueAccessibilite = lazy(() => import("@/pages/legal/PolitiqueAccessibilite"));
+const SecuriteAntiFraude = lazy(() => import("@/pages/legal/SecuriteAntiFraude"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
 const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
 const ConformiteCRTC = lazy(() => import("@/pages/legal/ConformiteCRTC"));
@@ -615,6 +617,8 @@ const AppRoutes = () => {
       <Route path="/payer/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerCommande /></Suspense>} />
       <Route path="/garantie" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
       <Route path="/guarantee" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/accessibilite" element={<MaintenanceGuard><PublicLayout><PolitiqueAccessibilite /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/securite-anti-fraude" element={<MaintenanceGuard><PublicLayout><SecuriteAntiFraude /></PublicLayout></MaintenanceGuard>} />
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
       <Route path="/conformite-crtc" element={<MaintenanceGuard><PublicLayout><ConformiteCRTC /></PublicLayout></MaintenanceGuard>} />

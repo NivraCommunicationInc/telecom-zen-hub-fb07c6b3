@@ -349,6 +349,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 { label: isFr ? "Garantie 30 jours" : "30-day Guarantee", to: "/garantie" },
                 { label: "Loi 25", to: "/confidentialite-loi25" },
                 { label: isFr ? "Frais possibles" : "Possible Fees", to: "/frais-possibles" },
+                { label: isFr ? "Accessibilité" : "Accessibility", to: "/accessibilite" },
+                { label: isFr ? "Sécurité & anti-fraude" : "Security & Anti-fraud", to: "/securite-anti-fraude" },
               ].map((link) => (
                 <Link
                   key={link.to}

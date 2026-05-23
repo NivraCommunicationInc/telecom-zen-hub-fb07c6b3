@@ -10,6 +10,8 @@ export interface ChecklistState {
   delays: boolean;
   notices: boolean;
   etransfer: boolean;
+  /** Explicit acknowledgement of the 10-day right of rescission (LPC Québec). */
+  rescission: boolean;
 }
 
 export interface CheckoutEssentialTermsBaseProps {
@@ -140,10 +142,17 @@ export const CheckoutEssentialTermsBase = ({
     },
     {
       key: "notices" as keyof ChecklistState,
-      label: isFrench 
+      label: isFrench
         ? "J'ai compris que les avis peuvent être transmis via portail et/ou courriel."
         : "I understand that notices may be sent via portal and/or email.",
       required: true
+    },
+    {
+      key: "rescission" as keyof ChecklistState,
+      label: isFrench
+        ? "Je reconnais disposer d'un délai de rétractation de 10 jours suivant la signature du contrat, conformément à la Loi sur la protection du consommateur du Québec. Pour exercer ce droit, j'écris à support@nivra-telecom.ca avant l'expiration du délai."
+        : "I acknowledge a 10-day right of rescission from contract signature, per Quebec's Consumer Protection Act. To exercise it, email support@nivra-telecom.ca before the deadline.",
+      required: true,
     },
   ];
 
@@ -261,7 +270,8 @@ export const CheckoutEssentialTermsBase = ({
 
 // Helper to check if all required items are checked
 export const isChecklistComplete = (checklist: ChecklistState, isETransfer: boolean): boolean => {
-  const baseComplete = checklist.prepaid && checklist.delays && checklist.notices;
+  const baseComplete =
+    checklist.prepaid && checklist.delays && checklist.notices && checklist.rescission;
   if (isETransfer) {
     return baseComplete && checklist.etransfer;
   }

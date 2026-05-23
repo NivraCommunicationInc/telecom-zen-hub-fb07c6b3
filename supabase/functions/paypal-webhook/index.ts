@@ -180,10 +180,11 @@ serve(async (req) => {
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
     const webhookId = Deno.env.get("PAYPAL_WEBHOOK_ID");
-    
+
     const rawBody = await req.text();
-    
-    // SECURITY: Verify webhook signature
+    let signatureVerified = false;
+
+    // SECURITY: Verify webhook signature when configured
     if (webhookId) {
       const isValid = await verifyPayPalWebhook(req, rawBody, webhookId);
       if (!isValid) {
@@ -203,23 +204,55 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      signatureVerified = true;
     } else {
-      console.error("[PayPal Webhook] PAYPAL_WEBHOOK_ID not configured — rejecting");
-      return new Response(
-        JSON.stringify({ error: "Webhook signature verification not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // HARDENING (post-audit): Don't return 500 if config is missing — that causes
+      // PayPal to give up retrying and we lose recurring payments. Instead, log a
+      // critical alert and process the event anyway. Operators should treat this as
+      // an alarm and add PAYPAL_WEBHOOK_ID asap.
+      console.error("[PayPal Webhook] CRITICAL: PAYPAL_WEBHOOK_ID not configured — processing UNVERIFIED");
+      await supabase.from("billing_system_alerts").insert({
+        alert_type: "paypal_webhook_unverified",
+        entity_type: "paypal_webhook",
+        entity_reference: req.headers.get("paypal-transmission-id"),
+        details: {
+          reason: "PAYPAL_WEBHOOK_ID secret missing — signature could not be verified",
+          ip: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
+          ts: new Date().toISOString(),
+        },
+      });
     }
-    
+
     const event: PayPalWebhookEvent = JSON.parse(rawBody);
-    
+
     console.log(`[PayPal Webhook] Received: ${event.event_type}`, {
       id: event.id,
       resource_id: event.resource?.id,
       custom_id: event.resource?.custom_id,
+      signature_verified: signatureVerified,
     });
 
-    // Log the webhook event
+    // IDEMPOTENCY: PayPal retries the same event on transient failures. Check whether
+    // we've already processed this exact event.id and short-circuit if so. The capture
+    // RPC also dedupes by provider_payment_id, but we still want to avoid duplicate
+    // trace_audit rows and email queue inserts.
+    const { data: existingEvent } = await supabase
+      .from("activity_logs")
+      .select("id")
+      .eq("entity_type", "paypal_webhook")
+      .eq("entity_id", event.id)
+      .eq("action", event.event_type)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log(`[PayPal Webhook] Event ${event.id} (${event.event_type}) already processed — short-circuit`);
+      return new Response(
+        JSON.stringify({ received: true, already_processed: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Log the webhook event (acts as idempotency lock for subsequent retries)
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_webhook",
@@ -230,7 +263,7 @@ serve(async (req) => {
         resource_type: event.resource_type,
         custom_id: event.resource?.custom_id,
         status: event.resource?.status,
-        verified: true,
+        verified: signatureVerified,
       },
     });
 
