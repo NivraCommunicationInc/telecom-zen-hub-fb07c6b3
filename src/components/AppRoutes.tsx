@@ -330,7 +330,7 @@ const RefundPolicy = lazy(() => import("@/pages/legal/RefundPolicy"));
 const Garantie30Jours = lazy(() => import("@/pages/legal/Garantie30Jours"));
 const PolitiqueAccessibilite = lazy(() => import("@/pages/legal/PolitiqueAccessibilite"));
 const SecuriteAntiFraude = lazy(() => import("@/pages/legal/SecuriteAntiFraude"));
-const StatusPage = lazy(() => import("@/pages/Status"));
+
 const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
 const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
 const ConformiteCRTC = lazy(() => import("@/pages/legal/ConformiteCRTC"));
