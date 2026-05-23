@@ -343,6 +343,18 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
         </div>
       )}
 
+      {!canContinue && missing.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Pour continuer, complétez :</p>
+            <ul className="text-xs mt-1 list-disc list-inside space-y-0.5">
+              {missing.map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-3">
         <button type="button" onClick={() => setMode("choose")} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-gray-50 hover:bg-secondary transition-colors">← Retour</button>
         <button type="button" onClick={() => { runDuplicateCheck(); onNext(); }} disabled={!canContinue}
