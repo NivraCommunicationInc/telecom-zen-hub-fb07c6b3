@@ -535,7 +535,7 @@ export default function FieldNewSale() {
             customer_name: customerName,
             customer_email: draft.customer.email || null,
             customer_phone: draft.customer.phone || "",
-            customer_address: draft.customer.address || "",
+            customer_address: (draft.customer.address || "") + (draft.customer.apartment ? `, App. ${draft.customer.apartment}` : ""),
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
             customer_date_of_birth: draft.customer.date_of_birth || null,
