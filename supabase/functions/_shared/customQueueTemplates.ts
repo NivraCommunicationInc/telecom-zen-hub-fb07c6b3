@@ -2812,8 +2812,130 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CLIENT — TV channels selection updated
+    // ===================================================================
+    case "client_tv_channels_updated": {
+      const firstName = esc(v.first_name || clientName || "");
+      const count = esc(v.channel_count || "0");
+      const total = esc(v.total_price || "0,00 $");
+      const names = esc(v.channel_names || "—");
+      return {
+        subject: `Votre sélection de chaînes TV a été mise à jour`,
+        html: shell({
+          preheader: `Nouvelle sélection : ${count} chaîne(s) — ${total} / mois.`,
+          badge: "CHAÎNES TV MISES À JOUR",
+          heroTitle: "Sélection de chaînes confirmée",
+          heroSub: `${count} chaîne(s) actives sur votre service TV.`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise à jour de votre sélection de chaînes TV. Le nouveau tarif mensuel sera reflété sur votre prochaine facture.`,
+          cardTitle: "Détails de la sélection",
+          cardRows: [
+            ["Nombre de chaînes", count],
+            ["Total mensuel chaînes", total],
+            ["Aperçu", names],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
 
-    // STAFF — Welcome email after onboarding completion (Violet Bold)
+    // ===================================================================
+    // CLIENT — Referral qualified (3 cycles paid, reward pending)
+    // ===================================================================
+    case "client_referral_qualified": {
+      const firstName = esc(v.first_name || clientName || "");
+      const referredName = esc(v.referred_name || "votre filleul");
+      const rewardAmount = esc(v.reward_amount || "25,00 $");
+      return {
+        subject: `Votre parrainage est qualifié — récompense à venir`,
+        html: shell({
+          preheader: `Bravo ! Votre parrainage est officiellement qualifié.`,
+          badge: "PARRAINAGE QUALIFIÉ",
+          heroTitle: "Parrainage qualifié",
+          heroSub: `${referredName} a complété les 3 cycles requis.`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Excellente nouvelle : votre parrainage est désormais qualifié. Votre récompense de <strong>${rewardAmount}</strong> sera émise sous peu par notre équipe.`,
+          cardTitle: "Détails du parrainage",
+          cardRows: [
+            ["Filleul", referredName],
+            ["Récompense", rewardAmount],
+            ["Statut", "Qualifié — émission en cours"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mes parrainages",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Referral reward issued
+    // ===================================================================
+    case "client_referral_reward_issued": {
+      const firstName = esc(v.first_name || clientName || "");
+      const referredName = esc(v.referred_name || "votre filleul");
+      const rewardAmount = esc(v.reward_amount || "25,00 $");
+      const rewardType = esc(v.reward_type || "Carte cadeau Visa/Mastercard");
+      const reference = esc(v.reward_reference || "—");
+      return {
+        subject: `Votre récompense de parrainage a été émise`,
+        html: shell({
+          preheader: `Votre récompense de ${rewardAmount} est en route.`,
+          badge: "RÉCOMPENSE ÉMISE",
+          heroTitle: "Récompense de parrainage émise",
+          heroSub: `${rewardAmount} — ${rewardType}.`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Votre récompense de parrainage pour <strong>${referredName}</strong> a été émise. Vous recevrez les détails de livraison par courriel séparé.`,
+          cardTitle: "Détails de la récompense",
+          cardRows: [
+            ["Filleul", referredName],
+            ["Type", rewardType],
+            ["Montant", rewardAmount],
+            ["Référence", reference],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mes parrainages",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Referral disqualified
+    // ===================================================================
+    case "client_referral_disqualified": {
+      const firstName = esc(v.first_name || clientName || "");
+      const referredName = esc(v.referred_name || "votre filleul");
+      const reason = esc(v.reason || "Conditions du programme non remplies.");
+      return {
+        subject: `Mise à jour de votre parrainage`,
+        html: shell({
+          preheader: `Information importante sur l'un de vos parrainages.`,
+          badge: "PARRAINAGE — MISE À JOUR",
+          heroTitle: "Statut de parrainage modifié",
+          heroSub: `Le parrainage de ${referredName} n'est plus admissible.`,
+          icon: "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous vous informons que votre parrainage concernant <strong>${referredName}</strong> ne peut pas être validé.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Filleul", referredName],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mes parrainages",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+
     // ===================================================================
     case "staff_account_created": {
       const firstName = esc(v.first_name || v.FIRST_NAME || "");
