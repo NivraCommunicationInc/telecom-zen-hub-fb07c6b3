@@ -229,6 +229,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <EquipmentServiceActionsDialog
+          open={equipmentOpen}
+          onClose={() => setEquipmentOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
     </>
   );
 }
