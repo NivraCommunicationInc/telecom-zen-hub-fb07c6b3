@@ -340,6 +340,48 @@ export type Database = {
           },
         ]
       }
+      account_tags: {
+        Row: {
+          account_id: string | null
+          client_user_id: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          expires_at: string | null
+          id: string
+          note: string | null
+          severity: string
+          tag_key: string
+          tag_label: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_user_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          severity?: string
+          tag_key: string
+          tag_label: string
+        }
+        Update: {
+          account_id?: string | null
+          client_user_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          severity?: string
+          tag_key?: string
+          tag_label?: string
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           account_name: string | null
