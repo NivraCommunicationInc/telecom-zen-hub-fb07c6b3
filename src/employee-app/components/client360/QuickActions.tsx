@@ -2,12 +2,14 @@
  * QuickActions — Service agent action toolbar.
  */
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import {
   MessageSquare, Plus, DollarSign, FileText, ShoppingCart, Zap,
   AlertTriangle, Key, Building2, Calendar, Send, Receipt, BookOpen, Briefcase,
-  Tv, Eye,
+  Tv, Eye, UserCog,
 } from "lucide-react";
+import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccountAccessDialog";
 
 interface Props {
   clientId: string;
