@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi, Wallet,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
@@ -20,6 +20,7 @@ import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccount
 import { MobileServiceActionsDialog } from "@/shared-ops/components/MobileServiceActionsDialog";
 import { TVServiceActionsDialog } from "@/shared-ops/components/TVServiceActionsDialog";
 import { InternetServiceActionsDialog } from "@/shared-ops/components/InternetServiceActionsDialog";
+import { BillingServiceActionsDialog } from "@/shared-ops/components/BillingServiceActionsDialog";
 import { UserCog } from "lucide-react";
 
 
