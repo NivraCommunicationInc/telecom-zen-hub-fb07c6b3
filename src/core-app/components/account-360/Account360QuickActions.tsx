@@ -100,6 +100,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Wifi, label: "Gestion service Internet", onClick: () => setInternetOpen(true), color: "violet" as const },
     { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" as const },
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
+    { icon: ShieldCheck, label: "Vérification KYC", onClick: () => setKycOpen(true), color: "violet" as const },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
     { icon: MessageSquare, label: "Ticket support", onClick: () => setTicketOpen(true), color: "default" },
     { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true), color: "default" },
