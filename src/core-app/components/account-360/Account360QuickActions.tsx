@@ -36,7 +36,8 @@ import { AccountCommunicationDialog } from "@/shared-ops/components/AccountCommu
 import { AccountSmsDialog } from "@/shared-ops/components/AccountSmsDialog";
 import { AccountCallsDialog } from "@/shared-ops/components/AccountCallsDialog";
 import { AccountPreferencesDialog } from "@/shared-ops/components/AccountPreferencesDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2 } from "lucide-react";
+import { AccountTagsDialog } from "@/shared-ops/components/AccountTagsDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag } from "lucide-react";
 
 
 interface Props {
@@ -84,6 +85,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [smsOpen, setSmsOpen] = useState(false);
   const [callsOpen, setCallsOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -131,6 +133,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: MessageCircle, label: "Envoyer un SMS", onClick: () => setSmsOpen(true), color: "violet" as const },
     { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" as const },
     { icon: Settings2, label: "Préférences communication", onClick: () => setPreferencesOpen(true), color: "violet" as const },
+    { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
   ];
 
   const colorMap: Record<string, string> = {
@@ -424,6 +427,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         <AccountPreferencesDialog
           open={preferencesOpen}
           onClose={() => setPreferencesOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <AccountTagsDialog
+          open={tagsOpen}
+          onClose={() => setTagsOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
