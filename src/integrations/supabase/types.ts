@@ -18330,6 +18330,66 @@ export type Database = {
         }
         Relationships: []
       }
+      privacy_requests: {
+        Row: {
+          account_id: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          description: string
+          due_at: string
+          id: string
+          internal_notes: string | null
+          last_updated_by: string | null
+          last_updated_by_email: string | null
+          received_at: string
+          refusal_reason: string | null
+          request_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          description: string
+          due_at?: string
+          id?: string
+          internal_notes?: string | null
+          last_updated_by?: string | null
+          last_updated_by_email?: string | null
+          received_at?: string
+          refusal_reason?: string | null
+          request_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          description?: string
+          due_at?: string
+          id?: string
+          internal_notes?: string | null
+          last_updated_by?: string | null
+          last_updated_by_email?: string | null
+          received_at?: string
+          refusal_reason?: string | null
+          request_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_attributes: {
         Row: {
           attribute_key: string
