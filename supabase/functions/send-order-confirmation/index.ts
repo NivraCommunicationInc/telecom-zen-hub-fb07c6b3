@@ -630,7 +630,7 @@ ${phaseTwoSection}
     <span style="color:rgba(255,255,255,0.2)"> | </span>
     <a href="https://crtc.gc.ca" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">CRTC</a>
   </div>
-  <div style="font-size:11px;color:rgba(255,255,255,0.25)">© 2025 Nivra Communications Inc. Tous droits réservés.</div>
+  <div style="font-size:11px;color:rgba(255,255,255,0.25)">© 2026 Nivra Communications Inc. Tous droits réservés.</div>
 </div>
 
 </div>

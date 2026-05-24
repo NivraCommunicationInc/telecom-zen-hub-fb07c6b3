@@ -269,7 +269,7 @@ export const footer = (_supportEmail: string): string => `
         <tr>
           <td style="border-top: 1px solid #374151; padding-top: 16px; text-align: center;">
             <p style="color: ${colors.textLight}; font-size: 11px; margin: 0;">
-              © 2025 Nivra Communications Inc. Tous droits réservés.
+              © 2026 Nivra Communications Inc. Tous droits réservés.
             </p>
           </td>
         </tr>
