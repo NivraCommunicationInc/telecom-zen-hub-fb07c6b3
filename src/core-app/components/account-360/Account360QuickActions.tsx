@@ -54,6 +54,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [tvOpen, setTvOpen] = useState(false);
   const [internetOpen, setInternetOpen] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
