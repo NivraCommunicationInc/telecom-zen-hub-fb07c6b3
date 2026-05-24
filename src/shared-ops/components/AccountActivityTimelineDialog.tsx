@@ -20,6 +20,7 @@ interface Props {
   clientName: string;
   clientEmail?: string | null;
   accountId?: string | null;
+  initialActivity?: any[];
 }
 
 type TimelineItem = {
@@ -65,7 +66,7 @@ function humanizeAction(action: string): string {
 }
 
 export function AccountActivityTimelineDialog({
-  open, onClose, clientUserId, clientName, clientEmail, accountId,
+  open, onClose, clientUserId, clientName, clientEmail, accountId, initialActivity = [],
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<TimelineItem[]>([]);
@@ -75,6 +76,19 @@ export function AccountActivityTimelineDialog({
     if (!clientUserId) return;
     setLoading(true);
     try {
+      const fallbackItems: TimelineItem[] = initialActivity.map((log: any) => ({
+        id: `activity-${log.id}`,
+        kind: "audit",
+        ts: log.created_at,
+        title: log.summary || humanizeAction(log.action_type || "activité"),
+        subtitle: log.action_type ? humanizeAction(log.action_type) : undefined,
+        badge: "Activité",
+        badgeTone: "default",
+        details: log,
+        actor: log.actor_name || null,
+      }));
+      if (fallbackItems.length > 0) setItems(fallbackItems);
+
       const ids = [clientUserId, accountId].filter(Boolean) as string[];
       const auditQ = supabase
         .from("admin_audit_log")
@@ -98,7 +112,7 @@ export function AccountActivityTimelineDialog({
       if (auditErr) throw auditErr;
       if (emailErr) throw emailErr;
 
-      const list: TimelineItem[] = [];
+      const list: TimelineItem[] = [...fallbackItems];
       for (const a of audit ?? []) {
         list.push({
           id: `a-${a.id}`,
@@ -129,8 +143,9 @@ export function AccountActivityTimelineDialog({
           details: { error: e.error_message, ...(e.metadata as any) },
         });
       }
-      list.sort((a, b) => +new Date(b.ts) - +new Date(a.ts));
-      setItems(list);
+      const unique = Array.from(new Map(list.map((i) => [i.id, i])).values());
+      unique.sort((a, b) => +new Date(b.ts) - +new Date(a.ts));
+      setItems(unique);
     } catch (e: any) {
       toast.error("Erreur chargement historique", { description: e.message });
     } finally {
@@ -142,7 +157,7 @@ export function AccountActivityTimelineDialog({
     if (open) {
       load();
     }
-  }, [open, clientUserId, clientEmail, accountId]);
+  }, [open, clientUserId, clientEmail, accountId, initialActivity]);
 
   const filtered = useMemo(
     () => items.filter((i) => tab === "all" || i.kind === tab),
