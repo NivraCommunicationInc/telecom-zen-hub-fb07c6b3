@@ -5606,6 +5606,96 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "autopay_upcoming_debit": {
+      // J-3 advance notice to autopay subscribers. Sent by billing-generate-renewals
+      // 3 days before the cycle ends so customers know exactly what will be
+      // debited from their PayPal pre-authorization. Reduces surprise chargebacks.
+      // Variables:
+      //   client_name, debit_amount, debit_date, payment_method_label,
+      //   invoice_number, plan_name, subtotal, discount_lines[]
+      const debitAmount = String(v.debit_amount || v.amount || "—");
+      const debitDate = String(v.debit_date || v.due_date || "—");
+      const paymentLabel = String(v.payment_method_label || "PayPal pré-autorisé");
+      const invoiceNumber = String(v.invoice_number || "—");
+      const planName = String(v.plan_name || "Service Nivra");
+      const subtotal = String(v.subtotal || debitAmount);
+      const discountLines = Array.isArray(v.discount_lines) ? (v.discount_lines as Array<{ label: string; amount: number }>) : [];
+
+      const rows: [string, string][] = [
+        ["Forfait", esc(planName)],
+        ["Sous-total", `${esc(subtotal)} $`],
+      ];
+      for (const d of discountLines) {
+        rows.push([esc(d.label), `−${esc(String(d.amount))} $`]);
+      }
+      rows.push(["Date de débit", esc(debitDate)]);
+      rows.push(["Méthode", esc(paymentLabel)]);
+
+      return {
+        subject: `Débit automatique de ${debitAmount} $ prévu le ${debitDate} — Facture ${invoiceNumber}`,
+        html: shell({
+          preheader: `Votre prélèvement automatique de ${debitAmount} $ aura lieu le ${debitDate}.`,
+          badge: "PRÉLÈVEMENT À VENIR",
+          heroTitle: `${debitAmount} $ seront débités le ${debitDate}`,
+          icon: "card",
+          greeting,
+          bodyText:
+            "Ceci est un avis amical de 3 jours avant votre prélèvement automatique mensuel. " +
+            "Aucune action n'est requise — le débit se fera tout seul via PayPal. " +
+            "Si vous voulez modifier votre méthode de paiement ou annuler le prélèvement automatique, " +
+            "vous pouvez le faire dans votre portail client avant la date.",
+          cardTitle: `Détails — Facture ${invoiceNumber}`,
+          cardRows: rows,
+          ctaPrimaryUrl: "https://nivra-telecom.ca/portal/billing",
+          ctaPrimaryLabel: "Voir ma facture",
+          ctaSecondaryUrl: "https://nivra-telecom.ca/portal/payment-method",
+          ctaSecondaryLabel: "Gérer le prélèvement automatique",
+        }),
+      };
+    }
+
+    case "autopay_health_alert": {
+      // Internal ops alert when the autopay system shows abnormal failure
+      // rates. Sent by autopay-health-check edge function (daily cron).
+      // Variables:
+      //   failure_rate_percent, failed_count, total_count, window_hours,
+      //   sample_errors[] (optional list of last few error messages)
+      const failureRate = String(v.failure_rate_percent || "0");
+      const failedCount = String(v.failed_count || "0");
+      const totalCount = String(v.total_count || "0");
+      const windowHours = String(v.window_hours || "24");
+      const sampleErrors = Array.isArray(v.sample_errors) ? (v.sample_errors as string[]) : [];
+
+      return {
+        subject: `[ALERTE] Autopay : ${failureRate}% d'échecs sur les ${windowHours} dernières heures`,
+        html: shell({
+          preheader: `${failedCount} échecs sur ${totalCount} tentatives d'autopay.`,
+          badge: "ALERTE OPS",
+          heroTitle: `Taux d'échec autopay : ${failureRate}%`,
+          icon: "alert",
+          greeting: "Équipe Nivra,",
+          bodyText:
+            `Le système autopay a enregistré ${failedCount} échec(s) sur ${totalCount} tentative(s) ` +
+            `dans les dernières ${windowHours} heures. Ce taux dépasse le seuil d'alerte. ` +
+            `Vérifiez le statut PayPal, les credentials, et les comptes clients affectés.`,
+          cardTitle: "Métriques",
+          cardRows: [
+            ["Taux d'échec", `${esc(failureRate)} %`],
+            ["Échecs", esc(failedCount)],
+            ["Total tentatives", esc(totalCount)],
+            ["Fenêtre", `${esc(windowHours)} h`],
+            ...(sampleErrors.length > 0
+              ? ([["Exemple d'erreur", esc(sampleErrors[0].slice(0, 200))]] as [string, string][])
+              : []),
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/core/billing/autopay",
+          ctaPrimaryLabel: "Voir les tentatives en échec",
+          ctaSecondaryUrl: "https://www.paypal.com/businessmanage/account/transactions",
+          ctaSecondaryLabel: "Vérifier PayPal",
+        }),
+      };
+    }
+
     case "appointment_updated": {
       // Used by appointment-rescheduled / appointment-status-update flows.
       // Variables: { client_name, appointment_date, appointment_time,

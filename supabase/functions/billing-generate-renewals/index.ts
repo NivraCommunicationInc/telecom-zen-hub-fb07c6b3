@@ -295,14 +295,26 @@ serve(async (req) => {
         }
 
         // Queue reminder email (with invoice PDF, non-blocking)
+        // For autopay subscribers we send a SPECIFIC notice that explains the
+        // upcoming automatic debit (amount, date, payment method). This is
+        // both a UX improvement and a chargeback-protection measure: a client
+        // who was warned is less likely to dispute the debit at PayPal.
         if (sub.customer) {
           const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
           const pdfAttachment = await buildInvoicePdfAttachment(invoice.id, "facture");
 
+          // Build a discount breakdown the template can render
+          const discountLines: Array<{ label: string; amount: number }> = [];
+          if (promoDiscount > 0) discountLines.push({ label: `Rabais promotionnel${promoNote}`, amount: promoDiscount });
+          if (autopayDiscount > 0) discountLines.push({ label: "Rabais prélèvement automatique", amount: autopayDiscount });
+
+          const isAutopay = hasPayPalSubscription;
+          const templateKey = isAutopay ? "autopay_upcoming_debit" : "invoice_created";
+
           await supabase.from("email_queue").insert({
             event_key: `billing_renewal_${sub.id}_${newCycleStart.toISOString().split('T')[0]}`,
             to_email: sub.customer.email,
-            template_key: "invoice_created",
+            template_key: templateKey,
             template_vars: {
               client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
               invoice_number: invoiceNumber,
@@ -310,7 +322,13 @@ serve(async (req) => {
               total: total.toFixed(2),
               amount: total.toFixed(2),
               due_date: dueDate,
-              days_remaining: 3
+              days_remaining: 3,
+              // Autopay-specific vars (ignored by invoice_created template)
+              debit_amount: total.toFixed(2),
+              debit_date: dueDate,
+              payment_method_label: "PayPal (prélèvement pré-autorisé)",
+              subtotal: sub.plan_price.toFixed(2),
+              discount_lines: discountLines,
             },
             attachments: pdfAttachment ? [pdfAttachment] : null,
             status: "queued",
