@@ -14066,6 +14066,84 @@ export type Database = {
           },
         ]
       }
+      mobile_addons: {
+        Row: {
+          account_id: string | null
+          activated_at: string
+          activated_by: string
+          addon_code: string
+          addon_name: string
+          addon_type: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          monthly_price: number
+          one_time_price: number
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          activated_at?: string
+          activated_by: string
+          addon_code: string
+          addon_name: string
+          addon_type: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          monthly_price?: number
+          one_time_price?: number
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          activated_at?: string
+          activated_by?: string
+          addon_code?: string
+          addon_name?: string
+          addon_type?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          monthly_price?: number
+          one_time_price?: number
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_addons_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobile_addons_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mobile_fulfillment: {
         Row: {
           activated_at: string | null
@@ -14162,6 +14240,72 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mobile_topups: {
+        Row: {
+          account_id: string | null
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          metadata: Json
+          msisdn: string | null
+          payment_method: string
+          payment_reference: string | null
+          performed_by: string
+          reason: string | null
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json
+          msisdn?: string | null
+          payment_method?: string
+          payment_reference?: string | null
+          performed_by: string
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json
+          msisdn?: string | null
+          payment_method?: string
+          payment_reference?: string | null
+          performed_by?: string
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_topups_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobile_topups_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
@@ -20744,6 +20888,76 @@ export type Database = {
             columns: ["order_item_id"]
             isOneToOne: false
             referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sim_actions: {
+        Row: {
+          account_id: string | null
+          action_type: string
+          created_at: string
+          id: string
+          metadata: Json
+          mobile_fulfillment_id: string | null
+          new_iccid: string | null
+          old_iccid: string | null
+          performed_by: string
+          reason: string | null
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          action_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mobile_fulfillment_id?: string | null
+          new_iccid?: string | null
+          old_iccid?: string | null
+          performed_by: string
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          action_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mobile_fulfillment_id?: string | null
+          new_iccid?: string | null
+          old_iccid?: string | null
+          performed_by?: string
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sim_actions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sim_actions_mobile_fulfillment_id_fkey"
+            columns: ["mobile_fulfillment_id"]
+            isOneToOne: false
+            referencedRelation: "mobile_fulfillment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sim_actions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
