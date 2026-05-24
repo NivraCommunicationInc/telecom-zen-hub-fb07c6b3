@@ -13,7 +13,7 @@ interface Body {
 
 interface DocItem {
   id: string;
-  source: "contract" | "auto" | "uploaded" | "order";
+  source: "contract" | "auto" | "uploaded" | "order" | "invoice" | "receipt" | "quote";
   category: string;
   name: string;
   number?: string | null;
