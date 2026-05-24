@@ -24,7 +24,7 @@ export default function Employee360Payroll({ userId }: Props) {
       const { data } = await supabase
         .from("payroll_entries")
         .select("*, pay_periods(*)")
-        .eq("employee_id", userId)
+        .or(`user_id.eq.${userId},employee_id.eq.${userId}`)
         .order("created_at", { ascending: false })
         .limit(24);
       return data ?? [];

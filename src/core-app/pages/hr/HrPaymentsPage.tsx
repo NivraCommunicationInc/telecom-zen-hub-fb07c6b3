@@ -199,8 +199,16 @@ export default function HrPaymentsPage() {
   // ──────── Bulk actions ────────
   const bulkApprove = async () => {
     if (selected.size === 0) return;
-    await invokeAction.mutateAsync({ action: "bulk_transition", payment_ids: [...selected], next_status: "approved" });
-    toast.success(`${selected.size} paiement(s) approuvé(s)`);
+    const res = await invokeAction.mutateAsync({ action: "bulk_transition", payment_ids: [...selected], next_status: "approved" });
+    const failed = res?.failed ?? 0;
+    const processed = res?.processed ?? 0;
+    if (failed > 0 && processed === 0) {
+      toast.error(`${failed} paiement(s) non approuvé(s)`);
+    } else if (failed > 0) {
+      toast.warning(`${processed} approuvé(s), ${failed} échec(s)`);
+    } else {
+      toast.success(`${processed} paiement(s) approuvé(s)`);
+    }
     setSelected(new Set());
   };
   const bulkResend = async () => {
