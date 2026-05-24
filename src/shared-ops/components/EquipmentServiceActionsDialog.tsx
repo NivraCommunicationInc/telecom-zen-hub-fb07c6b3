@@ -28,6 +28,7 @@ interface Props {
   clientUserId: string;
   clientName?: string;
   accountId?: string | null;
+  initialItems?: InventoryRow[];
 }
 
 interface InventoryRow {
@@ -56,7 +57,7 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
 
 export function EquipmentServiceActionsDialog({
-  open, onClose, clientUserId, clientName, accountId,
+  open, onClose, clientUserId, clientName, accountId, initialItems = [],
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"active" | "assign" | "return">("active");
@@ -90,7 +91,8 @@ export function EquipmentServiceActionsDialog({
 
   useEffect(() => {
     if (!open) return;
-    setLoadingItems(true);
+    if (initialItems.length > 0) setItems(initialItems);
+    setLoadingItems(initialItems.length === 0);
     supabase.functions.invoke("equipment-account-actions", {
       body: {
         action: "list_active",
