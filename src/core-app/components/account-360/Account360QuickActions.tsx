@@ -21,6 +21,7 @@ import { MobileServiceActionsDialog } from "@/shared-ops/components/MobileServic
 import { TVServiceActionsDialog } from "@/shared-ops/components/TVServiceActionsDialog";
 import { InternetServiceActionsDialog } from "@/shared-ops/components/InternetServiceActionsDialog";
 import { BillingServiceActionsDialog } from "@/shared-ops/components/BillingServiceActionsDialog";
+import { EquipmentServiceActionsDialog } from "@/shared-ops/components/EquipmentServiceActionsDialog";
 import { UserCog } from "lucide-react";
 
 
