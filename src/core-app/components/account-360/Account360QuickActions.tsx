@@ -104,8 +104,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
     { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" as const },
     { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true), color: "default" },
-    { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => onNavigateSection("invoices"), color: "warning" },
-    { icon: DollarSign, label: "Litige facturation", onClick: () => onNavigateSection("invoices"), color: "warning" },
+    { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
+    { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
     { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true), color: "default" },
   ];
 
