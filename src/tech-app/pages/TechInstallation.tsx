@@ -22,7 +22,6 @@ import PhotoCapture from "../components/PhotoCapture";
 import QRScanner from "../components/QRScanner";
 import SignaturePad from "../components/SignaturePad";
 import OfflineIndicator from "../components/OfflineIndicator";
-import { queueTechEmail } from "../lib/queueTechEmail";
 
 const COAX_OPTIONS = [
   { v: "good", label: "✅ Bon état", c: "bg-emerald-600/20 border-emerald-600/50 text-emerald-300" },
@@ -120,29 +119,7 @@ export default function TechInstallation() {
         p_eta: eta ?? null,
       });
       if (error) throw error;
-
-      // Queue corresponding email to the client
-      if (assignment?.order_id) {
-        if (status === "en_route") {
-          await queueTechEmail({
-            assignmentId: id, orderId: assignment.order_id,
-            templateKey: "tech_en_route", extraVars: { eta: eta || "30-45 minutes" },
-          });
-        } else if (status === "arrived") {
-          await queueTechEmail({
-            assignmentId: id, orderId: assignment.order_id,
-            templateKey: "tech_arrived",
-            extraVars: { arrival_time: new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }) },
-          });
-        } else if (status === "in_progress") {
-          if (!startedAt) setStartedAt(new Date().toISOString());
-          await queueTechEmail({
-            assignmentId: id, orderId: assignment.order_id,
-            templateKey: "tech_in_progress",
-            extraVars: { start_time: new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }) },
-          });
-        }
-      }
+      if (status === "in_progress" && !startedAt) setStartedAt(new Date().toISOString());
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
@@ -167,9 +144,10 @@ export default function TechInstallation() {
       .or(`serial_number.eq.${code},mac_address.eq.${code}`)
       .maybeSingle();
 
+    const stepTitle = steps[stepIdx]?.title_fr || "Équipement installé";
     const entry = data
-      ? { ...data, scanned_at: new Date().toISOString(), source: "installation" }
-      : { serial: code, serial_number: code, catalog_name: "Équipement", scanned_at: new Date().toISOString(), source: "manual" };
+      ? { ...data, step: stepTitle, scanned_at: new Date().toISOString(), source: "installation" }
+      : { serial: code, serial_number: code, catalog_name: "Équipement", step: stepTitle, scanned_at: new Date().toISOString(), source: "manual" };
 
     setScannedEquipment((items) => [...items, entry]);
     setScanCode("");
@@ -239,18 +217,6 @@ export default function TechInstallation() {
       });
       if (statusError) throw statusError;
 
-      // Queue tech_completed email with Google Review CTA
-      if (assignment?.order_id) {
-        await queueTechEmail({
-          assignmentId: id,
-          orderId: assignment.order_id,
-          templateKey: "tech_completed",
-          extraVars: {
-            plan_name: serviceLabels[0] ?? "Forfait Nivra",
-            speed: download ? `${download} Mbps` : "Optimale",
-          },
-        });
-      }
       return finishedAt;
     },
     onSuccess: (finishedAt) => {
@@ -298,14 +264,13 @@ export default function TechInstallation() {
         })
         .eq("id", id);
       if (error) throw error;
-      if (assignment?.order_id) {
-        await queueTechEmail({
-          assignmentId: id,
-          orderId: assignment.order_id,
-          templateKey: "tech_rescheduled",
-          extraVars: { new_date: rescheduleDate, new_time: rescheduleTime, scheduled_date: rescheduleDate },
-        });
-      }
+      const { error: statusError } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: "rescheduled",
+        p_note: missReason || notes || null,
+        p_eta: `${rescheduleDate} ${rescheduleTime}`,
+      });
+      if (statusError) throw statusError;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
@@ -327,13 +292,6 @@ export default function TechInstallation() {
         p_eta: null,
       });
       if (error) throw error;
-      if (assignment?.order_id) {
-        await queueTechEmail({
-          assignmentId: id,
-          orderId: assignment.order_id,
-          templateKey: "tech_missed",
-        });
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
@@ -367,6 +325,19 @@ export default function TechInstallation() {
     allMandatoryDone &&
     (assignment.service_type !== "internet" || !!coax) &&
     networkOk;
+  const completeCurrentStep = () => {
+    if (currentStep?.requires_photo && !photos.some((p) => p.step === currentStep.title_fr)) {
+      toast.error("Photo obligatoire pour cette étape");
+      return;
+    }
+    if (currentStep?.requires_scan && !allScannedEquipment.some((e: any) => e.step === currentStep.title_fr || e.source === "installation" || e.source === "qr_scan")) {
+      toast.error("Scan d'équipement obligatoire pour cette étape");
+      return;
+    }
+    setCompletedSteps((s) => new Set(s).add(stepIdx));
+    toast.success("✅ Étape complétée");
+    if (stepIdx < totalSteps - 1) setStepIdx(stepIdx + 1);
+  };
 
   const minRescheduleDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 
@@ -420,7 +391,7 @@ export default function TechInstallation() {
               </p>
             </div>
             <span className="rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-300">
-              {assignment.appointment_status || assignment.status}
+              {assignment.status}
             </span>
           </div>
 
@@ -527,11 +498,7 @@ export default function TechInstallation() {
             )}
 
             <button
-              onClick={() => {
-                setCompletedSteps((s) => new Set(s).add(stepIdx));
-                toast.success("✅ Étape complétée");
-                if (stepIdx < totalSteps - 1) setStepIdx(stepIdx + 1);
-              }}
+              onClick={completeCurrentStep}
               className={`w-full min-h-[52px] rounded-full text-sm font-bold flex items-center justify-center gap-2 ${
                 completedSteps.has(stepIdx)
                   ? "bg-emerald-600 text-white"
