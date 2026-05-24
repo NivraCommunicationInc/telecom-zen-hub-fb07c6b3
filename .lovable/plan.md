@@ -1,96 +1,106 @@
-# Plan — Écosystème Recrutement Nivra unifié
+# Plan — Options compte client télécom complètes
 
-## Objectif
-Construire un flux complet, sans bug, reliant :
-1. **Espace candidat public** (`/carrieres`) — voir postes, créer compte candidat, postuler, suivre candidatures, passer entrevues IA
-2. **Pipeline RH Core** (`/core/hr/applications`) — gérer candidatures, déclencher entrevues IA, embaucher
-3. **Conversion candidat → employé** — un clic transforme un dossier candidat accepté en employé actif + invitation au portail Employé
+Vu l'ampleur (40+ fonctionnalités), je propose une livraison **par phases atomiques**. Chaque phase est complète, testée et déployée avant la suivante — zéro régression, zéro bug.
 
----
+## Architecture commune (livrée Phase 0)
 
-## 1. Base de données (migrations)
+- **1 Edge Function unique** : `client-account-actions` (gère TOUTES les actions client : TV, Internet, Mobile, facturation, profil)
+- **1 dialog unifié** : `ClientServiceActionsDialog` réutilisé Core + OneView
+- **Toutes actions** → journal `admin_audit_log` + courriel client via template officiel
+- **Permissions** : `has_role` (admin direct / employee escalade pour les changes financiers)
+- **i18n** : `t()` partout
+- **Mémoire** : nouvelle entrée `mem://features/client-account-telecom-actions`
 
-### Nouvelles tables
-- `candidate_profiles` — profil public candidat (lié à `auth.users`)
-  - champs: full_name, phone, location, headline, bio, resume_url, linkedin_url, portfolio_url, years_experience, availability_date, salary_expectation
-- `candidate_applications_view` — vue qui joint `job_applications` + `candidate_profiles` + `job_postings` + `ai_interviews`
+## Phases (ordre de livraison)
 
-### Modifications
-- `job_postings` : s'assurer des colonnes `status` (draft/published/closed), `is_public`, `slug`, `published_at`, `salary_range_min/max`, `employment_type`, `location`, `department`, `description_md`, `requirements_md`, `benefits_md`
-- `job_applications` : ajouter `candidate_profile_id` (FK), `source` (public/manual/referral), `current_stage` (applied/screening/interview/offer/hired/rejected), `ai_interview_id` (FK nullable), `converted_to_employee_id` (FK nullable)
-- `ai_interviews` (si manquante) : application_id, status, scheduled_at, completed_at, transcript, score, recommendation
+### Phase 1 — Mobile (impact #1)
+- Recharge prépayée (top-up) avec paiement
+- Changer forfait mobile
+- Ajouter/retirer options (data add-on, international, longue distance)
+- Activer/échanger/suspendre SIM (perte/vol)
+- Port-in / Port-out (workflow)
+- Détail consommation (minutes, SMS, data)
+- Activer eSIM
+- Blocage international / hors-Canada
+- Courriels : confirmation recharge, changement forfait, suspension SIM
 
-### RLS
-- Candidat voit uniquement ses propres `candidate_profiles` + `job_applications`
-- Postes publiés (`is_public=true AND status='published'`) lisibles par tout le monde (anon inclus)
-- Staff RH (`has_role` HR/admin) accède à tout
+### Phase 2 — TV
+- Changer forfait TV (basique → premium)
+- Ajouter/retirer chaînes à la carte
+- Ajouter forfait thématique (Sports, Cinéma, International)
+- Location VOD (crédit/remboursement)
+- Gérer terminaux TV (ajouter/retirer/échanger/redémarrer)
+- Contrôle parental
+- Courriels : confirmation changement chaînes/forfait
 
-### RPC
-- `apply_to_job(job_id, cover_letter)` — crée `job_application` lié au candidat connecté
-- `hire_candidate(application_id, employee_data jsonb)` — crée `employee_records` + invite portail Employé + marque application `hired`
-- `publish_job_posting(id)` / `unpublish_job_posting(id)`
+### Phase 3 — Internet
+- Changer forfait Internet (vitesse)
+- Redémarrer modem à distance (stub API CPE)
+- Diagnostic ligne (test signal, latence, débit)
+- Gérer WiFi (SSID, mot de passe, 2.4/5 GHz)
+- Historique consommation data
+- Activer/désactiver IP statique
 
----
+### Phase 4 — Facturation
+- Gérer méthodes de paiement (carte par défaut)
+- Activer/désactiver paiement automatique
+- Plan de paiement échelonné (entente)
+- Changer date de facturation
+- Facture papier vs électronique
+- Remboursement direct
+- Renvoyer facture par courriel (action 1-clic)
 
-## 2. Espace candidat public
+### Phase 5 — Profil / Compte
+- Changer adresse de service (déménagement avec workflow)
+- Changer adresse de facturation
+- Gérer contacts autorisés
+- Langue de communication (FR/EN)
+- Préférences notifications
+- Transfert de propriété (changement titulaire)
+- Activer 2FA / MFA client
+- Sessions actives + révoquer
 
-### Routes nouvelles
-- `/carrieres` — liste postes publiés (SEO, filtres département/type/lieu)
-- `/carrieres/:slug` — détail poste, bouton **Postuler**
-- `/carrieres/auth` — inscription/connexion candidat (séparé du portail Core)
-- `/carrieres/mon-espace` — dashboard candidat (candidatures en cours, statuts, entrevues IA à compléter, profil)
-- `/carrieres/entrevue/:id` — interface entrevue IA (réutilise composants existants)
+### Phase 6 — Commercial / Rétention
+- Catalogue offres de rétention
+- Renouveler engagement
+- Programme de référence (générer code, voir filleuls)
+- Offre win-back (réactivation)
 
-### Pages
-- `CareersPublicPage` — landing avec hero, recherche, grille de postes
-- `JobDetailPage` — description complète, bouton Postuler (auth-gated)
-- `CandidateAuthPage` — signup/login email + Google
-- `CandidateDashboardPage` — onglets : Mes candidatures / Mon profil / Entrevues
-- `CandidateInterviewPage` — wrapper sur l'entrevue IA
+### Phase 7 — Support / Technique
+- Bon de travail technicien (truck roll)
+- Historique interventions
+- Demander rappel (callback)
+- Envoyer SMS au client
 
----
+### Phase 8 — Vue / Diagnostic
+- Timeline complet changements
+- NPS récent
+- Churn score
+- LTV / ARPU affiché
 
-## 3. Pipeline RH (Core) — connexions
+## Détails techniques
 
-### `/core/hr/jobs` (Postes)
-- Vérifier CRUD complet, ajout bouton **Publier sur site carrières** (toggle `is_public`)
-- Aperçu lien public `/carrieres/:slug`
+- **DB** : nouvelles tables `client_service_changes`, `mobile_topups`, `tv_channel_changes`, `payment_methods`, `payment_plans`, `address_changes`, `account_transfers`, `retention_offers`, `referral_codes`, `callbacks`, `sms_log` — toutes avec RLS strictes
+- **Backend** : 1 Edge Function avec dispatch par `action_type` + validation Zod par action
+- **Frontend** : remplacement de `Account360QuickActions` + `QuickActions` (employee) par un menu groupé par catégorie (TV / Internet / Mobile / Facturation / Profil / Commercial / Support)
+- **Courriels** : nouveaux templates dans `customQueueTemplates.ts` (1 par type d'action notifiable)
+- **Audit** : chaque action loggée + IP + raison obligatoire pour les actions sensibles
+- **Tests** : test edge function après chaque phase + vérif lints/build
 
-### `/core/hr/applications` (Candidatures)
-- Kanban + liste, déjà en place
-- Ajouter action **Lancer entrevue IA** (crée `ai_interviews` + email candidat avec lien `/carrieres/entrevue/:id`)
-- Ajouter action **Embaucher → créer dossier employé** : ouvre modal pré-remplie (nom, email, poste, département, date début, salaire), appelle `hire_candidate`, redirige vers `/core/hr/employees/:id`
+## Validation à chaque phase
 
-### `/core/hr/interviews` (Entrevues IA)
-- Liste entrevues, statut, score, recommandation
-- Lien vers transcript + application source
+1. Migration DB (RLS + triggers)
+2. Edge Function (déployée + testée)
+3. UI (dialog + actions branchées)
+4. Courriels (template officiel — `© ${new Date().getFullYear()}`)
+5. Audit log vérifié
+6. Build clean, console clean, network 200
 
----
+## Question critique avant de partir
 
-## 4. Edge Functions
+**Voulez-vous que je :**
+- **A)** Livre les 8 phases d'affilée dans cette même session (très long, ~8 messages, je vais pousser au max)
+- **B)** Commence par la Phase 1 (Mobile) seule, et vous validez avant de passer aux suivantes
+- **C)** Je priorise différemment (dites-moi l'ordre)
 
-- `send-candidate-invite-email` — email post-application (confirmation + accès espace candidat)
-- `send-interview-invite-email` — email avec lien entrevue IA
-- `convert-candidate-to-employee` — orchestrateur : crée employee_record, crée auth user (si pas déjà), envoie invitation portail Employé, met à jour application
-
----
-
-## 5. UI/UX (style Xfinity Premium dark)
-- Espace carrières : design clean clair (palette site public Nivra Fizz-style), pas le dark Core
-- Sidebar RH : section **Recrutement** déjà ajoutée, garder Postes / Applications / Entrevues IA
-- Boutons cohérents, états loading/error explicites, toast confirmations
-- Tous les libellés en français
-
-## Technique
-- React Query pour fetch/mutations, invalidation systématique
-- Zod pour validation forms (candidature, profil, embauche)
-- Pas de calculs côté front pour données business
-- RLS strict, jamais d'`auth.users` exposé
-- Email candidat avec template corporatif existant
-
-## Hors scope (ne touche pas)
-- Logique paiement/facturation
-- Portail Field/Employee existant (sauf invitation à la fin)
-- i18n custom (utiliser `t()` si déjà branché sur les pages, sinon FR direct)
-
-Veux-tu que je commence par la migration DB + l'espace carrières public, ou tu préfères un ordre différent ?
+Vu votre exigence "tout fonctionne sans bug", **je recommande B** — je livre Phase 1 complète et bulletproof, vous testez, puis on enchaîne. Chaque phase = ~6-10 fichiers nouveaux/modifiés + migration + déploiement edge function.
