@@ -458,6 +458,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <AccountPrivacyRequestsDialog
+          open={privacyOpen}
+          onClose={() => setPrivacyOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
     </>
   );
 }
