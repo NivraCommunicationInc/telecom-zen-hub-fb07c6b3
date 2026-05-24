@@ -90,7 +90,9 @@ export function MobileServiceActionsDialog({
   // Add-ons
   const [activeAddons, setActiveAddons] = useState<Addon[]>([]);
   const [loadingAddons, setLoadingAddons] = useState(false);
-  const [pickedAddon, setPickedAddon] = useState<string>("");
+  const [addonName, setAddonName] = useState("");
+  const [addonType, setAddonType] = useState<string>("data");
+  const [addonPrice, setAddonPrice] = useState("");
 
   // SIM
   const [simAction, setSimAction] = useState<string>("");
