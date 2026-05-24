@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
-  Loader2, Tv, Layers, Film, MonitorSmartphone, ShieldCheck, Plus, Trash2, RefreshCw,
+  Loader2, Tv, Layers, Film, MonitorSmartphone, ShieldCheck, Plus, Trash2, RefreshCw, ListChecks,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,9 +73,17 @@ export function TVServiceActionsDialog({
   currentPlanName, currentMonthlyPrice,
 }: Props) {
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"plan" | "packs" | "vod" | "terminal" | "parental">("plan");
+  const [tab, setTab] = useState<"plan" | "packs" | "channels" | "vod" | "terminal" | "parental">("plan");
   const { plans: tvPlans, loading: loadingPlans } = useServicePlans("TV", open);
   const { packs: bouquetCatalog, loading: loadingBouquets } = useChannelPackages(open);
+
+  // Channels (à la carte)
+  type Ch = { id: string; name: string; category: string; price: number; is_hd: boolean | null };
+  const [catalogChannels, setCatalogChannels] = useState<Ch[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<Set<string>>(new Set());
+  const [channelFilter, setChannelFilter] = useState("");
+  const [channelNotes, setChannelNotes] = useState("");
 
   // Plan change
   const [planName, setPlanName] = useState("");
@@ -134,6 +142,35 @@ export function TVServiceActionsDialog({
         setActivePacks((data as TvAddon[]) || []);
         setLoadingPacks(false);
       });
+  }, [open, tab, clientUserId, busy]);
+
+  // Load TV channels catalog + current selection
+  useEffect(() => {
+    if (!open || tab !== "channels" || !clientUserId) return;
+    setLoadingChannels(true);
+    (async () => {
+      const [{ data: chans }, { data: sel }] = await Promise.all([
+        supabase
+          .from("tv_channels")
+          .select("id,name,category,price,is_hd")
+          .eq("is_active", true)
+          .order("category", { ascending: true })
+          .order("name", { ascending: true }),
+        supabase
+          .from("channel_selections")
+          .select("channels,status,created_at")
+          .eq("user_id", clientUserId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      setCatalogChannels((chans as Ch[]) || []);
+      const currentIds = new Set<string>();
+      const list = Array.isArray(sel?.channels) ? sel!.channels as Array<{ id?: string }> : [];
+      list.forEach((c) => { if (c.id) currentIds.add(c.id); });
+      setSelectedChannelIds(currentIds);
+      setLoadingChannels(false);
+    })();
   }, [open, tab, clientUserId, busy]);
 
   useEffect(() => {
@@ -254,6 +291,21 @@ export function TVServiceActionsDialog({
     } catch (e) { toast.error((e as Error).message); }
   };
 
+  const doSetChannels = async () => {
+    const ids = Array.from(selectedChannelIds);
+    if (ids.length === 0) { toast.error("Sélectionnez au moins une chaîne"); return; }
+    try {
+      await invoke({
+        action: "set_channels",
+        channel_ids: ids,
+        notes: channelNotes || undefined,
+        idempotency_key: `tvchans-${clientUserId}-${Date.now()}`,
+      });
+      toast.success("Sélection de chaînes enregistrée — courriel envoyé");
+      onClose();
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
   const doParental = async () => {
     const blocked = blockedRaw
       .split(",").map((s) => s.trim()).filter(Boolean);
@@ -289,9 +341,10 @@ export function TVServiceActionsDialog({
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="plan"><Tv className="h-4 w-4 mr-1" />Forfait</TabsTrigger>
             <TabsTrigger value="packs"><Layers className="h-4 w-4 mr-1" />Bouquets</TabsTrigger>
+            <TabsTrigger value="channels"><ListChecks className="h-4 w-4 mr-1" />Chaînes</TabsTrigger>
             <TabsTrigger value="vod"><Film className="h-4 w-4 mr-1" />VOD</TabsTrigger>
             <TabsTrigger value="terminal"><MonitorSmartphone className="h-4 w-4 mr-1" />Terminal</TabsTrigger>
             <TabsTrigger value="parental"><ShieldCheck className="h-4 w-4 mr-1" />Parental</TabsTrigger>
@@ -405,6 +458,90 @@ export function TVServiceActionsDialog({
                 </ul>
               )}
             </div>
+          </TabsContent>
+
+          {/* ============ CHANNELS (à la carte, catalogue tv_channels) ============ */}
+          <TabsContent value="channels" className="space-y-3 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <Input
+                placeholder="Filtrer (nom ou catégorie)…"
+                value={channelFilter}
+                onChange={(e) => setChannelFilter(e.target.value)}
+                disabled={busy || loadingChannels}
+                className="max-w-xs"
+              />
+              <div className="text-xs text-muted-foreground">
+                {selectedChannelIds.size} sélectionnée(s) ·{" "}
+                {fmt(
+                  catalogChannels
+                    .filter((c) => selectedChannelIds.has(c.id))
+                    .reduce((s, c) => s + Number(c.price || 0), 0)
+                )}{" "}
+                / mois
+              </div>
+            </div>
+            <div className="border rounded max-h-72 overflow-y-auto divide-y">
+              {loadingChannels ? (
+                <div className="flex items-center justify-center py-6 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : catalogChannels.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Catalogue de chaînes vide.
+                </p>
+              ) : (
+                catalogChannels
+                  .filter((c) => {
+                    const q = channelFilter.toLowerCase().trim();
+                    if (!q) return true;
+                    return c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q);
+                  })
+                  .map((c) => {
+                    const checked = selectedChannelIds.has(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-muted/40 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setSelectedChannelIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(c.id);
+                                else next.delete(c.id);
+                                return next;
+                              });
+                            }}
+                            disabled={busy}
+                          />
+                          <span className="text-sm truncate">{c.name}</span>
+                          {c.is_hd && <Badge variant="outline" className="text-[10px]">HD</Badge>}
+                          <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {Number(c.price) > 0 ? `${fmt(Number(c.price))} /mois` : "incluse"}
+                        </span>
+                      </label>
+                    );
+                  })
+              )}
+            </div>
+            <div>
+              <Label htmlFor="ch-notes">Note interne (optionnel)</Label>
+              <Textarea
+                id="ch-notes" rows={2}
+                value={channelNotes}
+                onChange={(e) => setChannelNotes(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <Button onClick={doSetChannels} disabled={busy || selectedChannelIds.size === 0} className="w-full">
+              {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ListChecks className="h-4 w-4 mr-2" />}
+              Enregistrer la sélection
+            </Button>
           </TabsContent>
 
           {/* ============ VOD ============ */}

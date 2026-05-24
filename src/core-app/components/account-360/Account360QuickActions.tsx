@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi, Wallet,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi, Wallet, Users,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
@@ -22,6 +22,7 @@ import { TVServiceActionsDialog } from "@/shared-ops/components/TVServiceActions
 import { InternetServiceActionsDialog } from "@/shared-ops/components/InternetServiceActionsDialog";
 import { BillingServiceActionsDialog } from "@/shared-ops/components/BillingServiceActionsDialog";
 import { EquipmentServiceActionsDialog } from "@/shared-ops/components/EquipmentServiceActionsDialog";
+import { ClientReferralsDialog } from "@/shared-ops/components/ClientReferralsDialog";
 import { UserCog } from "lucide-react";
 
 
@@ -55,6 +56,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [internetOpen, setInternetOpen] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
+  const [referralsOpen, setReferralsOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -89,6 +91,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: MessageSquare, label: "Ticket support", onClick: () => onNavigateSection("tickets"), color: "default" },
     { icon: Mail, label: "Envoyer rappel", onClick: () => onNavigateSection("tickets"), color: "default" },
     { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
+    { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" as const },
     { icon: Calendar, label: "Planifier RDV", onClick: () => onNavigateSection("appointments"), color: "default" },
     { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => onNavigateSection("invoices"), color: "warning" },
     { icon: DollarSign, label: "Litige facturation", onClick: () => onNavigateSection("invoices"), color: "warning" },
@@ -237,6 +240,15 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <ClientReferralsDialog
+          open={referralsOpen}
+          onClose={() => setReferralsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
         />
       )}
     </>
