@@ -22,6 +22,7 @@ const corsHeaders = {
 };
 
 type Action = "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
+type Action = "list_active" | "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
 
 interface Body {
   action: Action;
