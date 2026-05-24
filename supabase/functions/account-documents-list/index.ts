@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
 
     const clientId = body.client_user_id;
 
-    // Parallel fetches
-    const [contractsRes, autoRes, uploadedRes, ordersRes] = await Promise.all([
+    // Parallel fetches — include monthly_invoices, billing_invoices, payments (receipts), quotes
+    const [contractsRes, autoRes, uploadedRes, ordersRes, monthlyInvRes, paymentsRes, quotesRes] = await Promise.all([
       admin
         .from("contracts")
         .select("id, contract_number, contract_name, status, contract_pdf_url, contract_url, created_at, signed_at, version")
@@ -82,9 +82,29 @@ Deno.serve(async (req) => {
         .limit(100),
       admin
         .from("orders")
-        .select("id")
+        .select("id, order_number, status, total_amount, created_at")
         .eq("user_id", clientId)
+        .order("created_at", { ascending: false })
         .limit(200),
+      admin
+        .from("monthly_invoices")
+        .select("id, invoice_number, status, total, created_at")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      admin
+        .from("payments")
+        .select("id, amount, payment_method, status, created_at, account_id")
+        .eq("user_id", clientId)
+        .in("status", ["completed", "succeeded", "captured", "paid"])
+        .order("created_at", { ascending: false })
+        .limit(100),
+      admin
+        .from("quotes")
+        .select("id, quote_number, status, total_due_now, created_at")
+        .eq("customer_user_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     const items: DocItem[] = [];
