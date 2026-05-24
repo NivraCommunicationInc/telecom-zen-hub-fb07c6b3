@@ -96,6 +96,32 @@ const fmtDate = (dateStr: string | undefined | null): string => {
 const NAVY = [30, 64, 120] as const;
 const GREEN_ACCENT = [34, 139, 34] as const;
 
+/**
+ * Page overflow safety helper. Call before drawing a block — if there isn't
+ * enough vertical room left, automatically inserts a new page so the block
+ * doesn't bleed over the footer or get clipped.
+ *
+ * Used in sections where the content length is variable (e.g. discount lines:
+ * a sale with 5+ rebates would otherwise overflow page 2 onto an unstyled
+ * continuation).
+ *
+ *   y = ensureSpace(doc, y, 30);   // need at least 30mm for the next block
+ */
+function ensureSpace(
+  doc: jsPDF,
+  y: number,
+  requiredMm: number,
+  topMargin: number = 45,
+): number {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const bottomReserved = 25; // reserved for footer
+  if (y + requiredMm > pageHeight - bottomReserved) {
+    doc.addPage();
+    return topMargin;
+  }
+  return y;
+}
+
 function drawHeader(doc: jsPDF, contractNum: string, pageLabel: string) {
   const pw = doc.internal.pageSize.getWidth();
   doc.setFillColor(...NAVY);
@@ -348,6 +374,10 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = bulletClause(doc, "Le prelevement est effectue automatiquement a la date d'echeance de la facture.", y);
     y += 3;
 
+    // Pre-flight: ensure we have at least 50mm of room for the discount
+    // section title + 5+ bulleted lines. If not, push the whole section
+    // to a fresh page so it doesn't get clipped by the footer.
+    y = ensureSpace(doc, y, 50);
     y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
     if (data.discount_amount > 0) {
       // List every individual discount applied (welcome 100%, autopay 5$/mo,
@@ -357,6 +387,9 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       // granted at sale time.
       if (Array.isArray(data.discount_lines) && data.discount_lines.length > 0) {
         for (const d of data.discount_lines) {
+          // Insert a new page if a single discount line would overflow.
+          // 6mm per bullet line — generous to accommodate wrapping.
+          y = ensureSpace(doc, y, 8);
           const termSuffix = d.term ? ` (${d.term})` : "";
           y = bulletClause(
             doc,
