@@ -247,87 +247,19 @@ Deno.serve(async (req) => {
     if (action === "transition") {
       const id = String(body.payment_id || "").trim();
       const next = String(body.next_status || "").trim();
-      if (!id || !ALLOWED_STATUS.has(next)) return json({ error: "payment_id et next_status valides requis" }, 400);
-
-      const { data: current, error: cErr } = await supabase
-        .from("payroll_payments").select("*").eq("id", id).maybeSingle();
-      if (cErr || !current) return json({ error: "Paiement introuvable" }, 404);
-
-      const patch: Record<string, unknown> = { payment_status: next };
-      const now = new Date().toISOString();
-
-      if (next === "approved") {
-        patch.approved_by = actor.id; patch.approved_by_name = actor.name; patch.approved_at = now;
-      }
-      if (next === "sent") {
-        patch.sent_by = actor.id; patch.sent_by_name = actor.name; patch.sent_date = now;
-        if (body.payment_method && ALLOWED_METHODS.has(body.payment_method)) patch.payment_method = body.payment_method;
-        if (body.bank_reference) patch.bank_reference = body.bank_reference;
-        if (body.transaction_id) patch.transaction_id = body.transaction_id;
-        if (body.recipient_bank_name) patch.recipient_bank_name = body.recipient_bank_name;
-        if (body.recipient_account_last4) patch.recipient_account_last4 = body.recipient_account_last4;
-      }
-      if (next === "confirmed") {
-        patch.confirmed_by = actor.id; patch.confirmed_by_name = actor.name; patch.confirmed_date = now;
-        if (body.confirmation_number) patch.confirmation_number = body.confirmation_number;
-      }
-      if (next === "failed" || next === "bounced") {
-        patch.failure_reason = body.failure_reason || null;
-        patch.failure_code = body.failure_code || null;
-        patch.retry_count = (Number(current.retry_count) || 0) + 1;
-        if (next === "bounced") patch.bounced_date = now;
-      }
-      if (next === "cancelled" || next === "reversed") {
-        patch.cancelled_by = actor.id; patch.cancelled_at = now;
-      }
-
-      const { data: updated, error: uErr } = await supabase
-        .from("payroll_payments").update(patch).eq("id", id).select().single();
-      if (uErr) return json({ error: uErr.message }, 500);
-
-      await logEvent(supabase, id, `status:${next}`, { from: current.payment_status, to: next, ...patch }, actor);
-
-      // Sync legacy payroll_entries.payment_status for back-compat
-      if (current.payroll_entry_id) {
-        const legacyStatus = ["sent", "confirmed"].includes(next) ? "paid"
-          : next === "failed" ? "failed"
-          : next === "cancelled" ? "cancelled"
-          : "pending";
-        await supabase.from("payroll_entries").update({
-          payment_status: legacyStatus,
-          payment_method: patch.payment_method || current.payment_method,
-          payment_reference: patch.bank_reference || patch.transaction_id || null,
-          payment_date: ["sent", "confirmed"].includes(next) ? now.slice(0, 10) : null,
-          paid_at: ["sent", "confirmed"].includes(next) ? now : null,
-          status: ["sent", "confirmed"].includes(next) ? "paid" : undefined,
-        } as any).eq("id", current.payroll_entry_id);
-      }
-
-      // Auto-send notification on transition to sent/confirmed
-      const autoNotify = body.send_notification !== false && ["sent", "confirmed"].includes(next);
-      if (autoNotify && current.payroll_entry_id) {
-        try {
-          await supabase.functions.invoke("process-payroll", {
-            body: {
-              mark_payment_sent_for_entry_id: current.payroll_entry_id,
-              payment_method: patch.payment_method || current.payment_method,
-              payment_status: "paid",
-              payment_reference: patch.bank_reference || patch.transaction_id || current.bank_reference || "",
-              payment_date: now.slice(0, 10),
-              payment_notes: current.client_visible_notes || null,
-              send_email: true,
-              processed_by: actor.name,
-            },
-          });
-          await supabase.from("payroll_payments").update({ email_sent_at: now }).eq("id", id);
-          await logEvent(supabase, id, "notification:sent", { method: "email+pdf" }, actor);
-        } catch (e) {
-          console.error("[payroll-payments] notification failed:", e);
-          await logEvent(supabase, id, "notification:failed", { error: String(e) }, actor);
-        }
-      }
-
-      return json({ payment: updated });
+      const result = await doTransition(supabase, id, next, actor, {
+        send_notification: body.send_notification,
+        payment_method: body.payment_method,
+        bank_reference: body.bank_reference,
+        transaction_id: body.transaction_id,
+        recipient_bank_name: body.recipient_bank_name,
+        recipient_account_last4: body.recipient_account_last4,
+        confirmation_number: body.confirmation_number,
+        failure_reason: body.failure_reason,
+        failure_code: body.failure_code,
+      });
+      if (result.error) return json({ error: result.error }, 400);
+      return json({ payment: result.payment });
     }
 
     // ====== BULK TRANSITION ======
@@ -337,11 +269,7 @@ Deno.serve(async (req) => {
       if (ids.length === 0 || !ALLOWED_STATUS.has(next)) return json({ error: "payment_ids et next_status requis" }, 400);
       const results: any[] = [];
       for (const id of ids) {
-        const r = await fetch(req.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": req.headers.get("Authorization") || "" },
-          body: JSON.stringify({ action: "transition", payment_id: id, next_status: next, send_notification: body.send_notification }),
-        }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+        const r = await doTransition(supabase, id, next, actor, { send_notification: body.send_notification });
         results.push({ id, ok: !r.error, error: r.error });
       }
       return json({ results, processed: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length });
