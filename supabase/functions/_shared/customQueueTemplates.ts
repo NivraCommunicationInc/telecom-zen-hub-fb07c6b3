@@ -3043,6 +3043,163 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // CLIENT — Collections: friendly overdue reminder
+    // ===================================================================
+    case "client_collections_reminder": {
+      const firstName = esc(v.first_name || clientName || "");
+      const subject = esc(v.subject || "Rappel de facture");
+      const message = esc(v.message || "");
+      const invoiceNumber = esc(v.invoice_number || "—");
+      const amountDue = esc(v.amount_due || "—");
+      const dueDate = esc(v.due_date || "—");
+      return {
+        subject: `Rappel — Facture #${invoiceNumber}`,
+        html: shell({
+          preheader: `Solde impayé de ${amountDue} — facture #${invoiceNumber}.`,
+          badge: "RAPPEL DE FACTURE",
+          heroTitle: "Solde impayé",
+          heroSub: `Facture #${invoiceNumber}`,
+          icon: "warning",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Notre système indique qu'un solde demeure impayé sur votre compte Nivra. Merci de régler cette facture dès que possible pour éviter des frais additionnels ou une interruption de service.`,
+          cardTitle: "Détails de la facture",
+          cardRows: [
+            ["Numéro", `#${invoiceNumber}`],
+            ["Solde dû", amountDue],
+            ["Échéance initiale", dueDate],
+            ["Message", message || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/factures`,
+          ctaPrimaryLabel: "Payer ma facture",
+          helpVariant: "warning",
+          helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Collections: promise to pay confirmed
+    // ===================================================================
+    case "client_collections_promise": {
+      const firstName = esc(v.first_name || clientName || "");
+      const invoiceNumber = esc(v.invoice_number || "—");
+      const amountPromised = esc(v.amount_promised || "—");
+      const promiseDate = esc(v.promise_date || "—");
+      const message = esc(v.message || "");
+      return {
+        subject: `Engagement de paiement — Facture #${invoiceNumber}`,
+        html: shell({
+          preheader: `Engagement de ${amountPromised} pour le ${promiseDate}.`,
+          badge: "ENGAGEMENT ENREGISTRÉ",
+          heroTitle: "Engagement de paiement confirmé",
+          heroSub: `Pour le ${promiseDate}`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons votre engagement à régler le solde ci-dessous à la date convenue. Aucune autre action n'est requise pour le moment — merci de respecter cette échéance afin d'éviter toute escalade.`,
+          cardTitle: "Détails de l'engagement",
+          cardRows: [
+            ["Facture", `#${invoiceNumber}`],
+            ["Montant promis", amountPromised],
+            ["Date prévue", promiseDate],
+            ["Note", message || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/factures`,
+          ctaPrimaryLabel: "Voir ma facture",
+          helpHtml: `Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Collections: payment plan accepted
+    // ===================================================================
+    case "client_collections_payment_plan": {
+      const firstName = esc(v.first_name || clientName || "");
+      const invoiceNumber = esc(v.invoice_number || "—");
+      const installments = esc(v.installments || "—");
+      const installmentAmount = esc(v.installment_amount || "—");
+      const planTotal = esc(v.plan_total || "—");
+      const message = esc(v.message || "");
+      return {
+        subject: `Plan de paiement — Facture #${invoiceNumber}`,
+        html: shell({
+          preheader: `${installments} versements de ${installmentAmount}.`,
+          badge: "PLAN DE PAIEMENT",
+          heroTitle: "Votre plan de paiement est en place",
+          heroSub: `${installments} versements de ${installmentAmount}`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous avons mis en place un plan de paiement pour la facture ci-dessous. Veuillez respecter chaque échéance pour maintenir vos services en règle.`,
+          cardTitle: "Détails du plan",
+          cardRows: [
+            ["Facture", `#${invoiceNumber}`],
+            ["Versements", installments],
+            ["Montant par versement", installmentAmount],
+            ["Total du plan", planTotal],
+            ["Note", message || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/factures`,
+          ctaPrimaryLabel: "Voir ma facture",
+          helpHtml: `Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Dispute status update (under_review / awaiting_client / resolved)
+    // ===================================================================
+    case "client_dispute_status_update": {
+      const firstName = esc(v.first_name || clientName || "");
+      const disputeNumber = esc(v.dispute_number || "—");
+      const statusLabel = esc(v.status_label || "Mise à jour");
+      const newStatus = String(v.new_status || "");
+      const reasonLabel = esc(v.reason_label || "—");
+      const publicMessage = esc(v.public_message || "");
+      const isApproved = newStatus === "resolved_approved";
+      const isRejected = newStatus === "resolved_rejected";
+      const isAwaiting = newStatus === "awaiting_client";
+      const badge =
+        isApproved ? "LITIGE APPROUVÉ" :
+        isRejected ? "LITIGE REFUSÉ" :
+        isAwaiting ? "ACTION REQUISE" :
+                     "LITIGE EN ANALYSE";
+      const icon =
+        isApproved ? "check" :
+        isRejected ? "alert" :
+        isAwaiting ? "warning" :
+                     "info";
+      const helpVariant: "warning" | undefined =
+        (isRejected || isAwaiting) ? "warning" : undefined;
+      return {
+        subject: `Litige #${disputeNumber} — ${statusLabel}`,
+        html: shell({
+          preheader: `Mise à jour de votre litige #${disputeNumber}.`,
+          badge,
+          heroTitle: `Litige #${disputeNumber}`,
+          heroSub: statusLabel,
+          icon,
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isAwaiting
+            ? `Nous avons besoin d'informations complémentaires pour traiter votre litige. Merci de répondre depuis votre portail ou par courriel dans les meilleurs délais.`
+            : `Le statut de votre litige de facturation a été mis à jour. Vous trouverez les détails ci-dessous.`,
+          cardTitle: "Détails du litige",
+          cardRows: [
+            ["Référence", `#${disputeNumber}`],
+            ["Statut", statusLabel],
+            ["Motif", reasonLabel],
+            ["Message", publicMessage || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/factures`,
+          ctaPrimaryLabel: "Voir mes litiges",
+          helpVariant,
+          helpHtml: `Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+
+
 
     case "staff_account_created": {
       const firstName = esc(v.first_name || v.FIRST_NAME || "");

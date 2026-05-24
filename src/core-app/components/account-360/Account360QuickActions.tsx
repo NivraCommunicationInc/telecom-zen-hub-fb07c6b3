@@ -26,6 +26,8 @@ import { ClientReferralsDialog } from "@/shared-ops/components/ClientReferralsDi
 import { QuickTicketDialog } from "@/shared-ops/components/QuickTicketDialog";
 import { ScheduleAppointmentDialog } from "@/shared-ops/components/ScheduleAppointmentDialog";
 import { InternalNoteDialog } from "@/shared-ops/components/InternalNoteDialog";
+import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
+import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
 import { UserCog } from "lucide-react";
 
 
@@ -64,6 +66,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [reminderOpen, setReminderOpen] = useState(false);
   const [apptOpen, setApptOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [disputesOpen, setDisputesOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -100,8 +104,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
     { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" as const },
     { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true), color: "default" },
-    { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => onNavigateSection("invoices"), color: "warning" },
-    { icon: DollarSign, label: "Litige facturation", onClick: () => onNavigateSection("invoices"), color: "warning" },
+    { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
+    { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
     { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true), color: "default" },
   ];
 
@@ -298,6 +302,25 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <CollectionsDialog
+          open={collectionsOpen}
+          onClose={() => setCollectionsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <BillingDisputesDialog
+          open={disputesOpen}
+          onClose={() => setDisputesOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
         />
       )}
     </>
