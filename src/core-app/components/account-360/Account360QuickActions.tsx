@@ -75,6 +75,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [kycOpen, setKycOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
