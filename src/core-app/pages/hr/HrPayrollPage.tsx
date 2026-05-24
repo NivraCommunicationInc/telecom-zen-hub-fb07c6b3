@@ -586,11 +586,16 @@ export default function HrPayrollPage() {
       const eligible = entries.filter((e: any) => e.status === "approved");
       const ids = eligible.map((e: any) => e.id);
       if (ids.length === 0) throw new Error("Aucune fiche approuvée à marquer payée");
-      const { error } = await supabase
+      const { data: updated, error } = await adminClient
         .from("payroll_entries")
-        .update({ status: "paid", paid_at: new Date().toISOString() })
-        .in("id", ids);
+        .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .in("id", ids)
+        .select("id");
       if (error) throw error;
+      const affected = updated?.length ?? 0;
+      if (affected === 0) {
+        throw new Error("Aucune fiche n'a été marquée payée. Vérifiez les permissions.");
+      }
       for (const e of eligible as any[]) {
         await notifyEmployee({
           employeeId: e.user_id,
@@ -605,7 +610,7 @@ export default function HrPayrollPage() {
           },
         });
       }
-      return ids.length;
+      return affected;
     },
     onSuccess: (n) => {
       toast.success(`${n} fiche(s) marquée(s) payée(s)`);
