@@ -78,7 +78,7 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open, clientUserId]);
 
   const counts = useMemo(() => {
-    const c = { contract: 0, auto: 0, uploaded: 0, order: 0 };
+    const c: Record<DocItem["source"], number> = { contract: 0, auto: 0, uploaded: 0, order: 0, invoice: 0, receipt: 0, quote: 0 };
     for (const i of items) c[i.source]++;
     return c;
   }, [items]);
