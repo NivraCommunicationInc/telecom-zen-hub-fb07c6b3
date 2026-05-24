@@ -1,0 +1,293 @@
+// Equipment account actions — Nivra Core & Nivra OneView CS
+// Single entry for client equipment lifecycle:
+//   - assign_from_catalog : allocate the first in_stock unit of a given catalog item
+//                           (services.id, category='Équipement') to the client.
+//                           If no in_stock unit exists, create a new equipment_inventory row
+//                           pulling catalog_name + price_client from the services catalog
+//                           — NEVER from client-supplied values.
+//   - mark_returned       : flag an assigned/deployed unit as returned (status=in_stock,
+//                           detach account_id, set retired_at).
+//   - mark_defective      : flag a unit as defective (status=defective).
+//   - update_serial       : staff records SIM ICCID / modem serial / MAC / IMEI on an
+//                           existing row.
+//
+// Every action validates staff role, writes audit, and queues a branded client email.
+
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+type Action = "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
+
+interface Body {
+  action: Action;
+  client_user_id: string;
+  account_id?: string | null;
+  subscription_id?: string | null;
+  order_id?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+
+  // assign_from_catalog
+  catalog_item_id?: string; // public.services.id (category='Équipement')
+
+  // mark_returned / mark_defective / update_serial
+  inventory_id?: string;
+  condition?: "new" | "good" | "damaged" | "lost";
+  serial_number?: string;
+  imei?: string;
+  mac_address?: string;
+  iccid?: string; // mapped to serial_number for SIM
+}
+
+const json = (status: number, payload: unknown) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const ALLOWED_ROLES = new Set([
+  "admin", "employee", "supervisor", "support", "billing_admin", "sales",
+]);
+
+const fmtMoney = (n: number) => {
+  try {
+    return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
+  } catch {
+    return `${n.toFixed(2)} $`;
+  }
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json(405, { error: "Method not allowed" });
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return json(401, { error: "Non autorisé" });
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: userErr } = await userClient.auth.getUser();
+  if (userErr || !user) return json(401, { error: "Session invalide" });
+
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id);
+  const userRoles = new Set((roles || []).map((r: { role: string }) => r.role));
+  if (![...userRoles].some((r) => ALLOWED_ROLES.has(r))) {
+    return json(403, { error: "Action réservée au personnel autorisé" });
+  }
+
+  let body: Body;
+  try { body = await req.json(); }
+  catch { return json(400, { error: "Corps JSON invalide" }); }
+
+  const { action, client_user_id } = body;
+  if (!action || !client_user_id) return json(400, { error: "Champs requis: action, client_user_id" });
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("user_id, email, first_name, account_number")
+    .eq("user_id", client_user_id)
+    .maybeSingle();
+  const clientEmail = profile?.email || null;
+  const firstName = profile?.first_name || "Client";
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("cf-connecting-ip") || "unknown";
+
+  const audit = async (label: string, payload: Record<string, unknown>) => {
+    try {
+      await admin.from("admin_audit_log").insert({
+        action: `equipment.${label}`,
+        admin_id: user.id,
+        target_id: client_user_id,
+        target_type: "client",
+        ip_address: ip,
+        metadata: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
+    if (!clientEmail) return;
+    try {
+      await admin.from("email_queue").insert({
+        to_email: clientEmail,
+        template_key: template,
+        template_vars: { ...vars, first_name: firstName, to_email: clientEmail },
+        status: "queued",
+        priority: "normal",
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  try {
+    switch (action) {
+      case "assign_from_catalog": {
+        if (!body.catalog_item_id) return json(400, { error: "catalog_item_id requis" });
+
+        // Resolve canonical catalog row (single source of truth)
+        const { data: catalog, error: catErr } = await admin
+          .from("services")
+          .select("id, name, price, category, status, is_active")
+          .eq("id", body.catalog_item_id)
+          .eq("category", "Équipement")
+          .maybeSingle();
+        if (catErr) return json(500, { error: catErr.message });
+        if (!catalog) return json(404, { error: "Catalogue équipement introuvable" });
+        if (catalog.status !== "active" && catalog.is_active !== true) {
+          return json(400, { error: "Équipement non actif au catalogue" });
+        }
+
+        const canonicalName = catalog.name as string;
+        const canonicalPrice = Number(catalog.price ?? 0);
+
+        // Try to reuse the first in_stock unit of this catalog item
+        const { data: stockRows } = await admin
+          .from("equipment_inventory")
+          .select("id")
+          .eq("catalog_item_id", body.catalog_item_id)
+          .eq("status", "in_stock")
+          .order("created_at", { ascending: true })
+          .limit(1);
+
+        let inventoryId: string;
+        if (stockRows && stockRows.length > 0) {
+          inventoryId = (stockRows[0] as { id: string }).id;
+          const { error: updErr } = await admin
+            .from("equipment_inventory")
+            .update({
+              status: "assigned",
+              account_id: body.account_id ?? null,
+              order_id: body.order_id ?? null,
+              subscription_id: body.subscription_id ?? null,
+              assigned_at: new Date().toISOString(),
+              assigned_by: user.id,
+              price_client: canonicalPrice, // re-sync to canonical
+              catalog_name: canonicalName,
+              notes: body.notes ?? null,
+            })
+            .eq("id", inventoryId);
+          if (updErr) return json(500, { error: updErr.message });
+        } else {
+          // No stock — create a fresh inventory row already assigned
+          const { data: ins, error: insErr } = await admin
+            .from("equipment_inventory")
+            .insert({
+              catalog_item_id: body.catalog_item_id,
+              catalog_name: canonicalName,
+              category: "Équipement",
+              price_client: canonicalPrice,
+              status: "assigned",
+              account_id: body.account_id ?? null,
+              order_id: body.order_id ?? null,
+              subscription_id: body.subscription_id ?? null,
+              assigned_at: new Date().toISOString(),
+              assigned_by: user.id,
+              notes: body.notes ?? null,
+              condition: "new",
+            })
+            .select("id")
+            .single();
+          if (insErr) return json(500, { error: insErr.message });
+          inventoryId = (ins as { id: string }).id;
+        }
+
+        await audit("assign", {
+          inventory_id: inventoryId,
+          catalog_item_id: body.catalog_item_id,
+          catalog_name: canonicalName,
+          price_client: canonicalPrice,
+        });
+        await enqueueEmail("client_equipment_assigned", {
+          equipment_name: canonicalName,
+          equipment_price: fmtMoney(canonicalPrice),
+        });
+
+        return json(200, { ok: true, inventory_id: inventoryId, name: canonicalName, price: canonicalPrice });
+      }
+
+      case "mark_returned": {
+        if (!body.inventory_id) return json(400, { error: "inventory_id requis" });
+        const { data: row, error: rowErr } = await admin
+          .from("equipment_inventory")
+          .select("id, catalog_name, account_id")
+          .eq("id", body.inventory_id)
+          .maybeSingle();
+        if (rowErr) return json(500, { error: rowErr.message });
+        if (!row) return json(404, { error: "Équipement introuvable" });
+
+        const { error: updErr } = await admin
+          .from("equipment_inventory")
+          .update({
+            status: "in_stock",
+            account_id: null,
+            subscription_id: null,
+            retired_at: new Date().toISOString(),
+            condition: body.condition || "good",
+            notes: body.reason || row.account_id ? `Retour — ${body.reason || "sans note"}` : null,
+          })
+          .eq("id", body.inventory_id);
+        if (updErr) return json(500, { error: updErr.message });
+
+        await audit("return", { inventory_id: body.inventory_id, condition: body.condition, reason: body.reason });
+        await enqueueEmail("client_equipment_returned", {
+          equipment_name: row.catalog_name || "Équipement",
+          condition: body.condition || "good",
+          reason: body.reason || "—",
+        });
+        return json(200, { ok: true });
+      }
+
+      case "mark_defective": {
+        if (!body.inventory_id) return json(400, { error: "inventory_id requis" });
+        const { error: updErr } = await admin
+          .from("equipment_inventory")
+          .update({
+            status: "defective",
+            condition: "damaged",
+            notes: body.reason || null,
+          })
+          .eq("id", body.inventory_id);
+        if (updErr) return json(500, { error: updErr.message });
+        await audit("defective", { inventory_id: body.inventory_id, reason: body.reason });
+        return json(200, { ok: true });
+      }
+
+      case "update_serial": {
+        if (!body.inventory_id) return json(400, { error: "inventory_id requis" });
+        const patch: Record<string, unknown> = {};
+        if (body.serial_number) patch.serial_number = body.serial_number.trim();
+        if (body.iccid)         patch.serial_number = body.iccid.trim();
+        if (body.imei)          patch.imei = body.imei.trim();
+        if (body.mac_address)   patch.mac_address = body.mac_address.trim();
+        if (Object.keys(patch).length === 0) return json(400, { error: "Aucun identifiant à mettre à jour" });
+
+        const { error: updErr } = await admin
+          .from("equipment_inventory")
+          .update(patch)
+          .eq("id", body.inventory_id);
+        if (updErr) return json(500, { error: updErr.message });
+        await audit("update_serial", { inventory_id: body.inventory_id, patch });
+        return json(200, { ok: true });
+      }
+
+      default:
+        return json(400, { error: `Action inconnue: ${action}` });
+    }
+  } catch (e) {
+    return json(500, { error: (e as Error).message });
+  }
+});

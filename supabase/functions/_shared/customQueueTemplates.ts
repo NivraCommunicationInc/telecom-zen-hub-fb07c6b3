@@ -2753,6 +2753,66 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
 
 
     // ===================================================================
+    // CLIENT — Equipment assigned (from canonical catalog only)
+    // ===================================================================
+    case "client_equipment_assigned": {
+      const firstName = esc(v.first_name || clientName || "");
+      const name = esc(v.equipment_name || "Équipement");
+      const price = esc(v.equipment_price || "0,00 $");
+      return {
+        subject: `Équipement assigné — ${name}`,
+        html: shell({
+          preheader: `${name} a été ajouté à votre compte.`,
+          badge: "ÉQUIPEMENT ASSIGNÉ",
+          heroTitle: "Votre équipement a été assigné",
+          heroSub: "Le tarif sera appliqué selon le catalogue Nivra.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons l'assignation de l'équipement <strong>${name}</strong> à votre compte. Le tarif applicable est défini par le catalogue Nivra.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Équipement", name],
+            ["Tarif", price],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Equipment returned
+    // ===================================================================
+    case "client_equipment_returned": {
+      const firstName = esc(v.first_name || clientName || "");
+      const name = esc(v.equipment_name || "Équipement");
+      const condition = esc(v.condition || "good");
+      const reason = esc(v.reason || "—");
+      return {
+        subject: `Retour d'équipement enregistré — ${name}`,
+        html: shell({
+          preheader: `Le retour de votre ${name} a été enregistré.`,
+          badge: "RETOUR ENREGISTRÉ",
+          heroTitle: "Retour d'équipement confirmé",
+          heroSub: "Merci d'avoir retourné votre équipement.",
+          icon: "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la réception du retour de votre équipement. Si des frais s'appliquent en fonction de l'état constaté, ils apparaîtront sur votre prochaine facture.`,
+          cardTitle: "Détails du retour",
+          cardRows: [
+            ["Équipement", name],
+            ["État constaté", condition],
+            ["Note", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+
     // STAFF — Welcome email after onboarding completion (Violet Bold)
     // ===================================================================
     case "staff_account_created": {
