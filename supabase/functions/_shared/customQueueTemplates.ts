@@ -3198,7 +3198,124 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // CLIENT — KYC verification requested by staff
+    // ===================================================================
+    case "client_kyc_requested": {
+      const firstName = esc(v.first_name || clientName || "");
+      const idTypeLabel = esc(v.id_type_label || "Pièce d'identité");
+      const reason = esc(v.reason || "Vérification d'identité requise");
+      const expiresAt = esc(v.expires_at || "—");
+      return {
+        subject: "Vérification d'identité requise — Nivra",
+        html: shell({
+          preheader: `Action requise — vérification d'identité avant le ${expiresAt}.`,
+          badge: "VÉRIFICATION REQUISE",
+          heroTitle: "Vérification d'identité requise",
+          heroSub: `Avant le ${expiresAt}`,
+          icon: "warning",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Pour finaliser ou maintenir vos services Nivra, nous devons vérifier votre identité. Merci de soumettre les documents demandés depuis votre portail dans les plus brefs délais.`,
+          cardTitle: "Détails de la demande",
+          cardRows: [
+            ["Type de pièce", idTypeLabel],
+            ["Motif", reason],
+            ["Échéance", expiresAt],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryLabel: "Soumettre mes documents",
+          helpVariant: "warning",
+          helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
 
+    // ===================================================================
+    // CLIENT — KYC approved
+    // ===================================================================
+    case "client_kyc_approved": {
+      const firstName = esc(v.first_name || clientName || "");
+      const message = esc(v.message || "Votre identité a été vérifiée avec succès.");
+      return {
+        subject: "Identité vérifiée — Nivra",
+        html: shell({
+          preheader: "Votre identité a été vérifiée avec succès.",
+          badge: "IDENTITÉ VÉRIFIÉE",
+          heroTitle: "Vérification approuvée",
+          heroSub: "Vos services sont en règle.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Bonne nouvelle — votre vérification d'identité est complétée. Aucune autre action n'est requise de votre part.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Statut", "Approuvé"],
+            ["Note", message],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Accéder à mon compte",
+          helpHtml: `Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — KYC rejected
+    // ===================================================================
+    case "client_kyc_rejected": {
+      const firstName = esc(v.first_name || clientName || "");
+      const rejectionReason = esc(v.rejection_reason || "Documents non conformes");
+      return {
+        subject: "Vérification d'identité — Action requise",
+        html: shell({
+          preheader: "Votre vérification d'identité a été refusée.",
+          badge: "VÉRIFICATION REFUSÉE",
+          heroTitle: "Documents non acceptés",
+          heroSub: "Une nouvelle soumission est requise.",
+          icon: "alert",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous n'avons pas pu valider votre identité avec les documents soumis. Merci d'en soumettre de nouveaux selon les indications ci-dessous.`,
+          cardTitle: "Motif du refus",
+          cardRows: [
+            ["Détails", rejectionReason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryLabel: "Soumettre à nouveau",
+          helpVariant: "warning",
+          helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — KYC additional documents required
+    // ===================================================================
+    case "client_kyc_additional_docs": {
+      const firstName = esc(v.first_name || clientName || "");
+      const instructions = esc(v.instructions || "Documents complémentaires requis");
+      const requiredDocsList = esc(v.required_docs_list || "—");
+      return {
+        subject: "Documents complémentaires requis — Nivra",
+        html: shell({
+          preheader: "Nous avons besoin de documents supplémentaires.",
+          badge: "ACTION REQUISE",
+          heroTitle: "Documents complémentaires requis",
+          heroSub: "Pour finaliser la vérification",
+          icon: "warning",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Pour compléter votre vérification d'identité, nous avons besoin des éléments suivants. Merci de les soumettre dès que possible depuis votre portail.`,
+          cardTitle: "Instructions",
+          cardRows: [
+            ["Documents demandés", requiredDocsList],
+            ["Précisions", instructions],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryLabel: "Soumettre les documents",
+          helpVariant: "warning",
+          helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
 
 
     case "staff_account_created": {
