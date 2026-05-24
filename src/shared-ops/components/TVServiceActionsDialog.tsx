@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
-  Loader2, Tv, Layers, Film, MonitorSmartphone, ShieldCheck, Plus, Trash2, RefreshCw,
+  Loader2, Tv, Layers, Film, MonitorSmartphone, ShieldCheck, Plus, Trash2, RefreshCw, ListChecks,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,9 +73,17 @@ export function TVServiceActionsDialog({
   currentPlanName, currentMonthlyPrice,
 }: Props) {
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"plan" | "packs" | "vod" | "terminal" | "parental">("plan");
+  const [tab, setTab] = useState<"plan" | "packs" | "channels" | "vod" | "terminal" | "parental">("plan");
   const { plans: tvPlans, loading: loadingPlans } = useServicePlans("TV", open);
   const { packs: bouquetCatalog, loading: loadingBouquets } = useChannelPackages(open);
+
+  // Channels (à la carte)
+  type Ch = { id: string; name: string; category: string; price: number; is_hd: boolean | null };
+  const [catalogChannels, setCatalogChannels] = useState<Ch[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<Set<string>>(new Set());
+  const [channelFilter, setChannelFilter] = useState("");
+  const [channelNotes, setChannelNotes] = useState("");
 
   // Plan change
   const [planName, setPlanName] = useState("");
@@ -134,6 +142,35 @@ export function TVServiceActionsDialog({
         setActivePacks((data as TvAddon[]) || []);
         setLoadingPacks(false);
       });
+  }, [open, tab, clientUserId, busy]);
+
+  // Load TV channels catalog + current selection
+  useEffect(() => {
+    if (!open || tab !== "channels" || !clientUserId) return;
+    setLoadingChannels(true);
+    (async () => {
+      const [{ data: chans }, { data: sel }] = await Promise.all([
+        supabase
+          .from("tv_channels")
+          .select("id,name,category,price,is_hd")
+          .eq("is_active", true)
+          .order("category", { ascending: true })
+          .order("name", { ascending: true }),
+        supabase
+          .from("channel_selections")
+          .select("channels,status,created_at")
+          .eq("user_id", clientUserId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      setCatalogChannels((chans as Ch[]) || []);
+      const currentIds = new Set<string>();
+      const list = Array.isArray(sel?.channels) ? sel!.channels as Array<{ id?: string }> : [];
+      list.forEach((c) => { if (c.id) currentIds.add(c.id); });
+      setSelectedChannelIds(currentIds);
+      setLoadingChannels(false);
+    })();
   }, [open, tab, clientUserId, busy]);
 
   useEffect(() => {
