@@ -1,19 +1,17 @@
 /**
- * PREVIEW — Premium homepage redesign (Bell/Rogers/Fido/Vidéotron grade)
+ * PREVIEW V3 — Premium homepage redesign (Fizz.ca / Bell / Rogers grade)
  *
- * Sandbox at /preview/homepage-v2. Includes the real Header + Footer so it
- * looks identical to what the live homepage would look like once promoted.
+ * Sandbox at /preview/homepage-v2. Uses the real Header + Footer + PublicLayout
+ * so the preview matches what the live homepage would look like 1:1 once
+ * promoted.
  *
- * Preserves all sections of the current Index.tsx:
- *   Hero · Stats · Pricing · Comparison · Coverage · Testimonials · TrustBadges · FinalCTA
- *
- * Design system applied uniformly:
- *   - Primary violet #7C3AED with gradient on key phrases
- *   - Glassmorphism cards (backdrop-blur, ring, soft shadows)
- *   - Stagger entrance + idle floating motion
- *   - Animated number counters
- *   - Mesh-gradient backgrounds with morphing blobs
- *   - Generous whitespace, fluid typography
+ * Design direction (fix from V2):
+ *   - LIGHT THEME FORCED (no dark: variants, no auto dark mode)
+ *   - Fizz.ca aesthetic: bright lavender backgrounds, energetic violet,
+ *     generous whitespace, playful color blocks, big rounded corners (24-32px)
+ *   - Same brand violet #7C3AED as the existing site
+ *   - All existing sections preserved (Hero, Stats, Pricing, Comparison,
+ *     Coverage, Testimonials, TrustRow, TrustBadges, FinalCTA)
  *
  * Production homepage at "/" is UNTOUCHED until you promote this preview.
  */
@@ -43,10 +41,25 @@ import Footer from "@/components/Footer";
 import HomeStatusBanner from "@/components/HomeStatusBanner";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
+// Brand palette — locked to light mode. We use raw hex values throughout
+// (no `dark:` Tailwind variants) so the preview never flips to a black
+// theme when the user's system / app is in dark mode.
+const BRAND = {
+  violet: "#7C3AED",
+  violetDark: "#5B21B6",
+  violetLight: "#9D6EF8",
+  lavender: "#F4F0FF",
+  lavenderBorder: "#E0D5FA",
+  pink: "#EC4899",
+  text: "#0D0D0D",
+  textMuted: "#4B5563",
+  textSoft: "#6B7280",
+  bg: "#FFFFFF",
+  bgSoft: "#FAFAFB",
+} as const;
+
 // ──────────────────────────────────────────────────────────────────────────────
-// SHARED PRIMITIVES — animated counter + floating card + mesh background.
-// Inlined here so the preview is self-contained; will be extracted to
-// @/components/marketing/* once promoted.
+// SHARED PRIMITIVES
 // ──────────────────────────────────────────────────────────────────────────────
 
 function CountUp({
@@ -94,17 +107,20 @@ function MeshBlobs() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <motion.div
-        className="absolute -top-32 -left-32 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle,_#7C3AED_0%,_transparent_70%)] opacity-40 blur-3xl"
+        className="absolute -top-32 -left-32 h-[520px] w-[520px] rounded-full opacity-30 blur-3xl"
+        style={{ background: `radial-gradient(circle, ${BRAND.violet} 0%, transparent 70%)` }}
         animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0], scale: [1, 1.15, 0.95, 1] }}
         transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute -top-20 right-0 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,_#C7B6F2_0%,_transparent_70%)] opacity-50 blur-3xl"
+        className="absolute -top-20 right-0 h-[420px] w-[420px] rounded-full opacity-40 blur-3xl"
+        style={{ background: `radial-gradient(circle, #C7B6F2 0%, transparent 70%)` }}
         animate={{ x: [0, -40, 30, 0], y: [0, 30, -10, 0], scale: [1, 1.1, 0.9, 1] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       />
       <motion.div
-        className="absolute top-[40%] left-[35%] h-[380px] w-[380px] rounded-full bg-[radial-gradient(circle,_#5B21B6_0%,_transparent_70%)] opacity-25 blur-3xl"
+        className="absolute top-[40%] left-[35%] h-[380px] w-[380px] rounded-full opacity-20 blur-3xl"
+        style={{ background: `radial-gradient(circle, ${BRAND.pink} 0%, transparent 70%)` }}
         animate={{ x: [0, -30, 40, 0], y: [0, 40, -30, 0], scale: [1, 0.9, 1.1, 1] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut", delay: 2 }}
       />
@@ -119,6 +135,7 @@ function Section({
   eyebrow,
   title,
   subtitle,
+  style,
 }: {
   children?: ReactNode;
   className?: string;
@@ -126,9 +143,10 @@ function Section({
   eyebrow?: string;
   title?: ReactNode;
   subtitle?: string;
+  style?: React.CSSProperties;
 }) {
   return (
-    <section id={id} className={`relative px-6 py-20 md:px-10 md:py-28 ${className}`}>
+    <section id={id} className={`relative px-6 py-20 md:px-10 md:py-28 ${className}`} style={style}>
       <div className="mx-auto max-w-7xl">
         {(eyebrow || title || subtitle) && (
           <motion.div
@@ -139,18 +157,31 @@ function Section({
             className="mb-12 text-center md:mb-16"
           >
             {eyebrow && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#E0D5FA] bg-white/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B21B6] backdrop-blur dark:border-[#3F2B6E] dark:bg-[#1A1424]/70 dark:text-[#C7B6F2]">
+              <span
+                className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wider backdrop-blur"
+                style={{
+                  background: "rgba(255,255,255,0.7)",
+                  borderColor: BRAND.lavenderBorder,
+                  color: BRAND.violetDark,
+                }}
+              >
                 <Sparkles className="h-3.5 w-3.5" />
                 {eyebrow}
               </span>
             )}
             {title && (
-              <h2 className="mt-5 text-balance text-[clamp(1.875rem,4vw,3rem)] font-bold leading-tight tracking-tight text-[#0D0D0D] dark:text-white">
+              <h2
+                className="mt-5 text-balance text-[clamp(1.875rem,4vw,3rem)] font-bold leading-tight tracking-tight"
+                style={{ color: BRAND.text }}
+              >
                 {title}
               </h2>
             )}
             {subtitle && (
-              <p className="mx-auto mt-4 max-w-2xl text-balance text-base leading-relaxed text-[#4B5563] dark:text-[#94A3B8] md:text-lg">
+              <p
+                className="mx-auto mt-4 max-w-2xl text-balance text-base leading-relaxed md:text-lg"
+                style={{ color: BRAND.textMuted }}
+              >
                 {subtitle}
               </p>
             )}
@@ -163,7 +194,7 @@ function Section({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// HERO SECTION
+// HERO
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumHero() {
@@ -185,7 +216,10 @@ function PremiumHero() {
   const px = (depth: number) => `translate3d(${mouse.x * depth}px, ${mouse.y * depth}px, 0)`;
 
   return (
-    <section className="relative overflow-hidden px-6 pt-24 pb-16 md:px-10 md:pt-32">
+    <section
+      className="relative overflow-hidden px-6 pt-12 pb-16 md:px-10 md:pt-16"
+      style={{ background: `linear-gradient(180deg, ${BRAND.bg} 0%, ${BRAND.lavender} 100%)` }}
+    >
       <MeshBlobs />
 
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
@@ -197,7 +231,12 @@ function PremiumHero() {
           >
             <Link
               to="/garantie"
-              className="group inline-flex items-center gap-2 rounded-full border border-[#E0D5FA] bg-white/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B21B6] shadow-sm backdrop-blur transition-colors hover:border-[#7C3AED] dark:border-[#3F2B6E] dark:bg-[#1A1424]/70 dark:text-[#C7B6F2]"
+              className="group inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wider shadow-sm backdrop-blur transition-colors"
+              style={{
+                background: "rgba(255,255,255,0.7)",
+                borderColor: BRAND.lavenderBorder,
+                color: BRAND.violetDark,
+              }}
             >
               <Sparkles className="h-3.5 w-3.5" />
               Garantie 30 jours · Premier mois gratuit
@@ -209,7 +248,8 @@ function PremiumHero() {
             initial="hidden"
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } } }}
-            className="mt-6 text-balance text-[clamp(2.4rem,5vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-[#0D0D0D] dark:text-white"
+            className="mt-6 text-balance text-[clamp(2.4rem,5vw,4.5rem)] font-bold leading-[1.05] tracking-tight"
+            style={{ color: BRAND.text }}
           >
             {["L'internet", "premium", "du", "Québec"].map((w, i) => (
               <motion.span
@@ -221,7 +261,10 @@ function PremiumHero() {
                 className="inline-block pr-3"
               >
                 {w === "premium" ? (
-                  <span className="bg-gradient-to-br from-[#7C3AED] via-[#9D6EF8] to-[#5B21B6] bg-clip-text text-transparent">
+                  <span
+                    className="bg-clip-text text-transparent"
+                    style={{ backgroundImage: `linear-gradient(135deg, ${BRAND.violet}, ${BRAND.violetLight}, ${BRAND.violetDark})` }}
+                  >
                     {w}
                   </span>
                 ) : w}
@@ -233,9 +276,10 @@ function PremiumHero() {
                 hidden: { opacity: 0, y: 24 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.5 } },
               }}
-              className="text-[clamp(1.6rem,3.5vw,3rem)] text-[#4B5563] dark:text-[#94A3B8]"
+              className="text-[clamp(1.6rem,3.5vw,3rem)]"
+              style={{ color: BRAND.textMuted }}
             >
-              sans contrat. <span className="text-[#7C3AED]">Sans surprise.</span>
+              sans contrat. <span style={{ color: BRAND.violet }}>Sans surprise.</span>
             </motion.span>
           </motion.h1>
 
@@ -243,7 +287,8 @@ function PremiumHero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9, duration: 0.6 }}
-            className="mt-7 max-w-[52ch] text-base leading-relaxed text-[#4B5563] dark:text-[#94A3B8] md:text-lg"
+            className="mt-7 max-w-[52ch] text-base leading-relaxed md:text-lg"
+            style={{ color: BRAND.textMuted }}
           >
             Internet fibre 1 010 Mbps, télévision IPTV et mobile — chez vous en
             2 jours, sans engagement, sans vérification de crédit. L'alternative
@@ -258,7 +303,13 @@ function PremiumHero() {
           >
             <Link
               to="/commander"
-              className="group relative inline-flex h-14 items-center justify-center gap-2 overflow-hidden rounded-full bg-[#7C3AED] px-8 text-base font-semibold text-white shadow-[0_12px_40px_-12px_rgba(124,58,237,0.7)] transition-all duration-300 hover:scale-[1.02] hover:bg-[#6929D8] hover:shadow-[0_18px_50px_-12px_rgba(124,58,237,0.9)]"
+              className="group relative inline-flex h-14 items-center justify-center gap-2 overflow-hidden rounded-full px-8 text-base font-semibold text-white transition-all duration-300 hover:scale-[1.02]"
+              style={{
+                background: BRAND.violet,
+                boxShadow: `0 12px 40px -12px ${BRAND.violet}b3`,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.violetDark; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.violet; }}
             >
               <span aria-hidden className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               <span className="relative">Commander maintenant</span>
@@ -266,7 +317,12 @@ function PremiumHero() {
             </Link>
             <Link
               to="/couverture"
-              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-2 border-[#D0C4F3] bg-white/80 px-8 text-base font-semibold text-[#5B21B6] backdrop-blur transition-all duration-200 hover:border-[#7C3AED] hover:bg-white dark:border-[#3F2B6E] dark:bg-[#1A1424]/70 dark:text-[#C7B6F2] dark:hover:bg-[#1A1424]"
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-2 px-8 text-base font-semibold backdrop-blur transition-all duration-200"
+              style={{
+                background: "rgba(255,255,255,0.8)",
+                borderColor: BRAND.lavenderBorder,
+                color: BRAND.violetDark,
+              }}
             >
               Vérifier ma couverture
             </Link>
@@ -276,7 +332,8 @@ function PremiumHero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.25, duration: 0.6 }}
-            className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-[#4B5563] dark:text-[#94A3B8]"
+            className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium"
+            style={{ color: BRAND.textMuted }}
           >
             {[
               { icon: CheckCircle2, label: "Aucun engagement" },
@@ -284,7 +341,7 @@ function PremiumHero() {
               { icon: Sparkles, label: "1er mois offert" },
             ].map(({ icon: Icon, label }) => (
               <li key={label} className="inline-flex items-center gap-2">
-                <Icon className="h-4 w-4 text-[#7C3AED]" />
+                <Icon className="h-4 w-4" style={{ color: BRAND.violet }} />
                 {label}
               </li>
             ))}
@@ -300,22 +357,36 @@ function PremiumHero() {
             className="absolute right-0 top-8 w-[260px]"
           >
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}>
-              <div style={{ transform: px(8) }} className="rounded-2xl border border-white/60 bg-white/85 p-5 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#1A1424]/85">
+              <div
+                style={{
+                  transform: px(8),
+                  background: "rgba(255,255,255,0.92)",
+                  border: "1px solid rgba(255,255,255,0.7)",
+                  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)",
+                }}
+                className="rounded-2xl p-5 backdrop-blur-xl"
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[#7C3AED]">
+                  <div className="flex items-center gap-2" style={{ color: BRAND.violet }}>
                     <Gauge className="h-4 w-4" />
                     <span className="text-xs font-semibold uppercase tracking-wider">Test de vitesse</span>
                   </div>
                   <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
                 </div>
                 <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-[#0D0D0D] dark:text-white">
+                  <span className="text-4xl font-bold" style={{ color: BRAND.text }}>
                     <CountUp to={1010} duration={2200} />
                   </span>
-                  <span className="text-sm font-medium text-[#6B7280]">Mbps</span>
+                  <span className="text-sm font-medium" style={{ color: BRAND.textSoft }}>Mbps</span>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EDE9FF] dark:bg-[#2A1E45]">
-                  <motion.div initial={{ width: 0 }} animate={{ width: "92%" }} transition={{ delay: 1.4, duration: 1.8 }} className="h-full rounded-full bg-gradient-to-r from-[#7C3AED] to-[#C7B6F2]" />
+                <div className="mt-3 h-2 overflow-hidden rounded-full" style={{ background: BRAND.lavender }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: "92%" }}
+                    transition={{ delay: 1.4, duration: 1.8 }}
+                    className="h-full rounded-full"
+                    style={{ background: `linear-gradient(90deg, ${BRAND.violet}, #C7B6F2)` }}
+                  />
                 </div>
               </div>
             </motion.div>
@@ -328,7 +399,15 @@ function PremiumHero() {
             className="absolute right-20 top-48 z-10 w-[300px]"
           >
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}>
-              <div style={{ transform: px(14) }} className="rounded-2xl border border-[#7C3AED]/20 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] p-6 text-white shadow-[0_20px_60px_-12px_rgba(124,58,237,0.5)]">
+              <div
+                style={{
+                  transform: px(14),
+                  background: `linear-gradient(135deg, ${BRAND.violet}, ${BRAND.violetDark})`,
+                  border: `1px solid ${BRAND.violet}33`,
+                  boxShadow: `0 20px 60px -12px ${BRAND.violet}80`,
+                }}
+                className="rounded-2xl p-6 text-white"
+              >
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">GIGA Recommandé</span>
                   <Wifi className="h-5 w-5 opacity-80" />
@@ -359,17 +438,25 @@ function PremiumHero() {
             className="absolute right-2 bottom-0 w-[240px]"
           >
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}>
-              <div style={{ transform: px(20) }} className="rounded-2xl border border-emerald-200 bg-white/90 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 dark:border-emerald-900/40 dark:bg-[#1A1424]/85">
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <div
+                style={{
+                  transform: px(20),
+                  background: "rgba(255,255,255,0.95)",
+                  border: "1px solid #BBF7D0",
+                  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)",
+                }}
+                className="rounded-2xl p-4 backdrop-blur-xl"
+              >
+                <div className="flex items-center gap-2 text-emerald-600">
                   <TrendingDown className="h-4 w-4" />
                   <span className="text-xs font-semibold uppercase tracking-wider">Économies / an</span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-[#0D0D0D] dark:text-white">
+                  <span className="text-3xl font-bold" style={{ color: BRAND.text }}>
                     <CountUp to={420} duration={2000} suffix=" $" />
                   </span>
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-[#6B7280] dark:text-[#94A3B8]">
+                <p className="mt-1 text-[11px] leading-snug" style={{ color: BRAND.textSoft }}>
                   vs forfait équivalent chez Bell ou Vidéotron
                 </p>
               </div>
@@ -382,7 +469,7 @@ function PremiumHero() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// STATS BANNER — animated counters
+// STATS BANNER
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumStats() {
@@ -393,21 +480,25 @@ function PremiumStats() {
     { value: 100, suffix: " %", label: "Support local QC", icon: Heart },
   ];
   return (
-    <Section className="!py-16">
+    <Section className="!py-16" style={{ background: BRAND.bg }}>
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.7 }}
-        className="mx-auto grid max-w-5xl grid-cols-2 gap-8 rounded-2xl border border-[#EDE9FF] bg-white/60 px-8 py-10 backdrop-blur dark:border-[#2A1E45] dark:bg-[#0A0A0F]/40 sm:grid-cols-4"
+        className="mx-auto grid max-w-5xl grid-cols-2 gap-8 rounded-3xl border px-8 py-10 backdrop-blur sm:grid-cols-4"
+        style={{
+          background: "rgba(255,255,255,0.7)",
+          borderColor: BRAND.lavenderBorder,
+        }}
       >
         {stats.map(({ value, suffix, label, icon: Icon }) => (
           <div key={label} className="text-center">
-            <Icon className="mx-auto mb-2 h-5 w-5 text-[#7C3AED]/70" />
-            <div className="text-3xl font-bold text-[#0D0D0D] dark:text-white md:text-4xl">
+            <Icon className="mx-auto mb-2 h-5 w-5" style={{ color: `${BRAND.violet}b3` }} />
+            <div className="text-3xl font-bold md:text-4xl" style={{ color: BRAND.text }}>
               <CountUp to={value} duration={1800} suffix={suffix} />
             </div>
-            <div className="mt-1 text-xs uppercase tracking-wider text-[#6B7280] dark:text-[#94A3B8]">{label}</div>
+            <div className="mt-1 text-xs uppercase tracking-wider" style={{ color: BRAND.textSoft }}>{label}</div>
           </div>
         ))}
       </motion.div>
@@ -416,7 +507,7 @@ function PremiumStats() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// PRICING — 3 premium plan cards
+// PRICING
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumPricing() {
@@ -453,8 +544,9 @@ function PremiumPricing() {
     <Section
       id="forfaits"
       eyebrow="Nos forfaits"
-      title={<>Choisissez votre <span className="bg-gradient-to-r from-[#7C3AED] to-[#5B21B6] bg-clip-text text-transparent">forfait</span></>}
+      title={<>Choisissez votre <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(90deg, ${BRAND.violet}, ${BRAND.violetDark})` }}>forfait</span></>}
       subtitle="Tous nos forfaits sont sans contrat, sans vérification de crédit, et le premier mois est offert."
+      style={{ background: BRAND.lavender }}
     >
       <div className="grid gap-6 md:grid-cols-3">
         {plans.map((plan, i) => (
@@ -464,14 +556,23 @@ function PremiumPricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ delay: i * 0.12, duration: 0.6 }}
-            className={`relative flex flex-col rounded-3xl border p-8 ${
-              plan.highlight
-                ? "border-[#7C3AED]/30 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-white shadow-[0_20px_60px_-12px_rgba(124,58,237,0.5)]"
-                : "border-[#EDE9FF] bg-white/70 text-[#0D0D0D] backdrop-blur dark:border-[#2A1E45] dark:bg-[#0A0A0F]/40 dark:text-white"
-            }`}
+            className="relative flex flex-col rounded-3xl border p-8"
+            style={plan.highlight ? {
+              background: `linear-gradient(135deg, ${BRAND.violet}, ${BRAND.violetDark})`,
+              borderColor: `${BRAND.violet}4d`,
+              color: "#FFFFFF",
+              boxShadow: `0 20px 60px -12px ${BRAND.violet}80`,
+            } : {
+              background: BRAND.bg,
+              borderColor: BRAND.lavenderBorder,
+              color: BRAND.text,
+            }}
           >
             {plan.badge && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-white px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5B21B6] shadow-md">
+              <span
+                className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-[10px] font-bold uppercase tracking-wider shadow-md"
+                style={{ background: BRAND.bg, color: BRAND.violetDark }}
+              >
                 {plan.badge}
               </span>
             )}
@@ -485,18 +586,21 @@ function PremiumPricing() {
             <ul className="mt-6 flex-1 space-y-3 text-sm">
               {plan.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">
-                  <CheckCircle2 className={`mt-0.5 h-4 w-4 flex-shrink-0 ${plan.highlight ? "text-white" : "text-[#7C3AED]"}`} />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" style={{ color: plan.highlight ? "#FFFFFF" : BRAND.violet }} />
                   <span>{f}</span>
                 </li>
               ))}
             </ul>
             <Link
               to="/commander"
-              className={`mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold transition-all ${
-                plan.highlight
-                  ? "bg-white text-[#5B21B6] hover:bg-[#F4F0FF]"
-                  : "bg-[#7C3AED] text-white hover:bg-[#6929D8]"
-              }`}
+              className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold transition-all"
+              style={plan.highlight ? {
+                background: "#FFFFFF",
+                color: BRAND.violetDark,
+              } : {
+                background: BRAND.violet,
+                color: "#FFFFFF",
+              }}
             >
               {plan.cta}
               <ArrowRight className="h-4 w-4" />
@@ -509,7 +613,7 @@ function PremiumPricing() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// COMPARISON — Nivra vs Bell vs Vidéotron
+// COMPARISON
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumComparison() {
@@ -524,12 +628,16 @@ function PremiumComparison() {
   return (
     <Section
       eyebrow="Comparaison"
-      title={<>Pourquoi <span className="bg-gradient-to-r from-[#7C3AED] to-[#5B21B6] bg-clip-text text-transparent">Nivra</span> ?</>}
+      title={<>Pourquoi <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(90deg, ${BRAND.violet}, ${BRAND.violetDark})` }}>Nivra</span> ?</>}
       subtitle="Voyez ce qui nous différencie de Bell et Vidéotron."
+      style={{ background: BRAND.bg }}
     >
-      <div className="overflow-hidden rounded-3xl border border-[#EDE9FF] bg-white/60 backdrop-blur dark:border-[#2A1E45] dark:bg-[#0A0A0F]/40">
+      <div
+        className="overflow-hidden rounded-3xl border backdrop-blur"
+        style={{ background: "rgba(255,255,255,0.6)", borderColor: BRAND.lavenderBorder }}
+      >
         <div className="grid grid-cols-4 gap-0">
-          <div className="border-b border-r border-[#EDE9FF] bg-transparent p-5 dark:border-[#2A1E45]" />
+          <div className="border-b border-r p-5" style={{ borderColor: BRAND.lavenderBorder }} />
           {[
             { name: "Nivra", highlight: true },
             { name: "Bell", highlight: false },
@@ -537,13 +645,14 @@ function PremiumComparison() {
           ].map((co) => (
             <div
               key={co.name}
-              className={`border-b border-r border-[#EDE9FF] p-5 text-center last:border-r-0 dark:border-[#2A1E45] ${
-                co.highlight ? "bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-white" : ""
-              }`}
+              className="border-b border-r p-5 text-center last:border-r-0"
+              style={co.highlight ? {
+                background: `linear-gradient(135deg, ${BRAND.violet}, ${BRAND.violetDark})`,
+                color: "#FFFFFF",
+                borderColor: BRAND.lavenderBorder,
+              } : { borderColor: BRAND.lavenderBorder, color: BRAND.text }}
             >
-              <div className={`text-base font-bold ${co.highlight ? "" : "text-[#0D0D0D] dark:text-white"}`}>
-                {co.name}
-              </div>
+              <div className="text-base font-bold">{co.name}</div>
             </div>
           ))}
           {rows.map((row, i) => (
@@ -556,27 +665,27 @@ function PremiumComparison() {
 }
 
 function ContrastRow({ row, isLast }: { row: { feature: string; nivra: string | boolean; bell: string | boolean; videotron: string | boolean }; isLast: boolean }) {
-  const border = isLast ? "" : "border-b border-[#EDE9FF] dark:border-[#2A1E45]";
+  const borderStyle = isLast ? {} : { borderBottom: `1px solid ${BRAND.lavenderBorder}` };
   const render = (v: string | boolean) => {
     if (typeof v === "boolean") {
       return v
         ? <CheckCircle2 className="mx-auto h-5 w-5 text-emerald-500" />
-        : <span className="text-[#94A3B8]">—</span>;
+        : <span style={{ color: "#94A3B8" }}>—</span>;
     }
     return <span className="text-sm font-medium">{v}</span>;
   };
   return (
     <>
-      <div className={`border-r border-[#EDE9FF] p-5 text-sm font-medium text-[#0D0D0D] dark:border-[#2A1E45] dark:text-white ${border}`}>
+      <div className="border-r p-5 text-sm font-medium" style={{ ...borderStyle, borderRightColor: BRAND.lavenderBorder, color: BRAND.text }}>
         {row.feature}
       </div>
-      <div className={`border-r border-[#EDE9FF] bg-[#F4F0FF]/40 p-5 text-center text-[#5B21B6] dark:border-[#2A1E45] dark:bg-[#1A1424]/40 dark:text-[#C7B6F2] ${border}`}>
+      <div className="border-r p-5 text-center" style={{ ...borderStyle, borderRightColor: BRAND.lavenderBorder, background: `${BRAND.lavender}66`, color: BRAND.violetDark }}>
         {render(row.nivra)}
       </div>
-      <div className={`border-r border-[#EDE9FF] p-5 text-center text-[#4B5563] dark:border-[#2A1E45] dark:text-[#94A3B8] ${border}`}>
+      <div className="border-r p-5 text-center" style={{ ...borderStyle, borderRightColor: BRAND.lavenderBorder, color: BRAND.textMuted }}>
         {render(row.bell)}
       </div>
-      <div className={`p-5 text-center text-[#4B5563] dark:text-[#94A3B8] ${border}`}>
+      <div className="p-5 text-center" style={{ ...borderStyle, color: BRAND.textMuted }}>
         {render(row.videotron)}
       </div>
     </>
@@ -584,28 +693,37 @@ function ContrastRow({ row, isLast }: { row: { feature: string; nivra: string | 
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// COVERAGE — Map preview with CTA
+// COVERAGE
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumCoverage() {
   return (
-    <Section eyebrow="Couverture" title={<>Disponible partout <span className="bg-gradient-to-r from-[#7C3AED] to-[#5B21B6] bg-clip-text text-transparent">au Québec</span></>}>
+    <Section
+      eyebrow="Couverture"
+      title={<>Disponible partout <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(90deg, ${BRAND.violet}, ${BRAND.violetDark})` }}>au Québec</span></>}
+      style={{ background: BRAND.lavender }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.7 }}
-        className="relative overflow-hidden rounded-3xl border border-[#EDE9FF] bg-gradient-to-br from-[#F4F0FF] via-white to-[#F4F0FF] p-10 backdrop-blur dark:border-[#2A1E45] dark:from-[#1A1424] dark:via-[#0A0A0F] dark:to-[#1A1424] md:p-16"
+        className="relative overflow-hidden rounded-3xl border p-10 backdrop-blur md:p-16"
+        style={{
+          background: `linear-gradient(135deg, ${BRAND.lavender}, ${BRAND.bg}, ${BRAND.lavender})`,
+          borderColor: BRAND.lavenderBorder,
+        }}
       >
         <div className="grid items-center gap-10 md:grid-cols-2">
           <div>
-            <h3 className="text-3xl font-bold text-[#0D0D0D] dark:text-white">Vérifiez si Nivra est disponible chez vous</h3>
-            <p className="mt-4 text-base text-[#4B5563] dark:text-[#94A3B8]">
+            <h3 className="text-3xl font-bold" style={{ color: BRAND.text }}>Vérifiez si Nivra est disponible chez vous</h3>
+            <p className="mt-4 text-base" style={{ color: BRAND.textMuted }}>
               Couverture fibre étendue à travers Montréal, Laval, Longueuil, Brossard, Trois-Rivières, Sherbrooke et plus. Entrez votre adresse en 10 secondes.
             </p>
             <Link
               to="/couverture"
-              className="mt-6 inline-flex h-12 items-center gap-2 rounded-full bg-[#7C3AED] px-6 text-sm font-semibold text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-[#6929D8]"
+              className="mt-6 inline-flex h-12 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white shadow-lg transition-all hover:scale-[1.02]"
+              style={{ background: BRAND.violet }}
             >
               <MapPin className="h-4 w-4" />
               Vérifier ma couverture
@@ -614,11 +732,14 @@ function PremiumCoverage() {
           </div>
           <div className="relative h-64">
             <motion.div
-              className="absolute inset-0 rounded-2xl border border-[#7C3AED]/20 bg-[radial-gradient(circle_at_50%_50%,_#7C3AED20_0%,_transparent_70%)] backdrop-blur"
+              className="absolute inset-0 rounded-2xl border backdrop-blur"
+              style={{
+                borderColor: `${BRAND.violet}33`,
+                background: `radial-gradient(circle at 50% 50%, ${BRAND.violet}20 0%, transparent 70%)`,
+              }}
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             />
-            {/* Pulse dots */}
             {[
               { top: "30%", left: "40%", delay: 0 },
               { top: "55%", left: "60%", delay: 0.8 },
@@ -629,9 +750,10 @@ function PremiumCoverage() {
                 <motion.div
                   animate={{ scale: [1, 2, 1], opacity: [0.6, 0, 0.6] }}
                   transition={{ duration: 2.5, repeat: Infinity, delay: p.delay, ease: "easeOut" }}
-                  className="absolute h-4 w-4 rounded-full bg-[#7C3AED]"
+                  className="absolute h-4 w-4 rounded-full"
+                  style={{ background: BRAND.violet }}
                 />
-                <div className="relative h-3 w-3 rounded-full bg-[#7C3AED] shadow-lg" />
+                <div className="relative h-3 w-3 rounded-full shadow-lg" style={{ background: BRAND.violet }} />
               </div>
             ))}
           </div>
@@ -672,8 +794,9 @@ function PremiumTestimonials() {
   return (
     <Section
       eyebrow="Témoignages"
-      title={<>Ce que <span className="bg-gradient-to-r from-[#7C3AED] to-[#5B21B6] bg-clip-text text-transparent">nos clients</span> disent</>}
+      title={<>Ce que <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(90deg, ${BRAND.violet}, ${BRAND.violetDark})` }}>nos clients</span> disent</>}
       subtitle="Pas des avis fabriqués. Des vrais clients québécois qui ont fait le saut."
+      style={{ background: BRAND.bg }}
     >
       <div className="grid gap-6 md:grid-cols-3">
         {reviews.map((r, i) => (
@@ -683,18 +806,19 @@ function PremiumTestimonials() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ delay: i * 0.12, duration: 0.6 }}
-            className="relative rounded-3xl border border-[#EDE9FF] bg-white/70 p-7 backdrop-blur dark:border-[#2A1E45] dark:bg-[#0A0A0F]/40"
+            className="relative rounded-3xl border p-7 backdrop-blur"
+            style={{ background: "rgba(255,255,255,0.8)", borderColor: BRAND.lavenderBorder }}
           >
-            <Quote className="absolute right-7 top-7 h-8 w-8 text-[#7C3AED]/15" />
+            <Quote className="absolute right-7 top-7 h-8 w-8" style={{ color: `${BRAND.violet}26` }} />
             <div className="mb-3 flex gap-0.5">
               {Array.from({ length: r.rating }).map((_, j) => (
                 <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
               ))}
             </div>
-            <p className="text-sm leading-relaxed text-[#374151] dark:text-[#D1D5DB]">"{r.quote}"</p>
-            <div className="mt-5 border-t border-[#EDE9FF] pt-4 dark:border-[#2A1E45]">
-              <div className="text-sm font-semibold text-[#0D0D0D] dark:text-white">{r.name}</div>
-              <div className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{r.city} · {r.service}</div>
+            <p className="text-sm leading-relaxed" style={{ color: "#374151" }}>"{r.quote}"</p>
+            <div className="mt-5 border-t pt-4" style={{ borderColor: BRAND.lavenderBorder }}>
+              <div className="text-sm font-semibold" style={{ color: BRAND.text }}>{r.name}</div>
+              <div className="text-xs" style={{ color: BRAND.textSoft }}>{r.city} · {r.service}</div>
             </div>
           </motion.div>
         ))}
@@ -704,19 +828,25 @@ function PremiumTestimonials() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// TRUST BADGES + MARQUEE
+// TRUST
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumTrustRow() {
   const items = ["Visa", "Mastercard", "PayPal", "Interac", "Cloudflare", "SSL 256-bit", "Loi 25", "CRTC", "Award Local 2026"];
   return (
-    <div className="relative overflow-hidden border-y border-[#EDE9FF] bg-white/40 py-6 backdrop-blur dark:border-[#2A1E45] dark:bg-[#0A0A0F]/40">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-background to-transparent" />
+    <div
+      className="relative overflow-hidden border-y py-6 backdrop-blur"
+      style={{
+        background: "rgba(255,255,255,0.4)",
+        borderColor: BRAND.lavenderBorder,
+      }}
+    >
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24" style={{ background: `linear-gradient(90deg, ${BRAND.bg}, transparent)` }} />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24" style={{ background: `linear-gradient(-90deg, ${BRAND.bg}, transparent)` }} />
       <motion.div className="flex gap-12 whitespace-nowrap" animate={{ x: ["0%", "-50%"] }} transition={{ duration: 30, repeat: Infinity, ease: "linear" }}>
         {[...items, ...items, ...items].map((item, i) => (
-          <span key={`${item}-${i}`} className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#94A3B8] dark:text-[#64748B]">
-            <Award className="h-4 w-4 text-[#7C3AED]/60" />
+          <span key={`${item}-${i}`} className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider" style={{ color: "#94A3B8" }}>
+            <Award className="h-4 w-4" style={{ color: `${BRAND.violet}99` }} />
             {item}
           </span>
         ))}
@@ -733,7 +863,7 @@ function PremiumTrustBadges() {
     { icon: Zap, title: "Activation rapide", text: "Installation en 2-3 jours ouvrables après confirmation de votre adresse." },
   ];
   return (
-    <Section eyebrow="Confiance" title="Pourquoi nous faire confiance">
+    <Section eyebrow="Confiance" title="Pourquoi nous faire confiance" style={{ background: BRAND.bg }}>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {badges.map(({ icon: Icon, title, text }, i) => (
           <motion.div
@@ -742,13 +872,17 @@ function PremiumTrustBadges() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ delay: i * 0.1, duration: 0.6 }}
-            className="rounded-2xl border border-[#EDE9FF] bg-white/60 p-6 backdrop-blur dark:border-[#2A1E45] dark:bg-[#0A0A0F]/40"
+            className="rounded-2xl border p-6 backdrop-blur"
+            style={{ background: "rgba(255,255,255,0.6)", borderColor: BRAND.lavenderBorder }}
           >
-            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#F4F0FF] text-[#7C3AED] dark:bg-[#1A1424]">
+            <div
+              className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl"
+              style={{ background: BRAND.lavender, color: BRAND.violet }}
+            >
               <Icon className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-bold text-[#0D0D0D] dark:text-white">{title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-[#6B7280] dark:text-[#94A3B8]">{text}</p>
+            <h3 className="text-base font-bold" style={{ color: BRAND.text }}>{title}</h3>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: BRAND.textSoft }}>{text}</p>
           </motion.div>
         ))}
       </div>
@@ -762,32 +896,43 @@ function PremiumTrustBadges() {
 
 function PremiumFinalCTA() {
   return (
-    <Section className="!pb-32">
+    <Section className="!pb-32" style={{ background: BRAND.lavender }}>
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.7 }}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#7C3AED] via-[#6929D8] to-[#5B21B6] p-10 text-center text-white md:p-16"
+        className="relative overflow-hidden rounded-3xl p-10 text-center text-white md:p-16"
+        style={{ background: `linear-gradient(135deg, ${BRAND.violet}, #6929D8, ${BRAND.violetDark})` }}
       >
-        {/* Decorative blobs */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-pink-300/15 blur-3xl" />
+          <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full blur-3xl" style={{ background: `${BRAND.pink}26` }} />
         </div>
         <div className="relative">
           <h2 className="text-balance text-[clamp(2rem,4.5vw,3.5rem)] font-bold leading-tight">
-            Prêt à passer à un internet vraiment <span className="bg-gradient-to-r from-white to-[#EDE9FF] bg-clip-text text-transparent">québécois</span> ?
+            Prêt à passer à un internet vraiment{" "}
+            <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(90deg, #FFFFFF, ${BRAND.lavender})` }}>
+              québécois
+            </span>{" "}?
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-lg opacity-95">
             Premier mois gratuit. Sans contrat. Sans crédit. Annulez quand vous voulez. Installation en 2 jours.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link to="/commander" className="group inline-flex h-14 items-center justify-center gap-2 rounded-full bg-white px-8 text-base font-semibold text-[#5B21B6] shadow-2xl transition-all hover:scale-[1.02] hover:bg-[#F4F0FF]">
+            <Link
+              to="/commander"
+              className="group inline-flex h-14 items-center justify-center gap-2 rounded-full px-8 text-base font-semibold shadow-2xl transition-all hover:scale-[1.02]"
+              style={{ background: "#FFFFFF", color: BRAND.violetDark }}
+            >
               Commander maintenant
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
-            <Link to="/couverture" className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-2 border-white/40 bg-white/10 px-8 text-base font-semibold text-white backdrop-blur transition-all hover:bg-white/20">
+            <Link
+              to="/couverture"
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-2 px-8 text-base font-semibold text-white backdrop-blur transition-all hover:bg-white/20"
+              style={{ borderColor: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.1)" }}
+            >
               Vérifier ma couverture
             </Link>
           </div>
@@ -798,12 +943,18 @@ function PremiumFinalCTA() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// MAIN
+// MAIN — wrapped in the same shell the real homepage uses
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function HomepagePremiumPreview() {
   return (
-    <div className="min-h-screen bg-background">
+    // Force LIGHT color scheme regardless of system / app dark mode. The wrapper
+    // also sets a hard white background so any inherited dark background from
+    // the layout above is overridden.
+    <div
+      className="min-h-screen"
+      style={{ colorScheme: "light", background: BRAND.bg, color: BRAND.text }}
+    >
       <SEOHead {...SEO_DATA.home} />
       <Header />
       <HomeStatusBanner />
@@ -820,11 +971,13 @@ export default function HomepagePremiumPreview() {
       </main>
       <Footer />
 
-      {/* Preview meta — only visible on the sandbox page */}
-      <div className="border-t border-border bg-muted/30 px-6 py-6 text-center">
-        <p className="text-xs text-muted-foreground">
-          🧪 PREVIEW — Premium homepage redesign (Bell/Rogers/Fido/Vidéotron grade).
-          The live homepage at <code className="rounded bg-background px-1.5 py-0.5">/</code> is untouched.
+      <div
+        className="border-t px-6 py-6 text-center"
+        style={{ background: BRAND.lavender, borderColor: BRAND.lavenderBorder }}
+      >
+        <p className="text-xs" style={{ color: BRAND.textSoft }}>
+          🧪 PREVIEW V3 — Premium light theme (Fizz/Bell/Rogers/Fido grade).
+          La homepage live à <code className="rounded bg-white px-1.5 py-0.5">/</code> n'est pas touchée.
         </p>
       </div>
     </div>
