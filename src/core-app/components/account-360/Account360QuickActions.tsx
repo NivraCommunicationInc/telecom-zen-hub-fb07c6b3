@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
@@ -17,7 +17,9 @@ import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/a
 import { ReactivateAccountDialog } from "@/core-app/components/account-360/ReactivateAccountDialog";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccountAccessDialog";
+import { MobileServiceActionsDialog } from "@/shared-ops/components/MobileServiceActionsDialog";
 import { UserCog } from "lucide-react";
+
 
 interface Props {
   accountId: string | undefined;
