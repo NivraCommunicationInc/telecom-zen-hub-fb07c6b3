@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Smartphone, CreditCard, Plus, Trash2, ShieldAlert, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServicePlans } from "@/shared-ops/hooks/useServiceCatalog";
 
 interface Props {
   open: boolean;
@@ -48,19 +49,14 @@ interface Addon {
   created_at: string;
 }
 
-const ADDON_CATALOG: Array<{
-  code: string;
-  name: string;
-  type: "data" | "international" | "long_distance" | "roaming" | "voicemail" | "other";
-  price: number;
-}> = [
-  { code: "DATA_1GB",   name: "Data supplémentaire 1 Go",      type: "data",          price: 10 },
-  { code: "DATA_5GB",   name: "Data supplémentaire 5 Go",      type: "data",          price: 25 },
-  { code: "INTL_PACK",  name: "Forfait international",          type: "international", price: 15 },
-  { code: "LD_PACK",    name: "Longue distance Canada/USA",    type: "long_distance", price: 8 },
-  { code: "ROAM_DAY",   name: "Itinérance Canada/USA — 1 jour", type: "roaming",       price: 12 },
-  { code: "VM_PREMIUM", name: "Boîte vocale premium",          type: "voicemail",     price: 3 },
-];
+const ADDON_TYPES = [
+  { value: "data",          label: "Data" },
+  { value: "international", label: "International" },
+  { value: "long_distance", label: "Longue distance" },
+  { value: "roaming",       label: "Itinérance" },
+  { value: "voicemail",     label: "Boîte vocale" },
+  { value: "other",         label: "Autre" },
+] as const;
 
 const SIM_ACTIONS: Array<{ value: string; label: string; danger?: boolean; needsIccid?: boolean }> = [
   { value: "suspend_lost",          label: "Suspendre — SIM perdue", danger: true },
