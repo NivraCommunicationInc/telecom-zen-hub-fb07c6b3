@@ -498,11 +498,7 @@ export default function TechInstallation() {
             )}
 
             <button
-              onClick={() => {
-                setCompletedSteps((s) => new Set(s).add(stepIdx));
-                toast.success("✅ Étape complétée");
-                if (stepIdx < totalSteps - 1) setStepIdx(stepIdx + 1);
-              }}
+              onClick={completeCurrentStep}
               className={`w-full min-h-[52px] rounded-full text-sm font-bold flex items-center justify-center gap-2 ${
                 completedSteps.has(stepIdx)
                   ? "bg-emerald-600 text-white"
