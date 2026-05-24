@@ -39,7 +39,8 @@ import { AccountPreferencesDialog } from "@/shared-ops/components/AccountPrefere
 import { AccountTagsDialog } from "@/shared-ops/components/AccountTagsDialog";
 import { AccountFollowupsDialog } from "@/shared-ops/components/AccountFollowupsDialog";
 import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPrivacyRequestsDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion } from "lucide-react";
+import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch } from "lucide-react";
 
 
 interface Props {
