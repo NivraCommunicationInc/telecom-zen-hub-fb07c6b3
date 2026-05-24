@@ -12362,6 +12362,270 @@ export type Database = {
         }
         Relationships: []
       }
+      internet_diagnostics: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          diagnostic_type: string
+          download_mbps: number | null
+          id: string
+          latency_ms: number | null
+          link_status: string | null
+          notes: string | null
+          packet_loss_pct: number | null
+          performed_by: string | null
+          raw_result: Json
+          signal_strength_db: number | null
+          subscription_id: string | null
+          upload_mbps: number | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          diagnostic_type?: string
+          download_mbps?: number | null
+          id?: string
+          latency_ms?: number | null
+          link_status?: string | null
+          notes?: string | null
+          packet_loss_pct?: number | null
+          performed_by?: string | null
+          raw_result?: Json
+          signal_strength_db?: number | null
+          subscription_id?: string | null
+          upload_mbps?: number | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          diagnostic_type?: string
+          download_mbps?: number | null
+          id?: string
+          latency_ms?: number | null
+          link_status?: string | null
+          notes?: string | null
+          packet_loss_pct?: number | null
+          performed_by?: string | null
+          raw_result?: Json
+          signal_strength_db?: number | null
+          subscription_id?: string | null
+          upload_mbps?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      internet_modem_actions: {
+        Row: {
+          account_id: string | null
+          action_type: string
+          created_at: string
+          id: string
+          metadata: Json
+          modem_mac: string | null
+          modem_serial: string | null
+          performed_by: string | null
+          reason: string | null
+          result: Json
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          action_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          modem_mac?: string | null
+          modem_serial?: string | null
+          performed_by?: string | null
+          reason?: string | null
+          result?: Json
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          action_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          modem_mac?: string | null
+          modem_serial?: string | null
+          performed_by?: string | null
+          reason?: string | null
+          result?: Json
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      internet_plan_changes: {
+        Row: {
+          account_id: string | null
+          change_type: string
+          created_at: string
+          effective_date: string
+          id: string
+          metadata: Json
+          new_monthly_price: number
+          new_plan_name: string
+          new_speed_mbps: number | null
+          performed_by: string | null
+          previous_monthly_price: number | null
+          previous_plan_name: string | null
+          previous_speed_mbps: number | null
+          reason: string | null
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          change_type?: string
+          created_at?: string
+          effective_date?: string
+          id?: string
+          metadata?: Json
+          new_monthly_price: number
+          new_plan_name: string
+          new_speed_mbps?: number | null
+          performed_by?: string | null
+          previous_monthly_price?: number | null
+          previous_plan_name?: string | null
+          previous_speed_mbps?: number | null
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          change_type?: string
+          created_at?: string
+          effective_date?: string
+          id?: string
+          metadata?: Json
+          new_monthly_price?: number
+          new_plan_name?: string
+          new_speed_mbps?: number | null
+          performed_by?: string | null
+          previous_monthly_price?: number | null
+          previous_plan_name?: string | null
+          previous_speed_mbps?: number | null
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      internet_static_ip_assignments: {
+        Row: {
+          account_id: string | null
+          activated_at: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json
+          monthly_price: number
+          performed_by: string | null
+          released_at: string | null
+          released_reason: string | null
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          activated_at?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          monthly_price?: number
+          performed_by?: string | null
+          released_at?: string | null
+          released_reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          activated_at?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          monthly_price?: number
+          performed_by?: string | null
+          released_at?: string | null
+          released_reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      internet_wifi_settings: {
+        Row: {
+          account_id: string | null
+          band_mode: string
+          channel_24: number | null
+          channel_5: number | null
+          created_at: string
+          guest_enabled: boolean
+          guest_password_hint: string | null
+          guest_ssid: string | null
+          id: string
+          password_hint: string | null
+          ssid_24: string | null
+          ssid_5: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          band_mode?: string
+          channel_24?: number | null
+          channel_5?: number | null
+          created_at?: string
+          guest_enabled?: boolean
+          guest_password_hint?: string | null
+          guest_ssid?: string | null
+          id?: string
+          password_hint?: string | null
+          ssid_24?: string | null
+          ssid_5?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          band_mode?: string
+          channel_24?: number | null
+          channel_5?: number | null
+          created_at?: string
+          guest_enabled?: boolean
+          guest_password_hint?: string | null
+          guest_ssid?: string | null
+          id?: string
+          password_hint?: string | null
+          ssid_24?: string | null
+          ssid_5?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       interview_answers: {
         Row: {
           ai_feedback: string | null
