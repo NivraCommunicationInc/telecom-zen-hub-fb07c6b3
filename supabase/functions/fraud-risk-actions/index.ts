@@ -19,9 +19,10 @@ Deno.serve(async (req) => {
     const user = userData.user;
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("status", "active");
-    const userRoles = (roles ?? []).map((r: any) => r.role);
-    if (!userRoles.some((r: string) => STAFF_ROLES.includes(r))) return json({ error: "Forbidden" }, 403);
+    const { data: isStaffData } = await admin.rpc("has_staff_role", { _user_id: user.id });
+    if (isStaffData !== true) return json({ error: "Forbidden" }, 403);
+    const { data: isAdminData } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    const isCoreAdmin = isAdminData === true;
 
     const body = await req.json().catch(() => ({}));
     const {
@@ -90,6 +91,10 @@ Deno.serve(async (req) => {
       if (!incidentId || !status || !reason?.trim()) return json({ error: "Champs requis: incidentId, status, reason" }, 400);
       const valid = ["open", "investigating", "resolved", "false_positive", "escalated"];
       if (!valid.includes(status)) return json({ error: "Statut invalide" }, 400);
+      // Rule: Only Nivra Core admin can clear/dismiss a fraud alert (resolved or false_positive).
+      if ((status === "resolved" || status === "false_positive") && !isCoreAdmin) {
+        return json({ error: "Seul un administrateur Nivra Core peut retirer une alerte de fraude." }, 403);
+      }
       if ((status === "resolved" || status === "false_positive") && !resolutionNotes?.trim()) {
         return json({ error: "Notes de résolution requises" }, 400);
       }

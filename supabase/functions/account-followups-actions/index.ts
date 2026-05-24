@@ -44,14 +44,9 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    const roles = await Promise.all([
-      admin.rpc("has_role", { _user_id: userData.user.id, _role: "admin" }),
-      admin.rpc("has_role", { _user_id: userData.user.id, _role: "support" }),
-      admin.rpc("has_role", { _user_id: userData.user.id, _role: "billing_admin" }),
-      admin.rpc("has_role", { _user_id: userData.user.id, _role: "supervisor" }),
-    ]);
-    const isAdmin = roles[0].data === true;
-    if (!roles.some((r) => r.data === true)) return json({ error: "forbidden" }, 403);
+    const { data: isStaff } = await admin.rpc("has_staff_role", { _user_id: userData.user.id });
+    if (isStaff !== true) return json({ error: "forbidden" }, 403);
+    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
 
     const body = (await req.json()) as Body;
     if (!body?.client_user_id || !body?.action) {
