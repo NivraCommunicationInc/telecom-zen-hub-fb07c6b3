@@ -95,14 +95,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" as const },
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
-    { icon: MessageSquare, label: "Ticket support", onClick: () => onNavigateSection("tickets"), color: "default" },
-    { icon: Mail, label: "Envoyer rappel", onClick: () => onNavigateSection("tickets"), color: "default" },
+    { icon: MessageSquare, label: "Ticket support", onClick: () => setTicketOpen(true), color: "default" },
+    { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true), color: "default" },
     { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
     { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" as const },
-    { icon: Calendar, label: "Planifier RDV", onClick: () => onNavigateSection("appointments"), color: "default" },
+    { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true), color: "default" },
     { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => onNavigateSection("invoices"), color: "warning" },
     { icon: DollarSign, label: "Litige facturation", onClick: () => onNavigateSection("invoices"), color: "warning" },
-    { icon: StickyNote, label: "Note interne", onClick: () => onNavigateSection("timeline"), color: "default" },
+    { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true), color: "default" },
   ];
 
   const colorMap: Record<string, string> = {
@@ -256,6 +256,48 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           onClose={() => setReferralsOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
+        />
+      )}
+
+      {clientId && (
+        <QuickTicketDialog
+          open={ticketOpen}
+          onClose={() => setTicketOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+          mode="ticket"
+        />
+      )}
+
+      {clientId && (
+        <QuickTicketDialog
+          open={reminderOpen}
+          onClose={() => setReminderOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+          mode="reminder"
+        />
+      )}
+
+      {clientId && (
+        <ScheduleAppointmentDialog
+          open={apptOpen}
+          onClose={() => setApptOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <InternalNoteDialog
+          open={noteOpen}
+          onClose={() => setNoteOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
         />
       )}
     </>
