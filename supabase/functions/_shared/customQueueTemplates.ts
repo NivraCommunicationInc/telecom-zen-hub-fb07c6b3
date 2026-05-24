@@ -2042,6 +2042,118 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CLIENT — Mobile top-up confirmation (recharge prépayée)
+    // ===================================================================
+    case "client_mobile_topup_confirmation": {
+      const firstName = esc(v.first_name || clientName || "");
+      const amount = esc(v.amount || "0,00 $");
+      const msisdn = esc(v.msisdn || "Non spécifié");
+      const ref = esc(v.payment_reference || "—");
+      const method = esc(v.payment_method || "—");
+      return {
+        subject: `Recharge confirmée — ${amount}`,
+        html: shell({
+          preheader: `Votre recharge mobile de ${amount} a été appliquée.`,
+          badge: "RECHARGE CONFIRMÉE",
+          heroTitle: "Recharge appliquée à votre compte",
+          heroSub: "Votre solde a été mis à jour.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons que votre recharge mobile a été appliquée avec succès à votre ligne. Vous pouvez consulter le détail dans votre espace client.`,
+          cardTitle: "Détails de la recharge",
+          cardRows: [
+            ["Numéro mobile", msisdn],
+            ["Montant", amount],
+            ["Méthode de paiement", method],
+            ["Référence", ref],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Mobile add-on activated or cancelled
+    // ===================================================================
+    case "client_mobile_addon_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const addonName = esc(v.addon_name || "Option mobile");
+      const change = String(v.change_type || "activated");
+      const price = esc(v.monthly_price || "0,00 $");
+      const isActivation = change === "activated";
+      return {
+        subject: isActivation
+          ? `Option ajoutée — ${addonName}`
+          : `Option retirée — ${addonName}`,
+        html: shell({
+          preheader: isActivation
+            ? `L'option ${addonName} a été ajoutée à votre forfait.`
+            : `L'option ${addonName} a été retirée de votre forfait.`,
+          badge: isActivation ? "OPTION AJOUTÉE" : "OPTION RETIRÉE",
+          heroTitle: isActivation ? "Option ajoutée à votre forfait" : "Option retirée de votre forfait",
+          heroSub: isActivation
+            ? "Elle est active immédiatement."
+            : "Le retrait est effectif immédiatement.",
+          icon: isActivation ? "check" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isActivation
+            ? `Nous confirmons l'ajout de l'option suivante à votre ligne mobile. Le coût sera reflété sur votre prochaine facture.`
+            : `Nous confirmons le retrait de l'option suivante de votre ligne mobile. Elle ne sera plus facturée à partir du prochain cycle.`,
+          cardTitle: "Détails de l'option",
+          cardRows: [
+            ["Option", addonName],
+            ["Tarif mensuel", price],
+            ["Statut", isActivation ? "Active" : "Annulée"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — SIM action (suspended, replaced, swap-eSIM, etc.)
+    // ===================================================================
+    case "client_mobile_sim_action": {
+      const firstName = esc(v.first_name || clientName || "");
+      const actionLabel = esc(v.action_label || "Mise à jour SIM");
+      const reason = esc(v.reason || "—");
+      const msisdn = esc(v.msisdn || "—");
+      const isCritical = String(v.is_critical || "false") === "true";
+      return {
+        subject: `Sécurité de votre ligne — ${actionLabel}`,
+        html: shell({
+          preheader: `Votre ligne mobile : ${actionLabel}.`,
+          badge: isCritical ? "ACTION DE SÉCURITÉ" : "MISE À JOUR LIGNE",
+          heroTitle: `Votre ligne mobile : ${actionLabel}`,
+          heroSub: isCritical
+            ? "Une action de sécurité a été appliquée."
+            : "La mise à jour a été appliquée.",
+          icon: isCritical ? "warning" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isCritical
+            ? `Pour protéger votre ligne mobile, l'action suivante a été appliquée à votre compte. Si vous n'êtes pas à l'origine de cette demande, contactez-nous immédiatement.`
+            : `Nous confirmons la mise à jour suivante sur votre ligne mobile.`,
+          cardTitle: "Détails de l'action",
+          cardRows: [
+            ["Numéro mobile", msisdn],
+            ["Action", actionLabel],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpVariant: isCritical ? "warning" : undefined,
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+
+
 
 
     // ===================================================================
