@@ -1983,6 +1983,68 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // CLIENT — Invitation to set up online account (sent by staff)
+    // ===================================================================
+    case "client_account_invite": {
+      const setupLink = String(v.setup_link || v.reset_link || v.action_link || "#");
+      const firstName = esc(v.first_name || v.FIRST_NAME || clientName || "");
+      const emailRow = esc(v.email || v.to_email || "Non disponible");
+      return {
+        subject: "Activez votre compte en ligne — Nivra Télécom",
+        html: shell({
+          preheader: "Définissez votre mot de passe pour accéder à votre espace client Nivra.",
+          badge: "ACTIVATION DE COMPTE",
+          heroTitle: "Activez votre compte en ligne",
+          heroSub: "Définissez votre mot de passe pour accéder à votre espace client.",
+          icon: "star",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Un compte en ligne Nivra a été créé pour vous. Cliquez sur le bouton ci-dessous pour <strong>définir votre mot de passe</strong> et accéder à votre espace client : factures, paiements, services, support et plus encore.<br/><br/><strong style="color:#7c3aed;">Ce lien est valide 1 heure.</strong>`,
+          cardTitle: "Détails de votre compte",
+          cardRows: [
+            ["Courriel", emailRow],
+            ["Portail", "Espace client Nivra"],
+            ["Validité du lien", "1 heure"],
+          ],
+          ctaPrimaryUrl: setupLink,
+          ctaPrimaryLabel: "Définir mon mot de passe",
+          helpHtml: `Si vous n'attendiez pas cette invitation, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Email address changed by staff (notice to new address)
+    // ===================================================================
+    case "client_email_changed_notice": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || clientName || "");
+      const oldEmail = esc(v.old_email || "Précédent courriel");
+      const newEmail = esc(v.new_email || v.to_email || "");
+      return {
+        subject: "Votre adresse courriel a été mise à jour — Nivra Télécom",
+        html: shell({
+          preheader: "Confirmation de mise à jour de votre adresse courriel.",
+          badge: "COURRIEL MIS À JOUR",
+          heroTitle: "Votre courriel a été mis à jour",
+          heroSub: "Voici la confirmation du changement.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Sur demande, nous avons mis à jour l'adresse courriel associée à votre compte Nivra. Vous devez désormais utiliser la nouvelle adresse pour vous connecter.`,
+          cardTitle: "Détails du changement",
+          cardRows: [
+            ["Ancienne adresse", oldEmail],
+            ["Nouvelle adresse", newEmail],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/portal/auth",
+          ctaPrimaryLabel: "Accéder à mon espace client",
+          helpVariant: "warning",
+          helpHtml: `Si vous n'êtes pas à l'origine de ce changement, contactez-nous immédiatement à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+
+
+    // ===================================================================
     // STAFF — Welcome email after onboarding completion (Violet Bold)
     // ===================================================================
     case "staff_account_created": {
