@@ -30,7 +30,8 @@ import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
 import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
 import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
 import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountActivityTimelineDialog";
-import { UserCog, ShieldCheck, History } from "lucide-react";
+import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
+import { UserCog, ShieldCheck, History, FolderOpen } from "lucide-react";
 
 
 interface Props {
