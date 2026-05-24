@@ -22,7 +22,6 @@ import PhotoCapture from "../components/PhotoCapture";
 import QRScanner from "../components/QRScanner";
 import SignaturePad from "../components/SignaturePad";
 import OfflineIndicator from "../components/OfflineIndicator";
-import { queueTechEmail } from "../lib/queueTechEmail";
 
 const COAX_OPTIONS = [
   { v: "good", label: "✅ Bon état", c: "bg-emerald-600/20 border-emerald-600/50 text-emerald-300" },
@@ -120,29 +119,7 @@ export default function TechInstallation() {
         p_eta: eta ?? null,
       });
       if (error) throw error;
-
-      // Queue corresponding email to the client
-      if (assignment?.order_id) {
-        if (status === "en_route") {
-          await queueTechEmail({
-            assignmentId: id, orderId: assignment.order_id,
-            templateKey: "tech_en_route", extraVars: { eta: eta || "30-45 minutes" },
-          });
-        } else if (status === "arrived") {
-          await queueTechEmail({
-            assignmentId: id, orderId: assignment.order_id,
-            templateKey: "tech_arrived",
-            extraVars: { arrival_time: new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }) },
-          });
-        } else if (status === "in_progress") {
-          if (!startedAt) setStartedAt(new Date().toISOString());
-          await queueTechEmail({
-            assignmentId: id, orderId: assignment.order_id,
-            templateKey: "tech_in_progress",
-            extraVars: { start_time: new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }) },
-          });
-        }
-      }
+      if (status === "in_progress" && !startedAt) setStartedAt(new Date().toISOString());
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
