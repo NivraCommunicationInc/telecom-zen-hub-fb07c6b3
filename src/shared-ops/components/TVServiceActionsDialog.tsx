@@ -355,13 +355,16 @@ export function TVServiceActionsDialog({
           {/* ============ PACKS ============ */}
           <TabsContent value="packs" className="space-y-4 pt-4">
             <div>
-              <Label>Ajouter un bouquet</Label>
+              <Label>Ajouter un bouquet (catalogue channel_packages)</Label>
               <div className="flex gap-2 mt-1">
-                <Select value={pickedPack} onValueChange={setPickedPack} disabled={busy}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner un bouquet…" /></SelectTrigger>
+                <Select value={pickedPack} onValueChange={setPickedPack} disabled={busy || loadingBouquets}>
+                  <SelectTrigger><SelectValue placeholder={loadingBouquets ? "Chargement…" : "Sélectionner un bouquet…"} /></SelectTrigger>
                   <SelectContent>
-                    {PACK_CATALOG.map((p) => (
-                      <SelectItem key={p.code} value={p.code}>
+                    {bouquetCatalog.length === 0 && !loadingBouquets && (
+                      <SelectItem value="__none" disabled>Aucun bouquet actif</SelectItem>
+                    )}
+                    {bouquetCatalog.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
                         {p.name} — {fmt(p.price)}/mois
                       </SelectItem>
                     ))}
