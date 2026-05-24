@@ -63,6 +63,107 @@ async function getActor(supabase: any, authHeader: string | null) {
   } catch { return { id: null, name: "system", role: "system" }; }
 }
 
+// Inline transition logic — used directly and by bulk_transition (no HTTP recursion,
+// which previously failed because the Supabase gateway requires an `apikey` header
+// that the recursive fetch did not pass, leaving statuses stuck on the original value).
+async function doTransition(
+  supabase: any,
+  id: string,
+  next: string,
+  actor: { id: string | null; name: string; role: string },
+  opts: {
+    send_notification?: boolean;
+    payment_method?: string;
+    bank_reference?: string;
+    transaction_id?: string;
+    recipient_bank_name?: string;
+    recipient_account_last4?: string;
+    confirmation_number?: string;
+    failure_reason?: string;
+    failure_code?: string;
+  } = {},
+): Promise<{ payment?: any; error?: string }> {
+  if (!id || !ALLOWED_STATUS.has(next)) return { error: "payment_id et next_status valides requis" };
+
+  const { data: current, error: cErr } = await supabase
+    .from("payroll_payments").select("*").eq("id", id).maybeSingle();
+  if (cErr || !current) return { error: "Paiement introuvable" };
+
+  const patch: Record<string, unknown> = { payment_status: next };
+  const now = new Date().toISOString();
+
+  if (next === "approved") {
+    patch.approved_by = actor.id; patch.approved_by_name = actor.name; patch.approved_at = now;
+  }
+  if (next === "sent") {
+    patch.sent_by = actor.id; patch.sent_by_name = actor.name; patch.sent_date = now;
+    if (opts.payment_method && ALLOWED_METHODS.has(opts.payment_method)) patch.payment_method = opts.payment_method;
+    if (opts.bank_reference) patch.bank_reference = opts.bank_reference;
+    if (opts.transaction_id) patch.transaction_id = opts.transaction_id;
+    if (opts.recipient_bank_name) patch.recipient_bank_name = opts.recipient_bank_name;
+    if (opts.recipient_account_last4) patch.recipient_account_last4 = opts.recipient_account_last4;
+  }
+  if (next === "confirmed") {
+    patch.confirmed_by = actor.id; patch.confirmed_by_name = actor.name; patch.confirmed_date = now;
+    if (opts.confirmation_number) patch.confirmation_number = opts.confirmation_number;
+  }
+  if (next === "failed" || next === "bounced") {
+    patch.failure_reason = opts.failure_reason || null;
+    patch.failure_code = opts.failure_code || null;
+    patch.retry_count = (Number(current.retry_count) || 0) + 1;
+    if (next === "bounced") patch.bounced_date = now;
+  }
+  if (next === "cancelled" || next === "reversed") {
+    patch.cancelled_by = actor.id; patch.cancelled_at = now;
+  }
+
+  const { data: updated, error: uErr } = await supabase
+    .from("payroll_payments").update(patch).eq("id", id).select().single();
+  if (uErr) return { error: uErr.message };
+
+  await logEvent(supabase, id, `status:${next}`, { from: current.payment_status, to: next, ...patch }, actor);
+
+  if (current.payroll_entry_id) {
+    const legacyStatus = ["sent", "confirmed"].includes(next) ? "paid"
+      : next === "failed" ? "failed"
+      : next === "cancelled" ? "cancelled"
+      : "pending";
+    await supabase.from("payroll_entries").update({
+      payment_status: legacyStatus,
+      payment_method: patch.payment_method || current.payment_method,
+      payment_reference: patch.bank_reference || patch.transaction_id || null,
+      payment_date: ["sent", "confirmed"].includes(next) ? now.slice(0, 10) : null,
+      paid_at: ["sent", "confirmed"].includes(next) ? now : null,
+      status: ["sent", "confirmed"].includes(next) ? "paid" : undefined,
+    } as any).eq("id", current.payroll_entry_id);
+  }
+
+  const autoNotify = opts.send_notification !== false && ["sent", "confirmed"].includes(next);
+  if (autoNotify && current.payroll_entry_id) {
+    try {
+      await supabase.functions.invoke("process-payroll", {
+        body: {
+          mark_payment_sent_for_entry_id: current.payroll_entry_id,
+          payment_method: patch.payment_method || current.payment_method,
+          payment_status: "paid",
+          payment_reference: patch.bank_reference || patch.transaction_id || current.bank_reference || "",
+          payment_date: now.slice(0, 10),
+          payment_notes: current.client_visible_notes || null,
+          send_email: true,
+          processed_by: actor.name,
+        },
+      });
+      await supabase.from("payroll_payments").update({ email_sent_at: now }).eq("id", id);
+      await logEvent(supabase, id, "notification:sent", { method: "email+pdf" }, actor);
+    } catch (e) {
+      console.error("[payroll-payments] notification failed:", e);
+      await logEvent(supabase, id, "notification:failed", { error: String(e) }, actor);
+    }
+  }
+
+  return { payment: updated };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
