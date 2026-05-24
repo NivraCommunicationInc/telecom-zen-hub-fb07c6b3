@@ -21,7 +21,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
 type Action = "list_active" | "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
 
 interface Body {
