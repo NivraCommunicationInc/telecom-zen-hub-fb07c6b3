@@ -105,7 +105,9 @@ export function MobileServiceActionsDialog({
     setAmount("25");
     setTopupRef("");
     setTopupReason("");
-    setPickedAddon("");
+    setAddonName("");
+    setAddonType("data");
+    setAddonPrice("");
     setSimAction("");
     setNewIccid("");
     setSimReason("");
