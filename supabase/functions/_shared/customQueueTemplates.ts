@@ -2153,6 +2153,198 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
 
+    // ===================================================================
+    // CLIENT — TV plan change (upgrade / downgrade / lateral)
+    // ===================================================================
+    case "client_tv_plan_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const prev = esc(v.previous_plan_name || "—");
+      const next = esc(v.new_plan_name || "—");
+      const price = esc(v.new_monthly_price || "0,00 $");
+      const eff = esc(v.effective_date || "");
+      const changeType = String(v.change_type || "upgrade");
+      const labelMap: Record<string, string> = {
+        upgrade: "Mise à niveau de votre forfait TV",
+        downgrade: "Modification de votre forfait TV",
+        lateral: "Modification de votre forfait TV",
+        reactivation: "Réactivation de votre forfait TV",
+        cancellation: "Annulation de votre forfait TV",
+      };
+      const heroTitle = labelMap[changeType] || "Modification de votre forfait TV";
+      return {
+        subject: `Votre forfait TV — ${next}`,
+        html: shell({
+          preheader: `Votre nouveau forfait TV : ${next}.`,
+          badge: "FORFAIT TV MIS À JOUR",
+          heroTitle,
+          heroSub: "Le changement a été appliqué.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la modification de votre forfait télévision. Les changements sont effectifs à compter de la date indiquée et seront reflétés sur votre prochaine facture.`,
+          cardTitle: "Détails du changement",
+          cardRows: [
+            ["Ancien forfait", prev],
+            ["Nouveau forfait", next],
+            ["Tarif mensuel", price],
+            ["Date effective", eff],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — TV themed pack activated / cancelled
+    // ===================================================================
+    case "client_tv_pack_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const addonName = esc(v.addon_name || "Bouquet TV");
+      const change = String(v.change_type || "activated");
+      const price = esc(v.monthly_price || "0,00 $");
+      const isActivation = change === "activated";
+      return {
+        subject: isActivation
+          ? `Bouquet TV ajouté — ${addonName}`
+          : `Bouquet TV retiré — ${addonName}`,
+        html: shell({
+          preheader: isActivation
+            ? `Le bouquet ${addonName} a été ajouté à votre forfait TV.`
+            : `Le bouquet ${addonName} a été retiré de votre forfait TV.`,
+          badge: isActivation ? "BOUQUET AJOUTÉ" : "BOUQUET RETIRÉ",
+          heroTitle: isActivation ? "Bouquet ajouté à votre forfait TV" : "Bouquet retiré de votre forfait TV",
+          heroSub: isActivation
+            ? "Il est disponible immédiatement."
+            : "Le retrait est effectif immédiatement.",
+          icon: isActivation ? "check" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isActivation
+            ? `Nous confirmons l'ajout du bouquet thématique suivant à votre service TV. Le coût sera reflété sur votre prochaine facture.`
+            : `Nous confirmons le retrait du bouquet suivant. Il ne sera plus facturé à partir du prochain cycle.`,
+          cardTitle: "Détails du bouquet",
+          cardRows: [
+            ["Bouquet", addonName],
+            ["Tarif mensuel", price],
+            ["Statut", isActivation ? "Actif" : "Annulé"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — TV VOD / PPV purchase
+    // ===================================================================
+    case "client_tv_vod_purchase": {
+      const firstName = esc(v.first_name || clientName || "");
+      const title = esc(v.title || "Contenu à la demande");
+      const ctype = esc(v.content_type || "movie");
+      const amount = esc(v.amount || "0,00 $");
+      const method = esc(v.payment_method || "—");
+      const ref = esc(v.payment_reference || "—");
+      return {
+        subject: `Achat confirmé — ${title}`,
+        html: shell({
+          preheader: `Votre achat « ${title} » a été enregistré.`,
+          badge: "ACHAT CONFIRMÉ",
+          heroTitle: "Votre achat à la demande est confirmé",
+          heroSub: "Le contenu est disponible sur votre décodeur.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons l'achat suivant. Si l'achat est facturé sur votre prochaine facture, le montant y apparaîtra clairement.`,
+          cardTitle: "Détails de l'achat",
+          cardRows: [
+            ["Titre", title],
+            ["Type", ctype],
+            ["Montant", amount],
+            ["Méthode", method],
+            ["Référence", ref],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — TV terminal action (reboot, factory_reset, etc.)
+    // ===================================================================
+    case "client_tv_terminal_action": {
+      const firstName = esc(v.first_name || clientName || "");
+      const actionLabel = esc(v.action_label || "Action sur le terminal TV");
+      const serial = esc(v.terminal_serial || "—");
+      const reason = esc(v.reason || "—");
+      const isCritical = String(v.is_critical || "false") === "true";
+      return {
+        subject: `Terminal TV — ${actionLabel}`,
+        html: shell({
+          preheader: `Votre terminal TV : ${actionLabel}.`,
+          badge: isCritical ? "ACTION DE SÉCURITÉ" : "INTERVENTION TERMINAL",
+          heroTitle: `Votre terminal TV : ${actionLabel}`,
+          heroSub: isCritical
+            ? "Une action sensible a été appliquée."
+            : "L'intervention a été appliquée.",
+          icon: isCritical ? "warning" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isCritical
+            ? `Une intervention sensible a été appliquée à votre terminal TV. Si vous n'êtes pas à l'origine de cette demande, contactez-nous immédiatement.`
+            : `Nous confirmons l'intervention suivante sur votre terminal TV. Aucune action n'est requise de votre part.`,
+          cardTitle: "Détails de l'intervention",
+          cardRows: [
+            ["Terminal", serial],
+            ["Action", actionLabel],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpVariant: isCritical ? "warning" : undefined,
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — TV parental controls updated
+    // ===================================================================
+    case "client_tv_parental_controls": {
+      const firstName = esc(v.first_name || clientName || "");
+      const enabled = String(v.enabled || "false") === "true";
+      const rating = esc(v.max_rating || "PG-13");
+      const blockedCount = esc(v.blocked_count || "0");
+      const pinChanged = String(v.pin_changed || "false") === "true";
+      return {
+        subject: enabled
+          ? "Contrôle parental TV — Activé"
+          : "Contrôle parental TV — Désactivé",
+        html: shell({
+          preheader: enabled
+            ? "Le contrôle parental est activé sur votre compte TV."
+            : "Le contrôle parental a été désactivé sur votre compte TV.",
+          badge: "SÉCURITÉ TV",
+          heroTitle: enabled ? "Contrôle parental activé" : "Contrôle parental désactivé",
+          heroSub: enabled
+            ? "Les paramètres sont effectifs immédiatement."
+            : "Aucune restriction de contenu n'est désormais appliquée.",
+          icon: enabled ? "shield" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise à jour du contrôle parental sur votre service télévision. Si vous n'êtes pas à l'origine de ce changement, contactez-nous immédiatement.`,
+          cardTitle: "Paramètres appliqués",
+          cardRows: [
+            ["Statut", enabled ? "Activé" : "Désactivé"],
+            ["Classification max", rating],
+            ["Chaînes bloquées", blockedCount],
+            ["NIP modifié", pinChanged ? "Oui" : "Non"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
 
 
 
