@@ -625,23 +625,25 @@ function sanitizeFilename(s: string): string {
 }
 
 function buildDocFilenames(data: OrderDocumentData) {
-  const clientName = sanitizeFilename(buildClientName(data.order, data.profile) || "Client");
-  const acct = data.account?.account_number || "";
+  // Standardized pattern: "{DocType} Nivra {Number} - {FirstName}.pdf"
+  // DocType uses accent-free French to avoid filesystem issues.
+  const firstNameRaw = (data.profile?.first_name || (data.order as any)?.customer_first_name || "").trim();
+  const firstName = sanitizeFilename(firstNameRaw);
   const orderNum = data.order.order_number?.toString() || "";
   const invoiceNum = data.billingInvoice?.invoice_number || orderNum;
   const payRef = data.billingPayments?.[0]?.payment_number || data.billingPayments?.[0]?.reference || invoiceNum;
 
-  // Billing month from invoice cycle or order date
-  const billingDate = data.billingInvoice?.cycle_start_date || data.order.created_at;
-  const billingMonth = billingDate ? new Date(billingDate).toLocaleDateString("fr-CA", { year: "numeric", month: "long" }) : "";
+  const suffix = firstName ? ` - ${firstName}` : "";
+  const make = (docType: string, num: string | number) =>
+    sanitizeFilename(`${docType} Nivra ${num}${suffix}.pdf`);
 
   return {
-    contract: sanitizeFilename(`Nivra Telecom - Contrat de service - ${clientName} - Compte ${acct} - Commande ${orderNum}.pdf`),
-    invoice: sanitizeFilename(`Nivra Telecom - Facture ${invoiceNum} - ${clientName} - ${billingMonth}.pdf`),
-    summary: sanitizeFilename(`Nivra Telecom - Sommaire de commande ${orderNum} - ${clientName}.pdf`),
-    receipt: sanitizeFilename(`Nivra Telecom - Recu de paiement - ${payRef} - ${clientName}.pdf`),
-    contractSummary: sanitizeFilename(`Nivra Telecom - Resume de contrat - ${clientName} - Commande ${orderNum}.pdf`),
-    terms: `Nivra Telecom - Conditions de service - ${CURRENT_TERMS_VERSION}.pdf`,
+    contract: make("Contract", orderNum),
+    invoice: make("Facture", invoiceNum),
+    summary: make("Sommaire", orderNum),
+    receipt: make("Recu", payRef),
+    contractSummary: make("Resume_Contrat", orderNum),
+    terms: `Conditions Nivra ${CURRENT_TERMS_VERSION}.pdf`,
   };
 }
 
