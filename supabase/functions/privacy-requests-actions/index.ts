@@ -19,9 +19,8 @@ Deno.serve(async (req) => {
     const user = userData.user;
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("status", "active");
-    const userRoles = (roles ?? []).map((r: any) => r.role);
-    if (!userRoles.some((r: string) => STAFF_ROLES.includes(r))) return json({ error: "Forbidden" }, 403);
+    const { data: isStaffData } = await admin.rpc("has_staff_role", { _user_id: user.id });
+    if (isStaffData !== true) return json({ error: "Forbidden" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const { action, clientId, accountId, requestId, requestType, description, reason, status, refusalReason, internalNotes } = body;
