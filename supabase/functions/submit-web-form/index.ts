@@ -67,12 +67,9 @@ function validatePayload(body: unknown): WebFormPayload {
 }
 
 function generateReplyToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 16; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  // CSPRNG: 12 random bytes -> 24 hex chars (96 bits of entropy)
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req) => {

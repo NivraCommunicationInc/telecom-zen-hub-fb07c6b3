@@ -3857,6 +3857,7 @@ export type Database = {
           expires_at: string
           id: string
           pin_hash: string
+          pin_salt: string | null
           used: boolean
           user_id: string
         }
@@ -3867,6 +3868,7 @@ export type Database = {
           expires_at: string
           id?: string
           pin_hash: string
+          pin_salt?: string | null
           used?: boolean
           user_id: string
         }
@@ -3877,6 +3879,7 @@ export type Database = {
           expires_at?: string
           id?: string
           pin_hash?: string
+          pin_salt?: string | null
           used?: boolean
           user_id?: string
         }

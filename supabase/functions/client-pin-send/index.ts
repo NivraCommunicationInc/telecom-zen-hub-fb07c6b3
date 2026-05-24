@@ -59,13 +59,37 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-// Simple hash function using Web Crypto API
-async function hashPin(pin: string): Promise<string> {
+// PBKDF2-SHA256 with per-record random salt (100k iterations).
+// Replaces the legacy SHA-256(pin + service_role_key) scheme.
+const PBKDF2_ITERATIONS = 100_000;
+
+function generatePinSalt(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashPin(pin: string, salt: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(pin + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")); // salt with service key
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(pin),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const derived = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: PBKDF2_ITERATIONS,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256,
+  );
+  return Array.from(new Uint8Array(derived))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function generatePin(): string {
@@ -234,9 +258,10 @@ serve(async (req) => {
       // Non-bloquant: on continue à générer/envoyer le nouveau code.
     }
 
-    // Generate PIN and hash it
+    // Generate PIN, per-record salt, and PBKDF2 hash
     const pin = generatePin();
-    const pinHash = await hashPin(pin);
+    const pinSalt = generatePinSalt();
+    const pinHash = await hashPin(pin, pinSalt);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
     console.log(`[client-pin-send][${requestId}] Generated PIN, expires: ${expiresAt}`);
@@ -248,6 +273,7 @@ serve(async (req) => {
         user_id,
         email: email.toLowerCase(),
         pin_hash: pinHash,
+        pin_salt: pinSalt,
         expires_at: expiresAt,
         attempts: 0,
         used: false,
