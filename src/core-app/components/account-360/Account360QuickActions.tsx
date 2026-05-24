@@ -28,7 +28,8 @@ import { ScheduleAppointmentDialog } from "@/shared-ops/components/ScheduleAppoi
 import { InternalNoteDialog } from "@/shared-ops/components/InternalNoteDialog";
 import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
 import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
-import { UserCog } from "lucide-react";
+import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
+import { UserCog, ShieldCheck } from "lucide-react";
 
 
 interface Props {
