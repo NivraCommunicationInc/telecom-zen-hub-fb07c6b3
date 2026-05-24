@@ -5,6 +5,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+// adminClient bypasses RLS. Payroll RLS only allows the OWNING employee or
+// service_role to UPDATE payroll_entries — staff using the regular client
+// see a silent no-op (HTTP 204 with 0 rows affected). Using adminClient lets
+// HR admins actually mutate the rows.
+import { adminClient } from "@/integrations/backend/adminClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -461,11 +466,26 @@ export default function HrPayrollPage() {
   const approveMut = useMutation({
     mutationFn: async (entryId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase
+      // Use adminClient + .select() so we can detect silent RLS no-ops.
+      // Previously the UPDATE returned HTTP 204 with no error AND no rows
+      // affected → the toast said "approved" but nothing actually changed.
+      const { data, error } = await adminClient
         .from("payroll_entries")
-        .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id })
-        .eq("id", entryId);
+        .update({
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          approved_by: user?.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", entryId)
+        .select("id, status");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Aucune fiche n'a été modifiée. Vérifiez les permissions ou le statut actuel de la fiche.",
+        );
+      }
+      return data[0];
     },
     onSuccess: () => {
       toast.success("Fiche approuvée");
@@ -477,14 +497,28 @@ export default function HrPayrollPage() {
   const approveAllMut = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      const ids = entries.filter((e: any) => e.status === "draft" || e.status === "pending_approval").map((e: any) => e.id);
+      const ids = entries
+        .filter((e: any) => e.status === "draft" || e.status === "pending_approval")
+        .map((e: any) => e.id);
       if (ids.length === 0) throw new Error("Aucune fiche à approuver");
-      const { error } = await supabase
+      const { data, error } = await adminClient
         .from("payroll_entries")
-        .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id })
-        .in("id", ids);
+        .update({
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          approved_by: user?.id,
+          updated_at: new Date().toISOString(),
+        })
+        .in("id", ids)
+        .select("id");
       if (error) throw error;
-      return ids.length;
+      const affected = data?.length ?? 0;
+      if (affected === 0) {
+        throw new Error(
+          "Aucune fiche n'a été approuvée. Vérifiez les permissions ou les statuts actuels.",
+        );
+      }
+      return affected;
     },
     onSuccess: (n) => {
       toast.success(`${n} fiche(s) approuvée(s)`);
@@ -495,16 +529,24 @@ export default function HrPayrollPage() {
 
   const markPaidMut = useMutation({
     mutationFn: async (entryId: string) => {
-      const { data: entry } = await supabase
+      const { data: entry } = await adminClient
         .from("payroll_entries")
         .select("id, user_id, net_pay, pay_period_id")
         .eq("id", entryId)
         .maybeSingle();
-      const { error } = await supabase
+      const { data: updated, error } = await adminClient
         .from("payroll_entries")
-        .update({ status: "paid", paid_at: new Date().toISOString() })
-        .eq("id", entryId);
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", entryId)
+        .select("id");
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error("Aucune fiche n'a été marquée payée (permissions ou statut).");
+      }
       if (entry?.user_id) {
         await notifyEmployee({
           employeeId: entry.user_id,

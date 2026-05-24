@@ -27,6 +27,41 @@ const APP_URL = "https://nivra-telecom.ca";
 const PORTAL_URL = `${APP_URL}/portail`;
 const SUPPORT_EMAIL = "support@nivra-telecom.ca";
 
+/**
+ * Pick the right "Mes commissions" portal URL based on the recipient role.
+ * Commission emails go to BOTH Field agents (who work in /field) and HR
+ * employees (who work in /rh). Sending everyone to /rh was a UX miss — a
+ * Field agent landed on a page they don't normally use and got auth errors.
+ *
+ * The caller passes one of:
+ *   v.agent_role: "field" | "employee" | "hr" | "admin" | "technician"
+ *   v.recipient_portal: "field" | "rh" | "core" | "tech" (explicit override)
+ *   v.portal_url: full URL (highest precedence — caller knows best)
+ */
+function pickCommissionPortalUrl(v: Record<string, unknown>): string {
+  // Caller-provided explicit URL wins.
+  if (typeof v.portal_url === "string" && v.portal_url.startsWith("http")) {
+    return v.portal_url;
+  }
+  const portal = String(v.recipient_portal || "").toLowerCase();
+  const role = String(v.agent_role || v.role || "").toLowerCase();
+
+  // Explicit portal hint takes precedence.
+  if (portal === "field") return `${APP_URL}/field/commissions`;
+  if (portal === "tech") return `${APP_URL}/tech`;
+  if (portal === "core") return `${APP_URL}/core/commissions`;
+  if (portal === "rh") return `${APP_URL}/rh/commissions`;
+
+  // Otherwise infer from role.
+  if (role === "field" || role === "field_agent" || role === "sales") {
+    return `${APP_URL}/field/commissions`;
+  }
+  if (role === "technician") return `${APP_URL}/tech`;
+
+  // Default for HR / employee / admin — the historic destination.
+  return `${APP_URL}/rh/commissions`;
+}
+
 // Brand palette — "Violet Bold" template (matches uploaded reference)
 const BRAND_PRIMARY = "#7c3aed";       // primary violet
 const BRAND_DARK = "#1e1b4b";          // deep indigo (header / footer / titles)
@@ -2265,7 +2300,10 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     case "hr_commission_generated": {
       const amount = money(v.amount ?? v.commission_amount);
       const description = esc(v.description || v.product || "Commission de vente");
-      const rhPortal = String(v.portal_url || `${APP_URL}/rh/commissions`);
+      // Route the CTA to the agent's actual portal, not the generic /rh page.
+      // Field agents land in /field/commissions, HR/employees in /rh/commissions.
+      // Caller can override via v.portal_url if they have a more specific URL.
+      const rhPortal = pickCommissionPortalUrl(v);
       return {
         subject: `Nouvelle commission générée — ${amount}`,
         html: shell({
@@ -2292,7 +2330,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     case "hr_commission_paid": {
       const amount = money(v.amount ?? v.commission_amount);
       const periodLabel = esc(v.period_label || v.period || "");
-      const rhPortal = String(v.portal_url || `${APP_URL}/rh/commissions`);
+      const rhPortal = pickCommissionPortalUrl(v);
       return {
         subject: `Commission payée — ${amount}`,
         html: shell({

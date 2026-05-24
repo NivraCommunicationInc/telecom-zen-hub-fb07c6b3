@@ -4,6 +4,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+// adminClient bypasses RLS so admins can resolve agent profile names even when
+// the regular RLS policy on `profiles` would otherwise hide them. Without this
+// the page falls back to UUID slices like "01d69716" which is unreadable.
+import { adminClient } from "@/integrations/backend/adminClient";
 import { Loader2, Check, X, DollarSign, Clock, Ban, CreditCard, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -45,24 +49,38 @@ export default function CoreCommissionWithdrawalsPage() {
     },
   });
 
-  // Fetch agent profiles for display
-  const agentIds = [...new Set(requests.map((r: any) => r.agent_id))];
+  // Fetch agent profiles for display — uses adminClient so RLS on `profiles`
+  // doesn't hide them from staff viewers. Otherwise the UI was rendering UUID
+  // slices like "01d69716" instead of names.
+  const agentIds = [...new Set(requests.map((r: any) => r.agent_id))].filter(Boolean) as string[];
   const { data: agentProfiles = [] } = useQuery({
     queryKey: ["agent-profiles", agentIds.join(",")],
     queryFn: async () => {
       if (agentIds.length === 0) return [];
-      const { data } = await supabase
+      const { data, error } = await adminClient
         .from("profiles")
-        .select("user_id, full_name, email")
+        .select("user_id, full_name, first_name, last_name, email")
         .in("user_id", agentIds);
+      if (error) {
+        console.error("[Commissions] profile fetch failed:", error);
+        return [];
+      }
       return data || [];
     },
     enabled: agentIds.length > 0,
   });
 
-  const getAgentName = (agentId: string) => {
-    const p = agentProfiles.find((a: any) => a.user_id === agentId);
-    return p ? (p as any).full_name || (p as any).email : agentId.slice(0, 8);
+  const getAgentName = (agentId: string | null | undefined): string => {
+    if (!agentId) return "Agent inconnu";
+    const p = agentProfiles.find((a: any) => a.user_id === agentId) as any;
+    if (!p) return "Agent (profil manquant)";
+    // Prefer full_name, then first + last, then email — never fall back to UUID.
+    const fullName = (p.full_name || "").trim();
+    if (fullName) return fullName;
+    const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+    if (composed) return composed;
+    if (p.email) return p.email;
+    return "Agent (sans nom)";
   };
 
   const updateRequest = useMutation({

@@ -66,7 +66,14 @@ export interface ContractDataV3 {
   admin_signature_name?: string;
   admin_signature_date?: string;
 
+  /** Joined one-line label shown next to the discount total. */
   discount_label?: string;
+  /**
+   * Full breakdown of every discount applied (welcome, autopay, agent, referral…)
+   * so the legal text section can enumerate each one with its amount and term.
+   * Empty array when no discount applies.
+   */
+  discount_lines?: Array<{ label: string; amount: number; term?: string }>;
 }
 
 // ============================================================================
@@ -343,8 +350,29 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
     if (data.discount_amount > 0) {
-      y = bulletClause(doc, `Promotion appliquee: ${data.discount_label || "Rabais promotionnel"} pour un montant de ${fmt(data.discount_amount)}.`, y);
-      y = bulletClause(doc, "Cette promotion s'applique uniquement a la premiere facture ou aux elements specifies dans l'offre.", y);
+      // List every individual discount applied (welcome 100%, autopay 5$/mo,
+      // referral 50%, agent discount, etc.) with its amount and term when known.
+      // Previously the contract only said "Promotion appliquee" without enumerating
+      // each rebate, which left customers / auditors unable to verify what was
+      // granted at sale time.
+      if (Array.isArray(data.discount_lines) && data.discount_lines.length > 0) {
+        for (const d of data.discount_lines) {
+          const termSuffix = d.term ? ` (${d.term})` : "";
+          y = bulletClause(
+            doc,
+            `${d.label}: rabais de ${fmt(d.amount)}${termSuffix}.`,
+            y,
+          );
+        }
+      } else {
+        // Fallback when discount_lines wasn't provided (legacy callers).
+        y = bulletClause(
+          doc,
+          `Promotion appliquee: ${data.discount_label || "Rabais promotionnel"} pour un montant de ${fmt(data.discount_amount)}.`,
+          y,
+        );
+      }
+      y = bulletClause(doc, "Chaque rabais s'applique selon les modalites de l'offre correspondante (premiere facture, duree determinee, ou condition specifique). Veuillez consulter votre facture mensuelle pour le detail.", y);
     } else {
       y = bulletClause(doc, "Aucune promotion n'est appliquee a cette commande.", y);
     }

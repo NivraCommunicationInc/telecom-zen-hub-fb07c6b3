@@ -477,6 +477,20 @@ export function buildContractData(data: OrderDocumentData): ContractDataV3 {
     subtotal_monthly: structured.subtotalMonthly,
     subtotal_one_time: structured.subtotalOnetime,
     discount_amount: structured.discountAmount,
+    // discount_label is the SINGLE-line summary shown next to the discount
+    // total. We join all individual discounts with bullets so the contract
+    // documents every rebate (welcome, autopay, agent, referral, etc.).
+    // Previously this field was never populated → contract showed only
+    // "Promotion appliquee" without the actual reasons / terms.
+    discount_label: structured.discounts.length > 0
+      ? structured.discounts.map((d) => d.label).join(" • ")
+      : undefined,
+    // discount_lines: full breakdown for the legal section of the contract
+    // (lists each discount + amount on its own bulleted line).
+    discount_lines: structured.discounts.map((d) => ({
+      label: d.label,
+      amount: d.amount,
+    })),
     tax_gst: structured.tpsAmount,
     tax_qst: structured.tvqAmount,
     total_due_today: structured.total,
@@ -564,13 +578,36 @@ export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
     client_phone: order.client_phone || profile?.phone || undefined,
     client_address: addr.billing || addr.service || undefined,
     account_number: requireField(account?.account_number, "account_number"),
-    billed_items: breakdown ? breakdown.items
-      .filter(i => i.line_type !== "discount" && i.line_type !== "credit")
-      .map(i => ({ description: i.description, amount: i.line_total_cents / 100 }))
+    // billed_items now includes BOTH the positive lines (services, equipment,
+    // fees…) AND the negative discount/credit lines as separate rows. Before,
+    // discounts were filtered out and only the totals reflected them — so the
+    // receipt visually didn't match the invoice for the SAME transaction.
+    // Customers saw a subtotal that wouldn't add up.
+    //
+    // Pattern: positive lines first (logical reading order), then negative
+    // discount/credit lines below them, then the totals box reconciles.
+    billed_items: breakdown
+      ? [
+          ...breakdown.items
+            .filter((i) => i.line_type !== "discount" && i.line_type !== "credit")
+            .map((i) => ({
+              description: i.description,
+              amount: i.line_total_cents / 100,
+            })),
+          ...breakdown.items
+            .filter((i) => i.line_type === "discount" || i.line_type === "credit")
+            .map((i) => ({
+              // Show the absolute value with a minus sign so the receipt is
+              // human-readable ("Rabais bienvenue: -60,00 $").
+              description: i.description,
+              amount: -Math.abs(i.line_total_cents / 100),
+            })),
+        ]
       : undefined,
     transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
     balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
-    // Canonical tax fields from compute_invoice_breakdown
+    // Canonical tax fields from compute_invoice_breakdown — IDENTICAL to those
+    // used by invoiceTemplateV3, so receipt and invoice always reconcile.
     subtotal: breakdown?.subtotal,
     discount_amount: breakdown?.discounts_total || 0,
     discount_label: breakdown?.items.filter(i => i.line_type === "discount").map(i => i.description).join(", ") || undefined,

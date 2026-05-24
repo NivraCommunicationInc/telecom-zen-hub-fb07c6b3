@@ -54,8 +54,14 @@ DECLARE
 BEGIN
   v_is_success := COALESCE(LOWER(NEW.result), '') NOT IN ('failure', 'error', 'failed');
 
+  -- agent_registry.display_name and function_name are NOT NULL in production,
+  -- so we provide sensible defaults equal to agent_name when auto-discovering
+  -- a new agent from its first audit_log row. Operators can rename later via
+  -- the Core admin UI.
   INSERT INTO public.agent_registry (
     agent_name,
+    display_name,
+    function_name,
     status,
     last_run_at,
     last_success_at,
@@ -70,6 +76,8 @@ BEGIN
   )
   VALUES (
     NEW.agent_name,
+    NEW.agent_name,                -- display_name default = agent_name
+    NEW.agent_name,                -- function_name default = agent_name
     'active',
     v_now,
     CASE WHEN v_is_success THEN v_now ELSE NULL END,
