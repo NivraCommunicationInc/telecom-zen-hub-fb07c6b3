@@ -33,7 +33,8 @@ import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountAc
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
 import { AccountSecurityDialog } from "@/shared-ops/components/AccountSecurityDialog";
 import { AccountCommunicationDialog } from "@/shared-ops/components/AccountCommunicationDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send } from "lucide-react";
+import { AccountSmsDialog } from "@/shared-ops/components/AccountSmsDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle } from "lucide-react";
 
 
 interface Props {
