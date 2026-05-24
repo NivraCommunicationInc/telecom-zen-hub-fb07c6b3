@@ -217,6 +217,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <BillingServiceActionsDialog
+          open={billingOpen}
+          onClose={() => setBillingOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
     </>
   );
 }
