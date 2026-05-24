@@ -366,6 +366,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <AccountSecurityDialog
+          open={securityOpen}
+          onClose={() => setSecurityOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+        />
+      )}
     </>
   );
 }
