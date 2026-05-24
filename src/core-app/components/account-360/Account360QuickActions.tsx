@@ -46,6 +46,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reactivateOpen, setReactivateOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
