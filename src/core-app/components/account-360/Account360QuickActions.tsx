@@ -30,7 +30,8 @@ import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
 import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
 import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
 import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountActivityTimelineDialog";
-import { UserCog, ShieldCheck, History } from "lucide-react";
+import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
+import { UserCog, ShieldCheck, History, FolderOpen } from "lucide-react";
 
 
 interface Props {
@@ -72,6 +73,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [disputesOpen, setDisputesOpen] = useState(false);
   const [kycOpen, setKycOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -113,6 +115,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
     { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true), color: "default" },
     { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" as const },
+    { icon: FolderOpen, label: "Documents du compte", onClick: () => setDocumentsOpen(true), color: "violet" as const },
   ];
 
   const colorMap: Record<string, string> = {
@@ -347,6 +350,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           clientEmail={clientEmail}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <AccountDocumentsDialog
+          open={documentsOpen}
+          onClose={() => setDocumentsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
           accountId={accountId ?? null}
         />
       )}
