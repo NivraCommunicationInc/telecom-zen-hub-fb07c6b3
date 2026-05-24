@@ -16,6 +16,8 @@ import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/A
 import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
 import { ReactivateAccountDialog } from "@/core-app/components/account-360/ReactivateAccountDialog";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccountAccessDialog";
+import { UserCog } from "lucide-react";
 
 interface Props {
   accountId: string | undefined;
@@ -41,6 +43,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [pauseOpen, setPauseOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reactivateOpen, setReactivateOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -65,6 +68,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
       : []
     ),
+    { icon: UserCog, label: "Accès compte en ligne", onClick: () => setAccessOpen(true), color: "violet" as const },
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
     { icon: MessageSquare, label: "Ticket support", onClick: () => onNavigateSection("tickets"), color: "default" },
@@ -161,6 +165,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         open={reactivateOpen}
         onClose={() => setReactivateOpen(false)}
         onRefresh={onRefresh}
+      />
+
+      <ClientAccountAccessDialog
+        open={accessOpen}
+        onClose={() => setAccessOpen(false)}
+        clientUserId={clientId}
+        clientEmail={clientEmail}
+        clientName={clientName}
       />
     </>
   );

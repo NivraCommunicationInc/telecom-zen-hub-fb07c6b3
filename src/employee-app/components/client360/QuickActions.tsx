@@ -2,15 +2,19 @@
  * QuickActions — Service agent action toolbar.
  */
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import {
   MessageSquare, Plus, DollarSign, FileText, ShoppingCart, Zap,
   AlertTriangle, Key, Building2, Calendar, Send, Receipt, BookOpen, Briefcase,
-  Tv, Eye,
+  Tv, Eye, UserCog,
 } from "lucide-react";
+import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccountAccessDialog";
 
 interface Props {
   clientId: string;
+  clientEmail?: string | null;
+  clientName?: string;
   account: any | null;
   orders: any[];
   invoices: any[];
@@ -27,11 +31,12 @@ interface Props {
 }
 
 export function QuickActions({
-  clientId, account, orders, invoices, subscriptions, appointments, tickets,
+  clientId, clientEmail, clientName, account, orders, invoices, subscriptions, appointments, tickets,
   unpaidCount, onAddNote, onCreateTicket, onEscalation, onRecordPayment, onPinReset,
   onEscalationPreset,
 }: Props) {
   const navigate = useNavigate();
+  const [accessOpen, setAccessOpen] = useState(false);
 
   const ActionBtn = ({ icon: Icon, label, onClick, variant = "default" }: {
     icon: any; label: string; onClick: () => void; variant?: "default" | "primary" | "warning" | "success";
@@ -81,6 +86,7 @@ export function QuickActions({
           else navigate(employeePath("/appointments"));
         }} />
         <ActionBtn icon={Key} label="NIP" onClick={onPinReset} variant="warning" />
+        <ActionBtn icon={UserCog} label="Accès compte en ligne" onClick={() => setAccessOpen(true)} variant="primary" />
         <ActionBtn icon={ShoppingCart} label="Commande" onClick={() => navigate(employeePath(`/orders/new?clientId=${clientId}`))} variant="primary" />
         <ActionBtn icon={FileText} label="Nouvelle soumission" onClick={() => navigate(employeePath(`/quotes/new?clientId=${clientId}`))} variant="primary" />
         <ActionBtn icon={Eye} label="Voir soumissions" onClick={() => navigate(employeePath(`/quotes?clientId=${clientId}`))} />
@@ -89,6 +95,13 @@ export function QuickActions({
         <ActionBtn icon={Tv} label="Chaînes TV" onClick={() => onEscalationPreset("tv_channel_change", "Changement de chaînes TV", `Client: ${clientId}`)} variant="warning" />
         <ActionBtn icon={AlertTriangle} label="Escalation" onClick={onEscalation} variant="warning" />
       </div>
+      <ClientAccountAccessDialog
+        open={accessOpen}
+        onClose={() => setAccessOpen(false)}
+        clientUserId={clientId}
+        clientEmail={clientEmail}
+        clientName={clientName}
+      />
     </div>
   );
 }
