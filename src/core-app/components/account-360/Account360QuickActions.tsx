@@ -66,6 +66,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [reminderOpen, setReminderOpen] = useState(false);
   const [apptOpen, setApptOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [disputesOpen, setDisputesOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
