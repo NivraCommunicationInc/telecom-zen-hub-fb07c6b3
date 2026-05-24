@@ -71,6 +71,7 @@ export function InternetServiceActionsDialog({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"plan" | "modem" | "diag" | "wifi" | "ip">("plan");
+  const { plans: internetPlans, loading: loadingPlans } = useServicePlans("Internet", open);
 
   // Plan
   const [planName, setPlanName] = useState("");
