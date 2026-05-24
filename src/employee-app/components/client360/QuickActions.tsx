@@ -86,6 +86,7 @@ export function QuickActions({
           else navigate(employeePath("/appointments"));
         }} />
         <ActionBtn icon={Key} label="NIP" onClick={onPinReset} variant="warning" />
+        <ActionBtn icon={UserCog} label="Accès compte en ligne" onClick={() => setAccessOpen(true)} variant="primary" />
         <ActionBtn icon={ShoppingCart} label="Commande" onClick={() => navigate(employeePath(`/orders/new?clientId=${clientId}`))} variant="primary" />
         <ActionBtn icon={FileText} label="Nouvelle soumission" onClick={() => navigate(employeePath(`/quotes/new?clientId=${clientId}`))} variant="primary" />
         <ActionBtn icon={Eye} label="Voir soumissions" onClick={() => navigate(employeePath(`/quotes?clientId=${clientId}`))} />
@@ -94,6 +95,13 @@ export function QuickActions({
         <ActionBtn icon={Tv} label="Chaînes TV" onClick={() => onEscalationPreset("tv_channel_change", "Changement de chaînes TV", `Client: ${clientId}`)} variant="warning" />
         <ActionBtn icon={AlertTriangle} label="Escalation" onClick={onEscalation} variant="warning" />
       </div>
+      <ClientAccountAccessDialog
+        open={accessOpen}
+        onClose={() => setAccessOpen(false)}
+        clientUserId={clientId}
+        clientEmail={clientEmail}
+        clientName={clientName}
+      />
     </div>
   );
 }
