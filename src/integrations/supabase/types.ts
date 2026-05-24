@@ -3653,6 +3653,62 @@ export type Database = {
         }
         Relationships: []
       }
+      client_autopay_settings: {
+        Row: {
+          account_id: string | null
+          charge_day_offset: number
+          created_at: string
+          disabled_at: string | null
+          disabled_by: string | null
+          disabled_reason: string | null
+          enabled: boolean
+          enabled_at: string | null
+          enabled_by: string | null
+          id: string
+          payment_method_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          charge_day_offset?: number
+          created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_reason?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          enabled_by?: string | null
+          id?: string
+          payment_method_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          charge_day_offset?: number
+          created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_reason?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          enabled_by?: string | null
+          id?: string
+          payment_method_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_autopay_settings_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "client_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_billing_preferences: {
         Row: {
           created_at: string
@@ -3690,6 +3746,114 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      client_billing_settings: {
+        Row: {
+          account_id: string | null
+          billing_day_of_month: number
+          created_at: string
+          delivery_format: string
+          email_for_billing: string | null
+          id: string
+          language: string
+          paper_mailing_address: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          billing_day_of_month?: number
+          created_at?: string
+          delivery_format?: string
+          email_for_billing?: string | null
+          id?: string
+          language?: string
+          paper_mailing_address?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          billing_day_of_month?: number
+          created_at?: string
+          delivery_format?: string
+          email_for_billing?: string | null
+          id?: string
+          language?: string
+          paper_mailing_address?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_direct_refunds: {
+        Row: {
+          account_id: string | null
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          currency: string
+          external_reference: string | null
+          id: string
+          invoice_id: string | null
+          metadata: Json
+          payment_id: string | null
+          performed_by: string | null
+          processed_at: string | null
+          reason: string
+          refund_method: string
+          rejected_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          external_reference?: string | null
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json
+          payment_id?: string | null
+          performed_by?: string | null
+          processed_at?: string | null
+          reason: string
+          refund_method: string
+          rejected_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          external_reference?: string | null
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json
+          payment_id?: string | null
+          performed_by?: string | null
+          processed_at?: string | null
+          reason?: string
+          refund_method?: string
+          rejected_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       client_documents: {
         Row: {
@@ -3927,6 +4091,141 @@ export type Database = {
           event_type?: string
           id?: string
           portal_path?: string | null
+        }
+        Relationships: []
+      }
+      client_payment_methods: {
+        Row: {
+          account_id: string | null
+          added_by: string | null
+          brand: string | null
+          created_at: string
+          exp_month: number | null
+          exp_year: number | null
+          holder_name: string | null
+          id: string
+          is_default: boolean
+          last4: string | null
+          metadata: Json
+          method_type: string
+          paypal_email: string | null
+          provider_token: string | null
+          removed_at: string | null
+          removed_by: string | null
+          removed_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          added_by?: string | null
+          brand?: string | null
+          created_at?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          holder_name?: string | null
+          id?: string
+          is_default?: boolean
+          last4?: string | null
+          metadata?: Json
+          method_type: string
+          paypal_email?: string | null
+          provider_token?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          added_by?: string | null
+          brand?: string | null
+          created_at?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          holder_name?: string | null
+          id?: string
+          is_default?: boolean
+          last4?: string | null
+          metadata?: Json
+          method_type?: string
+          paypal_email?: string | null
+          provider_token?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_payment_plans: {
+        Row: {
+          account_id: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
+          created_at: string
+          currency: string
+          first_due_date: string
+          frequency: string
+          id: string
+          installment_amount: number
+          installment_count: number
+          invoice_id: string | null
+          metadata: Json
+          reason: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          currency?: string
+          first_due_date: string
+          frequency?: string
+          id?: string
+          installment_amount: number
+          installment_count: number
+          invoice_id?: string | null
+          metadata?: Json
+          reason?: string | null
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          currency?: string
+          first_due_date?: string
+          frequency?: string
+          id?: string
+          installment_amount?: number
+          installment_count?: number
+          invoice_id?: string | null
+          metadata?: Json
+          reason?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
