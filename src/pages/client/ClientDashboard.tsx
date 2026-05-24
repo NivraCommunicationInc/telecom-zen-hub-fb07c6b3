@@ -12,6 +12,7 @@ import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import ServiceCountdown from "@/components/client/ServiceCountdown";
 import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
 import AccountStateBanner from "@/components/client/AccountStateBanner";
+import EmailClaimBanner from "@/components/client/EmailClaimBanner";
 import { AlertTriangle, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -119,6 +120,7 @@ const ClientDashboard = () => {
             Reads from get_account_state() so we never tell the customer "active"
             while their service is actually suspended somewhere else. */}
         {account?.id && <AccountStateBanner accountId={account.id} />}
+        <EmailClaimBanner />
 
         {/* Bug #15: surface fallback-link warning when history was reconciled via email match. */}
         {canonicalData?.identifiers?.usedFallbackLinks && (

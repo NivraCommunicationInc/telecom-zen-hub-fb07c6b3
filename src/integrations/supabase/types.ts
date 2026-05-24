@@ -7194,6 +7194,39 @@ export type Database = {
           },
         ]
       }
+      email_claim_challenges: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          target_email: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          target_email: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          target_email?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       email_events: {
         Row: {
           created_at: string
@@ -27038,6 +27071,10 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_email_claim: {
+        Args: { _email: string; _user_id: string }
+        Returns: Json
+      }
       apply_payment_to_invoice: {
         Args: {
           p_amount: number
@@ -27222,6 +27259,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      count_claimable_records: { Args: { _email: string }; Returns: Json }
       create_activity_log: {
         Args: {
           p_action: string
@@ -27785,13 +27823,15 @@ export type Database = {
         }
         Returns: boolean
       }
-      has_staff_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      has_staff_role:
+        | { Args: { _user_id: string }; Returns: boolean }
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
       hash_pin: { Args: { pin: string }; Returns: string }
       increment_automation_stats: {
         Args: { rule_id: string; sent_count?: number; triggered_count?: number }

@@ -13,7 +13,7 @@ interface Body {
 
 interface DocItem {
   id: string;
-  source: "contract" | "auto" | "uploaded" | "order";
+  source: "contract" | "auto" | "uploaded" | "order" | "invoice" | "receipt" | "quote";
   category: string;
   name: string;
   number?: string | null;
@@ -47,20 +47,11 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Staff role check via has_role
-    const { data: roleCheck } = await admin.rpc("has_role", {
+    // Staff role check via has_staff_role helper
+    const { data: isStaff } = await admin.rpc("has_staff_role", {
       _user_id: userData.user.id,
-      _role: "admin",
     });
-    const { data: billingCheck } = await admin.rpc("has_role", {
-      _user_id: userData.user.id,
-      _role: "billing_admin",
-    });
-    const { data: supportCheck } = await admin.rpc("has_role", {
-      _user_id: userData.user.id,
-      _role: "support_agent",
-    });
-    if (!roleCheck && !billingCheck && !supportCheck) {
+    if (isStaff !== true) {
       return json({ error: "forbidden" }, 403);
     }
 
@@ -69,8 +60,8 @@ Deno.serve(async (req) => {
 
     const clientId = body.client_user_id;
 
-    // Parallel fetches
-    const [contractsRes, autoRes, uploadedRes, ordersRes] = await Promise.all([
+    // Parallel fetches — include monthly_invoices, billing_invoices, payments (receipts), quotes
+    const [contractsRes, autoRes, uploadedRes, ordersRes, monthlyInvRes, paymentsRes, quotesRes] = await Promise.all([
       admin
         .from("contracts")
         .select("id, contract_number, contract_name, status, contract_pdf_url, contract_url, created_at, signed_at, version")
@@ -91,9 +82,29 @@ Deno.serve(async (req) => {
         .limit(100),
       admin
         .from("orders")
-        .select("id")
+        .select("id, order_number, status, total_amount, created_at")
         .eq("user_id", clientId)
+        .order("created_at", { ascending: false })
         .limit(200),
+      admin
+        .from("monthly_invoices")
+        .select("id, invoice_number, status, total, created_at")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      admin
+        .from("payments")
+        .select("id, amount, payment_method, status, created_at, account_id")
+        .eq("user_id", clientId)
+        .in("status", ["completed", "succeeded", "captured", "paid"])
+        .order("created_at", { ascending: false })
+        .limit(100),
+      admin
+        .from("quotes")
+        .select("id, quote_number, status, total_due_now, created_at")
+        .eq("customer_user_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     const items: DocItem[] = [];
@@ -176,6 +187,51 @@ Deno.serve(async (req) => {
           metadata: { order_id: od.order_id, version: od.version },
         });
       }
+    }
+
+    // Monthly invoices (cycle-based billing)
+    for (const inv of monthlyInvRes.data ?? []) {
+      items.push({
+        id: inv.id,
+        source: "invoice",
+        category: "Facture mensuelle",
+        name: `Facture ${inv.invoice_number ?? inv.id.slice(0, 8)}`,
+        number: inv.invoice_number,
+        created_at: inv.created_at,
+        url: null,
+        signed: false,
+        metadata: { status: inv.status, total: inv.total },
+      });
+    }
+
+    // Payments as receipts (only completed)
+    for (const p of paymentsRes.data ?? []) {
+      items.push({
+        id: p.id,
+        source: "receipt",
+        category: "Reçu de paiement",
+        name: `Reçu ${p.id.slice(0, 8).toUpperCase()}`,
+        number: p.id.slice(0, 8).toUpperCase(),
+        created_at: p.created_at,
+        url: null,
+        signed: false,
+        metadata: { amount: p.amount, payment_method: p.payment_method, status: p.status, account_id: p.account_id },
+      });
+    }
+
+    // Quotes
+    for (const q of quotesRes.data ?? []) {
+      items.push({
+        id: q.id,
+        source: "quote",
+        category: "Soumission",
+        name: `Soumission ${q.quote_number ?? q.id.slice(0, 8)}`,
+        number: q.quote_number,
+        created_at: q.created_at,
+        url: null,
+        signed: false,
+        metadata: { status: q.status, total_due_now: q.total_due_now },
+      });
     }
 
     items.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
