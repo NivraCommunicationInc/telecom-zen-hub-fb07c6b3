@@ -189,6 +189,51 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Monthly invoices (cycle-based billing)
+    for (const inv of monthlyInvRes.data ?? []) {
+      items.push({
+        id: inv.id,
+        source: "invoice",
+        category: "Facture mensuelle",
+        name: `Facture ${inv.invoice_number ?? inv.id.slice(0, 8)}`,
+        number: inv.invoice_number,
+        created_at: inv.created_at,
+        url: null,
+        signed: false,
+        metadata: { status: inv.status, total: inv.total },
+      });
+    }
+
+    // Payments as receipts (only completed)
+    for (const p of paymentsRes.data ?? []) {
+      items.push({
+        id: p.id,
+        source: "receipt",
+        category: "Reçu de paiement",
+        name: `Reçu ${p.id.slice(0, 8).toUpperCase()}`,
+        number: p.id.slice(0, 8).toUpperCase(),
+        created_at: p.created_at,
+        url: null,
+        signed: false,
+        metadata: { amount: p.amount, payment_method: p.payment_method, status: p.status, account_id: p.account_id },
+      });
+    }
+
+    // Quotes
+    for (const q of quotesRes.data ?? []) {
+      items.push({
+        id: q.id,
+        source: "quote",
+        category: "Soumission",
+        name: `Soumission ${q.quote_number ?? q.id.slice(0, 8)}`,
+        number: q.quote_number,
+        created_at: q.created_at,
+        url: null,
+        signed: false,
+        metadata: { status: q.status, total_due_now: q.total_due_now },
+      });
+    }
+
     items.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
 
     return json({ ok: true, items, total: items.length });
