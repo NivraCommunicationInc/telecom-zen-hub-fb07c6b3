@@ -178,6 +178,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         clientEmail={clientEmail}
         clientName={clientName}
       />
+
+      {clientId && (
+        <MobileServiceActionsDialog
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
     </>
   );
 }
