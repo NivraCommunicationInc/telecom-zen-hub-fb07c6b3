@@ -119,7 +119,7 @@ function generatePlaceholderPDF(title: string, docType: string, fields: { label:
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(8);
   doc.text("Ce document est un modèle de démonstration — aucune donnée réelle", pageWidth / 2, pageHeight - 15, { align: "center" });
-  doc.text("© ${new Date().getFullYear()} Nivra Communications Inc.", pageWidth / 2, pageHeight - 10, { align: "center" });
+  doc.text(`© ${new Date().getFullYear()} Nivra Communications Inc.`, pageWidth / 2, pageHeight - 10, { align: "center" });
   
   // Return as base64
   return doc.output("datauristring").split(",")[1];
