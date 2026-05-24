@@ -82,7 +82,7 @@ const TEMPLATES_OVERVIEW = `
     </div>
   </div>
   <div class="footer">
-    <p>© 2026 Nivra Communications Inc. — Templates PDF V2.4</p>
+    <p>© ${new Date().getFullYear()} Nivra Communications Inc. — Templates PDF V2.4</p>
   </div>
 </body>
 </html>
@@ -121,7 +121,7 @@ const buildBlankPackHtml = (filenames: string[], watermark?: string) => {
         </div>
         <div style="background:#f8fafc; padding: 12px 20px; border-top: 1px solid #e2e8f0;">
           <p style="margin: 0; font-size: 11px; color:#64748b; text-align: center;">
-            © 2026 Nivra Communications Inc. — Templates ${version}
+            © ${new Date().getFullYear()} Nivra Communications Inc. — Templates ${version}
           </p>
         </div>
       </div>

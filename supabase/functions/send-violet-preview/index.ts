@@ -284,7 +284,7 @@ Nivra Telecom
 
 <!-- Legal -->
 <div style="font-size:11px;color:#a1a1aa;line-height:1.6;font-weight:400;">
-© 2026 Nivra Telecom inc. Tous droits réservés.<br>
+© ${new Date().getFullYear()} Nivra Telecom inc. Tous droits réservés.<br>
 Vous recevez ce message car vous êtes client Nivra Telecom.<br>
 Montréal, Québec · Canada
 </div>

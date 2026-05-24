@@ -119,7 +119,7 @@ function generatePlaceholderPDF(title: string, docType: string, fields: { label:
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(8);
   doc.text("Ce document est un modèle de démonstration — aucune donnée réelle", pageWidth / 2, pageHeight - 15, { align: "center" });
-  doc.text("© 2026 Nivra Communications Inc.", pageWidth / 2, pageHeight - 10, { align: "center" });
+  doc.text(`© ${new Date().getFullYear()} Nivra Communications Inc.`, pageWidth / 2, pageHeight - 10, { align: "center" });
   
   // Return as base64
   return doc.output("datauristring").split(",")[1];
@@ -236,7 +236,7 @@ function buildEmailHtml(filenames: string[]): string {
         </div>
         <div style="background:#f8fafc; padding: 12px 20px; border-top: 1px solid #e2e8f0;">
           <p style="margin: 0; font-size: 11px; color:#64748b; text-align: center;">
-            © 2026 Nivra Communications Inc. — Templates V2.5
+            © ${new Date().getFullYear()} Nivra Communications Inc. — Templates V2.5
           </p>
         </div>
       </div>
