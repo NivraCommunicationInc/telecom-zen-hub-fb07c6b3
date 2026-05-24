@@ -304,6 +304,25 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <CollectionsDialog
+          open={collectionsOpen}
+          onClose={() => setCollectionsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <BillingDisputesDialog
+          open={disputesOpen}
+          onClose={() => setDisputesOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+        />
+      )}
     </>
   );
 }
