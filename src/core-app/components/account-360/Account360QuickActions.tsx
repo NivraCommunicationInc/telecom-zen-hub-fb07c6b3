@@ -16,6 +16,8 @@ import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/A
 import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
 import { ReactivateAccountDialog } from "@/core-app/components/account-360/ReactivateAccountDialog";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccountAccessDialog";
+import { UserCog } from "lucide-react";
 
 interface Props {
   accountId: string | undefined;
