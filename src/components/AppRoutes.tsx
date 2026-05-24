@@ -335,6 +335,11 @@ const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
 const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
 const ConformiteCRTC = lazy(() => import("@/pages/legal/ConformiteCRTC"));
 
+// Design preview routes — sandbox versions of redesigned components.
+// Accessible at /preview/* on any environment for stakeholder review,
+// fully isolated from the public homepage and checkout flow.
+const MagicHeroPreview = lazy(() => import("@/pages/preview/MagicHeroPreview"));
+
 // Admin pages (lazy-loaded)
 const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin"));
 const AdminBootstrap = lazy(() => import("@/pages/admin/AdminBootstrap"));
@@ -625,6 +630,10 @@ const AppRoutes = () => {
           maintenance — that's literally what it's for. */}
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/statut" element={<PublicLayout><StatusPage /></PublicLayout>} />
+      {/* Design preview routes — sandbox redesigns for stakeholder review.
+          Reachable but not linked from the live site. No auth, no maintenance
+          guard. Safe to remove these routes once a redesign is promoted. */}
+      <Route path="/preview/magic-hero" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><MagicHeroPreview /></Suspense>} />
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
       <Route path="/conformite-crtc" element={<MaintenanceGuard><PublicLayout><ConformiteCRTC /></PublicLayout></MaintenanceGuard>} />
