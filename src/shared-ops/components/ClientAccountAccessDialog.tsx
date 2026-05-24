@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Mail, KeyRound, ShieldCheck, AtSign, LogOut, Lock, Copy } from "lucide-react";
+import { Loader2, Mail, KeyRound, ShieldCheck, AtSign, LogOut, Lock, Copy, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,7 +29,8 @@ type ActionKey =
   | "force_confirm_email"
   | "change_email"
   | "force_logout"
-  | "set_temporary_password";
+  | "set_temporary_password"
+  | "resend_welcome";
 
 export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientEmail, clientName }: Props) {
   const [busy, setBusy] = useState<ActionKey | null>(null);
@@ -115,11 +116,22 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
           />
 
           <Row
+            icon={Send}
+            title="Renvoyer le courriel de bienvenue"
+            desc="Renvoie le message de bienvenue Nivra (modèle officiel du site)."
+            action={
+              <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => run("resend_welcome")}>
+                {busy === "resend_welcome" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Renvoyer"}
+              </Button>
+            }
+          />
+
+          <Row
             icon={ShieldCheck}
             title="Confirmer le courriel manuellement"
             desc="Marque l'adresse comme vérifiée (utile si le client n'a jamais cliqué le lien)."
             action={
-              <Button size="sm" variant="secondary" disabled={busy !== null || !clientUserId} onClick={() => run("force_confirm_email")}>
+              <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => run("force_confirm_email")}>
                 {busy === "force_confirm_email" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirmer"}
               </Button>
             }
@@ -128,7 +140,7 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
           <Row
             icon={AtSign}
             title="Changer le courriel du compte"
-            desc="Remplace l'adresse de connexion. Le profil est mis à jour."
+            desc="Remplace l'adresse de connexion. Le client reçoit une confirmation."
           >
             <div className="flex gap-2">
               <Input
@@ -136,11 +148,10 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
                 placeholder="nouveau@courriel.ca"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                disabled={!clientUserId}
               />
               <Button
                 size="sm"
-                disabled={busy !== null || !newEmail || !clientUserId}
+                disabled={busy !== null || !newEmail}
                 onClick={() => run("change_email", { new_email: newEmail })}
               >
                 {busy === "change_email" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Changer"}
@@ -153,7 +164,7 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
             title="Définir un mot de passe temporaire"
             desc="Génère un mot de passe sécurisé à communiquer verbalement au client."
             action={
-              <Button size="sm" variant="secondary" disabled={busy !== null || !clientUserId} onClick={() => run("set_temporary_password")}>
+              <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => run("set_temporary_password")}>
                 {busy === "set_temporary_password" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Générer"}
               </Button>
             }
@@ -176,7 +187,7 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
             desc="Révoque toutes les sessions actives du client (web + mobile)."
             danger
             action={
-              <Button size="sm" variant="destructive" disabled={busy !== null || !clientUserId} onClick={() => run("force_logout")}>
+              <Button size="sm" variant="destructive" disabled={busy !== null} onClick={() => run("force_logout")}>
                 {busy === "force_logout" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Déconnecter"}
               </Button>
             }

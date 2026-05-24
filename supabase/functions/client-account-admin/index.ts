@@ -1,9 +1,9 @@
 // Client account admin actions — used by Core & OneView CS portals.
-// Actions: send_invite, send_password_reset, force_confirm_email,
-// change_email, force_logout, set_temporary_password.
+// All client-facing emails go through email_queue + Violet Bold corporate
+// template (customQueueTemplates). Never sends raw default Supabase emails.
 //
-// All actions require an authenticated staff user (admin or employee role)
-// and are recorded in admin_audit_log.
+// Actions: send_invite, send_password_reset, force_confirm_email,
+// change_email, force_logout, set_temporary_password, resend_welcome.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -19,7 +19,8 @@ type Action =
   | "force_confirm_email"
   | "change_email"
   | "force_logout"
-  | "set_temporary_password";
+  | "set_temporary_password"
+  | "resend_welcome";
 
 interface Body {
   action: Action;
@@ -39,6 +40,15 @@ const json = (status: number, payload: unknown) =>
 const genPassword = () => {
   const base = crypto.randomUUID().replace(/-/g, "");
   return `Nv-${base.slice(0, 10)}!9`;
+};
+
+const ALLOWED_ORIGINS = ["https://nivra-telecom.ca", "https://www.nivra-telecom.ca"];
+const resolveOrigin = (origin?: string) => {
+  if (!origin) return ALLOWED_ORIGINS[0];
+  const trimmed = origin.replace(/\/+$/, "");
+  if (ALLOWED_ORIGINS.includes(trimmed)) return trimmed;
+  if (trimmed.endsWith(".lovableproject.com") || trimmed.endsWith(".lovable.app")) return trimmed;
+  return ALLOWED_ORIGINS[0];
 };
 
 serve(async (req) => {
@@ -67,7 +77,7 @@ serve(async (req) => {
     .from("user_roles")
     .select("role")
     .eq("user_id", user.id);
-  const allowedRoles = new Set(["admin", "employee", "agent", "manager", "core_admin"]);
+  const allowedRoles = new Set(["admin", "employee", "agent", "manager", "core_admin", "super_admin", "supervisor"]);
   const isStaff = (roles || []).some((r: any) => allowedRoles.has(r.role));
   if (!isStaff) return json(403, { error: "Réservé au personnel autorisé" });
 
@@ -80,50 +90,101 @@ serve(async (req) => {
   let targetEmail = (body.client_email || "").trim().toLowerCase() || null;
 
   if (!targetId && targetEmail) {
-    const { data: users } = await admin.auth.admin.listUsers();
-    const found = users?.users?.find(u => u.email?.toLowerCase() === targetEmail);
-    if (found) targetId = found.id;
+    try {
+      const { data: users } = await admin.auth.admin.listUsers();
+      const found = users?.users?.find(u => u.email?.toLowerCase() === targetEmail);
+      if (found) targetId = found.id;
+    } catch (_e) { /* ignore */ }
   }
   if (targetId && !targetEmail) {
-    const { data: tu } = await admin.auth.admin.getUserById(targetId);
-    targetEmail = tu?.user?.email?.toLowerCase() ?? null;
+    try {
+      const { data: tu } = await admin.auth.admin.getUserById(targetId);
+      targetEmail = tu?.user?.email?.toLowerCase() ?? null;
+    } catch (_e) { /* ignore */ }
   }
 
   if (!targetEmail && body.action !== "force_logout") {
     return json(400, { error: "Email client requis" });
   }
 
+  // First name lookup (best-effort) — used for personalised template
+  let firstName = "";
+  try {
+    if (targetId) {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("first_name, full_name")
+        .eq("user_id", targetId)
+        .maybeSingle();
+      firstName = (prof as any)?.first_name || ((prof as any)?.full_name || "").split(" ")[0] || "";
+    } else if (targetEmail) {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("first_name, full_name")
+        .ilike("email", targetEmail)
+        .maybeSingle();
+      firstName = (prof as any)?.first_name || ((prof as any)?.full_name || "").split(" ")[0] || "";
+    }
+  } catch (_e) { firstName = ""; }
+
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     || req.headers.get("cf-connecting-ip") || "unknown";
 
-  const audit = async (action: string, details: any, ok: boolean) =>
-    admin.from("admin_audit_log").insert({
-      admin_user_id: user.id,
-      admin_email: user.email,
-      action: `client_account.${action}${ok ? "" : "_failed"}`,
-      details,
-      ip_address: ip,
-      target_type: "client_user",
-      target_id: targetId,
-      target_email: targetEmail,
-    });
+  const audit = async (action: string, details: any, ok: boolean) => {
+    try {
+      await admin.from("admin_audit_log").insert({
+        admin_user_id: user.id,
+        admin_email: user.email,
+        action: `client_account.${action}${ok ? "" : "_failed"}`,
+        details,
+        ip_address: ip,
+        target_type: "client_user",
+        target_id: targetId,
+        target_email: targetEmail,
+      });
+    } catch (_e) { /* audit best-effort */ }
+  };
 
-  const redirectOrigin = body.redirect_origin || "https://nivra-telecom.ca";
+  const origin = resolveOrigin(body.redirect_origin);
+
+  const queueEmail = async (templateKey: string, toEmail: string, vars: Record<string, any>) => {
+    const { error } = await admin.from("email_queue").insert({
+      event_key: `${templateKey}_${toEmail}_${Date.now()}`,
+      to_email: toEmail,
+      template_key: templateKey,
+      template_vars: { first_name: firstName, ...vars },
+      status: "queued",
+    });
+    if (error) throw new Error(`Échec mise en file courriel: ${error.message}`);
+  };
+
+  const genRecoveryLink = async (email: string) => {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: `${origin}/portal/reset-password` },
+    });
+    if (error || !data?.properties?.action_link) {
+      throw new Error(error?.message || "Lien de réinitialisation indisponible");
+    }
+    return data.properties.action_link as string;
+  };
 
   try {
     switch (body.action) {
       case "send_password_reset": {
-        const { error } = await admin.auth.resetPasswordForEmail(targetEmail!, {
-          redirectTo: `${redirectOrigin.replace(/\/+$/, "")}/portal/reset-password`,
+        const link = await genRecoveryLink(targetEmail!);
+        await queueEmail("client_password_reset", targetEmail!, {
+          reset_link: link,
+          email: targetEmail,
+          audience: "client",
+          portal_label: "votre espace client Nivra",
         });
-        if (error) throw error;
         await audit("password_reset_sent", { email: targetEmail }, true);
         return json(200, { success: true, message: "Courriel de réinitialisation envoyé" });
       }
 
       case "send_invite": {
-        // If user already exists, send password reset (acts as account setup).
-        // Otherwise create user + send invite link.
         if (!targetId) {
           const { data: created, error: cErr } = await admin.auth.admin.createUser({
             email: targetEmail!,
@@ -133,10 +194,11 @@ serve(async (req) => {
           if (cErr) throw cErr;
           targetId = created.user?.id ?? null;
         }
-        const { error } = await admin.auth.resetPasswordForEmail(targetEmail!, {
-          redirectTo: `${redirectOrigin.replace(/\/+$/, "")}/portal/reset-password`,
+        const link = await genRecoveryLink(targetEmail!);
+        await queueEmail("client_account_invite", targetEmail!, {
+          setup_link: link,
+          email: targetEmail,
         });
-        if (error) throw error;
         await audit("invite_sent", { email: targetEmail }, true);
         return json(200, { success: true, message: "Invitation envoyée au client" });
       }
@@ -153,11 +215,17 @@ serve(async (req) => {
         if (!targetId) return json(404, { error: "Utilisateur introuvable" });
         const ne = (body.new_email || "").trim().toLowerCase();
         if (!ne || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ne)) return json(400, { error: "Nouveau courriel invalide" });
+        const oldEmail = targetEmail!;
         const { error } = await admin.auth.admin.updateUserById(targetId, { email: ne, email_confirm: true });
         if (error) throw error;
-        await admin.from("profiles").update({ email: ne }).eq("user_id", targetId);
-        await audit("email_changed", { old: targetEmail, new: ne }, true);
-        return json(200, { success: true, message: "Courriel mis à jour" });
+        try { await admin.from("profiles").update({ email: ne }).eq("user_id", targetId); } catch (_e) {}
+        // Notify new address using corporate template
+        await queueEmail("client_email_changed_notice", ne, {
+          old_email: oldEmail,
+          new_email: ne,
+        });
+        await audit("email_changed", { old: oldEmail, new: ne }, true);
+        return json(200, { success: true, message: "Courriel mis à jour et confirmation envoyée" });
       }
 
       case "force_logout": {
@@ -177,12 +245,20 @@ serve(async (req) => {
         return json(200, { success: true, message: "Mot de passe temporaire défini", temporary_password: np });
       }
 
+      case "resend_welcome": {
+        await queueEmail("welcome_to_nivra", targetEmail!, {
+          email: targetEmail,
+        });
+        await audit("welcome_resent", { email: targetEmail }, true);
+        return json(200, { success: true, message: "Courriel de bienvenue renvoyé" });
+      }
+
       default:
         return json(400, { error: "Action inconnue" });
     }
   } catch (e: any) {
     console.error("[client-account-admin] error", e);
-    await audit(body.action, { error: e?.message }, false);
+    await audit(body.action, { error: e?.message || String(e) }, false);
     return json(500, { error: e?.message || "Erreur inattendue" });
   }
 });
