@@ -32,7 +32,8 @@ import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
 import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountActivityTimelineDialog";
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
 import { AccountSecurityDialog } from "@/shared-ops/components/AccountSecurityDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert } from "lucide-react";
+import { AccountCommunicationDialog } from "@/shared-ops/components/AccountCommunicationDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send } from "lucide-react";
 
 
 interface Props {
@@ -76,6 +77,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [communicationOpen, setCommunicationOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -119,6 +121,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" as const },
     { icon: FolderOpen, label: "Documents du compte", onClick: () => setDocumentsOpen(true), color: "violet" as const },
     { icon: ShieldAlert, label: "Sécurité & sessions", onClick: () => setSecurityOpen(true), color: "danger" as const },
+    { icon: Send, label: "Envoyer un message", onClick: () => setCommunicationOpen(true), color: "violet" as const },
   ];
 
   const colorMap: Record<string, string> = {
@@ -374,6 +377,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           clientEmail={clientEmail}
+        />
+      )}
+
+      {clientId && (
+        <AccountCommunicationDialog
+          open={communicationOpen}
+          onClose={() => setCommunicationOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          accountId={accountId ?? null}
         />
       )}
     </>
