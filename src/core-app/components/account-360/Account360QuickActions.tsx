@@ -23,6 +23,9 @@ import { InternetServiceActionsDialog } from "@/shared-ops/components/InternetSe
 import { BillingServiceActionsDialog } from "@/shared-ops/components/BillingServiceActionsDialog";
 import { EquipmentServiceActionsDialog } from "@/shared-ops/components/EquipmentServiceActionsDialog";
 import { ClientReferralsDialog } from "@/shared-ops/components/ClientReferralsDialog";
+import { QuickTicketDialog } from "@/shared-ops/components/QuickTicketDialog";
+import { ScheduleAppointmentDialog } from "@/shared-ops/components/ScheduleAppointmentDialog";
+import { InternalNoteDialog } from "@/shared-ops/components/InternalNoteDialog";
 import { UserCog } from "lucide-react";
 
 
@@ -57,6 +60,10 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [billingOpen, setBillingOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [referralsOpen, setReferralsOpen] = useState(false);
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [apptOpen, setApptOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
