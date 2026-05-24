@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Smartphone, CreditCard, Plus, Trash2, ShieldAlert, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServicePlans } from "@/shared-ops/hooks/useServiceCatalog";
 
 interface Props {
   open: boolean;
@@ -48,19 +49,14 @@ interface Addon {
   created_at: string;
 }
 
-const ADDON_CATALOG: Array<{
-  code: string;
-  name: string;
-  type: "data" | "international" | "long_distance" | "roaming" | "voicemail" | "other";
-  price: number;
-}> = [
-  { code: "DATA_1GB",   name: "Data supplémentaire 1 Go",      type: "data",          price: 10 },
-  { code: "DATA_5GB",   name: "Data supplémentaire 5 Go",      type: "data",          price: 25 },
-  { code: "INTL_PACK",  name: "Forfait international",          type: "international", price: 15 },
-  { code: "LD_PACK",    name: "Longue distance Canada/USA",    type: "long_distance", price: 8 },
-  { code: "ROAM_DAY",   name: "Itinérance Canada/USA — 1 jour", type: "roaming",       price: 12 },
-  { code: "VM_PREMIUM", name: "Boîte vocale premium",          type: "voicemail",     price: 3 },
-];
+const ADDON_TYPES = [
+  { value: "data",          label: "Data" },
+  { value: "international", label: "International" },
+  { value: "long_distance", label: "Longue distance" },
+  { value: "roaming",       label: "Itinérance" },
+  { value: "voicemail",     label: "Boîte vocale" },
+  { value: "other",         label: "Autre" },
+] as const;
 
 const SIM_ACTIONS: Array<{ value: string; label: string; danger?: boolean; needsIccid?: boolean }> = [
   { value: "suspend_lost",          label: "Suspendre — SIM perdue", danger: true },
@@ -94,7 +90,9 @@ export function MobileServiceActionsDialog({
   // Add-ons
   const [activeAddons, setActiveAddons] = useState<Addon[]>([]);
   const [loadingAddons, setLoadingAddons] = useState(false);
-  const [pickedAddon, setPickedAddon] = useState<string>("");
+  const [addonName, setAddonName] = useState("");
+  const [addonType, setAddonType] = useState<string>("data");
+  const [addonPrice, setAddonPrice] = useState("");
 
   // SIM
   const [simAction, setSimAction] = useState<string>("");
@@ -107,7 +105,9 @@ export function MobileServiceActionsDialog({
     setAmount("25");
     setTopupRef("");
     setTopupReason("");
-    setPickedAddon("");
+    setAddonName("");
+    setAddonType("data");
+    setAddonPrice("");
     setSimAction("");
     setNewIccid("");
     setSimReason("");
@@ -173,22 +173,22 @@ export function MobileServiceActionsDialog({
   };
 
   const doAddAddon = async () => {
-    const a = ADDON_CATALOG.find((x) => x.code === pickedAddon);
-    if (!a) {
-      toast.error("Choisissez une option");
-      return;
-    }
+    const name = addonName.trim();
+    const price = parseFloat(addonPrice);
+    if (!name) { toast.error("Nom de l'option requis"); return; }
+    if (!Number.isFinite(price) || price < 0) { toast.error("Prix mensuel invalide"); return; }
+    const code = `MOBILE_${addonType.toUpperCase()}_${Date.now()}`;
     try {
       await invoke({
         action: "add_addon",
-        addon_code: a.code,
-        addon_name: a.name,
-        addon_type: a.type,
-        monthly_price: a.price,
-        idempotency_key: `addon-${clientUserId}-${a.code}-${Date.now()}`,
+        addon_code: code,
+        addon_name: name,
+        addon_type: addonType,
+        monthly_price: price,
+        idempotency_key: `addon-${clientUserId}-${code}`,
       });
-      toast.success(`Option « ${a.name} » ajoutée`);
-      setPickedAddon("");
+      toast.success(`Option « ${name} » ajoutée`);
+      setAddonName(""); setAddonPrice("");
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -312,20 +312,31 @@ export function MobileServiceActionsDialog({
 
           {/* ============ ADD-ONS ============ */}
           <TabsContent value="addons" className="space-y-4 pt-4">
-            <div>
-              <Label>Ajouter une option</Label>
-              <div className="flex gap-2 mt-1">
-                <Select value={pickedAddon} onValueChange={setPickedAddon} disabled={busy}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner une option…" /></SelectTrigger>
+            <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-300">
+              Aucun catalogue d'options mobiles n'est encore configuré. Saisir manuellement le nom et le tarif réels — ne jamais inventer.
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_120px_auto] gap-2">
+              <div>
+                <Label htmlFor="addon-name">Nom de l'option</Label>
+                <Input id="addon-name" value={addonName} onChange={(e) => setAddonName(e.target.value)} disabled={busy} placeholder="ex: Data 5 Go" />
+              </div>
+              <div>
+                <Label>Type</Label>
+                <Select value={addonType} onValueChange={setAddonType} disabled={busy}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {ADDON_CATALOG.map((a) => (
-                      <SelectItem key={a.code} value={a.code}>
-                        {a.name} — {fmt(a.price)}/mois
-                      </SelectItem>
+                    {ADDON_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={doAddAddon} disabled={busy || !pickedAddon}>
+              </div>
+              <div>
+                <Label htmlFor="addon-price">$/mois</Label>
+                <Input id="addon-price" type="number" min="0" step="0.01" value={addonPrice} onChange={(e) => setAddonPrice(e.target.value)} disabled={busy} />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={doAddAddon} disabled={busy}>
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>

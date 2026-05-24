@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServicePlans, useChannelPackages } from "@/shared-ops/hooks/useServiceCatalog";
 
 interface Props {
   open: boolean;
@@ -53,28 +54,6 @@ interface TvAddon {
   created_at: string;
 }
 
-const PLAN_CATALOG: Array<{ name: string; price: number }> = [
-  { name: "Essentiel TV",     price: 29.99 },
-  { name: "Plus TV",          price: 49.99 },
-  { name: "Premium TV",       price: 69.99 },
-  { name: "Ultime TV 4K",     price: 89.99 },
-];
-
-const PACK_CATALOG: Array<{
-  code: string;
-  name: string;
-  type: "themed_pack" | "sports" | "cinema" | "international" | "adult" | "kids" | "premium_channel" | "other";
-  price: number;
-}> = [
-  { code: "PACK_SPORTS",  name: "Bouquet Sports",            type: "sports",          price: 19.99 },
-  { code: "PACK_CINEMA",  name: "Bouquet Cinéma",            type: "cinema",          price: 17.99 },
-  { code: "PACK_INTL",    name: "Bouquet International",     type: "international",   price: 14.99 },
-  { code: "PACK_KIDS",    name: "Bouquet Jeunesse",          type: "kids",            price: 9.99  },
-  { code: "PACK_ADULT",   name: "Bouquet Adulte",            type: "adult",           price: 19.99 },
-  { code: "CH_HBO",       name: "Chaîne premium — HBO",      type: "premium_channel", price: 12.99 },
-  { code: "CH_SUPERCHAINE", name: "Chaîne premium — Super Écran", type: "premium_channel", price: 14.99 },
-];
-
 const TERMINAL_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> = [
   { value: "reboot",         label: "Redémarrer à distance" },
   { value: "identify",       label: "Identifier (clignoter LED)" },
@@ -95,6 +74,8 @@ export function TVServiceActionsDialog({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"plan" | "packs" | "vod" | "terminal" | "parental">("plan");
+  const { plans: tvPlans, loading: loadingPlans } = useServicePlans("TV", open);
+  const { packs: bouquetCatalog, loading: loadingBouquets } = useChannelPackages(open);
 
   // Plan change
   const [planName, setPlanName] = useState("");
@@ -210,16 +191,16 @@ export function TVServiceActionsDialog({
   };
 
   const doAddPack = async () => {
-    const p = PACK_CATALOG.find((x) => x.code === pickedPack);
+    const p = bouquetCatalog.find((x) => x.id === pickedPack);
     if (!p) { toast.error("Choisissez un bouquet"); return; }
     try {
       await invoke({
         action: "add_themed_pack",
-        addon_code: p.code,
+        addon_code: `PACK_${p.category.toUpperCase()}_${p.id.slice(0, 8)}`,
         addon_name: p.name,
-        addon_type: p.type,
+        addon_type: p.category,
         monthly_price: p.price,
-        idempotency_key: `tvpack-${clientUserId}-${p.code}-${Date.now()}`,
+        idempotency_key: `tvpack-${clientUserId}-${p.id}-${Date.now()}`,
       });
       toast.success(`Bouquet « ${p.name} » ajouté`);
       setPickedPack("");
@@ -319,20 +300,23 @@ export function TVServiceActionsDialog({
           {/* ============ PLAN ============ */}
           <TabsContent value="plan" className="space-y-4 pt-4">
             <div>
-              <Label>Nouveau forfait</Label>
+              <Label>Nouveau forfait (catalogue Nivra)</Label>
               <Select
                 value={planName}
                 onValueChange={(v) => {
                   setPlanName(v);
-                  const found = PLAN_CATALOG.find((p) => p.name === v);
+                  const found = tvPlans.find((p) => p.name === v);
                   if (found) setPlanPrice(String(found.price));
                 }}
-                disabled={busy}
+                disabled={busy || loadingPlans}
               >
-                <SelectTrigger><SelectValue placeholder="Sélectionner un forfait…" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={loadingPlans ? "Chargement…" : "Sélectionner un forfait…"} /></SelectTrigger>
                 <SelectContent>
-                  {PLAN_CATALOG.map((p) => (
-                    <SelectItem key={p.name} value={p.name}>
+                  {tvPlans.length === 0 && !loadingPlans && (
+                    <SelectItem value="__none" disabled>Aucun forfait TV actif dans le catalogue</SelectItem>
+                  )}
+                  {tvPlans.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
                       {p.name} — {fmt(p.price)}/mois
                     </SelectItem>
                   ))}
@@ -371,13 +355,16 @@ export function TVServiceActionsDialog({
           {/* ============ PACKS ============ */}
           <TabsContent value="packs" className="space-y-4 pt-4">
             <div>
-              <Label>Ajouter un bouquet</Label>
+              <Label>Ajouter un bouquet (catalogue channel_packages)</Label>
               <div className="flex gap-2 mt-1">
-                <Select value={pickedPack} onValueChange={setPickedPack} disabled={busy}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner un bouquet…" /></SelectTrigger>
+                <Select value={pickedPack} onValueChange={setPickedPack} disabled={busy || loadingBouquets}>
+                  <SelectTrigger><SelectValue placeholder={loadingBouquets ? "Chargement…" : "Sélectionner un bouquet…"} /></SelectTrigger>
                   <SelectContent>
-                    {PACK_CATALOG.map((p) => (
-                      <SelectItem key={p.code} value={p.code}>
+                    {bouquetCatalog.length === 0 && !loadingBouquets && (
+                      <SelectItem value="__none" disabled>Aucun bouquet actif</SelectItem>
+                    )}
+                    {bouquetCatalog.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
                         {p.name} — {fmt(p.price)}/mois
                       </SelectItem>
                     ))}

@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi, Wallet,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
@@ -20,6 +20,7 @@ import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccount
 import { MobileServiceActionsDialog } from "@/shared-ops/components/MobileServiceActionsDialog";
 import { TVServiceActionsDialog } from "@/shared-ops/components/TVServiceActionsDialog";
 import { InternetServiceActionsDialog } from "@/shared-ops/components/InternetServiceActionsDialog";
+import { BillingServiceActionsDialog } from "@/shared-ops/components/BillingServiceActionsDialog";
 import { UserCog } from "lucide-react";
 
 
@@ -51,6 +52,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [mobileOpen, setMobileOpen] = useState(false);
   const [tvOpen, setTvOpen] = useState(false);
   const [internetOpen, setInternetOpen] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -79,6 +81,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Smartphone, label: "Gestion ligne mobile", onClick: () => setMobileOpen(true), color: "violet" as const },
     { icon: Tv, label: "Gestion service TV", onClick: () => setTvOpen(true), color: "violet" as const },
     { icon: Wifi, label: "Gestion service Internet", onClick: () => setInternetOpen(true), color: "violet" as const },
+    { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" as const },
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
     { icon: MessageSquare, label: "Ticket support", onClick: () => onNavigateSection("tickets"), color: "default" },
@@ -209,6 +212,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         <InternetServiceActionsDialog
           open={internetOpen}
           onClose={() => setInternetOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <BillingServiceActionsDialog
+          open={billingOpen}
+          onClose={() => setBillingOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}

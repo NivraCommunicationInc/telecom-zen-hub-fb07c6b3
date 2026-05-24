@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServicePlans } from "@/shared-ops/hooks/useServiceCatalog";
 
 interface Props {
   open: boolean;
@@ -41,13 +42,6 @@ interface Props {
   currentMonthlyPrice?: number | null;
   currentSpeedMbps?: number | null;
 }
-
-const PLAN_CATALOG: Array<{ name: string; price: number; speed: number }> = [
-  { name: "Internet 50",    price: 39.99, speed: 50 },
-  { name: "Internet 150",   price: 54.99, speed: 150 },
-  { name: "Internet 300",   price: 69.99, speed: 300 },
-  { name: "Internet 1 Gbit", price: 89.99, speed: 1000 },
-];
 
 const MODEM_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> = [
   { value: "reboot",         label: "Redémarrer à distance" },
@@ -77,6 +71,7 @@ export function InternetServiceActionsDialog({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"plan" | "modem" | "diag" | "wifi" | "ip">("plan");
+  const { plans: internetPlans, loading: loadingPlans } = useServicePlans("Internet", open);
 
   // Plan
   const [planName, setPlanName] = useState("");
@@ -311,24 +306,33 @@ export function InternetServiceActionsDialog({
           {/* ============ PLAN ============ */}
           <TabsContent value="plan" className="space-y-4 pt-4">
             <div>
-              <Label>Nouveau forfait</Label>
+              <Label>Nouveau forfait (catalogue Nivra)</Label>
               <Select
                 value={planName}
                 onValueChange={(v) => {
                   setPlanName(v);
-                  const found = PLAN_CATALOG.find((p) => p.name === v);
+                  const found = internetPlans.find((p) => p.name === v);
                   if (found) {
                     setPlanPrice(String(found.price));
-                    setPlanSpeed(String(found.speed));
+                    // Extract Mbps from plan name when available (eg "Internet 500 Mbps")
+                    const m = found.name.match(/(\d+)\s*(Mbps|Gbps|Giga|G)/i);
+                    if (m) {
+                      const n = parseInt(m[1], 10);
+                      const unit = (m[2] || "").toLowerCase();
+                      setPlanSpeed(String(unit.startsWith("g") ? n * 1000 : n));
+                    }
                   }
                 }}
-                disabled={busy}
+                disabled={busy || loadingPlans}
               >
-                <SelectTrigger><SelectValue placeholder="Sélectionner un forfait…" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={loadingPlans ? "Chargement…" : "Sélectionner un forfait…"} /></SelectTrigger>
                 <SelectContent>
-                  {PLAN_CATALOG.map((p) => (
-                    <SelectItem key={p.name} value={p.name}>
-                      {p.name} — {p.speed} Mbps — {fmt(p.price)}/mois
+                  {internetPlans.length === 0 && !loadingPlans && (
+                    <SelectItem value="__none" disabled>Aucun forfait Internet actif</SelectItem>
+                  )}
+                  {internetPlans.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
+                      {p.name} — {fmt(p.price)}/mois
                     </SelectItem>
                   ))}
                 </SelectContent>
