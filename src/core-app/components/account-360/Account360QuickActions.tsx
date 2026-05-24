@@ -19,6 +19,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccountAccessDialog";
 import { MobileServiceActionsDialog } from "@/shared-ops/components/MobileServiceActionsDialog";
 import { TVServiceActionsDialog } from "@/shared-ops/components/TVServiceActionsDialog";
+import { InternetServiceActionsDialog } from "@/shared-ops/components/InternetServiceActionsDialog";
 import { UserCog } from "lucide-react";
 
 
