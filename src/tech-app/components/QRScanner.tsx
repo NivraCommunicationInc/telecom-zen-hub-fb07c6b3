@@ -6,6 +6,8 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { QrCode, X, Upload } from "lucide-react";
 
+const BARCODE_FORMATS = ["qr_code", "code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "itf", "codabar", "data_matrix"];
+
 export interface QRScannerProps {
   onScan: (data: string) => void;
   onClose: () => void;
@@ -65,6 +67,18 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
     ctx.drawImage(video, 0, 0);
 
     try {
+      const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+      if (BarcodeDetectorCtor) {
+        const detector = new BarcodeDetectorCtor({ formats: BARCODE_FORMATS });
+        const codes = await detector.detect(canvas);
+        const value = codes?.[0]?.rawValue;
+        if (value) {
+          stopCamera();
+          onScan(value);
+          return;
+        }
+      }
+
       const jsQR = (await import("jsqr")).default;
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height);
@@ -106,6 +120,18 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
       try {
+        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        if (BarcodeDetectorCtor) {
+          const detector = new BarcodeDetectorCtor({ formats: BARCODE_FORMATS });
+          const codes = await detector.detect(canvas);
+          const value = codes?.[0]?.rawValue;
+          if (value) {
+            stopCamera();
+            onScan(value);
+            return;
+          }
+        }
+
         const jsQR = (await import("jsqr")).default;
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height);
@@ -113,12 +139,10 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
           stopCamera();
           onScan(code.data);
         } else {
-          stopCamera();
-          onScan("SCAN-MANUAL-" + Date.now());
+          setError("Aucun code détecté sur cette photo. Entrez le numéro manuellement.");
         }
       } catch {
-        stopCamera();
-        onScan("SCAN-MANUAL-" + Date.now());
+        setError("Lecture impossible. Entrez le numéro manuellement.");
       }
     };
     img.src = URL.createObjectURL(file);
