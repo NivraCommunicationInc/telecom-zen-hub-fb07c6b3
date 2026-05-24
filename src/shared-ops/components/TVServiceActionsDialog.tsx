@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServicePlans, useChannelPackages } from "@/shared-ops/hooks/useServiceCatalog";
 
 interface Props {
   open: boolean;
@@ -52,28 +53,6 @@ interface TvAddon {
   status: string;
   created_at: string;
 }
-
-const PLAN_CATALOG: Array<{ name: string; price: number }> = [
-  { name: "Essentiel TV",     price: 29.99 },
-  { name: "Plus TV",          price: 49.99 },
-  { name: "Premium TV",       price: 69.99 },
-  { name: "Ultime TV 4K",     price: 89.99 },
-];
-
-const PACK_CATALOG: Array<{
-  code: string;
-  name: string;
-  type: "themed_pack" | "sports" | "cinema" | "international" | "adult" | "kids" | "premium_channel" | "other";
-  price: number;
-}> = [
-  { code: "PACK_SPORTS",  name: "Bouquet Sports",            type: "sports",          price: 19.99 },
-  { code: "PACK_CINEMA",  name: "Bouquet Cinéma",            type: "cinema",          price: 17.99 },
-  { code: "PACK_INTL",    name: "Bouquet International",     type: "international",   price: 14.99 },
-  { code: "PACK_KIDS",    name: "Bouquet Jeunesse",          type: "kids",            price: 9.99  },
-  { code: "PACK_ADULT",   name: "Bouquet Adulte",            type: "adult",           price: 19.99 },
-  { code: "CH_HBO",       name: "Chaîne premium — HBO",      type: "premium_channel", price: 12.99 },
-  { code: "CH_SUPERCHAINE", name: "Chaîne premium — Super Écran", type: "premium_channel", price: 14.99 },
-];
 
 const TERMINAL_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> = [
   { value: "reboot",         label: "Redémarrer à distance" },
