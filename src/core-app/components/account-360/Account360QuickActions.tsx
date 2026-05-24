@@ -35,7 +35,8 @@ import { AccountSecurityDialog } from "@/shared-ops/components/AccountSecurityDi
 import { AccountCommunicationDialog } from "@/shared-ops/components/AccountCommunicationDialog";
 import { AccountSmsDialog } from "@/shared-ops/components/AccountSmsDialog";
 import { AccountCallsDialog } from "@/shared-ops/components/AccountCallsDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall } from "lucide-react";
+import { AccountPreferencesDialog } from "@/shared-ops/components/AccountPreferencesDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2 } from "lucide-react";
 
 
 interface Props {
@@ -82,6 +83,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [communicationOpen, setCommunicationOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [callsOpen, setCallsOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -128,6 +130,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Send, label: "Envoyer un message", onClick: () => setCommunicationOpen(true), color: "violet" as const },
     { icon: MessageCircle, label: "Envoyer un SMS", onClick: () => setSmsOpen(true), color: "violet" as const },
     { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" as const },
+    { icon: Settings2, label: "Préférences communication", onClick: () => setPreferencesOpen(true), color: "violet" as const },
   ];
 
   const colorMap: Record<string, string> = {
@@ -411,6 +414,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         <AccountCallsDialog
           open={callsOpen}
           onClose={() => setCallsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <AccountPreferencesDialog
+          open={preferencesOpen}
+          onClose={() => setPreferencesOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
