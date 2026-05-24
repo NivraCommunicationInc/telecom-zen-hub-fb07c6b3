@@ -460,6 +460,90 @@ export function TVServiceActionsDialog({
             </div>
           </TabsContent>
 
+          {/* ============ CHANNELS (à la carte, catalogue tv_channels) ============ */}
+          <TabsContent value="channels" className="space-y-3 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <Input
+                placeholder="Filtrer (nom ou catégorie)…"
+                value={channelFilter}
+                onChange={(e) => setChannelFilter(e.target.value)}
+                disabled={busy || loadingChannels}
+                className="max-w-xs"
+              />
+              <div className="text-xs text-muted-foreground">
+                {selectedChannelIds.size} sélectionnée(s) ·{" "}
+                {fmt(
+                  catalogChannels
+                    .filter((c) => selectedChannelIds.has(c.id))
+                    .reduce((s, c) => s + Number(c.price || 0), 0)
+                )}{" "}
+                / mois
+              </div>
+            </div>
+            <div className="border rounded max-h-72 overflow-y-auto divide-y">
+              {loadingChannels ? (
+                <div className="flex items-center justify-center py-6 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : catalogChannels.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Catalogue de chaînes vide.
+                </p>
+              ) : (
+                catalogChannels
+                  .filter((c) => {
+                    const q = channelFilter.toLowerCase().trim();
+                    if (!q) return true;
+                    return c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q);
+                  })
+                  .map((c) => {
+                    const checked = selectedChannelIds.has(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-muted/40 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setSelectedChannelIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(c.id);
+                                else next.delete(c.id);
+                                return next;
+                              });
+                            }}
+                            disabled={busy}
+                          />
+                          <span className="text-sm truncate">{c.name}</span>
+                          {c.is_hd && <Badge variant="outline" className="text-[10px]">HD</Badge>}
+                          <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {Number(c.price) > 0 ? `${fmt(Number(c.price))} /mois` : "incluse"}
+                        </span>
+                      </label>
+                    );
+                  })
+              )}
+            </div>
+            <div>
+              <Label htmlFor="ch-notes">Note interne (optionnel)</Label>
+              <Textarea
+                id="ch-notes" rows={2}
+                value={channelNotes}
+                onChange={(e) => setChannelNotes(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <Button onClick={doSetChannels} disabled={busy || selectedChannelIds.size === 0} className="w-full">
+              {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ListChecks className="h-4 w-4 mr-2" />}
+              Enregistrer la sélection
+            </Button>
+          </TabsContent>
+
           {/* ============ VOD ============ */}
           <TabsContent value="vod" className="space-y-4 pt-4">
             <div>
