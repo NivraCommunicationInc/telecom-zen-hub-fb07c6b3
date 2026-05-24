@@ -77,38 +77,13 @@ export default function TechAssignments() {
 
   const setStatus = useMutation({
     mutationFn: async ({ a, status, note }: { a: TechAssignment; status: string; note?: string }) => {
-      const update: any = { status };
-      if (status === "missed") update.missed_at = new Date().toISOString();
-      if (note) update.technician_notes = note;
-      const { error } = await supabase
-        .from("technician_assignments")
-        .update(update)
-        .eq("id", a.id);
+      const { error } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: a.id,
+        p_status: status,
+        p_note: note ?? null,
+        p_eta: null,
+      });
       if (error) throw error;
-
-      // Queue notification email
-      if (a.order_id && (status === "en_route" || status === "missed")) {
-        const { data: o } = await supabase
-          .from("orders")
-          .select("client_email, client_first_name, order_number")
-          .eq("id", a.order_id)
-          .maybeSingle();
-        if (o?.client_email) {
-          await supabase.from("email_queue").insert({
-            to_email: o.client_email,
-            template_key: status === "en_route" ? "tech_en_route" : "tech_missed",
-            template_vars: {
-              first_name: o.client_first_name || "Client",
-              tech_name: "Votre technicien Nivra",
-              eta: "sous peu",
-              scheduled_date: a.scheduled_date,
-              order_number: o.order_number,
-            },
-            status: "queued",
-            language: "fr",
-          });
-        }
-      }
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
