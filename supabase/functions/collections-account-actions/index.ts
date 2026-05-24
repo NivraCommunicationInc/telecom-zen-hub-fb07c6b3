@@ -118,11 +118,11 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `account_ops.collections_${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: { invoice_id, invoice_number: inv.invoice_number, ...payload },
+        details: { invoice_id, invoice_number: inv.invoice_number, ...payload },
       });
     } catch { /* swallow */ }
   };

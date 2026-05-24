@@ -125,11 +125,11 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `account_ops.dispute_${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
       });
     } catch { /* swallow */ }
   };

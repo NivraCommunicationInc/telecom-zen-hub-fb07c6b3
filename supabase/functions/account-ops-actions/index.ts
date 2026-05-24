@@ -135,11 +135,11 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `account_ops.${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
       });
     } catch (_e) { /* swallow */ }
   };
@@ -222,7 +222,7 @@ serve(async (req) => {
           .from("appointments")
           .insert({
             client_id: client_user_id,
-            admin_id: user.id,
+            admin_user_id: user.id,
             created_by: user.id,
             title,
             description: body.internal_notes ?? null,
