@@ -130,9 +130,12 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
           <TabsList className="w-full justify-start flex-wrap h-auto">
             <TabsTrigger value="all">Tout ({items.length})</TabsTrigger>
             <TabsTrigger value="contract">Contrats ({counts.contract})</TabsTrigger>
+            <TabsTrigger value="invoice">Factures ({counts.invoice})</TabsTrigger>
+            <TabsTrigger value="receipt">Reçus ({counts.receipt})</TabsTrigger>
             <TabsTrigger value="auto">Auto ({counts.auto})</TabsTrigger>
             <TabsTrigger value="uploaded">Téléversés ({counts.uploaded})</TabsTrigger>
             <TabsTrigger value="order">Commandes ({counts.order})</TabsTrigger>
+            <TabsTrigger value="quote">Soumissions ({counts.quote})</TabsTrigger>
           </TabsList>
         </Tabs>
 
