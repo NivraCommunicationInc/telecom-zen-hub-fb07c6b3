@@ -80,9 +80,9 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 500);
 
       await admin.from("admin_audit_log").insert({
-        actor_id: user.id, actor_email: user.email, action: "account_ops.fraud_incident_create",
+        admin_user_id: user.id, admin_email: user.email, action: "account_ops.fraud_incident_create",
         target_type: "fraud_incident", target_id: data.id,
-        metadata: { client_id: clientId, incident_type: incidentType, severity: sev, reason },
+        details: { client_id: clientId, incident_type: incidentType, severity: sev, reason },
       });
       return json({ ok: true, incident: data });
     }
@@ -113,9 +113,9 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 500);
 
       await admin.from("admin_audit_log").insert({
-        actor_id: user.id, actor_email: user.email, action: "account_ops.fraud_incident_update",
+        admin_user_id: user.id, admin_email: user.email, action: "account_ops.fraud_incident_update",
         target_type: "fraud_incident", target_id: incidentId,
-        metadata: { status, reason },
+        details: { status, reason },
       });
       return json({ ok: true, incident: data });
     }
@@ -154,9 +154,9 @@ Deno.serve(async (req) => {
       }
 
       await admin.from("admin_audit_log").insert({
-        actor_id: user.id, actor_email: user.email, action: "account_ops.risk_score_update",
+        admin_user_id: user.id, admin_email: user.email, action: "account_ops.risk_score_update",
         target_type: "risk_score", target_id: result.id,
-        metadata: { client_id: clientId, score: clamped, risk_level: riskLevel, reason },
+        details: { client_id: clientId, score: clamped, risk_level: riskLevel, reason },
       });
       return json({ ok: true, score: result });
     }

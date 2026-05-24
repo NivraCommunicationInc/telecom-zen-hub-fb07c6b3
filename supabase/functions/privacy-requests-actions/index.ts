@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 500);
 
       await admin.from("admin_audit_log").insert({
-        actor_id: user.id, actor_email: user.email, action: "account_ops.privacy_request_create",
+        admin_user_id: user.id, admin_email: user.email, action: "account_ops.privacy_request_create",
         target_type: "privacy_request", target_id: data.id,
-        metadata: { client_id: clientId, request_type: requestType, reason },
+        details: { client_id: clientId, request_type: requestType, reason },
       });
       return json({ ok: true, request: data });
     }
@@ -83,9 +83,9 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 500);
 
       await admin.from("admin_audit_log").insert({
-        actor_id: user.id, actor_email: user.email, action: "account_ops.privacy_request_update",
+        admin_user_id: user.id, admin_email: user.email, action: "account_ops.privacy_request_update",
         target_type: "privacy_request", target_id: requestId,
-        metadata: { status, reason, refusal_reason: refusalReason ?? null },
+        details: { status, reason, refusal_reason: refusalReason ?? null },
       });
       return json({ ok: true, request: data });
     }
