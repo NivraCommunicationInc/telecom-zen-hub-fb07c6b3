@@ -310,12 +310,35 @@ Deno.serve(async (req) => {
       if (!ids.length) return json({ error: "payment_ids requis" }, 400);
       const results: any[] = [];
       for (const id of ids) {
-        const r = await fetch(req.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": req.headers.get("Authorization") || "" },
-          body: JSON.stringify({ action: "resend_notification", payment_id: id }),
-        }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
-        results.push({ id, ok: !r.error, error: r.error });
+        try {
+          const { data: p } = await supabase.from("payroll_payments").select("*").eq("id", id).maybeSingle();
+          if (!p || !p.payroll_entry_id) {
+            results.push({ id, ok: false, error: !p ? "Paiement introuvable" : "Aucune entrée de paie liée" });
+            continue;
+          }
+          const { error: invErr } = await supabase.functions.invoke("process-payroll", {
+            body: {
+              mark_payment_sent_for_entry_id: p.payroll_entry_id,
+              payment_method: p.payment_method,
+              payment_status: "paid",
+              payment_reference: p.bank_reference || p.transaction_id || "",
+              payment_date: (p.sent_date || new Date().toISOString()).slice(0, 10),
+              payment_notes: p.client_visible_notes || null,
+              send_email: true,
+              processed_by: actor.name,
+            },
+          });
+          if (invErr) {
+            await logEvent(supabase, id, "notification:failed", { error: invErr.message }, actor);
+            results.push({ id, ok: false, error: invErr.message });
+            continue;
+          }
+          await supabase.from("payroll_payments").update({ email_sent_at: new Date().toISOString() }).eq("id", id);
+          await logEvent(supabase, id, "notification:resent", {}, actor);
+          results.push({ id, ok: true });
+        } catch (e) {
+          results.push({ id, ok: false, error: e instanceof Error ? e.message : String(e) });
+        }
       }
       return json({ results });
     }
