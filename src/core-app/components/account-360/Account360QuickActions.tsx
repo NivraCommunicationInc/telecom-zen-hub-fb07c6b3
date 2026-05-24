@@ -142,6 +142,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
     { icon: ListTodo, label: "Tâches & suivis", onClick: () => setFollowupsOpen(true), color: "violet" as const },
     { icon: ShieldQuestion, label: "Demandes Loi 25", onClick: () => setPrivacyOpen(true), color: "danger" as const },
+    { icon: ScanSearch, label: "Risque & fraude", onClick: () => setFraudOpen(true), color: "danger" as const },
   ];
 
   const colorMap: Record<string, string> = {
