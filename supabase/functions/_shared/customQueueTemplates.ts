@@ -2346,6 +2346,195 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CLIENT — Internet plan change
+    // ===================================================================
+    case "client_internet_plan_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const prevPlan = esc(v.previous_plan_name || "—");
+      const newPlan = esc(v.new_plan_name || "Forfait Internet");
+      const price = esc(v.new_monthly_price || "0,00 $");
+      const speed = esc(v.new_speed_mbps || "—");
+      const eff = esc(v.effective_date || "");
+      const ctype = String(v.change_type || "upgrade");
+      const label = ctype === "downgrade" ? "Rétrogradation" : ctype === "lateral" ? "Changement latéral" : "Mise à niveau";
+      return {
+        subject: `Forfait Internet mis à jour — ${newPlan}`,
+        html: shell({
+          preheader: `Votre nouveau forfait Internet : ${newPlan}.`,
+          badge: "FORFAIT INTERNET MIS À JOUR",
+          heroTitle: "Votre forfait Internet a été modifié",
+          heroSub: `${label} effective le ${eff}.`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la modification de votre forfait Internet. Le nouveau tarif sera reflété sur votre prochaine facture.`,
+          cardTitle: "Détails du changement",
+          cardRows: [
+            ["Ancien forfait", prevPlan],
+            ["Nouveau forfait", newPlan],
+            ["Vitesse (Mbps)", speed],
+            ["Tarif mensuel", price],
+            ["Date d'effet", eff],
+            ["Type", label],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Internet modem action (reboot, factory_reset, etc.)
+    // ===================================================================
+    case "client_internet_modem_action": {
+      const firstName = esc(v.first_name || clientName || "");
+      const actionLabel = esc(v.action_label || "Action sur le modem");
+      const serial = esc(v.modem_serial || "—");
+      const mac = esc(v.modem_mac || "—");
+      const reason = esc(v.reason || "—");
+      const isCritical = String(v.is_critical || "false") === "true";
+      return {
+        subject: `Modem Internet — ${actionLabel}`,
+        html: shell({
+          preheader: `Votre modem Internet : ${actionLabel}.`,
+          badge: isCritical ? "ACTION DE SÉCURITÉ" : "INTERVENTION MODEM",
+          heroTitle: `Votre modem : ${actionLabel}`,
+          heroSub: isCritical ? "Une action sensible a été appliquée." : "L'intervention a été appliquée.",
+          icon: isCritical ? "warning" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isCritical
+            ? `Une intervention sensible a été appliquée à votre modem Internet. Si vous n'êtes pas à l'origine de cette demande, contactez-nous immédiatement.`
+            : `Nous confirmons l'intervention suivante sur votre modem Internet. Votre connexion peut être brièvement interrompue.`,
+          cardTitle: "Détails de l'intervention",
+          cardRows: [
+            ["Numéro de série", serial],
+            ["Adresse MAC", mac],
+            ["Action", actionLabel],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpVariant: isCritical ? "warning" : undefined,
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Internet line diagnostic results
+    // ===================================================================
+    case "client_internet_diagnostic": {
+      const firstName = esc(v.first_name || clientName || "");
+      const dtype = esc(v.diagnostic_type || "full");
+      const link = esc(v.link_status || "—");
+      const dl = esc(v.download_mbps || "—");
+      const ul = esc(v.upload_mbps || "—");
+      const lat = esc(v.latency_ms || "—");
+      const loss = esc(v.packet_loss_pct || "—");
+      const notes = esc(v.notes || "—");
+      return {
+        subject: "Résultats du diagnostic Internet",
+        html: shell({
+          preheader: "Le diagnostic de votre ligne Internet est disponible.",
+          badge: "DIAGNOSTIC INTERNET",
+          heroTitle: "Résultats du diagnostic de ligne",
+          heroSub: "Voici l'état de votre connexion.",
+          icon: "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Un diagnostic a été effectué sur votre ligne Internet par notre équipe technique. Vous trouverez ci-dessous les résultats.`,
+          cardTitle: "Résultats",
+          cardRows: [
+            ["Type de diagnostic", dtype],
+            ["État du lien", link],
+            ["Téléchargement (Mbps)", dl],
+            ["Téléversement (Mbps)", ul],
+            ["Latence (ms)", lat],
+            ["Perte de paquets (%)", loss],
+            ["Notes", notes],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Internet WiFi configuration updated
+    // ===================================================================
+    case "client_internet_wifi_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const ssid24 = esc(v.ssid_24 || "—");
+      const ssid5 = esc(v.ssid_5 || "—");
+      const band = esc(v.band_mode || "dual");
+      const guestOn = String(v.guest_enabled || "false") === "true";
+      const guestSsid = esc(v.guest_ssid || "—");
+      return {
+        subject: "Configuration WiFi mise à jour",
+        html: shell({
+          preheader: "Vos paramètres WiFi ont été modifiés.",
+          badge: "WIFI MIS À JOUR",
+          heroTitle: "Votre configuration WiFi a été modifiée",
+          heroSub: "Les changements sont effectifs immédiatement.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise à jour de la configuration WiFi de votre service Internet. Si vous n'êtes pas à l'origine de ce changement, contactez-nous immédiatement.`,
+          cardTitle: "Paramètres appliqués",
+          cardRows: [
+            ["Bande", band],
+            ["Réseau 2,4 GHz (SSID)", ssid24],
+            ["Réseau 5 GHz (SSID)", ssid5],
+            ["Réseau invité", guestOn ? "Activé" : "Désactivé"],
+            ["SSID invité", guestSsid],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Static IP assigned / released
+    // ===================================================================
+    case "client_internet_static_ip": {
+      const firstName = esc(v.first_name || clientName || "");
+      const mode = String(v.mode || "assigned");
+      const isAssigned = mode === "assigned";
+      const ip = esc(v.ip_address || "—");
+      const price = esc(v.monthly_price || "0,00 $");
+      const reason = esc(v.reason || "—");
+      return {
+        subject: isAssigned ? `Adresse IP statique attribuée — ${ip}` : "Adresse IP statique libérée",
+        html: shell({
+          preheader: isAssigned
+            ? `Votre adresse IP statique ${ip} est active.`
+            : `Votre adresse IP statique a été libérée.`,
+          badge: isAssigned ? "IP STATIQUE ACTIVE" : "IP STATIQUE LIBÉRÉE",
+          heroTitle: isAssigned ? "Adresse IP statique attribuée" : "Adresse IP statique libérée",
+          heroSub: isAssigned ? "Le service est actif immédiatement." : "Le service est interrompu.",
+          icon: isAssigned ? "check" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: isAssigned
+            ? `Nous confirmons l'attribution d'une adresse IP statique à votre ligne Internet. Le tarif mensuel sera ajouté à votre prochaine facture.`
+            : `Nous confirmons la libération de votre adresse IP statique. Aucun tarif mensuel ne sera plus facturé à partir du prochain cycle.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Adresse IP", ip],
+            ["Tarif mensuel", price],
+            ["Statut", isAssigned ? "Active" : "Libérée"],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+
+
 
 
     // ===================================================================
