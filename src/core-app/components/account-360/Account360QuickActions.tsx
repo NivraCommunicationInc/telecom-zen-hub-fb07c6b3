@@ -88,7 +88,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
     { icon: MessageSquare, label: "Ticket support", onClick: () => onNavigateSection("tickets"), color: "default" },
     { icon: Mail, label: "Envoyer rappel", onClick: () => onNavigateSection("tickets"), color: "default" },
-    { icon: Package, label: "Assigner équipement", onClick: () => onNavigateSection("equipment"), color: "default" },
+    { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
     { icon: Calendar, label: "Planifier RDV", onClick: () => onNavigateSection("appointments"), color: "default" },
     { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => onNavigateSection("invoices"), color: "warning" },
     { icon: DollarSign, label: "Litige facturation", onClick: () => onNavigateSection("invoices"), color: "warning" },
