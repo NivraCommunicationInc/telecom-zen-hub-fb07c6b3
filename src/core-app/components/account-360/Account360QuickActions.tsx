@@ -81,6 +81,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [securityOpen, setSecurityOpen] = useState(false);
   const [communicationOpen, setCommunicationOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
+  const [callsOpen, setCallsOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
