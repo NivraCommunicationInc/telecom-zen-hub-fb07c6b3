@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
