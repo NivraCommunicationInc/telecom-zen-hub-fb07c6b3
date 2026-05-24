@@ -339,6 +339,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <AccountActivityTimelineDialog
+          open={timelineOpen}
+          onClose={() => setTimelineOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          accountId={accountId ?? null}
+        />
+      )}
     </>
   );
 }
