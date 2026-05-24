@@ -258,9 +258,10 @@ serve(async (req) => {
       // Non-bloquant: on continue à générer/envoyer le nouveau code.
     }
 
-    // Generate PIN and hash it
+    // Generate PIN, per-record salt, and PBKDF2 hash
     const pin = generatePin();
-    const pinHash = await hashPin(pin);
+    const pinSalt = generatePinSalt();
+    const pinHash = await hashPin(pin, pinSalt);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
     console.log(`[client-pin-send][${requestId}] Generated PIN, expires: ${expiresAt}`);
@@ -272,6 +273,7 @@ serve(async (req) => {
         user_id,
         email: email.toLowerCase(),
         pin_hash: pinHash,
+        pin_salt: pinSalt,
         expires_at: expiresAt,
         attempts: 0,
         used: false,
