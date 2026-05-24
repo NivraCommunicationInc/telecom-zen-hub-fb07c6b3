@@ -133,6 +133,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: MessageCircle, label: "Envoyer un SMS", onClick: () => setSmsOpen(true), color: "violet" as const },
     { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" as const },
     { icon: Settings2, label: "Préférences communication", onClick: () => setPreferencesOpen(true), color: "violet" as const },
+    { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
   ];
 
   const colorMap: Record<string, string> = {
