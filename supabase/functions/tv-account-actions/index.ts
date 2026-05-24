@@ -28,7 +28,8 @@ type Action =
   | "remove_themed_pack"
   | "purchase_vod"
   | "terminal_action"
-  | "set_parental";
+  | "set_parental"
+  | "set_channels";
 
 interface Body {
   action: Action;
@@ -73,6 +74,10 @@ interface Body {
   pin?: string;
   blocked_channels?: string[];
   time_restrictions?: Record<string, unknown>;
+
+  // set_channels
+  channel_ids?: string[];        // tv_channels.id list
+  notes?: string;
 }
 
 const json = (status: number, payload: unknown) =>
@@ -448,6 +453,51 @@ serve(async (req) => {
         });
 
         return json(200, { ok: true });
+      }
+
+      // ============================================================
+      case "set_channels": {
+        const ids = Array.isArray(body.channel_ids) ? body.channel_ids.filter(Boolean) : [];
+        if (ids.length === 0) return json(400, { error: "Aucune chaîne sélectionnée" });
+
+        const { data: chans, error: chErr } = await admin
+          .from("tv_channels")
+          .select("id,name,category,price")
+          .in("id", ids)
+          .eq("is_active", true);
+        if (chErr) return json(500, { error: chErr.message });
+        if (!chans || chans.length === 0) return json(400, { error: "Chaînes introuvables" });
+
+        const channelsJson = chans.map((c) => ({
+          id: c.id, name: c.name, category: c.category, price: Number(c.price ?? 0),
+        }));
+        const total_price = channelsJson.reduce((s, c) => s + c.price, 0);
+
+        const { data, error } = await admin
+          .from("channel_selections")
+          .insert({
+            user_id: client_user_id,
+            channels: channelsJson,
+            total_price,
+            status: "confirmed",
+            confirmed_at: new Date().toISOString(),
+            confirmed_by: user.id,
+            notes: body.notes ?? null,
+          })
+          .select("id")
+          .single();
+        if (error) return json(500, { error: error.message });
+
+        await audit("set_channels", {
+          selection_id: data.id, count: channelsJson.length, total_price,
+        });
+        await enqueueEmail("client_tv_channels_updated", {
+          channel_count: String(channelsJson.length),
+          total_price: fmtMoney(total_price),
+          channel_names: channelsJson.map((c) => c.name).slice(0, 20).join(", "),
+        });
+
+        return json(200, { ok: true, selection_id: data.id, total_price });
       }
 
       default:
