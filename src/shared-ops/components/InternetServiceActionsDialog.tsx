@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServicePlans } from "@/shared-ops/hooks/useServiceCatalog";
 
 interface Props {
   open: boolean;
@@ -41,13 +42,6 @@ interface Props {
   currentMonthlyPrice?: number | null;
   currentSpeedMbps?: number | null;
 }
-
-const PLAN_CATALOG: Array<{ name: string; price: number; speed: number }> = [
-  { name: "Internet 50",    price: 39.99, speed: 50 },
-  { name: "Internet 150",   price: 54.99, speed: 150 },
-  { name: "Internet 300",   price: 69.99, speed: 300 },
-  { name: "Internet 1 Gbit", price: 89.99, speed: 1000 },
-];
 
 const MODEM_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> = [
   { value: "reboot",         label: "Redémarrer à distance" },
