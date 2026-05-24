@@ -166,6 +166,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         onClose={() => setReactivateOpen(false)}
         onRefresh={onRefresh}
       />
+
+      <ClientAccountAccessDialog
+        open={accessOpen}
+        onClose={() => setAccessOpen(false)}
+        clientUserId={clientId}
+        clientEmail={clientEmail}
+        clientName={clientName}
+      />
     </>
   );
 }
