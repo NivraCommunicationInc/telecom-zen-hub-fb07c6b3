@@ -312,20 +312,31 @@ export function MobileServiceActionsDialog({
 
           {/* ============ ADD-ONS ============ */}
           <TabsContent value="addons" className="space-y-4 pt-4">
-            <div>
-              <Label>Ajouter une option</Label>
-              <div className="flex gap-2 mt-1">
-                <Select value={pickedAddon} onValueChange={setPickedAddon} disabled={busy}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner une option…" /></SelectTrigger>
+            <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-300">
+              Aucun catalogue d'options mobiles n'est encore configuré. Saisir manuellement le nom et le tarif réels — ne jamais inventer.
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_120px_auto] gap-2">
+              <div>
+                <Label htmlFor="addon-name">Nom de l'option</Label>
+                <Input id="addon-name" value={addonName} onChange={(e) => setAddonName(e.target.value)} disabled={busy} placeholder="ex: Data 5 Go" />
+              </div>
+              <div>
+                <Label>Type</Label>
+                <Select value={addonType} onValueChange={setAddonType} disabled={busy}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {ADDON_CATALOG.map((a) => (
-                      <SelectItem key={a.code} value={a.code}>
-                        {a.name} — {fmt(a.price)}/mois
-                      </SelectItem>
+                    {ADDON_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={doAddAddon} disabled={busy || !pickedAddon}>
+              </div>
+              <div>
+                <Label htmlFor="addon-price">$/mois</Label>
+                <Input id="addon-price" type="number" min="0" step="0.01" value={addonPrice} onChange={(e) => setAddonPrice(e.target.value)} disabled={busy} />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={doAddAddon} disabled={busy}>
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>
