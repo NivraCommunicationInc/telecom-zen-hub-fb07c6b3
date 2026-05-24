@@ -13,6 +13,8 @@ import { ClientAccountAccessDialog } from "@/shared-ops/components/ClientAccount
 
 interface Props {
   clientId: string;
+  clientEmail?: string | null;
+  clientName?: string;
   account: any | null;
   orders: any[];
   invoices: any[];
@@ -29,11 +31,12 @@ interface Props {
 }
 
 export function QuickActions({
-  clientId, account, orders, invoices, subscriptions, appointments, tickets,
+  clientId, clientEmail, clientName, account, orders, invoices, subscriptions, appointments, tickets,
   unpaidCount, onAddNote, onCreateTicket, onEscalation, onRecordPayment, onPinReset,
   onEscalationPreset,
 }: Props) {
   const navigate = useNavigate();
+  const [accessOpen, setAccessOpen] = useState(false);
 
   const ActionBtn = ({ icon: Icon, label, onClick, variant = "default" }: {
     icon: any; label: string; onClick: () => void; variant?: "default" | "primary" | "warning" | "success";
