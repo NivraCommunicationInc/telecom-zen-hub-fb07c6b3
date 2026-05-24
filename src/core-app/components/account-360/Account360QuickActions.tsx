@@ -78,6 +78,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: UserCog, label: "Accès compte en ligne", onClick: () => setAccessOpen(true), color: "violet" as const },
     { icon: Smartphone, label: "Gestion ligne mobile", onClick: () => setMobileOpen(true), color: "violet" as const },
     { icon: Tv, label: "Gestion service TV", onClick: () => setTvOpen(true), color: "violet" as const },
+    { icon: Wifi, label: "Gestion service Internet", onClick: () => setInternetOpen(true), color: "violet" as const },
     { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
     { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
     { icon: MessageSquare, label: "Ticket support", onClick: () => onNavigateSection("tickets"), color: "default" },
