@@ -27,6 +27,7 @@ interface Props {
   onClose: () => void;
   clientUserId: string;
   clientName?: string;
+  payments?: any[];
 }
 
 interface Dispute {
@@ -73,7 +74,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(Number(n || 0));
 
-export function BillingDisputesDialog({ open, onClose, clientUserId, clientName = "Client" }: Props) {
+export function BillingDisputesDialog({ open, onClose, clientUserId, clientName = "Client", payments: canonicalPayments = [] }: Props) {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
@@ -114,7 +115,16 @@ export function BillingDisputesDialog({ open, onClose, clientUserId, clientName 
       ]);
       const list = (dRes.data as Dispute[]) || [];
       setDisputes(list);
-      setPayments((pRes.data as Payment[]) || []);
+      const legacyPayments = (pRes.data as Payment[]) || [];
+      const canonical = canonicalPayments.map((p: any) => ({
+        id: p.id,
+        amount: Number(p.amount || 0),
+        status: p.status,
+        invoice_number: p.invoice_number || p.payment_number || p.reference || null,
+        created_at: p.created_at || p.received_at,
+      }));
+      const merged = [...legacyPayments, ...canonical];
+      setPayments(Array.from(new Map(merged.filter((p) => p.id).map((p) => [p.id, p])).values()));
       if (!selectedDisputeId && list.length) setSelectedDisputeId(list[0].id);
     } catch (e) {
       toast.error((e as Error).message || "Erreur de chargement");
