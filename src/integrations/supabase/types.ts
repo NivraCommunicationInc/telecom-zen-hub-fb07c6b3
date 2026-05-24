@@ -219,6 +219,69 @@ export type Database = {
           },
         ]
       }
+      account_followups: {
+        Row: {
+          account_id: string | null
+          assigned_to: string | null
+          assigned_to_email: string | null
+          category: string
+          client_user_id: string
+          completed_at: string | null
+          completed_by: string | null
+          completion_note: string | null
+          created_at: string
+          created_by: string
+          created_by_email: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          assigned_to?: string | null
+          assigned_to_email?: string | null
+          category?: string
+          client_user_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completion_note?: string | null
+          created_at?: string
+          created_by: string
+          created_by_email?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          assigned_to?: string | null
+          assigned_to_email?: string | null
+          category?: string
+          client_user_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completion_note?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_email?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       account_promotions: {
         Row: {
           account_id: string
