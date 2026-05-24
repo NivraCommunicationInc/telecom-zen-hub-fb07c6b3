@@ -24235,6 +24235,81 @@ export type Database = {
         }
         Relationships: []
       }
+      tv_addon_subscriptions: {
+        Row: {
+          account_id: string | null
+          activated_at: string
+          activated_by: string | null
+          addon_code: string
+          addon_name: string
+          addon_type: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          monthly_price: number
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          activated_at?: string
+          activated_by?: string | null
+          addon_code: string
+          addon_name: string
+          addon_type?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          monthly_price?: number
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          activated_at?: string
+          activated_by?: string | null
+          addon_code?: string
+          addon_name?: string
+          addon_type?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          monthly_price?: number
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_addon_subscriptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_addon_subscriptions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tv_channels: {
         Row: {
           base_pack: string | null
@@ -24439,6 +24514,251 @@ export type Database = {
           visible_website?: boolean | null
         }
         Relationships: []
+      }
+      tv_parental_controls: {
+        Row: {
+          account_id: string | null
+          blocked_channels: Json | null
+          created_at: string
+          enabled: boolean
+          id: string
+          max_rating: string | null
+          pin_hash: string | null
+          time_restrictions: Json | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          blocked_channels?: Json | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          max_rating?: string | null
+          pin_hash?: string | null
+          time_restrictions?: Json | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          blocked_channels?: Json | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          max_rating?: string | null
+          pin_hash?: string | null
+          time_restrictions?: Json | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_parental_controls_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tv_plan_changes: {
+        Row: {
+          account_id: string | null
+          change_type: string
+          created_at: string
+          effective_date: string
+          id: string
+          metadata: Json | null
+          new_monthly_price: number
+          new_plan_name: string
+          performed_by: string | null
+          previous_monthly_price: number | null
+          previous_plan_name: string | null
+          reason: string | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          change_type?: string
+          created_at?: string
+          effective_date?: string
+          id?: string
+          metadata?: Json | null
+          new_monthly_price?: number
+          new_plan_name: string
+          performed_by?: string | null
+          previous_monthly_price?: number | null
+          previous_plan_name?: string | null
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          change_type?: string
+          created_at?: string
+          effective_date?: string
+          id?: string
+          metadata?: Json | null
+          new_monthly_price?: number
+          new_plan_name?: string
+          performed_by?: string | null
+          previous_monthly_price?: number | null
+          previous_plan_name?: string | null
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_plan_changes_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_plan_changes_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tv_terminal_actions: {
+        Row: {
+          account_id: string | null
+          action_type: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          performed_by: string | null
+          reason: string | null
+          status: string
+          subscription_id: string | null
+          terminal_serial: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          action_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          performed_by?: string | null
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          terminal_serial?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          action_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          performed_by?: string | null
+          reason?: string | null
+          status?: string
+          subscription_id?: string | null
+          terminal_serial?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_terminal_actions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_terminal_actions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tv_vod_purchases: {
+        Row: {
+          account_id: string | null
+          amount: number
+          content_type: string
+          created_at: string
+          currency: string
+          id: string
+          metadata: Json | null
+          payment_method: string | null
+          payment_reference: string | null
+          performed_by: string | null
+          status: string
+          subscription_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          content_type?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          performed_by?: string | null
+          status?: string
+          subscription_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          content_type?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          performed_by?: string | null
+          status?: string
+          subscription_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_vod_purchases_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_vod_purchases_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
