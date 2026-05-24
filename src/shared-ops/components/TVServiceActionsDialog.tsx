@@ -191,16 +191,16 @@ export function TVServiceActionsDialog({
   };
 
   const doAddPack = async () => {
-    const p = PACK_CATALOG.find((x) => x.code === pickedPack);
+    const p = bouquetCatalog.find((x) => x.id === pickedPack);
     if (!p) { toast.error("Choisissez un bouquet"); return; }
     try {
       await invoke({
         action: "add_themed_pack",
-        addon_code: p.code,
+        addon_code: `PACK_${p.category.toUpperCase()}_${p.id.slice(0, 8)}`,
         addon_name: p.name,
-        addon_type: p.type,
+        addon_type: p.category,
         monthly_price: p.price,
-        idempotency_key: `tvpack-${clientUserId}-${p.code}-${Date.now()}`,
+        idempotency_key: `tvpack-${clientUserId}-${p.id}-${Date.now()}`,
       });
       toast.success(`Bouquet « ${p.name} » ajouté`);
       setPickedPack("");
