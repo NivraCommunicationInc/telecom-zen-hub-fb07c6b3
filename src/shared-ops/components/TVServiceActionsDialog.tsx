@@ -74,6 +74,8 @@ export function TVServiceActionsDialog({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"plan" | "packs" | "vod" | "terminal" | "parental">("plan");
+  const { plans: tvPlans, loading: loadingPlans } = useServicePlans("TV", open);
+  const { packs: bouquetCatalog, loading: loadingBouquets } = useChannelPackages(open);
 
   // Plan change
   const [planName, setPlanName] = useState("");
