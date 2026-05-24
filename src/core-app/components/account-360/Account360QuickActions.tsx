@@ -26,6 +26,8 @@ import { ClientReferralsDialog } from "@/shared-ops/components/ClientReferralsDi
 import { QuickTicketDialog } from "@/shared-ops/components/QuickTicketDialog";
 import { ScheduleAppointmentDialog } from "@/shared-ops/components/ScheduleAppointmentDialog";
 import { InternalNoteDialog } from "@/shared-ops/components/InternalNoteDialog";
+import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
+import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
 import { UserCog } from "lucide-react";
 
 
