@@ -74,7 +74,11 @@ export default function HrSchedulesPage() {
 
   const empName = (uid: string) => {
     const e = empMap[uid];
-    return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() || uid.slice(0, 8) : uid.slice(0, 8);
+    if (e) {
+      const n = `${e.first_name || ""} ${e.last_name || ""}`.trim();
+      if (n) return n;
+    }
+    return "Employé";
   };
 
   // ─── Shifts for current week ───────────────────────────────────────────

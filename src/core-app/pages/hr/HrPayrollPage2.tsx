@@ -986,7 +986,7 @@ function EmployeeCard({
               </div>
             )}
             <div>
-              <div className="font-semibold text-base">{emp.profile?.full_name ?? emp.profile?.email ?? emp.employee_id.slice(0, 8)}</div>
+              <div className="font-semibold text-base">{emp.profile?.full_name ?? emp.profile?.email ?? "Employé"}</div>
               <div className="text-xs text-muted-foreground">{emp.profile?.agent_number ? `N° ${emp.profile.agent_number}` : emp.profile?.email}</div>
             </div>
           </div>

@@ -1054,7 +1054,7 @@ function WhitelistTab() {
             {rows?.map((r: any) => (
               <div key={r.id} className="flex items-center gap-3 p-3 rounded border">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{r.profile?.full_name || r.user_id.slice(0, 8)}</p>
+                  <p className="text-sm font-medium">{r.profile?.full_name || "Employé"}</p>
                   <p className="text-xs text-muted-foreground">{r.profile?.email} · {r.reason}</p>
                 </div>
                 <Button size="icon" variant="ghost" onClick={() => confirm("Retirer de la whitelist ?") && remove.mutate(r.id)}>
@@ -1148,7 +1148,7 @@ function AgentsTab() {
               return (
                 <div key={a.id} className="grid grid-cols-12 gap-3 items-center p-3 rounded-lg border">
                   <div className="col-span-4">
-                    <p className="text-sm font-medium truncate">{a.profile?.full_name || a.id.slice(0, 8)}</p>
+                    <p className="text-sm font-medium truncate">{a.profile?.full_name || "Employé"}</p>
                     <p className="text-xs text-muted-foreground truncate">{a.profile?.email}</p>
                   </div>
                   <div className="col-span-5">

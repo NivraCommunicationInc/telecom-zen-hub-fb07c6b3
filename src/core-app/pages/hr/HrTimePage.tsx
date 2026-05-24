@@ -20,6 +20,7 @@ import { Clock, Loader2, LogOut, Plus, Pencil, Trash2, Download, Users, Calendar
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
+import { resolveProfileNames } from "@/hooks/useProfileName";
 
 const todayISO = () => format(new Date(), "yyyy-MM-dd");
 
@@ -70,7 +71,7 @@ export default function HrTimePage() {
 
   // ─── Employees ─────────────────────────────────────────────────────────
   const { data: employees = [] } = useQuery({
-    queryKey: ["hr-active-employees"],
+    queryKey: ["hr-active-employees-with-profiles"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employee_records")
@@ -78,7 +79,10 @@ export default function HrTimePage() {
         .eq("status", "active")
         .order("first_name");
       if (error) throw error;
-      return data || [];
+      const rows = data || [];
+      const ids = rows.map((r: any) => r.user_id);
+      const names = await resolveProfileNames(ids);
+      return rows.map((r: any) => ({ ...r, _profile_name: names[r.user_id] }));
     },
   });
 
@@ -90,7 +94,11 @@ export default function HrTimePage() {
 
   const empName = (uid: string) => {
     const e = empMap[uid];
-    return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() || uid.slice(0, 8) : uid.slice(0, 8);
+    if (e) {
+      const n = `${e.first_name || ""} ${e.last_name || ""}`.trim();
+      return n || e._profile_name || "Employé";
+    }
+    return "Employé";
   };
 
   // ─── Time entries (range) ──────────────────────────────────────────────

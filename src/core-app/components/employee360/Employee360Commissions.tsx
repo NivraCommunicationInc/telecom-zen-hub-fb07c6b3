@@ -107,7 +107,7 @@ export default function Employee360Commissions({ userId }: Props) {
                         {STATUS_LABELS[c.status] || c.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{(c.field_order_id || c.converted_order_id || c.order_id)?.slice(0, 8) || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{(c.field_order_id || c.converted_order_id || c.order_id)?.slice(0, 8) || "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
