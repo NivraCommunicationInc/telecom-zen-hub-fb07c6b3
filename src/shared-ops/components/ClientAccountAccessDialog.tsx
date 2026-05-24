@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Mail, KeyRound, ShieldCheck, AtSign, LogOut, Lock, Copy } from "lucide-react";
+import { Loader2, Mail, KeyRound, ShieldCheck, AtSign, LogOut, Lock, Copy, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,7 +29,8 @@ type ActionKey =
   | "force_confirm_email"
   | "change_email"
   | "force_logout"
-  | "set_temporary_password";
+  | "set_temporary_password"
+  | "resend_welcome";
 
 export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientEmail, clientName }: Props) {
   const [busy, setBusy] = useState<ActionKey | null>(null);
