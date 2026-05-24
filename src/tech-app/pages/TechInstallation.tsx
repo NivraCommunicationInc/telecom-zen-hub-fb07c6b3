@@ -144,9 +144,10 @@ export default function TechInstallation() {
       .or(`serial_number.eq.${code},mac_address.eq.${code}`)
       .maybeSingle();
 
+    const stepTitle = steps[stepIdx]?.title_fr || "Équipement installé";
     const entry = data
-      ? { ...data, scanned_at: new Date().toISOString(), source: "installation" }
-      : { serial: code, serial_number: code, catalog_name: "Équipement", scanned_at: new Date().toISOString(), source: "manual" };
+      ? { ...data, step: stepTitle, scanned_at: new Date().toISOString(), source: "installation" }
+      : { serial: code, serial_number: code, catalog_name: "Équipement", step: stepTitle, scanned_at: new Date().toISOString(), source: "manual" };
 
     setScannedEquipment((items) => [...items, entry]);
     setScanCode("");
@@ -324,6 +325,19 @@ export default function TechInstallation() {
     allMandatoryDone &&
     (assignment.service_type !== "internet" || !!coax) &&
     networkOk;
+  const completeCurrentStep = () => {
+    if (currentStep?.requires_photo && !photos.some((p) => p.step === currentStep.title_fr)) {
+      toast.error("Photo obligatoire pour cette étape");
+      return;
+    }
+    if (currentStep?.requires_scan && !allScannedEquipment.some((e: any) => e.step === currentStep.title_fr || e.source === "installation" || e.source === "qr_scan")) {
+      toast.error("Scan d'équipement obligatoire pour cette étape");
+      return;
+    }
+    setCompletedSteps((s) => new Set(s).add(stepIdx));
+    toast.success("✅ Étape complétée");
+    if (stepIdx < totalSteps - 1) setStepIdx(stepIdx + 1);
+  };
 
   const minRescheduleDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 
@@ -377,7 +391,7 @@ export default function TechInstallation() {
               </p>
             </div>
             <span className="rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-300">
-              {assignment.appointment_status || assignment.status}
+              {assignment.status}
             </span>
           </div>
 
