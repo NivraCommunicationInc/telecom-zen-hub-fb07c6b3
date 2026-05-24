@@ -173,22 +173,22 @@ export function MobileServiceActionsDialog({
   };
 
   const doAddAddon = async () => {
-    const a = ADDON_CATALOG.find((x) => x.code === pickedAddon);
-    if (!a) {
-      toast.error("Choisissez une option");
-      return;
-    }
+    const name = addonName.trim();
+    const price = parseFloat(addonPrice);
+    if (!name) { toast.error("Nom de l'option requis"); return; }
+    if (!Number.isFinite(price) || price < 0) { toast.error("Prix mensuel invalide"); return; }
+    const code = `MOBILE_${addonType.toUpperCase()}_${Date.now()}`;
     try {
       await invoke({
         action: "add_addon",
-        addon_code: a.code,
-        addon_name: a.name,
-        addon_type: a.type,
-        monthly_price: a.price,
-        idempotency_key: `addon-${clientUserId}-${a.code}-${Date.now()}`,
+        addon_code: code,
+        addon_name: name,
+        addon_type: addonType,
+        monthly_price: price,
+        idempotency_key: `addon-${clientUserId}-${code}`,
       });
-      toast.success(`Option « ${a.name} » ajoutée`);
-      setPickedAddon("");
+      toast.success(`Option « ${name} » ajoutée`);
+      setAddonName(""); setAddonPrice("");
     } catch (e) {
       toast.error((e as Error).message);
     }
