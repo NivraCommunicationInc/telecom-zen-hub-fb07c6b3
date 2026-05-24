@@ -112,6 +112,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
     { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
     { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true), color: "default" },
+    { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" as const },
   ];
 
   const colorMap: Record<string, string> = {
