@@ -32,15 +32,24 @@ interface Props {
 
 interface InventoryRow {
   id: string;
+  source?: "inventory" | "order_line" | "order_snapshot";
   catalog_name: string | null;
+  item_name?: string | null;
+  sku?: string | null;
+  item_sku?: string | null;
   category: string | null;
   status: string;
   serial_number: string | null;
+  serial_numbers?: string[] | null;
   imei: string | null;
   mac_address: string | null;
   price_client: number | null;
+  unit_price?: number | null;
   assigned_at: string | null;
+  created_at?: string | null;
   condition: string | null;
+  order_id?: string | null;
+  quantity?: number | null;
 }
 
 const fmt = (n: number) =>
@@ -80,20 +89,23 @@ export function EquipmentServiceActionsDialog({
   }, [open]);
 
   useEffect(() => {
-    if (!open || !accountId) return;
+    if (!open) return;
     setLoadingItems(true);
-    supabase
-      .from("equipment_inventory")
-      .select("id,catalog_name,category,status,serial_number,imei,mac_address,price_client,assigned_at,condition")
-      .eq("account_id", accountId)
-      .in("status", ["assigned", "deployed", "reserved"])
-      .order("assigned_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) toast.error("Erreur chargement équipements");
-        setItems((data as InventoryRow[]) || []);
-        setLoadingItems(false);
-      });
-  }, [open, accountId, busy]);
+    supabase.functions.invoke("equipment-account-actions", {
+      body: {
+        action: "list_active",
+        client_user_id: clientUserId,
+        account_id: accountId ?? null,
+      },
+    }).then(({ data, error }) => {
+      if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      setItems(((data as any)?.items ?? []) as InventoryRow[]);
+    }).catch((e) => {
+      toast.error("Erreur chargement équipements", { description: (e as Error).message });
+      setItems([]);
+    }).finally(() => setLoadingItems(false));
+  }, [open, accountId, clientUserId, busy]);
 
   const invoke = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -202,26 +214,32 @@ export function EquipmentServiceActionsDialog({
               </p>
             ) : (
               <ul className="space-y-2">
-                {items.map((it) => (
+                {items.map((it) => {
+                  const isInventory = (it.source ?? "inventory") === "inventory";
+                  const name = it.catalog_name || it.item_name || "Équipement";
+                  const serials = it.serial_number || (Array.isArray(it.serial_numbers) ? it.serial_numbers.join(", ") : "");
+                  return (
                   <li key={it.id} className="flex items-start justify-between gap-2 p-2 rounded border bg-muted/30">
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{it.catalog_name || "Équipement"}</div>
+                      <div className="text-sm font-medium truncate">{name}</div>
                       <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">{it.status}</Badge>
-                        {it.price_client !== null && <span>{fmt(Number(it.price_client))}</span>}
-                        {it.serial_number && <span>S/N: {it.serial_number}</span>}
+                        {it.source && it.source !== "inventory" && <Badge variant="secondary" className="text-[10px]">commande</Badge>}
+                        {(it.price_client ?? it.unit_price) !== null && <span>{fmt(Number(it.price_client ?? it.unit_price))}</span>}
+                        {it.quantity && Number(it.quantity) > 1 && <span>Qté: {it.quantity}</span>}
+                        {serials && <span>S/N: {serials}</span>}
                         {it.imei && <span>IMEI: {it.imei}</span>}
                         {it.mac_address && <span>MAC: {it.mac_address}</span>}
                       </div>
                     </div>
                     <Button size="sm" variant="ghost"
                       onClick={() => doDefective(it.id)}
-                      disabled={busy}
+                      disabled={busy || !isInventory}
                       title="Marquer défectueux">
                       <AlertTriangle className="h-4 w-4 text-amber-400" />
                     </Button>
                   </li>
-                ))}
+                );})}
               </ul>
             )}
           </TabsContent>
@@ -262,8 +280,8 @@ export function EquipmentServiceActionsDialog({
               <Select value={selectedId} onValueChange={setSelectedId} disabled={busy}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner un équipement actif…" /></SelectTrigger>
                 <SelectContent>
-                  {items.length === 0 && <SelectItem value="__none" disabled>Aucun équipement actif</SelectItem>}
-                  {items.map((it) => (
+                  {items.filter((it) => (it.source ?? "inventory") === "inventory").length === 0 && <SelectItem value="__none" disabled>Aucun équipement actif modifiable</SelectItem>}
+                  {items.filter((it) => (it.source ?? "inventory") === "inventory").map((it) => (
                     <SelectItem key={it.id} value={it.id}>
                       {it.catalog_name || "Équipement"} {it.serial_number ? `· ${it.serial_number}` : ""}
                     </SelectItem>
