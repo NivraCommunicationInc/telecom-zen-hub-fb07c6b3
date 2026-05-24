@@ -2935,8 +2935,115 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CLIENT — Support ticket opened by staff
+    // ===================================================================
+    case "client_ticket_opened": {
+      const firstName = esc(v.first_name || clientName || "");
+      const subject = esc(v.subject || "Votre demande");
+      const message = esc(v.message || "");
+      const ticketNumber = esc(v.ticket_number || "—");
+      const priority = esc(v.priority || "normal");
+      return {
+        subject: `Ticket ouvert — ${subject}`,
+        html: shell({
+          preheader: `Votre demande #${ticketNumber} a été enregistrée.`,
+          badge: "TICKET OUVERT",
+          heroTitle: "Nous avons reçu votre demande",
+          heroSub: `Référence #${ticketNumber}`,
+          icon: "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Un ticket support a été ouvert à votre nom. Notre équipe vous répondra dans les meilleurs délais. Vous pouvez répondre à ce courriel pour ajouter des informations.`,
+          cardTitle: "Détails du ticket",
+          cardRows: [
+            ["Numéro", `#${ticketNumber}`],
+            ["Sujet", subject],
+            ["Priorité", priority],
+            ["Message", message || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mes tickets",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
 
     // ===================================================================
+    // CLIENT — Account reminder sent by staff
+    // ===================================================================
+    case "client_account_reminder": {
+      const firstName = esc(v.first_name || clientName || "");
+      const subject = esc(v.subject || "Rappel important");
+      const message = esc(v.message || "");
+      const reminderType = String(v.reminder_type || "general");
+      const ticketNumber = esc(v.ticket_number || "—");
+      const typeLabel =
+        reminderType === "billing_overdue"  ? "Facture en retard" :
+        reminderType === "appointment"      ? "Rendez-vous à venir" :
+        reminderType === "kyc"              ? "Pièce d'identité requise" :
+        reminderType === "equipment_return" ? "Retour d'équipement" :
+                                              "Rappel général";
+      return {
+        subject: `Rappel — ${subject}`,
+        html: shell({
+          preheader: `${typeLabel} — action peut être requise.`,
+          badge: "RAPPEL IMPORTANT",
+          heroTitle: typeLabel,
+          heroSub: subject,
+          icon: "warning",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous vous transmettons ce rappel concernant votre compte Nivra. Merci de prendre les mesures appropriées dès que possible.`,
+          cardTitle: "Détails du rappel",
+          cardRows: [
+            ["Type", typeLabel],
+            ["Référence", `#${ticketNumber}`],
+            ["Message", message || "—"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Accéder à mon compte",
+          helpVariant: "warning",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Appointment scheduled by staff
+    // ===================================================================
+    case "client_appointment_scheduled": {
+      const firstName = esc(v.first_name || clientName || "");
+      const title = esc(v.title || "Rendez-vous Nivra");
+      const number = esc(v.appointment_number || "—");
+      const when = esc(v.scheduled_at || "—");
+      const serviceType = esc(v.service_type || "—");
+      const address = esc(v.service_address || "—");
+      return {
+        subject: `Rendez-vous confirmé — ${when}`,
+        html: shell({
+          preheader: `Votre rendez-vous Nivra est confirmé pour le ${when}.`,
+          badge: "RENDEZ-VOUS CONFIRMÉ",
+          heroTitle: "Rendez-vous planifié",
+          heroSub: when,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons votre rendez-vous avec Nivra. Si vous devez le reporter ou l'annuler, contactez-nous au moins 24 heures à l'avance.`,
+          cardTitle: "Détails du rendez-vous",
+          cardRows: [
+            ["Référence", `#${number}`],
+            ["Objet", title],
+            ["Date et heure", when],
+            ["Type de service", serviceType],
+            ["Adresse", address],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mes rendez-vous",
+          helpHtml: `Pour modifier ce rendez-vous, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+
     case "staff_account_created": {
       const firstName = esc(v.first_name || v.FIRST_NAME || "");
       const portalUrlIn = String(v.portal_url || v.PORTAL_URL || "https://nivra-telecom.ca/hub/login");
