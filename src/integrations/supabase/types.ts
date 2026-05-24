@@ -282,6 +282,69 @@ export type Database = {
         }
         Relationships: []
       }
+      account_fraud_incidents: {
+        Row: {
+          account_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          description: string
+          detected_at: string
+          id: string
+          incident_type: string
+          internal_notes: string | null
+          last_updated_by: string | null
+          last_updated_by_email: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          risk_score_delta: number
+          severity: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          description: string
+          detected_at?: string
+          id?: string
+          incident_type: string
+          internal_notes?: string | null
+          last_updated_by?: string | null
+          last_updated_by_email?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          risk_score_delta?: number
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          description?: string
+          detected_at?: string
+          id?: string
+          incident_type?: string
+          internal_notes?: string | null
+          last_updated_by?: string | null
+          last_updated_by_email?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          risk_score_delta?: number
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       account_promotions: {
         Row: {
           account_id: string
@@ -355,6 +418,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      account_risk_scores: {
+        Row: {
+          account_id: string | null
+          client_id: string
+          created_at: string
+          current_score: number
+          factors: Json
+          id: string
+          last_assessed_at: string
+          last_assessed_by: string | null
+          last_assessed_by_email: string | null
+          notes: string | null
+          risk_level: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          client_id: string
+          created_at?: string
+          current_score?: number
+          factors?: Json
+          id?: string
+          last_assessed_at?: string
+          last_assessed_by?: string | null
+          last_assessed_by_email?: string | null
+          notes?: string | null
+          risk_level?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          client_id?: string
+          created_at?: string
+          current_score?: number
+          factors?: Json
+          id?: string
+          last_assessed_at?: string
+          last_assessed_by?: string | null
+          last_assessed_by_email?: string | null
+          notes?: string | null
+          risk_level?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       account_service_locations: {
         Row: {
