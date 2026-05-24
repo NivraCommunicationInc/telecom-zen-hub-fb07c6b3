@@ -222,7 +222,7 @@ serve(async (req) => {
           .from("appointments")
           .insert({
             client_id: client_user_id,
-            admin_user_id: user.id,
+            admin_id: user.id,
             created_by: user.id,
             title,
             description: body.internal_notes ?? null,
