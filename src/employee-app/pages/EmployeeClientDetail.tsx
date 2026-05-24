@@ -194,7 +194,8 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
 
       {/* 4. Quick Actions bar */}
       <QuickActions
-        clientId={clientId} account={account} orders={orders} invoices={invoices}
+        clientId={clientId} clientEmail={profile?.email} clientName={profile?.full_name ?? undefined}
+        account={account} orders={orders} invoices={invoices}
         subscriptions={subscriptions} appointments={appointments} tickets={tickets}
         unpaidCount={unpaidInvoices.length}
         onAddNote={() => setShowNoteInput(!showNoteInput)}
