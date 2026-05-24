@@ -38,7 +38,8 @@ import { AccountCallsDialog } from "@/shared-ops/components/AccountCallsDialog";
 import { AccountPreferencesDialog } from "@/shared-ops/components/AccountPreferencesDialog";
 import { AccountTagsDialog } from "@/shared-ops/components/AccountTagsDialog";
 import { AccountFollowupsDialog } from "@/shared-ops/components/AccountFollowupsDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo } from "lucide-react";
+import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPrivacyRequestsDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion } from "lucide-react";
 
 
 interface Props {
@@ -88,6 +89,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [followupsOpen, setFollowupsOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -137,6 +139,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: Settings2, label: "Préférences communication", onClick: () => setPreferencesOpen(true), color: "violet" as const },
     { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
     { icon: ListTodo, label: "Tâches & suivis", onClick: () => setFollowupsOpen(true), color: "violet" as const },
+    { icon: ShieldQuestion, label: "Demandes Loi 25", onClick: () => setPrivacyOpen(true), color: "danger" as const },
   ];
 
   const colorMap: Record<string, string> = {
