@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck } from "lucide-react";
+import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -24,7 +24,7 @@ interface Props {
 
 interface DocItem {
   id: string;
-  source: "contract" | "auto" | "uploaded" | "order";
+  source: "contract" | "auto" | "uploaded" | "order" | "invoice" | "receipt" | "quote";
   category: string;
   name: string;
   number?: string | null;
@@ -40,6 +40,9 @@ const sourceMeta: Record<DocItem["source"], { label: string; icon: any; tone: st
   auto: { label: "Auto-générés", icon: FileCheck2, tone: "bg-blue-500/15 text-blue-300 border-blue-500/30" },
   uploaded: { label: "Téléversés", icon: Upload, tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
   order: { label: "Commandes", icon: PackageCheck, tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+  invoice: { label: "Factures", icon: FileSpreadsheet, tone: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
+  receipt: { label: "Reçus", icon: Receipt, tone: "bg-teal-500/15 text-teal-300 border-teal-500/30" },
+  quote: { label: "Soumissions", icon: FileQuestion, tone: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30" },
 };
 
 function formatBytes(n?: number | null): string {
