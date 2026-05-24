@@ -161,11 +161,15 @@ serve(async (req) => {
           .limit(100);
         if (ordersErr) return json(500, { error: ordersErr.message });
 
-        const { data: subs, error: subsErr } = await admin
-          .from("billing_subscriptions")
-          .select("id, order_id")
-          .eq("status", "active")
-          .in("customer_id", await resolveCustomerIds(admin, client_user_id));
+        const customerIds = await resolveCustomerIds(admin, client_user_id);
+        const subsRes = customerIds.length > 0
+          ? await admin
+              .from("billing_subscriptions")
+              .select("id, order_id")
+              .eq("status", "active")
+              .in("customer_id", customerIds)
+          : { data: [], error: null } as any;
+        const { data: subs, error: subsErr } = subsRes;
         if (subsErr) return json(500, { error: subsErr.message });
 
         const orderIds = Array.from(new Set([
