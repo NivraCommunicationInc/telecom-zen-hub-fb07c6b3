@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preview — Nivra Telecom (Fizz/Bell/Rogers grade)</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    :root {
+      --violet: #7C3AED;
+      --violet-dark: #5B21B6;
+      --violet-light: #9D6EF8;
+      --lavender: #F4F0FF;
+      --lavender-border: #E0D5FA;
+      --pink: #EC4899;
+      --text: #0D0D0D;
+      --text-muted: #4B5563;
+      --text-soft: #6B7280;
+      --bg: #FFFFFF;
+      --emerald: #10B981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { color-scheme: light; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── PREVIEW NOTICE BAR ─────────────────────────────────────────────── */
+    .preview-bar {
+      background: linear-gradient(90deg, var(--violet), var(--violet-dark));
+      color: white; padding: 10px 20px; text-align: center;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── HEADER (mock — replicates the real Nivra header) ──────────────── */
+    .header {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg); border-bottom: 1px solid #EEEEEE;
+      backdrop-filter: blur(10px);
+    }
+    .header-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px; padding: 0 24px; max-width: 1200px; margin: 0 auto;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 18px; color: var(--text);
+    }
+    .logo-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--violet); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 18px;
+    }
+    .nav { display: flex; gap: 8px; }
+    .nav a {
+      padding: 8px 14px; font-size: 14px; font-weight: 600;
+      color: var(--text-muted); border-radius: 8px; transition: color 0.2s;
+    }
+    .nav a:hover { color: var(--text); }
+    .header-cta {
+      background: var(--violet); color: white; padding: 10px 20px;
+      border-radius: 999px; font-size: 14px; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .header-cta:hover { background: var(--violet-dark); transform: translateY(-1px); }
+    @media (max-width: 768px) { .nav { display: none; } }
+
+    /* ── HERO ──────────────────────────────────────────────────────────── */
+    .hero {
+      position: relative; overflow: hidden;
+      padding: 80px 24px 60px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--lavender) 100%);
+    }
+    .hero-grid {
+      max-width: 1280px; margin: 0 auto;
+      display: grid; gap: 60px; grid-template-columns: 1.05fr 1fr;
+      align-items: center;
+    }
+    @media (max-width: 1024px) { .hero-grid { grid-template-columns: 1fr; } }
+
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.7); border: 1px solid var(--lavender-border);
+      color: var(--violet-dark); padding: 6px 16px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      backdrop-filter: blur(8px);
+    }
+    .hero h1 {
+      margin-top: 24px;
+      font-size: clamp(2.4rem, 5vw, 4.5rem);
+      font-weight: 800; line-height: 1.05; letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, var(--violet), var(--violet-light), var(--violet-dark));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero h1 .subline {
+      display: block; margin-top: 8px;
+      font-size: clamp(1.6rem, 3.5vw, 3rem);
+      color: var(--text-muted); font-weight: 700;
+    }
+    .hero h1 .subline .accent { color: var(--violet); }
+    .hero p.lead {
+      margin-top: 28px; max-width: 52ch;
+      color: var(--text-muted); font-size: 1.125rem; line-height: 1.6;
+    }
+    .cta-row { margin-top: 36px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      height: 56px; padding: 0 32px; border-radius: 999px;
+      background: var(--violet); color: white;
+      font-weight: 600; font-size: 16px;
+      box-shadow: 0 12px 40px -12px rgba(124,58,237,0.7);
+      transition: all 0.3s;
+    }
+    .btn-primary:hover {
+      background: var(--violet-dark); transform: scale(1.02);
+      box-shadow: 0 18px 50px -12px rgba(124,58,237,0.9);
+    }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      height: 56px; padding: 0 32px; border-radius: 999px;
+      background: rgba(255,255,255,0.8); color: var(--violet-dark);
+      border: 2px solid var(--lavender-border);
+      font-weight: 600; font-size: 16px;
+      backdrop-filter: blur(8px); transition: all 0.2s;
+    }
+    .btn-secondary:hover { background: white; border-color: var(--violet); }
+    .trust-list {
+      margin-top: 28px; display: flex; flex-wrap: wrap; gap: 20px;
+      list-style: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
+    }
+    .trust-list li { display: inline-flex; align-items: center; gap: 8px; }
+    .trust-list svg { width: 16px; height: 16px; color: var(--violet); }
+
+    /* ── HERO FLOATING CARDS ────────────────────────────────────────────── */
+    .floating-cards {
+      position: relative; height: 560px;
+    }
+    @media (max-width: 1024px) { .floating-cards { display: none; } }
+    .card {
+      position: absolute; border-radius: 16px; padding: 20px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+      backdrop-filter: blur(20px);
+      animation: float 6s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .card-1 {
+      right: 0; top: 32px; width: 260px;
+    }
+    .card-2 {
+      right: 80px; top: 192px; width: 300px;
+      background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+      border: 1px solid rgba(124,58,237,0.3); color: white;
+      box-shadow: 0 20px 60px -12px rgba(124,58,237,0.5);
+      padding: 24px; z-index: 10; animation-delay: 1s;
+    }
+    .card-3 {
+      right: 8px; bottom: 0; width: 240px;
+      border: 1px solid #BBF7D0;
+      animation-delay: 2s;
+    }
+    .card-title {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--violet);
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .card-3 .card-title { color: var(--emerald); }
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px rgba(16,185,129,0.6);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .speed-value {
+      margin-top: 16px; display: flex; align-items: baseline; gap: 8px;
+      font-size: 36px; font-weight: 800; color: var(--text);
+    }
+    .speed-value small { font-size: 14px; font-weight: 500; color: var(--text-soft); }
+    .progress-bar {
+      margin-top: 12px; height: 8px; background: var(--lavender);
+      border-radius: 999px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, var(--violet), #C7B6F2);
+      border-radius: 999px;
+      animation: fill 1.8s ease-out 1.4s forwards;
+    }
+    @keyframes fill { to { width: 92%; } }
+    .badge-recommended {
+      background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      backdrop-filter: blur(8px);
+    }
+    .plan-price {
+      margin-top: 20px; display: flex; align-items: baseline; gap: 4px;
+    }
+    .plan-price .num { font-size: 48px; font-weight: 800; }
+    .plan-price .dollar { font-size: 20px; font-weight: 600; opacity: 0.9; }
+    .plan-price .period { font-size: 14px; opacity: 0.75; margin-left: 4px; }
+    .plan-features { margin-top: 16px; list-style: none; }
+    .plan-features li {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; opacity: 0.95; padding: 3px 0;
+    }
+    .free-month {
+      margin-top: 16px; padding: 8px; text-align: center;
+      background: rgba(255,255,255,0.1); border-radius: 8px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      backdrop-filter: blur(8px);
+    }
+    .savings-value {
+      margin-top: 12px;
+      font-size: 28px; font-weight: 800; color: var(--text);
+    }
+    .savings-caption {
+      margin-top: 4px; font-size: 11px; color: var(--text-soft); line-height: 1.4;
+    }
+
+    /* ── MESH GRADIENT BLOBS ────────────────────────────────────────────── */
+    .mesh-bg {
+      position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+    }
+    .blob {
+      position: absolute; border-radius: 50%; filter: blur(80px);
+      animation: morph 20s ease-in-out infinite;
+    }
+    .blob-1 {
+      top: -120px; left: -120px; width: 520px; height: 520px;
+      background: radial-gradient(circle, var(--violet) 0%, transparent 70%);
+      opacity: 0.3;
+    }
+    .blob-2 {
+      top: -80px; right: 0; width: 420px; height: 420px;
+      background: radial-gradient(circle, #C7B6F2 0%, transparent 70%);
+      opacity: 0.4; animation-delay: -5s;
+    }
+    .blob-3 {
+      top: 40%; left: 35%; width: 380px; height: 380px;
+      background: radial-gradient(circle, var(--pink) 0%, transparent 70%);
+      opacity: 0.2; animation-delay: -10s;
+    }
+    @keyframes morph {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(40px,-30px) scale(1.15); }
+      66% { transform: translate(-20px,20px) scale(0.95); }
+    }
+
+    /* ── SECTIONS GENERIQUE ────────────────────────────────────────────── */
+    section.std {
+      padding: 80px 24px;
+    }
+    section.lavender { background: var(--lavender); }
+    .section-head { text-align: center; max-width: 700px; margin: 0 auto 48px; }
+    .section-head h2 {
+      margin-top: 16px;
+      font-size: clamp(1.875rem, 4vw, 3rem);
+      font-weight: 800; line-height: 1.2; letter-spacing: -0.02em;
+    }
+    .section-head p {
+      margin-top: 16px; color: var(--text-muted);
+      font-size: 1.05rem; line-height: 1.6;
+    }
+
+    /* ── STATS ─────────────────────────────────────────────────────────── */
+    .stats {
+      max-width: 1080px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--lavender-border);
+      border-radius: 24px; padding: 40px;
+      backdrop-filter: blur(8px);
+    }
+    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    .stat { text-align: center; }
+    .stat-icon { width: 20px; height: 20px; color: var(--violet); opacity: 0.7; margin: 0 auto 8px; }
+    .stat-value { font-size: 32px; font-weight: 800; color: var(--text); }
+    .stat-label { margin-top: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-soft); }
+
+    /* ── PRICING GRID ───────────────────────────────────────────────────── */
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    @media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
+    .plan {
+      position: relative; padding: 32px;
+      background: var(--bg); border: 1px solid var(--lavender-border);
+      border-radius: 24px;
+      display: flex; flex-direction: column;
+    }
+    .plan-highlight {
+      background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+      color: white; border-color: rgba(124,58,237,0.3);
+      box-shadow: 0 20px 60px -12px rgba(124,58,237,0.5);
+    }
+    .plan-badge {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: white; color: var(--violet-dark);
+      padding: 6px 16px; border-radius: 999px;
+      font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .plan-tagline {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+      opacity: 0.7;
+    }
+    .plan-name { margin-top: 8px; font-size: 24px; font-weight: 800; }
+    .plan-cta {
+      margin-top: 24px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 48px; border-radius: 999px;
+      font-size: 14px; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .plan:not(.plan-highlight) .plan-cta { background: var(--violet); color: white; }
+    .plan-highlight .plan-cta { background: white; color: var(--violet-dark); }
+    .plan-cta:hover { transform: translateY(-1px); }
+
+    /* ── COMPARISON TABLE ───────────────────────────────────────────────── */
+    .comparison {
+      max-width: 1080px; margin: 0 auto;
+      background: rgba(255,255,255,0.6);
+      border: 1px solid var(--lavender-border);
+      border-radius: 24px; overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    .comparison-grid {
+      display: grid; grid-template-columns: 1.5fr repeat(3, 1fr);
+    }
+    .comparison-grid > div {
+      padding: 20px; font-size: 14px;
+      border-right: 1px solid var(--lavender-border);
+      border-bottom: 1px solid var(--lavender-border);
+    }
+    .comparison-grid > div:nth-child(4n) { border-right: none; }
+    .comparison-header {
+      font-weight: 700; text-align: center;
+    }
+    .comparison-header.nivra {
+      background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+      color: white;
+    }
+    .row-feature { font-weight: 600; }
+    .row-value { text-align: center; }
+    .row-nivra { background: rgba(244,240,255,0.4); color: var(--violet-dark); font-weight: 600; }
+    .check-mark {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--emerald); color: white;
+    }
+    .dash { color: #94A3B8; }
+
+    /* ── COVERAGE ──────────────────────────────────────────────────────── */
+    .coverage {
+      max-width: 1080px; margin: 0 auto;
+      background: linear-gradient(135deg, var(--lavender), var(--bg), var(--lavender));
+      border: 1px solid var(--lavender-border);
+      border-radius: 24px; padding: 64px 40px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;
+    }
+    @media (max-width: 768px) { .coverage { grid-template-columns: 1fr; padding: 40px 24px; } }
+    .coverage h3 { font-size: 28px; font-weight: 800; }
+    .coverage p { margin-top: 16px; color: var(--text-muted); }
+    .coverage-cta { margin-top: 24px; display: inline-flex; align-items: center; gap: 8px;
+      height: 48px; padding: 0 24px; border-radius: 999px;
+      background: var(--violet); color: white; font-size: 14px; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .coverage-cta:hover { background: var(--violet-dark); transform: scale(1.02); }
+    .map-mock {
+      position: relative; height: 240px;
+      background: radial-gradient(circle at 50% 50%, rgba(124,58,237,0.12) 0%, transparent 70%);
+      border: 1px solid rgba(124,58,237,0.2); border-radius: 16px;
+    }
+    .map-dot {
+      position: absolute; width: 12px; height: 12px; border-radius: 50%;
+      background: var(--violet); box-shadow: 0 4px 12px rgba(124,58,237,0.4);
+    }
+    .map-dot::before {
+      content: ''; position: absolute; inset: -6px;
+      border-radius: 50%; background: var(--violet);
+      animation: ping 2.5s ease-out infinite;
+    }
+    @keyframes ping {
+      0% { transform: scale(1); opacity: 0.6; }
+      80%, 100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    /* ── TESTIMONIALS ───────────────────────────────────────────────────── */
+    .testimonials {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    @media (max-width: 900px) { .testimonials { grid-template-columns: 1fr; } }
+    .testimonial {
+      position: relative;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid var(--lavender-border);
+      border-radius: 24px; padding: 28px;
+      backdrop-filter: blur(8px);
+    }
+    .stars { display: flex; gap: 2px; margin-bottom: 12px; color: #FBBF24; }
+    .testimonial-quote {
+      font-size: 14px; line-height: 1.6; color: #374151;
+      font-style: italic;
+    }
+    .testimonial-author {
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--lavender-border);
+    }
+    .testimonial-author .name { font-weight: 700; font-size: 14px; color: var(--text); }
+    .testimonial-author .meta { font-size: 12px; color: var(--text-soft); }
+
+    /* ── TRUST BADGES ──────────────────────────────────────────────────── */
+    .trust-badges {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    @media (max-width: 900px) { .trust-badges { grid-template-columns: repeat(2, 1fr); } }
+    .trust-badge {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--lavender-border);
+      border-radius: 16px; padding: 24px;
+      backdrop-filter: blur(8px);
+    }
+    .trust-badge-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 48px; height: 48px; border-radius: 12px;
+      background: var(--lavender); color: var(--violet);
+      margin-bottom: 12px;
+    }
+    .trust-badge h3 { font-size: 16px; font-weight: 700; color: var(--text); }
+    .trust-badge p { margin-top: 6px; font-size: 13px; color: var(--text-soft); line-height: 1.5; }
+
+    /* ── MARQUEE ───────────────────────────────────────────────────────── */
+    .marquee {
+      overflow: hidden; padding: 24px 0;
+      background: rgba(255,255,255,0.4);
+      border-top: 1px solid var(--lavender-border);
+      border-bottom: 1px solid var(--lavender-border);
+    }
+    .marquee-track {
+      display: flex; gap: 48px;
+      animation: scroll 30s linear infinite;
+      white-space: nowrap;
+    }
+    @keyframes scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .marquee-item {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: #94A3B8;
+      font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    }
+
+    /* ── FINAL CTA ─────────────────────────────────────────────────────── */
+    .final-cta {
+      max-width: 1080px; margin: 0 auto;
+      background: linear-gradient(135deg, var(--violet), #6929D8, var(--violet-dark));
+      border-radius: 24px; padding: 64px 40px;
+      color: white; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .final-cta::before, .final-cta::after {
+      content: ''; position: absolute;
+      width: 384px; height: 384px; border-radius: 50%;
+      filter: blur(60px); pointer-events: none;
+    }
+    .final-cta::before { top: -128px; right: -128px; background: rgba(255,255,255,0.1); }
+    .final-cta::after { bottom: -128px; left: -128px; background: rgba(236,72,153,0.15); }
+    .final-cta h2 {
+      position: relative;
+      font-size: clamp(2rem, 4.5vw, 3rem); font-weight: 800;
+      line-height: 1.2; letter-spacing: -0.02em;
+    }
+    .final-cta p { position: relative; margin-top: 20px; font-size: 18px; opacity: 0.95; }
+    .final-cta .cta-row { position: relative; justify-content: center; }
+    .final-cta .btn-primary {
+      background: white; color: var(--violet-dark);
+      box-shadow: 0 20px 60px -12px rgba(0,0,0,0.3);
+    }
+    .final-cta .btn-secondary {
+      background: rgba(255,255,255,0.1); color: white;
+      border-color: rgba(255,255,255,0.4);
+    }
+
+    /* ── FOOTER MOCK ────────────────────────────────────────────────────── */
+    .footer {
+      background: #0A0A0A; color: white; padding: 64px 24px 32px;
+    }
+    .footer-grid {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 48px;
+    }
+    @media (max-width: 768px) { .footer-grid { grid-template-columns: repeat(2, 1fr); } }
+    .footer-col h4 {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+      margin-bottom: 16px;
+    }
+    .footer-col a {
+      display: block; color: #888;
+      font-size: 13px; line-height: 1.8; transition: color 0.2s;
+    }
+    .footer-col a:hover { color: white; }
+    .footer-bottom {
+      max-width: 1200px; margin: 48px auto 0; padding-top: 24px;
+      border-top: 1px solid #1a1a1a;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      color: #555; font-size: 12px;
+    }
+
+    /* ── ICONS (inline SVG) ─────────────────────────────────────────────── */
+    .icon { width: 16px; height: 16px; flex-shrink: 0; }
+    .icon-lg { width: 24px; height: 24px; }
+  </style>
+</head>
+<body>
+
+  <!-- Preview notice -->
+  <div class="preview-bar">
+    🧪 PREVIEW STATIQUE — Nouveau design Nivra (Fizz/Bell/Rogers grade) — fichier HTML pur, garanti visible
+  </div>
+
+  <!-- HEADER MOCK -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="#" class="logo">
+        <span class="logo-mark">N</span>
+        NIVRA TELECOM
+      </a>
+      <nav class="nav">
+        <a href="#">Internet</a>
+        <a href="#">Télévision</a>
+        <a href="#">Mobile</a>
+        <a href="#">Forfaits</a>
+        <a href="#">Couverture</a>
+        <a href="#">Support</a>
+      </nav>
+      <a href="#" class="header-cta">Mon compte</a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="mesh-bg">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
+
+    <div class="hero-grid">
+      <div>
+        <a href="#" class="eyebrow">
+          ✨ Garantie 30 jours · Premier mois gratuit →
+        </a>
+        <h1>
+          L'internet <span class="gradient-text">premium</span> du Québec
+          <span class="subline">sans contrat. <span class="accent">Sans surprise.</span></span>
+        </h1>
+        <p class="lead">
+          Internet fibre 1 010 Mbps, télévision IPTV et mobile — chez vous en 2 jours, sans engagement,
+          sans vérification de crédit. L'alternative québécoise à Bell et Vidéotron.
+        </p>
+        <div class="cta-row">
+          <a href="#" class="btn-primary">Commander maintenant →</a>
+          <a href="#" class="btn-secondary">Vérifier ma couverture</a>
+        </div>
+        <ul class="trust-list">
+          <li><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Aucun engagement</li>
+          <li><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Aucun crédit requis</li>
+          <li><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l1.9 5.8L20 9l-5 4.3L16.4 21 12 17.5 7.6 21l1.4-7.7L4 9l6.1-.2z"/></svg> 1er mois offert</li>
+        </ul>
+      </div>
+
+      <div class="floating-cards">
+        <div class="card card-1">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="card-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Test de vitesse
+            </div>
+            <span class="pulse-dot"></span>
+          </div>
+          <div class="speed-value">1 010 <small>Mbps</small></div>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+
+        <div class="card card-2">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="badge-recommended">GIGA Recommandé</span>
+            <svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.8;"><path d="M5 12.55a11 11 0 0 1 14 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+          </div>
+          <div class="plan-price">
+            <span class="num">60</span><span class="dollar">$</span><span class="period">/mois</span>
+          </div>
+          <ul class="plan-features">
+            <li>✓ 1 010 Mbps fibre</li>
+            <li>✓ Sans contrat</li>
+            <li>✓ Aucun crédit requis</li>
+          </ul>
+          <div class="free-month">✨ Premier mois GRATUIT</div>
+        </div>
+
+        <div class="card card-3">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+            Économies / an
+          </div>
+          <div class="savings-value">420 $</div>
+          <p class="savings-caption">vs forfait équivalent chez Bell ou Vidéotron</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="std">
+    <div class="stats">
+      <div class="stat"><div class="stat-value">1 010 Mbps</div><div class="stat-label">Fibre symétrique</div></div>
+      <div class="stat"><div class="stat-value">60 $</div><div class="stat-label">/mois tout inclus</div></div>
+      <div class="stat"><div class="stat-value">2 jours</div><div class="stat-label">Installation moyenne</div></div>
+      <div class="stat"><div class="stat-value">100 %</div><div class="stat-label">Support local QC</div></div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="std lavender">
+    <div class="section-head">
+      <span class="eyebrow">✨ Nos forfaits</span>
+      <h2>Choisissez votre <span class="gradient-text">forfait</span></h2>
+      <p>Tous nos forfaits sont sans contrat, sans vérification de crédit, et le premier mois est offert.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="plan">
+        <div class="plan-tagline">Pour les petits usages</div>
+        <div class="plan-name">Internet 100</div>
+        <div class="plan-price"><span class="num">55</span><span class="dollar">$</span><span class="period">/mois</span></div>
+        <ul class="plan-features" style="margin-top:24px; flex:1; color:var(--text);">
+          <li>✓ 100 Mbps</li>
+          <li>✓ Données illimitées</li>
+          <li>✓ Borne WiFi requise (60$)</li>
+          <li>✓ Sans contrat</li>
+        </ul>
+        <a href="#" class="plan-cta">Choisir →</a>
+      </div>
+
+      <div class="plan plan-highlight">
+        <div class="plan-badge">⭐ RECOMMANDÉ</div>
+        <div class="plan-tagline">Le plus populaire</div>
+        <div class="plan-name">Internet GIGA</div>
+        <div class="plan-price"><span class="num">60</span><span class="dollar">$</span><span class="period">/mois</span></div>
+        <ul class="plan-features" style="margin-top:24px; flex:1;">
+          <li>✓ 1 010 Mbps fibre</li>
+          <li>✓ Données illimitées</li>
+          <li>✓ Streaming 4K + gaming</li>
+          <li>✓ Premier mois GRATUIT</li>
+          <li>✓ Sans contrat</li>
+        </ul>
+        <a href="#" class="plan-cta">Commander →</a>
+      </div>
+
+      <div class="plan">
+        <div class="plan-tagline">Internet + TV bundle</div>
+        <div class="plan-name">GIGA + TV 15 choix</div>
+        <div class="plan-price"><span class="num">90</span><span class="dollar">$</span><span class="period">/mois</span></div>
+        <ul class="plan-features" style="margin-top:24px; flex:1; color:var(--text);">
+          <li>✓ 1 010 Mbps + 15 chaînes au choix</li>
+          <li>✓ Terminal TV inclus</li>
+          <li>✓ Replay 7 jours</li>
+          <li>✓ Sans contrat</li>
+        </ul>
+        <a href="#" class="plan-cta">Choisir →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="std">
+    <div class="section-head">
+      <span class="eyebrow">⚖️ Comparaison</span>
+      <h2>Pourquoi <span class="gradient-text">Nivra</span> ?</h2>
+      <p>Voyez ce qui nous différencie de Bell et Vidéotron.</p>
+    </div>
+    <div class="comparison">
+      <div class="comparison-grid">
+        <div></div>
+        <div class="comparison-header nivra">Nivra</div>
+        <div class="comparison-header">Bell</div>
+        <div class="comparison-header">Vidéotron</div>
+
+        <div class="row-feature">Prix Internet GIGA</div>
+        <div class="row-value row-nivra">60 $/mois</div>
+        <div class="row-value">95–115 $/mois</div>
+        <div class="row-value">80–100 $/mois</div>
+
+        <div class="row-feature">Engagement</div>
+        <div class="row-value row-nivra">Aucun</div>
+        <div class="row-value">24 mois</div>
+        <div class="row-value">24 mois</div>
+
+        <div class="row-feature">Vérification de crédit</div>
+        <div class="row-value row-nivra"><span class="dash">—</span></div>
+        <div class="row-value"><span class="check-mark">✓</span></div>
+        <div class="row-value"><span class="check-mark">✓</span></div>
+
+        <div class="row-feature">Premier mois</div>
+        <div class="row-value row-nivra">GRATUIT</div>
+        <div class="row-value">Payé</div>
+        <div class="row-value">Payé</div>
+
+        <div class="row-feature">Frais de résiliation</div>
+        <div class="row-value row-nivra">0 $</div>
+        <div class="row-value">200–400 $</div>
+        <div class="row-value">200 $</div>
+
+        <div class="row-feature" style="border-bottom:none;">Support local Québec</div>
+        <div class="row-value row-nivra" style="border-bottom:none;"><span class="check-mark">✓</span></div>
+        <div class="row-value" style="border-bottom:none;"><span class="dash">—</span></div>
+        <div class="row-value" style="border-bottom:none;"><span class="check-mark">✓</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COVERAGE -->
+  <section class="std lavender">
+    <div class="section-head">
+      <span class="eyebrow">📍 Couverture</span>
+      <h2>Disponible partout <span class="gradient-text">au Québec</span></h2>
+    </div>
+    <div class="coverage">
+      <div>
+        <h3>Vérifiez si Nivra est disponible chez vous</h3>
+        <p>Couverture fibre étendue à travers Montréal, Laval, Longueuil, Brossard, Trois-Rivières, Sherbrooke et plus. Entrez votre adresse en 10 secondes.</p>
+        <a href="#" class="coverage-cta">📍 Vérifier ma couverture →</a>
+      </div>
+      <div class="map-mock">
+        <div class="map-dot" style="top:30%; left:40%;"></div>
+        <div class="map-dot" style="top:55%; left:60%; animation-delay:0.8s;"></div>
+        <div class="map-dot" style="top:45%; left:25%; animation-delay:1.4s;"></div>
+        <div class="map-dot" style="top:20%; left:70%; animation-delay:2s;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="std">
+    <div class="section-head">
+      <span class="eyebrow">⭐ Témoignages</span>
+      <h2>Ce que <span class="gradient-text">nos clients</span> disent</h2>
+      <p>Pas des avis fabriqués. Des vrais clients québécois qui ont fait le saut.</p>
+    </div>
+    <div class="testimonials">
+      <div class="testimonial">
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-quote">"Installation en 2 jours, vitesse incroyable, et c'est 35$ moins cher que mon ancien forfait Bell. Aucun regret."</p>
+        <div class="testimonial-author">
+          <div class="name">Marie L.</div>
+          <div class="meta">Montréal · Internet GIGA</div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-quote">"Le service client est à Montréal, ils parlent vrai français québécois, et j'ai eu mon problème réglé en 10 minutes."</p>
+        <div class="testimonial-author">
+          <div class="name">Karim B.</div>
+          <div class="meta">Laval · GIGA + TV 15 choix</div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-quote">"Premier mois gratuit, ça paraît trop beau pour être vrai. Mais c'était vrai. Un mois plus tard je suis encore satisfaite."</p>
+        <div class="testimonial-author">
+          <div class="name">Sophie T.</div>
+          <div class="meta">Longueuil · Internet 500</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee">
+    <div class="marquee-track">
+      <span class="marquee-item">🏆 Visa</span>
+      <span class="marquee-item">🏆 Mastercard</span>
+      <span class="marquee-item">🏆 PayPal</span>
+      <span class="marquee-item">🏆 Interac</span>
+      <span class="marquee-item">🏆 Cloudflare</span>
+      <span class="marquee-item">🏆 SSL 256-bit</span>
+      <span class="marquee-item">🏆 Loi 25</span>
+      <span class="marquee-item">🏆 CRTC</span>
+      <span class="marquee-item">🏆 Award Local 2026</span>
+      <span class="marquee-item">🏆 Visa</span>
+      <span class="marquee-item">🏆 Mastercard</span>
+      <span class="marquee-item">🏆 PayPal</span>
+      <span class="marquee-item">🏆 Interac</span>
+      <span class="marquee-item">🏆 Cloudflare</span>
+      <span class="marquee-item">🏆 SSL 256-bit</span>
+      <span class="marquee-item">🏆 Loi 25</span>
+      <span class="marquee-item">🏆 CRTC</span>
+      <span class="marquee-item">🏆 Award Local 2026</span>
+    </div>
+  </div>
+
+  <!-- TRUST BADGES -->
+  <section class="std">
+    <div class="section-head">
+      <span class="eyebrow">🛡️ Confiance</span>
+      <h2>Pourquoi nous faire confiance</h2>
+    </div>
+    <div class="trust-badges">
+      <div class="trust-badge">
+        <div class="trust-badge-icon">🛡️</div>
+        <h3>100% sécurisé</h3>
+        <p>SSL 256-bit, paiement Visa/Mastercard/PayPal, conformité Loi 25.</p>
+      </div>
+      <div class="trust-badge">
+        <div class="trust-badge-icon">🔓</div>
+        <h3>Sans engagement</h3>
+        <p>Annulez quand vous voulez. Aucun frais de résiliation, aucun préavis.</p>
+      </div>
+      <div class="trust-badge">
+        <div class="trust-badge-icon">❤️</div>
+        <h3>Support local</h3>
+        <p>Équipe basée à Montréal. Vrai support en français québécois, 7 jours sur 7.</p>
+      </div>
+      <div class="trust-badge">
+        <div class="trust-badge-icon">⚡</div>
+        <h3>Activation rapide</h3>
+        <p>Installation en 2-3 jours ouvrables après confirmation de votre adresse.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="std lavender">
+    <div class="final-cta">
+      <h2>Prêt à passer à un internet vraiment <span style="background:linear-gradient(90deg,#fff,var(--lavender));-webkit-background-clip:text;background-clip:text;color:transparent;">québécois</span> ?</h2>
+      <p>Premier mois gratuit. Sans contrat. Sans crédit. Annulez quand vous voulez. Installation en 2 jours.</p>
+      <div class="cta-row">
+        <a href="#" class="btn-primary">Commander maintenant →</a>
+        <a href="#" class="btn-secondary">Vérifier ma couverture</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER MOCK -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4 style="color:white;font-size:24px;letter-spacing:-0.5px;">NIVRA<span style="color:#7C3AED;">TELECOM</span></h4>
+        <p style="color:#888;font-size:13px;line-height:1.6;margin-top:12px;">Fournisseur Internet, TV et mobile sans contrat au Québec.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Nos services</h4>
+        <a href="#">Internet haute vitesse</a>
+        <a href="#">Télévision IPTV</a>
+        <a href="#">Mobile</a>
+        <a href="#">Comparer les forfaits</a>
+        <a href="#">Couverture</a>
+      </div>
+      <div class="footer-col">
+        <h4>Aide & Support</h4>
+        <a href="#">Centre de support</a>
+        <a href="#">État des services</a>
+        <a href="#">FAQ</a>
+        <a href="#">Test de vitesse</a>
+        <a href="#">Soumettre une plainte</a>
+      </div>
+      <div class="footer-col">
+        <h4>Paiements & Sécurité</h4>
+        <p style="color:#888;font-size:13px;line-height:1.8;">Visa · Mastercard · PayPal · Interac</p>
+        <p style="color:#888;font-size:13px;line-height:1.8;">SSL 256-bit · Cloudflare</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 NIVRA COMMUNICATIONS INC. — Tous droits réservés · Québec, Canada</span>
+      <span>NEQ 2291249786 | TPS 732287291 RT0001 | TVQ 1229249786 TQ0001</span>
+    </div>
+  </footer>
+
+</body>
+</html>
