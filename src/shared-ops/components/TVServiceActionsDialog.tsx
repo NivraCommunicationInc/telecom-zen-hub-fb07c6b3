@@ -300,20 +300,23 @@ export function TVServiceActionsDialog({
           {/* ============ PLAN ============ */}
           <TabsContent value="plan" className="space-y-4 pt-4">
             <div>
-              <Label>Nouveau forfait</Label>
+              <Label>Nouveau forfait (catalogue Nivra)</Label>
               <Select
                 value={planName}
                 onValueChange={(v) => {
                   setPlanName(v);
-                  const found = PLAN_CATALOG.find((p) => p.name === v);
+                  const found = tvPlans.find((p) => p.name === v);
                   if (found) setPlanPrice(String(found.price));
                 }}
-                disabled={busy}
+                disabled={busy || loadingPlans}
               >
-                <SelectTrigger><SelectValue placeholder="Sélectionner un forfait…" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={loadingPlans ? "Chargement…" : "Sélectionner un forfait…"} /></SelectTrigger>
                 <SelectContent>
-                  {PLAN_CATALOG.map((p) => (
-                    <SelectItem key={p.name} value={p.name}>
+                  {tvPlans.length === 0 && !loadingPlans && (
+                    <SelectItem value="__none" disabled>Aucun forfait TV actif dans le catalogue</SelectItem>
+                  )}
+                  {tvPlans.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
                       {p.name} — {fmt(p.price)}/mois
                     </SelectItem>
                   ))}
