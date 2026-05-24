@@ -445,6 +445,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           accountId={accountId ?? null}
         />
       )}
+
+      {clientId && (
+        <AccountFollowupsDialog
+          open={followupsOpen}
+          onClose={() => setFollowupsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
+          accountId={accountId ?? null}
+        />
+      )}
     </>
   );
 }
