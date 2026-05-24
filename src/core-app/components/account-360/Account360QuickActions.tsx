@@ -31,7 +31,8 @@ import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDi
 import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
 import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountActivityTimelineDialog";
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
-import { UserCog, ShieldCheck, History, FolderOpen } from "lucide-react";
+import { AccountSecurityDialog } from "@/shared-ops/components/AccountSecurityDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert } from "lucide-react";
 
 
 interface Props {
