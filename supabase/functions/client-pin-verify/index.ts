@@ -182,9 +182,19 @@ serve(async (req) => {
     }
 
     // Hash the provided PIN and compare
-    const providedHash = await hashPin(pin);
-    
-    if (providedHash !== pinRecord.pin_hash) {
+    // Reject legacy rows missing per-record salt (must request a fresh PIN)
+    if (!pinRecord.pin_salt) {
+      console.log(`[client-pin-verify][${requestId}] Legacy PIN without salt, rejecting for: ${maskedEmail}`);
+      await supabase.from("client_login_pins").update({ used: true }).eq("id", pinRecord.id);
+      return new Response(
+        JSON.stringify({ valid: false, reason: "no_valid_pin", error: "Code expiré. Veuillez demander un nouveau code." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const providedHash = await hashPin(pin, pinRecord.pin_salt);
+
+    if (!timingSafeEqualHex(providedHash, pinRecord.pin_hash)) {
       const newAttempts = pinRecord.attempts + 1;
       console.log(`[client-pin-verify][${requestId}] Invalid PIN, attempt ${newAttempts}`);
       
