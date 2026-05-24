@@ -257,16 +257,28 @@ export default function HrPayrollPage() {
 
       const userIds = [...new Set(data.map((e: any) => e.user_id))];
       if (userIds.length) {
-        const { data: emps } = await supabase
-          .from("employee_records")
-          .select("user_id, first_name, last_name, job_title, hourly_rate, work_email")
-          .in("user_id", userIds);
+        const [{ data: emps }, { data: profs }] = await Promise.all([
+          supabase
+            .from("employee_records")
+            .select("user_id, first_name, last_name, job_title, hourly_rate, work_email")
+            .in("user_id", userIds),
+          supabase
+            .from("profiles")
+            .select("user_id, full_name, email")
+            .in("user_id", userIds),
+        ]);
         const map = Object.fromEntries((emps || []).map((p: any) => [p.user_id, p]));
-        return data.map((e: any) => ({
-          ...e,
-          _emp: map[e.user_id] || null,
-          _name: map[e.user_id] ? `${map[e.user_id].first_name} ${map[e.user_id].last_name}` : e.user_id.slice(0, 8),
-        }));
+        const pmap = Object.fromEntries((profs || []).map((p: any) => [p.user_id, p]));
+        return data.map((e: any) => {
+          const emp = map[e.user_id];
+          const prof = pmap[e.user_id];
+          const fallback = prof?.full_name || prof?.email || "Employé";
+          return {
+            ...e,
+            _emp: emp || null,
+            _name: emp ? `${emp.first_name} ${emp.last_name}`.trim() : fallback,
+          };
+        });
       }
       return data;
     },
@@ -909,7 +921,7 @@ export default function HrPayrollPage() {
     if (entriesToExport.length === 0) return toast.error("Aucune fiche à exporter");
     const cols = [["Numéro", "Employé", "Heures", "Base ($)", "Commission ($)", "Bonus ($)", "Brut ($)", "Déductions ($)", "Net ($)", "Statut"]];
     const rows = entriesToExport.map((e: any) => [
-      e.payroll_number || "", e._name || e.user_id?.slice(0, 8),
+      e.payroll_number || "", e._name || "Employé",
       e.hours_worked, e.base_salary, e.commission_total, e.bonus_total,
       e.gross_pay, e.deductions_total, e.net_pay, e.status,
     ]);

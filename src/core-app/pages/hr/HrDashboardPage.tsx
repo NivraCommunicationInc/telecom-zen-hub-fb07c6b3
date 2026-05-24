@@ -279,7 +279,7 @@ export default function HrDashboardPage() {
                       <TableCell className="text-xs font-medium">
                         {row._emp
                           ? `${row._emp.first_name} ${row._emp.last_name}`
-                          : row.employee_id.slice(0, 8)}
+                          : "Employé"}
                         {row._emp?.job_title && (
                           <span className="ml-1 text-[10px] text-muted-foreground">({row._emp.job_title})</span>
                         )}
@@ -330,7 +330,7 @@ export default function HrDashboardPage() {
                 {recentRequests.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs font-medium">
-                      {r._emp ? `${r._emp.first_name} ${r._emp.last_name}` : r.employee_id.slice(0, 8)}
+                      {r._emp ? `${r._emp.first_name} ${r._emp.last_name}` : "Employé"}
                     </TableCell>
                     <TableCell className="text-xs">{REQUEST_TYPE_LABELS[r.request_type] ?? r.request_type}</TableCell>
                     <TableCell className="text-[10px]">

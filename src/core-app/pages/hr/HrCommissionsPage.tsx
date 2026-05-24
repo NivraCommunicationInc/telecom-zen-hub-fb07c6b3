@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ProfileName } from "@/hooks/useProfileName";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending_activation: { label: "En attente", variant: "secondary" },
@@ -645,7 +646,7 @@ export default function HrCommissionsPage() {
                       return (
                         <TableRow key={a.employee_id}>
                           <TableCell className="text-xs font-medium">
-                            {a._emp ? `${a._emp.first_name} ${a._emp.last_name}` : a.employee_id.slice(0, 8)}
+                            {a._emp ? `${a._emp.first_name} ${a._emp.last_name}` : <ProfileName userId={a.employee_id} fallback="Employé" />}
                             {a._emp?.job_title && (
                               <span className="block text-[10px] text-muted-foreground">{a._emp.job_title}</span>
                             )}
@@ -739,7 +740,7 @@ export default function HrCommissionsPage() {
                             <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                           </TableCell>
                           <TableCell className="text-xs">
-                            {c._emp ? `${c._emp.first_name} ${c._emp.last_name}` : c.employee_id.slice(0, 8)}
+                            {c._emp ? `${c._emp.first_name} ${c._emp.last_name}` : <ProfileName userId={c.employee_id} fallback="Employé" />}
                             {c._emp?.job_title && (
                               <span className="ml-1 text-[10px] text-muted-foreground">({c._emp.job_title})</span>
                             )}
@@ -865,7 +866,7 @@ export default function HrCommissionsPage() {
                   <TableBody>
                     {historyData.slice(0, 100).map((r: any, idx: number) => (
                       <TableRow key={idx}>
-                        <TableCell className="text-xs font-mono">{r.employee_id.slice(0, 8)}</TableCell>
+                        <TableCell className="text-xs"><ProfileName userId={r.employee_id} fallback="Employé" /></TableCell>
                         <TableCell className="text-xs font-medium">{fmt(Number(r.amount))}</TableCell>
                         <TableCell><Badge variant="default" className="text-[10px]">{r.status}</Badge></TableCell>
                         <TableCell className="text-[10px]">{r.paid_at ? format(new Date(r.paid_at), "d MMM yyyy", { locale: fr }) : "—"}</TableCell>

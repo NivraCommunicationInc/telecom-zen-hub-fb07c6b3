@@ -76,7 +76,7 @@ export default function CoreCommissionGridPage() {
       return Array.from(counts.entries())
         .map(([id, v]) => ({
           id,
-          name: profMap.get(id)?.full_name || profMap.get(id)?.email || id.slice(0, 8),
+          name: profMap.get(id)?.full_name || profMap.get(id)?.email || "Agent",
           count: v.count,
           revenue: v.revenue,
         }))

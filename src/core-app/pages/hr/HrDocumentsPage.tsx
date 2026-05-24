@@ -131,7 +131,7 @@ export default function HrDocumentsPage() {
                   return (
                     <TableRow key={l.id}>
                       <TableCell className="text-xs">
-                        {l._emp ? `${l._emp.first_name} ${l._emp.last_name}` : (l.user_id || "—").slice(0, 8)}
+                        {l._emp ? `${l._emp.first_name} ${l._emp.last_name}` : "Employé"}
                         {l._emp?.employee_number && <span className="ml-1 text-[10px] text-muted-foreground">({l._emp.employee_number})</span>}
                       </TableCell>
                       <TableCell className="text-xs">{l.letter_type}</TableCell>

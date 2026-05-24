@@ -70,7 +70,7 @@ export function CrmTransferDialog({ contact, onClose }: Props) {
                 <option value="">— Choisir —</option>
                 {agents.map((a) => (
                   <option key={a.user_id} value={a.user_id}>
-                    {a.full_name ?? a.email ?? a.user_id.slice(0, 8)}
+                    {a.full_name ?? a.email ?? "Agent"}
                   </option>
                 ))}
               </select>
