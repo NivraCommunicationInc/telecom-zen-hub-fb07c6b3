@@ -33,7 +33,8 @@ import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountAc
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
 import { AccountSecurityDialog } from "@/shared-ops/components/AccountSecurityDialog";
 import { AccountCommunicationDialog } from "@/shared-ops/components/AccountCommunicationDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send } from "lucide-react";
+import { AccountSmsDialog } from "@/shared-ops/components/AccountSmsDialog";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle } from "lucide-react";
 
 
 interface Props {
@@ -78,6 +79,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [communicationOpen, setCommunicationOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -122,6 +124,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: FolderOpen, label: "Documents du compte", onClick: () => setDocumentsOpen(true), color: "violet" as const },
     { icon: ShieldAlert, label: "Sécurité & sessions", onClick: () => setSecurityOpen(true), color: "danger" as const },
     { icon: Send, label: "Envoyer un message", onClick: () => setCommunicationOpen(true), color: "violet" as const },
+    { icon: MessageCircle, label: "Envoyer un SMS", onClick: () => setSmsOpen(true), color: "violet" as const },
   ];
 
   const colorMap: Record<string, string> = {
@@ -387,6 +390,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           clientEmail={clientEmail}
+          accountId={accountId ?? null}
+        />
+      )}
+
+      {clientId && (
+        <AccountSmsDialog
+          open={smsOpen}
+          onClose={() => setSmsOpen(false)}
+          clientUserId={clientId}
+          clientName={clientName}
           accountId={accountId ?? null}
         />
       )}
