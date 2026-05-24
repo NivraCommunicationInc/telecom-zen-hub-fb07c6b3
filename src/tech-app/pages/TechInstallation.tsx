@@ -216,18 +216,6 @@ export default function TechInstallation() {
       });
       if (statusError) throw statusError;
 
-      // Queue tech_completed email with Google Review CTA
-      if (assignment?.order_id) {
-        await queueTechEmail({
-          assignmentId: id,
-          orderId: assignment.order_id,
-          templateKey: "tech_completed",
-          extraVars: {
-            plan_name: serviceLabels[0] ?? "Forfait Nivra",
-            speed: download ? `${download} Mbps` : "Optimale",
-          },
-        });
-      }
       return finishedAt;
     },
     onSuccess: (finishedAt) => {
@@ -275,14 +263,13 @@ export default function TechInstallation() {
         })
         .eq("id", id);
       if (error) throw error;
-      if (assignment?.order_id) {
-        await queueTechEmail({
-          assignmentId: id,
-          orderId: assignment.order_id,
-          templateKey: "tech_rescheduled",
-          extraVars: { new_date: rescheduleDate, new_time: rescheduleTime, scheduled_date: rescheduleDate },
-        });
-      }
+      const { error: statusError } = await (supabase.rpc as any)("tech_update_assignment_status", {
+        p_assignment_id: id,
+        p_status: "rescheduled",
+        p_note: missReason || notes || null,
+        p_eta: `${rescheduleDate} ${rescheduleTime}`,
+      });
+      if (statusError) throw statusError;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
@@ -304,13 +291,6 @@ export default function TechInstallation() {
         p_eta: null,
       });
       if (error) throw error;
-      if (assignment?.order_id) {
-        await queueTechEmail({
-          assignmentId: id,
-          orderId: assignment.order_id,
-          templateKey: "tech_missed",
-        });
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
