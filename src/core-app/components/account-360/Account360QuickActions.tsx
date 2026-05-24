@@ -91,6 +91,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [tagsOpen, setTagsOpen] = useState(false);
   const [followupsOpen, setFollowupsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [fraudOpen, setFraudOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
