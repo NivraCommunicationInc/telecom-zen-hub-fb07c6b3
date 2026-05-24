@@ -54,6 +54,22 @@ const ALLOWED_ROLES = new Set([
   "admin", "employee", "supervisor", "support", "billing_admin", "sales",
 ]);
 
+async function resolveCustomerIds(admin: any, clientUserId: string): Promise<string[]> {
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("email")
+    .eq("user_id", clientUserId)
+    .maybeSingle();
+  const normalizedEmail = String(profile?.email || "").trim().toLowerCase();
+  const filters = [`user_id.eq.${clientUserId}`];
+  if (normalizedEmail) filters.push(`email.eq.${normalizedEmail}`);
+  const { data } = await admin
+    .from("billing_customers")
+    .select("id")
+    .or(filters.join(","));
+  return (data || []).map((r: { id: string }) => r.id);
+}
+
 const fmtMoney = (n: number) => {
   try {
     return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
