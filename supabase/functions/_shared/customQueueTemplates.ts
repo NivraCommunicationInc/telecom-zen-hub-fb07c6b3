@@ -2533,6 +2533,221 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CLIENT — Payment method added / removed / set default
+    // ===================================================================
+    case "client_payment_method_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const change = String(v.change_type || "added");
+      const methodLabel = esc(v.method_label || "Méthode de paiement");
+      const last4 = esc(v.last4 || "—");
+      const isDefault = String(v.is_default || "false") === "true";
+      const titleMap: Record<string, string> = {
+        added: "Méthode de paiement ajoutée",
+        removed: "Méthode de paiement retirée",
+        default_set: "Méthode de paiement par défaut mise à jour",
+      };
+      const badgeMap: Record<string, string> = {
+        added: "MÉTHODE AJOUTÉE",
+        removed: "MÉTHODE RETIRÉE",
+        default_set: "PAR DÉFAUT MISE À JOUR",
+      };
+      const title = titleMap[change] || "Modification méthode de paiement";
+      return {
+        subject: title,
+        html: shell({
+          preheader: `${title} : ${methodLabel}${last4 !== "—" ? ` •••• ${last4}` : ""}`,
+          badge: badgeMap[change] || "MÉTHODE DE PAIEMENT",
+          heroTitle: title,
+          heroSub: "Si vous n'êtes pas à l'origine de ce changement, contactez-nous immédiatement.",
+          icon: change === "removed" ? "warning" : "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise à jour suivante de vos méthodes de paiement.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Méthode", methodLabel],
+            ["4 derniers chiffres", last4],
+            ["Définie par défaut", isDefault ? "Oui" : "Non"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpVariant: change === "removed" ? "warning" : undefined,
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Auto-pay toggled
+    // ===================================================================
+    case "client_autopay_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const enabled = String(v.enabled || "false") === "true";
+      const offset = esc(v.charge_day_offset || "0");
+      const reason = esc(v.reason || "—");
+      return {
+        subject: enabled ? "Paiement automatique activé" : "Paiement automatique désactivé",
+        html: shell({
+          preheader: enabled
+            ? "Vos factures seront prélevées automatiquement."
+            : "Vous devrez payer vos factures manuellement.",
+          badge: enabled ? "PAIEMENT AUTO ACTIVÉ" : "PAIEMENT AUTO DÉSACTIVÉ",
+          heroTitle: enabled ? "Paiement automatique activé" : "Paiement automatique désactivé",
+          heroSub: enabled
+            ? "Vos factures seront prélevées automatiquement à la date d'échéance."
+            : "Veuillez régler vos prochaines factures depuis votre espace client.",
+          icon: enabled ? "check" : "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise à jour de votre préférence de paiement automatique.`,
+          cardTitle: "Paramètres",
+          cardRows: [
+            ["Statut", enabled ? "Activé" : "Désactivé"],
+            ["Décalage du jour de prélèvement", offset],
+            ["Note", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Payment plan created
+    // ===================================================================
+    case "client_payment_plan_created": {
+      const firstName = esc(v.first_name || clientName || "");
+      const total = esc(v.total_amount || "0,00 $");
+      const count = esc(v.installment_count || "0");
+      const each = esc(v.installment_amount || "0,00 $");
+      const freq = esc(v.frequency || "monthly");
+      const first = esc(v.first_due_date || "");
+      const freqLabel = freq === "weekly" ? "hebdomadaire" : freq === "biweekly" ? "aux deux semaines" : "mensuelle";
+      return {
+        subject: `Plan de paiement confirmé — ${count} versements`,
+        html: shell({
+          preheader: `Votre plan de paiement de ${total} est actif.`,
+          badge: "PLAN DE PAIEMENT ACTIF",
+          heroTitle: "Plan de paiement confirmé",
+          heroSub: "Votre solde sera réparti selon le calendrier ci-dessous.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise en place d'un plan de paiement échelonné. Veuillez régler chaque versement à la date prévue pour éviter toute interruption de service.`,
+          cardTitle: "Détails du plan",
+          cardRows: [
+            ["Montant total", total],
+            ["Nombre de versements", count],
+            ["Montant par versement", each],
+            ["Fréquence", freqLabel],
+            ["Premier versement", first],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Payment plan cancelled
+    // ===================================================================
+    case "client_payment_plan_cancelled": {
+      const firstName = esc(v.first_name || clientName || "");
+      const total = esc(v.total_amount || "0,00 $");
+      const count = esc(v.installment_count || "0");
+      const reason = esc(v.reason || "—");
+      return {
+        subject: "Plan de paiement annulé",
+        html: shell({
+          preheader: "Votre plan de paiement a été annulé.",
+          badge: "PLAN ANNULÉ",
+          heroTitle: "Plan de paiement annulé",
+          heroSub: "Le solde restant redevient exigible selon vos factures.",
+          icon: "warning",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons l'annulation de votre plan de paiement échelonné. Veuillez consulter votre espace client pour connaître votre solde actuel.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Montant total initial", total],
+            ["Nombre de versements prévus", count],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpVariant: "warning",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Billing settings change (cycle day / format / language)
+    // ===================================================================
+    case "client_billing_settings_change": {
+      const firstName = esc(v.first_name || clientName || "");
+      const day = esc(v.billing_day_of_month || "1");
+      const format = String(v.delivery_format || "electronic");
+      const lang = String(v.language || "fr");
+      const billingEmail = esc(v.email_for_billing || "—");
+      return {
+        subject: "Préférences de facturation mises à jour",
+        html: shell({
+          preheader: "Vos préférences de facturation ont été modifiées.",
+          badge: "FACTURATION MISE À JOUR",
+          heroTitle: "Vos préférences de facturation ont été modifiées",
+          heroSub: "Les changements s'appliquent dès le prochain cycle.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons la mise à jour de vos préférences de facturation. Si vous n'êtes pas à l'origine de ce changement, contactez-nous immédiatement.`,
+          cardTitle: "Paramètres appliqués",
+          cardRows: [
+            ["Jour de facturation", day],
+            ["Format", format === "paper" ? "Papier (poste)" : "Électronique (courriel)"],
+            ["Langue", lang === "en" ? "English" : "Français"],
+            ["Courriel de facturation", billingEmail],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Direct refund processed
+    // ===================================================================
+    case "client_direct_refund_processed": {
+      const firstName = esc(v.first_name || clientName || "");
+      const amount = esc(v.amount || "0,00 $");
+      const method = esc(v.refund_method || "—");
+      const ref = esc(v.external_reference || "—");
+      const reason = esc(v.reason || "—");
+      return {
+        subject: `Remboursement traité — ${amount}`,
+        html: shell({
+          preheader: `Un remboursement de ${amount} a été traité sur votre compte.`,
+          badge: "REMBOURSEMENT TRAITÉ",
+          heroTitle: "Votre remboursement a été traité",
+          heroSub: "Le montant sera crédité selon le mode choisi.",
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Nous confirmons le traitement du remboursement suivant. Selon la méthode utilisée, le délai d'apparition sur votre compte peut varier de quelques minutes à quelques jours ouvrables.`,
+          cardTitle: "Détails du remboursement",
+          cardRows: [
+            ["Montant", amount],
+            ["Méthode", method],
+            ["Référence externe", ref],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+
+
 
 
 
