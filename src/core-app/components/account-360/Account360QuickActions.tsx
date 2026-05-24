@@ -52,12 +52,13 @@ interface Props {
   clientEmail?: string | null;
   monthlyRevenue?: number;
   subscriptions?: any[];
+  canonicalData?: any;
   onRefresh: () => void;
   onNavigateSection: (section: string) => void;
   onEditProfile: () => void;
 }
 
-export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", clientEmail, monthlyRevenue = 0, subscriptions = [], onRefresh, onNavigateSection, onEditProfile }: Props) {
+export function Account360QuickActions({ accountId, clientId, accountStatus, customerId, clientName = "Client", clientEmail, monthlyRevenue = 0, subscriptions = [], canonicalData, onRefresh, onNavigateSection, onEditProfile }: Props) {
   const { startImpersonation } = useImpersonation();
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
@@ -287,6 +288,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
+          initialItems={canonicalData?.equipment || []}
         />
       )}
 
@@ -357,6 +359,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           onClose={() => setDisputesOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
+          payments={canonicalData?.payments || []}
         />
       )}
 
@@ -378,6 +381,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientName={clientName}
           clientEmail={clientEmail}
           accountId={accountId ?? null}
+          initialActivity={canonicalData?.activityLogs || []}
         />
       )}
 
@@ -388,6 +392,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
+          initialData={canonicalData}
         />
       )}
 

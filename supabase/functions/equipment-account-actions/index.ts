@@ -21,7 +21,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
+type Action = "list_active" | "assign_from_catalog" | "mark_returned" | "mark_defective" | "update_serial";
 
 interface Body {
   action: Action;
@@ -53,6 +53,22 @@ const json = (status: number, payload: unknown) =>
 const ALLOWED_ROLES = new Set([
   "admin", "employee", "supervisor", "support", "billing_admin", "sales",
 ]);
+
+async function resolveCustomerIds(admin: any, clientUserId: string): Promise<string[]> {
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("email")
+    .eq("user_id", clientUserId)
+    .maybeSingle();
+  const normalizedEmail = String(profile?.email || "").trim().toLowerCase();
+  const filters = [`user_id.eq.${clientUserId}`];
+  if (normalizedEmail) filters.push(`email.eq.${normalizedEmail}`);
+  const { data } = await admin
+    .from("billing_customers")
+    .select("id")
+    .or(filters.join(","));
+  return (data || []).map((r: { id: string }) => r.id);
+}
 
 const fmtMoney = (n: number) => {
   try {
@@ -135,6 +151,101 @@ serve(async (req) => {
 
   try {
     switch (action) {
+      case "list_active": {
+        const activeStatuses = ["assigned", "deployed", "reserved"];
+        const { data: orders, error: ordersErr } = await admin
+          .from("orders")
+          .select("id, equipment_details, equipment_id")
+          .or(`user_id.eq.${client_user_id}${body.account_id ? `,account_id.eq.${body.account_id}` : ""}`)
+          .order("created_at", { ascending: false })
+          .limit(100);
+        if (ordersErr) return json(500, { error: ordersErr.message });
+
+        const customerIds = await resolveCustomerIds(admin, client_user_id);
+        const subsRes = customerIds.length > 0
+          ? await admin
+              .from("billing_subscriptions")
+              .select("id, order_id")
+              .eq("status", "active")
+              .in("customer_id", customerIds)
+          : { data: [], error: null } as any;
+        const { data: subs, error: subsErr } = subsRes;
+        if (subsErr) return json(500, { error: subsErr.message });
+
+        const orderIds = Array.from(new Set([
+          ...((orders || []).map((o: { id: string }) => o.id)),
+          ...((subs || []).map((s: { order_id?: string | null }) => s.order_id).filter(Boolean) as string[]),
+        ]));
+
+        const invFilters: string[] = [];
+        if (body.account_id) invFilters.push(`account_id.eq.${body.account_id}`);
+        if (orderIds.length > 0) invFilters.push(`order_id.in.(${orderIds.slice(0, 100).join(",")})`);
+        const invRes = invFilters.length > 0
+          ? await admin.from("equipment_inventory")
+              .select("id,catalog_name,category,status,serial_number,imei,mac_address,price_client,assigned_at,condition,order_id,sku,created_at")
+              .or(invFilters.join(","))
+              .in("status", activeStatuses)
+          : { data: [], error: null } as any;
+        if (invRes.error) return json(500, { error: invRes.error.message });
+
+        const inventoryRows = (invRes.data || []).map((r: Record<string, unknown>) => ({ ...r, source: "inventory" }));
+        const ordersWithInventory = new Set(inventoryRows.map((r: any) => r.order_id).filter(Boolean));
+        const missingOrderIds = orderIds.filter((id) => !ordersWithInventory.has(id));
+
+        let lineRows: any[] = [];
+        if (missingOrderIds.length > 0) {
+          const { data: lines, error: linesErr } = await admin
+            .from("equipment_order_lines")
+            .select("id,order_id,item_name,item_sku,unit_price,quantity,line_total,serial_numbers,created_at")
+            .in("order_id", missingOrderIds.slice(0, 100));
+          if (linesErr) return json(500, { error: linesErr.message });
+          lineRows = (lines || []).map((l: Record<string, unknown>) => ({
+            ...l,
+            id: `line-${l.id}`,
+            source: "order_line",
+            catalog_name: l.item_name ?? "Équipement",
+            category: "Équipement",
+            status: "reserved",
+            serial_number: null,
+            imei: null,
+            mac_address: null,
+            price_client: l.unit_price ?? null,
+            assigned_at: null,
+            condition: null,
+          }));
+        }
+
+        const ordersWithLines = new Set(lineRows.map((r) => r.order_id).filter(Boolean));
+        const snapshotRows: any[] = [];
+        for (const o of orders || []) {
+          if (ordersWithInventory.has(o.id) || ordersWithLines.has(o.id)) continue;
+          const details = Array.isArray(o.equipment_details) ? o.equipment_details : [];
+          details.forEach((eq: any, idx: number) => snapshotRows.push({
+            id: `order-${o.id}-equipment-${idx}`,
+            source: "order_snapshot",
+            order_id: o.id,
+            catalog_name: eq.label || eq.type || eq.name || "Équipement",
+            category: "Équipement",
+            status: "reserved",
+            serial_number: eq.serial_number ?? null,
+            serial_numbers: eq.serial_numbers ?? null,
+            imei: eq.imei ?? null,
+            mac_address: eq.mac_address ?? null,
+            price_client: eq.unit_price ?? eq.price ?? null,
+            unit_price: eq.unit_price ?? eq.price ?? null,
+            assigned_at: null,
+            created_at: null,
+            condition: null,
+            quantity: eq.quantity || 1,
+            item_sku: eq.type || eq.sku || o.equipment_id || null,
+          }));
+        }
+
+        const items = [...inventoryRows, ...lineRows, ...snapshotRows]
+          .sort((a: any, b: any) => +new Date(b.assigned_at || b.created_at || 0) - +new Date(a.assigned_at || a.created_at || 0));
+        return json(200, { ok: true, items, total: items.length });
+      }
+
       case "assign_from_catalog": {
         if (!body.catalog_item_id) return json(400, { error: "catalog_item_id requis" });
 

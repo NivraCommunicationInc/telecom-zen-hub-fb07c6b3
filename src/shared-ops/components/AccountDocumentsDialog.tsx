@@ -20,6 +20,7 @@ interface Props {
   clientUserId: string;
   clientName: string;
   accountId?: string | null;
+  initialData?: any;
 }
 
 interface DocItem {
@@ -52,7 +53,66 @@ function formatBytes(n?: number | null): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName, accountId }: Props) {
+function docsFromCanonical(data: any): DocItem[] {
+  if (!data) return [];
+  const rows: DocItem[] = [];
+  (data.contracts || []).forEach((c: any) => rows.push({
+    id: `canonical-contract-${c.id}`,
+    source: "contract",
+    category: "Contrat",
+    name: c.contract_number ? `Contrat ${c.contract_number}` : c.contract_name || "Contrat",
+    number: c.contract_number,
+    created_at: c.created_at,
+    url: c.contract_pdf_url || c.contract_url || null,
+    signed: false,
+    metadata: { status: c.status, signed_at: c.client_signed_at || c.signed_at },
+  }));
+  (data.documents || []).forEach((d: any) => rows.push({
+    id: `canonical-upload-${d.id}`,
+    source: "uploaded",
+    category: d.document_type || "Document",
+    name: d.document_name || "Document",
+    created_at: d.created_at,
+    url: d.document_url || null,
+    signed: false,
+  }));
+  (data.invoices || []).forEach((inv: any) => rows.push({
+    id: `canonical-invoice-${inv.id}`,
+    source: "invoice",
+    category: "Facture",
+    name: `Facture ${inv.invoice_number || inv.id.slice(0, 8)}`,
+    number: inv.invoice_number,
+    created_at: inv.created_at,
+    url: inv.pdf_url || inv.invoice_pdf_url || null,
+    signed: false,
+    metadata: { status: inv.status, total: inv.total, balance_due: inv.balance_due },
+  }));
+  (data.payments || []).forEach((p: any) => rows.push({
+    id: `canonical-receipt-${p.id}`,
+    source: "receipt",
+    category: "Reçu de paiement",
+    name: `Reçu ${p.payment_number || p.reference || p.id.slice(0, 8)}`,
+    number: p.payment_number || p.reference || p.id.slice(0, 8),
+    created_at: p.received_at || p.created_at,
+    url: p.receipt_url || null,
+    signed: false,
+    metadata: { status: p.status, amount: p.amount, method: p.method },
+  }));
+  (data.orders || []).forEach((o: any) => rows.push({
+    id: `canonical-order-${o.id}`,
+    source: "order",
+    category: "Commande",
+    name: `Commande ${o.order_number || o.id.slice(0, 8)}`,
+    number: o.order_number,
+    created_at: o.created_at,
+    url: null,
+    signed: false,
+    metadata: { status: o.status, total: o.total_amount },
+  }));
+  return rows;
+}
+
+export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName, accountId, initialData }: Props) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<DocItem[]>([]);
   const [tab, setTab] = useState<"all" | DocItem["source"]>("all");
@@ -62,12 +122,15 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     if (!clientUserId) return;
     setLoading(true);
     try {
+      const fallbackItems = docsFromCanonical(initialData);
+      if (fallbackItems.length > 0) setItems(fallbackItems);
       const { data, error } = await supabase.functions.invoke("account-documents-list", {
         body: { client_user_id: clientUserId, account_id: accountId ?? null },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Erreur");
-      setItems(data.items ?? []);
+      const merged = [...(data.items ?? []), ...fallbackItems];
+      setItems(Array.from(new Map(merged.map((i: DocItem) => [`${i.source}-${i.id}`, i])).values()));
     } catch (e: any) {
       toast.error("Erreur chargement documents", { description: e.message });
     } finally {

@@ -60,8 +60,22 @@ Deno.serve(async (req) => {
 
     const clientId = body.client_user_id;
 
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("user_id", clientId)
+      .maybeSingle();
+    const normalizedEmail = String(profile?.email || "").trim().toLowerCase();
+    const customerFilters = [`user_id.eq.${clientId}`];
+    if (normalizedEmail) customerFilters.push(`email.eq.${normalizedEmail}`);
+    const { data: billingCustomers } = await admin
+      .from("billing_customers")
+      .select("id")
+      .or(customerFilters.join(","));
+    const customerIds = (billingCustomers || []).map((c) => c.id).filter(Boolean);
+
     // Parallel fetches — include monthly_invoices, billing_invoices, payments (receipts), quotes
-    const [contractsRes, autoRes, uploadedRes, ordersRes, monthlyInvRes, paymentsRes, quotesRes] = await Promise.all([
+    const [contractsRes, autoRes, uploadedRes, ordersRes, monthlyInvRes, paymentsRes, quotesRes, billingInvRes, billingPayRes] = await Promise.all([
       admin
         .from("contracts")
         .select("id, contract_number, contract_name, status, contract_pdf_url, contract_url, created_at, signed_at, version")
@@ -102,9 +116,25 @@ Deno.serve(async (req) => {
       admin
         .from("quotes")
         .select("id, quote_number, status, total_due_now, created_at")
-        .eq("customer_user_id", clientId)
+        .or(`customer_user_id.eq.${clientId}${body.account_id ? `,account_id.eq.${body.account_id}` : ""}`)
         .order("created_at", { ascending: false })
         .limit(50),
+      customerIds.length > 0
+        ? admin
+            .from("billing_invoices")
+            .select("id, invoice_number, status, total, balance_due, created_at, due_date, order_id")
+            .in("customer_id", customerIds)
+            .order("created_at", { ascending: false })
+            .limit(100)
+        : Promise.resolve({ data: [], error: null } as any),
+      customerIds.length > 0
+        ? admin
+            .from("billing_payments")
+            .select("id, payment_number, amount, method, status, reference, received_at, created_at")
+            .in("customer_id", customerIds)
+            .order("created_at", { ascending: false })
+            .limit(100)
+        : Promise.resolve({ data: [], error: null } as any),
     ]);
 
     const items: DocItem[] = [];
@@ -204,6 +234,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Canonical billing invoices
+    for (const inv of billingInvRes.data ?? []) {
+      items.push({
+        id: inv.id,
+        source: "invoice",
+        category: "Facture",
+        name: `Facture ${inv.invoice_number ?? inv.id.slice(0, 8)}`,
+        number: inv.invoice_number,
+        created_at: inv.created_at,
+        url: null,
+        signed: false,
+        metadata: { status: inv.status, total: inv.total, balance_due: inv.balance_due, due_date: inv.due_date, order_id: inv.order_id },
+      });
+    }
+
     // Payments as receipts (only completed)
     for (const p of paymentsRes.data ?? []) {
       items.push({
@@ -216,6 +261,21 @@ Deno.serve(async (req) => {
         url: null,
         signed: false,
         metadata: { amount: p.amount, payment_method: p.payment_method, status: p.status, account_id: p.account_id },
+      });
+    }
+
+    // Canonical billing payments as receipts
+    for (const p of billingPayRes.data ?? []) {
+      items.push({
+        id: p.id,
+        source: "receipt",
+        category: "Reçu de paiement",
+        name: `Reçu ${p.payment_number ?? p.reference ?? p.id.slice(0, 8).toUpperCase()}`,
+        number: p.payment_number ?? p.reference ?? p.id.slice(0, 8).toUpperCase(),
+        created_at: p.received_at || p.created_at,
+        url: null,
+        signed: false,
+        metadata: { amount: p.amount, method: p.method, status: p.status },
       });
     }
 
