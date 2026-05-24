@@ -291,6 +291,21 @@ export function TVServiceActionsDialog({
     } catch (e) { toast.error((e as Error).message); }
   };
 
+  const doSetChannels = async () => {
+    const ids = Array.from(selectedChannelIds);
+    if (ids.length === 0) { toast.error("Sélectionnez au moins une chaîne"); return; }
+    try {
+      await invoke({
+        action: "set_channels",
+        channel_ids: ids,
+        notes: channelNotes || undefined,
+        idempotency_key: `tvchans-${clientUserId}-${Date.now()}`,
+      });
+      toast.success("Sélection de chaînes enregistrée — courriel envoyé");
+      onClose();
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
   const doParental = async () => {
     const blocked = blockedRaw
       .split(",").map((s) => s.trim()).filter(Boolean);
@@ -326,9 +341,10 @@ export function TVServiceActionsDialog({
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="plan"><Tv className="h-4 w-4 mr-1" />Forfait</TabsTrigger>
             <TabsTrigger value="packs"><Layers className="h-4 w-4 mr-1" />Bouquets</TabsTrigger>
+            <TabsTrigger value="channels"><ListChecks className="h-4 w-4 mr-1" />Chaînes</TabsTrigger>
             <TabsTrigger value="vod"><Film className="h-4 w-4 mr-1" />VOD</TabsTrigger>
             <TabsTrigger value="terminal"><MonitorSmartphone className="h-4 w-4 mr-1" />Terminal</TabsTrigger>
             <TabsTrigger value="parental"><ShieldCheck className="h-4 w-4 mr-1" />Parental</TabsTrigger>
