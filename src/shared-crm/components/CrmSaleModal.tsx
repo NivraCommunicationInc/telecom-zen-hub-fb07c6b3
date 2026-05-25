@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import type { CrmContact } from "../lib/crmTypes";
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
 interface Service { id: string; name: string; price: number; category: string }
 interface EquipLine { key: string; name: string; price: number; selected: boolean; quantity: number }
@@ -278,7 +279,8 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
         },
       });
       if (error || (data as any)?.error) {
-        toast.error(`Erreur: ${(data as any)?.error ?? error?.message}`);
+        const message = (data as any)?.error ?? (error ? await getInvokeErrorMessage(error) : "Erreur inconnue");
+        toast.error(`Erreur: ${message}`);
         return;
       }
       const r = data as { order_number: string; commission_estimate: number; paypal_approve_url: string | null };
@@ -286,7 +288,8 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
       toast.success(`Vente complétée! Commande ${r.order_number} • Commission: ${r.commission_estimate.toFixed(2)}$`);
       onSuccess?.();
     } catch (e: any) {
-      toast.error(e?.message ?? "Erreur lors de la création de la vente");
+      const message = e?.context ? await getInvokeErrorMessage(e) : (e?.message ?? "Erreur lors de la création de la vente");
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
