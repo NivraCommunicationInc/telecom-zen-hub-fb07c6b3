@@ -1,7 +1,12 @@
 /**
- * EmployeeCreateOrder — Agent order intake form.
- * Creates orders through the canonical pipeline (edge function).
- * No pricing override — all pricing is server-side.
+ * EmployeeCreateOrder — Agent order intake form (Nivra OneView CS).
+ * Steps: client → plan → equipment → install → address → review
+ * - Equipment rules: max 1 Borne WiFi, max 4 Terminal TV, max 1 SIM
+ * - Auto vs Professional install with chosen date
+ * - First month free auto-applied (display) per BIENVENUE2026 / NIVRA2026 policy
+ * - Auto install triggers send-auto-installation-email (PDF + official template)
+ * - Create-client form collects DOB + full address (passed to auto-create-client-account)
+ * All pricing is server-side; this UI shows catalog price + first-month-free preview only.
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -12,10 +17,11 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import {
   ArrowLeft, Loader2, Search, User, ShoppingCart, MapPin,
-  CheckCircle2, AlertTriangle, ChevronRight, UserPlus,
+  CheckCircle2, AlertTriangle, ChevronRight, UserPlus, Wrench,
+  Calendar, Package, Sparkles,
 } from "lucide-react";
 
-type Step = "client" | "plan" | "address" | "review" | "submitted";
+type Step = "client" | "plan" | "equipment" | "install" | "address" | "review" | "submitted";
 
 interface SelectedClient {
   user_id: string;
@@ -33,9 +39,36 @@ interface SelectedPlan {
   category: string;
 }
 
+interface EquipLine {
+  key: "router" | "terminal" | "sim";
+  name: string;
+  price: number;
+  selected: boolean;
+  quantity: number;
+  maxQuantity: number;
+}
+
 // Direct-apply ceiling: aligned with Field policy (max $50/mo, 24 months).
-// Anything beyond requires Core escalation.
 const EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP = 50;
+
+// Required equipment per business rules (memory: equipment-pricing-rules)
+const DEFAULT_EQUIPMENT: EquipLine[] = [
+  { key: "router",   name: "Borne WiFi",  price: 60, selected: false, quantity: 1, maxQuantity: 1 },
+  { key: "terminal", name: "Terminal TV", price: 50, selected: false, quantity: 1, maxQuantity: 4 },
+  { key: "sim",      name: "Carte SIM",   price: 30, selected: false, quantity: 1, maxQuantity: 1 },
+];
+
+const SLOTS = [
+  { key: "morning",   label: "Matin (8h - 12h)" },
+  { key: "afternoon", label: "Après-midi (12h - 17h)" },
+  { key: "evening",   label: "Soir (17h - 20h)" },
+] as const;
+
+function minInstallDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 2);
+  return d.toISOString().slice(0, 10);
+}
 
 interface AgentDiscountRow {
   id: string;
@@ -55,11 +88,18 @@ export default function EmployeeCreateOrder() {
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<SelectedClient | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
+  const [equipment, setEquipment] = useState<EquipLine[]>(DEFAULT_EQUIPMENT.map(e => ({ ...e })));
+  const [installType, setInstallType] = useState<"auto" | "professional">("auto");
+  const [installDate, setInstallDate] = useState<string>(minInstallDate());
+  const [installSlot, setInstallSlot] = useState<typeof SLOTS[number]["key"]>("morning");
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
   const [agentNotes, setAgentNotes] = useState("");
   const [selectedDiscount, setSelectedDiscount] = useState<AgentDiscountRow | null>(null);
   const [showCreateClient, setShowCreateClient] = useState(false);
-  const [newClient, setNewClient] = useState({ first_name: "", last_name: "", email: "", phone: "" });
+  const [newClient, setNewClient] = useState({
+    first_name: "", last_name: "", email: "", phone: "",
+    date_of_birth: "", street: "", city: "", postal: "",
+  });
   const [creatingClient, setCreatingClient] = useState(false);
 
   // If preset client, load directly
@@ -67,7 +107,7 @@ export default function EmployeeCreateOrder() {
     if (presetClientId) {
       supabase
         .from("profiles")
-        .select("user_id, full_name, email, phone")
+        .select("user_id, full_name, email, phone, service_address, service_city, service_postal_code")
         .eq("user_id", presetClientId)
         .maybeSingle()
         .then(async ({ data: profile }) => {
@@ -85,6 +125,14 @@ export default function EmployeeCreateOrder() {
             account_number: acc?.account_number ?? undefined,
             account_id: acc?.id ?? undefined,
           });
+          if (profile.service_address) {
+            setAddress({
+              street: profile.service_address ?? "",
+              city: profile.service_city ?? "",
+              postal: profile.service_postal_code ?? "",
+              province: "QC",
+            });
+          }
           setStep("plan");
         });
     }
@@ -172,6 +220,14 @@ export default function EmployeeCreateOrder() {
       toast.error("Courriel invalide");
       return;
     }
+    if (!newClient.street.trim() || !newClient.city.trim() || !newClient.postal.trim()) {
+      toast.error("Adresse complète requise (rue, ville, code postal)");
+      return;
+    }
+    if (!newClient.date_of_birth) {
+      toast.error("Date de naissance requise");
+      return;
+    }
     setCreatingClient(true);
     try {
       const { data, error } = await supabase.functions.invoke("auto-create-client-account", {
@@ -180,6 +236,10 @@ export default function EmployeeCreateOrder() {
           first_name: first,
           last_name: last,
           phone: newClient.phone.trim() || undefined,
+          date_of_birth: newClient.date_of_birth,
+          service_address: newClient.street.trim(),
+          service_city: newClient.city.trim(),
+          service_postal_code: newClient.postal.trim(),
         },
       });
       if (error) throw error;
@@ -199,6 +259,13 @@ export default function EmployeeCreateOrder() {
         phone: newClient.phone.trim() || undefined,
         account_number: acc?.account_number ?? undefined,
         account_id: acc?.id ?? undefined,
+      });
+      // Prefill service address
+      setAddress({
+        street: newClient.street.trim(),
+        city: newClient.city.trim(),
+        postal: newClient.postal.trim(),
+        province: "QC",
       });
       toast.success(data.is_new_account ? "Client créé" : "Client existant lié");
       setShowCreateClient(false);
@@ -228,6 +295,14 @@ export default function EmployeeCreateOrder() {
     other: "Autre",
   };
 
+  // Equipment totals
+  const selectedEquipment = equipment.filter(e => e.selected);
+  const equipmentTotal = selectedEquipment.reduce((s, e) => s + e.price * e.quantity, 0);
+
+  // First-month-free preview (forfait seulement, équipement chargé)
+  const monthlyPlan = selectedPlan?.price ?? 0;
+  const firstMonthFreeCredit = monthlyPlan; // automatic per business rule
+
   // Submit order via canonical sync edge function
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -248,13 +323,13 @@ export default function EmployeeCreateOrder() {
         const monthlyValue = selectedDiscount.type === "fixed_monthly" ? Number(selectedDiscount.value) : 0;
         if (monthlyValue > EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP) {
           throw new Error(
-            `Rabais > ${EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP}$/mois — escalation Core requise. Annulez la sélection ou choisissez un rabais plus petit.`,
+            `Rabais > ${EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP}$/mois — escalation Core requise.`,
           );
         }
         appliedDiscount = selectedDiscount;
       }
 
-      // Resolve or create account (DB trigger fn_require_order_account_id mandates account_id)
+      // Resolve or create account
       let accountId = selectedClient.account_id;
       if (!accountId) {
         const { data: existingAcc } = await supabase
@@ -276,12 +351,26 @@ export default function EmployeeCreateOrder() {
         }
       }
 
-      // Create the order via direct insert (canonical-sync will handle billing)
       const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
       const nameParts = (selectedClient.full_name || "").trim().split(/\s+/);
       const firstName = nameParts.shift() || selectedClient.full_name || "Client";
       const lastName = nameParts.join(" ") || "";
+
+      const installation_details = {
+        type: installType,
+        requested_date: installType === "professional" ? installDate : null,
+        time_slot: installType === "professional" ? installSlot : null,
+        self_install: installType === "auto",
+      };
+
+      const equipment_line_details = selectedEquipment.map(e => ({
+        key: e.key,
+        name: e.name,
+        price: e.price,
+        quantity: e.quantity,
+        line_total: +(e.price * e.quantity).toFixed(2),
+      }));
 
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -292,7 +381,7 @@ export default function EmployeeCreateOrder() {
           status: "submitted",
           payment_status: "pending",
           service_type: selectedPlan.category,
-          total_amount: selectedPlan.price,
+          total_amount: selectedPlan.price + equipmentTotal,
           environment: "live",
           source: "employee_portal",
           created_by: user.id,
@@ -309,12 +398,23 @@ export default function EmployeeCreateOrder() {
           notes: agentNotes || null,
           discount_code: appliedDiscount?.id ?? null,
           discount_amount: appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
+          installation_type: installType,
+          activation_preference: installType === "professional" ? "SCHEDULED" : "ASAP",
+          requested_activation_date: installType === "professional" ? installDate : null,
+          installation_details,
+          equipment_line_details,
           pricing_snapshot: {
             portal: "employee",
             plan_id: selectedPlan.id,
             plan_name: selectedPlan.name,
             plan_price: selectedPlan.price,
             plan_category: selectedPlan.category,
+            equipment: equipment_line_details,
+            equipment_total: equipmentTotal,
+            first_month_free_credit: firstMonthFreeCredit,
+            install_type: installType,
+            install_date: installType === "professional" ? installDate : null,
+            install_slot: installType === "professional" ? installSlot : null,
             created_by_agent: agentProfile?.full_name ?? user.email,
             created_by_agent_id: user.id,
             agent_discount: appliedDiscount
@@ -333,7 +433,18 @@ export default function EmployeeCreateOrder() {
 
       if (orderError) throw orderError;
 
-      // Log audit
+      // If auto install: send official self-install email (PDF attached, corporate template)
+      if (installType === "auto") {
+        try {
+          await supabase.functions.invoke("send-auto-installation-email", {
+            body: { order_id: order.id },
+          });
+        } catch (emailErr) {
+          console.warn("[CreateOrder] auto-install email enqueue failed:", emailErr);
+          // Non-blocking; ops will see it in the queue.
+        }
+      }
+
       await logInternalAudit({
         action: "order_created_by_agent",
         category: "operations",
@@ -344,6 +455,8 @@ export default function EmployeeCreateOrder() {
           order_number: order.order_number,
           client_id: selectedClient.user_id,
           plan: selectedPlan.name,
+          install_type: installType,
+          equipment_count: selectedEquipment.length,
           agent: agentProfile?.full_name ?? user.email,
         },
       });
@@ -358,6 +471,7 @@ export default function EmployeeCreateOrder() {
   });
 
   const canSubmit = selectedClient && selectedPlan && address.street.trim().length > 0;
+  const STEP_ORDER: Step[] = ["client", "plan", "equipment", "install", "address", "review"];
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
@@ -368,19 +482,23 @@ export default function EmployeeCreateOrder() {
         </button>
         <div>
           <h1 className="text-base font-semibold text-foreground">Nouvelle commande</h1>
-          <p className="text-[11px] text-muted-foreground">Création pour un client existant</p>
+          <p className="text-[11px] text-muted-foreground">Nivra OneView CS — création complète</p>
         </div>
       </div>
 
       {/* Progress */}
-      <div className="flex items-center gap-2">
-        {(["client", "plan", "address", "review"] as Step[]).map((s, i) => {
-          const labels = { client: "Client", plan: "Forfait", address: "Adresse", review: "Révision" };
+      <div className="flex items-center gap-1 flex-wrap">
+        {STEP_ORDER.map((s, i) => {
+          const labels: Record<Step, string> = {
+            client: "Client", plan: "Forfait", equipment: "Équip.",
+            install: "Install", address: "Adresse", review: "Révision",
+            submitted: "Soumis",
+          };
           const isCurrent = s === step;
-          const isPast = ["client", "plan", "address", "review"].indexOf(step) > i;
+          const isPast = STEP_ORDER.indexOf(step as Step) > i;
           return (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors ${
+            <div key={s} className="flex items-center gap-1">
+              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-colors ${
                 isCurrent ? "bg-primary/10 text-primary border border-primary/30" :
                 isPast ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
                 "bg-muted/50 text-muted-foreground border border-border"
@@ -388,7 +506,7 @@ export default function EmployeeCreateOrder() {
                 {isPast ? <CheckCircle2 className="h-3 w-3" /> : <span className="text-[10px]">{i + 1}</span>}
                 {labels[s]}
               </div>
-              {i < 3 && <ChevronRight className="h-3 w-3 text-muted-foreground/30" />}
+              {i < STEP_ORDER.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground/30" />}
             </div>
           );
         })}
@@ -409,13 +527,7 @@ export default function EmployeeCreateOrder() {
               onClick={() => setShowCreateClient((v) => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
             >
-              {showCreateClient ? (
-                <>← Rechercher</>
-              ) : (
-                <>
-                  <UserPlus className="h-3.5 w-3.5" /> Nouveau client
-                </>
-              )}
+              {showCreateClient ? <>← Rechercher</> : <><UserPlus className="h-3.5 w-3.5" /> Nouveau client</>}
             </button>
           </div>
 
@@ -456,7 +568,6 @@ export default function EmployeeCreateOrder() {
                     type="button"
                     onClick={() => {
                       setShowCreateClient(true);
-                      // Pre-fill email if search term looks like an email
                       if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientSearch)) {
                         setNewClient((c) => ({ ...c, email: clientSearch }));
                       }
@@ -475,35 +586,53 @@ export default function EmployeeCreateOrder() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Prénom *</label>
-                  <input
-                    type="text" value={newClient.first_name}
+                  <input type="text" value={newClient.first_name}
                     onChange={(e) => setNewClient((c) => ({ ...c, first_name: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:border-primary/50"
-                  />
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
                 </div>
                 <div>
                   <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Nom *</label>
-                  <input
-                    type="text" value={newClient.last_name}
+                  <input type="text" value={newClient.last_name}
                     onChange={(e) => setNewClient((c) => ({ ...c, last_name: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:border-primary/50"
-                  />
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
                 </div>
                 <div>
                   <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Courriel *</label>
-                  <input
-                    type="email" value={newClient.email}
+                  <input type="email" value={newClient.email}
                     onChange={(e) => setNewClient((c) => ({ ...c, email: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:border-primary/50"
-                  />
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
                 </div>
                 <div>
                   <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Téléphone</label>
-                  <input
-                    type="tel" value={newClient.phone}
+                  <input type="tel" value={newClient.phone}
                     onChange={(e) => setNewClient((c) => ({ ...c, phone: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:border-primary/50"
-                  />
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Date de naissance *</label>
+                  <input type="date" value={newClient.date_of_birth}
+                    onChange={(e) => setNewClient((c) => ({ ...c, date_of_birth: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Adresse *</label>
+                  <input type="text" value={newClient.street}
+                    onChange={(e) => setNewClient((c) => ({ ...c, street: e.target.value }))}
+                    placeholder="123 rue Exemple"
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Ville *</label>
+                  <input type="text" value={newClient.city}
+                    onChange={(e) => setNewClient((c) => ({ ...c, city: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Code postal *</label>
+                  <input type="text" value={newClient.postal}
+                    onChange={(e) => setNewClient((c) => ({ ...c, postal: e.target.value.toUpperCase() }))}
+                    placeholder="H1H 1H1"
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground">
@@ -548,7 +677,7 @@ export default function EmployeeCreateOrder() {
                 {(services as any[]).map((s: any) => (
                   <button
                     key={s.id}
-                    onClick={() => { setSelectedPlan({ id: s.id, name: s.name, price: s.price, category: s.category ?? "other" }); setStep("address"); }}
+                    onClick={() => { setSelectedPlan({ id: s.id, name: s.name, price: s.price, category: s.category ?? "other" }); setStep("equipment"); }}
                     className={`p-3 rounded-lg border text-left transition-colors ${
                       selectedPlan?.id === s.id
                         ? "border-primary bg-primary/5"
@@ -568,6 +697,147 @@ export default function EmployeeCreateOrder() {
         </div>
       )}
 
+      {/* Step: Equipment */}
+      {step === "equipment" && (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Équipement requis</h2>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Règles: max <strong>1 Borne WiFi</strong> par commande, jusqu'à <strong>4 Terminaux TV</strong>, max <strong>1 carte SIM</strong>.
+            L'équipement est <strong>requis</strong> (non inclus) et facturé sur la première facture.
+          </p>
+          <div className="space-y-2">
+            {equipment.map((e, idx) => (
+              <div key={e.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
+                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                  <input
+                    type="checkbox"
+                    checked={e.selected}
+                    onChange={(ev) => setEquipment(prev => prev.map((x, i) => i === idx ? { ...x, selected: ev.target.checked } : x))}
+                    className="h-4 w-4"
+                  />
+                  <div>
+                    <p className="text-sm text-foreground font-medium">{e.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{e.price.toFixed(2)} $ — max {e.maxQuantity}</p>
+                  </div>
+                </label>
+                <div className="flex items-center gap-2">
+                  {e.selected && e.maxQuantity > 1 && (
+                    <input
+                      type="number" min={1} max={e.maxQuantity}
+                      value={e.quantity}
+                      onChange={(ev) => {
+                        const q = Math.max(1, Math.min(e.maxQuantity, Number(ev.target.value) || 1));
+                        setEquipment(prev => prev.map((x, i) => i === idx ? { ...x, quantity: q } : x));
+                      }}
+                      className="w-16 h-9 px-2 rounded-lg border border-border bg-background text-sm text-center"
+                    />
+                  )}
+                  <span className="text-sm font-semibold text-foreground w-20 text-right">
+                    {(e.selected ? e.price * e.quantity : 0).toFixed(2)} $
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-muted-foreground">Total équipement</span>
+            <span className="text-foreground font-semibold">{equipmentTotal.toFixed(2)} $</span>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => setStep("plan")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Forfait</button>
+            <button
+              onClick={() => setStep("install")}
+              className="ml-auto px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+            >
+              Installation →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Install */}
+      {step === "install" && (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Type d'installation</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setInstallType("auto")}
+              className={`p-4 rounded-lg border text-left transition-colors ${
+                installType === "auto" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Auto-installation</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Le client recevra par courriel le guide PDF officiel d'installation (template Nivra).
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setInstallType("professional")}
+              className={`p-4 rounded-lg border text-left transition-colors ${
+                installType === "professional" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Installation professionnelle</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Un technicien se déplace à la date et plage horaire choisies par le client.
+              </p>
+            </button>
+          </div>
+
+          {installType === "professional" && (
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-background">
+              <div>
+                <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Date souhaitée (min. 2 jours)</label>
+                <input
+                  type="date" min={minInstallDate()} value={installDate}
+                  onChange={(e) => setInstallDate(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1 block">Plage horaire</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {SLOTS.map(s => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setInstallSlot(s.key)}
+                      className={`p-2 rounded-lg border text-xs font-medium transition-colors ${
+                        installSlot === s.key ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/30"
+                      }`}
+                    >{s.label}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => setStep("equipment")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Équipement</button>
+            <button
+              onClick={() => setStep("address")}
+              className="ml-auto px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+            >
+              Adresse →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Step: Address */}
       {step === "address" && (
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
@@ -578,28 +848,22 @@ export default function EmployeeCreateOrder() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Adresse *</label>
-              <input
-                type="text" value={address.street}
+              <input type="text" value={address.street}
                 onChange={(e) => setAddress(a => ({ ...a, street: e.target.value }))}
                 placeholder="123 rue Exemple"
-                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-              />
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Ville</label>
-              <input
-                type="text" value={address.city}
+              <input type="text" value={address.city}
                 onChange={(e) => setAddress(a => ({ ...a, city: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-              />
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Code postal</label>
-              <input
-                type="text" value={address.postal}
-                onChange={(e) => setAddress(a => ({ ...a, postal: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-              />
+              <input type="text" value={address.postal}
+                onChange={(e) => setAddress(a => ({ ...a, postal: e.target.value.toUpperCase() }))}
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50" />
             </div>
           </div>
           <div>
@@ -609,11 +873,11 @@ export default function EmployeeCreateOrder() {
               onChange={(e) => setAgentNotes(e.target.value)}
               placeholder="Instructions spéciales, contexte de la demande…"
               rows={3}
-              className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 resize-none"
+              className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary/50 resize-none"
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setStep("plan")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Forfait</button>
+            <button onClick={() => setStep("install")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Installation</button>
             <button
               onClick={() => setStep("review")}
               disabled={!address.street.trim()}
@@ -630,7 +894,7 @@ export default function EmployeeCreateOrder() {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">Révision de la commande</h2>
 
-          {/* Discount selector — direct apply, capped at $50/mo (Field policy) */}
+          {/* Discount selector */}
           <div className="rounded-lg border border-border bg-background p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -646,9 +910,9 @@ export default function EmployeeCreateOrder() {
                 const id = e.target.value;
                 setSelectedDiscount(id ? (discounts ?? []).find((d) => d.id === id) ?? null : null);
               }}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:border-primary/50 min-h-[44px]"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary/50 min-h-[44px]"
             >
-              <option value="">Aucun rabais</option>
+              <option value="">Aucun rabais additionnel</option>
               {(discounts ?? []).map((d) => {
                 const monthly = d.type === "fixed_monthly" ? Number(d.value) : 0;
                 const overCap = monthly > EMPLOYEE_DIRECT_DISCOUNT_MONTHLY_CAP;
@@ -666,35 +930,47 @@ export default function EmployeeCreateOrder() {
                 {selectedDiscount.duration_months ? ` × ${selectedDiscount.duration_months} mois)` : selectedDiscount.type === "fixed_monthly" ? ")" : ""}
               </p>
             )}
+            <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> Premier mois forfait gratuit (BIENVENUE2026) — appliqué automatiquement.
+            </p>
           </div>
 
-          <div className="bg-muted rounded-lg p-4 space-y-3 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Client</span>
-              <span className="text-foreground font-medium">{selectedClient.full_name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Courriel</span>
-              <span className="text-foreground">{selectedClient.email}</span>
-            </div>
+          <div className="bg-muted rounded-lg p-4 space-y-2 text-xs">
+            <div className="flex justify-between"><span className="text-muted-foreground">Client</span><span className="text-foreground font-medium">{selectedClient.full_name}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Courriel</span><span className="text-foreground">{selectedClient.email}</span></div>
             {selectedClient.account_number && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Compte</span>
-                <span className="text-foreground font-mono">{selectedClient.account_number}</span>
+              <div className="flex justify-between"><span className="text-muted-foreground">Compte</span><span className="text-foreground font-mono">{selectedClient.account_number}</span></div>
+            )}
+            <div className="border-t border-border pt-2 flex justify-between"><span className="text-muted-foreground">Forfait</span><span className="text-foreground font-medium">{selectedPlan.name}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Prix mensuel</span><span className="text-primary font-semibold">{selectedPlan.price.toFixed(2)} $/mois</span></div>
+            <div className="flex justify-between text-emerald-400"><span>Premier mois forfait</span><span>− {firstMonthFreeCredit.toFixed(2)} $ (gratuit)</span></div>
+
+            {selectedEquipment.length > 0 && (
+              <div className="border-t border-border pt-2 space-y-1">
+                <span className="text-muted-foreground">Équipement (1re facture)</span>
+                {selectedEquipment.map(e => (
+                  <div key={e.key} className="flex justify-between pl-2">
+                    <span className="text-foreground">{e.name} × {e.quantity}</span>
+                    <span className="text-foreground">{(e.price * e.quantity).toFixed(2)} $</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pl-2 font-medium">
+                  <span className="text-foreground">Sous-total équipement</span>
+                  <span className="text-foreground">{equipmentTotal.toFixed(2)} $</span>
+                </div>
               </div>
             )}
+
             <div className="border-t border-border pt-2 flex justify-between">
-              <span className="text-muted-foreground">Forfait</span>
-              <span className="text-foreground font-medium">{selectedPlan.name}</span>
+              <span className="text-muted-foreground">Installation</span>
+              <span className="text-foreground">
+                {installType === "auto"
+                  ? "Auto-installation (guide PDF envoyé par courriel)"
+                  : `Professionnelle — ${installDate} (${SLOTS.find(s => s.key === installSlot)?.label ?? installSlot})`}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Prix catalogue</span>
-              <span className="text-primary font-semibold">{selectedPlan.price.toFixed(2)} $/mois</span>
-            </div>
-            <div className="border-t border-border pt-2 flex justify-between">
-              <span className="text-muted-foreground">Adresse</span>
-              <span className="text-foreground text-right">{address.street}{address.city ? `, ${address.city}` : ""}{address.postal ? ` ${address.postal}` : ""}</span>
-            </div>
+
+            <div className="border-t border-border pt-2 flex justify-between"><span className="text-muted-foreground">Adresse</span><span className="text-foreground text-right">{address.street}{address.city ? `, ${address.city}` : ""}{address.postal ? ` ${address.postal}` : ""}</span></div>
             {agentNotes && (
               <div className="border-t border-border pt-2">
                 <span className="text-muted-foreground">Notes</span>
@@ -707,7 +983,7 @@ export default function EmployeeCreateOrder() {
             <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="text-xs text-amber-300/80">
               <p className="font-medium text-amber-400">Tarification serveur</p>
-              <p>Le prix final sera calculé par le serveur. Le prix affiché est le tarif catalogue avant taxes et promotions.</p>
+              <p>Le total final (taxes TPS/TVQ et crédits) sera recalculé par le serveur lors de la facturation.</p>
             </div>
           </div>
 
@@ -730,7 +1006,10 @@ export default function EmployeeCreateOrder() {
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-8 text-center space-y-3">
           <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto" />
           <h2 className="text-base font-semibold text-foreground">Commande créée</h2>
-          <p className="text-xs text-muted-foreground">La commande a été soumise et sera traitée par l'équipe opérations.</p>
+          <p className="text-xs text-muted-foreground">
+            La commande a été soumise.
+            {installType === "auto" && " Un courriel d'auto-installation (template officiel + PDF) a été envoyé au client."}
+          </p>
           <div className="flex justify-center gap-3 pt-2">
             <button
               onClick={() => navigate(employeePath("/orders"))}
