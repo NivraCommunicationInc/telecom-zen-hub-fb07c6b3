@@ -27925,6 +27925,10 @@ export type Database = {
       }
       is_audit_session_active: { Args: { _user_id: string }; Returns: boolean }
       is_complaint_staff: { Args: { _uid: string }; Returns: boolean }
+      is_eligible_for_welcome_first_month: {
+        Args: { p_email?: string; p_user_id?: string }
+        Returns: boolean
+      }
       is_field_sales: { Args: { _user_id?: string }; Returns: boolean }
       is_first_client_order: {
         Args: { p_order_id: string; p_user_id: string }
