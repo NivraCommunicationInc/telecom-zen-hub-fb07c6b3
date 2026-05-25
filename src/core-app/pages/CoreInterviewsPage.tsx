@@ -340,6 +340,29 @@ export default function CoreInterviewsPage() {
     onError: (e: any) => toast.error("Import Indeed", { description: e.message }),
   });
 
+  const markManualComplete = useMutation({
+    mutationFn: async (applicant: any) => {
+      const { error } = await supabase
+        .from("job_applicants")
+        .update({
+          status: "interview_completed",
+          skip_interview: true,
+          interview_completed_at: applicant.interview_completed_at || new Date().toISOString(),
+          interview_recommendation: applicant.interview_recommendation || "interview_human",
+          interview_notes: applicant.interview_notes
+            || "Entrevue réalisée manuellement (téléphone / en personne) par le recruteur Nivra Core.",
+        })
+        .eq("id", applicant.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entrevue marquée comme complétée manuellement");
+      qc.invalidateQueries({ queryKey: ["job-applicants-interviews"] });
+      setSelected((s: any) => s ? { ...s, status: "interview_completed", skip_interview: true, interview_completed_at: new Date().toISOString() } : s);
+    },
+    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+  });
+
   const sendOnboarding = useMutation({
     mutationFn: async (applicant: any) => {
       const { data: existing } = await supabase
@@ -979,13 +1002,26 @@ export default function CoreInterviewsPage() {
                       </Button>
                     )}
 
-                    {(selected.status === "accepted" || selected.status === "hired") && (
-                      <Button variant="outline"
-                        disabled={sendOnboarding.isPending}
-                        onClick={() => sendOnboarding.mutate(selected)}>
-                        <ClipboardCheck className="h-4 w-4 mr-2" /> Envoyer formulaire d&apos;embauche
+                    {!selected.interview_completed_at && (
+                      <Button
+                        variant="outline"
+                        className="border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                        disabled={markManualComplete.isPending}
+                        onClick={() => {
+                          if (confirm("Marquer l'entrevue comme complétée manuellement ? À utiliser uniquement si l'entrevue a été faite par téléphone ou en personne par un recruteur Nivra Core.")) {
+                            markManualComplete.mutate(selected);
+                          }
+                        }}>
+                        <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer entrevue complétée manuellement
                       </Button>
                     )}
+
+                    <Button variant="outline"
+                      disabled={sendOnboarding.isPending}
+                      onClick={() => sendOnboarding.mutate(selected)}>
+                      <ClipboardCheck className="h-4 w-4 mr-2" /> Envoyer formulaire d&apos;embauche
+                    </Button>
+
 
                     {selected.status === "interview_completed" && (
                       <>
