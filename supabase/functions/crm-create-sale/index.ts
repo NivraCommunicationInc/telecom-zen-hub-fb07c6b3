@@ -47,6 +47,34 @@ interface CrmSalePayload {
   notes?: string;
 }
 
+async function resolveExistingAuthUserId(
+  supabaseUrl: string,
+  serviceKey: string,
+  email: string,
+): Promise<string | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  const allUsersResp = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=200`, {
+    headers: {
+      Authorization: `Bearer ${serviceKey}`,
+      apikey: serviceKey,
+    },
+  });
+
+  if (!allUsersResp.ok) {
+    const body = await allUsersResp.text().catch(() => "");
+    console.error("[crm-create-sale] auth user lookup failed", allUsersResp.status, body);
+    return null;
+  }
+
+  const allUsersData = await allUsersResp.json().catch(() => ({}));
+  const foundUser = allUsersData?.users?.find(
+    (u: any) => String(u?.email || "").trim().toLowerCase() === normalizedEmail,
+  );
+  return foundUser?.id ?? null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const json = (body: unknown, status = 200) =>
@@ -95,6 +123,9 @@ Deno.serve(async (req) => {
       });
       const accData = await accResp.json().catch(() => ({}));
       clientUserId = accData?.user_id ?? accData?.userId ?? null;
+      if (!clientUserId && !accResp.ok) {
+        console.warn("[crm-create-sale] auto-create-client-account returned non-2xx", accResp.status, accData);
+      }
     } catch (e) {
       console.error("[crm-create-sale] auto-create-client-account failed", e);
     }
@@ -104,6 +135,12 @@ Deno.serve(async (req) => {
       const { data: prof } = await admin.from("profiles")
         .select("user_id").ilike("email", payload.client.email).maybeSingle();
       clientUserId = prof?.user_id ?? null;
+    }
+
+    // Final fallback: if the email already exists in Auth but profile lookup missed it,
+    // resolve directly from Auth admin API so CRM orders remain submittable.
+    if (!clientUserId) {
+      clientUserId = await resolveExistingAuthUserId(supabaseUrl, serviceKey, payload.client.email);
     }
 
     if (!clientUserId) return json({ error: "Cannot resolve client account" }, 500);
@@ -274,6 +311,129 @@ Deno.serve(async (req) => {
     }).select("id, order_number, total_amount, subtotal").single();
 
     if (insertErr) return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+
+    // Step 4b: create canonical first invoice immediately so CRM orders have a real
+    // billing artifact, official PDFs, and the first-month-free credit is reflected
+    // on the very first operation of the order.
+    try {
+      const invoiceNumber = `INV-${orderNumber}`;
+      const { data: existingInvoice } = await admin
+        .from("billing_invoices")
+        .select("id")
+        .eq("order_id", order.id)
+        .limit(1)
+        .maybeSingle();
+
+      let invoiceId = existingInvoice?.id ?? null;
+      if (!invoiceId) {
+        const { data: invoice, error: invoiceErr } = await admin
+          .from("billing_invoices")
+          .insert({
+            order_id: order.id,
+            customer_id: clientUserId,
+            invoice_number: invoiceNumber,
+            type: "installation",
+            subtotal,
+            tps_amount: tps,
+            tvq_amount: tvq,
+            total,
+            currency: "CAD",
+            payment_method: "paypal",
+            status: "pending",
+            cycle_start_date: payload.install.date,
+            cycle_end_date: payload.install.date,
+            due_date: payload.install.date,
+            notes: `Facture initiale CRM ${orderNumber}`,
+            amount_paid: 0,
+            balance_due: total,
+            environment: "live",
+          })
+          .select("id")
+          .single();
+
+        if (invoiceErr) throw new Error(`Invoice creation failed: ${invoiceErr.message}`);
+        invoiceId = invoice.id;
+      }
+
+      if (invoiceId) {
+        const { data: existingLines } = await admin
+          .from("billing_invoice_lines")
+          .select("id")
+          .eq("invoice_id", invoiceId)
+          .limit(1);
+
+        if (!existingLines?.length) {
+          const invoiceLines: Array<Record<string, unknown>> = [
+            {
+              invoice_id: invoiceId,
+              description: `${payload.plan.name} – 30 jours`,
+              unit_price: monthlyAfterDiscount,
+              quantity: 1,
+              line_total: monthlyAfterDiscount,
+              line_type: "service",
+            },
+            ...equipmentLines.map((line) => ({
+              invoice_id: invoiceId,
+              description: String(line.name),
+              unit_price: Number(line.unit_price),
+              quantity: Number(line.quantity),
+              line_total: Number(line.unit_price) * Number(line.quantity),
+              line_type: "equipment",
+            })),
+          ];
+
+          if (welcomeFirstMonth > 0) {
+            invoiceLines.push({
+              invoice_id: invoiceId,
+              description: `1er mois offert ✓ (automatique) — ${monthly.toFixed(2)}$/mois`,
+              unit_price: -welcomeFirstMonth,
+              quantity: 1,
+              line_total: -welcomeFirstMonth,
+              line_type: "discount",
+            });
+          }
+
+          if (discountRow && monthlyDiscountAmount > 0) {
+            const durationSuffix = discountRow.duration_months
+              ? ` (${Number(discountRow.duration_months)} mois)`
+              : "";
+            invoiceLines.push({
+              invoice_id: invoiceId,
+              description: `${discountRow.name}${durationSuffix}`,
+              unit_price: -monthlyDiscountAmount,
+              quantity: 1,
+              line_total: -monthlyDiscountAmount,
+              line_type: "discount",
+              metadata: {
+                source_discount_id: discountRow.id,
+                type: discountRow.type,
+              },
+            });
+          }
+
+          if (discountRow?.type === "first_month_free" && firstMonthCredit > 0) {
+            invoiceLines.push({
+              invoice_id: invoiceId,
+              description: `${discountRow.name} (1er mois)`,
+              unit_price: -firstMonthCredit,
+              quantity: 1,
+              line_total: -firstMonthCredit,
+              line_type: "discount",
+              metadata: {
+                source_discount_id: discountRow.id,
+                type: discountRow.type,
+              },
+            });
+          }
+
+          const { error: linesErr } = await admin.from("billing_invoice_lines").insert(invoiceLines);
+          if (linesErr) throw new Error(`Invoice lines failed: ${linesErr.message}`);
+        }
+      }
+    } catch (invoiceCreateErr) {
+      console.error("[crm-create-sale] canonical invoice creation failed", invoiceCreateErr);
+      return json({ error: invoiceCreateErr instanceof Error ? invoiceCreateErr.message : "Invoice creation failed" }, 500);
+    }
 
     // Increment discount usage (best-effort)
     if (discountRow) {
