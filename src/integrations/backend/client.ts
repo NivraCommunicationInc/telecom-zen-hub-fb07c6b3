@@ -59,10 +59,34 @@ function applyAdminOtpKillSwitch(client: SupabaseClient): SupabaseClient {
   return client;
 }
 
+/**
+ * Tab-isolated auth storage for staff impersonation.
+ * When the URL contains `?staff_imp_isolated=1` OR sessionStorage already
+ * holds the marker, the Supabase auth storage is sessionStorage (tab-scoped).
+ * This guarantees the impersonated employee session lives ONLY in the new
+ * tab and does NOT overwrite the Core admin's localStorage session in the
+ * original tab — Shopify-style "View as" behavior.
+ */
+const STAFF_IMP_ISOLATED_KEY = "nivra_staff_imp_isolated";
+
+function resolveAuthStorage(): Storage {
+  if (typeof window === "undefined") return localStorage;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("staff_imp_isolated") === "1") {
+      sessionStorage.setItem(STAFF_IMP_ISOLATED_KEY, "1");
+    }
+    if (sessionStorage.getItem(STAFF_IMP_ISOLATED_KEY) === "1") {
+      return sessionStorage;
+    }
+  } catch { /* fall through */ }
+  return localStorage;
+}
+
 export const backendClient = applyAdminOtpKillSwitch(
   createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
     auth: {
-      storage: localStorage,
+      storage: resolveAuthStorage(),
       persistSession: true,
       autoRefreshToken: true,
     },
