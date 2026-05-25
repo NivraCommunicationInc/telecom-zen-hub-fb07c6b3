@@ -1002,13 +1002,26 @@ export default function CoreInterviewsPage() {
                       </Button>
                     )}
 
-                    {(selected.status === "accepted" || selected.status === "hired") && (
-                      <Button variant="outline"
-                        disabled={sendOnboarding.isPending}
-                        onClick={() => sendOnboarding.mutate(selected)}>
-                        <ClipboardCheck className="h-4 w-4 mr-2" /> Envoyer formulaire d&apos;embauche
+                    {!selected.interview_completed_at && (
+                      <Button
+                        variant="outline"
+                        className="border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                        disabled={markManualComplete.isPending}
+                        onClick={() => {
+                          if (confirm("Marquer l'entrevue comme complétée manuellement ? À utiliser uniquement si l'entrevue a été faite par téléphone ou en personne par un recruteur Nivra Core.")) {
+                            markManualComplete.mutate(selected);
+                          }
+                        }}>
+                        <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer entrevue complétée manuellement
                       </Button>
                     )}
+
+                    <Button variant="outline"
+                      disabled={sendOnboarding.isPending}
+                      onClick={() => sendOnboarding.mutate(selected)}>
+                      <ClipboardCheck className="h-4 w-4 mr-2" /> Envoyer formulaire d&apos;embauche
+                    </Button>
+
 
                     {selected.status === "interview_completed" && (
                       <>
