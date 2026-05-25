@@ -12,7 +12,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import {
   ArrowLeft, Loader2, Search, User, ShoppingCart, MapPin,
-  CheckCircle2, AlertTriangle, ChevronRight,
+  CheckCircle2, AlertTriangle, ChevronRight, UserPlus,
 } from "lucide-react";
 
 type Step = "client" | "plan" | "address" | "review" | "submitted";
