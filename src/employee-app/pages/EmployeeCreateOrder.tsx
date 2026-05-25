@@ -58,6 +58,9 @@ export default function EmployeeCreateOrder() {
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
   const [agentNotes, setAgentNotes] = useState("");
   const [selectedDiscount, setSelectedDiscount] = useState<AgentDiscountRow | null>(null);
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [newClient, setNewClient] = useState({ first_name: "", last_name: "", email: "", phone: "" });
+  const [creatingClient, setCreatingClient] = useState(false);
 
   // If preset client, load directly
   useEffect(() => {
