@@ -96,7 +96,17 @@ Deno.serve(async (req) => {
     // Role check
     const { data: roles } = await admin.from("user_roles")
       .select("role").eq("user_id", user.id).eq("is_active", true);
-    const allowed = (roles ?? []).some((r: any) => ["field_sales", "employee", "admin", "sales"].includes(r.role));
+    const allowed = (roles ?? []).some((r: any) => [
+      "field_sales",
+      "employee",
+      "admin",
+      "sales",
+      "support",
+      "billing_admin",
+      "techops",
+      "kyc_agent",
+      "supervisor",
+    ].includes(r.role));
     if (!allowed) return json({ error: "Forbidden — role required" }, 403);
 
     const payload = await req.json() as CrmSalePayload;
@@ -316,7 +326,41 @@ Deno.serve(async (req) => {
     // billing artifact, official PDFs, and the first-month-free credit is reflected
     // on the very first operation of the order.
     try {
-      const invoiceNumber = `INV-${orderNumber}`;
+      let billingCustomerId: string | null = null;
+      const { data: existingBillingCustomer } = await admin
+        .from("billing_customers")
+        .select("id")
+        .ilike("email", payload.client.email)
+        .maybeSingle();
+
+      if (existingBillingCustomer?.id) {
+        billingCustomerId = existingBillingCustomer.id;
+        await admin
+          .from("billing_customers")
+          .update({ user_id: clientUserId })
+          .eq("id", billingCustomerId)
+          .is("user_id", null);
+      } else {
+        const { data: newBillingCustomer, error: billingCustomerErr } = await admin
+          .from("billing_customers")
+          .insert({
+            user_id: clientUserId,
+            first_name: payload.client.first_name || "Client",
+            last_name: payload.client.last_name || "CRM",
+            email: payload.client.email,
+            phone: payload.client.phone || "",
+            status: "active",
+          })
+          .select("id")
+          .single();
+
+        if (billingCustomerErr) throw new Error(`Billing customer failed: ${billingCustomerErr.message}`);
+        billingCustomerId = newBillingCustomer.id;
+      }
+
+      const { data: invoiceNumberData, error: invoiceNumErr } = await admin.rpc("generate_billing_invoice_number");
+      if (invoiceNumErr) throw new Error(`Invoice number failed: ${invoiceNumErr.message}`);
+      const invoiceNumber = String(invoiceNumberData || `INV-${orderNumber}`);
       const { data: existingInvoice } = await admin
         .from("billing_invoices")
         .select("id")
@@ -330,9 +374,9 @@ Deno.serve(async (req) => {
           .from("billing_invoices")
           .insert({
             order_id: order.id,
-            customer_id: clientUserId,
+            customer_id: billingCustomerId,
             invoice_number: invoiceNumber,
-            type: "installation",
+            type: "initial",
             subtotal,
             tps_amount: tps,
             tvq_amount: tvq,
@@ -346,7 +390,14 @@ Deno.serve(async (req) => {
             notes: `Facture initiale CRM ${orderNumber}`,
             amount_paid: 0,
             balance_due: total,
-            environment: "live",
+            environment: "production",
+            billing_snapshot_client: {
+              first_name: payload.client.first_name,
+              last_name: payload.client.last_name,
+              email: payload.client.email,
+              phone: payload.client.phone ?? null,
+              source: "crm_call",
+            },
           })
           .select("id")
           .single();
