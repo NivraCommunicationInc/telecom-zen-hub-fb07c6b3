@@ -12,6 +12,7 @@ import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 import { Loader2, ShieldAlert } from "lucide-react";
+import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
 
 type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify";
 
@@ -63,6 +64,13 @@ export default function HrProtectedRoute() {
       // Check can_access_rh flag (defaults to true for all staff)
       if (roleData.can_access_rh === false) {
         if (mounted) setState("unauthorized");
+        return;
+      }
+
+      const bypassMfa = await isActiveStaffImpersonationForPortal(session.user.id, "rh");
+      if (bypassMfa) {
+        await auditAccess("portal_entry", "rh");
+        if (mounted) setState("authorized");
         return;
       }
 
