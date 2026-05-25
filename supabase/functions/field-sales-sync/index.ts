@@ -730,15 +730,27 @@ Deno.serve(async (req) => {
               }
             }
 
-            // RULE 1 — Premier mois gratuit ALWAYS automatic when there is a
-            // recurring monthly base. The agent cannot remove it. Skipped only
-            // when the agent's selected discount IS itself first_month_free
-            // (existing block below will write that single line).
+            // RULE 1 — Premier mois gratuit automatique UNIQUEMENT pour les
+            // clients qui n'ont jamais reçu le rabais (vérifié via la fonction
+            // canonique is_eligible_for_welcome_first_month).
             const discountData: any = (sale as any).discount_data;
             const agentDiscountIsFirstMonth =
               discountData && String(discountData.type || "") === "first_month_free";
 
+            let welcomeEligible = false;
             if (monthlyTotal > 0 && !agentDiscountIsFirstMonth) {
+              const { data: eligData, error: eligErr } = await supabaseAdmin.rpc(
+                "is_eligible_for_welcome_first_month",
+                { p_user_id: clientUserId ?? null, p_email: sale.customer_email ?? null },
+              );
+              if (eligErr) {
+                console.error("[field-sales-sync] welcome eligibility check failed", eligErr);
+              } else {
+                welcomeEligible = eligData === true;
+              }
+            }
+
+            if (welcomeEligible) {
               const { error: autoFmErr } = await supabaseAdmin
                 .from("billing_invoice_lines")
                 .insert({
