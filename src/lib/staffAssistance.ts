@@ -32,6 +32,7 @@ export interface StaffAssistanceSession {
 
 const KEY = "staff_assistance_session";
 const MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const STAFF_IMP_SESSION_KEY = "nivra_staff_imp_session_id";
 
 export function startStaffAssistance(s: StaffAssistanceSession) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* noop */ }
@@ -74,6 +75,44 @@ export async function resolveStaffAssistance(): Promise<StaffAssistanceSession |
 
 export function clearStaffAssistance() {
   try { localStorage.removeItem(KEY); } catch { /* noop */ }
+}
+
+function resolveStaffImpSessionId(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("staff_imp");
+    if (fromUrl) {
+      sessionStorage.setItem(STAFF_IMP_SESSION_KEY, fromUrl);
+      return fromUrl;
+    }
+    return sessionStorage.getItem(STAFF_IMP_SESSION_KEY) || getStaffAssistance()?.imp_session_id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function isActiveStaffImpersonationForPortal(
+  currentUserId: string,
+  portal: "field" | "rh" | "technician" | "employee" | "core",
+): Promise<boolean> {
+  const sessionId = resolveStaffImpSessionId();
+  if (!sessionId || !currentUserId) return false;
+
+  const stored = getStaffAssistance();
+  if (stored?.real_impersonation && stored.staff_user_id && stored.staff_user_id !== currentUserId) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("validate_active_staff_impersonation", {
+      _session_id: sessionId,
+      _target_user_id: currentUserId,
+      _portal: portal,
+    });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -149,4 +188,5 @@ export async function endRealStaffImpersonation(token?: string): Promise<void> {
     try { await supabase.rpc("end_staff_impersonation", { _token: t }); } catch { /* noop */ }
   }
   clearStaffAssistance();
+  try { sessionStorage.removeItem(STAFF_IMP_SESSION_KEY); } catch { /* noop */ }
 }

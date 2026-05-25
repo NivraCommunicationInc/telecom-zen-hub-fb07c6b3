@@ -28387,6 +28387,10 @@ export type Database = {
         Args: { p_template_key: string }
         Returns: undefined
       }
+      validate_active_staff_impersonation: {
+        Args: { _portal: string; _session_id: string; _target_user_id: string }
+        Returns: boolean
+      }
       validate_contract_status_transition: {
         Args: { p_new_status: string; p_old_status: string }
         Returns: boolean
