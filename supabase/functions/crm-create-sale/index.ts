@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
       internal_notes: payload.notes ?? null,
       // Discount columns
       discount_code: discountRow?.name ?? null,
-      discount_amount: monthlyDiscountAmount + firstMonthCredit,
+      discount_amount: monthlyDiscountAmount + totalFirstMonthCredit,
       promo_discount_amount: monthlyDiscountAmount,
       promo_details: discountRow ? {
         source_discount_id: discountRow.id,
