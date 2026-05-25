@@ -68,8 +68,19 @@ Deno.serve(async (req) => {
       employee: "/employee", core: "/core",
     } as Record<string, string>)[v.portal] ?? "/hub";
 
-    const redirectTo = new URL(req.url).origin.replace(/\/functions.*$/, "")
-      + `${portalPath}?staff_imp=${encodeURIComponent(v.session_id)}`;
+    // Resolve the APP origin (NOT the Supabase functions host) for the redirect.
+    // Priority: explicit body.origin → Origin header → Referer → fallback.
+    const headerOrigin = req.headers.get("origin");
+    const refererOrigin = (() => {
+      const r = req.headers.get("referer");
+      try { return r ? new URL(r).origin : null; } catch { return null; }
+    })();
+    const appOrigin = (bodyOrigin && /^https?:\/\//i.test(bodyOrigin) ? bodyOrigin : null)
+      || headerOrigin
+      || refererOrigin
+      || "https://www.nivra-telecom.ca";
+
+    const redirectTo = `${appOrigin}${portalPath}?staff_imp=${encodeURIComponent(v.session_id)}&staff_imp_isolated=1`;
 
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: "magiclink",
