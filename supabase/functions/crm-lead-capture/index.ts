@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
       subject: adminSubject,
       template_vars: { subject: adminSubject, html: adminHtml },
       status: "queued",
-      priority: "normal",
+      priority: 0,
     });
   } catch {/* non-blocking */}
 
