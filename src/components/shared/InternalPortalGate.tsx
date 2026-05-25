@@ -12,12 +12,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TermsOfUseModal, { TERMS_VERSION } from "./TermsOfUseModal";
 import MFASetupModal from "./MFASetupModal";
+import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
 
 interface GateState {
   loading: boolean;
   userId: string | null;
   needsTerms: boolean;
   needsMfa: boolean;
+}
+
+function currentPortal(): "field" | "employee" | null {
+  if (typeof window === "undefined") return null;
+  if (window.location.pathname.startsWith("/field")) return "field";
+  if (window.location.pathname.startsWith("/employee")) return "employee";
+  return null;
 }
 
 export default function InternalPortalGate({ children }: { children: React.ReactNode }) {
@@ -49,11 +57,16 @@ export default function InternalPortalGate({ children }: { children: React.React
         .maybeSingle(),
     ]);
 
+    const portal = currentPortal();
+    const assistanceBypass = portal
+      ? await isActiveStaffImpersonationForPortal(uid, portal)
+      : false;
+
     const needsTerms =
       !profile?.terms_accepted_at || profile.terms_accepted_version !== TERMS_VERSION;
     const mfaRequired = role?.mfa_required ?? true;
     const mfaConfigured = !!profile?.mfa_configured_at && !!profile?.mfa_method;
-    const needsMfa = mfaRequired && !mfaConfigured;
+    const needsMfa = !assistanceBypass && mfaRequired && !mfaConfigured;
 
     setState({ loading: false, userId: uid, needsTerms, needsMfa });
   };
