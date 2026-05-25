@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
           phone,
           source: `website:${landing}`,
           status: "lead",
-          call_status: "new",
+          call_status: "not_called",
           marketing_consent: true,
           consent_source: consentSource,
           consent_date: new Date().toISOString(),
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
         hero_title: "Merci pour votre intérêt",
       },
       status: "queued",
-      priority: "high",
+      priority: 10,
     });
   } catch (e) {
     // event_key collision (duplicate submission today) is fine — just log
@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
       subject: adminSubject,
       template_vars: { subject: adminSubject, html: adminHtml },
       status: "queued",
-      priority: "normal",
+      priority: 0,
     });
   } catch {/* non-blocking */}
 
