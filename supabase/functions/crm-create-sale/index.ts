@@ -18,6 +18,16 @@ const corsHeaders = {
 };
 
 interface SaleEquipmentLine { name: string; price: number; quantity?: number }
+interface SaleDiscountPayload {
+  id: string;
+  name: string;
+  type: string;
+  value: number;
+  applies_to?: string;
+  duration_months?: number | null;
+  monthly_discount_amount?: number;
+  first_month_credit?: number;
+}
 interface CrmSalePayload {
   contact_id: string;
   client: {
@@ -32,6 +42,7 @@ interface CrmSalePayload {
   };
   plan: { service_id: string; name: string; monthly_price: number; category?: string };
   equipment: SaleEquipmentLine[];
+  discount?: SaleDiscountPayload | null;
   install: { date: string; slot: "morning" | "afternoon" | "evening" };
   notes?: string;
 }
