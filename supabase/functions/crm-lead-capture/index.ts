@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
         hero_title: "Merci pour votre intérêt",
       },
       status: "queued",
-      priority: "high",
+      priority: 10,
     });
   } catch (e) {
     // event_key collision (duplicate submission today) is fine — just log
