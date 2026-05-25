@@ -404,11 +404,27 @@ Deno.serve(async (req) => {
       activation_preference: orderInsertPayload.activation_preference,
     });
 
-    const { data: order, error: insertErr } = await admin.from("orders").insert(orderInsertPayload).select("id, order_number, total_amount, subtotal").single();
+    const { data: order, error: insertErr } = await admin.from("orders").insert(orderInsertPayload).select("id, order_number, total_amount, subtotal, status").single();
 
     if (insertErr) {
       console.error("[crm-create-sale] order insert failed", insertErr);
       return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+    }
+
+    if (!["pending", "pending_payment", "submitted", "pending_admin_review", "confirmed", "completed", "activated", "delivered"].includes(String(order.status || "").toLowerCase())) {
+      const { error: promoteOrderError } = await admin
+        .from("orders")
+        .update({
+          status: "submitted",
+          payment_status: "pending",
+          payment_method: "paypal",
+        })
+        .eq("id", order.id);
+
+      if (promoteOrderError) {
+        console.error("[crm-create-sale] order promotion failed", promoteOrderError);
+        return json({ error: `Order promotion failed: ${promoteOrderError.message}` }, 500);
+      }
     }
 
     // Step 4b: create canonical first invoice immediately so CRM orders have a real
