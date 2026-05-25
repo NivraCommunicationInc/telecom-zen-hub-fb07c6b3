@@ -22,7 +22,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { token } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const { token, origin: bodyOrigin } = body as { token?: string; origin?: string };
     if (!token || typeof token !== "string" || token.length < 16) {
       return new Response(JSON.stringify({ error: "Token invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
