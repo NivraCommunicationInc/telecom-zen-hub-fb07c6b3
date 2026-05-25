@@ -18,6 +18,16 @@ const corsHeaders = {
 };
 
 interface SaleEquipmentLine { name: string; price: number; quantity?: number }
+interface SaleDiscountPayload {
+  id: string;
+  name: string;
+  type: string;
+  value: number;
+  applies_to?: string;
+  duration_months?: number | null;
+  monthly_discount_amount?: number;
+  first_month_credit?: number;
+}
 interface CrmSalePayload {
   contact_id: string;
   client: {
@@ -32,6 +42,7 @@ interface CrmSalePayload {
   };
   plan: { service_id: string; name: string; monthly_price: number; category?: string };
   equipment: SaleEquipmentLine[];
+  discount?: SaleDiscountPayload | null;
   install: { date: string; slot: "morning" | "afternoon" | "evening" };
   notes?: string;
 }
@@ -97,12 +108,51 @@ Deno.serve(async (req) => {
 
     if (!clientUserId) return json({ error: "Cannot resolve client account" }, 500);
 
-    // Step 2: compute totals
+    // Step 2: compute totals (re-validate discount server-side; never trust client math).
     const equipTotal = (payload.equipment ?? []).reduce(
       (s, e) => s + Number(e.price || 0) * Number(e.quantity ?? 1), 0
     );
     const monthly = Number(payload.plan.monthly_price || 0);
-    const subtotal = Number((monthly + equipTotal).toFixed(2));
+
+    let monthlyDiscountAmount = 0;
+    let firstMonthCredit = 0;
+    let discountRow: any = null;
+    if (payload.discount?.id) {
+      const { data: dRow } = await admin
+        .from("agent_discounts")
+        .select("id,name,type,value,applies_to,duration_months,min_plan_price,is_active,expires_at,max_uses,uses_count")
+        .eq("id", payload.discount.id)
+        .maybeSingle();
+      if (dRow && dRow.is_active &&
+          (!dRow.expires_at || new Date(dRow.expires_at).getTime() > Date.now()) &&
+          (dRow.max_uses == null || (dRow.uses_count ?? 0) < dRow.max_uses) &&
+          (Number(dRow.min_plan_price ?? 0) === 0 || monthly >= Number(dRow.min_plan_price))
+      ) {
+        discountRow = dRow;
+        const v = Number(dRow.value || 0);
+        switch (dRow.type) {
+          case "first_month_free":
+            firstMonthCredit = monthly;
+            break;
+          case "percentage":
+            monthlyDiscountAmount = Math.max(0, (monthly * v) / 100);
+            break;
+          case "remove_fee":
+            // No installation fee billed via CRM flow.
+            break;
+          case "fixed":
+          case "fixed_monthly":
+          default:
+            monthlyDiscountAmount = Math.max(0, Math.min(v, monthly));
+            break;
+        }
+      }
+    }
+    monthlyDiscountAmount = Number(monthlyDiscountAmount.toFixed(2));
+    firstMonthCredit = Number(firstMonthCredit.toFixed(2));
+
+    const monthlyAfterDiscount = Number(Math.max(0, monthly - monthlyDiscountAmount).toFixed(2));
+    const subtotal = Number((monthlyAfterDiscount + equipTotal).toFixed(2));
     const tps = Number((subtotal * 0.05).toFixed(2));
     const tvq = Number((subtotal * 0.09975).toFixed(2));
     const total = Number((subtotal + tps + tvq).toFixed(2));
@@ -126,6 +176,31 @@ Deno.serve(async (req) => {
       requested_date: payload.install.date,
       time_slot: payload.install.slot,
       source: "crm_call",
+    };
+
+    const pricingSnapshot = {
+      monthly_plan_price: monthly,
+      monthly_after_discount: monthlyAfterDiscount,
+      equipment_total: equipTotal,
+      subtotal,
+      tps_amount: tps,
+      tvq_amount: tvq,
+      total,
+      discount_total_combined: monthlyDiscountAmount + firstMonthCredit,
+      promo_discount: monthlyDiscountAmount,
+      welcome_discount: firstMonthCredit,
+      ...(discountRow ? {
+        applied_discount: {
+          id: discountRow.id,
+          name: discountRow.name,
+          type: discountRow.type,
+          value: discountRow.value,
+          applies_to: discountRow.applies_to,
+          duration_months: discountRow.duration_months,
+          monthly_amount: monthlyDiscountAmount,
+          first_month_credit: firstMonthCredit,
+        },
+      } : {}),
     };
 
     const { data: order, error: insertErr } = await admin.from("orders").insert({
@@ -155,9 +230,34 @@ Deno.serve(async (req) => {
       installation_details: installDetails,
       requested_activation_date: payload.install.date,
       internal_notes: payload.notes ?? null,
+      // Discount columns
+      discount_code: discountRow?.name ?? null,
+      discount_amount: monthlyDiscountAmount + firstMonthCredit,
+      promo_discount_amount: monthlyDiscountAmount,
+      promo_details: discountRow ? {
+        source_discount_id: discountRow.id,
+        name: discountRow.name,
+        type: discountRow.type,
+        value: discountRow.value,
+        applies_to: discountRow.applies_to,
+        duration_months: discountRow.duration_months,
+        monthly_amount: monthlyDiscountAmount,
+        first_month_credit: firstMonthCredit,
+      } : null,
+      pricing_snapshot: pricingSnapshot,
     }).select("id, order_number, total_amount, subtotal").single();
 
     if (insertErr) return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+
+    // Increment discount usage (best-effort)
+    if (discountRow) {
+      try {
+        await admin.from("agent_discounts")
+          .update({ uses_count: (Number(discountRow.uses_count ?? 0) + 1) })
+          .eq("id", discountRow.id);
+      } catch (_) { /* ignore */ }
+    }
+
 
     // Step 5: update crm_contacts
     await admin.from("crm_contacts").update({
@@ -183,7 +283,7 @@ Deno.serve(async (req) => {
     } catch (_) { /* ignore */ }
 
     // Commission estimate (30% forfait + 5% equipment)
-    const commissionEstimate = Number((monthly * 0.30 + equipTotal * 0.05).toFixed(2));
+    const commissionEstimate = Number((monthlyAfterDiscount * 0.30 + equipTotal * 0.05).toFixed(2));
 
     // Step 7: create PayPal order (best-effort — non-blocking)
     let paypalApproveUrl: string | null = null;
