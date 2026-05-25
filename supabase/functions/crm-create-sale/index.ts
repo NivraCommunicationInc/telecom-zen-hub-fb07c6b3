@@ -204,14 +204,17 @@ Deno.serve(async (req) => {
     const pricingSnapshot = {
       monthly_plan_price: monthly,
       monthly_after_discount: monthlyAfterDiscount,
+      first_month_billable: firstMonthBillable,
       equipment_total: equipTotal,
       subtotal,
       tps_amount: tps,
       tvq_amount: tvq,
       total,
-      discount_total_combined: monthlyDiscountAmount + firstMonthCredit,
+      discount_total_combined: monthlyDiscountAmount + totalFirstMonthCredit,
       promo_discount: monthlyDiscountAmount,
-      welcome_discount: firstMonthCredit,
+      welcome_discount: welcomeFirstMonth,
+      welcome_applied: welcomeApplied,
+      agent_first_month_credit: firstMonthCredit,
       ...(discountRow ? {
         applied_discount: {
           id: discountRow.id,
