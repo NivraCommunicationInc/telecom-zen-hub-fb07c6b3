@@ -352,7 +352,7 @@ Deno.serve(async (req) => {
       order_number: orderNumber,
       user_id: clientUserId,
       account_id: accountId,
-      status: "pending",
+      status: "submitted",
       service_type: serviceType,
       category: payload.plan.category ?? "internet",
       source: "crm_call",
@@ -412,7 +412,7 @@ Deno.serve(async (req) => {
       return json({ error: `Insert failed: ${insertErr.message}` }, 500);
     }
 
-    if (!["pending", "pending_payment", "submitted", "pending_admin_review", "confirmed", "completed", "activated", "delivered"].includes(String(order.status || "").toLowerCase())) {
+    if (!["submitted", "pending_admin_review", "confirmed", "completed", "activated", "delivered"].includes(String(order.status || "").toLowerCase())) {
       const { error: promoteOrderError } = await admin
         .from("orders")
         .update({
