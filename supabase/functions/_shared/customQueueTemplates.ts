@@ -6898,6 +6898,42 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "crm_lead_welcome": {
+      const subject = String(v.subject || "Bienvenue chez Nivra Telecom!");
+      const heroTitle = String(v.hero_title || "Merci pour votre intérêt");
+      const firstName = String(v.first_name || clientName);
+      const city = String(v.city || "");
+      const bodyText = String(
+        v.body_fr ||
+        `Merci d'avoir manifesté votre intérêt pour Nivra Telecom${city ? " à " + city : ""}. ` +
+        "On a bien reçu votre demande. Un membre de l'équipe vous contactera très rapidement avec les prochaines étapes pour activer votre forfait GIGA 60$/mois — sans contrat, sans vérification de crédit."
+      );
+      const unsubscribeUrl = esc(String(v.unsubscribe_url || "https://nivra-telecom.ca/contact"));
+      return {
+        subject,
+        html: shell({
+          preheader: "Bienvenue chez Nivra Telecom. On vous écrit dans la minute.",
+          badge: "BIENVENUE",
+          heroTitle,
+          icon: "spark",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "Ce que vous avez réservé",
+          cardRows: [
+            ["Internet GIGA 940 Mbps", "60$/mois"],
+            ["Sans contrat", "Aucun engagement"],
+            ["Sans vérif. crédit", "Tout le monde accepté"],
+            ["Support local", "Équipe québécoise"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaPrimaryLabel: "Voir tous nos forfaits",
+          ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
+          ctaSecondaryLabel: "Parler à un humain",
+          helpHtml: `Vous recevez ce courriel suite à votre demande sur notre site. <a href="${unsubscribeUrl}" style="color:#7c3aed;text-decoration:underline;">Me désabonner</a>. Nivra Telecom · ${SUPPORT_EMAIL}`,
+        }),
+      };
+    }
+
     case "crm_sequence_lastcall": {
       const subject = String(v.subject || "Dernière relance — on respecte votre boîte courriel");
       const heroTitle = String(v.hero_title || "On respecte votre boîte courriel");

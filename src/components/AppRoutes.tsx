@@ -283,6 +283,7 @@ const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
 const ServicesDetail = lazy(() => import("@/pages/ServicesDetail"));
 const InternetPlans = lazy(() => import("@/pages/InternetPlans"));
+const InternetPasCherQuebec = lazy(() => import("@/pages/InternetPasCherQuebec"));
 const Forfaits = lazy(() => import("@/pages/Forfaits"));
 const TVPlans = lazy(() => import("@/pages/TVPlans"));
 const MobilePlans = lazy(() => import("@/pages/MobilePlans"));
@@ -570,6 +571,7 @@ const AppRoutes = () => {
       <Route path="/services" element={<MaintenanceGuard><PublicLayout><ServicesDetail /></PublicLayout></MaintenanceGuard>} />
       <Route path="/forfaits" element={<MaintenanceGuard><PublicLayout><Forfaits /></PublicLayout></MaintenanceGuard>} />
       <Route path="/internet" element={<MaintenanceGuard><PublicLayout><InternetPlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/internet-pas-cher-quebec" element={<MaintenanceGuard><PublicLayout><InternetPasCherQuebec /></PublicLayout></MaintenanceGuard>} />
       <Route path="/tv" element={<MaintenanceGuard><PublicLayout><TVPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/mobile" element={<MaintenanceGuard><PublicLayout><MobilePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/test-vitesse" element={<MaintenanceGuard><TestVitesse /></MaintenanceGuard>} />
