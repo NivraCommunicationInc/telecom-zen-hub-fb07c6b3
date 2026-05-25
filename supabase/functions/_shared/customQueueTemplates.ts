@@ -6834,6 +6834,102 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "crm_sequence_social": {
+      const subject = String(v.subject || "Ce que nos clients disent — Nivra Telecom");
+      const heroTitle = String(v.hero_title || "Ils ont fait le saut. Vous?");
+      const bodyText = String(v.body_fr || "Plusieurs Québécois ont quitté Bell ou Vidéotron pour Nivra ces dernières semaines. Voici ce qu'ils nous disent.");
+      const ctaLabel = String(v.cta_label || "Découvrir les témoignages");
+      const firstName = String(v.first_name || clientName);
+      const unsubscribeUrl = esc(String(v.unsubscribe_url || "https://nivra-telecom.ca/contact"));
+      return {
+        subject,
+        html: shell({
+          preheader: "Témoignages de clients récents qui ont basculé chez Nivra.",
+          badge: "VOIX DES CLIENTS",
+          heroTitle,
+          icon: "heart",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "Ce qu'ils nous disent",
+          cardRows: [
+            ["Marc — Montréal", "35$/mois économisés vs Bell"],
+            ["Sophie — Laval", "Activation sans vérif. crédit"],
+            ["Driss — St-Laurent", "GIGA stable, support local FR"],
+            ["Sans contrat", "Liberté garantie"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaPrimaryLabel: ctaLabel,
+          ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
+          ctaSecondaryLabel: "Parler à un humain",
+          helpHtml: `Touche 2/4 d'une courte séquence d'information envoyée aux personnes qui ont fait affaire avec Nivra. <a href="${unsubscribeUrl}" style="color:#7c3aed;text-decoration:underline;">Me désabonner en un clic</a>. Nivra Telecom · ${SUPPORT_EMAIL}`,
+        }),
+      };
+    }
+
+    case "crm_sequence_savings": {
+      const subject = String(v.subject || "720$/an d'économies vs Bell — calcul réel");
+      const heroTitle = String(v.hero_title || "Combien Bell vous coûte de trop?");
+      const bodyText = String(v.body_fr || "Voici un calcul simple. Bell facture en moyenne 100$ à 120$ par mois pour Internet seul. Nivra GIGA 940 Mbps est à 60$/mois. La différence, c'est 720$ par année qui restent dans votre compte.");
+      const ctaLabel = String(v.cta_label || "Voir l'économie complète");
+      const firstName = String(v.first_name || clientName);
+      const unsubscribeUrl = esc(String(v.unsubscribe_url || "https://nivra-telecom.ca/contact"));
+      return {
+        subject,
+        html: shell({
+          preheader: "Combien Bell vous coûte de trop chaque mois? Calcul honnête.",
+          badge: "CALCUL D'ÉCONOMIE",
+          heroTitle,
+          icon: "spark",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "Comparaison directe (Internet seul)",
+          cardRows: [
+            ["Bell — Forfait GIGA", "~100-120$/mois"],
+            ["Nivra — GIGA 940 Mbps", "60$/mois"],
+            ["Économie mensuelle", "40 à 60$"],
+            ["Économie annuelle", "480 à 720$"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaPrimaryLabel: ctaLabel,
+          ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
+          ctaSecondaryLabel: "Essayer un mois",
+          helpHtml: `Touche 3/4 d'une courte séquence d'information. <a href="${unsubscribeUrl}" style="color:#7c3aed;text-decoration:underline;">Me désabonner en un clic</a>. Nivra Telecom · ${SUPPORT_EMAIL}`,
+        }),
+      };
+    }
+
+    case "crm_sequence_lastcall": {
+      const subject = String(v.subject || "Dernière relance — on respecte votre boîte courriel");
+      const heroTitle = String(v.hero_title || "On respecte votre boîte courriel");
+      const bodyText = String(v.body_fr || "Voici notre dernière relance. Si Nivra ne vous intéresse pas en ce moment, c'est tout à fait correct. On arrête après celui-ci. Vous pouvez toujours revenir quand vous voulez — la porte reste ouverte.");
+      const ctaLabel = String(v.cta_label || "Réserver ma place");
+      const firstName = String(v.first_name || clientName);
+      const unsubscribeUrl = esc(String(v.unsubscribe_url || "https://nivra-telecom.ca/contact"));
+      return {
+        subject,
+        html: shell({
+          preheader: "Dernier message de notre séquence. Aucune pression.",
+          badge: "DERNIÈRE RELANCE",
+          heroTitle,
+          icon: "heart",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "Pour rappel",
+          cardRows: [
+            ["Internet GIGA 940 Mbps", "60$/mois"],
+            ["Sans contrat", "Aucun engagement"],
+            ["Sans vérif. crédit", "Tout le monde accepté"],
+            ["Support local", "Équipe québécoise"],
+          ],
+          ctaPrimaryUrl: "https://nivra-telecom.ca/forfaits",
+          ctaPrimaryLabel: ctaLabel,
+          ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
+          ctaSecondaryLabel: "Parler à un humain",
+          helpHtml: `Dernière touche de notre séquence — vous ne recevrez plus d'emails marketing de notre part par la suite. <a href="${unsubscribeUrl}" style="color:#7c3aed;text-decoration:underline;">Me désabonner en un clic</a>. Nivra Telecom · ${SUPPORT_EMAIL}`,
+        }),
+      };
+    }
+
     case "google_ads_alert": {
       const campaignName = esc(v.campaign_name || "Campagne inconnue");
       const status = esc(v.status || "—");
