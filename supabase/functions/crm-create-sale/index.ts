@@ -283,7 +283,7 @@ Deno.serve(async (req) => {
     } catch (_) { /* ignore */ }
 
     // Commission estimate (30% forfait + 5% equipment)
-    const commissionEstimate = Number((monthly * 0.30 + equipTotal * 0.05).toFixed(2));
+    const commissionEstimate = Number((monthlyAfterDiscount * 0.30 + equipTotal * 0.05).toFixed(2));
 
     // Step 7: create PayPal order (best-effort — non-blocking)
     let paypalApproveUrl: string | null = null;
