@@ -305,14 +305,22 @@ serve(async (req) => {
         }
         const meta = SIM_ACTION_LABELS[sim_action_type];
 
-        // Resolve mobile_fulfillment + old iccid
+        // Resolve mobile_fulfillment + old iccid.
+        // SECURITY: scope by BOTH user_id AND subscription_id (and account_id
+        // when provided) so a multi-account user can't trigger SIM actions
+        // on the wrong account's fulfillment. Without the subscription_id
+        // filter, the most recent fulfillment of ANY of the user's accounts
+        // would have been used.
         let mobile_fulfillment_id: string | null = null;
         let old_iccid: string | null = null;
         if (body.subscription_id) {
-          const { data: fulfill } = await admin
+          let q = admin
             .from("mobile_fulfillment")
-            .select("id, sim_iccid, order_id")
+            .select("id, sim_iccid, order_id, account_id, subscription_id")
             .eq("user_id", client_user_id)
+            .eq("subscription_id", body.subscription_id);
+          if (body.account_id) q = q.eq("account_id", body.account_id);
+          const { data: fulfill } = await q
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();

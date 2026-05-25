@@ -207,6 +207,23 @@ serve(async (req) => {
             .eq("status", "active");
         }
 
+        // Idempotency check: if same idempotency_key already produced a row
+        // in the last 24h for this user, return that row instead of creating
+        // a duplicate payment method. Protects against double-click bugs.
+        if (body.idempotency_key) {
+          const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+          const { data: existing } = await admin
+            .from("client_payment_methods")
+            .select("id")
+            .eq("user_id", client_user_id)
+            .gte("created_at", since)
+            .contains("metadata", { idempotency_key: body.idempotency_key })
+            .maybeSingle();
+          if (existing?.id) {
+            return json(200, { ok: true, method_id: existing.id, idempotent: true });
+          }
+        }
+
         const { data, error } = await admin
           .from("client_payment_methods")
           .insert({
@@ -227,7 +244,7 @@ serve(async (req) => {
           })
           .select("id")
           .single();
-        if (error) return json(500, { error: error.message });
+        if (error) return json(500, { error: "Failed to add payment method" });
 
         await audit("add_payment_method", {
           method_id: data.id, method_type, last4: body.last4, is_default: !!body.is_default,
@@ -523,7 +540,7 @@ serve(async (req) => {
           })
           .select("id")
           .single();
-        if (error) return json(500, { error: error.message });
+        if (error) { console.error("billing direct_refund insert error", error); return json(500, { error: "Refund insert failed" }); }
 
         await audit("create_direct_refund", {
           refund_id: data.id, amount, refund_method,

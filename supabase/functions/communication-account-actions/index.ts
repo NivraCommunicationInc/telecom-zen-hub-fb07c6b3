@@ -121,6 +121,27 @@ Deno.serve(async (req) => {
     if (!body.client_user_id) return json({ error: "client_user_id required" }, 400);
     if (!body.client_email) return json({ error: "client_email required" }, 400);
 
+    // SECURITY: verify the client_email actually belongs to client_user_id.
+    // Without this check, a malicious staff could send email to ANY address
+    // by passing a forged client_email — turning the function into an
+    // open relay. Cross-check against profiles + auth.users.
+    const requestedEmail = String(body.client_email).trim().toLowerCase();
+    const { data: profileRow } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("user_id", body.client_user_id)
+      .maybeSingle();
+    const profileEmail = String(profileRow?.email ?? "").trim().toLowerCase();
+    if (!profileEmail || profileEmail !== requestedEmail) {
+      // Fall back to checking auth.users (some legacy clients have email
+      // only in auth, not in profiles)
+      const { data: authUser } = await admin.auth.admin.getUserById(body.client_user_id);
+      const authEmail = String(authUser?.user?.email ?? "").trim().toLowerCase();
+      if (!authEmail || authEmail !== requestedEmail) {
+        return json({ error: "client_email does not match the target client_user_id" }, 403);
+      }
+    }
+
     const templateKey = body.template_key && TEMPLATES[body.template_key] ? body.template_key : "custom";
     const tpl = TEMPLATES[templateKey];
 

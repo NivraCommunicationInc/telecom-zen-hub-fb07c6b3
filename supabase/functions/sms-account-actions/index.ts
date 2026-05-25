@@ -145,8 +145,9 @@ Deno.serve(async (req) => {
         return json({ error: `unknown action: ${body.action}` }, 400);
     }
   } catch (e) {
+    // Log full error server-side, return generic message to client.
     console.error("sms-account-actions error", e);
-    return json({ error: (e as Error).message }, 500);
+    return json({ error: "Internal server error" }, 500);
   }
 });
 

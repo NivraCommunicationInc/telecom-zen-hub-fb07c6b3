@@ -221,8 +221,13 @@ serve(async (req) => {
           .single();
         if (error) return json(500, { error: error.message });
 
+        // Track subscription update result. If it fails, audit it so ops can
+        // reconcile the inconsistent state (plan_change row exists but the
+        // subscription itself still shows the old plan/price).
+        let subscriptionUpdateOk = true;
+        let subscriptionUpdateError: string | null = null;
         if (body.subscription_id) {
-          await admin
+          const { error: subErr } = await admin
             .from("subscriptions")
             .update({
               plan_name: new_plan_name,
@@ -230,11 +235,29 @@ serve(async (req) => {
               amount: new_monthly_price,
             })
             .eq("id", body.subscription_id);
+          if (subErr) {
+            subscriptionUpdateOk = false;
+            subscriptionUpdateError = subErr.message;
+            // Raise a system alert so ops can manually reconcile
+            await admin.from("billing_system_alerts").insert({
+              alert_type: "internet_plan_change_orphaned",
+              entity_type: "internet_plan_changes",
+              entity_id: data.id,
+              details: {
+                plan_change_id: data.id,
+                subscription_id: body.subscription_id,
+                error: subErr.message,
+                client_user_id,
+              },
+            });
+          }
         }
 
         await audit("change_plan", {
           plan_change_id: data.id, new_plan_name, new_monthly_price,
           new_speed_mbps: body.new_speed_mbps, change_type,
+          subscription_update_ok: subscriptionUpdateOk,
+          subscription_update_error: subscriptionUpdateError,
         });
         await enqueueEmail("client_internet_plan_change", {
           previous_plan_name: body.previous_plan_name || "—",

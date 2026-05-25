@@ -230,7 +230,11 @@ serve(async (req) => {
           .eq("id", body.session_id);
         if (error) return json(500, { error: error.message });
 
-        // Best-effort: also mark linked kyc_verifications row(s)
+        // Mark ONLY the kyc_verifications row(s) linked to THIS session.
+        // Previous version eq("client_id").eq("status", "pending") marked
+        // EVERY pending verification for the client — meaning approving one
+        // session would silently approve any other unrelated pending KYC
+        // for the same client. Scope strictly to the session being acted on.
         await admin
           .from("kyc_verifications")
           .update({
@@ -240,6 +244,7 @@ serve(async (req) => {
             notes: body.review_reason ?? null,
           })
           .eq("client_id", client_user_id)
+          .eq("session_id", body.session_id)
           .eq("status", "pending");
 
         await ivsEvent(body.session_id, "staff_approved", { reason: body.review_reason ?? null });

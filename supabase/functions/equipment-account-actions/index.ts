@@ -153,10 +153,21 @@ serve(async (req) => {
     switch (action) {
       case "list_active": {
         const activeStatuses = ["assigned", "deployed", "reserved"];
+        // SECURITY: validate UUIDs BEFORE interpolating into .or() filter.
+        // Without this, an attacker could inject Postgrest filter syntax via
+        // body.account_id (e.g. `xxx,user_id.eq.<other-uuid>`) to read other
+        // clients' orders. UUID_RE matches strict v1-v8 RFC 4122 form.
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!UUID_RE.test(client_user_id)) {
+          return json(400, { error: "Invalid client_user_id format" });
+        }
+        const safeAccountId = body.account_id && UUID_RE.test(String(body.account_id))
+          ? String(body.account_id)
+          : null;
         const { data: orders, error: ordersErr } = await admin
           .from("orders")
           .select("id, equipment_details, equipment_id")
-          .or(`user_id.eq.${client_user_id}${body.account_id ? `,account_id.eq.${body.account_id}` : ""}`)
+          .or(`user_id.eq.${client_user_id}${safeAccountId ? `,account_id.eq.${safeAccountId}` : ""}`)
           .order("created_at", { ascending: false })
           .limit(100);
         if (ordersErr) return json(500, { error: ordersErr.message });
@@ -178,8 +189,10 @@ serve(async (req) => {
         ]));
 
         const invFilters: string[] = [];
-        if (body.account_id) invFilters.push(`account_id.eq.${body.account_id}`);
-        if (orderIds.length > 0) invFilters.push(`order_id.in.(${orderIds.slice(0, 100).join(",")})`);
+        if (safeAccountId) invFilters.push(`account_id.eq.${safeAccountId}`);
+        // orderIds already came from our own DB query above, so they're trusted UUIDs
+        const safeOrderIds = orderIds.filter((id) => UUID_RE.test(String(id))).slice(0, 100);
+        if (safeOrderIds.length > 0) invFilters.push(`order_id.in.(${safeOrderIds.join(",")})`);
         const invRes = invFilters.length > 0
           ? await admin.from("equipment_inventory")
               .select("id,catalog_name,category,status,serial_number,imei,mac_address,price_client,assigned_at,condition,order_id,sku,created_at")

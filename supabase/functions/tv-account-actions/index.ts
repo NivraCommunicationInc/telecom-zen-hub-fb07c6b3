@@ -437,9 +437,14 @@ serve(async (req) => {
         };
         if (pin_hash !== undefined) upsertPayload.pin_hash = pin_hash;
 
+        // Scope upsert by (user_id, account_id) so a multi-account user
+        // doesn't overwrite parental controls across their other accounts.
+        // Falls back to user_id-only upsert when account_id is null (legacy
+        // single-account customers).
+        const conflictKey = body.account_id ? "user_id,account_id" : "user_id";
         const { error } = await admin
           .from("tv_parental_controls")
-          .upsert(upsertPayload, { onConflict: "user_id" });
+          .upsert(upsertPayload, { onConflict: conflictKey });
         if (error) return json(500, { error: error.message });
 
         await audit("set_parental", {

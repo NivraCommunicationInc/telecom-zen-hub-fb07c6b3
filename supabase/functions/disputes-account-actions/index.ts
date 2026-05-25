@@ -172,6 +172,9 @@ serve(async (req) => {
     if (!existing) return { err: "Litige introuvable", row: null as any };
     if (existing.user_id !== client_user_id) return { err: "Litige hors compte", row: null as any };
 
+    // Defense in depth: scope the UPDATE itself by both id AND user_id so
+    // a race condition between the SELECT and UPDATE cannot cross client
+    // boundaries.
     const { data, error } = await admin
       .from("payment_disputes")
       .update({
@@ -181,9 +184,10 @@ serve(async (req) => {
         processed_at: new Date().toISOString(),
       })
       .eq("id", dispute_id)
+      .eq("user_id", client_user_id)
       .select("id, dispute_number, status, reason_code")
       .single();
-    if (error) return { err: error.message, row: null as any };
+    if (error) return { err: "Update failed", row: null as any };
     return { err: null, row: data };
   };
 

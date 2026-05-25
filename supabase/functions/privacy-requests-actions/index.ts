@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
         .select("*")
         .eq("client_id", clientId)
         .order("received_at", { ascending: false });
-      if (error) return json({ error: error.message }, 500);
+      if (error) { console.error("privacy-requests-actions DB error", error); return json({ error: "Operation failed" }, 500); }
       return json({ requests: data ?? [] });
     }
 
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
         last_updated_by: user.id,
         last_updated_by_email: user.email,
       }).select().single();
-      if (error) return json({ error: error.message }, 500);
+      if (error) { console.error("privacy-requests-actions DB error", error); return json({ error: "Operation failed" }, 500); }
 
       await admin.from("admin_audit_log").insert({
         admin_user_id: user.id, admin_email: user.email, action: "account_ops.privacy_request_create",
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       if (internalNotes?.trim()) patch.internal_notes = internalNotes.trim();
 
       const { data, error } = await admin.from("privacy_requests").update(patch).eq("id", requestId).select().single();
-      if (error) return json({ error: error.message }, 500);
+      if (error) { console.error("privacy-requests-actions DB error", error); return json({ error: "Operation failed" }, 500); }
 
       await admin.from("admin_audit_log").insert({
         admin_user_id: user.id, admin_email: user.email, action: "account_ops.privacy_request_update",

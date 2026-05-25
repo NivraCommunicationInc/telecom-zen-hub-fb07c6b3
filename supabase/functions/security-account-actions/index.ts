@@ -42,8 +42,14 @@ Deno.serve(async (req) => {
     const isStaff = isStaffData === true;
     if (!isStaff) return json({ error: "forbidden" }, 403);
 
-    // Sensitive actions require admin
-    const isAdmin = roles[0].data === true;
+    // Sensitive actions require admin role specifically (not just any staff).
+    // Previous version referenced an undefined `roles` variable that crashed
+    // the function on every invocation. Use has_role() RPC instead.
+    const { data: isAdminData } = await admin.rpc("has_role", {
+      _user_id: userData.user.id,
+      _role: "admin",
+    });
+    const isAdmin = isAdminData === true;
 
     const body = (await req.json()) as Body;
     if (!body?.client_user_id || !body?.action) {

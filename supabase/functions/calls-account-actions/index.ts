@@ -203,8 +203,10 @@ Deno.serve(async (req) => {
         return json({ error: `unknown action: ${body.action}` }, 400);
     }
   } catch (e) {
+    // Log full error server-side, return generic message to client to avoid
+    // leaking stack traces, SQL errors, or other internal details.
     console.error("calls-account-actions error", e);
-    return json({ error: (e as Error).message }, 500);
+    return json({ error: "Internal server error" }, 500);
   }
 });
 

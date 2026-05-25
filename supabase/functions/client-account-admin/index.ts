@@ -80,6 +80,9 @@ serve(async (req) => {
   const allowedRoles = new Set(["admin", "employee", "agent", "manager", "core_admin", "super_admin", "supervisor"]);
   const isStaff = (roles || []).some((r: any) => allowedRoles.has(r.role));
   if (!isStaff) return json(403, { error: "Réservé au personnel autorisé" });
+  // Admin gate for sensitive actions (email change, etc.)
+  const adminRoles = new Set(["admin", "core_admin", "super_admin"]);
+  const isAdmin = (roles || []).some((r: any) => adminRoles.has(r.role));
 
   let body: Body;
   try { body = await req.json(); } catch { return json(400, { error: "Body invalide" }); }
@@ -216,16 +219,45 @@ serve(async (req) => {
         const ne = (body.new_email || "").trim().toLowerCase();
         if (!ne || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ne)) return json(400, { error: "Nouveau courriel invalide" });
         const oldEmail = targetEmail!;
+
+        // Security: changing a client's email is an account-takeover vector.
+        // We now require:
+        //   1. The acting staff must be admin (not any staff role)
+        //   2. body.reason must be provided (audit + accountability)
+        //   3. The OLD email is notified BEFORE the change so the original
+        //      account owner can object if they didn't request it
+        if (!isAdmin) {
+          return json(403, { error: "Seul un admin peut changer le courriel d'un client" });
+        }
+        if (!body.reason || !String(body.reason).trim()) {
+          return json(400, { error: "Motif obligatoire pour changement de courriel" });
+        }
+
+        // Notify OLD address first — this is the protection against hijack.
+        // If a staff member is acting maliciously, the real owner gets warned.
+        await queueEmail("client_email_changed_warning_old", oldEmail, {
+          old_email: oldEmail,
+          new_email: ne,
+          changed_by_email: user.email,
+          reason: String(body.reason).trim(),
+        });
+
         const { error } = await admin.auth.admin.updateUserById(targetId, { email: ne, email_confirm: true });
         if (error) throw error;
         try { await admin.from("profiles").update({ email: ne }).eq("user_id", targetId); } catch (_e) {}
-        // Notify new address using corporate template
+
+        // Also notify the new address with the standard notice
         await queueEmail("client_email_changed_notice", ne, {
           old_email: oldEmail,
           new_email: ne,
         });
-        await audit("email_changed", { old: oldEmail, new: ne }, true);
-        return json(200, { success: true, message: "Courriel mis à jour et confirmation envoyée" });
+        await audit("email_changed", {
+          old: oldEmail,
+          new: ne,
+          reason: String(body.reason).trim(),
+          changed_by: user.id,
+        }, true);
+        return json(200, { success: true, message: "Courriel mis à jour. L'ancienne adresse a été notifiée." });
       }
 
       case "force_logout": {
