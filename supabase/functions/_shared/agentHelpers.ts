@@ -138,6 +138,24 @@ export async function updateRegistry(
  * Queue an email through the custom email_queue table.
  * Always BCCs support@nivra-telecom.ca by enqueuing a second row.
  */
+/**
+ * Marketing / promo templates that must NEVER trigger the BCC copy to
+ * support@nivra-telecom.ca — they generate too much noise in the owner
+ * inbox (one BCC per send → hundreds per week). Transactional templates
+ * (invoices, PIN codes, status updates) still BCC for the audit trail.
+ *
+ * Add new marketing template_key values here when you create them.
+ */
+const NO_BCC_MARKETING_TEMPLATES = new Set<string>([
+  "crm_promo_blast",
+  "crm_followup",
+  "crm_sequence_social",
+  "crm_sequence_savings",
+  "crm_sequence_lastcall",
+  "marketing_promotion",
+  "winback_offer",
+]);
+
 export async function queueEmail(
   supabase: ReturnType<typeof createClient>,
   args: {
@@ -146,18 +164,21 @@ export async function queueEmail(
     subject: string;
     templateVars: Record<string, unknown>;
     eventKey?: string;
+    skipBcc?: boolean;
   },
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     // Defense-in-depth: never deliver a promo / marketing payload to an
-    // internal Nivra address as the primary recipient. The BCC copy below
-    // already routes the audit trail to support@nivra-telecom.ca.
+    // internal Nivra address as the primary recipient.
     if (isInternalEmail(args.toEmail)) {
       return { ok: false, error: "internal_email_recipient_blocked" };
     }
 
+    const skipBcc = args.skipBcc === true
+      || NO_BCC_MARKETING_TEMPLATES.has(args.templateKey);
+
     const eventKey = args.eventKey || `${args.templateKey}-${crypto.randomUUID()}`;
-    const rows = [
+    const rows: Record<string, unknown>[] = [
       {
         event_key: eventKey,
         to_email: args.toEmail,
@@ -166,15 +187,21 @@ export async function queueEmail(
         template_vars: args.templateVars,
         status: "queued",
       },
-      {
+    ];
+
+    // Transactional / admin templates keep the oversight BCC. Marketing
+    // templates do not — operators get a daily/weekly digest instead.
+    if (!skipBcc) {
+      rows.push({
         event_key: `${eventKey}-bcc`,
         to_email: SUPPORT_BCC,
         template_key: args.templateKey,
         subject: `[BCC] ${args.subject}`,
         template_vars: { ...args.templateVars, _bcc_original_recipient: args.toEmail },
         status: "queued",
-      },
-    ];
+      });
+    }
+
     const { error } = await supabase.from("email_queue").insert(rows);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
