@@ -222,10 +222,13 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
     () => computeDiscount(discount, monthly),
     [discount, monthly],
   );
+  const automaticWelcomeFirstMonth = monthly > 0 ? monthly : 0;
 
   const monthlyAfterDiscount = Math.max(0, +(monthly - monthlyDiscountAmount).toFixed(2));
-  // Subtotal for tax/total = recurring after discount + equipment one-time.
-  const subtotal          = +(monthlyAfterDiscount + equipmentTotal).toFixed(2);
+  const firstMonthTotalCredit = +(firstMonthCredit + automaticWelcomeFirstMonth).toFixed(2);
+  const firstMonthBillablePlan = +Math.max(0, monthlyAfterDiscount - firstMonthTotalCredit).toFixed(2);
+  // Subtotal for tax/total = first invoice recurring after credits + equipment one-time.
+  const subtotal          = +(firstMonthBillablePlan + equipmentTotal).toFixed(2);
   const tps               = +(subtotal * 0.05).toFixed(2);
   const tvq               = +(subtotal * 0.09975).toFixed(2);
   const total             = +(subtotal + tps + tvq).toFixed(2);
@@ -553,12 +556,21 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
                       <span>− {firstMonthCredit.toFixed(2)} $</span>
                     </div>
                   )}
+                  {automaticWelcomeFirstMonth > 0 && (
+                    <div className="flex justify-between text-xs text-emerald-600">
+                      <span>Premier mois gratuit (forfait seulement)</span>
+                      <span>− {automaticWelcomeFirstMonth.toFixed(2)} $</span>
+                    </div>
+                  )}
                   {selectedEquipment.map(e => (
                     <div key={e.key} className="flex justify-between text-xs text-muted-foreground">
                       <span>{e.name} × {e.quantity}</span><span>{(e.price * e.quantity).toFixed(2)} $</span>
                     </div>
                   ))}
-                  <div className="flex justify-between pt-2 border-t border-border"><span>Sous-total (récurrent + équip.)</span><span>{subtotal.toFixed(2)} $</span></div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Forfait facturable sur 1re facture</span><span>{firstMonthBillablePlan.toFixed(2)} $</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-border"><span>Sous-total 1re facture</span><span>{subtotal.toFixed(2)} $</span></div>
                   <div className="flex justify-between text-xs text-muted-foreground"><span>TPS (5%)</span><span>{tps.toFixed(2)} $</span></div>
                   <div className="flex justify-between text-xs text-muted-foreground"><span>TVQ (9.975%)</span><span>{tvq.toFixed(2)} $</span></div>
                   <div className="flex justify-between font-bold text-base pt-1 border-t border-border"><span>Total à facturer</span><span className="text-violet-500">{total.toFixed(2)} $</span></div>
