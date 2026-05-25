@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
+import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
 
 type State = "loading" | "authorized" | "unauthorized" | "no_session" | "mfa_enroll" | "mfa_verify";
 
@@ -87,6 +88,12 @@ export default function TechProtectedRoute() {
       );
       if (!ok) {
         if (mounted) setState("unauthorized");
+        return;
+      }
+
+      const bypassMfa = await isActiveStaffImpersonationForPortal(session.user.id, "technician");
+      if (bypassMfa) {
+        if (mounted) setState("authorized");
         return;
       }
 
