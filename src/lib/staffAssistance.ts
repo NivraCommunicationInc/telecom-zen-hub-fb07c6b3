@@ -89,9 +89,17 @@ export async function beginRealStaffImpersonation(args: {
   portal: "field" | "rh" | "technician" | "employee" | "core";
   adminUserId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  // Open placeholder tab synchronously to keep user gesture
-  const placeholder = window.open("about:blank", "_blank");
+  // Open placeholder tab synchronously to keep user gesture.
+  // We immediately mark its sessionStorage as "isolated" so the Supabase
+  // client created on that tab uses sessionStorage (not localStorage) for
+  // auth — preventing the new employee session from overwriting the Core
+  // admin's session in the original tab.
+  const placeholderUrl = `${window.location.origin}/?staff_imp_isolated=1`;
+  const placeholder = window.open(placeholderUrl, "_blank");
   try {
+    if (placeholder) {
+      try { placeholder.sessionStorage.setItem("nivra_staff_imp_isolated", "1"); } catch { /* cross-origin guard */ }
+    }
     const { data: rpcData, error: rpcErr } = await supabase.rpc("start_staff_impersonation", {
       _target_user_id: args.targetUserId,
       _portal: args.portal,
@@ -104,7 +112,7 @@ export async function beginRealStaffImpersonation(args: {
     if (!token) throw new Error("Token impersonation manquant");
 
     const { data: issued, error: issErr } = await supabase.functions.invoke("staff-impersonate-issue", {
-      body: { token },
+      body: { token, origin: window.location.origin },
     });
     if (issErr || !issued?.action_link) throw new Error(issErr?.message || "Émission du lien échouée");
 
