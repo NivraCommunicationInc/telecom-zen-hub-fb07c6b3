@@ -6776,6 +6776,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const bodyText = String(v.body_fr || "Découvrez l'Internet GIGA 940 Mbps à 60$/mois, sans contrat et sans vérification de crédit.");
       const ctaLabel = String(v.cta_label || "Voir nos forfaits");
       const firstName = String(v.first_name || clientName);
+      const unsubscribeUrl = esc(String(v.unsubscribe_url || "https://nivra-telecom.ca/contact"));
       return {
         subject,
         html: shell({
@@ -6796,7 +6797,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           ctaPrimaryLabel: ctaLabel,
           ctaSecondaryUrl: "https://nivra-telecom.ca/forfaits",
           ctaSecondaryLabel: "Voir tous nos forfaits",
-          helpHtml: "Vous recevez ce courriel car vous avez exprimé de l'intérêt pour nos services. Pour vous désabonner, répondez STOP.",
+          helpHtml: `Vous recevez ce courriel car vous avez fait affaire avec Nivra Telecom au Québec. <a href="${unsubscribeUrl}" style="color:#7c3aed;text-decoration:underline;">Me désabonner en un clic</a>. Nivra Telecom · ${SUPPORT_EMAIL}`,
         }),
       };
     }
@@ -6807,6 +6808,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const bodyText = String(v.body_fr || "Vous avez montré de l'intérêt pour Nivra Telecom. On voulait s'assurer que vous n'avez pas raté nos offres sans contrat et sans crédit.");
       const ctaLabel = String(v.cta_label || "Reprendre où vous étiez");
       const firstName = String(v.first_name || clientName);
+      const unsubscribeUrl = esc(String(v.unsubscribe_url || "https://nivra-telecom.ca/contact"));
       return {
         subject,
         html: shell({
@@ -6827,7 +6829,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           ctaPrimaryLabel: ctaLabel,
           ctaSecondaryUrl: "https://nivra-telecom.ca/contact",
           ctaSecondaryLabel: "Parler à un humain",
-          helpHtml: "Vous recevez ce courriel car vous avez exprimé de l'intérêt pour nos services. Pour vous désabonner, répondez STOP.",
+          helpHtml: `Vous recevez ce courriel car vous avez exprimé de l'intérêt pour Nivra Telecom. <a href="${unsubscribeUrl}" style="color:#7c3aed;text-decoration:underline;">Me désabonner en un clic</a>. Nivra Telecom · ${SUPPORT_EMAIL}`,
         }),
       };
     }

@@ -68,7 +68,7 @@ export default function OnboardingForm() {
       }
       const row = (data as any[])[0];
       if (new Date(row.token_expires_at).getTime() < Date.now()) {
-        setErrorMsg("Ce lien a expiré. Contactez nivratelecom@gmail.com");
+        setErrorMsg("Ce lien a expiré. Contactez support@nivra-telecom.ca");
         setLoading(false);
         return;
       }

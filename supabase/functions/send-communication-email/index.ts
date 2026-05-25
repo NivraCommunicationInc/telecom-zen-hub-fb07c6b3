@@ -34,10 +34,11 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get the authenticated user
+    // Get the authenticated user. Default sender is the public support
+    // mailbox — the private owner address must never appear to a client.
     const authHeader = req.headers.get("Authorization");
-    let senderEmail = "nivratelecom@gmail.com";
-    
+    let senderEmail = "support@nivra-telecom.ca";
+
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data: { user } } = await supabase.auth.getUser(token);

@@ -531,16 +531,6 @@ serve(async (req) => {
             attempts: 0,
             max_attempts: 5,
           },
-          {
-            event_key: `orphan_capture_${captureId}_alt`,
-            to_email: "nivratelecom@gmail.com",
-            template_key: "custom_html",
-            subject: alertSubject,
-            template_vars: { subject: alertSubject, html: alertBody },
-            status: "queued",
-            attempts: 0,
-            max_attempts: 5,
-          },
         ]);
       }
     }

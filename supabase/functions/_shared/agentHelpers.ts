@@ -18,6 +18,40 @@ export const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 export const SUPPORT_BCC = "support@nivra-telecom.ca";
 export const ADMIN_EMAIL = "nivratelecom@gmail.com";
 
+/**
+ * Internal Nivra addresses that must NEVER receive an outbound marketing /
+ * promo email as the primary `to_email`. They keep getting BCC copies via
+ * SUPPORT_BCC, which is what oversight requires.
+ *
+ * Add any future staff / owner mailboxes here. Domain match wins over the
+ * exact-address list — anything @nivra-telecom.ca is treated as internal.
+ */
+export const INTERNAL_EMAIL_DOMAINS = new Set<string>([
+  "nivra-telecom.ca",
+  "nivratelecom.ca",
+]);
+
+export const INTERNAL_EMAIL_ADDRESSES = new Set<string>([
+  "nivratelecom@gmail.com",
+  "nivratelecom@hotmail.com",
+  "support@nivra-telecom.ca",
+  "admin@nivra-telecom.ca",
+  "info@nivra-telecom.ca",
+  "noreply@nivra-telecom.ca",
+  "billing@nivra-telecom.ca",
+]);
+
+export function isInternalEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const norm = String(email).trim().toLowerCase();
+  if (!norm) return false;
+  if (INTERNAL_EMAIL_ADDRESSES.has(norm)) return true;
+  const at = norm.lastIndexOf("@");
+  if (at < 0) return false;
+  const domain = norm.slice(at + 1);
+  return INTERNAL_EMAIL_DOMAINS.has(domain);
+}
+
 export function makeClient() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
 }
@@ -115,6 +149,13 @@ export async function queueEmail(
   },
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    // Defense-in-depth: never deliver a promo / marketing payload to an
+    // internal Nivra address as the primary recipient. The BCC copy below
+    // already routes the audit trail to support@nivra-telecom.ca.
+    if (isInternalEmail(args.toEmail)) {
+      return { ok: false, error: "internal_email_recipient_blocked" };
+    }
+
     const eventKey = args.eventKey || `${args.templateKey}-${crypto.randomUUID()}`;
     const rows = [
       {

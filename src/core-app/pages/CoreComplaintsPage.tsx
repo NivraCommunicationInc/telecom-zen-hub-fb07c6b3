@@ -451,7 +451,7 @@ export function ComplaintDetailDialog({
       } else if (newStatus === "escalated") {
         await supabase.from("email_queue").insert({
           event_key: `complaint_escalated_${complaint.id}_${Date.now()}`,
-          to_email: "nivratelecom@gmail.com",
+          to_email: "support@nivra-telecom.ca",
           template_key: "complaint_escalated",
           template_vars: {
             ticket_number: complaint.ticket_number,

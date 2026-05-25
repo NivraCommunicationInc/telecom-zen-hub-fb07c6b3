@@ -5,9 +5,12 @@
 import {
   corsHeaders, makeClient, logEvent, logAudit, updateRegistry,
   queueEmail, callGeminiJSON, jsonResponse, requireServiceAuth,
+  SUPABASE_URL, isInternalEmail,
 } from "../_shared/agentHelpers.ts";
+import { generateUnsubscribeToken } from "../_shared/unsubscribeToken.ts";
 
 const AGENT = "crm-email-blast";
+const UNSUBSCRIBE_BASE = `${SUPABASE_URL}/functions/v1/email-unsubscribe`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -25,13 +28,23 @@ Deno.serve(async (req) => {
     );
     void prospects; void pErr;
 
-    const { data: candidates } = await supabase
+    // CASL/Loi-25 gate: only contacts who consented and have not unsubscribed.
+    // Also strip internal Nivra addresses (owner / staff registered themselves
+    // at POS — must never receive their own promo as primary recipient).
+    const { data: candidatesRaw } = await supabase
       .from("crm_contacts")
       .select("id, first_name, last_name, email, city, call_status, priority")
       .not("email", "is", null)
       .neq("email", "")
+      .eq("marketing_consent", true)
+      .is("unsubscribed_at", null)
+      .not("email", "ilike", "%@nivra-telecom.ca")
+      .not("email", "ilike", "%@nivratelecom.ca")
       .not("call_status", "in", "(sold,do_not_call,not_interested)")
       .limit(200);
+    const candidates = (candidatesRaw ?? []).filter(
+      (c: any) => !isInternalEmail(c.email),
+    );
 
     // Filter out anyone already emailed in last 7 days
     const sevenAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
@@ -47,8 +60,25 @@ Deno.serve(async (req) => {
         .filter(Boolean)
         .map((s: any) => String(s)),
     );
+
+    // Global suppression list cross-check (someone may have unsubscribed under
+    // a different consent surface — must still be honored here).
+    const emailsLower = (candidates ?? [])
+      .map((c: any) => String(c.email || "").trim().toLowerCase())
+      .filter(Boolean);
+    let suppressedSet = new Set<string>();
+    if (emailsLower.length > 0) {
+      const { data: suppressed } = await supabase
+        .from("email_unsubscribes")
+        .select("email")
+        .in("email", emailsLower)
+        .eq("is_active", true);
+      suppressedSet = new Set((suppressed ?? []).map((r: any) => String(r.email).toLowerCase()));
+    }
+
     const targets = (candidates ?? [])
       .filter((c: any) => !recentIds.has(String(c.id)))
+      .filter((c: any) => !suppressedSet.has(String(c.email).toLowerCase()))
       .slice(0, 50);
 
     if (targets.length === 0) {
@@ -101,6 +131,10 @@ Réponds STRICTEMENT en JSON: { "subject": "...", "body_fr": "...", "cta_label":
         const bodyFr = String(ai.body_fr || "");
         const ctaLabel = String(ai.cta_label || "Voir nos forfaits");
 
+        // Per-recipient HMAC-signed one-click unsubscribe URL (CASL requirement).
+        const unsubscribeToken = await generateUnsubscribeToken(c.email);
+        const unsubscribeUrl = `${UNSUBSCRIBE_BASE}?token=${encodeURIComponent(unsubscribeToken)}`;
+
         const r = await queueEmail(supabase, {
           toEmail: c.email,
           templateKey: "crm_promo_blast",
@@ -113,6 +147,7 @@ Réponds STRICTEMENT en JSON: { "subject": "...", "body_fr": "...", "cta_label":
             hero_title: subject,
             body_fr: bodyFr,
             cta_label: ctaLabel,
+            unsubscribe_url: unsubscribeUrl,
           },
           eventKey: `crm-blast-${c.id}-${new Date().toISOString().slice(0, 10)}`,
         });
@@ -121,6 +156,13 @@ Réponds STRICTEMENT en JSON: { "subject": "...", "body_fr": "...", "cta_label":
           continue;
         }
         sent++;
+
+        // Stamp last touch so analytics / cooldowns can rely on a single column
+        await supabase
+          .from("crm_contacts")
+          .update({ last_marketing_email_at: new Date().toISOString() })
+          .eq("id", c.id);
+
         await logEvent(supabase, AGENT, "email_sent",
           `Email promotionnel envoyé à ${c.first_name ?? ""} ${c.last_name ?? ""} — ${c.city ?? "—"}`.trim(),
           { contact_id: c.id, email: c.email, city: c.city });

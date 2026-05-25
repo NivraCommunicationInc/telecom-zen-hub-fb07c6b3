@@ -160,7 +160,7 @@ const ClientChangePlan = () => {
 
       // Internal alert (FR — admin language)
       await portalSupabase.from("email_queue").insert({
-        to_email: "nivratelecom@gmail.com",
+        to_email: "support@nivra-telecom.ca",
         template_key: "plan_change_admin_alert",
         event_key: "plan_change_admin_alert",
         message_type: "transactional",

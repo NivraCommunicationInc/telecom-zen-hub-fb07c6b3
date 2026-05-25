@@ -125,7 +125,7 @@ export function ClientOutageReportButton() {
       await supabase.functions.invoke("send-transactional-email", {
         body: {
           templateName: "outage_report_admin",
-          recipientEmail: "nivratelecom@gmail.com",
+          recipientEmail: "support@nivra-telecom.ca",
           idempotencyKey: `${eventBase}_admin`,
           templateData: {
             client_name: profile?.full_name ?? "Client",

@@ -137,7 +137,7 @@ const ClientServicePauseCard = ({ userId }: { userId: string }) => {
       });
 
       await portalSupabase.from("email_queue").insert({
-        to_email: "nivratelecom@gmail.com",
+        to_email: "support@nivra-telecom.ca",
         template_key: "service_pause_admin_alert",
         event_key: "service_pause_admin_alert",
         message_type: "transactional",
