@@ -151,8 +151,31 @@ Deno.serve(async (req) => {
     monthlyDiscountAmount = Number(monthlyDiscountAmount.toFixed(2));
     firstMonthCredit = Number(firstMonthCredit.toFixed(2));
 
+    // ── Welcome offer (premier mois gratuit, 100% du forfait) ─────────────
+    // Auto-applied for any client who has never received it before, regardless
+    // of sales channel (CRM / Field / POS / Guest checkout). Equipment and
+    // one-time fees are NEVER discounted — only the recurring forfait.
+    let welcomeFirstMonth = 0;
+    let welcomeApplied = false;
+    const agentDiscountIsFirstMonth = discountRow?.type === "first_month_free";
+    if (!agentDiscountIsFirstMonth && monthly > 0) {
+      const { data: eligibleData, error: eligibleErr } = await admin.rpc(
+        "is_eligible_for_welcome_first_month",
+        { p_user_id: clientUserId, p_email: payload.client.email },
+      );
+      if (eligibleErr) {
+        console.error("[crm-create-sale] welcome eligibility check failed", eligibleErr);
+      } else if (eligibleData === true) {
+        welcomeFirstMonth = Number(monthly.toFixed(2));
+        welcomeApplied = true;
+      }
+    }
+
+    const totalFirstMonthCredit = Number((firstMonthCredit + welcomeFirstMonth).toFixed(2));
     const monthlyAfterDiscount = Number(Math.max(0, monthly - monthlyDiscountAmount).toFixed(2));
-    const subtotal = Number((monthlyAfterDiscount + equipTotal).toFixed(2));
+    // First invoice = forfait (après rabais agent) − crédit premier mois + équipement
+    const firstMonthBillable = Number(Math.max(0, monthlyAfterDiscount - totalFirstMonthCredit).toFixed(2));
+    const subtotal = Number((firstMonthBillable + equipTotal).toFixed(2));
     const tps = Number((subtotal * 0.05).toFixed(2));
     const tvq = Number((subtotal * 0.09975).toFixed(2));
     const total = Number((subtotal + tps + tvq).toFixed(2));
