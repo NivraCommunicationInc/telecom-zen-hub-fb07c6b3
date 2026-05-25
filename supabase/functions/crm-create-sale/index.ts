@@ -297,6 +297,7 @@ Deno.serve(async (req) => {
     const total = Number((subtotal + tps + tvq).toFixed(2));
 
     const { accountId, accountNumber } = await resolveOrCreateAccount(admin, clientUserId, payload.client);
+    console.log("[crm-create-sale] resolved account", { clientUserId, accountId, accountNumber });
 
     // Step 3: generate order_number
     const { data: numData, error: numErr } = await admin.rpc("generate_order_number");
@@ -347,7 +348,7 @@ Deno.serve(async (req) => {
       } : {}),
     };
 
-    const { data: order, error: insertErr } = await admin.from("orders").insert({
+    const orderInsertPayload = {
       order_number: orderNumber,
       user_id: clientUserId,
       account_id: accountId,
@@ -391,15 +392,31 @@ Deno.serve(async (req) => {
         first_month_credit: firstMonthCredit,
       } : null,
       pricing_snapshot: pricingSnapshot,
-    }).select("id, order_number, total_amount, subtotal").single();
+    };
 
-    if (insertErr) return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+    console.log("[crm-create-sale] inserting order", {
+      orderNumber,
+      clientUserId,
+      accountId,
+      total,
+      subtotal,
+      payment_status: orderInsertPayload.payment_status,
+      activation_preference: orderInsertPayload.activation_preference,
+    });
+
+    const { data: order, error: insertErr } = await admin.from("orders").insert(orderInsertPayload).select("id, order_number, total_amount, subtotal").single();
+
+    if (insertErr) {
+      console.error("[crm-create-sale] order insert failed", insertErr);
+      return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+    }
 
     // Step 4b: create canonical first invoice immediately so CRM orders have a real
     // billing artifact, official PDFs, and the first-month-free credit is reflected
     // on the very first operation of the order.
     try {
       let billingCustomerId: string | null = null;
+      console.log("[crm-create-sale] creating canonical invoice", { orderId: order.id, orderNumber, accountNumber, total });
       const { data: existingBillingCustomer } = await admin
         .from("billing_customers")
         .select("id")
