@@ -1708,6 +1708,13 @@ export type Database = {
             referencedRelation: "agent_registry"
             referencedColumns: ["agent_name"]
           },
+          {
+            foreignKeyName: "agent_runs_agent_name_fkey"
+            columns: ["agent_name"]
+            isOneToOne: false
+            referencedRelation: "v_growth_agent_health"
+            referencedColumns: ["agent_name"]
+          },
         ]
       }
       analytics_reports: {
@@ -6099,6 +6106,8 @@ export type Database = {
           callback_reminder_sent_at: string | null
           callback_scheduled_at: string | null
           city: string | null
+          consent_date: string | null
+          consent_source: string | null
           converted_at: string | null
           converted_order_id: string | null
           converted_to_user_id: string | null
@@ -6118,11 +6127,13 @@ export type Database = {
           is_locked: boolean | null
           last_called_at: string | null
           last_called_by: string | null
+          last_marketing_email_at: string | null
           last_name: string | null
           locked_at: string | null
           locked_by: string | null
           locked_by_name: string | null
           locked_until: string | null
+          marketing_consent: boolean
           next_callback_at: string | null
           notes: string | null
           phone: string | null
@@ -6136,6 +6147,7 @@ export type Database = {
           status: string
           tags: string[] | null
           territory: string | null
+          unsubscribed_at: string | null
           updated_at: string
         }
         Insert: {
@@ -6149,6 +6161,8 @@ export type Database = {
           callback_reminder_sent_at?: string | null
           callback_scheduled_at?: string | null
           city?: string | null
+          consent_date?: string | null
+          consent_source?: string | null
           converted_at?: string | null
           converted_order_id?: string | null
           converted_to_user_id?: string | null
@@ -6168,11 +6182,13 @@ export type Database = {
           is_locked?: boolean | null
           last_called_at?: string | null
           last_called_by?: string | null
+          last_marketing_email_at?: string | null
           last_name?: string | null
           locked_at?: string | null
           locked_by?: string | null
           locked_by_name?: string | null
           locked_until?: string | null
+          marketing_consent?: boolean
           next_callback_at?: string | null
           notes?: string | null
           phone?: string | null
@@ -6186,6 +6202,7 @@ export type Database = {
           status?: string
           tags?: string[] | null
           territory?: string | null
+          unsubscribed_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -6199,6 +6216,8 @@ export type Database = {
           callback_reminder_sent_at?: string | null
           callback_scheduled_at?: string | null
           city?: string | null
+          consent_date?: string | null
+          consent_source?: string | null
           converted_at?: string | null
           converted_order_id?: string | null
           converted_to_user_id?: string | null
@@ -6218,11 +6237,13 @@ export type Database = {
           is_locked?: boolean | null
           last_called_at?: string | null
           last_called_by?: string | null
+          last_marketing_email_at?: string | null
           last_name?: string | null
           locked_at?: string | null
           locked_by?: string | null
           locked_by_name?: string | null
           locked_until?: string | null
+          marketing_consent?: boolean
           next_callback_at?: string | null
           notes?: string | null
           phone?: string | null
@@ -6236,6 +6257,7 @@ export type Database = {
           status?: string
           tags?: string[] | null
           territory?: string | null
+          unsubscribed_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -27014,6 +27036,57 @@ export type Database = {
           status: string | null
           updated_at: string | null
           validated_at: string | null
+        }
+        Relationships: []
+      }
+      v_growth_agent_health: {
+        Row: {
+          agent_name: string | null
+          consecutive_failures: number | null
+          cron_job_name: string | null
+          cron_schedule: string | null
+          last_error_at: string | null
+          last_error_message: string | null
+          last_run_at: string | null
+          last_success_at: string | null
+          sends_last_24h: number | null
+          sends_last_7d: number | null
+          sends_last_hour: number | null
+          total_failures: number | null
+          total_runs: number | null
+          total_successes: number | null
+        }
+        Insert: {
+          agent_name?: string | null
+          consecutive_failures?: number | null
+          cron_job_name?: string | null
+          cron_schedule?: string | null
+          last_error_at?: string | null
+          last_error_message?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          sends_last_24h?: never
+          sends_last_7d?: never
+          sends_last_hour?: never
+          total_failures?: number | null
+          total_runs?: number | null
+          total_successes?: number | null
+        }
+        Update: {
+          agent_name?: string | null
+          consecutive_failures?: number | null
+          cron_job_name?: string | null
+          cron_schedule?: string | null
+          last_error_at?: string | null
+          last_error_message?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          sends_last_24h?: never
+          sends_last_7d?: never
+          sends_last_hour?: never
+          total_failures?: number | null
+          total_runs?: number | null
+          total_successes?: number | null
         }
         Relationships: []
       }
