@@ -160,6 +160,57 @@ export default function EmployeeCreateOrder() {
     setStep("plan");
   };
 
+  const handleCreateClient = async () => {
+    const email = newClient.email.trim().toLowerCase();
+    const first = newClient.first_name.trim();
+    const last = newClient.last_name.trim();
+    if (!first || !last || !email) {
+      toast.error("Prénom, nom et courriel sont requis");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Courriel invalide");
+      return;
+    }
+    setCreatingClient(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-create-client-account", {
+        body: {
+          email,
+          first_name: first,
+          last_name: last,
+          phone: newClient.phone.trim() || undefined,
+        },
+      });
+      if (error) throw error;
+      if (!data?.success || !data?.user_id) {
+        throw new Error(data?.error || "Création échouée");
+      }
+      const userId = data.user_id as string;
+      const { data: acc } = await supabase
+        .from("accounts")
+        .select("id, account_number")
+        .eq("client_id", userId)
+        .maybeSingle();
+      setSelectedClient({
+        user_id: userId,
+        full_name: `${first} ${last}`.trim(),
+        email,
+        phone: newClient.phone.trim() || undefined,
+        account_number: acc?.account_number ?? undefined,
+        account_id: acc?.id ?? undefined,
+      });
+      toast.success(data.is_new_account ? "Client créé" : "Client existant lié");
+      setShowCreateClient(false);
+      setStep("plan");
+    } catch (err: any) {
+      console.error("[CreateClient] error:", err);
+      toast.error(err?.message || "Erreur lors de la création du client");
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
   // Group catalog by category
   const groupedCatalog = (catalog ?? []).reduce((acc: Record<string, any[]>, s: any) => {
     const cat = s.category ?? "other";
