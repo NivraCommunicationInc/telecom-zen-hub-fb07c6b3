@@ -371,6 +371,7 @@ Deno.serve(async (req) => {
       total_amount: total,
       tps_rate: 0.05, tvq_rate: 0.09975, tps_amount: tps, tvq_amount: tvq,
       payment_status: "pending",
+      payment_method: "paypal",
       activation_preference: payload.install.date ? "SCHEDULED" : "ASAP",
       environment: "live",
       equipment_line_details: equipmentLines,
