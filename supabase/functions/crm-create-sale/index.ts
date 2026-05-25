@@ -75,6 +75,75 @@ async function resolveExistingAuthUserId(
   return foundUser?.id ?? null;
 }
 
+async function resolveOrCreateAccount(
+  admin: ReturnType<typeof createClient>,
+  clientUserId: string,
+  client: CrmSalePayload["client"],
+): Promise<{ accountId: string; accountNumber: string | null }> {
+  const { data: existingAccount, error: existingAccountErr } = await admin
+    .from("accounts")
+    .select("id, account_number")
+    .eq("client_id", clientUserId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingAccountErr) {
+    throw new Error(`Account lookup failed: ${existingAccountErr.message}`);
+  }
+
+  if (existingAccount?.id) {
+    if (existingAccount.account_number) {
+      await admin
+        .from("profiles")
+        .update({ account_number: String(existingAccount.account_number) })
+        .eq("user_id", clientUserId)
+        .neq("account_number", String(existingAccount.account_number));
+    }
+    return { accountId: existingAccount.id, accountNumber: existingAccount.account_number ?? null };
+  }
+
+  const { data: accountNumberData, error: accountNumberErr } = await admin.rpc("generate_account_number");
+  if (accountNumberErr || !accountNumberData) {
+    throw new Error(`generate_account_number failed: ${accountNumberErr?.message || "unknown"}`);
+  }
+
+  const accountName = `${client.first_name || ""} ${client.last_name || ""}`.trim() || client.email || "Client CRM";
+  const accountNumber = String(accountNumberData);
+
+  const { data: createdAccount, error: createAccountErr } = await admin
+    .from("accounts")
+    .insert({
+      client_id: clientUserId,
+      account_number: accountNumber,
+      account_name: accountName,
+      status: "active",
+      billing_address: client.service_address ?? null,
+      billing_city: client.service_city ?? null,
+      billing_postal_code: client.service_postal_code ?? null,
+      billing_province: "QC",
+      primary_service_address: client.service_address ?? null,
+      primary_service_city: client.service_city ?? null,
+      primary_service_postal_code: client.service_postal_code ?? null,
+      primary_service_province: "QC",
+      billing_cycle_day: new Date().getDate(),
+    })
+    .select("id, account_number")
+    .single();
+
+  if (createAccountErr || !createdAccount) {
+    throw new Error(`Account creation failed: ${createAccountErr?.message || "unknown"}`);
+  }
+
+  await admin
+    .from("profiles")
+    .update({ account_number: accountNumber })
+    .eq("user_id", clientUserId);
+
+  return { accountId: createdAccount.id, accountNumber: createdAccount.account_number ?? accountNumber };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const json = (body: unknown, status = 200) =>
@@ -227,6 +296,8 @@ Deno.serve(async (req) => {
     const tvq = Number((subtotal * 0.09975).toFixed(2));
     const total = Number((subtotal + tps + tvq).toFixed(2));
 
+    const { accountId, accountNumber } = await resolveOrCreateAccount(admin, clientUserId, payload.client);
+
     // Step 3: generate order_number
     const { data: numData, error: numErr } = await admin.rpc("generate_order_number");
     if (numErr) return json({ error: `order_number gen failed: ${numErr.message}` }, 500);
@@ -279,6 +350,7 @@ Deno.serve(async (req) => {
     const { data: order, error: insertErr } = await admin.from("orders").insert({
       order_number: orderNumber,
       user_id: clientUserId,
+      account_id: accountId,
       status: "pending",
       service_type: serviceType,
       category: payload.plan.category ?? "internet",
@@ -298,6 +370,7 @@ Deno.serve(async (req) => {
       total_amount: total,
       tps_rate: 0.05, tvq_rate: 0.09975, tps_amount: tps, tvq_amount: tvq,
       payment_status: "pending",
+      activation_preference: payload.install.date ? "SCHEDULED" : "ASAP",
       environment: "live",
       equipment_line_details: equipmentLines,
       installation_details: installDetails,
@@ -391,6 +464,7 @@ Deno.serve(async (req) => {
             amount_paid: 0,
             balance_due: total,
             environment: "production",
+            billing_snapshot_account_number: accountNumber,
             billing_snapshot_client: {
               first_name: payload.client.first_name,
               last_name: payload.client.last_name,
