@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
           phone,
           source: `website:${landing}`,
           status: "lead",
-          call_status: "new",
+          call_status: "not_called",
           marketing_consent: true,
           consent_source: consentSource,
           consent_date: new Date().toISOString(),
