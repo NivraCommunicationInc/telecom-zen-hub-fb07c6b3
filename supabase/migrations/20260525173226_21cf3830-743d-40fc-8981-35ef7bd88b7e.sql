@@ -1,0 +1,2 @@
+ALTER TABLE public.jobs ALTER COLUMN department DROP NOT NULL;
+ALTER TABLE public.jobs ALTER COLUMN location DROP NOT NULL;

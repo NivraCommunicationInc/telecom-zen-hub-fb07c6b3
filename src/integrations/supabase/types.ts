@@ -13833,13 +13833,13 @@ export type Database = {
       jobs: {
         Row: {
           created_at: string
-          department: string
+          department: string | null
           description: string | null
           description_md: string | null
           expires_at: string | null
           id: string
           is_active: boolean | null
-          location: string
+          location: string | null
           posted_by: string | null
           requirements: string | null
           salary_max: number | null
@@ -13852,13 +13852,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          department: string
+          department?: string | null
           description?: string | null
           description_md?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
-          location: string
+          location?: string | null
           posted_by?: string | null
           requirements?: string | null
           salary_max?: number | null
@@ -13871,13 +13871,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          department?: string
+          department?: string | null
           description?: string | null
           description_md?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
-          location?: string
+          location?: string | null
           posted_by?: string | null
           requirements?: string | null
           salary_max?: number | null
