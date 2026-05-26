@@ -79,6 +79,18 @@ interface AgentDiscountRow {
   applies_to: string;
 }
 
+interface CreatedClientOnboarding {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  date_of_birth?: string;
+  service_address?: string;
+  service_city?: string;
+  service_postal_code?: string;
+}
+
 export default function EmployeeCreateOrder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -101,6 +113,7 @@ export default function EmployeeCreateOrder() {
     date_of_birth: "", street: "", city: "", postal: "",
   });
   const [creatingClient, setCreatingClient] = useState(false);
+  const [createdClientOnboarding, setCreatedClientOnboarding] = useState<CreatedClientOnboarding | null>(null);
 
   // If preset client, load directly
   useEffect(() => {
@@ -197,6 +210,7 @@ export default function EmployeeCreateOrder() {
       account_number: acc?.account_number ?? undefined,
       account_id: acc?.id ?? undefined,
     });
+    setCreatedClientOnboarding(null);
     if (acc?.primary_service_address) {
       setAddress({
         street: acc.primary_service_address ?? "",
@@ -268,6 +282,17 @@ export default function EmployeeCreateOrder() {
         province: "QC",
       });
       toast.success(data.is_new_account ? "Client créé" : "Client existant lié");
+      setCreatedClientOnboarding(data.is_new_account ? {
+        user_id: userId,
+        email,
+        first_name: first,
+        last_name: last,
+        phone: newClient.phone.trim() || undefined,
+        date_of_birth: newClient.date_of_birth,
+        service_address: newClient.street.trim(),
+        service_city: newClient.city.trim(),
+        service_postal_code: newClient.postal.trim(),
+      } : null);
       setShowCreateClient(false);
       setStep("plan");
     } catch (err: any) {
