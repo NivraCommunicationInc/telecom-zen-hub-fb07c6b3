@@ -9,9 +9,8 @@
 import { useMemo, useState } from "react";
 import { ClientEquipmentReturnDialog } from "@/components/client/ClientEquipmentReturnDialog";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,32 +50,9 @@ function iconForCategory(category: string | null) {
 
 const ClientEquipment = () => {
   const { user } = useClientAuth();
+  const { data: canonicalData, isLoading, refetch, isFetching } = useCanonicalClientData(user?.id);
 
-  const { data: equipment, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["client-equipment", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // Resolve client's account ids first
-      const { data: accounts } = await supabase
-        .from("accounts")
-        .select("id, account_number")
-        .eq("client_id", user.id);
-      const accountIds = (accounts || []).map((a: any) => a.id);
-      if (accountIds.length === 0) return [];
-
-      const { data, error } = await supabase
-        .from("equipment_inventory")
-        .select(
-          "id, catalog_name, category, sku, serial_number, imei, mac_address, status, condition, account_id, assigned_at, deployed_at, retired_at, firmware_version",
-        )
-        .in("account_id", accountIds)
-        .order("deployed_at", { ascending: false, nullsFirst: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-    staleTime: 30_000,
-  });
+  const equipment = canonicalData?.equipment || [];
 
   const grouped = useMemo(() => {
     const list = equipment || [];

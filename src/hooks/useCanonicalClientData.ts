@@ -27,6 +27,8 @@ export interface CanonicalClientData {
   payments: any[];
   contracts: any[];
   subscriptions: any[];
+  serviceInstances: any[];
+  equipment: any[];
   autoDocuments: any[];
   identifiers: {
     userId: string | null;
@@ -47,9 +49,8 @@ export function useCanonicalClientData(userId: Maybe<string>) {
   return useQuery<CanonicalClientData>({
     queryKey: ["canonical-client-data", userId],
     enabled: !!userId,
-    staleTime: 5_000,
-    refetchInterval: 10_000,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!userId) {
         return {
@@ -62,6 +63,8 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           payments: [],
           contracts: [],
           subscriptions: [],
+            serviceInstances: [],
+            equipment: [],
           autoDocuments: [],
           identifiers: {
             userId: null,
@@ -100,6 +103,8 @@ export function useCanonicalClientData(userId: Maybe<string>) {
         payments: Array.isArray(snapshot.payments) ? snapshot.payments : [],
         contracts: Array.isArray(snapshot.contracts) ? snapshot.contracts : [],
         subscriptions: Array.isArray(snapshot.subscriptions) ? snapshot.subscriptions : [],
+        serviceInstances: Array.isArray(snapshot.serviceInstances) ? snapshot.serviceInstances : [],
+        equipment: Array.isArray(snapshot.equipment) ? snapshot.equipment : [],
         autoDocuments: Array.isArray(snapshot.autoDocuments) ? snapshot.autoDocuments : [],
         identifiers: {
           userId,

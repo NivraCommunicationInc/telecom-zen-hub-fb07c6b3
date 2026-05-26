@@ -213,8 +213,12 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   useEffect(() => {
     if (!user?.id) return;
 
+    let invalidationTimer: ReturnType<typeof setTimeout> | null = null;
     const invalidatePortalData = () => {
-      invalidateClientRealtimeQueries(queryClient);
+      if (invalidationTimer) clearTimeout(invalidationTimer);
+      invalidationTimer = setTimeout(() => {
+        invalidateClientRealtimeQueries(queryClient);
+      }, 750);
     };
 
     const channel = portalClient
@@ -230,6 +234,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       .subscribe();
 
     return () => {
+      if (invalidationTimer) clearTimeout(invalidationTimer);
       portalClient.removeChannel(channel);
     };
   }, [queryClient, user?.id]);
