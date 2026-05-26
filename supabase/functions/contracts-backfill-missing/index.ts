@@ -170,16 +170,17 @@ Deno.serve(async (req) => {
           await db
             .from("email_queue")
             .insert({
+              event_key: `contract_backfill_${newContract.id}`,
               to_email: clientEmail,
-              template_type: "contract_ready_for_signature",
-              template_data: {
+              template_key: "contract_ready_for_signature",
+              template_vars: {
                 clientName,
                 contractNumber,
                 contractId: newContract.id,
                 orderNumber: order.order_number || order.confirmation_number,
                 signatureUrl: "https://nivra-telecom.ca/portal/contracts",
               },
-              priority: "normal",
+              priority: 0,
               idempotency_key: idempotencyKey,
               created_at: new Date().toISOString(),
             });

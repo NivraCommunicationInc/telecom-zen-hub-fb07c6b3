@@ -179,15 +179,15 @@ serve(async (req) => {
     await db.from("email_queue").insert({
       event_key: `credit_payment_${paypal_capture_id}`,
       to_email: customer.email,
-      to_name: `${customer.first_name} ${customer.last_name}`,
-      template_type: "billing_credit_payment",
-      template_data: {
+      template_key: "billing_credit_payment",
+      template_vars: {
         clientName: `${customer.first_name} ${customer.last_name}`,
         totalPaid: amount.toFixed(2),
         appliedToBalance: (amount - creditAmount).toFixed(2),
         creditAdded: creditAmount.toFixed(2),
         appliedInvoices: appliedInvoices.map((i) => i.invoice_number).join(", ") || "Aucune",
       },
+      priority: 0,
     });
 
     return new Response(
