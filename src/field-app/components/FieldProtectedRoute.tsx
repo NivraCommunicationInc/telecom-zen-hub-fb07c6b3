@@ -50,6 +50,13 @@ export default function FieldProtectedRoute() {
         return;
       }
 
+      // HR onboarding gate — staff cannot operate until their HR file is active + onboarding complete
+      const hrOk = await isHrOnboardingComplete(session.user.id);
+      if (!hrOk) {
+        if (mounted) setState("hr_pending");
+        return;
+      }
+
       const bypassMfa = await isActiveStaffImpersonationForPortal(session.user.id, "field");
       if (bypassMfa) {
         await auditAccess("portal_entry", "field");
