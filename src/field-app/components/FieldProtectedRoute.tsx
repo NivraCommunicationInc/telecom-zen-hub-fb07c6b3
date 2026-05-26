@@ -13,8 +13,9 @@ import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
+import { isHrOnboardingComplete } from "@/lib/security/hrOnboardingGate";
 
-type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify";
+type State = "loading" | "authorized" | "unauthorized" | "hr_pending" | "mfa_enroll" | "mfa_verify";
 
 export default function FieldProtectedRoute() {
   const navigate = useNavigate();
@@ -46,6 +47,13 @@ export default function FieldProtectedRoute() {
 
       if (!roleData?.is_active || !roleData?.can_access_field) {
         if (mounted) setState("unauthorized");
+        return;
+      }
+
+      // HR onboarding gate — staff cannot operate until their HR file is active + onboarding complete
+      const hrOk = await isHrOnboardingComplete(session.user.id);
+      if (!hrOk) {
+        if (mounted) setState("hr_pending");
         return;
       }
 
@@ -104,13 +112,20 @@ export default function FieldProtectedRoute() {
     );
   }
 
-  if (state === "unauthorized") {
+  if (state === "unauthorized" || state === "hr_pending") {
+    const isHr = state === "hr_pending";
     return (
       <div className="internal-ui min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
+        <div className="text-center max-w-sm px-6">
           <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-destructive" />
-          <h2 className="text-lg font-semibold text-gray-50 mb-1">Accès refusé</h2>
-          <p className="text-sm text-gray-400 mb-4">Vous n'avez pas accès au portail Field.</p>
+          <h2 className="text-lg font-semibold text-gray-50 mb-1">
+            {isHr ? "Onboarding RH non terminé" : "Accès refusé"}
+          </h2>
+          <p className="text-sm text-gray-400 mb-4">
+            {isHr
+              ? "Votre dossier RH doit être complété et activé par l'équipe des Ressources Humaines avant d'accéder au portail Field. Veuillez compléter votre formulaire d'intégration."
+              : "Vous n'avez pas accès au portail Field."}
+          </p>
           <button onClick={() => navigate("/nivra-secure-hub-2617-internal")} className="text-sm text-primary hover:opacity-80">
             Retour au Hub
           </button>

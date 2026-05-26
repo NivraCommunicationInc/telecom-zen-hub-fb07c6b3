@@ -19,8 +19,9 @@ import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
+import { isHrOnboardingComplete } from "@/lib/security/hrOnboardingGate";
 
-type State = "loading" | "authorized" | "unauthorized" | "no_session" | "mfa_enroll" | "mfa_verify";
+type State = "loading" | "authorized" | "unauthorized" | "hr_pending" | "no_session" | "mfa_enroll" | "mfa_verify";
 
 const ALLOWED_ROLES = ["technician", "admin", "employee", "supervisor", "techops"];
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -90,6 +91,14 @@ export default function TechProtectedRoute() {
         if (mounted) setState("unauthorized");
         return;
       }
+
+      // HR onboarding gate
+      const hrOk = await isHrOnboardingComplete(session.user.id);
+      if (!hrOk) {
+        if (mounted) setState("hr_pending");
+        return;
+      }
+
 
       const bypassMfa = await isActiveStaffImpersonationForPortal(session.user.id, "technician");
       if (bypassMfa) {
@@ -166,12 +175,19 @@ export default function TechProtectedRoute() {
     );
   }
 
-  if (state === "unauthorized") {
+  if (state === "unauthorized" || state === "hr_pending") {
+    const isHr = state === "hr_pending";
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 px-6 text-center">
         <ShieldAlert className="h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2">Accès refusé</h2>
-        <p className="text-sm text-slate-400 mb-6">Votre compte n'a pas le rôle technicien.</p>
+        <h2 className="text-xl font-bold text-white mb-2">
+          {isHr ? "Onboarding RH non terminé" : "Accès refusé"}
+        </h2>
+        <p className="text-sm text-slate-400 mb-6 max-w-sm">
+          {isHr
+            ? "Votre dossier RH doit être complété et activé par les Ressources Humaines avant d'accéder au portail Technicien."
+            : "Votre compte n'a pas le rôle technicien."}
+        </p>
         <button
           onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
           className="rounded-full bg-slate-800 px-8 py-3 text-base font-semibold text-white"
@@ -181,6 +197,7 @@ export default function TechProtectedRoute() {
       </div>
     );
   }
+
 
   return <Outlet />;
 }
