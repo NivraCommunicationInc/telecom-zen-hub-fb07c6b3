@@ -608,8 +608,6 @@ export function useOrderProcessing(orderId: string | undefined) {
       event,
       detail,
       metadata,
-      actorId: user?.id || null,
-      actorName: user?.email || null,
       orderId: orderId || null,
     });
   };
