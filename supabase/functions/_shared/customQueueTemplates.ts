@@ -7272,6 +7272,546 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // PRÉPAYÉ — Cœur métier Nivra (forfaits mobiles prépayés)
+    // ===================================================================
+    case "prepaid_low_balance": {
+      const balance = money(v.balance ?? v.current_balance);
+      const planName = esc(v.plan_name || "votre forfait");
+      const expiresOn = fmtDate(v.expires_on || v.expiration_date);
+      return {
+        subject: `⚠️ Solde bas — ${balance} restant sur ${planName}`,
+        html: shell({
+          preheader: `Votre solde Nivra est bas. Rechargez pour éviter toute interruption.`,
+          badge: "ALERTE SOLDE",
+          heroTitle: "Votre solde est bas",
+          heroSub: balance,
+          icon: "warning",
+          greeting,
+          bodyText: `Votre forfait ${planName} approche de sa limite. Rechargez maintenant pour éviter toute interruption de service.`,
+          cardTitle: "Détails du compte",
+          cardRows: [
+            ["Forfait", planName],
+            ["Solde restant", balance],
+            ["Expiration", expiresOn],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/recharge`,
+          ctaPrimaryLabel: "Recharger maintenant",
+          ctaSecondaryUrl: PORTAL_URL,
+          ctaSecondaryLabel: "Mon compte",
+        }),
+      };
+    }
+
+    case "prepaid_expiring_soon": {
+      const planName = esc(v.plan_name || "votre forfait");
+      const expiresOn = fmtDate(v.expires_on || v.expiration_date);
+      const daysLeft = esc(v.days_left || "");
+      return {
+        subject: `⏰ Votre forfait ${planName} expire bientôt`,
+        html: shell({
+          preheader: `Votre forfait Nivra expire le ${expiresOn}. Renouvelez avant l'échéance.`,
+          badge: "EXPIRATION PROCHE",
+          heroTitle: "Votre forfait expire bientôt",
+          heroSub: daysLeft ? `${daysLeft} jour(s) restant(s)` : expiresOn,
+          icon: "warning",
+          greeting,
+          bodyText: `Pour éviter toute coupure de service, renouvelez votre forfait ${planName} avant son expiration.`,
+          cardTitle: "Forfait à renouveler",
+          cardRows: [
+            ["Forfait", planName],
+            ["Date d'expiration", expiresOn],
+            ...(daysLeft ? [["Jours restants", daysLeft] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/renouveler`,
+          ctaPrimaryLabel: "Renouveler mon forfait",
+          ctaSecondaryUrl: PORTAL_URL,
+          ctaSecondaryLabel: "Mon compte",
+        }),
+      };
+    }
+
+    case "prepaid_expired": {
+      const planName = esc(v.plan_name || "votre forfait");
+      const expiredOn = fmtDate(v.expired_on || v.expiration_date);
+      return {
+        subject: `🚫 Votre forfait ${planName} a expiré`,
+        html: shell({
+          preheader: `Votre service Nivra est suspendu. Réactivez en quelques clics.`,
+          badge: "FORFAIT EXPIRÉ",
+          heroTitle: "Votre forfait a expiré",
+          heroSub: expiredOn,
+          icon: "warning",
+          greeting,
+          bodyText: `Votre forfait ${planName} a expiré le ${expiredOn} et votre service est actuellement suspendu. Rechargez maintenant pour réactiver votre ligne.`,
+          cardTitle: "Réactivation",
+          cardRows: [
+            ["Forfait", planName],
+            ["Expiré le", expiredOn],
+            ["Statut", "Service suspendu"],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/recharge`,
+          ctaPrimaryLabel: "Réactiver mon service",
+          ctaSecondaryUrl: `${APP_URL}/forfaits`,
+          ctaSecondaryLabel: "Voir les forfaits",
+        }),
+      };
+    }
+
+    case "prepaid_recharge_confirmed": {
+      const amount = money(v.amount);
+      const newBalance = money(v.new_balance);
+      const planName = esc(v.plan_name || "");
+      const newExpiry = fmtDate(v.new_expiry || v.expires_on);
+      const txnId = esc(v.transaction_id || v.reference || "");
+      return {
+        subject: `✅ Recharge confirmée — ${amount}`,
+        html: shell({
+          preheader: `Votre recharge Nivra de ${amount} a été appliquée à votre compte.`,
+          badge: "RECHARGE CONFIRMÉE",
+          heroTitle: "Recharge réussie",
+          heroSub: amount,
+          icon: "check",
+          greeting,
+          bodyText: `Merci ! Votre recharge a été appliquée à votre compte Nivra et votre service est actif.`,
+          cardTitle: "Détails de la recharge",
+          cardRows: [
+            ["Montant rechargé", amount],
+            ...(planName ? [["Forfait", planName] as [string, string]] : []),
+            ["Nouveau solde", newBalance],
+            ["Nouvelle expiration", newExpiry],
+            ...(txnId ? [["Référence", txnId] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon compte",
+        }),
+      };
+    }
+
+    case "prepaid_recharge_failed": {
+      const amount = money(v.amount);
+      const reason = esc(v.failure_reason || v.reason || "Paiement refusé");
+      return {
+        subject: `❌ Échec de recharge — ${amount}`,
+        html: shell({
+          preheader: `Votre tentative de recharge Nivra n'a pas pu être complétée.`,
+          badge: "RECHARGE ÉCHOUÉE",
+          heroTitle: "Recharge non complétée",
+          heroSub: amount,
+          icon: "warning",
+          greeting,
+          bodyText: `Nous n'avons pas pu traiter votre recharge. Vérifiez votre méthode de paiement et réessayez.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Montant tenté", amount],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/recharge`,
+          ctaPrimaryLabel: "Réessayer",
+          ctaSecondaryUrl: `${PORTAL_URL}/paiement`,
+          ctaSecondaryLabel: "Changer de méthode",
+        }),
+      };
+    }
+
+    case "prepaid_auto_renewal_reminder": {
+      const planName = esc(v.plan_name || "votre forfait");
+      const renewalDate = fmtDate(v.renewal_date);
+      const amount = money(v.amount);
+      return {
+        subject: `🔄 Renouvellement automatique le ${renewalDate}`,
+        html: shell({
+          preheader: `Votre forfait Nivra sera renouvelé automatiquement.`,
+          badge: "RENOUVELLEMENT AUTO",
+          heroTitle: "Renouvellement automatique prévu",
+          heroSub: renewalDate,
+          icon: "calendar",
+          greeting,
+          bodyText: `Votre forfait ${planName} sera renouvelé automatiquement à la date ci-dessous, sans interruption de service.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Forfait", planName],
+            ["Date de renouvellement", renewalDate],
+            ["Montant", amount],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/abonnement`,
+          ctaPrimaryLabel: "Gérer mon abonnement",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // TÉLÉCOM LÉGAL / CRTC — Alertes data & itinérance (obligations CRTC)
+    // ===================================================================
+    case "data_usage_alert_75": {
+      const planName = esc(v.plan_name || "votre forfait");
+      const dataUsed = esc(v.data_used || "");
+      const dataLimit = esc(v.data_limit || "");
+      return {
+        subject: `📊 Vous avez utilisé 75% de vos données`,
+        html: shell({
+          preheader: `Alerte CRTC — 75% de votre allocation de données utilisée.`,
+          badge: "DONNÉES 75%",
+          heroTitle: "75% des données utilisées",
+          heroSub: dataUsed && dataLimit ? `${dataUsed} / ${dataLimit}` : "75%",
+          icon: "warning",
+          greeting,
+          bodyText: `Conformément aux exigences du CRTC, nous vous informons que vous avez atteint 75% de votre allocation de données pour ce cycle.`,
+          cardTitle: "Utilisation",
+          cardRows: [
+            ["Forfait", planName],
+            ...(dataUsed ? [["Données utilisées", dataUsed] as [string, string]] : []),
+            ...(dataLimit ? [["Limite", dataLimit] as [string, string]] : []),
+            ["Seuil atteint", "75%"],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/utilisation`,
+          ctaPrimaryLabel: "Voir mon utilisation",
+        }),
+      };
+    }
+
+    case "data_usage_alert_90": {
+      const planName = esc(v.plan_name || "votre forfait");
+      const dataUsed = esc(v.data_used || "");
+      const dataLimit = esc(v.data_limit || "");
+      return {
+        subject: `⚠️ Vous avez utilisé 90% de vos données`,
+        html: shell({
+          preheader: `Alerte CRTC — 90% de votre allocation de données utilisée.`,
+          badge: "DONNÉES 90%",
+          heroTitle: "90% des données utilisées",
+          heroSub: dataUsed && dataLimit ? `${dataUsed} / ${dataLimit}` : "90%",
+          icon: "warning",
+          greeting,
+          bodyText: `Vous avez atteint 90% de votre allocation de données. Au-delà de 100%, vos données seront limitées ou facturées selon votre forfait.`,
+          cardTitle: "Utilisation",
+          cardRows: [
+            ["Forfait", planName],
+            ...(dataUsed ? [["Données utilisées", dataUsed] as [string, string]] : []),
+            ...(dataLimit ? [["Limite", dataLimit] as [string, string]] : []),
+            ["Seuil atteint", "90%"],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/utilisation`,
+          ctaPrimaryLabel: "Voir mon utilisation",
+          ctaSecondaryUrl: `${APP_URL}/forfaits`,
+          ctaSecondaryLabel: "Changer de forfait",
+        }),
+      };
+    }
+
+    case "data_usage_alert_100": {
+      const planName = esc(v.plan_name || "votre forfait");
+      const dataLimit = esc(v.data_limit || "");
+      return {
+        subject: `🚫 Limite de données atteinte (100%)`,
+        html: shell({
+          preheader: `Vous avez atteint 100% de votre allocation de données.`,
+          badge: "DONNÉES 100%",
+          heroTitle: "Limite de données atteinte",
+          heroSub: "100%",
+          icon: "warning",
+          greeting,
+          bodyText: `Vous avez utilisé la totalité de vos données pour ce cycle. Selon votre forfait, votre vitesse est désormais réduite ou des frais d'utilisation supplémentaire s'appliquent.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Forfait", planName],
+            ...(dataLimit ? [["Limite atteinte", dataLimit] as [string, string]] : []),
+            ["Statut", "Limite dépassée"],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/recharge`,
+          ctaPrimaryLabel: "Ajouter des données",
+          ctaSecondaryUrl: `${APP_URL}/forfaits`,
+          ctaSecondaryLabel: "Voir les forfaits",
+        }),
+      };
+    }
+
+    case "roaming_activated": {
+      const country = esc(v.country || "à l'étranger");
+      const rates = esc(v.rates_summary || "Consultez les tarifs en vigueur");
+      return {
+        subject: `✈️ Itinérance activée — ${country}`,
+        html: shell({
+          preheader: `Avis CRTC — Votre ligne Nivra est en itinérance.`,
+          badge: "ITINÉRANCE",
+          heroTitle: "Itinérance activée",
+          heroSub: country,
+          icon: "info",
+          greeting,
+          bodyText: `Nous détectons que votre ligne Nivra utilise un réseau étranger. Des frais d'itinérance peuvent s'appliquer selon votre forfait.`,
+          cardTitle: "Information d'itinérance",
+          cardRows: [
+            ["Pays détecté", country],
+            ["Tarifs", rates],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/itinerance`,
+          ctaPrimaryLabel: "Voir les tarifs d'itinérance",
+          ctaSecondaryUrl: PORTAL_URL,
+          ctaSecondaryLabel: "Gérer ma ligne",
+        }),
+      };
+    }
+
+    case "roaming_charges_alert": {
+      const country = esc(v.country || "à l'étranger");
+      const chargesAmount = money(v.charges_amount);
+      return {
+        subject: `💰 Alerte frais d'itinérance — ${chargesAmount}`,
+        html: shell({
+          preheader: `Vos frais d'itinérance ont atteint un seuil important.`,
+          badge: "FRAIS ITINÉRANCE",
+          heroTitle: "Alerte frais d'itinérance",
+          heroSub: chargesAmount,
+          icon: "warning",
+          greeting,
+          bodyText: `Conformément aux exigences du CRTC, nous vous informons que vos frais d'itinérance ont atteint un seuil important pour ce cycle.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Pays", country],
+            ["Frais accumulés", chargesAmount],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/utilisation`,
+          ctaPrimaryLabel: "Voir mon utilisation",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // LOI 25 — Conformité protection des renseignements personnels (QC)
+    // ===================================================================
+    case "privacy_data_export_ready": {
+      const downloadUrl = String(v.download_url || `${PORTAL_URL}/donnees`);
+      const expiresOn = fmtDate(v.expires_on);
+      return {
+        subject: `📦 Vos données personnelles sont prêtes à télécharger`,
+        html: shell({
+          preheader: `Loi 25 — Votre export de données est disponible.`,
+          badge: "EXPORT DONNÉES",
+          heroTitle: "Vos données sont prêtes",
+          icon: "check",
+          greeting,
+          bodyText: `Conformément à la Loi 25 (Québec), votre demande d'accès à vos renseignements personnels a été traitée. Téléchargez votre archive ci-dessous. Le lien expire ${expiresOn ? `le ${expiresOn}` : "sous 7 jours"}.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Format", "Archive ZIP"],
+            ["Disponible jusqu'au", expiresOn || "7 jours"],
+            ["Cadre légal", "Loi 25 (Québec)"],
+          ],
+          ctaPrimaryUrl: downloadUrl,
+          ctaPrimaryLabel: "Télécharger mes données",
+        }),
+      };
+    }
+
+    case "privacy_data_deletion_confirmed": {
+      const deletedOn = fmtDate(v.deleted_on || new Date().toISOString());
+      return {
+        subject: `🗑️ Suppression de vos données confirmée`,
+        html: shell({
+          preheader: `Loi 25 — Votre demande de suppression a été exécutée.`,
+          badge: "SUPPRESSION DONNÉES",
+          heroTitle: "Données supprimées",
+          heroSub: deletedOn,
+          icon: "check",
+          greeting,
+          bodyText: `Conformément à la Loi 25 (Québec), votre demande de suppression de vos renseignements personnels a été exécutée. Certaines données peuvent être conservées pour des raisons légales (facturation, fiscalité) selon les délais prévus par la loi.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Date d'exécution", deletedOn],
+            ["Cadre légal", "Loi 25 (Québec)"],
+            ["Statut", "Complété"],
+          ],
+          ctaSecondaryUrl: `${APP_URL}/politique-confidentialite`,
+          ctaSecondaryLabel: "Politique de confidentialité",
+        }),
+      };
+    }
+
+    case "privacy_data_request_received": {
+      const requestType = esc(v.request_type || "Accès aux données");
+      const expectedDelay = esc(v.expected_delay || "30 jours");
+      return {
+        subject: `📬 Demande reçue — ${requestType}`,
+        html: shell({
+          preheader: `Votre demande relative à vos données personnelles a été reçue.`,
+          badge: "DEMANDE REÇUE",
+          heroTitle: "Demande reçue",
+          icon: "info",
+          greeting,
+          bodyText: `Nous avons bien reçu votre demande concernant vos renseignements personnels. Conformément à la Loi 25, nous y répondrons dans les meilleurs délais.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Type de demande", requestType],
+            ["Délai de traitement", expectedDelay],
+            ["Cadre légal", "Loi 25 (Québec)"],
+          ],
+          ctaSecondaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaSecondaryLabel: "Nous contacter",
+        }),
+      };
+    }
+
+    // ===================================================================
+    // ALERTES CRITIQUES — Panne, maintenance, sécurité
+    // ===================================================================
+    case "service_outage_alert": {
+      const area = esc(v.area || "votre secteur");
+      const serviceType = esc(v.service_type || "Internet");
+      const startedAt = fmtDate(v.started_at);
+      return {
+        subject: `🔴 Panne de service détectée — ${serviceType}`,
+        html: shell({
+          preheader: `Panne en cours dans ${area}. Nos équipes travaillent à la résolution.`,
+          badge: "PANNE EN COURS",
+          heroTitle: "Panne de service détectée",
+          heroSub: serviceType,
+          icon: "warning",
+          greeting,
+          bodyText: `Une panne affecte actuellement nos services dans votre secteur. Nos équipes sont mobilisées pour rétablir le service au plus vite.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Service affecté", serviceType],
+            ["Secteur", area],
+            ["Détectée à", startedAt],
+            ["Statut", "Investigation en cours"],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/statut`,
+          ctaPrimaryLabel: "Voir le statut en direct",
+        }),
+      };
+    }
+
+    case "service_outage_resolved": {
+      const serviceType = esc(v.service_type || "Internet");
+      const resolvedAt = fmtDate(v.resolved_at);
+      const duration = esc(v.duration || "");
+      return {
+        subject: `✅ Service rétabli — ${serviceType}`,
+        html: shell({
+          preheader: `La panne a été résolue. Service rétabli.`,
+          badge: "SERVICE RÉTABLI",
+          heroTitle: "Service rétabli",
+          heroSub: serviceType,
+          icon: "check",
+          greeting,
+          bodyText: `Bonne nouvelle ! La panne qui affectait votre service a été résolue. Si vous rencontrez encore des difficultés, redémarrez votre équipement ou contactez-nous.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Service", serviceType],
+            ["Rétabli à", resolvedAt],
+            ...(duration ? [["Durée totale", duration] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: `${APP_URL}/statut`,
+          ctaPrimaryLabel: "Voir le statut",
+          ctaSecondaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaSecondaryLabel: "Signaler un problème",
+        }),
+      };
+    }
+
+    case "scheduled_maintenance": {
+      const serviceType = esc(v.service_type || "Réseau");
+      const startsAt = fmtDate(v.starts_at);
+      const endsAt = fmtDate(v.ends_at);
+      const reason = esc(v.reason || "Maintenance planifiée");
+      return {
+        subject: `🛠️ Maintenance planifiée — ${startsAt}`,
+        html: shell({
+          preheader: `Une maintenance est planifiée. Service possiblement interrompu.`,
+          badge: "MAINTENANCE",
+          heroTitle: "Maintenance planifiée",
+          heroSub: startsAt,
+          icon: "info",
+          greeting,
+          bodyText: `Nous effectuerons une opération de maintenance sur nos infrastructures. Le service pourrait être interrompu durant cette période.`,
+          cardTitle: "Fenêtre de maintenance",
+          cardRows: [
+            ["Service concerné", serviceType],
+            ["Début", startsAt],
+            ["Fin prévue", endsAt],
+            ["Raison", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/statut`,
+          ctaPrimaryLabel: "Voir le statut",
+        }),
+      };
+    }
+
+    case "suspicious_login_alert": {
+      const loginAt = fmtDate(v.login_at || new Date().toISOString());
+      const location = esc(v.location || "Lieu inconnu");
+      const device = esc(v.device || "Appareil inconnu");
+      const ipAddress = esc(v.ip_address || "");
+      return {
+        subject: `🔐 Connexion suspecte détectée sur votre compte`,
+        html: shell({
+          preheader: `Une connexion inhabituelle a été détectée. Vérifiez votre compte.`,
+          badge: "ALERTE SÉCURITÉ",
+          heroTitle: "Connexion suspecte détectée",
+          heroSub: loginAt,
+          icon: "warning",
+          greeting,
+          bodyText: `Nous avons détecté une connexion inhabituelle à votre compte Nivra. Si ce n'était pas vous, changez votre mot de passe immédiatement.`,
+          cardTitle: "Détails de la connexion",
+          cardRows: [
+            ["Date / Heure", loginAt],
+            ["Localisation", location],
+            ["Appareil", device],
+            ...(ipAddress ? [["Adresse IP", ipAddress] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/securite`,
+          ctaPrimaryLabel: "Sécuriser mon compte",
+          ctaSecondaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaSecondaryLabel: "Signaler",
+        }),
+      };
+    }
+
+    case "password_changed_confirmation": {
+      const changedAt = fmtDate(v.changed_at || new Date().toISOString());
+      return {
+        subject: `✅ Mot de passe modifié`,
+        html: shell({
+          preheader: `Votre mot de passe Nivra a été modifié avec succès.`,
+          badge: "SÉCURITÉ",
+          heroTitle: "Mot de passe modifié",
+          heroSub: changedAt,
+          icon: "check",
+          greeting,
+          bodyText: `Votre mot de passe a été modifié avec succès. Si ce n'était pas vous, contactez-nous immédiatement.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Modifié à", changedAt],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/securite`,
+          ctaPrimaryLabel: "Mon compte",
+          ctaSecondaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaSecondaryLabel: "Ce n'était pas moi",
+        }),
+      };
+    }
+
+    case "two_factor_enabled": {
+      return {
+        subject: `🔒 Authentification à deux facteurs activée`,
+        html: shell({
+          preheader: `Votre compte Nivra est mieux protégé.`,
+          badge: "SÉCURITÉ RENFORCÉE",
+          heroTitle: "Authentification 2FA activée",
+          icon: "check",
+          greeting,
+          bodyText: `L'authentification à deux facteurs (2FA) est maintenant active sur votre compte. À chaque connexion, vous devrez confirmer votre identité avec un code temporaire.`,
+          cardTitle: "Protection active",
+          cardRows: [
+            ["Statut", "2FA activée"],
+            ["Date d'activation", fmtDate(new Date().toISOString())],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/securite`,
+          ctaPrimaryLabel: "Mes paramètres",
+        }),
+      };
+    }
+
     default:
       return null;
     }
