@@ -19,8 +19,9 @@ import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
+import { isHrOnboardingComplete } from "@/lib/security/hrOnboardingGate";
 
-type State = "loading" | "authorized" | "unauthorized" | "no_session" | "mfa_enroll" | "mfa_verify";
+type State = "loading" | "authorized" | "unauthorized" | "hr_pending" | "no_session" | "mfa_enroll" | "mfa_verify";
 
 const ALLOWED_ROLES = ["technician", "admin", "employee", "supervisor", "techops"];
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
