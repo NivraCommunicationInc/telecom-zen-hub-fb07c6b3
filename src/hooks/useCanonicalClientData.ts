@@ -33,9 +33,12 @@ export interface CanonicalClientData {
   identifiers: {
     userId: string | null;
     accountId: string | null;
+    accountIds: string[];
     customerId: string | null;
+    customerIds: string[];
     profileEmail: string | null;
     orderIds: string[];
+    subscriptionIds: string[];
     /** True when invoices/payments were resolved through fallback link paths. */
     usedFallbackLinks: boolean;
   };
@@ -69,9 +72,12 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           identifiers: {
             userId: null,
             accountId: null,
+            accountIds: [],
             customerId: null,
+            customerIds: [],
             profileEmail: null,
             orderIds: [],
+            subscriptionIds: [],
             usedFallbackLinks: false,
           },
         };
@@ -109,13 +115,20 @@ export function useCanonicalClientData(userId: Maybe<string>) {
         identifiers: {
           userId,
           accountId: snapshot?.identifiers?.accountId ?? snapshot?.account?.id ?? null,
+          accountIds: Array.isArray(snapshot?.identifiers?.accountIds)
+            ? snapshot.identifiers.accountIds.filter(Boolean)
+            : [],
           customerId:
             snapshot?.billingCustomer?.id ??
             customerIds[0] ??
             null,
+          customerIds,
           profileEmail: snapshot?.identifiers?.profileEmail ?? snapshot?.profile?.email ?? null,
           orderIds: Array.isArray(snapshot?.identifiers?.orderIds)
             ? snapshot.identifiers.orderIds.filter(Boolean)
+            : [],
+          subscriptionIds: Array.isArray(snapshot?.identifiers?.subscriptionIds)
+            ? snapshot.identifiers.subscriptionIds.filter(Boolean)
             : [],
           usedFallbackLinks: Boolean(snapshot?.identifiers?.usedEmailFallback),
         },
