@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend, enqueueEmail } from "../_shared/ResendProxy.ts";
 import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { buildInvoicePdfAttachment, buildContractPdfAttachment, buildSummaryPdfAttachment } from "../_shared/pdfFromDb.ts";
 import {
   emailDocument, header, statusBanner, contentWrapper, footer, button,
   sectionHeader, helpSection, infoRow, amountBox, alertBox,
@@ -962,6 +963,12 @@ Deno.serve(async (req) => {
       installationDetails: finalInstallDetails,
     });
 
+    const attachments = (await Promise.all([
+      latestInvoice?.id ? buildInvoicePdfAttachment(latestInvoice.id, "facture") : null,
+      buildContractPdfAttachment(order_id, { filenamePrefix: "contrat" }),
+      buildSummaryPdfAttachment(order_id, "sommaire_commande"),
+    ])).filter((a): a is NonNullable<typeof a> => !!a);
+
     // Enqueue main email via pgmq (actually delivered by process-email-queue)
     const enqueueResult = await enqueueEmail({
       to: client_email,
@@ -973,6 +980,7 @@ Deno.serve(async (req) => {
       messageType: "order_confirmation",
       entityType: "order",
       entityId: order_id,
+      attachments,
       maxAttempts: 3,
     });
 

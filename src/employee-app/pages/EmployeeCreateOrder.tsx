@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { computeCheckoutPricing, type CartLineItem } from "@/lib/pricing/serverPricing";
 import { toast } from "sonner";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
@@ -79,6 +80,18 @@ interface AgentDiscountRow {
   applies_to: string;
 }
 
+interface CreatedClientOnboarding {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  date_of_birth?: string;
+  service_address?: string;
+  service_city?: string;
+  service_postal_code?: string;
+}
+
 export default function EmployeeCreateOrder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -101,6 +114,7 @@ export default function EmployeeCreateOrder() {
     date_of_birth: "", street: "", city: "", postal: "",
   });
   const [creatingClient, setCreatingClient] = useState(false);
+  const [createdClientOnboarding, setCreatedClientOnboarding] = useState<CreatedClientOnboarding | null>(null);
 
   // If preset client, load directly
   useEffect(() => {
@@ -197,6 +211,7 @@ export default function EmployeeCreateOrder() {
       account_number: acc?.account_number ?? undefined,
       account_id: acc?.id ?? undefined,
     });
+    setCreatedClientOnboarding(null);
     if (acc?.primary_service_address) {
       setAddress({
         street: acc.primary_service_address ?? "",
@@ -268,6 +283,17 @@ export default function EmployeeCreateOrder() {
         province: "QC",
       });
       toast.success(data.is_new_account ? "Client créé" : "Client existant lié");
+      setCreatedClientOnboarding(data.is_new_account ? {
+        user_id: userId,
+        email,
+        first_name: first,
+        last_name: last,
+        phone: newClient.phone.trim() || undefined,
+        date_of_birth: newClient.date_of_birth,
+        service_address: newClient.street.trim(),
+        service_city: newClient.city.trim(),
+        service_postal_code: newClient.postal.trim(),
+      } : null);
       setShowCreateClient(false);
       setStep("plan");
     } catch (err: any) {
@@ -329,124 +355,126 @@ export default function EmployeeCreateOrder() {
         appliedDiscount = selectedDiscount;
       }
 
-      // Resolve or create account
-      let accountId = selectedClient.account_id;
-      if (!accountId) {
-        const { data: existingAcc } = await supabase
-          .from("accounts")
-          .select("id")
-          .eq("client_id", selectedClient.user_id)
-          .maybeSingle();
-        if (existingAcc?.id) {
-          accountId = existingAcc.id;
-        } else {
-          const newAccountNumber = `ACC-${Date.now().toString(36).toUpperCase()}`;
-          const { data: createdAcc, error: accErr } = await supabase
-            .from("accounts")
-            .insert({ client_id: selectedClient.user_id, account_number: newAccountNumber })
-            .select("id")
-            .single();
-          if (accErr) throw new Error(`Création compte échouée: ${accErr.message}`);
-          accountId = createdAcc.id;
-        }
-      }
-
-      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
-
       const nameParts = (selectedClient.full_name || "").trim().split(/\s+/);
       const firstName = nameParts.shift() || selectedClient.full_name || "Client";
       const lastName = nameParts.join(" ") || "";
 
-      const installation_details = {
-        type: installType,
-        requested_date: installType === "professional" ? installDate : null,
-        time_slot: installType === "professional" ? installSlot : null,
-        self_install: installType === "auto",
-      };
-
       const equipment_line_details = selectedEquipment.map(e => ({
-        key: e.key,
+        sku: e.key,
         name: e.name,
-        price: e.price,
+        unit_price: e.price,
         quantity: e.quantity,
         line_total: +(e.price * e.quantity).toFixed(2),
       }));
 
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          user_id: selectedClient.user_id,
-          account_id: accountId,
-          order_number: orderNumber,
-          status: "submitted",
-          payment_status: "pending",
-          service_type: selectedPlan.category,
-          total_amount: selectedPlan.price + equipmentTotal,
-          environment: "live",
-          source: "employee_portal",
-          created_by: user.id,
-          created_by_agent_id: user.id,
-          agent_name: agentProfile?.full_name ?? user.email ?? null,
-          client_first_name: firstName,
-          client_last_name: lastName,
-          client_email: selectedClient.email,
-          client_phone: selectedClient.phone ?? null,
-          client_full_address: [address.street, address.city, address.postal].filter(Boolean).join(", ") || null,
-          shipping_address: address.street || null,
-          shipping_city: address.city || null,
-          shipping_postal_code: address.postal || null,
-          notes: agentNotes || null,
-          discount_code: appliedDiscount?.id ?? null,
-          discount_amount: appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
-          installation_type: installType,
-          activation_preference: installType === "professional" ? "SCHEDULED" : "ASAP",
-          requested_activation_date: installType === "professional" ? installDate : null,
-          installation_details,
-          equipment_line_details,
-          pricing_snapshot: {
-            portal: "employee",
-            plan_id: selectedPlan.id,
-            plan_name: selectedPlan.name,
-            plan_price: selectedPlan.price,
-            plan_category: selectedPlan.category,
-            equipment: equipment_line_details,
-            equipment_total: equipmentTotal,
-            first_month_free_credit: firstMonthFreeCredit,
-            install_type: installType,
-            install_date: installType === "professional" ? installDate : null,
-            install_slot: installType === "professional" ? installSlot : null,
-            created_by_agent: agentProfile?.full_name ?? user.email,
-            created_by_agent_id: user.id,
-            agent_discount: appliedDiscount
-              ? {
-                  id: appliedDiscount.id,
-                  name: appliedDiscount.name,
-                  type: appliedDiscount.type,
-                  value: Number(appliedDiscount.value),
-                  duration_months: appliedDiscount.duration_months,
-                }
-              : null,
-          },
-        })
-        .select("id, order_number")
-        .single();
+      const cartItems: CartLineItem[] = [
+        { type: "service", name: selectedPlan.name, amount: selectedPlan.price, quantity: 1 },
+        ...selectedEquipment.map((e) => ({ type: "equipment" as const, name: e.name, amount: e.price, quantity: e.quantity })),
+      ];
+      const serverPricing = await computeCheckoutPricing(
+        cartItems,
+        null,
+        selectedClient.email,
+        selectedClient.user_id,
+        appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
+      );
 
-      if (orderError) throw orderError;
+      const pricingSnapshot = {
+        ...serverPricing,
+        portal: "employee",
+        source: "nivra_oneview_cs",
+        plan_id: selectedPlan.id,
+        plan_name: selectedPlan.name,
+        plan_price: selectedPlan.price,
+        plan_category: selectedPlan.category,
+        equipment: equipment_line_details,
+        equipment_total: equipmentTotal,
+        install_type: installType,
+        install_date: installType === "professional" ? installDate : null,
+        install_slot: installType === "professional" ? installSlot : null,
+        created_by_agent: agentProfile?.full_name ?? user.email,
+        created_by_agent_id: user.id,
+        agent_discount: appliedDiscount
+          ? {
+              id: appliedDiscount.id,
+              name: appliedDiscount.name,
+              type: appliedDiscount.type,
+              value: Number(appliedDiscount.value),
+              duration_months: appliedDiscount.duration_months,
+            }
+          : null,
+      };
+
+      const checkoutPayload = {
+        customer: {
+          user_id: selectedClient.user_id,
+          first_name: firstName,
+          last_name: lastName,
+          email: selectedClient.email,
+          phone: selectedClient.phone,
+          date_of_birth: createdClientOnboarding?.date_of_birth ?? null,
+        },
+        client_language: "fr" as const,
+        service_address: {
+          street: address.street.trim(),
+          city: address.city.trim(),
+          province: address.province || "QC",
+          postal_code: address.postal.trim(),
+        },
+        services: [{
+          name: selectedPlan.name,
+          plan_code: selectedPlan.id,
+          plan_price: selectedPlan.price,
+          category: selectedPlan.category,
+          quantity: 1,
+        }],
+        equipment: equipment_line_details,
+        payment: { method: "manual", status: "pending", reference: null },
+        installation: {
+          type: installType,
+          delivery_fee: 0,
+          installation_fee: 0,
+          scheduled_date: installType === "professional" ? installDate : null,
+          scheduled_time: installType === "professional" ? installSlot : null,
+        },
+        pricing_snapshot: pricingSnapshot,
+        notes: agentNotes || "Commande créée via Nivra OneView CS",
+        account_id: selectedClient.account_id ?? null,
+      };
+
+      const { data: syncData, error: syncError } = await supabase.functions.invoke("checkout-canonical-sync", {
+        body: { payload: checkoutPayload },
+      });
+      if (syncError) throw syncError;
+      if (!syncData?.ok) throw new Error((syncData?.errors || ["Synchronisation canonique échouée"]).join(" | "));
+
+      const order = syncData.response as { order_id: string; order_number: string; invoice_id?: string; invoice_number?: string };
+      if (!order?.order_id) throw new Error("Commande canonique non retournée");
 
       // Always send the official order confirmation email (corporate template)
       try {
         await supabase.functions.invoke("send-order-confirmation", {
-          body: { order_id: order.id },
+          body: { order_id: order.order_id },
         });
       } catch (emailErr) {
         console.warn("[CreateOrder] order confirmation email failed:", emailErr);
+      }
+
+      if (createdClientOnboarding?.email === selectedClient.email) {
+        try {
+          await supabase.functions.invoke("client-password-reset-send", {
+            body: { email: selectedClient.email, redirect_origin: window.location.origin },
+          });
+        } catch (inviteErr) {
+          console.warn("[CreateOrder] client onboarding email failed:", inviteErr);
+        }
       }
 
       // If auto install: send official self-install email (PDF attached, corporate template)
       if (installType === "auto") {
         try {
           await supabase.functions.invoke("send-auto-installation-email", {
-            body: { order_id: order.id },
+            body: { order_id: order.order_id },
           });
         } catch (emailErr) {
           console.warn("[CreateOrder] auto-install email enqueue failed:", emailErr);
@@ -459,9 +487,10 @@ export default function EmployeeCreateOrder() {
         category: "operations",
         portal: "employee",
         targetType: "order",
-        targetId: order.id,
+        targetId: order.order_id,
         details: {
           order_number: order.order_number,
+          invoice_number: order.invoice_number,
           client_id: selectedClient.user_id,
           plan: selectedPlan.name,
           install_type: installType,
