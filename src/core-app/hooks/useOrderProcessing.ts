@@ -683,27 +683,30 @@ export function useOrderProcessing(orderId: string | undefined) {
       { changedField: "status", oldValue: oldStatus, newValue: newStatus, reason }
     );
 
-    // Queue email notification to client — map to existing template keys
+    // Queue email notification to client — ONLY for client-meaningful milestones.
+    // Intermediate internal transitions (confirmed, processing, on_hold, fraud, etc.)
+    // must NOT spam the customer with a new email each time.
     const email = getClientEmail();
-    if (email) {
-      const statusTemplateMap: Record<string, string> = {
-        shipped: "order_shipped",
-        delivered: "order_completed",
-        completed: "order_completed",
-        activated: "order_completed",
-        installed: "order_completed",
-        cancelled: "order_cancelled",
-        technician_en_route: "technician_en_route",
-        installation_in_progress: "installation_in_progress",
-        installation_completed: "installation_completed",
-        installation_failed: "installation_failed",
-      };
-      const templateKey = statusTemplateMap[newStatus] || "order_submitted";
-
+    const statusTemplateMap: Record<string, string> = {
+      shipped: "order_shipped",
+      delivered: "order_completed",
+      completed: "order_completed",
+      activated: "order_completed",
+      installed: "order_completed",
+      cancelled: "order_cancelled",
+      technician_en_route: "technician_en_route",
+      installation_in_progress: "installation_in_progress",
+      installation_completed: "installation_completed",
+      installation_failed: "installation_failed",
+    };
+    const templateKey = statusTemplateMap[newStatus];
+    if (email && templateKey) {
       await queueClientEmail({
         to_email: email,
         template_key: templateKey,
-        event_key: `order_status_${orderId}_${newStatus}_${Date.now()}`,
+        // Stable event_key — UNIQUE constraint on email_queue.event_key prevents
+        // duplicate sends when the same status is re-applied or replayed.
+        event_key: `order_status_${orderId}_${newStatus}`,
         idempotency_key: `auto_order_status_${orderId}_${newStatus}`,
         mode: "automatic",
         subject: `Mise à jour de votre commande — ${newStatus}`,
@@ -712,6 +715,7 @@ export function useOrderProcessing(orderId: string | undefined) {
           client_name: getClientName(),
           order_id: orderId,
           order_number: data?.order?.order_number || "",
+          account_number: (data as any)?.profile?.account_number || (data as any)?.order?.account_number || "",
           old_status: oldStatus,
           new_status: newStatus,
           reason: reason || "",
@@ -719,6 +723,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         },
       });
     }
+
 
     toast.success(`Statut mis à jour: ${newStatus}`);
     noteClient("status_changed", `${oldStatus || "—"} → ${newStatus}${reason ? ` (${reason})` : ""}`, {

@@ -321,8 +321,8 @@ export function renderQueueTemplate(
   );
   const greeting = isEn ? `Hello ${clientName},` : `Bonjour ${clientName},`;
   const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
-  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "N/A");
-  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || (isEn ? "Not specified" : "Non spécifié"));
+  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "");
 
   switch (templateKey) {
     // ===================================================================
@@ -4184,7 +4184,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     case "support_ai_reply": {
       const ticketNumber = esc(v.ticket_number || "TKT-XXXXXXXX");
-      const accountNumber = esc(v.account_number || "Inconnu");
+      const accountNumber = esc(v.account_number || "");
       const originalSubject = esc(v.original_subject || v.subject || "votre demande");
       const aiResponse = String(v.ai_response || "");
       // Convert plain-text AI response into safe HTML paragraphs
@@ -4207,8 +4207,9 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           cardTitle: "Détails du ticket",
           cardRows: [
             ["Numéro de ticket", ticketNumber],
-            ["Compte", accountNumber],
+            ...(accountNumber ? [["Compte", accountNumber] as [string, string]] : []),
           ],
+
           ctaPrimaryUrl: `${APP_URL}/support`,
           ctaPrimaryLabel: "Voir mon dossier",
           helpHtml: `Pour répondre, écrivez simplement à cet email. Notre équipe est là pour vous: <strong style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</strong>`,
@@ -4223,7 +4224,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const ticketNumber = esc(v.ticket_number || "TKT-XXXXXXXX");
       const clientNameEsc = esc(v.client_name || "Client inconnu");
       const clientEmail = esc(v.client_email || "");
-      const accountNumber = esc(v.account_number || "Inconnu");
+      const accountNumber = esc(v.account_number || "");
       const subjectEsc = esc(v.subject || "(sans objet)");
       const rawBody = String(v.body || "");
       const bodyTrunc = esc(rawBody.length > 500 ? rawBody.slice(0, 500) + "..." : rawBody);
@@ -4243,7 +4244,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Ticket", ticketNumber],
             ["Client", clientNameEsc],
             ["Courriel", clientEmail],
-            ["Compte", accountNumber],
+            ...(accountNumber ? [["Compte", accountNumber] as [string, string]] : []),
             ["Sujet", subjectEsc],
             ["Message", bodyTrunc],
             ["Analyse IA", aiReason],
