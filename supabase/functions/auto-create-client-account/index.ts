@@ -176,41 +176,8 @@ serve(async (req) => {
         .is("user_id", null); // Only update if not already linked
     }
 
-    // Step 6: Send password reset email for new accounts
-    if (isNewAccount) {
-      const appUrl = Deno.env.get("APP_BASE_URL") || "https://nivra-telecom.ca";
-      const redirectUrl = `${appUrl.split(',')[0]}/portail/creer-mot-de-passe`;
-      
-      const { error: resetError } = await supabase.auth.admin.generateLink({
-        type: "recovery",
-        email,
-        options: {
-          redirectTo: redirectUrl,
-        }
-      });
-
-      if (resetError) {
-        console.error(`[auto-create-client-account] Reset link error:`, resetError);
-      } else {
-        console.log(`[auto-create-client-account] Password reset email queued`);
-      }
-
-      // Also queue a welcome email
-      await supabase.from("email_queue").insert({
-        event_key: `welcome_new_client_${userId}`,
-        to_email: email,
-        template_key: "welcome_new_client",
-        template_vars: {
-          client_name: `${body.first_name} ${body.last_name}`.trim(),
-          email,
-          order_number: body.order_number || "",
-          portal_url: `${appUrl.split(',')[0]}/portal/auth`,
-        },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
-    }
+    // Emails are intentionally not sent here. The canonical order sync sends
+    // them in the correct order after the order/invoice/documents exist.
 
     console.log(`[auto-create-client-account] Complete: userId=${userId}, isNew=${isNewAccount}`);
 
