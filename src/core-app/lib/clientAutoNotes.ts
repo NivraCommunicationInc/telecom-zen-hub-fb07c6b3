@@ -12,6 +12,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const DEDUP_WINDOW_MS = 5000;
+const SYSTEM_ACTOR_ID = "00000000-0000-0000-0000-000000000000";
+const SYSTEM_ACTOR_NAME = "Système Nivra";
 const recent = new Map<string, number>();
 
 export type AutoNoteEvent =
@@ -116,7 +118,7 @@ export interface AutoNoteParams {
  *     — visible on the order detail timeline
  */
 export function addClientAutoNote(params: AutoNoteParams): void {
-  const { clientId, event, detail, metadata, actorId, actorName, orderId } = params;
+  const { clientId, event, detail, metadata, orderId } = params;
   if (!clientId) return;
 
   const dedupKey = `${clientId}:${event}:${detail || ""}`;
@@ -143,9 +145,9 @@ export function addClientAutoNote(params: AutoNoteParams): void {
         client_id: clientId,
         note_type: "system",
         body,
-        created_by_user_id: actorId || "00000000-0000-0000-0000-000000000000",
+        created_by_user_id: SYSTEM_ACTOR_ID,
         created_by_role: "system_auto",
-        created_by_name: actorName || "Système",
+        created_by_name: SYSTEM_ACTOR_NAME,
       } as any);
     } catch (err: any) {
       console.warn("[autoNote] client_internal_notes insert failed:", err?.message, { event, clientId });
@@ -159,7 +161,8 @@ export function addClientAutoNote(params: AutoNoteParams): void {
         entity_type: orderId ? "order" : "client",
         entity_id: orderId || clientId,
         actor_role: "system_auto",
-        actor_name: actorName || "Système",
+        actor_name: SYSTEM_ACTOR_NAME,
+        actor_email: null,
         details: { note: body, ...(metadata || {}) } as any,
       } as any);
     } catch (err: any) {
