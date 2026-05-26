@@ -49,9 +49,8 @@ export function useCanonicalClientData(userId: Maybe<string>) {
   return useQuery<CanonicalClientData>({
     queryKey: ["canonical-client-data", userId],
     enabled: !!userId,
-    staleTime: 5_000,
-    refetchInterval: 10_000,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!userId) {
         return {
