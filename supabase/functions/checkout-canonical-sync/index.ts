@@ -662,6 +662,9 @@ serve(async (req) => {
             order_type: "new",
             total_amount: canonicalGrandTotal,
             environment: "live",
+            source: (payload.pricing_snapshot as any)?.source || "checkout",
+            created_by_agent_id: (payload.pricing_snapshot as any)?.created_by_agent_id || null,
+            agent_name: (payload.pricing_snapshot as any)?.created_by_agent || null,
             created_at: nowIso,
             pricing_snapshot: payload.pricing_snapshot || null,
             line_items: payload.line_items || null,
@@ -718,6 +721,36 @@ serve(async (req) => {
         results.order = true;
       } catch (err: any) {
         errors.push(`order: ${err?.message || String(err)}`);
+      }
+    }
+
+    // 3b) Contract shell — guarantees Core/client document panels see a contract immediately.
+    if (accountId && response.order_id) {
+      try {
+        const { data: existingContract } = await admin
+          .from("contracts")
+          .select("id")
+          .eq("order_id", response.order_id)
+          .maybeSingle();
+        if (!existingContract?.id) {
+          const { data: contractNum, error: contractNumErr } = await admin.rpc("generate_contract_number");
+          if (contractNumErr || !contractNum) throw new Error(contractNumErr?.message || "contract number failed");
+          const { error: contractErr } = await admin.from("contracts").insert({
+            user_id: payload.customer.user_id,
+            owner_user_id: payload.customer.user_id,
+            order_id: response.order_id,
+            contract_name: `Contrat de Service - Commande #${response.order_number}`,
+            contract_url: "",
+            contract_number: String(contractNum),
+            status: "draft",
+          });
+          if (contractErr) throw contractErr;
+          results.contract = true;
+        } else {
+          results.contract = "existing";
+        }
+      } catch (err: any) {
+        errors.push(`contract: ${err?.message || String(err)}`);
       }
     }
 
