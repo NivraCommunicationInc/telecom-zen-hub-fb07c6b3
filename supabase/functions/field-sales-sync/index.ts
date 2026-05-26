@@ -1104,9 +1104,31 @@ Deno.serve(async (req) => {
 
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
-        } catch (commErr: any) {
-          console.error("[field-sales-sync] Commission engine error (non-blocking):", commErr);
         }
+
+        // Send official order confirmation email (corporate template, canonical math)
+        try {
+          await supabaseAdmin.functions.invoke("send-order-confirmation", {
+            body: { order_id: canonicalOrder.id },
+          });
+          console.log(`[field-sales-sync] send-order-confirmation invoked for ${canonicalOrder.id}`);
+        } catch (emailErr: any) {
+          console.error("[field-sales-sync] send-order-confirmation failed (non-blocking):", emailErr?.message || emailErr);
+        }
+
+        // Auto-installation: also send the self-install email with PDF guides
+        const installType = String((sale as any)?.installation_type || (sale as any)?.install_type || "").toLowerCase();
+        if (installType === "auto" || installType === "self" || installType === "self_install") {
+          try {
+            await supabaseAdmin.functions.invoke("send-auto-installation-email", {
+              body: { order_id: canonicalOrder.id },
+            });
+          } catch (emailErr: any) {
+            console.error("[field-sales-sync] auto-install email failed (non-blocking):", emailErr?.message || emailErr);
+          }
+        }
+
+
 
         return { 
           success: true, 
