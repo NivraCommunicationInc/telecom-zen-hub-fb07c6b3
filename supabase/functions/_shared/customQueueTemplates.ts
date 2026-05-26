@@ -4207,8 +4207,9 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           cardTitle: "Détails du ticket",
           cardRows: [
             ["Numéro de ticket", ticketNumber],
-            ["Compte", accountNumber],
+            ...(accountNumber ? [["Compte", accountNumber] as [string, string]] : []),
           ],
+
           ctaPrimaryUrl: `${APP_URL}/support`,
           ctaPrimaryLabel: "Voir mon dossier",
           helpHtml: `Pour répondre, écrivez simplement à cet email. Notre équipe est là pour vous: <strong style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</strong>`,
