@@ -51,6 +51,13 @@ export default function EmployeeProtectedRoute() {
         return;
       }
 
+      // HR onboarding gate
+      const hrOk = await isHrOnboardingComplete(session.user.id);
+      if (!hrOk) {
+        if (mounted) setState("hr_pending");
+        return;
+      }
+
       const bypassMfa = await isActiveStaffImpersonationForPortal(session.user.id, "employee");
       if (bypassMfa) {
         await auditAccess("portal_entry", "employee");
