@@ -17,8 +17,8 @@ function isRateLimited(error: unknown): boolean {
   return error instanceof Error && error.message.includes('429')
 }
 
-// Check if an error is a forbidden (403) response, which means emails are
-// disabled for this project. Retrying won't help — move straight to DLQ.
+// Check if an error is a forbidden (403) response. Retrying won't help.
+// Move straight to DLQ.
 function isForbidden(error: unknown): boolean {
   if (error && typeof error === 'object' && 'status' in error) {
     return (error as { status: number }).status === 403
@@ -54,7 +54,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
 
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
   reason: string
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     )
   }
 
-  const supabase: any = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   // 1. Check rate-limit cooldown and read queue config
   const { data: state } = await supabase
@@ -155,13 +155,13 @@ Deno.serve(async (req) => {
     // messages not attempted when a 429 stops processing early.
     const messageIds = Array.from(
       new Set(
-        (messages as any[])
-          .map((msg: any) =>
+        messages
+          .map((msg) =>
             msg?.message?.message_id && typeof msg.message.message_id === 'string'
               ? msg.message.message_id
               : null
           )
-          .filter((id: any): id is string => Boolean(id))
+          .filter((id): id is string => Boolean(id))
       )
     )
     const failedAttemptsByMessageId = new Map<string, number>()
@@ -195,17 +195,20 @@ Deno.serve(async (req) => {
       const failedAttempts =
         payload?.message_id && typeof payload.message_id === 'string'
           ? (failedAttemptsByMessageId.get(payload.message_id) ?? 0)
-          : 0
+          : msg.read_ct ?? 0
 
-      // Drop expired messages (TTL exceeded)
-      if (payload.queued_at) {
-        const ageMs = Date.now() - new Date(payload.queued_at).getTime()
+      // Drop expired messages (TTL exceeded).
+      // Prefer payload.queued_at when present; fall back to PGMQ's enqueued_at
+      // which is always set by the queue.
+      const queuedAt = payload.queued_at ?? msg.enqueued_at
+      if (queuedAt) {
+        const ageMs = Date.now() - new Date(queuedAt).getTime()
         const maxAgeMs = ttlMinutes[queue] * 60 * 1000
         if (ageMs > maxAgeMs) {
           console.warn('Email expired (TTL exceeded)', {
             queue,
             msg_id: msg.msg_id,
-            queued_at: payload.queued_at,
+            queued_at: queuedAt,
             ttl_minutes: ttlMinutes[queue],
           })
           await moveToDlq(supabase, queue, msg, `TTL exceeded (${ttlMinutes[queue]} minutes)`)
@@ -246,65 +249,26 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const hasAttachments = Array.isArray(payload.attachments) && payload.attachments.length > 0;
-        const resendApiKey = Deno.env.get('RESEND_API_KEY');
-
-        if (hasAttachments && resendApiKey) {
-          // Lovable Email API does not support attachments — send via Resend directly.
-          const fromHeader = typeof payload.from === 'string'
-            ? payload.from
-            : `Nivra Telecom <support@${payload.sender_domain || 'nivra-telecom.ca'}>`;
-          const resendBody: Record<string, unknown> = {
-            from: fromHeader,
-            to: Array.isArray(payload.to) ? payload.to : [payload.to],
+        await sendLovableEmail(
+          {
+            run_id: payload.run_id,
+            to: payload.to,
+            from: payload.from,
+            sender_domain: payload.sender_domain,
             subject: payload.subject,
             html: payload.html,
-            attachments: (payload.attachments as Array<Record<string, unknown>>).map((a) => ({
-              filename: a.filename,
-              content: a.content,
-            })),
-          };
-          if (payload.text) resendBody.text = payload.text;
-          if (payload.reply_to) resendBody.reply_to = payload.reply_to;
-          if (Array.isArray(payload.bcc) && payload.bcc.length > 0) resendBody.bcc = payload.bcc;
-          if (payload.headers && typeof payload.headers === 'object') resendBody.headers = payload.headers;
-
-          const r = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${resendApiKey}`,
-            },
-            body: JSON.stringify(resendBody),
-          });
-          if (!r.ok) {
-            const errText = await r.text();
-            throw new Error(`Resend ${r.status}: ${errText.slice(0, 500)}`);
-          }
-          console.log(`[process-email-queue] Sent via Resend (with ${(payload.attachments as unknown[]).length} attachment(s)) to ${payload.to}`);
-        } else {
-          await sendLovableEmail(
-            {
-              run_id: payload.run_id,
-              to: payload.to,
-              ...(Array.isArray(payload.bcc) ? { bcc: payload.bcc } : {}),
-              from: payload.from,
-              sender_domain: payload.sender_domain,
-              subject: payload.subject,
-              html: payload.html,
-              text: payload.text,
-              reply_to: typeof payload.reply_to === 'string' ? payload.reply_to : undefined,
-              attachments: Array.isArray(payload.attachments) ? payload.attachments : undefined,
-              headers: payload.headers && typeof payload.headers === 'object' ? payload.headers as Record<string, string> : undefined,
-              purpose: payload.purpose,
-              label: payload.label,
-              idempotency_key: payload.idempotency_key,
-              unsubscribe_token: payload.unsubscribe_token,
-              message_id: payload.message_id,
-            } as any,
-            { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
-          )
-        }
+            text: payload.text,
+            purpose: payload.purpose,
+            label: payload.label,
+            idempotency_key: payload.idempotency_key,
+            unsubscribe_token: payload.unsubscribe_token,
+            message_id: payload.message_id,
+          },
+          // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
+          // falls back to the default Lovable API endpoint (https://api.lovable.dev).
+          // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
+          { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+        )
 
         // Log success
         await supabase.from('email_send_log').insert({
@@ -360,12 +324,12 @@ Deno.serve(async (req) => {
           )
         }
 
-        // 403 means emails are disabled for this project — retrying won't help.
-        // Move straight to DLQ and stop processing the rest of the batch.
+        // 403s are permanent configuration or authorization failures for this
+        // message, so move straight to DLQ and stop processing the rest of the batch.
         if (isForbidden(error)) {
-          await moveToDlq(supabase, queue, msg, 'Emails disabled for this project')
+          await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000))
           return new Response(
-            JSON.stringify({ processed: totalProcessed, stopped: 'emails_disabled' }),
+            JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
           )
         }
