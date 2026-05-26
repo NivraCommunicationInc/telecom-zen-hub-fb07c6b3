@@ -4184,7 +4184,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     case "support_ai_reply": {
       const ticketNumber = esc(v.ticket_number || "TKT-XXXXXXXX");
-      const accountNumber = esc(v.account_number || "Inconnu");
+      const accountNumber = esc(v.account_number || "");
       const originalSubject = esc(v.original_subject || v.subject || "votre demande");
       const aiResponse = String(v.ai_response || "");
       // Convert plain-text AI response into safe HTML paragraphs
