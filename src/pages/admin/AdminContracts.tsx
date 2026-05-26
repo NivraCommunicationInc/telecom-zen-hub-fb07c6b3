@@ -831,24 +831,57 @@ const AdminContracts = () => {
     }
 
     try {
-      const portalUrl = `${window.location.origin}/portal/contracts`;
-      
-      await supabase.functions.invoke("send-contract-notification", {
-        body: {
-          email: client.email,
-          name: client.full_name || "Client",
-          contractName: contract.contract_name,
-          contractNumber: contract.contract_number || contract.contract_url,
-          portalUrl,
-        },
-      });
+      // 1. Issue (or rotate) a fresh public signing token so the email link works
+      //    without requiring the client to log in to the portal.
+      const { data: tk, error: tkErr } = await supabase.rpc(
+        "generate_contract_signature_token" as any,
+        { p_contract_id: contract.id },
+      );
+      if (tkErr) throw tkErr;
+      const token = String(tk || "").trim();
+      if (!token) throw new Error("Token de signature vide");
 
-      toast.success("Notification envoyée au client");
-    } catch (error) {
+      const signUrl = `${window.location.origin}/signer/${encodeURIComponent(token)}`;
+
+      // 2. Queue the branded contract_sign_request email through the canonical
+      //    pipeline. Stable event_key (UNIQUE in email_queue) prevents duplicate
+      //    sends if the button is clicked multiple times.
+      const { error: qErr } = await supabase.from("email_queue").insert({
+        event_key: `contract_sign_request_${contract.id}_${token.slice(0, 12)}`,
+        to_email: client.email,
+        template_key: "contract_sign_request",
+        subject: "Votre contrat est prêt à signer — Nivra",
+        entity_type: "contract",
+        entity_id: contract.id,
+        message_type: "contract_signature_request",
+        template_vars: {
+          client_name: client.full_name || "Client",
+          contract_name: contract.contract_name,
+          contract_number: contract.contract_number || "",
+          account_number: client.account_number || "",
+          signature_url: signUrl,
+          sign_url: signUrl,
+        } as any,
+        priority: 10,
+        status: "queued",
+      } as any);
+      if (qErr && !String(qErr.message || "").toLowerCase().includes("duplicate")) throw qErr;
+
+      await supabase
+        .from("contracts")
+        .update({
+          sent_at: new Date().toISOString(),
+          sent_count: (contract.sent_count || 0) + 1,
+        })
+        .eq("id", contract.id);
+
+      toast.success("Lien de signature envoyé au client");
+    } catch (error: any) {
       console.error("Failed to send contract notification:", error);
-      toast.error("Erreur lors de l'envoi de la notification");
+      toast.error(error?.message || "Erreur lors de l'envoi de la notification");
     }
   };
+
 
   const handleCreateContract = () => {
     if (!formData.user_id || !formData.contract_name) {
