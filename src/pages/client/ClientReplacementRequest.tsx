@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 interface ReplacementTicket {
   id: string;
@@ -107,6 +108,7 @@ const ClientReplacementRequest = () => {
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const isFrench = language === "fr";
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
   
   const [activeTab, setActiveTab] = useState("my-requests");
   const [showForm, setShowForm] = useState(false);
@@ -136,21 +138,7 @@ const ClientReplacementRequest = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch user accounts
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["client-accounts", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("*")
-        .eq("client_id", user.id)
-        .eq("status", "active");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const accounts = canonicalData?.account ? [canonicalData.account] : [];
 
   // Fetch replacement tickets
   const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
@@ -251,20 +239,6 @@ const ClientReplacementRequest = () => {
         .single();
       
       if (error) throw error;
-
-      // Add timeline event
-      await supabase.from("replacement_timeline").insert({
-        ticket_id: data.id,
-        event_type: "ticket_created",
-        event_title: isFrench ? "Demande créée" : "Request Created",
-        event_description: isFrench 
-          ? `Demande de remplacement pour ${getCategoryLabel(category)}`
-          : `Replacement request for ${getCategoryLabel(category)}`,
-        visible_to_client: true,
-        actor_id: user.id,
-        actor_name: profile?.full_name || "Client",
-        actor_role: "client",
-      });
 
       return data;
     },

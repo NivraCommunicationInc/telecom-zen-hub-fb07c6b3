@@ -7164,6 +7164,76 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "replacement_request_received": {
+      const ticketNumber = esc(v.ticket_number || "RRT");
+      const category = esc(v.category || "Équipement");
+      const reason = esc(v.reason || "Demande client");
+      const fulfillment = esc(v.preferred_fulfillment || "Traitement par l'équipe");
+      return {
+        subject: isEn
+          ? `Replacement request received — ${ticketNumber}`
+          : `Demande de remplacement reçue — ${ticketNumber}`,
+        html: shell({
+          preheader: isEn ? "Your request has been sent to our team." : "Votre demande a été transmise à notre équipe.",
+          badge: t("DEMANDE REÇUE", "REQUEST RECEIVED", lang),
+          heroTitle: t("Remplacement en traitement", "Replacement in progress", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? "We received your replacement request. Our support team will review it and contact you if billing, shipping, or installation details are required."
+            : "Nous avons reçu votre demande de remplacement. Notre équipe de support va l’analyser et vous contactera si des détails de facturation, livraison ou installation sont requis.",
+          cardTitle: t("Résumé", "Summary", lang),
+          cardRows: [
+            [t("Référence", "Reference", lang), ticketNumber],
+            [t("Catégorie", "Category", lang), category],
+            [t("Raison", "Reason", lang), reason],
+            [t("Mode demandé", "Requested fulfillment", lang), fulfillment],
+            ...(accountNum ? [[t("Compte", "Account", lang), accountNum] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: portalUrl.endsWith("/replacement") ? portalUrl : `${portalUrl}/replacement`,
+          ctaPrimaryLabel: t("Voir ma demande", "View my request", lang),
+          helpHtml: isEn
+            ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Besoin d'aide ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "equipment_return_received": {
+      const requestId = esc(v.request_id || "RMA");
+      const equipmentName = esc(v.equipment_name || "Votre équipement");
+      const serial = esc(v.equipment_serial || "");
+      const reason = esc(v.reason || "Demande client");
+      return {
+        subject: isEn
+          ? `Equipment request received — ${requestId}`
+          : `Demande d’équipement reçue — ${requestId}`,
+        html: shell({
+          preheader: isEn ? "Your equipment request has been received." : "Votre demande d’équipement a été reçue.",
+          badge: t("ÉQUIPEMENT", "EQUIPMENT", lang),
+          heroTitle: t("Demande transmise", "Request forwarded", lang),
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? "Your equipment return or replacement request was sent to our support team. You will receive the next instructions by email."
+            : "Votre demande de retour ou remplacement d’équipement a été transmise à notre équipe de support. Vous recevrez les prochaines instructions par courriel.",
+          cardTitle: t("Détails", "Details", lang),
+          cardRows: [
+            [t("Référence", "Reference", lang), requestId],
+            [t("Équipement", "Equipment", lang), equipmentName],
+            ...(serial ? [[t("Numéro de série", "Serial number", lang), serial] as [string, string]] : []),
+            [t("Raison", "Reason", lang), reason],
+            ...(accountNum ? [[t("Compte", "Account", lang), accountNum] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: portalUrl.endsWith("/equipment") ? portalUrl : `${portalUrl}/equipment`,
+          ctaPrimaryLabel: t("Voir mon équipement", "View my equipment", lang),
+          helpHtml: isEn
+            ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Besoin d'aide ? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
     case "appointment_updated": {
       // Used by appointment-rescheduled / appointment-status-update flows.
       // Variables: { client_name, appointment_date, appointment_time,

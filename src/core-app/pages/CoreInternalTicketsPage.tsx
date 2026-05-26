@@ -18,7 +18,12 @@ export default function CoreInternalTicketsPage() {
   const { data: tickets = [] } = useQuery({
     queryKey: ["core-internal-tickets", statusFilter],
     queryFn: async () => {
-      let q = supabase.from("support_tickets" as any).select("*").eq("scope", "internal").order("created_at", { ascending: false }).limit(200);
+      let q = supabase
+        .from("support_tickets" as any)
+        .select("*")
+        .eq("is_internal", true)
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
       const { data } = await q;
       return (data as any[]) || [];
