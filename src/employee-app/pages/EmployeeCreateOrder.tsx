@@ -376,7 +376,7 @@ export default function EmployeeCreateOrder() {
         null,
         selectedClient.email,
         selectedClient.user_id,
-        0,
+        appliedDiscount?.type === "fixed_monthly" ? Number(appliedDiscount.value) : 0,
       );
 
       const pricingSnapshot = {
