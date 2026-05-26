@@ -166,7 +166,7 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
     try {
       // Queue email through canonical pipeline
       const { error } = await supabase.from("email_queue").insert({
-        event_key: `contract_sign_request_${contract.id}_${Date.now()}`,
+        event_key: `contract_sign_resend_${contract.id}_${(contract.sent_count || 0) + 1}`,
         to_email: clientEmail,
         template_key: "contract_sign_request",
         subject: "Votre contrat est prêt à signer — Nivra",
