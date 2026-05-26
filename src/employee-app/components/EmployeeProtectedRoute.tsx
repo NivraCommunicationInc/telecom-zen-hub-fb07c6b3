@@ -13,8 +13,9 @@ import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
+import { isHrOnboardingComplete } from "@/lib/security/hrOnboardingGate";
 
-type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify";
+type State = "loading" | "authorized" | "unauthorized" | "hr_pending" | "mfa_enroll" | "mfa_verify";
 
 export default function EmployeeProtectedRoute() {
   const navigate = useNavigate();
