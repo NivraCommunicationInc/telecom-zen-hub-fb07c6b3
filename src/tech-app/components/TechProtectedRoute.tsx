@@ -92,6 +92,14 @@ export default function TechProtectedRoute() {
         return;
       }
 
+      // HR onboarding gate
+      const hrOk = await isHrOnboardingComplete(session.user.id);
+      if (!hrOk) {
+        if (mounted) setState("hr_pending");
+        return;
+      }
+
+
       const bypassMfa = await isActiveStaffImpersonationForPortal(session.user.id, "technician");
       if (bypassMfa) {
         if (mounted) setState("authorized");
