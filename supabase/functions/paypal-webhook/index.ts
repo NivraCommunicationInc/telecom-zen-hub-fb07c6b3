@@ -861,7 +861,7 @@ serve(async (req) => {
                 payment_reference: payment.provider_payment_id,
               },
               status: "queued",
-              priority: "urgent",
+              priority: 20,
               attempts: 0,
               max_attempts: 5,
             });
