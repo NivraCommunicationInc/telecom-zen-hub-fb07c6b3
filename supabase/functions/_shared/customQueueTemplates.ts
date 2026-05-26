@@ -4224,7 +4224,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const ticketNumber = esc(v.ticket_number || "TKT-XXXXXXXX");
       const clientNameEsc = esc(v.client_name || "Client inconnu");
       const clientEmail = esc(v.client_email || "");
-      const accountNumber = esc(v.account_number || "Inconnu");
+      const accountNumber = esc(v.account_number || "");
       const subjectEsc = esc(v.subject || "(sans objet)");
       const rawBody = String(v.body || "");
       const bodyTrunc = esc(rawBody.length > 500 ? rawBody.slice(0, 500) + "..." : rawBody);
