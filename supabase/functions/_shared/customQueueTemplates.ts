@@ -7190,7 +7190,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             [t("Mode demandé", "Requested fulfillment", lang), fulfillment],
             ...(accountNum ? [[t("Compte", "Account", lang), accountNum] as [string, string]] : []),
           ],
-          ctaPrimaryUrl: `${portalUrl}/replacement`,
+          ctaPrimaryUrl: portalUrl.endsWith("/replacement") ? portalUrl : `${portalUrl}/replacement`,
           ctaPrimaryLabel: t("Voir ma demande", "View my request", lang),
           helpHtml: isEn
             ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
@@ -7225,7 +7225,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             [t("Raison", "Reason", lang), reason],
             ...(accountNum ? [[t("Compte", "Account", lang), accountNum] as [string, string]] : []),
           ],
-          ctaPrimaryUrl: `${portalUrl}/equipment`,
+          ctaPrimaryUrl: portalUrl.endsWith("/equipment") ? portalUrl : `${portalUrl}/equipment`,
           ctaPrimaryLabel: t("Voir mon équipement", "View my equipment", lang),
           helpHtml: isEn
             ? `Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
