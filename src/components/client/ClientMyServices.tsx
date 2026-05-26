@@ -156,6 +156,7 @@ const ClientMyServices = () => {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   const billingSubscriptions = canonicalData?.subscriptions || [];
+  const serviceInstances = canonicalData?.serviceInstances || [];
   const orders = (canonicalData?.orders || []).filter((order: any) => order?.status !== "cancelled");
   const loadingSubs = canonicalLoading;
 
@@ -537,7 +538,33 @@ const ClientMyServices = () => {
       }));
   });
 
-  const allActiveServices = activeRecurringServices;
+  const activeServiceInstances = (serviceInstances || [])
+    .filter((svc: any) => ["active", "activated", "installed"].includes(String(svc.status || "").toLowerCase()))
+    .map((svc: any) => ({
+      id: `service-instance-${svc.id}`,
+      source: "service_instance",
+      plan_name: svc.plan_name || svc.service_type || "Service Nivra",
+      amount: Number(svc.monthly_price || 0),
+      billing_cycle: "monthly",
+      status: svc.status || "active",
+      service_type: svc.service_type,
+      created_at: svc.created_at || svc.start_date,
+      cycle_start_date: svc.start_date,
+      cycle_end_date: svc.end_date,
+      account_id: svc.account_id,
+      order_id: svc.order_id,
+    }));
+
+  const recurringServiceKeys = new Set(
+    activeRecurringServices.map((svc: any) => `${String(svc.plan_name || "").toLowerCase()}|${String(svc.service_type || "").toLowerCase()}`),
+  );
+  const allActiveServices = [
+    ...activeRecurringServices,
+    ...activeServiceInstances.filter((svc: any) => {
+      const key = `${String(svc.plan_name || "").toLowerCase()}|${String(svc.service_type || "").toLowerCase()}`;
+      return !recurringServiceKeys.has(key);
+    }),
+  ];
 
   const mobileServices = allActiveServices.filter((s: any) => 
     getServiceCategory(s.plan_name || s.service_type) === "mobile"
