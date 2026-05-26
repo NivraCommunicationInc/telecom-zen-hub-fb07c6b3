@@ -685,17 +685,12 @@ Deno.serve(async (req) => {
     const body: OrderConfirmationRequest = await req.json();
     const {
       order_id,
-      client_email,
-      client_first_name,
-      client_phone,
       client_id,
-      order_number,
       order_date,
       services,
       subtotal: providedSubtotal,
       tps_amount: providedTps,
       tvq_amount: providedTvq,
-      monthly_total_tax_in,
       one_time_fees,
       one_time_total,
       delivery_method,
@@ -710,6 +705,12 @@ Deno.serve(async (req) => {
     installation_details: providedInstallDetails,
     force = false,
     } = body;
+    // Hydratable: let so we can backfill from DB below.
+    let client_email = body.client_email;
+    let client_first_name = body.client_first_name;
+    let client_phone = body.client_phone;
+    let order_number = body.order_number;
+    let monthly_total_tax_in = body.monthly_total_tax_in;
 
     console.log(`[${requestId}] Request: order_id=${order_id}, order_number=${order_number}, force=${force}`);
 
