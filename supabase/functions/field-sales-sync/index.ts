@@ -1104,6 +1104,8 @@ Deno.serve(async (req) => {
 
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
+        } catch (commErr: any) {
+          console.error("[field-sales-sync] Commission engine error (non-blocking):", commErr);
         }
 
         // Send official order confirmation email (corporate template, canonical math)
