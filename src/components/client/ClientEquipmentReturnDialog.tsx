@@ -64,25 +64,6 @@ export const ClientEquipmentReturnDialog = ({ open, onOpenChange, equipment, onS
         });
       if (error) throw error;
 
-      // Confirmation email (best effort)
-      try {
-        await supabase.from("email_queue").insert({
-          event_key: `equipment_return_request_${equipment.id}_${Date.now()}`,
-          to_email: user.email,
-          template_key: "equipment_return_received",
-          template_vars: {
-            client_name: user.user_metadata?.full_name ?? user.email,
-            equipment_name: equipment.catalog_name ?? "votre équipement",
-            reason,
-          },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
-        });
-      } catch (e) {
-        console.warn("[Return] email queue failed", e);
-      }
-
       toast.success("Demande de retour envoyée — étiquette sous 24-48h");
       reset();
       onOpenChange(false);
