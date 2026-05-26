@@ -321,8 +321,8 @@ export function renderQueueTemplate(
   );
   const greeting = isEn ? `Hello ${clientName},` : `Bonjour ${clientName},`;
   const portalUrl = String(v.portal_url || v.PORTAL_URL || PORTAL_URL);
-  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "N/A");
-  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || (isEn ? "Not specified" : "Non spécifié"));
+  const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "");
+  const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "");
 
   switch (templateKey) {
     // ===================================================================
