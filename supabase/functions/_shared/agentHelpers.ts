@@ -174,8 +174,20 @@ export async function queueEmail(
       return { ok: false, error: "internal_email_recipient_blocked" };
     }
 
-    const skipBcc = args.skipBcc === true
-      || NO_BCC_MARKETING_TEMPLATES.has(args.templateKey);
+    // Hard guard: NEVER BCC marketing/promo/sequence templates to the owner
+    // inbox. Match by explicit list + prefix/keyword fallback so any future
+    // marketing template (crm_*, winback_*, marketing_*, *_promo, *_blast)
+    // is automatically excluded without requiring a code update.
+    const k = (args.templateKey || "").toLowerCase();
+    const isMarketingKey =
+      NO_BCC_MARKETING_TEMPLATES.has(args.templateKey) ||
+      k.startsWith("crm_") ||
+      k.startsWith("winback") ||
+      k.startsWith("marketing_") ||
+      k.includes("promo") ||
+      k.includes("blast") ||
+      k.includes("sequence");
+    const skipBcc = args.skipBcc === true || isMarketingKey;
 
     const eventKey = args.eventKey || `${args.templateKey}-${crypto.randomUUID()}`;
     const rows: Record<string, unknown>[] = [
