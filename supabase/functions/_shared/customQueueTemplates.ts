@@ -4244,7 +4244,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Ticket", ticketNumber],
             ["Client", clientNameEsc],
             ["Courriel", clientEmail],
-            ["Compte", accountNumber],
+            ...(accountNumber ? [["Compte", accountNumber] as [string, string]] : []),
             ["Sujet", subjectEsc],
             ["Message", bodyTrunc],
             ["Analyse IA", aiReason],
