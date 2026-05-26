@@ -149,14 +149,15 @@ serve(async (req: Request) => {
           // Client confirmation — queued via canonical pipeline
           if (clientEmail) {
             await supabase.from("email_queue").insert({
+              event_key: `contract_signed_client_${payload.contract_id}`,
               to_email: clientEmail,
-              template_type: "contract_signed_confirmation",
-              template_data: {
+              template_key: "contract_signed_confirmation",
+              template_vars: {
                 client_name: clientName,
                 order_number: order?.order_number || "",
                 signed_at: payload.signed_at,
               } as any,
-              priority: "normal",
+              priority: 0,
               status: "queued",
             } as any).then(({ error: e }) => {
               if (e) console.warn("[sign-contract-public] client email enqueue failed:", e.message);
@@ -165,9 +166,10 @@ serve(async (req: Request) => {
 
           // Admin notification
           await supabase.from("email_queue").insert({
+            event_key: `contract_signed_admin_${payload.contract_id}`,
             to_email: "support@nivra-telecom.ca",
-            template_type: "contract_signed_admin_alert",
-            template_data: {
+            template_key: "contract_signed_admin_alert",
+            template_vars: {
               client_full_name: clientName,
               client_name: clientName,
               order_id: payload.order_id,
@@ -176,7 +178,7 @@ serve(async (req: Request) => {
               signed_at: payload.signed_at,
               ip: clientIp,
             } as any,
-            priority: "high",
+            priority: 10,
             status: "queued",
           } as any).then(({ error: e }) => {
             if (e) console.warn("[sign-contract-public] admin email enqueue failed:", e.message);
