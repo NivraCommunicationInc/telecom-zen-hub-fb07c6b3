@@ -451,37 +451,6 @@ export default function EmployeeCreateOrder() {
       const order = syncData.response as { order_id: string; order_number: string; invoice_id?: string; invoice_number?: string };
       if (!order?.order_id) throw new Error("Commande canonique non retournée");
 
-      // Always send the official order confirmation email (corporate template)
-      try {
-        await supabase.functions.invoke("send-order-confirmation", {
-          body: { order_id: order.order_id },
-        });
-      } catch (emailErr) {
-        console.warn("[CreateOrder] order confirmation email failed:", emailErr);
-      }
-
-      if (createdClientOnboarding?.email === selectedClient.email) {
-        try {
-          await supabase.functions.invoke("client-password-reset-send", {
-            body: { email: selectedClient.email, redirect_origin: window.location.origin },
-          });
-        } catch (inviteErr) {
-          console.warn("[CreateOrder] client onboarding email failed:", inviteErr);
-        }
-      }
-
-      // If auto install: send official self-install email (PDF attached, corporate template)
-      if (installType === "auto") {
-        try {
-          await supabase.functions.invoke("send-auto-installation-email", {
-            body: { order_id: order.order_id },
-          });
-        } catch (emailErr) {
-          console.warn("[CreateOrder] auto-install email enqueue failed:", emailErr);
-          // Non-blocking; ops will see it in the queue.
-        }
-      }
-
       await logInternalAudit({
         action: "order_created_by_agent",
         category: "operations",

@@ -5,7 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { escapeHtml } from "../_shared/emailTemplates/components.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 
@@ -17,7 +17,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
 const BUSINESS_EMAILS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
 const BUCKET = "installation-guides";
@@ -130,8 +129,6 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
-    const resend = new Resend(RESEND_API_KEY);
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     const body = (await req.json()) as RequestBody;
@@ -198,15 +195,19 @@ serve(async (req: Request) => {
     const recipientEmail = body.override_recipient || email;
     const isTest = !!body.override_recipient;
 
-    const sendResp = await resend.emails.send({
-      from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: [recipientEmail],
+    const sendResp = await enqueueEmail({
+      to: recipientEmail,
       bcc: isTest ? [] : BUSINESS_EMAILS,
-      reply_to: SUPPORT_EMAIL,
+      fromEmail: "Nivra Telecom <support@nivra-telecom.ca>",
+      replyTo: SUPPORT_EMAIL,
       subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "Votre équipement Nivra est expédié" : "Your Nivra equipment is on its way"}`,
       html,
-      attachments,
-      headers: { "X-Entity-Ref-ID": `auto-install-${order.id}${isTest ? '-test-' + Date.now() : ''}` },
+      attachments: attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.type })),
+      templateKey: "auto_install_shipment",
+      eventKey: isTest ? `auto_install_shipment_${order.id}_test_${Date.now()}` : `auto_install_shipment_${order.id}`,
+      messageType: "auto_installation",
+      entityType: "order",
+      entityId: order.id,
     });
 
     console.log(`[send-auto-installation-email] Sent to ${recipientEmail} (order ${orderNumber}) with ${attachments.length} guides${isTest ? ' [TEST MODE]' : ''}`);
@@ -215,17 +216,22 @@ serve(async (req: Request) => {
       const equipmentList = (items || []).map(i => i.plan_name || i.service_type || i.description || "Item").filter(Boolean) as string[];
       const notifHtml = buildBusinessNotifHtml({ fullName, email, orderNumber, equipment: equipmentList, guides: guideFiles });
 
-      await resend.emails.send({
-        from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-        to: BUSINESS_EMAILS,
+      await enqueueEmail({
+        fromEmail: "Nivra Telecom <support@nivra-telecom.ca>",
+        to: BUSINESS_EMAILS[0],
+        bcc: BUSINESS_EMAILS.slice(1),
         subject: `Auto-installation — ${fullName} — équipement expédié`,
         html: notifHtml,
-        headers: { "X-Entity-Ref-ID": `auto-install-notif-${order.id}` },
+        templateKey: "auto_install_internal",
+        eventKey: `auto_install_internal_${order.id}`,
+        messageType: "internal_notification",
+        entityType: "order",
+        entityId: order.id,
       });
     }
 
     return new Response(JSON.stringify({
-      success: true, message_id: sendResp.data?.id, order_id: order.id, attachments: guideFiles, has_tv: hasTv,
+      success: sendResp.success, already_queued: sendResp.alreadyQueued || false, message_id: sendResp.id, order_id: order.id, attachments: guideFiles, has_tv: hasTv,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: unknown) {

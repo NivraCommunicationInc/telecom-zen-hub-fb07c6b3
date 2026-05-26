@@ -269,6 +269,33 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
   return lines;
 }
 
+const isAutoInstallation = (value?: string | null) => {
+  const v = String(value || "").toLowerCase();
+  return ["auto", "self", "self_install", "ship_to_home", "shiphome"].includes(v);
+};
+
+async function invokePostOrderFunction(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  functionName: string,
+  body: Record<string, unknown>,
+) {
+  const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${serviceRoleKey}`,
+      "apikey": serviceRoleKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok || json?.success === false) {
+    throw new Error(json?.error || json?.details || `${functionName} failed with ${resp.status}`);
+  }
+  return json;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -559,6 +586,7 @@ serve(async (req) => {
     // 2) Account
     let accountId: string | null = payload.account_id || null;
     let accountNumber = response.account_number || null;
+    let hadExistingActiveAccount = false;
     try {
       const { data: existingAccount } = await admin
         .from("accounts")
@@ -570,6 +598,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existingAccount?.id) {
+        hadExistingActiveAccount = true;
         accountId = existingAccount.id;
         accountNumber = existingAccount.account_number;
       } else {
@@ -1277,6 +1306,41 @@ serve(async (req) => {
     } catch (err: any) {
       console.error("[checkout-canonical-sync] referral insert failed and why:", err);
       errors.push(`client_referral: ${err?.message || String(err)}`);
+    }
+
+    // 9) Post-order client communications — single canonical sequence for every portal.
+    // Order confirmation always goes first; account setup is only for first active account;
+    // auto-install instructions follow only for self-install orders. Each function is idempotent.
+    try {
+      await invokePostOrderFunction(supabaseUrl, serviceRoleKey, "send-order-confirmation", {
+        order_id: response.order_id,
+      });
+      results.order_confirmation_email = true;
+    } catch (err: any) {
+      errors.push(`order_confirmation_email: ${err?.message || String(err)}`);
+    }
+
+    if (!hadExistingActiveAccount && payload.customer.email) {
+      try {
+        await invokePostOrderFunction(supabaseUrl, serviceRoleKey, "client-password-reset-send", {
+          email: payload.customer.email,
+          redirect_origin: "https://nivra-telecom.ca",
+        });
+        results.client_account_setup_email = true;
+      } catch (err: any) {
+        errors.push(`client_account_setup_email: ${err?.message || String(err)}`);
+      }
+    }
+
+    if (isAutoInstallation(payload.installation?.type)) {
+      try {
+        await invokePostOrderFunction(supabaseUrl, serviceRoleKey, "send-auto-installation-email", {
+          order_id: response.order_id,
+        });
+        results.auto_installation_email = true;
+      } catch (err: any) {
+        errors.push(`auto_installation_email: ${err?.message || String(err)}`);
+      }
     }
 
     const ok = errors.length === 0;

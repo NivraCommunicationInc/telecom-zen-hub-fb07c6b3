@@ -838,25 +838,6 @@ const GuestCheckout = () => {
         console.warn("[GuestCheckout] Data integrity check failed:", e);
       }
 
-      // Step 7: Send confirmation email
-      try {
-        await supabase.functions.invoke("send-order-confirmation", {
-          body: {
-            order_id: response.order_id,
-            client_email: email,
-            client_first_name: firstName,
-            order_number: response.order_number,
-            services: selectedServices.map(s => ({ name: s.name, price: s.price, period: "mois" })),
-            monthly_total_tax_in: monthlyTotalWithTax,
-            one_time_total: oneTimeFees,
-            payment_reference: paypalCaptureId,
-            payment_method: "PayPal / Carte de crédit",
-          },
-        });
-      } catch (e) {
-        console.warn("[GuestCheckout] Email failed:", e);
-      }
-
       // Step 8 (optional): PayPal pre-authorized recurring billing enrollment.
       // When the client opted in via AutoPayPalOption, create a PayPal subscription
       // and redirect to PayPal's approval page. The webhook + return handler
