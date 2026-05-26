@@ -269,6 +269,33 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
   return lines;
 }
 
+const isAutoInstallation = (value?: string | null) => {
+  const v = String(value || "").toLowerCase();
+  return ["auto", "self", "self_install", "ship_to_home", "shiphome"].includes(v);
+};
+
+async function invokePostOrderFunction(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  functionName: string,
+  body: Record<string, unknown>,
+) {
+  const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${serviceRoleKey}`,
+      "apikey": serviceRoleKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok || json?.success === false) {
+    throw new Error(json?.error || json?.details || `${functionName} failed with ${resp.status}`);
+  }
+  return json;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
