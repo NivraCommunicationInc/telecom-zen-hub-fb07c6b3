@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { computeCheckoutPricing, type CartLineItem } from "@/lib/pricing/serverPricing";
 import { toast } from "sonner";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
