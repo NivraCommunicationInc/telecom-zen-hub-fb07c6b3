@@ -1711,7 +1711,7 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success("Contrat signé (admin)");
-      noteClient("contract_signed_admin", `Contrat ${contractId.slice(0, 8)} signé par ${user?.email || "agent"}`, {
+      noteClient("contract_signed_admin", `Contrat ${contractId.slice(0, 8)} signé par un agent autorisé`, {
         contract_id: contractId,
       });
 
