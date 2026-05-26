@@ -433,6 +433,15 @@ export default function EmployeeCreateOrder() {
 
       if (orderError) throw orderError;
 
+      // Always send the official order confirmation email (corporate template)
+      try {
+        await supabase.functions.invoke("send-order-confirmation", {
+          body: { order_id: order.id },
+        });
+      } catch (emailErr) {
+        console.warn("[CreateOrder] order confirmation email failed:", emailErr);
+      }
+
       // If auto install: send official self-install email (PDF attached, corporate template)
       if (installType === "auto") {
         try {
