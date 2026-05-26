@@ -186,7 +186,7 @@ serve(async (req) => {
         template_key: template,
         template_vars: { ...vars, first_name: firstName, to_email: clientEmail },
         status: "queued",
-        priority: "normal",
+        priority: 0,
       });
     } catch (_e) { /* swallow */ }
   };

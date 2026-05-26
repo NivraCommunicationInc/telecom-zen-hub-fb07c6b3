@@ -142,7 +142,7 @@ serve(async (req) => {
           due_date: inv.due_date ? fmtDate(inv.due_date) : "—",
         },
         status: "queued",
-        priority: "normal",
+        priority: 0,
       });
     } catch { /* swallow */ }
   };
