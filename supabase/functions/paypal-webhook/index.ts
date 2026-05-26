@@ -890,7 +890,7 @@ serve(async (req) => {
                   invoice_id: payment.invoice_id,
                 },
                 status: "queued",
-                priority: "urgent",
+                priority: 20,
                 attempts: 0,
                 max_attempts: 5,
               });
