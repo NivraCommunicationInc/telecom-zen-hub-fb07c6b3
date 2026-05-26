@@ -155,7 +155,7 @@ serve(async (req) => {
           public_message: public_message || "",
         },
         status: "queued",
-        priority: "normal",
+        priority: 0,
       });
     } catch { /* swallow */ }
   };
