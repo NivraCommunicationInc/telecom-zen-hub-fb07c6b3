@@ -349,12 +349,20 @@ serve(async (req) => {
       });
     }
 
-    // For JWT auth, enforce user_id match. For webhook auth, skip this check.
+    // For JWT auth, enforce user_id match unless the caller is staff.
+    // OneView CS / Core / Field staff create orders on behalf of clients and must
+    // still use this canonical path so invoices, documents and emails are created.
     if (!isWebhookAuth && payload.customer.user_id !== authenticatedUserId) {
-      return new Response(JSON.stringify({ ok: false, errors: ["Forbidden"] }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const { data: isStaff, error: staffError } = await admin.rpc("has_staff_role", {
+        _user_id: authenticatedUserId,
       });
+
+      if (staffError || !isStaff) {
+        return new Response(JSON.stringify({ ok: false, errors: ["Forbidden"] }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const nowIso = response.created_at || new Date().toISOString();
@@ -1239,7 +1247,7 @@ serve(async (req) => {
     }
 
     const ok = errors.length === 0;
-    return new Response(JSON.stringify({ ok, results, errors }), {
+    return new Response(JSON.stringify({ ok, response, results, errors }), {
       status: ok ? 200 : 207,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
