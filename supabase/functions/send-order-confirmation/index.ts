@@ -712,13 +712,11 @@ Deno.serve(async (req) => {
     } = body;
 
     console.log(`[${requestId}] Request: order_id=${order_id}, order_number=${order_number}, force=${force}`);
-    console.log(`[${requestId}] to_email=${maskEmail(client_email)}`);
-    console.log(`[${requestId}] services_count=${services?.length || 0}`);
 
-    if (!order_id || !client_email || !order_number) {
-      console.error(`[${requestId}] Missing required fields`);
-      logResult("error", { error: "Missing required fields", order_id, order_number });
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    if (!order_id) {
+      console.error(`[${requestId}] Missing order_id`);
+      logResult("error", { error: "Missing order_id" });
+      return new Response(JSON.stringify({ error: "order_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -726,7 +724,7 @@ Deno.serve(async (req) => {
 
     const { data: orderData, error: checkError } = await supabase
       .from("orders")
-      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
+      .select("confirmation_email_sent_at, client_email, client_first_name, client_last_name, client_phone, order_number, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
       .eq("id", order_id)
       .single();
 
@@ -738,6 +736,55 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Hydrate missing fields from DB so callers can invoke with just order_id
+    let hydratedEmail = client_email || (orderData as any)?.client_email || "";
+    let hydratedFirstName = client_first_name || (orderData as any)?.client_first_name || "";
+    const hydratedPhone = client_phone || (orderData as any)?.client_phone || "";
+    const hydratedOrderNumber = order_number || (orderData as any)?.order_number || order_id.slice(0, 8).toUpperCase();
+    const hydratedTotal = monthly_total_tax_in ?? Number((orderData as any)?.total_amount || 0);
+
+    if ((!hydratedEmail || !hydratedFirstName) && (orderData as any)?.user_id) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("email, first_name, full_name")
+        .eq("user_id", (orderData as any).user_id)
+        .maybeSingle();
+      if (prof) {
+        hydratedEmail = hydratedEmail || (prof as any).email || "";
+        hydratedFirstName = hydratedFirstName || (prof as any).first_name || ((prof as any).full_name ? (prof as any).full_name.split(" ")[0] : "");
+      }
+    }
+
+    if (!hydratedEmail) {
+      console.error(`[${requestId}] No client email found for order ${order_id}`);
+      logResult("error", { error: "No client email", order_id });
+      return new Response(JSON.stringify({ error: "Client email not found" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Re-bind values referenced via the original destructured names below.
+    (body as any).client_email = hydratedEmail;
+    (body as any).client_first_name = hydratedFirstName || "Client";
+    (body as any).client_phone = hydratedPhone;
+    (body as any).order_number = hydratedOrderNumber;
+    (body as any).monthly_total_tax_in = hydratedTotal;
+    const _rebound = {
+      client_email: hydratedEmail,
+      client_first_name: hydratedFirstName || "Client",
+      client_phone: hydratedPhone,
+      order_number: hydratedOrderNumber,
+      monthly_total_tax_in: hydratedTotal,
+    };
+    // Shadow original consts so the rest of the function uses hydrated values
+    var client_email_h = _rebound.client_email;
+    var client_first_name_h = _rebound.client_first_name;
+    var client_phone_h = _rebound.client_phone;
+    var order_number_h = _rebound.order_number;
+    var monthly_total_tax_in_h = _rebound.monthly_total_tax_in;
+    console.log(`[${requestId}] to_email=${maskEmail(client_email_h)} order_number=${order_number_h}`);
 
     // Fetch profile + account for PDF attachment data (phone, address)
     const userId = client_id || orderData?.user_id;
