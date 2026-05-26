@@ -685,17 +685,12 @@ Deno.serve(async (req) => {
     const body: OrderConfirmationRequest = await req.json();
     const {
       order_id,
-      client_email,
-      client_first_name,
-      client_phone,
       client_id,
-      order_number,
       order_date,
       services,
       subtotal: providedSubtotal,
       tps_amount: providedTps,
       tvq_amount: providedTvq,
-      monthly_total_tax_in,
       one_time_fees,
       one_time_total,
       delivery_method,
@@ -710,15 +705,19 @@ Deno.serve(async (req) => {
     installation_details: providedInstallDetails,
     force = false,
     } = body;
+    // Hydratable: let so we can backfill from DB below.
+    let client_email = body.client_email;
+    let client_first_name = body.client_first_name;
+    let client_phone = body.client_phone;
+    let order_number = body.order_number;
+    let monthly_total_tax_in = body.monthly_total_tax_in;
 
     console.log(`[${requestId}] Request: order_id=${order_id}, order_number=${order_number}, force=${force}`);
-    console.log(`[${requestId}] to_email=${maskEmail(client_email)}`);
-    console.log(`[${requestId}] services_count=${services?.length || 0}`);
 
-    if (!order_id || !client_email || !order_number) {
-      console.error(`[${requestId}] Missing required fields`);
-      logResult("error", { error: "Missing required fields", order_id, order_number });
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    if (!order_id) {
+      console.error(`[${requestId}] Missing order_id`);
+      logResult("error", { error: "Missing order_id" });
+      return new Response(JSON.stringify({ error: "order_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -726,7 +725,7 @@ Deno.serve(async (req) => {
 
     const { data: orderData, error: checkError } = await supabase
       .from("orders")
-      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
+      .select("confirmation_email_sent_at, client_email, client_first_name, client_last_name, client_phone, order_number, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
       .eq("id", order_id)
       .single();
 
@@ -738,6 +737,37 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Hydrate missing fields from DB so callers can invoke with just order_id
+    client_email = client_email || (orderData as any)?.client_email || "";
+    client_first_name = client_first_name || (orderData as any)?.client_first_name || "";
+    client_phone = client_phone || (orderData as any)?.client_phone || "";
+    order_number = order_number || (orderData as any)?.order_number || order_id.slice(0, 8).toUpperCase();
+    monthly_total_tax_in = monthly_total_tax_in ?? Number((orderData as any)?.total_amount || 0);
+
+    if ((!client_email || !client_first_name) && (orderData as any)?.user_id) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("email, first_name, full_name")
+        .eq("user_id", (orderData as any).user_id)
+        .maybeSingle();
+      if (prof) {
+        client_email = client_email || (prof as any).email || "";
+        client_first_name = client_first_name || (prof as any).first_name || ((prof as any).full_name ? (prof as any).full_name.split(" ")[0] : "");
+      }
+    }
+
+    if (!client_email) {
+      console.error(`[${requestId}] No client email found for order ${order_id}`);
+      logResult("error", { error: "No client email", order_id });
+      return new Response(JSON.stringify({ error: "Client email not found" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!client_first_name) client_first_name = "Client";
+    console.log(`[${requestId}] to_email=${maskEmail(client_email)} order_number=${order_number}`);
+
 
     // Fetch profile + account for PDF attachment data (phone, address)
     const userId = client_id || orderData?.user_id;
