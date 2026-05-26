@@ -2,7 +2,7 @@
  * ClientLayout - Purple-themed professional layout
  * Top navigation bar with dropdowns, clean white background
  */
-import { ReactNode, useCallback, useState, useRef, useEffect } from "react";
+import { ReactNode, useCallback, useState, useRef, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
@@ -33,6 +33,7 @@ import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
 import { Badge } from "@/components/ui/badge";
 import { ImpersonationProvider } from "@/components/client/ImpersonationBanner";
 import { invalidateClientRealtimeQueries } from "@/lib/queryInvalidation";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const PURPLE = "#6b21e8";
 const PURPLE_LIGHT = "#ede9fe";
@@ -129,6 +130,19 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
   const { badges: sectionBadges } = usePortalSectionBadges();
+  const { data: canonicalData } = useCanonicalClientData(user?.id);
+
+  const realtimeScope = useMemo(() => {
+    const ids = canonicalData?.identifiers;
+    return {
+      userId: user?.id ?? null,
+      accountIds: new Set<string>((ids?.accountIds || []).filter(Boolean)),
+      customerIds: new Set<string>([ids?.customerId, ...(ids?.customerIds || [])].filter(Boolean) as string[]),
+      orderIds: new Set<string>((ids?.orderIds || []).filter(Boolean)),
+      subscriptionIds: new Set<string>((ids?.subscriptionIds || []).filter(Boolean)),
+      invoiceIds: new Set<string>((canonicalData?.invoices || []).map((i: any) => i?.id).filter(Boolean)),
+    };
+  }, [canonicalData, user?.id]);
 
   const { data: hasStaffRole } = useQuery({
     queryKey: ["user-has-staff-role", user?.id],
@@ -221,23 +235,50 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       }, 750);
     };
 
+    const shouldInvalidateForPayload = (table: string, payload: any) => {
+      const row = payload?.new || payload?.old || {};
+      const scope = realtimeScope;
+      if (!scope.userId) return false;
+
+      if (row.user_id === scope.userId || row.owner_user_id === scope.userId || row.client_id === scope.userId) return true;
+      if (row.account_id && scope.accountIds.has(row.account_id)) return true;
+      if (row.customer_id && scope.customerIds.has(row.customer_id)) return true;
+      if (row.order_id && scope.orderIds.has(row.order_id)) return true;
+      if (row.subscription_id && scope.subscriptionIds.has(row.subscription_id)) return true;
+      if (row.invoice_id && scope.invoiceIds.has(row.invoice_id)) return true;
+      if (table === "orders" && row.id && scope.orderIds.has(row.id)) return true;
+      if (table === "billing_customers" && row.id && scope.customerIds.has(row.id)) return true;
+      if (table === "billing_invoices" && row.id && scope.invoiceIds.has(row.id)) return true;
+      if (table === "billing_subscriptions" && row.id && scope.subscriptionIds.has(row.id)) return true;
+      return false;
+    };
+
+    const handleScopedChange = (table: string) => (payload: any) => {
+      if (shouldInvalidateForPayload(table, payload)) invalidatePortalData();
+    };
+
     const channel = portalClient
       .channel(`portal-global-sync-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "client_auto_documents" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_customers" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscriptions" }, invalidatePortalData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_lifecycle" }, invalidatePortalData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, handleScopedChange("accounts"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, handleScopedChange("orders"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, handleScopedChange("contracts"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_auto_documents" }, handleScopedChange("client_auto_documents"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_customers" }, handleScopedChange("billing_customers"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, handleScopedChange("billing_invoices"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, handleScopedChange("billing_payments"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscriptions" }, handleScopedChange("billing_subscriptions"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscription_services" }, handleScopedChange("billing_subscription_services"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_instances" }, handleScopedChange("service_instances"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "equipment_inventory" }, handleScopedChange("equipment_inventory"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_addresses" }, handleScopedChange("service_addresses"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_lifecycle" }, handleScopedChange("order_lifecycle"))
       .subscribe();
 
     return () => {
       if (invalidationTimer) clearTimeout(invalidationTimer);
       portalClient.removeChannel(channel);
     };
-  }, [queryClient, user?.id]);
+  }, [queryClient, user?.id, realtimeScope]);
 
   return (
     <ImpersonationProvider>
