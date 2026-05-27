@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, Wallet, ShieldCheck, ExternalLink, RefreshCw } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,28 +44,11 @@ export const ClientPaymentMethodCard = () => {
     clearLastError,
   } = useClientAutoPayEnrollment();
 
-  const { data: paypalSub, isLoading } = useQuery({
-    queryKey: ["client-paypal-preauth", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return null;
-      const { data } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, paypal_subscription_id")
-        .eq("customer_id", customer.id)
-        .eq("status", "active")
-        .not("paypal_subscription_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data ?? null;
-    },
-  });
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const paypalSub = ((canonical?.subscriptions || []) as any[])
+    .filter((s) => s.status === "active" && s.paypal_subscription_id)
+    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))[0] || null;
+
 
   const isPreAuth = !!paypalSub;
 
@@ -95,7 +79,7 @@ export const ClientPaymentMethodCard = () => {
       if (error) throw new Error(error.message || "Erreur");
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Paiement pré-autorisé retiré");
-      qc.invalidateQueries({ queryKey: ["client-paypal-preauth"] });
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       qc.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
       qc.invalidateQueries({ queryKey: ["client-autopay-eligibility"] });
       setConfirmOpen(false);

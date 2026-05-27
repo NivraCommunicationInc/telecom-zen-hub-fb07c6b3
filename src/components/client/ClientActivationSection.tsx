@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,25 +106,13 @@ export default function ClientActivationSection({ clientId, compact = false }: C
     client_notes: "",
   });
 
-  const { data: latestRequest, isLoading } = useQuery({
-    queryKey: ["client-activation-request", clientId],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("activation_requests")
-        .select("*")
-        .eq("client_id", clientId)
-        .order("submitted_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!clientId && !authLoading,
-  });
+  const { data: canonical, isLoading } = useCanonicalClientData(clientId);
+
+  const latestRequest = ((canonical?.activationRequests || []) as any[])
+    .slice()
+    .sort((a, b) => String(b.submitted_at || "").localeCompare(String(a.submitted_at || "")))[0] || null;
 
   // Eligible orders for activation — Internet/TV/Bundle/Combo only.
-  // Mobile/SIM/Streaming/Equipment-only orders are strictly excluded.
-  // Decision is made by joining order_items so the per-line service_type wins.
   const ELIGIBLE_KEYWORDS = ["internet", "tv", "bundle", "combo"] as const;
   const EXCLUDED_ONLY_KEYWORDS = ["mobile", "sim", "stream", "equip", "accessoire"] as const;
   const matchesEligible = (s: string) =>
@@ -131,82 +120,57 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   const matchesExcluded = (s: string) =>
     EXCLUDED_ONLY_KEYWORDS.some((k) => s.includes(k));
 
-  const { data: eligibleOrders = [] } = useQuery({
-    queryKey: ["client-eligible-orders", clientId],
-    queryFn: async () => {
-      // Note: orders.user_id is the auth user id (clientId here).
-      // The orders table has no `client_id` or `plan_name` columns.
-      const { data: orders, error } = await portalSupabase
-        .from("orders")
-        .select("id, order_number, created_at, status, service_type, category")
-        .eq("user_id", clientId)
-        .in("status", ELIGIBLE_ORDER_STATUSES as unknown as string[])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      if (!orders || orders.length === 0) return [];
+  const eligibleOrders = (() => {
+    const allOrders = ((canonical?.orders || []) as any[]).filter((o) =>
+      (ELIGIBLE_ORDER_STATUSES as unknown as string[]).includes(o.status)
+    );
+    if (allOrders.length === 0) return [];
 
-      // Pull order_items in one shot to evaluate per-line service categories.
-      const orderIds = orders.map((o: any) => o.id);
-      const { data: items } = await portalSupabase
-        .from("order_items")
-        .select("order_id, service_type, plan_name, description")
-        .in("order_id", orderIds);
+    const items = (canonical?.orderItems || []) as any[];
+    const itemsByOrder = new Map<string, any[]>();
+    items.forEach((it) => {
+      const arr = itemsByOrder.get(it.order_id) || [];
+      arr.push(it);
+      itemsByOrder.set(it.order_id, arr);
+    });
 
-      const itemsByOrder = new Map<string, any[]>();
-      (items || []).forEach((it: any) => {
-        const arr = itemsByOrder.get(it.order_id) || [];
-        arr.push(it);
-        itemsByOrder.set(it.order_id, arr);
-      });
-
-      // Keep an order only if at least one item is Internet/TV/Bundle/Combo
-      // AND not all items are mobile/sim/streaming/equipment.
-      const filtered = orders.filter((o: any) => {
-        const lineStrings = (itemsByOrder.get(o.id) || []).map((it: any) =>
-          [it.service_type, it.plan_name, it.description]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase(),
-        );
-        const orderString = [o.service_type, o.category]
+    const filtered = allOrders.filter((o: any) => {
+      const lineStrings = (itemsByOrder.get(o.id) || []).map((it: any) =>
+        [it.service_type, it.plan_name, it.description]
           .filter(Boolean)
           .join(" ")
-          .toLowerCase();
+          .toLowerCase(),
+      );
+      const orderString = [o.service_type, o.category]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const haystack = lineStrings.length > 0 ? lineStrings : [orderString];
+      const hasEligible = haystack.some((s) => matchesEligible(s));
+      const allExcluded =
+        haystack.length > 0 && haystack.every((s) => matchesExcluded(s) && !matchesEligible(s));
+      return hasEligible && !allExcluded;
+    });
 
-        const haystack = lineStrings.length > 0 ? lineStrings : [orderString];
-        const hasEligible = haystack.some((s) => matchesEligible(s));
-        const allExcluded =
-          haystack.length > 0 && haystack.every((s) => matchesExcluded(s) && !matchesEligible(s));
+    const activeReqs = ((canonical?.activationRequests || []) as any[]).filter(
+      (r) => !["rejected", "cancelled", "completed"].includes(String(r.status))
+    );
+    const blocked = new Set(activeReqs.map((r: any) => r.order_id));
 
-        return hasEligible && !allExcluded;
+    return filtered
+      .filter((o: any) => !blocked.has(o.id))
+      .map((o: any) => {
+        const firstItem = (itemsByOrder.get(o.id) || [])[0];
+        const display_label =
+          firstItem?.plan_name ||
+          firstItem?.description ||
+          o.category ||
+          o.service_type ||
+          "Service";
+        return { ...o, display_label };
       });
+  })();
 
-      // Exclude orders that already have an active (non-terminal) activation request
-      const filteredIds = filtered.map((o: any) => o.id);
-      if (filteredIds.length === 0) return [];
-      const { data: activeReqs } = await portalSupabase
-        .from("activation_requests")
-        .select("order_id, status")
-        .in("order_id", filteredIds)
-        .not("status", "in", "(rejected,cancelled,completed)");
-      const blocked = new Set((activeReqs || []).map((r: any) => r.order_id));
-
-      // Attach a display label using items (no plan_name on orders table)
-      return filtered
-        .filter((o: any) => !blocked.has(o.id))
-        .map((o: any) => {
-          const firstItem = (itemsByOrder.get(o.id) || [])[0];
-          const display_label =
-            firstItem?.plan_name ||
-            firstItem?.description ||
-            o.category ||
-            o.service_type ||
-            "Service";
-          return { ...o, display_label };
-        });
-    },
-    enabled: !!clientId && !authLoading,
-  });
 
   useEffect(() => {
     if (!clientId || authLoading) return;
@@ -221,8 +185,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
           filter: `client_id=eq.${clientId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["client-activation-request", clientId] });
-          queryClient.invalidateQueries({ queryKey: ["client-eligible-orders", clientId] });
+          queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
+          queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
         },
       )
       .subscribe();
@@ -307,8 +271,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       });
       setLightColor("");
       setSelectedOrderId(null);
-      queryClient.invalidateQueries({ queryKey: ["client-activation-request", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["client-eligible-orders", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
     } catch (err: any) {
       console.error("[submit_activation_request]", err);
       toast.error(err?.message || "Erreur lors de la soumission");

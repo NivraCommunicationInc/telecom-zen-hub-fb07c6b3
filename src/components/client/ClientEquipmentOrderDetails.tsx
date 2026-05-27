@@ -16,8 +16,10 @@ import {
   Loader2,
   Copy
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -42,22 +44,16 @@ import { useWriteGuard } from "@/hooks/useWriteGuard";
 
 export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEquipmentOrderDetailsProps) {
   const queryClient = useQueryClient();
+  const { user } = useClientAuth();
   const writeGuard = useWriteGuard();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch order lines
-  const { data: orderLines, isLoading: loadingLines } = useQuery({
-    queryKey: ["client-equipment-order-lines", order.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("equipment_order_lines")
-        .select("*")
-        .eq("order_id", order.id)
-        .order("created_at");
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // Read order lines from canonical snapshot
+  const { data: canonical, isLoading: loadingLines } = useCanonicalClientData(user?.id);
+  const orderLines = ((canonical?.equipmentOrderLines || []) as any[])
+    .filter((l) => l.order_id === order.id)
+    .sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+
 
   // Calculate balance
   const totalAmount = Number(order.total_amount) || 0;

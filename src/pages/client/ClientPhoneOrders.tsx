@@ -5,10 +5,11 @@
  * Requires the user to be authenticated (uses supabase.auth.user).
  */
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,23 +68,31 @@ export default function ClientPhoneOrders() {
   const [details, setDetails] = useState("");
   const [confirm, setConfirm] = useState(false);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["client-phone-orders", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("phone_orders")
-        .select(
-          `id, status, delivered_at, return_reason, return_requested_at,
-           phone_inventory:phone_inventory_id (brand, model, storage, color, imei),
-           orders:order_id (order_number, total_amount, client_email)`
-        )
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as Row[];
-    },
-  });
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const ordersById = new Map<string, any>(((canonical?.orders || []) as any[]).map((o) => [o.id, o]));
+  const data: Row[] = ((canonical?.phoneOrders || []) as any[])
+    .slice()
+    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+    .map((row) => ({
+      id: row.id,
+      status: row.status,
+      delivered_at: row.delivered_at,
+      return_reason: row.return_reason,
+      return_requested_at: row.return_requested_at,
+      phone_inventory: row.phone_inventory ?? null,
+      orders: row.order_id
+        ? (() => {
+            const o = ordersById.get(row.order_id);
+            return o
+              ? {
+                  order_number: o.order_number ?? null,
+                  total_amount: o.total_amount ?? null,
+                  client_email: o.client_email ?? null,
+                }
+              : null;
+          })()
+        : null,
+    }));
 
   function canReturn(row: Row) {
     if (row.status !== "delivered" || !row.delivered_at) return false;
@@ -132,7 +141,7 @@ export default function ClientPhoneOrders() {
       setTarget(null);
       setConfirm(false);
       setDetails("");
-      qc.invalidateQueries({ queryKey: ["client-phone-orders"] });
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur inconnue";
       toast.error(msg);

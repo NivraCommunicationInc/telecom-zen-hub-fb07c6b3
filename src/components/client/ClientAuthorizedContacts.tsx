@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -117,21 +118,14 @@ const ClientAuthorizedContacts: React.FC = () => {
 
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
-  const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["authorized-contacts", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("authorized_users")
-        .select("*")
-        .eq("client_id", user!.id)
-        .order("is_primary", { ascending: false })
-        .order("created_at", { ascending: false });
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const contacts: AuthorizedContact[] = ((canonical?.authorizedContacts || []) as AuthorizedContact[])
+    .slice()
+    .sort((a, b) => {
+      if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
 
-      if (error) throw error;
-      return data as AuthorizedContact[];
-    },
-  });
 
   const addContactMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -189,7 +183,7 @@ const ClientAuthorizedContacts: React.FC = () => {
           ? t("Contact updated", "Contact mis à jour")
           : t("Contact added", "Contact ajouté"),
       });
-      queryClient.invalidateQueries({ queryKey: ["authorized-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       closeDialog();
     },
     onError: (error: any) => {
@@ -212,7 +206,7 @@ const ClientAuthorizedContacts: React.FC = () => {
     },
     onSuccess: () => {
       toast({ title: t("Contact removed", "Contact supprimé") });
-      queryClient.invalidateQueries({ queryKey: ["authorized-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       setDeleteDialogOpen(false);
       setContactToDelete(null);
     },
