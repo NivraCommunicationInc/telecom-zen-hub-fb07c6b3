@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowUp, ArrowDown, Check, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 type Plan = {
   id: string;
@@ -42,46 +43,16 @@ const ClientChangePlan = () => {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<(Plan & { diff: number; changeType: "upgrade" | "downgrade" | "current"; isCurrent: boolean }) | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
 
-  // Current active subscription (pick the most recent active one)
-  const { data: subscription, isLoading: subLoading } = useQuery({
-    queryKey: ["client-change-plan-sub", user?.id],
-    enabled: !!user?.id,
-    queryFn: async (): Promise<Subscription | null> => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return null;
-      const { data, error } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, next_renewal_at, service_category")
-        .eq("customer_id", customer.id)
-        .in("status", ["active", "pending"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as Subscription | null) ?? null;
-    },
-  });
+  const subscription = useMemo<Subscription | null>(() => {
+    const subs = (canonicalData?.subscriptions || [])
+      .filter((sub: any) => ["active", "pending"].includes(String(sub?.status || "").toLowerCase()))
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    return (subs[0] as Subscription | undefined) ?? null;
+  }, [canonicalData?.subscriptions]);
 
-  // Active account for the user (for account_id on the request)
-  const { data: account } = useQuery({
-    queryKey: ["client-change-plan-account", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data } = await portalSupabase
-        .from("accounts")
-        .select("id, account_number")
-        .eq("client_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
-  });
+  const account = canonicalData?.account;
 
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ["change-plan-available"],
@@ -174,7 +145,7 @@ const ClientChangePlan = () => {
 
       toast.success("Demande envoyée — vous serez notifié dès l'approbation.");
       setSelected(null);
-      qc.invalidateQueries({ queryKey: ["client-change-plan-sub"] });
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user.id] });
     } catch (e: any) {
       console.error("[ClientChangePlan]", e);
       toast.error(e?.message || "Erreur lors de l'envoi de la demande");
@@ -183,7 +154,7 @@ const ClientChangePlan = () => {
     }
   };
 
-  if (subLoading || plansLoading) {
+  if (canonicalLoading || plansLoading) {
     return (
       <ClientLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
