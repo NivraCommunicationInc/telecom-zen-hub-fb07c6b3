@@ -87,87 +87,24 @@ const ClientProfile = () => {
   const [pinConfirmOpen, setPinConfirmOpen] = useState(false);
   const [pendingProfileUpdate, setPendingProfileUpdate] = useState<typeof formData | null>(null);
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  // Canonical projections: profile, subscriptions, orders, accounts, service locations
+  const profile = canonicalData?.profile ?? null;
+  const isLoading = !canonicalData;
 
-  const { data: subscriptions } = useQuery({
-    queryKey: ["client-subscriptions-count", user?.id],
-    queryFn: async () => {
-      // Resolve billing_customer first
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (!customer) return [];
-      const { data, error } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, service_category, cycle_start_date, cycle_end_date")
-        .eq("customer_id", customer.id)
-        .in("status", ["active", "pending", "suspended"]);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const subscriptions = (canonicalData?.subscriptions || []).filter((s: any) =>
+    ["active", "pending", "suspended"].includes(String(s?.status))
+  );
 
-  const { data: orders } = useQuery({
-    queryKey: ["client-orders-count", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await portalSupabase
-        .from("orders")
-        .select("id")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const orders = canonicalData?.orders || [];
 
-  // Fetch client accounts and service locations
-  const { data: accounts, refetch: refetchAccounts } = useQuery({
-    queryKey: ["client-accounts", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("accounts")
-        .select("*")
-        .eq("client_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const accounts = canonicalData?.account ? [canonicalData.account] : [];
+  const refetchAccounts = () =>
+    queryClient.invalidateQueries({ queryKey: ["canonical-client-data"] });
 
-  const { data: serviceLocations, refetch: refetchLocations } = useQuery({
-    queryKey: ["client-service-locations", user?.id],
-    queryFn: async () => {
-      if (!accounts || accounts.length === 0) return [];
-      const accountIds = accounts.map((a: any) => a.id);
-      const { data, error } = await portalSupabase
-        .from("account_service_locations")
-        .select("*")
-        .in("account_id", accountIds)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!accounts && accounts.length > 0,
-  });
+  const serviceLocations = canonicalData?.accountServiceLocations || [];
+  const refetchLocations = () =>
+    queryClient.invalidateQueries({ queryKey: ["canonical-client-data"] });
+
 
   // V2 Ledger Balance - Single source of truth for balance/credit
   const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
