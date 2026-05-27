@@ -2813,6 +2813,78 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // CLIENT — Credit added to account (by Nivra Core / OneView staff)
+    // ===================================================================
+    case "client_credit_added": {
+      const firstName = esc(v.first_name || clientName || "");
+      const amount = esc(v.amount || "0,00 $");
+      const description = esc(v.description || "Crédit appliqué à votre compte");
+      const monthsTotal = esc(v.months_total || "1");
+      const isPermanent = String(v.is_permanent || "false") === "true";
+      const reason = esc(v.reason || "—");
+      return {
+        subject: `Crédit ajouté à votre compte — ${amount}`,
+        html: shell({
+          preheader: `Un crédit de ${amount} a été appliqué à votre compte.`,
+          badge: "CRÉDIT AJOUTÉ",
+          heroTitle: "Un crédit a été ajouté à votre compte",
+          heroSub: isPermanent
+            ? "Ce crédit est permanent."
+            : `Ce crédit s'applique sur ${monthsTotal} cycle${Number(monthsTotal) > 1 ? "s" : ""} de facturation.`,
+          icon: "check",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Notre équipe a appliqué un crédit sur votre compte. Le montant sera automatiquement déduit lors de vos prochains cycles de facturation, selon les conditions ci-dessous.`,
+          cardTitle: "Détails du crédit",
+          cardRows: [
+            ["Montant", amount],
+            ["Description", description],
+            ["Durée", isPermanent ? "Permanent" : `${monthsTotal} cycle${Number(monthsTotal) > 1 ? "s" : ""}`],
+            ["Motif", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // CLIENT — Charge / fee added to account (by Nivra Core / OneView staff)
+    // ===================================================================
+    case "client_charge_added": {
+      const firstName = esc(v.first_name || clientName || "");
+      const amount = esc(v.amount || "0,00 $");
+      const description = esc(v.description || "Frais ajouté à votre compte");
+      const monthsTotal = esc(v.months_total || "1");
+      const isPermanent = String(v.is_permanent || "false") === "true";
+      const reason = esc(v.reason || "—");
+      return {
+        subject: `Frais ajouté à votre compte — ${amount}`,
+        html: shell({
+          preheader: `Un frais de ${amount} a été ajouté à votre compte.`,
+          badge: "FRAIS AJOUTÉ",
+          heroTitle: "Un frais a été ajouté à votre compte",
+          heroSub: isPermanent
+            ? "Ce frais est récurrent et s'appliquera à chaque cycle."
+            : `Ce frais s'applique sur ${monthsTotal} cycle${Number(monthsTotal) > 1 ? "s" : ""} de facturation.`,
+          icon: "info",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `Notre équipe a ajouté un frais sur votre compte. Le montant apparaîtra sur votre prochaine facture, selon les conditions ci-dessous.`,
+          cardTitle: "Détails du frais",
+          cardRows: [
+            ["Montant", amount],
+            ["Description", description],
+            ["Durée", isPermanent ? "Récurrent" : `${monthsTotal} cycle${Number(monthsTotal) > 1 ? "s" : ""}`],
+            ["Motif", reason],
+          ],
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon compte",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // CLIENT — TV channels selection updated
     // ===================================================================
     case "client_tv_channels_updated": {
