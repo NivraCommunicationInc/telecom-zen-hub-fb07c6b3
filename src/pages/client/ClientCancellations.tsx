@@ -36,6 +36,7 @@ import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 type ServiceType = "mobile" | "internet" | "tv" | "security" | "streaming" | "bundle";
 type ReasonCode = "price" | "moving" | "not_needed" | "service_issue" | "billing_issue" | "other";
