@@ -185,8 +185,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
           filter: `client_id=eq.${clientId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["client-activation-request", clientId] });
-          queryClient.invalidateQueries({ queryKey: ["client-eligible-orders", clientId] });
+          queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
+          queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
         },
       )
       .subscribe();
@@ -271,8 +271,8 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       });
       setLightColor("");
       setSelectedOrderId(null);
-      queryClient.invalidateQueries({ queryKey: ["client-activation-request", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["client-eligible-orders", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", clientId] });
     } catch (err: any) {
       console.error("[submit_activation_request]", err);
       toast.error(err?.message || "Erreur lors de la soumission");
