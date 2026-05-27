@@ -3,7 +3,6 @@
  * pour le client connecté. Lecture depuis client_auto_documents +
  * téléchargement via signed URL (bucket privé).
  */
-import { useQuery } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,24 +21,28 @@ interface AutoDocumentsTabProps {
 const STORAGE_BUCKET = "client-documents";
 
 export function AutoDocumentsTab({ userId }: AutoDocumentsTabProps) {
-  const { data: canonicalData } = useCanonicalClientData(userId);
-  const { data: docs, isLoading } = useQuery({
-    queryKey: ["client-auto-documents", userId],
-    queryFn: async () => canonicalData?.autoDocuments || [],
-    enabled: !!userId,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
+  const docs = [
+    ...((canonicalData?.autoDocuments || []).map((doc: any) => ({ ...doc, source: "auto", title: DOC_TYPE_LABELS[doc.doc_type as AutoDocType] || doc.doc_type, date: doc.created_at }))),
+    ...((canonicalData?.clientDocuments || []).map((doc: any) => ({ ...doc, source: "client", title: doc.document_name || doc.document_type || "Document", date: doc.created_at, directUrl: doc.document_url }))),
+    ...((canonicalData?.orderDocuments || []).map((doc: any) => ({ ...doc, source: "order", title: doc.file_name || doc.doc_type || "Document de commande", date: doc.created_at || doc.generated_at, directUrl: doc.pdf_url }))),
+  ].sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
 
-  const handleDownload = async (storagePath: string, docType: string, docNumber: string | null) => {
+  const handleDownload = async (doc: any) => {
     try {
+      if (doc.directUrl) {
+        window.open(doc.directUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
       const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .createSignedUrl(storagePath, 60);
+        .createSignedUrl(doc.storage_path, 60);
       if (error || !data?.signedUrl) {
         throw new Error(error?.message || "URL signée indisponible");
       }
       const link = document.createElement("a");
       link.href = data.signedUrl;
-      link.download = `${docType}_${docNumber || "document"}.pdf`;
+      link.download = `${doc.doc_type || doc.document_type || "document"}_${doc.doc_number || doc.id || "document"}.pdf`;
       link.target = "_blank";
       document.body.appendChild(link);
       link.click();
@@ -69,10 +72,9 @@ export function AutoDocumentsTab({ userId }: AutoDocumentsTabProps) {
             <div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full mx-auto" />
             <p className="text-muted-foreground mt-2">Chargement...</p>
           </div>
-        ) : docs && docs.length > 0 ? (
+        ) : docs.length > 0 ? (
           <div className="space-y-3">
             {docs.map((doc) => {
-              const label = DOC_TYPE_LABELS[doc.doc_type as AutoDocType] || doc.doc_type;
               return (
                 <div
                   key={doc.id}
@@ -85,12 +87,13 @@ export function AutoDocumentsTab({ userId }: AutoDocumentsTabProps) {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">
                         {label}
+                        {doc.title}
                         {doc.doc_number ? <span className="text-muted-foreground"> — {doc.doc_number}</span> : null}
                       </p>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {format(new Date(doc.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                          {format(new Date(doc.date), "d MMM yyyy 'à' HH:mm", { locale: fr })}
                         </p>
                         {doc.email_sent ? (
                           <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-xs">
@@ -110,7 +113,7 @@ export function AutoDocumentsTab({ userId }: AutoDocumentsTabProps) {
                     variant="outline"
                     size="sm"
                     className="gap-1.5 shrink-0"
-                    onClick={() => handleDownload(doc.storage_path, doc.doc_type, doc.doc_number)}
+                    onClick={() => handleDownload(doc)}
                   >
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">Télécharger</span>
