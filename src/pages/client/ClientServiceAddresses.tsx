@@ -101,7 +101,7 @@ const ClientServiceAddresses = () => {
         {showAdd && account && (
           <AddressForm
             accountId={account.id}
-            onDone={() => { setShowAdd(false); queryClient.invalidateQueries({ queryKey: ["service-addresses"] }); }}
+            onDone={() => { setShowAdd(false); queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] }); }}
             onCancel={() => setShowAdd(false)}
           />
         )}
@@ -128,7 +128,7 @@ const ClientServiceAddresses = () => {
                   key={addr.id}
                   accountId={addr.account_id}
                   existing={addr}
-                  onDone={() => { setEditingId(null); queryClient.invalidateQueries({ queryKey: ["service-addresses"] }); }}
+                  onDone={() => { setEditingId(null); queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] }); }}
                   onCancel={() => setEditingId(null)}
                 />
               ) : (
@@ -143,7 +143,7 @@ const ClientServiceAddresses = () => {
                       .update({ is_default: true })
                       .eq("id", addr.id)
                       .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["service-addresses"] });
+                        queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
                         toast.success("Adresse par défaut mise à jour");
                       });
                   }}
@@ -155,7 +155,7 @@ const ClientServiceAddresses = () => {
                     if (error) {
                       toast.error("Impossible de retirer cette adresse");
                     } else {
-                      queryClient.invalidateQueries({ queryKey: ["service-addresses"] });
+                      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
                       toast.success("Adresse retirée");
                     }
                   }}
