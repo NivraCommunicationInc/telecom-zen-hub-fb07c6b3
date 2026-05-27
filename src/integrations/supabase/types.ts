@@ -6637,6 +6637,48 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_portal_projection_audit_logs: {
+        Row: {
+          audit_type: string
+          core_counts: Json
+          details: Json
+          detected_at: string
+          id: string
+          portal_counts: Json
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          audit_type: string
+          core_counts?: Json
+          details?: Json
+          detected_at?: string
+          id?: string
+          portal_counts?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          audit_type?: string
+          core_counts?: Json
+          details?: Json
+          detected_at?: string
+          id?: string
+          portal_counts?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       customer_portal_projection_events: {
         Row: {
           attempts: number
@@ -6709,6 +6751,54 @@ export type Database = {
           section_counts?: Json
           status?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      customer_portal_repair_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          details: Json
+          id: string
+          last_error: string | null
+          max_attempts: number
+          reason: string
+          scheduled_at: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          reason: string
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          reason?: string
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -27754,6 +27844,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      customer_portal_enqueue_repair_job: {
+        Args: { _details?: Json; _reason: string; _user_id: string }
+        Returns: string
+      }
       customer_portal_global_validation: {
         Args: { _limit?: number; _repair?: boolean }
         Returns: Json
@@ -27772,6 +27866,21 @@ export type Database = {
       }
       customer_portal_realtime_sync_verifier: {
         Args: { _minutes?: number }
+        Returns: Json
+      }
+      customer_portal_record_projection_audit: {
+        Args: {
+          _audit_type: string
+          _core_counts: Json
+          _details?: Json
+          _portal_counts: Json
+          _severity: string
+          _user_id: string
+        }
+        Returns: string
+      }
+      customer_portal_run_repair_jobs: {
+        Args: { _limit?: number }
         Returns: Json
       }
       customer_portal_section_counts: {
