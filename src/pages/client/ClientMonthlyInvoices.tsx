@@ -47,61 +47,30 @@ const ClientMonthlyInvoices = () => {
   // B3: Interac removed from client portal — PayPal only (cards work via PayPal guest)
   const [paymentMethod, setPaymentMethod] = useState<"paypal">("paypal");
 
-  // Fetch client's invoices from canonical billing_invoices
-  const { data: invoices, isLoading } = useQuery({
-    queryKey: ["client-monthly-invoices", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      return (canonicalData?.invoices || [])
-        .filter((inv: any) => inv?.order_id && !["void", "failed"].includes(String(inv?.status || "").toLowerCase()))
-        .map((inv: any) => ({
-        ...inv,
-        period_start: inv.cycle_start_date,
-        period_end: inv.cycle_end_date,
-        issue_date: inv.created_at,
-      }));
-    },
-    enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-  });
+  // Derived from canonical snapshot (single source of truth)
+  const isLoading = !canonicalData && !!user?.id;
+  const invoices = (canonicalData?.invoices || [])
+    .filter((inv: any) => inv?.order_id && !["void", "failed"].includes(String(inv?.status || "").toLowerCase()))
+    .map((inv: any) => ({
+      ...inv,
+      period_start: inv.cycle_start_date,
+      period_end: inv.cycle_end_date,
+      issue_date: inv.created_at,
+    }));
 
-  // Fetch client's subscriptions to show bill cycle info
-  const { data: subscriptions } = useQuery({
-    queryKey: ["client-subscriptions-billing", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      return (canonicalData?.subscriptions || []).filter((subscription: any) =>
-        ["active", "pending", "suspended"].includes(String(subscription?.status || "").toLowerCase())
-      );
-    },
-    enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-  });
+  const subscriptions = (canonicalData?.subscriptions || []).filter((s: any) =>
+    ["active", "pending", "suspended"].includes(String(s?.status || "").toLowerCase())
+  );
 
-  // Fetch account info for billing cycle
-  const { data: account } = useQuery({
-    queryKey: ["client-account-billing", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      return canonicalData?.account
-        ? {
-            id: canonicalData.account.id,
-            account_number: canonicalData.account.account_number,
-            billing_cycle_day: canonicalData.account.billing_cycle_day,
-            next_invoice_date: canonicalData.account.next_invoice_date,
-            status: canonicalData.account.status,
-          }
-        : null;
-    },
-    enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-  });
+  const account = canonicalData?.account
+    ? {
+        id: canonicalData.account.id,
+        account_number: canonicalData.account.account_number,
+        billing_cycle_day: canonicalData.account.billing_cycle_day,
+        next_invoice_date: canonicalData.account.next_invoice_date,
+        status: canonicalData.account.status,
+      }
+    : null;
 
   // ============================================================
   // FAKE PAYMENT MUTATION REMOVED (P0 cleanup)
