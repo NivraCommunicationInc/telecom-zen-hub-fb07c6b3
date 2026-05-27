@@ -264,12 +264,40 @@ export function EquipmentStep({ proc }: Props) {
       const equipmentDetails = [...currentDetails, newEntry];
       const fields: Record<string, any> = { equipment_details: equipmentDetails, equipment_id: manualType.toUpperCase(), serial_number: manualSerial.trim() };
       await proc.assignEquipment(fields);
+
+      // CANONICAL: mirror manual entry into equipment_inventory so the client
+      // portal (which reads only equipment_inventory) sees the assignment.
+      // Idempotent: skip if a row with same order_id + serial already exists.
+      try {
+        const sn = manualSerial.trim();
+        const { data: existing } = await supabase.from("equipment_inventory")
+          .select("id").eq("order_id", order.id).eq("serial_number", sn).maybeSingle();
+        if (!existing) {
+          const { error: invErr } = await supabase.from("equipment_inventory").insert({
+            catalog_name: manualCatalogName.trim(),
+            serial_number: sn,
+            mac_address: manualMac.trim() || null,
+            category: manualType,
+            status: "assigned",
+            condition: "good",
+            account_id: order.account_id || null,
+            order_id: order.id,
+            assigned_at: new Date().toISOString(),
+            notes: "Saisie manuelle (activation)",
+          });
+          if (invErr) console.warn("[EquipmentStep] inventory mirror failed:", invErr.message);
+        }
+      } catch (mirrorErr: any) {
+        console.warn("[EquipmentStep] inventory mirror exception:", mirrorErr?.message);
+      }
+
       setManualSerial(""); setManualMac(""); setManualCatalogName("");
       toast.success("Équipement assigné manuellement");
     } catch (err: any) {
       toast.error(err?.message || "Erreur");
     } finally { setSaving(false); }
   };
+
 
   const renderStatusBadge = (item: InventoryItem) => {
     const cls = STATUS_BADGE[item.status] || STATUS_BADGE.in_stock;
