@@ -7,13 +7,13 @@
  */
 
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
-import { useQuery } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { differenceInDays } from "date-fns";
 import { getPrepaidBannerContent } from "@/lib/constants/billingLabels";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 interface PrepaidUrgentBannerProps {
   userId: string;
@@ -22,48 +22,17 @@ interface PrepaidUrgentBannerProps {
 export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
   // Use portal client for proper RLS authentication
   const { data: ledger } = useLedgerBalance(userId, portalClient);
+  const { data: canonicalData } = useCanonicalClientData(userId);
   
-  // Check for pending invoices requiring renewal
-  const { data: pendingData } = useQuery({
-    queryKey: ["renewal-check-v2", userId],
-    queryFn: async () => {
-      // Get customer_id first
-      const { data: customer } = await portalClient
-        .from('billing_customers')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!customer) return { count: 0, oldestDueDate: null, daysPastDue: 0 };
-
-      // Check for pending invoices past due date (need renewal)
-      // PREPAID MODEL: Only pending/not_renewed statuses, NOT "overdue"
-      const { data: pendingInvoices } = await portalClient
-        .from('billing_invoices')
-        .select('id, due_date, balance_due')
-        .eq('customer_id', customer.id)
-        .in('status', ['pending', 'not_renewed'])
-        .gt('balance_due', 0)
-        .order('due_date', { ascending: true });
-
-      if (!pendingInvoices || pendingInvoices.length === 0) {
-        return { count: 0, oldestDueDate: null, daysPastDue: 0 };
-      }
-
-      const oldestDueDate = pendingInvoices[0]?.due_date;
-      const daysPastDue = oldestDueDate 
-        ? Math.max(0, differenceInDays(new Date(), new Date(oldestDueDate)))
-        : 0;
-
-      return {
-        count: pendingInvoices.length,
-        oldestDueDate,
-        daysPastDue,
-      };
-    },
-    enabled: !!userId,
-    staleTime: 60000, // 1 minute
-  });
+  const pendingInvoices = (canonicalData?.invoices || [])
+    .filter((invoice: any) => ["pending", "not_renewed"].includes(String(invoice.status || "").toLowerCase()) && Number(invoice.balance_due || 0) > 0)
+    .sort((a: any, b: any) => new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime());
+  const oldestDueDate = pendingInvoices[0]?.due_date || null;
+  const pendingData = {
+    count: pendingInvoices.length,
+    oldestDueDate,
+    daysPastDue: oldestDueDate ? Math.max(0, differenceInDays(new Date(), new Date(oldestDueDate))) : 0,
+  };
 
   // Don't show if no pending invoices or balance is credit/zero
   if (!pendingData?.count || !ledger || ledger.balance <= 0) {
