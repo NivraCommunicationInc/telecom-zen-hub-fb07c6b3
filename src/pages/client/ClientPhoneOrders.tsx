@@ -141,7 +141,7 @@ export default function ClientPhoneOrders() {
       setTarget(null);
       setConfirm(false);
       setDetails("");
-      qc.invalidateQueries({ queryKey: ["client-phone-orders"] });
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur inconnue";
       toast.error(msg);
