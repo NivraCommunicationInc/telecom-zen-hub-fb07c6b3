@@ -37,6 +37,18 @@ export interface CanonicalClientData {
   orderDocuments: any[];
   paymentProofs: any[];
   phoneOrders: any[];
+  appointments: any[];
+  supportTickets: any[];
+  replacementTickets: any[];
+  replacementOrders: any[];
+  cancellationRequests: any[];
+  paymentMethods: any[];
+  authorizedContacts: any[];
+  webFormThreads: any[];
+  loyaltyPoints: any[];
+  loyaltyTransactions: any[];
+  identityVerifications: any[];
+  documentRequests: any[];
   activity: any[];
   identifiers: {
     userId: string | null;
@@ -87,6 +99,18 @@ export function useCanonicalClientData(userId: Maybe<string>) {
            orderDocuments: [],
            paymentProofs: [],
            phoneOrders: [],
+            appointments: [],
+            supportTickets: [],
+            replacementTickets: [],
+            replacementOrders: [],
+            cancellationRequests: [],
+            paymentMethods: [],
+            authorizedContacts: [],
+            webFormThreads: [],
+            loyaltyPoints: [],
+            loyaltyTransactions: [],
+            identityVerifications: [],
+            documentRequests: [],
            activity: [],
           identifiers: {
             userId: null,
@@ -141,6 +165,18 @@ export function useCanonicalClientData(userId: Maybe<string>) {
          orderDocuments: Array.isArray(snapshot.orderDocuments) ? snapshot.orderDocuments : [],
          paymentProofs: Array.isArray(snapshot.paymentProofs) ? snapshot.paymentProofs : [],
          phoneOrders: Array.isArray(snapshot.phoneOrders) ? snapshot.phoneOrders : [],
+          appointments: Array.isArray(snapshot.appointments) ? snapshot.appointments : [],
+          supportTickets: Array.isArray(snapshot.supportTickets) ? snapshot.supportTickets : [],
+          replacementTickets: Array.isArray(snapshot.replacementTickets) ? snapshot.replacementTickets : [],
+          replacementOrders: Array.isArray(snapshot.replacementOrders) ? snapshot.replacementOrders : [],
+          cancellationRequests: Array.isArray(snapshot.cancellationRequests) ? snapshot.cancellationRequests : [],
+          paymentMethods: Array.isArray(snapshot.paymentMethods) ? snapshot.paymentMethods : [],
+          authorizedContacts: Array.isArray(snapshot.authorizedContacts) ? snapshot.authorizedContacts : [],
+          webFormThreads: Array.isArray(snapshot.webFormThreads) ? snapshot.webFormThreads : [],
+          loyaltyPoints: Array.isArray(snapshot.loyaltyPoints) ? snapshot.loyaltyPoints : [],
+          loyaltyTransactions: Array.isArray(snapshot.loyaltyTransactions) ? snapshot.loyaltyTransactions : [],
+          identityVerifications: Array.isArray(snapshot.identityVerifications) ? snapshot.identityVerifications : [],
+          documentRequests: Array.isArray(snapshot.documentRequests) ? snapshot.documentRequests : [],
          activity: Array.isArray(snapshot.activity) ? snapshot.activity : [],
         identifiers: {
           userId,
