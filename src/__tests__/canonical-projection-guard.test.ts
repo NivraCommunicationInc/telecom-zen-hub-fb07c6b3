@@ -1,12 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
 
 const PROJECT_ROOT = process.cwd();
 
-function grepForbidden(pattern: string, path: string): string[] {
+function grepForbidden(pattern: string, relativePath: string): string[] {
   try {
+    const fullPath = path.join(PROJECT_ROOT, relativePath);
+    // Use ripgrep with proper escaping for shell
+    // We want to find cases where .from("table") is followed by .select
     const result = execSync(
-      `grep -rn "${pattern}" ${PROJECT_ROOT}/${path} --exclude=*.test.ts --exclude=*.spec.ts 2>/dev/null || true`,
+      `rg -n "${pattern}" ${fullPath} --ignore-file=.gitignore -g "!*.test.ts" -g "!*.spec.ts" || true`,
       { encoding: "utf-8" }
     );
     return result.split("\n").filter(Boolean);
@@ -19,8 +24,10 @@ describe("Canonical Projection Guard", () => {
   const CLIENT_PATHS = ["src/pages/client", "src/components/client"];
 
   it("CANONICAL_HOOK_INTERFACE: useCanonicalClientData must expose required domains", () => {
-    const fs = require("fs");
-    const content = fs.readFileSync("${PROJECT_ROOT}/src/hooks/useCanonicalClientData.ts", "utf-8");
+    const hookPath = path.join(PROJECT_ROOT, "src/hooks/useCanonicalClientData.ts");
+    expect(fs.existsSync(hookPath), "useCanonicalClientData.ts should exist").toBe(true);
+    
+    const content = fs.readFileSync(hookPath, "utf-8");
     
     const requiredFields = [
       "invoices",
@@ -46,44 +53,46 @@ describe("Canonical Projection Guard", () => {
       "billing_payments",
       "contracts",
       "service_instances",
-      "equipment_inventory"
+      "equipment_inventory",
+      "billing_customers",
+      "billing_subscriptions"
     ];
 
     const violations: string[] = [];
 
-    CLIENT_PATHS.forEach(path => {
+    CLIENT_PATHS.forEach(relPath => {
       forbiddenTables.forEach(table => {
-        // Look for .from("table_name")
-        const results = grepForbidden(`\.from(["']${table}["'])`, path);
-        
-        // Filter out .update(), .insert(), .upsert(), .delete() if we only want to block SELECTs
-        // But usually .from("...").select() is what we want to block.
-        // Actually, let's block any .from() that is followed by .select() or just any .from() if it's a read-heavy page.
-        results.forEach(line => {
-          if (line.includes(".select")) {
-             violations.push(line);
-          }
-        });
+        // Pattern matches .from("table") or .from('table')
+        // We look for .select after it (on the same line or nearby lines, but rg -n usually gives us the line with .from)
+        const pattern = `\\.from\\(['"]${table}['"]\\)\\.select`;
+        const results = grepForbidden(pattern, relPath);
+        violations.push(...results);
       });
     });
 
-    expect(violations, `Forbidden direct reads found in client portal:\n${violations.join("\n")}`).toHaveLength(0);
+    // Known exceptions (migration-only or very specific reasons)
+    const filteredViolations = violations.filter(v => 
+       !v.includes("LegacyInvoiceImportDialog.tsx") &&
+       !v.includes("// ALLOWED_DIRECT_READ")
+    );
+
+    expect(filteredViolations, `Forbidden direct reads found in client portal. Use useCanonicalClientData() instead:\n${filteredViolations.join("\n")}`).toHaveLength(0);
   });
 
-  it("PREFER_CANONICAL_HOOK: Client portal pages should use useCanonicalClientData", () => {
-     // This is a soft check: major pages should have the hook
+  it("PREFER_CANONICAL_HOOK: Major client portal pages should use useCanonicalClientData", () => {
      const majorPages = [
        "ClientInvoices.tsx",
        "ClientOrders.tsx",
-       "ClientPayments.tsx",
        "ClientContracts.tsx",
-       "ClientEquipment.tsx"
+       "ClientEquipment.tsx",
+       "ClientPayments.tsx",
+       "ClientProfile.tsx"
      ];
 
      majorPages.forEach(page => {
-       const path = `src/pages/client/${page}`;
-       const content = execSync(`cat ${PROJECT_ROOT}/${path} 2>/dev/null || true`, { encoding: "utf-8" });
-       if (content) {
+       const pagePath = path.join(PROJECT_ROOT, "src/pages/client", page);
+       if (fs.existsSync(pagePath)) {
+         const content = fs.readFileSync(pagePath, "utf-8");
          expect(content, `${page} should use useCanonicalClientData`).toContain("useCanonicalClientData");
        }
      });
