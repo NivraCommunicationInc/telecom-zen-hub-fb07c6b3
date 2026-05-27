@@ -27575,6 +27575,7 @@ export type Database = {
         Args: { p_subscription_id: string }
         Returns: Json
       }
+      fn_is_equipment_label: { Args: { _label: string }; Returns: boolean }
       fn_repair_activated_order_canonical_chain: {
         Args: { _order_id: string }
         Returns: Json
