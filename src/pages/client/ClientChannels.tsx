@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
