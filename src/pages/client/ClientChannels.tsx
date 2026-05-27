@@ -187,7 +187,7 @@ const ClientChannels = () => {
       toast.success("Chaînes mises à jour avec succès!");
       setEditingOrderId(null);
       setEditingChannels([]);
-      queryClient.invalidateQueries({ queryKey: ["client-tv-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);
@@ -320,7 +320,7 @@ Cette demande est en attente de confirmation par un administrateur.
       setSelectedPackages([]);
       setActiveTab("history");
       queryClient.invalidateQueries({ queryKey: ["channel-selections"] });
-      queryClient.invalidateQueries({ queryKey: ["channel-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);
