@@ -272,29 +272,56 @@ function AddServiceModal({ customerId, subscriptions, onClose, onRefresh }: { cu
 
 function ChangePlanModal({ subs, customerId, onClose, onRefresh }: { subs: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(subs[0]?.id || "");
-  const [newPlanName, setNewPlanName] = useState("");
-  const [newPlanCode, setNewPlanCode] = useState("");
-  const [newPrice, setNewPrice] = useState("");
+  const [catalog, setCatalog] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [newPlanId, setNewPlanId] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const sub = subs.find((s: any) => s.id === selectedId);
 
+  useEffect(() => {
+    supabase
+      .from("services")
+      .select("id, name, plan_code, category, price, is_active")
+      .eq("is_active", true)
+      .neq("category", "Équipement")
+      .order("category")
+      .order("name")
+      .then(({ data }) => {
+        setCatalog(data || []);
+        setCatalogLoading(false);
+      });
+  }, []);
+
+  // Filter catalog to match current subscription category when possible
+  const matchedCategory = (sub?.plan_code || "").toLowerCase();
+  const filteredCatalog = catalog.filter((p: any) => {
+    if (!sub) return true;
+    if (sub.service_type) {
+      const t = String(sub.service_type).toLowerCase();
+      return p.category?.toLowerCase().includes(t) || t.includes(p.category?.toLowerCase());
+    }
+    return true;
+  });
+  const visibleCatalog = filteredCatalog.length > 0 ? filteredCatalog : catalog;
+
   const handleChange = async () => {
-    if (!selectedId || !newPlanName.trim() || !newPlanCode.trim()) { toast.error("Veuillez remplir tous les champs"); return; }
+    const newPlan = catalog.find((p: any) => p.id === newPlanId);
+    if (!selectedId || !newPlan) { toast.error("Sélectionnez un forfait du catalogue"); return; }
     setLoading(true);
     try {
-      const price = parseFloat(newPrice) || 0;
+      const price = Number(newPlan.price) || 0;
       const { error } = await supabase.from("billing_subscriptions").update({
-        plan_name: newPlanName.trim(), plan_code: newPlanCode.trim(), plan_price: price, updated_at: new Date().toISOString(),
+        plan_name: newPlan.name, plan_code: newPlan.plan_code || newPlan.id, plan_price: price, updated_at: new Date().toISOString(),
       }).eq("id", selectedId);
       if (error) throw error;
       if (customerId) {
         await supabase.from("billing_subscription_trace_audit").insert({
           subscription_id: selectedId, customer_id: customerId, action: "plan_changed", reason: reason || null,
-          details: { old_plan: sub?.plan_name, old_code: sub?.plan_code, old_price: sub?.plan_price, new_plan: newPlanName, new_code: newPlanCode, new_price: price, source: "account_360" },
+          details: { old_plan: sub?.plan_name, old_code: sub?.plan_code, old_price: sub?.plan_price, new_plan: newPlan.name, new_code: newPlan.plan_code, new_price: price, catalog_id: newPlan.id, source: "account_360" },
         });
       }
-      toast.success(`Forfait changé vers "${newPlanName}"`);
+      toast.success(`Forfait changé vers "${newPlan.name}"`);
       onRefresh(); onClose();
     } catch (e: any) { toast.error(e.message || "Erreur"); }
     finally { setLoading(false); }
@@ -318,30 +345,29 @@ function ChangePlanModal({ subs, customerId, onClose, onRefresh }: { subs: any[]
               Actuel: <span className="text-white font-medium">{sub.plan_name}</span> ({sub.plan_code}) — {sub.plan_price?.toFixed(2)} $/mois
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Nouveau forfait</label>
-              <input value={newPlanName} onChange={e => setNewPlanName(e.target.value)} placeholder="Nom du forfait" className={inputCls} />
-            </div>
-            <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Code</label>
-              <input value={newPlanCode} onChange={e => setNewPlanCode(e.target.value)} placeholder="Ex: PLAN-50" className={inputCls} />
-            </div>
+          <div>
+            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Nouveau forfait (catalogue Nivra)</label>
+            {catalogLoading ? (
+              <p className="text-[10px] text-[hsl(220,10%,45%)] py-2">Chargement du catalogue…</p>
+            ) : (
+              <select value={newPlanId} onChange={e => setNewPlanId(e.target.value)} className={inputCls}>
+                <option value="">— Sélectionner un forfait —</option>
+                {visibleCatalog.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    [{p.category}] {p.name} — {Number(p.price).toFixed(2)} $/mois{p.plan_code ? ` (${p.plan_code})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Prix mensuel ($)</label>
-              <input type="number" step="0.01" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="0.00" className={inputCls} />
-            </div>
-            <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Raison</label>
-              <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Optionnel" className={inputCls} />
-            </div>
+          <div>
+            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Raison</label>
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Optionnel" className={inputCls} />
           </div>
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          <button onClick={handleChange} disabled={loading} className={btnPrimary}>{loading ? "…" : "Changer le forfait"}</button>
+          <button onClick={handleChange} disabled={loading || !newPlanId} className={btnPrimary}>{loading ? "…" : "Changer le forfait"}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
