@@ -3,9 +3,8 @@
  * Shows on first dashboard load, remembers dismissal for 7 days
  */
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Button } from "@/components/ui/button";
 import { Gift, Copy, X, ArrowRight, CreditCard } from "lucide-react";
 import { toast } from "sonner";
@@ -18,19 +17,14 @@ export const ReferralPopup = () => {
   const { user } = useClientAuth();
   const [visible, setVisible] = useState(false);
 
-  const { data: profile } = useQuery({
-    queryKey: ["referral-popup-profile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from("profiles")
-        .select("referral_code, first_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const { data: canonical } = useCanonicalClientData(user?.id);
+  const profile = canonical?.profile
+    ? {
+        referral_code: (canonical.profile as any).referral_code,
+        first_name: (canonical.profile as any).first_name,
+      }
+    : null;
+
 
   useEffect(() => {
     if (!profile?.referral_code) return;
