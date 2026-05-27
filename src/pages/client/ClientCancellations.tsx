@@ -86,21 +86,11 @@ const ClientCancellations = () => {
     requested_effective_date: "",
   });
 
-  // Fetch cancellation requests
-  const { data: requests, isLoading } = useQuery({
-    queryKey: ["client-cancellation-requests", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("service_cancellation_requests")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  // Fetch cancellation requests from canonical snapshot
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const requests = ((canonical?.cancellationRequests || []) as any[]).slice().sort((a, b) =>
+    String(b.created_at || "").localeCompare(String(a.created_at || ""))
+  );
 
   // Create mutation
   const createMutation = useMutation({
