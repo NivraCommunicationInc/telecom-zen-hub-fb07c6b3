@@ -6595,6 +6595,186 @@ export type Database = {
           },
         ]
       }
+      customer_portal_projection_alerts: {
+        Row: {
+          account_id: string | null
+          alert_type: string
+          details: Json
+          detected_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          alert_type: string
+          details?: Json
+          detected_at?: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          alert_type?: string
+          details?: Json
+          detected_at?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      customer_portal_projection_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          event_id: string | null
+          event_source: string
+          id: string
+          last_error: string | null
+          payload: Json
+          processed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          event_id?: string | null
+          event_source: string
+          id?: string
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          event_id?: string | null
+          event_source?: string
+          id?: string
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      customer_portal_projection_logs: {
+        Row: {
+          created_at: string
+          details: Json
+          event_id: string | null
+          event_source: string
+          id: string
+          message: string | null
+          section_counts: Json
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event_id?: string | null
+          event_source: string
+          id?: string
+          message?: string | null
+          section_counts?: Json
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event_id?: string | null
+          event_source?: string
+          id?: string
+          message?: string | null
+          section_counts?: Json
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      customer_portal_snapshots: {
+        Row: {
+          account_id: string | null
+          account_ids: string[]
+          core_has_data: boolean
+          created_at: string
+          customer_ids: string[]
+          last_event_id: string | null
+          last_event_source: string | null
+          last_refreshed_at: string
+          order_ids: string[]
+          portal_empty: boolean
+          projection_version: number
+          section_counts: Json
+          snapshot: Json
+          subscription_ids: string[]
+          updated_at: string
+          user_id: string
+          validation_errors: Json
+          validation_status: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_ids?: string[]
+          core_has_data?: boolean
+          created_at?: string
+          customer_ids?: string[]
+          last_event_id?: string | null
+          last_event_source?: string | null
+          last_refreshed_at?: string
+          order_ids?: string[]
+          portal_empty?: boolean
+          projection_version?: number
+          section_counts?: Json
+          snapshot?: Json
+          subscription_ids?: string[]
+          updated_at?: string
+          user_id: string
+          validation_errors?: Json
+          validation_status?: string
+        }
+        Update: {
+          account_id?: string | null
+          account_ids?: string[]
+          core_has_data?: boolean
+          created_at?: string
+          customer_ids?: string[]
+          last_event_id?: string | null
+          last_event_source?: string | null
+          last_refreshed_at?: string
+          order_ids?: string[]
+          portal_empty?: boolean
+          projection_version?: number
+          section_counts?: Json
+          snapshot?: Json
+          subscription_ids?: string[]
+          updated_at?: string
+          user_id?: string
+          validation_errors?: Json
+          validation_status?: string
+        }
+        Relationships: []
+      }
       customer_referral_usage: {
         Row: {
           attribution_id: string
@@ -27506,10 +27686,32 @@ export type Database = {
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }
+      customer_portal_core_has_data: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      customer_portal_section_counts: {
+        Args: { _snapshot: Json }
+        Returns: Json
+      }
+      customer_portal_snapshot_is_empty: {
+        Args: { _counts: Json }
+        Returns: boolean
+      }
       decrypt_wifi_password: { Args: { p_encrypted: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      detect_portal_empty_core_populated: {
+        Args: never
+        Returns: {
+          account_id: string
+          last_refreshed_at: string
+          section_counts: Json
+          user_id: string
+          validation_errors: Json
+        }[]
       }
       encrypt_wifi_password: { Args: { p_password: string }; Returns: string }
       end_impersonation: { Args: { _token: string }; Returns: boolean }
@@ -27747,6 +27949,10 @@ export type Database = {
         Returns: Json
       }
       get_contract_for_signing: { Args: { p_token: string }; Returns: Json }
+      get_customer_portal_snapshot: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
       get_customer_unpaid_invoices: {
         Args: { p_customer_id: string }
         Returns: {
@@ -27950,6 +28156,10 @@ export type Database = {
         Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean
       }
+      is_portal_projection_staff: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_self_install_order: {
         Args: { p_installation_type: string }
         Returns: boolean
@@ -28105,6 +28315,14 @@ export type Database = {
       normalize_text: { Args: { val: string }; Returns: string }
       notify_upcoming_maintenance: { Args: never; Returns: undefined }
       orchestrate_order: { Args: { p_order_id: string }; Returns: Json }
+      portal_jsonb_array_count: {
+        Args: { _key: string; _snapshot: Json }
+        Returns: number
+      }
+      process_customer_portal_projection_events: {
+        Args: { _limit?: number }
+        Returns: number
+      }
       process_onboarding_sequences: { Args: never; Returns: undefined }
       provision_services_for_order: {
         Args: { p_order_id: string }
@@ -28173,8 +28391,20 @@ export type Database = {
         Args: { p_account_id: string; p_reward_id: string }
         Returns: Json
       }
+      refresh_customer_portal_snapshot: {
+        Args: { _event_id?: string; _event_source?: string; _user_id: string }
+        Returns: Json
+      }
+      refresh_customer_portal_snapshot_internal: {
+        Args: { _event_id?: string; _event_source?: string; _user_id: string }
+        Returns: Json
+      }
       regenerate_contract_pdf: {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
+        Returns: Json
+      }
+      repair_customer_portal_snapshot: {
+        Args: { _user_id: string }
         Returns: Json
       }
       repair_order_client_portal_links: { Args: never; Returns: Json }
@@ -28476,6 +28706,10 @@ export type Database = {
       validate_contract_status_transition: {
         Args: { p_new_status: string; p_old_status: string }
         Returns: boolean
+      }
+      validate_customer_portal_snapshot: {
+        Args: { _snapshot: Json; _user_id: string }
+        Returns: Json
       }
       validate_impersonation_token: {
         Args: { _token: string }
