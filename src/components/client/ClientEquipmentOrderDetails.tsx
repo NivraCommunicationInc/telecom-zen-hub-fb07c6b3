@@ -16,8 +16,10 @@ import {
   Loader2,
   Copy
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
