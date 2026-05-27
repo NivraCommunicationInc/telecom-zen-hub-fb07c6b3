@@ -4,32 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery } from "@tanstack/react-query";
-import { portalClient as portalSupabase } from "@/integrations/backend";
 import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const ClientPayments = () => {
   const { user } = useClientAuth();
   const [copied, setCopied] = useState(false);
-
-  // Fetch only active cards (deleted_at IS NULL)
-  const { data: paymentMethods, isLoading } = useQuery({
-    queryKey: ["client-payment-methods", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("payment_methods")
-        .select("*")
-        .eq("user_id", user?.id)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  useCanonicalClientData(user?.id);
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
