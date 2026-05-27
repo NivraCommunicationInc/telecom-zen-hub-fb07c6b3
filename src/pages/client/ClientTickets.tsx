@@ -22,6 +22,7 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import {
   DollarSign, Settings, PlusCircle, Users, CreditCard, ArrowRightLeft,
   Scale, Wrench, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock,
@@ -151,63 +152,13 @@ const ClientTickets = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Queries ──────────────────────────────────────────────────
-  const { data: tickets, isLoading } = useQuery({
-    queryKey: ["client-tickets-all", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("support_tickets")
-        .select("*")
-        .eq("owner_user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile-tickets", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("full_name, phone, email")
-        .eq("user_id", user.id)
-        .single();
-      if (error) return null;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: clientOrders } = useQuery({
-    queryKey: ["client-orders-for-tickets", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("orders")
-        .select("id, order_number, service_type, order_type, created_at")
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: replies } = useQuery({
-    queryKey: ["ticket-replies", selectedTicket?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("ticket_replies")
-        .select("*")
-        .eq("ticket_id", selectedTicket?.id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!selectedTicket?.id,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
+  const tickets = canonicalData?.supportTickets || [];
+  const profile = canonicalData?.profile;
+  const clientOrders = canonicalData?.orders || [];
+  const replies = (canonicalData?.ticketReplies || [])
+    .filter((reply: any) => reply.ticket_id === selectedTicket?.id)
+    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   // ─── Filtered & paginated tickets ─────────────────────────────
   const filteredTickets = useMemo(() => {
@@ -249,11 +200,7 @@ const ClientTickets = () => {
     mutationFn: async (ticket: typeof newTicket) => {
       let relatedOrderReference = null;
       if (ticket.related_order_id) {
-        const { data: orderData } = await portalSupabase
-          .from("orders")
-          .select("order_number")
-          .eq("id", ticket.related_order_id)
-          .single();
+        const orderData = clientOrders.find((order: any) => order.id === ticket.related_order_id);
         relatedOrderReference = orderData?.order_number || ticket.related_order_id;
       }
 
@@ -277,6 +224,7 @@ const ClientTickets = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-tickets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       toast({ title: "Demande créée avec succès", description: `ID: ${data.ticket_number || data.id.slice(0, 8)}` });
       setCreateDialogOpen(false);
       setConsent(false);
@@ -346,6 +294,7 @@ const ClientTickets = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket-replies"] });
       queryClient.invalidateQueries({ queryKey: ["client-tickets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       toast({ title: "Réponse envoyée" });
       setReplyContent("");
     },
@@ -403,6 +352,7 @@ const ClientTickets = () => {
           id_verification_status: 'received',
         }));
         queryClient.invalidateQueries({ queryKey: ["client-tickets-all"] });
+        queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
         toast({ title: "Fichier(s) téléversé(s)" });
       }
     } catch (error: any) {

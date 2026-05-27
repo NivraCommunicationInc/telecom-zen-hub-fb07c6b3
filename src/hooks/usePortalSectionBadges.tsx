@@ -17,9 +17,10 @@
  *  - `urgent` : utiliser la variante "pulse"
  */
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 export type PortalSectionKey =
   | "billing"      // Facturation et paiement (factures impayées)
@@ -52,49 +53,18 @@ export function usePortalSectionBadges(): {
   const { user } = useClientAuth();
   const queryClient = useQueryClient();
   const userId = user?.id;
+  const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["portal-section-badges", userId],
-    enabled: !!userId,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-    queryFn: async (): Promise<PortalSectionBadges> => {
-      if (!userId) return EMPTY;
-
-      // 1) Customer (pour factures)
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      // 2) Factures impayées
-      let unpaidCount = 0;
-      if (customer?.id) {
-        const { count } = await portalSupabase
-          .from("billing_invoices")
-          .select("id", { count: "exact", head: true })
-          .eq("customer_id", customer.id)
-          .not("status", "in", '("paid","paid_by_promo","cancelled","refunded","void")')
-          .gt("balance_due", 0);
-        unpaidCount = count ?? 0;
-      }
-
-      // 3) Commandes en cours (non livrées / non activées)
-      const { count: openOrdersCount } = await portalSupabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .in("status", ["confirmed", "processing", "shipped", "out_for_delivery"]);
-
-      // 4) Notifications non-lues (groupées par link_target)
-      const { data: notifs } = await portalSupabase
-        .from("notifications")
-        .select("link_target")
-        .eq("user_id", userId)
-        .eq("is_read", false)
-        .limit(200);
-
+  const data: PortalSectionBadges = (() => {
+      if (!userId || !canonicalData) return EMPTY;
+      const unpaidCount = (canonicalData.invoices || []).filter((invoice: any) =>
+        !["paid", "paid_by_promo", "cancelled", "refunded", "void"].includes(String(invoice.status || "").toLowerCase()) &&
+        Number(invoice.balance_due || 0) > 0
+      ).length;
+      const openOrdersCount = (canonicalData.orders || []).filter((order: any) =>
+        ["confirmed", "processing", "shipped", "out_for_delivery"].includes(String(order.status || "").toLowerCase())
+      ).length;
+      const notifs = (canonicalData.notifications || []).filter((notification: any) => !notification.is_read).slice(0, 200);
       const unreadByTarget = new Map<string, number>();
       (notifs ?? []).forEach((n: { link_target: string | null }) => {
         const t = (n.link_target ?? "").toLowerCase();
@@ -119,11 +89,11 @@ export function usePortalSectionBadges(): {
           urgent: unpaidCount > 0, // facture impayée = urgent (pulse)
         },
         services: {
-          show: openOrdersCount! > 0 || servicesUnread,
+          show: openOrdersCount > 0 || servicesUnread,
           urgent: false,
         },
         orders: {
-          show: openOrdersCount! > 0 || ordersUnread,
+          show: openOrdersCount > 0 || ordersUnread,
           urgent: false,
         },
         identity: {
@@ -139,22 +109,15 @@ export function usePortalSectionBadges(): {
           urgent: false,
         },
       };
-    },
-  });
+  })();
 
   // Realtime: invalider quand quelque chose change
   useEffect(() => {
     if (!userId) return;
     const channel = portalSupabase
       .channel(`portal-section-badges-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, () => {
-        queryClient.invalidateQueries({ queryKey: ["portal-section-badges", userId] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["portal-section-badges", userId] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${userId}` }, () => {
-        queryClient.invalidateQueries({ queryKey: ["portal-section-badges", userId] });
+      .on("postgres_changes", { event: "*", schema: "public", table: "customer_portal_snapshots", filter: `user_id=eq.${userId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ["canonical-client-data", userId] });
       })
       .subscribe();
     return () => {
@@ -162,7 +125,7 @@ export function usePortalSectionBadges(): {
     };
   }, [userId, queryClient]);
 
-  return { badges: data ?? EMPTY, isLoading };
+  return { badges: data, isLoading };
 }
 
 export default usePortalSectionBadges;

@@ -3,36 +3,19 @@
  * client an immediate read on whether they currently have any active
  * services. Distinct from the phone CTA so both can coexist.
  */
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, AlertCircle } from "lucide-react";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 interface Props {
   userId?: string | null;
 }
 
 export function ActiveServicesBanner({ userId }: Props) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["client-active-subscriptions-count", userId],
-    queryFn: async () => {
-      if (!userId) return 0;
-      const { data: customer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!customer?.id) return 0;
-      const { count } = await supabase
-        .from("billing_subscriptions")
-        .select("id", { count: "exact", head: true })
-        .eq("customer_id", customer.id)
-        .in("status", ["active", "trialing", "past_due"]);
-      return count ?? 0;
-    },
-    enabled: !!userId,
-    staleTime: 60_000,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
+  const data = (canonicalData?.subscriptions || []).filter((subscription: any) =>
+    ["active", "trialing", "past_due"].includes(String(subscription.status || "").toLowerCase())
+  ).length;
 
   if (!userId || isLoading) return null;
 
@@ -45,7 +28,7 @@ export function ActiveServicesBanner({ userId }: Props) {
           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           <div className="text-sm">
             <p className="font-semibold text-emerald-900">
-              {data} service{data! > 1 ? "s" : ""} actif{data! > 1 ? "s" : ""}
+              {data} service{data > 1 ? "s" : ""} actif{data > 1 ? "s" : ""}
             </p>
             <p className="text-emerald-700">
               Vous pouvez ajouter de nouveaux forfaits ou commander un appareil ci-dessous.

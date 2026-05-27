@@ -49,6 +49,13 @@ export interface CanonicalClientData {
   loyaltyTransactions: any[];
   identityVerifications: any[];
   documentRequests: any[];
+  ticketReplies: any[];
+  webFormMessages: any[];
+  orderItems: any[];
+  equipmentOrderLines: any[];
+  paymentDisputes: any[];
+  activationRequests: any[];
+  accountServiceLocations: any[];
   notifications: any[];
   activity: any[];
   projection: {
@@ -111,6 +118,13 @@ const emptyCanonicalClientData = (userId: string | null = null): CanonicalClient
   loyaltyTransactions: [],
   identityVerifications: [],
   documentRequests: [],
+  ticketReplies: [],
+  webFormMessages: [],
+  orderItems: [],
+  equipmentOrderLines: [],
+  paymentDisputes: [],
+  activationRequests: [],
+  accountServiceLocations: [],
   notifications: [],
   activity: [],
   projection: {
@@ -204,6 +218,13 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           loyaltyTransactions: Array.isArray(snapshot.loyaltyTransactions) ? snapshot.loyaltyTransactions : [],
           identityVerifications: Array.isArray(snapshot.identityVerifications) ? snapshot.identityVerifications : [],
           documentRequests: Array.isArray(snapshot.documentRequests) ? snapshot.documentRequests : [],
+           ticketReplies: Array.isArray(snapshot.ticketReplies) ? snapshot.ticketReplies : [],
+           webFormMessages: Array.isArray(snapshot.webFormMessages) ? snapshot.webFormMessages : [],
+           orderItems: Array.isArray(snapshot.orderItems) ? snapshot.orderItems : [],
+           equipmentOrderLines: Array.isArray(snapshot.equipmentOrderLines) ? snapshot.equipmentOrderLines : [],
+           paymentDisputes: Array.isArray(snapshot.paymentDisputes) ? snapshot.paymentDisputes : [],
+           activationRequests: Array.isArray(snapshot.activationRequests) ? snapshot.activationRequests : [],
+           accountServiceLocations: Array.isArray(snapshot.accountServiceLocations) ? snapshot.accountServiceLocations : [],
         notifications: Array.isArray(snapshot.notifications) ? snapshot.notifications : [],
         activity: Array.isArray(snapshot.activity) ? snapshot.activity : [],
         projection: {

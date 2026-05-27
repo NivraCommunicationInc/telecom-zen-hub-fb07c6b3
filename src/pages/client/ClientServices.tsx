@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import ClientMyServices from "@/components/client/ClientMyServices";
 import ClientOrdersInProgress from "@/components/client/ClientOrdersInProgress";
@@ -16,6 +16,7 @@ import { portalClient as portalSupabase } from "@/integrations/backend/portalCli
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 type Subscription = {
   id: string;
@@ -37,11 +38,7 @@ const DURATION_PRESETS: { label: string; days: number }[] = [
 
 const REASONS = ["Voyage", "Difficultés financières", "Déménagement", "Autre"];
 
-const ClientServicePauseCard = ({ userId }: { userId: string }) => {
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [accountNumber, setAccountNumber] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: string; canonicalData: any; loading: boolean }) => {
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState<number>(7);
   const [customDate, setCustomDate] = useState<string>("");
@@ -49,42 +46,11 @@ const ClientServicePauseCard = ({ userId }: { userId: string }) => {
   const [submitting, setSubmitting] = useState(false);
   const [resuming, setResuming] = useState(false);
 
-  const refresh = async () => {
-    setLoading(true);
-    const { data: customer } = await portalSupabase
-      .from("billing_customers")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!customer) {
-      setLoading(false);
-      return;
-    }
-    const { data: sub } = await portalSupabase
-      .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, plan_price, status, paused_at, pause_until, pause_reason, paypal_subscription_id")
-      .eq("customer_id", customer.id)
-      .in("status", ["active", "pause_requested", "paused"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setSubscription((sub as Subscription | null) ?? null);
-
-    const { data: acc } = await portalSupabase
-      .from("accounts")
-      .select("id, account_number")
-      .eq("client_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setAccountId(acc?.id ?? null);
-    setAccountNumber(acc?.account_number ?? null);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    void refresh();
-  }, [userId]);
+  const subscription = ((canonicalData?.subscriptions || []) as Subscription[])
+    .filter((sub) => ["active", "pause_requested", "paused"].includes(String(sub.status || "").toLowerCase()))
+    .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
+  const accountId = canonicalData?.identifiers?.accountId || canonicalData?.account?.id || null;
+  const accountNumber = canonicalData?.account?.account_number || null;
 
   const resumeDate = customDate
     ? new Date(customDate)
@@ -152,7 +118,6 @@ const ClientServicePauseCard = ({ userId }: { userId: string }) => {
 
       toast.success("Demande envoyée — vous serez notifié dès l'approbation.");
       setOpen(false);
-      void refresh();
     } catch (e: any) {
       console.error("[ClientServicePauseCard]", e);
       toast.error(e?.message || "Erreur lors de l'envoi");
@@ -171,7 +136,6 @@ const ClientServicePauseCard = ({ userId }: { userId: string }) => {
       });
       if (error) throw error;
       toast.success("Service réactivé");
-      void refresh();
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     } finally {
@@ -337,6 +301,7 @@ const ClientServicePauseCard = ({ userId }: { userId: string }) => {
 
 const ClientServices = () => {
   const { user } = useClientAuth();
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
 
   return (
     <ClientLayout>
@@ -349,7 +314,7 @@ const ClientServices = () => {
           <ClientOutageReportButton />
         </div>
 
-        {user?.id && <ClientServicePauseCard userId={user.id} />}
+        {user?.id && <ClientServicePauseCard userId={user.id} canonicalData={canonicalData} loading={isLoading} />}
 
         <ClientOrdersInProgress />
 
