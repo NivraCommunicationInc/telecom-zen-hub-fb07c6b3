@@ -27746,6 +27746,10 @@ export type Database = {
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }
+      customer_portal_core_domain_presence: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
       customer_portal_core_has_data: {
         Args: { _user_id: string }
         Returns: boolean
@@ -27754,8 +27758,20 @@ export type Database = {
         Args: { _limit?: number; _repair?: boolean }
         Returns: Json
       }
+      customer_portal_mark_all_notifications_read: {
+        Args: { _user_id: string }
+        Returns: number
+      }
+      customer_portal_mark_notification_read: {
+        Args: { _notification_id: string }
+        Returns: undefined
+      }
       customer_portal_projection_domain_counts: {
         Args: { _snapshot: Json }
+        Returns: Json
+      }
+      customer_portal_realtime_sync_verifier: {
+        Args: { _minutes?: number }
         Returns: Json
       }
       customer_portal_section_counts: {
@@ -27786,6 +27802,15 @@ export type Database = {
           orphan_type: string
           source_id: string
           source_table: string
+        }[]
+      }
+      detect_customer_portal_projection_divergences: {
+        Args: { _limit?: number }
+        Returns: {
+          details: Json
+          divergence_type: string
+          severity: string
+          user_id: string
         }[]
       }
       detect_missing_customer_portal_projections: {

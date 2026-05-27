@@ -1,8 +1,7 @@
 /**
  * Hook for real-time ledger balance — V2 Billing System ONLY
  * 
- * CANONICAL SOURCE: billing_invoices + billing_payments (V2 system)
- * Legacy `billing` table is NO LONGER mixed in to prevent double-counting.
+ * CANONICAL SOURCE: customer_portal_snapshot / customer_unified_projection.
  * 
  * Balance = sum(non-cancelled invoice totals) - sum(confirmed payments)
  * 
@@ -45,7 +44,7 @@ async function fetchLedgerBalance(
   let lastPaymentAmount: number | null = null;
   let lastPaymentMethod: string | null = null;
 
-  const { data: snapshot, error } = await supabaseClient.rpc("get_client_history_snapshot", {
+  const { data: snapshot, error } = await supabaseClient.rpc("get_customer_portal_snapshot", {
     _user_id: clientId,
   });
 
@@ -125,20 +124,15 @@ export function useLedgerBalance(
     staleTime: 30000,
   });
 
-  // Subscribe to real-time changes on V2 tables only
+  // Subscribe to canonical snapshot changes only.
   useEffect(() => {
     if (!clientId) return;
 
     const channel = client
-      .channel(`ledger-v2-${clientId}`)
+      .channel(`ledger-canonical-${clientId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "billing_invoices" },
-        () => queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] })
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "billing_payments" },
+        { event: "*", schema: "public", table: "customer_portal_snapshots", filter: `user_id=eq.${clientId}` },
         () => queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] })
       )
       .subscribe();
