@@ -161,23 +161,8 @@ const ClientMyServices = () => {
   const loadingSubs = canonicalLoading;
 
 
-  // Fetch tickets for message updates
-  const { data: tickets } = useQuery({
-    queryKey: ["client-services-tickets", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await portalSupabase
-        .from("support_tickets")
-        .select("*, ticket_replies(*)")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  // Tickets derived from canonical snapshot (Core is the source of truth)
+  const tickets = (canonicalData?.supportTickets || []).slice(0, 10);
 
   const profile = canonicalData?.profile;
 
@@ -195,20 +180,8 @@ const ClientMyServices = () => {
       payment_method: p.method,
     }));
 
-  // Fetch client documents
-  const { data: documents } = useQuery({
-    queryKey: ["client-documents", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("client_documents")
-        .select("*")
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  // Client documents derived from canonical snapshot
+  const documents = canonicalData?.clientDocuments || [];
 
   // Create support ticket mutation
   const createTicketMutation = useMutation({

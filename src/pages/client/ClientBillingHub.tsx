@@ -102,16 +102,12 @@ const ClientBillingHub = () => {
   // Ledger balance
   const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(user?.id, portalSupabase);
 
-  // Profile for payment dialog
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => canonicalData?.profile ?? null,
-    enabled: !!user?.id,
-  });
+  // Profile for payment dialog (derived from canonical snapshot)
+  const profile = canonicalData?.profile ?? null;
 
-  // Unpaid invoices for "Pay Invoice" tab
+  // Unpaid invoices for "Pay Invoice" tab (needs async breakdown fetch)
   const { data: unpaidInvoices, isLoading: unpaidLoading } = useQuery({
-    queryKey: ["billing-hub-unpaid", user?.id],
+    queryKey: ["billing-hub-unpaid", user?.id, (canonicalData?.invoices || []).length],
     queryFn: async () => {
       if (!user?.id) return [];
       const invoices = (canonicalData?.invoices || [])
@@ -120,7 +116,6 @@ const ClientBillingHub = () => {
 
       if (!invoices || invoices.length === 0) return [];
 
-      // Get breakdowns for payment dialog
       const ids = invoices.map((i) => i.id);
       const bdMap = await fetchInvoiceBreakdowns(ids, portalSupabase);
 
@@ -136,17 +131,11 @@ const ClientBillingHub = () => {
     enabled: !!user?.id,
   });
 
-  // All invoices for "Invoices" tab
-  const { data: allInvoices, isLoading: allLoading } = useQuery({
-    queryKey: ["billing-hub-all-invoices", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      return [...(canonicalData?.invoices || [])]
-        .sort((a: any, b: any) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())
-        .slice(0, 50);
-    },
-    enabled: !!user?.id,
-  });
+  // All invoices for "Invoices" tab (derived from canonical snapshot)
+  const allLoading = !canonicalData && !!user?.id;
+  const allInvoices = [...(canonicalData?.invoices || [])]
+    .sort((a: any, b: any) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())
+    .slice(0, 50);
 
   // Pay dialog state
   const [payDialogOpen, setPayDialogOpen] = useState(false);
