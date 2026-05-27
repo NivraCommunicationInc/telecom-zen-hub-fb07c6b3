@@ -122,8 +122,12 @@ const ClientWebForms = () => {
   };
 
   useEffect(() => {
-    fetchThreads();
-  }, [user?.id]);
+    if (selectedThread) {
+      fetchThreadDetail(selectedThread.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedThread?.id, canonical?.webFormMessages]);
+
 
   // Thread detail view
   if (selectedThread) {
