@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,38 +119,35 @@ const ClientChannels = () => {
     },
   });
 
-  // Fetch user's TV orders (only non-cancelled ones show channels)
-  const { data: tvOrders = [], isLoading: ordersLoading } = useQuery({
-    queryKey: ["client-tv-orders", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // Query orders that have TV in category OR service_type
-      const { data, error } = await portalSupabase
-        .from("orders")
-        .select("id, order_number, service_type, status, selected_channels, created_at, category")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      
-      // Filter client-side for TV orders (more flexible matching)
-      const tvFiltered = (data || []).filter(order => {
-        const category = (order.category || "").toLowerCase();
-        const serviceType = (order.service_type || "").toLowerCase();
-        return category.includes("tv") || serviceType.includes("tv") || 
-               serviceType.includes("giga") || category.includes("giga");
-      });
-      
-      console.log("TV Orders found for client:", tvFiltered.length);
-      return tvFiltered as TVOrder[];
-    },
-    enabled: !!user?.id,
-  });
+  // TV orders, profile, and tickets from canonical snapshot
+  const { data: canonical, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
+
+  const tvOrders: TVOrder[] = ((canonical?.orders || []) as any[])
+    .filter((order) => {
+      const category = String(order.category || "").toLowerCase();
+      const serviceType = String(order.service_type || "").toLowerCase();
+      return (
+        category.includes("tv") ||
+        serviceType.includes("tv") ||
+        serviceType.includes("giga") ||
+        category.includes("giga")
+      );
+    })
+    .map((o) => ({
+      id: o.id,
+      order_number: o.order_number,
+      service_type: o.service_type,
+      category: o.category,
+      status: o.status,
+      selected_channels: o.selected_channels || [],
+      created_at: o.created_at,
+    }));
+  const ordersLoading = canonicalLoading;
 
   // Filter out cancelled orders for channel display
-  const activeOrders = tvOrders.filter(order => order.status !== "cancelled");
+  const activeOrders = tvOrders.filter((order) => order.status !== "cancelled");
 
-  // Fetch user's channel selections
+  // Fetch user's channel selections (not yet in canonical snapshot)
   const { data: selections = [], isLoading: selectionsLoading } = useQuery({
     queryKey: ["channel-selections", user?.id],
     queryFn: async () => {
@@ -165,38 +163,13 @@ const ClientChannels = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch user's profile for the ticket
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const profile = canonical?.profile || null;
 
-  // Fetch related tickets
-  const { data: tickets = [] } = useQuery({
-    queryKey: ["channel-tickets", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("support_tickets")
-        .select("*")
-        .eq("user_id", user.id)
-        .ilike("subject", "%Channel%")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  // Related channel tickets from canonical snapshot
+  const tickets = ((canonical?.supportTickets || []) as any[]).filter((t) =>
+    String(t.subject || "").toLowerCase().includes("channel")
+  );
+
 
   // Update order channels mutation
   const updateOrderChannelsMutation = useMutation({
@@ -214,7 +187,7 @@ const ClientChannels = () => {
       toast.success("Chaînes mises à jour avec succès!");
       setEditingOrderId(null);
       setEditingChannels([]);
-      queryClient.invalidateQueries({ queryKey: ["client-tv-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);
@@ -347,7 +320,7 @@ Cette demande est en attente de confirmation par un administrateur.
       setSelectedPackages([]);
       setActiveTab("history");
       queryClient.invalidateQueries({ queryKey: ["channel-selections"] });
-      queryClient.invalidateQueries({ queryKey: ["channel-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);

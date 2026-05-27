@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import {
   Mail,
   ArrowLeft,
@@ -52,56 +53,44 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 const ClientWebForms = () => {
   const { user } = useClientAuth();
-  const [threads, setThreads] = useState<WebFormThread[]>([]);
+  const { data: canonical, refetch: refetchCanonical, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
   const [selectedThread, setSelectedThread] = useState<WebFormThread | null>(null);
   const [messages, setMessages] = useState<WebFormMessage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
 
-  // Fetch threads for this user
-  const fetchThreads = async () => {
-    if (!user?.id) return;
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("web_form_threads")
-        .select("*")
-        .eq("linked_user_id", user.id)
-        .order("last_message_at", { ascending: false });
+  const threads: WebFormThread[] = useMemo(() => {
+    const list = (canonical?.webFormThreads || []) as WebFormThread[];
+    return [...list].sort((a, b) =>
+      String(b.last_message_at || "").localeCompare(String(a.last_message_at || ""))
+    );
+  }, [canonical?.webFormThreads]);
 
-      if (error) throw error;
-      setThreads(data || []);
-    } catch (err) {
-      console.error("Failed to fetch threads:", err);
-      toast.error("Erreur lors du chargement des conversations");
-    } finally {
-      setLoading(false);
-    }
+  const loading = canonicalLoading;
+
+  // Refresh threads from canonical snapshot
+  const fetchThreads = async () => {
+    await refetchCanonical();
   };
 
-  // Fetch thread messages
+  // Fetch thread messages from canonical snapshot (filtered client-side)
   const fetchThreadDetail = async (threadId: string) => {
     setLoadingThread(true);
     try {
-      const { data, error } = await supabase
-        .from("web_form_messages")
-        .select("*")
-        .eq("thread_id", threadId)
-        .eq("is_internal_note", false) // Don't show internal notes to clients
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
+      const all = (canonical?.webFormMessages || []) as WebFormMessage[];
+      const filtered = all
+        .filter((m) => m.thread_id === threadId && !m.is_internal_note)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+      setMessages(filtered);
     } catch (err) {
-      console.error("Failed to fetch messages:", err);
+      console.error("Failed to load messages from snapshot:", err);
       toast.error("Erreur lors du chargement de la conversation");
     } finally {
       setLoadingThread(false);
     }
   };
+
 
   // Send reply
   const handleSendReply = async () => {
@@ -133,8 +122,12 @@ const ClientWebForms = () => {
   };
 
   useEffect(() => {
-    fetchThreads();
-  }, [user?.id]);
+    if (selectedThread) {
+      fetchThreadDetail(selectedThread.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedThread?.id, canonical?.webFormMessages]);
+
 
   // Thread detail view
   if (selectedThread) {

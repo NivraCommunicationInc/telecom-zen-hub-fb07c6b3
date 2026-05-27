@@ -86,7 +86,7 @@ const ClientAppointments = () => {
       .channel("client-appointments-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
         // Invalidate to refetch - RLS will filter appropriately
-        queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+        queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       })
       .subscribe();
 
@@ -128,7 +128,7 @@ const ClientAppointments = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       toast.success("Rendez-vous annulé avec succès");
       
@@ -196,7 +196,7 @@ const ClientAppointments = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       toast.success("Rendez-vous reprogrammé avec succès");
       

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useWriteGuard } from "@/hooks/useWriteGuard";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { 
   XCircle, Plus, ArrowLeft, Calendar, Clock, CheckCircle, 
@@ -36,6 +36,7 @@ import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 type ServiceType = "mobile" | "internet" | "tv" | "security" | "streaming" | "bundle";
 type ReasonCode = "price" | "moving" | "not_needed" | "service_issue" | "billing_issue" | "other";
@@ -85,21 +86,11 @@ const ClientCancellations = () => {
     requested_effective_date: "",
   });
 
-  // Fetch cancellation requests
-  const { data: requests, isLoading } = useQuery({
-    queryKey: ["client-cancellation-requests", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("service_cancellation_requests")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  // Fetch cancellation requests from canonical snapshot
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const requests = ((canonical?.cancellationRequests || []) as any[]).slice().sort((a, b) =>
+    String(b.created_at || "").localeCompare(String(a.created_at || ""))
+  );
 
   // Create mutation
   const createMutation = useMutation({
@@ -121,7 +112,7 @@ const ClientCancellations = () => {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["client-cancellation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       logActivity("create", "cancellation_request", data.id, { 
         service_type: data.service_type,
         request_number: data.request_number 
