@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -108,7 +108,7 @@ const ClientReplacementRequest = () => {
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const isFrench = language === "fr";
-  const { data: canonicalData } = useCanonicalClientData(user?.id);
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
   
   const [activeTab, setActiveTab] = useState("my-requests");
   const [showForm, setShowForm] = useState(false);
@@ -122,97 +122,20 @@ const ClientReplacementRequest = () => {
   const [billableAcknowledged, setBillableAcknowledged] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
-  // Fetch user profile
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
+  const profile = canonicalData?.profile ?? null;
   const accounts = canonicalData?.account ? [canonicalData.account] : [];
-
-  // Fetch replacement tickets
-  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
-    queryKey: ["client-replacement-tickets", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("replacement_request_tickets")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as ReplacementTicket[];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch shipments for user's tickets
-  const { data: shipments = [] } = useQuery({
-    queryKey: ["client-replacement-shipments", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("replacement_shipments")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as ReplacementShipment[];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch timeline events
-  const { data: timelineEvents = [] } = useQuery({
-    queryKey: ["client-replacement-timeline", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("replacement_timeline")
-        .select("*")
-        .eq("visible_to_client", true)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as TimelineEvent[];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch related invoices
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["client-replacement-invoices", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // Resolve customer_id from billing_customers
-      const { data: customer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) return [];
-      const { data, error } = await supabase
-        .from("billing_invoices")
-        .select("id, invoice_number, total, status, created_at")
-        .eq("customer_id", customer.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((inv: any) => ({
-        ...inv,
-        amount: inv.total,
-        replacement_ticket_id: null,
-      })) as Invoice[];
-    },
-    enabled: !!user?.id,
-  });
+  const tickets = ((canonicalData?.replacementRequestTickets || []) as ReplacementTicket[])
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  const ticketsLoading = canonicalLoading;
+  const shipments = ((canonicalData?.replacementShipments || []) as ReplacementShipment[])
+    .sort((a, b) => String(b.shipped_at || b.id).localeCompare(String(a.shipped_at || a.id)));
+  const timelineEvents = ((canonicalData?.replacementTimeline || []) as TimelineEvent[])
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  const invoices = ((canonicalData?.invoices || []) as any[]).map((inv: any) => ({
+    ...inv,
+    amount: Number(inv.total ?? inv.amount ?? 0),
+    replacement_ticket_id: inv.replacement_ticket_id ?? null,
+  })) as Invoice[];
 
   // Create ticket mutation
   const createTicketMutation = useMutation({
@@ -246,8 +169,7 @@ const ClientReplacementRequest = () => {
       toast.success(isFrench ? "Demande soumise avec succès!" : "Request submitted successfully!");
       setShowForm(false);
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ["client-replacement-tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["client-replacement-timeline"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     },
     onError: (error: any) => {
       toast.error(error.message);
