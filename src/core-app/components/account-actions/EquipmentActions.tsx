@@ -34,7 +34,7 @@ interface Props {
 
 type ModalType = null | "addEquipment" | "assignEquipment" | "removeEquipment" | "replaceEquipment" | "exchangeEquipment" | "changeStatus" | "chargeReplacement";
 
-export function EquipmentActionMenu({ equipment, clientId, orders, subscriptions = [], onRefresh }: Props) {
+export function EquipmentActionMenu({ equipment, accountId, clientId, orders, subscriptions = [], onRefresh }: Props) {
   const [modal, setModal] = useState<ModalType>(null);
   const navigate = useNavigate();
 
@@ -73,7 +73,7 @@ export function EquipmentActionMenu({ equipment, clientId, orders, subscriptions
         </button>
       </div>
 
-      {modal === "addEquipment" && <AddEquipmentModal orders={targetOrders} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "addEquipment" && <AddEquipmentModal orders={targetOrders} accountId={accountId} subscriptions={subscriptions} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "assignEquipment" && <AssignEquipmentModal equipment={equipment} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "removeEquipment" && <RemoveEquipmentModal equipment={equipment} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "replaceEquipment" && <ReplaceEquipmentModal equipment={equipment} onClose={() => setModal(null)} onRefresh={onRefresh} />}
@@ -84,35 +84,84 @@ export function EquipmentActionMenu({ equipment, clientId, orders, subscriptions
   );
 }
 
-function AddEquipmentModal({ orders, onClose, onRefresh }: { orders: any[]; onClose: () => void; onRefresh: () => void }) {
-  const [orderId, setOrderId] = useState(orders[0]?.id || "");
-  const [itemName, setItemName] = useState("");
-  const [itemSku, setItemSku] = useState("");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [quantity, setQuantity] = useState("1");
+function AddEquipmentModal({ orders, accountId, subscriptions = [], onClose, onRefresh }: { orders: any[]; accountId?: string; subscriptions?: any[]; onClose: () => void; onRefresh: () => void }) {
+  const [orderId, setOrderId] = useState<string>(orders[0]?.id || "");
+  const [catalog, setCatalog] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogId, setCatalogId] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
+  const [imei, setImei] = useState("");
+  const [macAddress, setMacAddress] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [unitPriceOverride, setUnitPriceOverride] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    supabase
+      .from("services")
+      .select("id, name, plan_code, category, price")
+      .eq("category", "Équipement")
+      .eq("is_active", true)
+      .order("name")
+      .then(({ data }) => {
+        setCatalog(data || []);
+        setCatalogLoading(false);
+      });
+  }, []);
+
+  const selectedCatalog = catalog.find(c => c.id === catalogId);
+  const nm = (selectedCatalog?.name || "").toLowerCase();
+  const isMobile = nm.includes("sim") || nm.includes("mobile");
+  const isWifi = nm.includes("wifi") || nm.includes("borne") || nm.includes("modem") || nm.includes("router");
+
   const handleAdd = async () => {
-    if (!orderId || !itemName.trim()) {
-      toast.error("Sélectionnez une commande liée au compte puis saisissez un article");
+    if (!selectedCatalog) { toast.error("Sélectionnez un équipement du catalogue"); return; }
+    if (!serialNumber.trim() && !imei.trim() && !macAddress.trim()) {
+      toast.error("Saisissez au moins un identifiant (S/N, IMEI ou MAC)");
       return;
     }
     setLoading(true);
     try {
       const qty = Number.parseInt(quantity || "1", 10) || 1;
-      const price = Number.parseFloat(unitPrice || "0") || 0;
-      const { error } = await supabase.from("equipment_order_lines").insert({
-        order_id: orderId,
-        item_name: itemName.trim(),
-        item_sku: itemSku || null,
-        unit_price: price,
-        quantity: qty,
-        line_total: price * qty,
-        serial_numbers: serialNumber ? [serialNumber] : null,
-      });
-      if (error) throw error;
-      toast.success(`Équipement « ${itemName} » ajouté`);
+      const price = unitPriceOverride !== "" ? Number.parseFloat(unitPriceOverride) : Number(selectedCatalog.price) || 0;
+      const subId = subscriptions.find((s: any) => s.order_id === orderId)?.id || subscriptions[0]?.id || null;
+
+      // 1) Inventory row — authoritative; ensures equipment appears in account active list
+      const invRow: any = {
+        catalog_item_id: selectedCatalog.id,
+        catalog_name: selectedCatalog.name,
+        category: selectedCatalog.category || "Équipement",
+        sku: selectedCatalog.plan_code || null,
+        serial_number: serialNumber.trim() || null,
+        imei: imei.trim() || null,
+        mac_address: macAddress.trim() || null,
+        price_client: price,
+        status: "deployed",
+        account_id: accountId || null,
+        order_id: orderId || null,
+        subscription_id: subId,
+        assigned_at: new Date().toISOString(),
+        deployed_at: new Date().toISOString(),
+        condition: "new",
+      };
+      const { error: invError } = await supabase.from("equipment_inventory").insert(invRow);
+      if (invError) throw invError;
+
+      // 2) Mirror to equipment_order_lines so order-based views also see it
+      if (orderId) {
+        const serials = [serialNumber, imei, macAddress].filter(Boolean) as string[];
+        await supabase.from("equipment_order_lines").insert({
+          order_id: orderId,
+          item_name: selectedCatalog.name,
+          item_sku: selectedCatalog.plan_code || null,
+          unit_price: price,
+          quantity: qty,
+          line_total: price * qty,
+          serial_numbers: serials.length > 0 ? serials : null,
+        });
+      }
+
+      toast.success(`Équipement « ${selectedCatalog.name} » ajouté`);
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -128,47 +177,65 @@ function AddEquipmentModal({ orders, onClose, onRefresh }: { orders: any[]; onCl
         <DialogHeader>
           <DialogTitle className="text-sm font-bold flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Ajouter un équipement</DialogTitle>
         </DialogHeader>
-        {orders.length === 0 ? (
-          <p className="text-[11px] text-muted-foreground py-4">Aucune commande liée au compte / abonnements. Créez d'abord une commande.</p>
-        ) : (
-          <div className="space-y-3">
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement (catalogue Nivra)</label>
+            {catalogLoading ? (
+              <p className="text-[10px] text-muted-foreground py-2">Chargement du catalogue…</p>
+            ) : catalog.length === 0 ? (
+              <p className="text-[10px] text-amber-500 py-2">Aucun équipement actif dans le catalogue</p>
+            ) : (
+              <select value={catalogId} onChange={e => setCatalogId(e.target.value)} className={inputCls}>
+                <option value="">— Sélectionner —</option>
+                {catalog.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {Number(c.price).toFixed(2)} $ {c.plan_code ? `(${c.plan_code})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {orders.length > 0 && (
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Commande liée</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Commande liée (optionnel)</label>
               <select value={orderId} onChange={e => setOrderId(e.target.value)} className={inputCls}>
+                <option value="">— Aucune —</option>
                 {orders.map((o: any) => (
                   <option key={o.id} value={o.id}>{o.order_number || o.id.slice(0, 8)} — {o.status || "linked"}</option>
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Article</label>
-                <input value={itemName} onChange={e => setItemName(e.target.value)} placeholder="Ex: Router" className={inputCls} />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">SKU</label>
-                <input value={itemSku} onChange={e => setItemSku(e.target.value)} placeholder="SKU" className={inputCls} />
-              </div>
+          )}
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Numéro de série</label>
+            <input value={serialNumber} onChange={e => setSerialNumber(e.target.value)} placeholder="S/N" className={inputCls} />
+          </div>
+          {isMobile && (
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">IMEI / ICCID</label>
+              <input value={imei} onChange={e => setImei(e.target.value)} placeholder="IMEI ou ICCID SIM" className={inputCls} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Prix unitaire</label>
-                <input type="number" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Quantité</label>
-                <input type="number" min="1" value={quantity} onChange={e => setQuantity(e.target.value)} className={inputCls} />
-              </div>
+          )}
+          {isWifi && (
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Adresse MAC</label>
+              <input value={macAddress} onChange={e => setMacAddress(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" className={inputCls} />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Quantité</label>
+              <input type="number" min="1" value={quantity} onChange={e => setQuantity(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">S/N (optionnel)</label>
-              <input value={serialNumber} onChange={e => setSerialNumber(e.target.value)} placeholder="S/N, MAC, IMEI..." className={inputCls} />
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Prix ({selectedCatalog ? `def. ${Number(selectedCatalog.price).toFixed(2)}` : "$"})</label>
+              <input type="number" step="0.01" value={unitPriceOverride} onChange={e => setUnitPriceOverride(e.target.value)} placeholder="Optionnel" className={inputCls} />
             </div>
           </div>
-        )}
+        </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          {orders.length > 0 && <button onClick={handleAdd} disabled={loading} className={btnPrimary}>{loading ? "…" : "Ajouter"}</button>}
+          <button onClick={handleAdd} disabled={loading || !catalogId} className={btnPrimary}>{loading ? "…" : "Ajouter"}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
