@@ -24,19 +24,30 @@ export interface CanonicalClientData {
   orders: any[];
   orderLifecycle: Record<string, any>;
   invoices: any[];
+  monthlyInvoices: any[];
   payments: any[];
+  legacyPayments: any[];
   contracts: any[];
   subscriptions: any[];
   serviceInstances: any[];
+  serviceAddresses: any[];
   equipment: any[];
   autoDocuments: any[];
+  clientDocuments: any[];
+  orderDocuments: any[];
+  paymentProofs: any[];
+  phoneOrders: any[];
+  activity: any[];
   identifiers: {
     userId: string | null;
+    relatedUserIds: string[];
     accountId: string | null;
     accountIds: string[];
     customerId: string | null;
     customerIds: string[];
     profileEmail: string | null;
+    authEmail: string | null;
+    emails: string[];
     orderIds: string[];
     subscriptionIds: string[];
     /** True when invoices/payments were resolved through fallback link paths. */
@@ -63,19 +74,30 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           orders: [],
           orderLifecycle: {},
           invoices: [],
+           monthlyInvoices: [],
           payments: [],
+           legacyPayments: [],
           contracts: [],
           subscriptions: [],
             serviceInstances: [],
+             serviceAddresses: [],
             equipment: [],
           autoDocuments: [],
+           clientDocuments: [],
+           orderDocuments: [],
+           paymentProofs: [],
+           phoneOrders: [],
+           activity: [],
           identifiers: {
             userId: null,
+             relatedUserIds: [],
             accountId: null,
             accountIds: [],
             customerId: null,
             customerIds: [],
             profileEmail: null,
+             authEmail: null,
+             emails: [],
             orderIds: [],
             subscriptionIds: [],
             usedFallbackLinks: false,
@@ -106,14 +128,25 @@ export function useCanonicalClientData(userId: Maybe<string>) {
         orders: Array.isArray(snapshot.orders) ? snapshot.orders : [],
         orderLifecycle: orderLifecycleMap,
         invoices: Array.isArray(snapshot.invoices) ? snapshot.invoices : [],
+         monthlyInvoices: Array.isArray(snapshot.monthlyInvoices) ? snapshot.monthlyInvoices : [],
         payments: Array.isArray(snapshot.payments) ? snapshot.payments : [],
+         legacyPayments: Array.isArray(snapshot.legacyPayments) ? snapshot.legacyPayments : [],
         contracts: Array.isArray(snapshot.contracts) ? snapshot.contracts : [],
         subscriptions: Array.isArray(snapshot.subscriptions) ? snapshot.subscriptions : [],
         serviceInstances: Array.isArray(snapshot.serviceInstances) ? snapshot.serviceInstances : [],
+         serviceAddresses: Array.isArray(snapshot.serviceAddresses) ? snapshot.serviceAddresses : [],
         equipment: Array.isArray(snapshot.equipment) ? snapshot.equipment : [],
         autoDocuments: Array.isArray(snapshot.autoDocuments) ? snapshot.autoDocuments : [],
+         clientDocuments: Array.isArray(snapshot.clientDocuments) ? snapshot.clientDocuments : [],
+         orderDocuments: Array.isArray(snapshot.orderDocuments) ? snapshot.orderDocuments : [],
+         paymentProofs: Array.isArray(snapshot.paymentProofs) ? snapshot.paymentProofs : [],
+         phoneOrders: Array.isArray(snapshot.phoneOrders) ? snapshot.phoneOrders : [],
+         activity: Array.isArray(snapshot.activity) ? snapshot.activity : [],
         identifiers: {
           userId,
+           relatedUserIds: Array.isArray(snapshot?.identifiers?.relatedUserIds)
+             ? snapshot.identifiers.relatedUserIds.filter(Boolean)
+             : [userId].filter(Boolean),
           accountId: snapshot?.identifiers?.accountId ?? snapshot?.account?.id ?? null,
           accountIds: Array.isArray(snapshot?.identifiers?.accountIds)
             ? snapshot.identifiers.accountIds.filter(Boolean)
@@ -124,6 +157,10 @@ export function useCanonicalClientData(userId: Maybe<string>) {
             null,
           customerIds,
           profileEmail: snapshot?.identifiers?.profileEmail ?? snapshot?.profile?.email ?? null,
+           authEmail: snapshot?.identifiers?.authEmail ?? null,
+           emails: Array.isArray(snapshot?.identifiers?.emails)
+             ? snapshot.identifiers.emails.filter(Boolean)
+             : [],
           orderIds: Array.isArray(snapshot?.identifiers?.orderIds)
             ? snapshot.identifiers.orderIds.filter(Boolean)
             : [],

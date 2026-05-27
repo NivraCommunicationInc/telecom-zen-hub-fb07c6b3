@@ -58,8 +58,8 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
   const closedStatuses = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
-  const invoices = canonicalData?.invoices || [];
-  const payments = canonicalData?.payments || [];
+  const invoices = [...(canonicalData?.invoices || []), ...(canonicalData?.monthlyInvoices || [])];
+  const payments = [...(canonicalData?.payments || []), ...(canonicalData?.legacyPayments || [])];
   const pendingInvoices: PendingInvoice[] = invoices
     .filter((inv: any) => !closedStatuses.includes(String(inv.status || "")) && Number(inv.balance_due || 0) > 0)
     .map((inv: any) => ({
@@ -79,7 +79,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   const totalCredits = confirmedPayments.reduce((sum: number, pay: any) => sum + Number(pay.amount || 0), 0);
   const balance = Math.round((totalDebits - totalCredits) * 100) / 100;
   const lastPayment = [...confirmedPayments].sort(
-    (a: any, b: any) => new Date(b.received_at || b.created_at || 0).getTime() - new Date(a.received_at || a.created_at || 0).getTime(),
+    (a: any, b: any) => new Date(b.received_at || b.captured_at || b.created_at || 0).getTime() - new Date(a.received_at || a.captured_at || a.created_at || 0).getTime(),
   )[0];
 
   if (isLoading) {
@@ -164,7 +164,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                   {Number(lastPayment.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </span>
                 <span className="text-muted-foreground ml-2 text-xs sm:text-sm">
-                  {format(new Date(lastPayment.received_at || lastPayment.created_at), "d MMM yyyy", { locale: fr })}
+                  {format(new Date(lastPayment.received_at || lastPayment.captured_at || lastPayment.created_at), "d MMM yyyy", { locale: fr })}
                 </span>
               </div>
             </div>
