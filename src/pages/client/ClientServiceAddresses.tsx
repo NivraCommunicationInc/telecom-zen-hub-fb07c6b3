@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
