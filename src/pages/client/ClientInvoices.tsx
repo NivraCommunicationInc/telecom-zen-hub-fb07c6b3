@@ -76,7 +76,7 @@ const ClientInvoices = () => {
   // Pay dialog state
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payingInvoice, setPayingInvoice] = useState<InvoiceBreakdown | null>(null);
-  const { data: canonicalData } = useCanonicalClientData(user?.id);
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
 
   // ── Profile (for pay dialog only, NOT for document generation) ──
   const { data: profile } = useQuery({
@@ -126,7 +126,7 @@ const ClientInvoices = () => {
 
       return result;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !canonicalLoading,
   });
 
   // ── Derived data ──
