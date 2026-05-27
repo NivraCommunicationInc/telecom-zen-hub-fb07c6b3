@@ -86,7 +86,6 @@ export function AutoDocumentsTab({ userId }: AutoDocumentsTabProps) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {label}
                         {doc.title}
                         {doc.doc_number ? <span className="text-muted-foreground"> — {doc.doc_number}</span> : null}
                       </p>
