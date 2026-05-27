@@ -41,23 +41,24 @@ const PaymentDisputeTimeline = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [responseText, setResponseText] = useState("");
 
-  const { data: disputes, isLoading } = useQuery({
-    queryKey: ["client-disputes", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await portalSupabase
-        .from("payment_disputes")
-        .select(`
-          *,
-          billing:payment_id (invoice_number, amount)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const invoicesById = new Map<string, any>(((canonical?.invoices || []) as any[]).map((i) => [i.id, i]));
+  const paymentsById = new Map<string, any>(((canonical?.payments || []) as any[]).map((p) => [p.id, p]));
+  const disputes = ((canonical?.paymentDisputes || []) as any[])
+    .slice()
+    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+    .map((d) => {
+      const pay = paymentsById.get(d.payment_id);
+      const inv = pay?.invoice_id ? invoicesById.get(pay.invoice_id) : null;
+      return {
+        ...d,
+        billing: inv
+          ? { invoice_number: inv.invoice_number, amount: inv.total ?? inv.amount }
+          : pay
+          ? { invoice_number: null, amount: pay.amount }
+          : null,
+      };
+    });
 
   const respondMutation = useMutation({
     mutationFn: async ({ disputeId, message }: { disputeId: string; message: string }) => {
@@ -69,7 +70,7 @@ const PaymentDisputeTimeline = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-disputes"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       setResponseText("");
       toast.success("Réponse envoyée");
     },
@@ -77,6 +78,7 @@ const PaymentDisputeTimeline = () => {
       toast.error("Erreur lors de l'envoi de la réponse");
     },
   });
+
 
   if (isLoading) {
     return (
