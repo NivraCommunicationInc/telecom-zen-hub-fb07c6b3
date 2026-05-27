@@ -81,9 +81,11 @@ async function fetchLedgerBalance(
       .filter((p: any) => ["confirmed", "completed", "paid", "succeeded"].includes(String(p?.status || "").toLowerCase()))
       .sort((a: any, b: any) => new Date(b.received_at || b.created_at || 0).getTime() - new Date(a.received_at || a.created_at || 0).getTime());
     const lastPay = confirmed[0];
-    lastPaymentDate = lastPay?.received_at || lastPay?.created_at || null;
-    lastPaymentAmount = Number(lastPay.amount) || null;
-    lastPaymentMethod = lastPay.method || lastPay.payment_method || null;
+    if (lastPay) {
+      lastPaymentDate = lastPay.received_at || lastPay.created_at || null;
+      lastPaymentAmount = Number(lastPay.amount) || null;
+      lastPaymentMethod = lastPay.method || lastPay.payment_method || null;
+    }
   }
 
   // ── Final balance ──
