@@ -18,76 +18,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, ShieldCheck, Wallet, Repeat, Lock, XCircle, Sparkles, FileText, ExternalLink } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { portalClient as portalSupabase } from "@/integrations/backend";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const ClientPaymentMethod = () => {
   const { user } = useClientAuth();
-
-  // PayPal subscription status (mirrors logic of ClientPaymentMethodCard for the hero block)
-  const { data: paypalSub, isLoading: subLoading } = useQuery({
-    queryKey: ["client-paypal-preauth-page", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return null;
-      const { data } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, paypal_subscription_id, created_at")
-        .eq("customer_id", customer.id)
-        .eq("status", "active")
-        .not("paypal_subscription_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data ?? null;
-    },
-  });
-
-  // Last 6 invoices + payment method used (joined via billing_payments)
-  const { data: recentInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["client-payment-method-history", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return [];
-      const { data: invoices } = await portalSupabase
-        .from("billing_invoices")
-        .select("id, invoice_number, total, status, created_at, due_date")
-        .eq("customer_id", customer.id)
-        .order("created_at", { ascending: false })
-        .limit(6);
-      if (!invoices || invoices.length === 0) return [];
-      const invoiceIds = invoices.map((inv) => inv.id);
-      const { data: payments } = await portalSupabase
-        .from("billing_payments")
-        .select("invoice_id, method, source, provider, status")
-        .in("invoice_id", invoiceIds);
-      const byInvoice = new Map<string, any>();
-      for (const p of payments ?? []) {
-        // Keep the most recent successful capture (or any if none successful)
-        if (!byInvoice.has(p.invoice_id) || p.status === "succeeded" || p.status === "captured") {
-          byInvoice.set(p.invoice_id, p);
-        }
-      }
-      return invoices.map((inv) => ({
-        ...inv,
-        payment: byInvoice.get(inv.id) ?? null,
-      }));
-    },
-  });
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
+  const paypalSub = (canonicalData?.subscriptions || []).find((sub: any) => sub.status === "active" && sub.paypal_subscription_id) || null;
+  const paymentsByInvoice = new Map((canonicalData?.payments || []).filter((p: any) => p.invoice_id).map((p: any) => [p.invoice_id, p]));
+  const recentInvoices = (canonicalData?.invoices || []).slice(0, 6).map((inv: any) => ({ ...inv, payment: paymentsByInvoice.get(inv.id) || null }));
 
   const isActive = !!paypalSub;
   const subRefShort = paypalSub?.paypal_subscription_id
@@ -109,7 +51,7 @@ const ClientPaymentMethod = () => {
         </div>
 
         {/* ─── SECTION 1 — Current status (rich hero) ─── */}
-        {subLoading ? (
+        {canonicalLoading ? (
           <Card>
             <CardContent className="p-8 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -182,7 +124,7 @@ const ClientPaymentMethod = () => {
         <ClientPaymentMethodCard />
 
         {/* ─── SECTION 2 — Activation steps (only when not active) ─── */}
-        {!isActive && !subLoading && (
+        {!isActive && !canonicalLoading && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Comment activer en 5 étapes</CardTitle>
@@ -274,7 +216,7 @@ const ClientPaymentMethod = () => {
             </Button>
           </CardHeader>
           <CardContent>
-            {invoicesLoading ? (
+            {canonicalLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
