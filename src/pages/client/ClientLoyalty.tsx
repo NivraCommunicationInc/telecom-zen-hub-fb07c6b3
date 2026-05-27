@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ const TIER_INFO: Record<string, { label: string; color: string; min: number; nex
 
 export default function ClientLoyalty() {
   const { user } = useClientAuth();
+  const { data: canonicalData, isLoading: canonicalLoading, refetch } = useCanonicalClientData(user?.id);
   const [points, setPoints] = useState<LoyaltyPoints | null>(null);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [history, setHistory] = useState<Tx[]>([]);
@@ -51,22 +53,21 @@ export default function ClientLoyalty() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data: accts } = await portalClient.from("accounts").select("id").eq("client_id", user.id);
-    const accountIds = (accts || []).map((a: any) => a.id);
+    const accountIds = canonicalData?.identifiers?.accountIds || [];
     if (accountIds.length === 0) { setLoading(false); return; }
     const accountId = accountIds[0];
-    const [{ data: p }, { data: r }, { data: h }] = await Promise.all([
-      portalClient.from("loyalty_points").select("*").eq("account_id", accountId).maybeSingle(),
+    const [{ data: r }] = await Promise.all([
       portalClient.from("loyalty_rewards").select("*").eq("is_active", true).order("points_required"),
-      portalClient.from("loyalty_transactions").select("*").eq("account_id", accountId).order("created_at", { ascending: false }).limit(20),
     ]);
+    const p = (canonicalData?.loyaltyPoints || []).find((row: any) => row.account_id === accountId) || canonicalData?.loyaltyPoints?.[0];
+    const h = (canonicalData?.loyaltyTransactions || []).filter((row: any) => !row.account_id || row.account_id === accountId).slice(0, 20);
     setPoints((p as LoyaltyPoints) || { account_id: accountId, total_points: 0, available_points: 0, lifetime_points: 0, tier: "bronze" });
     setRewards((r as Reward[]) || []);
     setHistory((h as Tx[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
+  useEffect(() => { if (!canonicalLoading) load(); /* eslint-disable-next-line */ }, [user?.id, canonicalLoading, canonicalData?.projection?.lastRefreshedAt]);
 
   const handleRedeem = async () => {
     if (!confirmReward || !points) return;
@@ -81,7 +82,7 @@ export default function ClientLoyalty() {
       return;
     }
     toast.success("Récompense échangée avec succès");
-    await load();
+    await refetch();
   };
 
   const tier = TIER_INFO[points?.tier || "bronze"];
