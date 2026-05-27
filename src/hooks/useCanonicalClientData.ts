@@ -40,13 +40,20 @@ export interface CanonicalClientData {
   appointments: any[];
   supportTickets: any[];
   replacementTickets: any[];
+  replacementRequestTickets: any[];
   replacementOrders: any[];
+  replacementShipments: any[];
+  replacementTimeline: any[];
   cancellationRequests: any[];
   paymentMethods: any[];
   authorizedContacts: any[];
   webFormThreads: any[];
   loyaltyPoints: any[];
+  loyaltyRewards: any[];
   loyaltyTransactions: any[];
+  referralCodes: any[];
+  clientReferrals: any[];
+  paypalAutopayAttempts: any[];
   identityVerifications: any[];
   documentRequests: any[];
   ticketReplies: any[];
@@ -109,13 +116,20 @@ const emptyCanonicalClientData = (userId: string | null = null): CanonicalClient
   appointments: [],
   supportTickets: [],
   replacementTickets: [],
+  replacementRequestTickets: [],
   replacementOrders: [],
+  replacementShipments: [],
+  replacementTimeline: [],
   cancellationRequests: [],
   paymentMethods: [],
   authorizedContacts: [],
   webFormThreads: [],
   loyaltyPoints: [],
+  loyaltyRewards: [],
   loyaltyTransactions: [],
+  referralCodes: [],
+  clientReferrals: [],
+  paypalAutopayAttempts: [],
   identityVerifications: [],
   documentRequests: [],
   ticketReplies: [],
@@ -209,13 +223,20 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           appointments: Array.isArray(snapshot.appointments) ? snapshot.appointments : [],
           supportTickets: Array.isArray(snapshot.supportTickets) ? snapshot.supportTickets : [],
           replacementTickets: Array.isArray(snapshot.replacementTickets) ? snapshot.replacementTickets : [],
+           replacementRequestTickets: Array.isArray(snapshot.replacementRequestTickets) ? snapshot.replacementRequestTickets : [],
           replacementOrders: Array.isArray(snapshot.replacementOrders) ? snapshot.replacementOrders : [],
+           replacementShipments: Array.isArray(snapshot.replacementShipments) ? snapshot.replacementShipments : [],
+           replacementTimeline: Array.isArray(snapshot.replacementTimeline) ? snapshot.replacementTimeline : [],
           cancellationRequests: Array.isArray(snapshot.cancellationRequests) ? snapshot.cancellationRequests : [],
           paymentMethods: Array.isArray(snapshot.paymentMethods) ? snapshot.paymentMethods : [],
           authorizedContacts: Array.isArray(snapshot.authorizedContacts) ? snapshot.authorizedContacts : [],
           webFormThreads: Array.isArray(snapshot.webFormThreads) ? snapshot.webFormThreads : [],
           loyaltyPoints: Array.isArray(snapshot.loyaltyPoints) ? snapshot.loyaltyPoints : [],
+           loyaltyRewards: Array.isArray(snapshot.loyaltyRewards) ? snapshot.loyaltyRewards : [],
           loyaltyTransactions: Array.isArray(snapshot.loyaltyTransactions) ? snapshot.loyaltyTransactions : [],
+           referralCodes: Array.isArray(snapshot.referralCodes) ? snapshot.referralCodes : [],
+           clientReferrals: Array.isArray(snapshot.clientReferrals) ? snapshot.clientReferrals : [],
+           paypalAutopayAttempts: Array.isArray(snapshot.paypalAutopayAttempts) ? snapshot.paypalAutopayAttempts : [],
           identityVerifications: Array.isArray(snapshot.identityVerifications) ? snapshot.identityVerifications : [],
           documentRequests: Array.isArray(snapshot.documentRequests) ? snapshot.documentRequests : [],
            ticketReplies: Array.isArray(snapshot.ticketReplies) ? snapshot.ticketReplies : [],
