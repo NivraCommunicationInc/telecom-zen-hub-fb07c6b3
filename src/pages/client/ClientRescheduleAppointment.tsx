@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { portalClient as supabase } from "@/integrations/backend";
+import { useQueryClient } from "@tanstack/react-query";
+import { useClientAuth } from "@/hooks/useClientAuth";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -33,6 +36,9 @@ const TIME_SLOTS = [
 ];
 
 const ClientRescheduleAppointment = () => {
+  const { user } = useClientAuth();
+  const queryClient = useQueryClient();
+  const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,37 +58,33 @@ const ClientRescheduleAppointment = () => {
 
   useEffect(() => {
     loadAppointment();
-  }, [appointmentId, appointmentNumber]);
+  }, [appointmentId, appointmentNumber, user?.id, canonicalLoading, canonicalData?.projection?.lastRefreshedAt]);
 
   const loadAppointment = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
         navigate(`/portal/auth?redirect=${returnUrl}`);
         return;
       }
 
-      let query = supabase
-        .from("appointments")
-        .select("*")
-        .eq("client_id", user.id)
-        .in("status", ["scheduled", "confirmed"]);
+      if (canonicalLoading) return;
+      const appointments = (canonicalData?.appointments || []).filter((row: any) =>
+        ["scheduled", "confirmed"].includes(String(row?.status || "").toLowerCase())
+      );
 
-      if (appointmentId) {
-        query = query.eq("id", appointmentId);
-      } else if (appointmentNumber) {
-        query = query.eq("appointment_number", appointmentNumber);
-      } else {
+      const data = appointments.find((row: any) =>
+        (appointmentId && row.id === appointmentId) ||
+        (appointmentNumber && row.appointment_number === appointmentNumber)
+      );
+
+      if (!appointmentId && !appointmentNumber) {
         setError("Aucun rendez-vous spécifié.");
         setLoading(false);
         return;
       }
 
-      const { data, error: fetchError } = await query.single();
-
-      if (fetchError || !data) {
+      if (!data) {
         setError("Ce rendez-vous n'existe pas ou n'est plus modifiable.");
         setLoading(false);
         return;
@@ -130,6 +132,7 @@ const ClientRescheduleAppointment = () => {
 
       if (updateError) throw updateError;
 
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       setSuccess(true);
       toast({
         title: "Rendez-vous replanifié",
