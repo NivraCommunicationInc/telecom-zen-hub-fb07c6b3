@@ -49,7 +49,19 @@ export interface CanonicalClientData {
   loyaltyTransactions: any[];
   identityVerifications: any[];
   documentRequests: any[];
+  notifications: any[];
   activity: any[];
+  projection: {
+    source: string;
+    version: number;
+    lastRefreshedAt: string | null;
+    sectionCounts: Record<string, number>;
+    validationStatus: string;
+    validationErrors: any[];
+    coreHasData: boolean;
+    portalEmpty: boolean;
+    stale: boolean;
+  };
   identifiers: {
     userId: string | null;
     relatedUserIds: string[];
@@ -67,6 +79,67 @@ export interface CanonicalClientData {
   };
 }
 
+const emptyCanonicalClientData = (userId: string | null = null): CanonicalClientData => ({
+  profile: null,
+  account: null,
+  billingCustomer: null,
+  orders: [],
+  orderLifecycle: {},
+  invoices: [],
+  monthlyInvoices: [],
+  payments: [],
+  legacyPayments: [],
+  contracts: [],
+  subscriptions: [],
+  serviceInstances: [],
+  serviceAddresses: [],
+  equipment: [],
+  autoDocuments: [],
+  clientDocuments: [],
+  orderDocuments: [],
+  paymentProofs: [],
+  phoneOrders: [],
+  appointments: [],
+  supportTickets: [],
+  replacementTickets: [],
+  replacementOrders: [],
+  cancellationRequests: [],
+  paymentMethods: [],
+  authorizedContacts: [],
+  webFormThreads: [],
+  loyaltyPoints: [],
+  loyaltyTransactions: [],
+  identityVerifications: [],
+  documentRequests: [],
+  notifications: [],
+  activity: [],
+  projection: {
+    source: "customer_portal_snapshot",
+    version: 0,
+    lastRefreshedAt: null,
+    sectionCounts: {},
+    validationStatus: "pending",
+    validationErrors: [],
+    coreHasData: false,
+    portalEmpty: true,
+    stale: true,
+  },
+  identifiers: {
+    userId,
+    relatedUserIds: userId ? [userId] : [],
+    accountId: null,
+    accountIds: [],
+    customerId: null,
+    customerIds: [],
+    profileEmail: null,
+    authEmail: null,
+    emails: [],
+    orderIds: [],
+    subscriptionIds: [],
+    usedFallbackLinks: false,
+  },
+});
+
 /**
  * Centralized canonical client data loader.
  * All reads go through portalClient (admin impersonation aware).
@@ -75,61 +148,15 @@ export function useCanonicalClientData(userId: Maybe<string>) {
   return useQuery<CanonicalClientData>({
     queryKey: ["canonical-client-data", userId],
     enabled: !!userId,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     queryFn: async () => {
       if (!userId) {
-        return {
-          profile: null,
-          account: null,
-          billingCustomer: null,
-          orders: [],
-          orderLifecycle: {},
-          invoices: [],
-           monthlyInvoices: [],
-          payments: [],
-           legacyPayments: [],
-          contracts: [],
-          subscriptions: [],
-            serviceInstances: [],
-             serviceAddresses: [],
-            equipment: [],
-          autoDocuments: [],
-           clientDocuments: [],
-           orderDocuments: [],
-           paymentProofs: [],
-           phoneOrders: [],
-            appointments: [],
-            supportTickets: [],
-            replacementTickets: [],
-            replacementOrders: [],
-            cancellationRequests: [],
-            paymentMethods: [],
-            authorizedContacts: [],
-            webFormThreads: [],
-            loyaltyPoints: [],
-            loyaltyTransactions: [],
-            identityVerifications: [],
-            documentRequests: [],
-           activity: [],
-          identifiers: {
-            userId: null,
-             relatedUserIds: [],
-            accountId: null,
-            accountIds: [],
-            customerId: null,
-            customerIds: [],
-            profileEmail: null,
-             authEmail: null,
-             emails: [],
-            orderIds: [],
-            subscriptionIds: [],
-            usedFallbackLinks: false,
-          },
-        };
+        return emptyCanonicalClientData();
       }
 
-      const { data, error } = await portalClient.rpc("get_client_history_snapshot", {
+      const { data, error } = await portalClient.rpc("get_customer_portal_snapshot", {
         _user_id: userId,
       });
 
@@ -177,7 +204,19 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           loyaltyTransactions: Array.isArray(snapshot.loyaltyTransactions) ? snapshot.loyaltyTransactions : [],
           identityVerifications: Array.isArray(snapshot.identityVerifications) ? snapshot.identityVerifications : [],
           documentRequests: Array.isArray(snapshot.documentRequests) ? snapshot.documentRequests : [],
-         activity: Array.isArray(snapshot.activity) ? snapshot.activity : [],
+        notifications: Array.isArray(snapshot.notifications) ? snapshot.notifications : [],
+        activity: Array.isArray(snapshot.activity) ? snapshot.activity : [],
+        projection: {
+          source: snapshot?.projection?.source ?? "customer_portal_snapshot",
+          version: Number(snapshot?.projection?.version ?? 0),
+          lastRefreshedAt: snapshot?.projection?.lastRefreshedAt ?? null,
+          sectionCounts: snapshot?.projection?.sectionCounts ?? {},
+          validationStatus: snapshot?.projection?.validationStatus ?? "unknown",
+          validationErrors: Array.isArray(snapshot?.projection?.validationErrors) ? snapshot.projection.validationErrors : [],
+          coreHasData: Boolean(snapshot?.projection?.coreHasData),
+          portalEmpty: Boolean(snapshot?.projection?.portalEmpty),
+          stale: Boolean(snapshot?.projection?.stale),
+        },
         identifiers: {
           userId,
            relatedUserIds: Array.isArray(snapshot?.identifiers?.relatedUserIds)
