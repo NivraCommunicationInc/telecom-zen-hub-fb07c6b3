@@ -78,19 +78,7 @@ const ClientInvoices = () => {
   const [payingInvoice, setPayingInvoice] = useState<InvoiceBreakdown | null>(null);
   const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
 
-  // ── Profile (for pay dialog only, NOT for document generation) ──
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data } = await portalSupabase
-        .from("profiles")
-        .select("full_name, email, phone, client_number, service_address, service_city, service_postal_code")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const profile = canonicalData?.profile;
 
   // ── Fetch V2 invoice IDs (with order_id fallback), then get breakdowns from RPC ──
   const { data: breakdowns, isLoading } = useQuery({
