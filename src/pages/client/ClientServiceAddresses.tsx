@@ -46,80 +46,29 @@ const ClientServiceAddresses = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Fetch account
-  const { data: account } = useQuery({
-    queryKey: ["client-account-for-addresses", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("client_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  // All address data sourced from canonical snapshot
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
 
-  // Fetch billing customer (for subscription counts)
-  const { data: billingCustomer } = useQuery({
-    queryKey: ["billing-customer-for-addresses", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  const account = canonical?.account ? { id: canonical.account.id } : null;
+  const billingCustomer = canonical?.billingCustomer ? { id: canonical.billingCustomer.id } : null;
 
-  // Fetch addresses (with explicit count for audit/debug visibility)
-  const { data: addressesPayload, isLoading } = useQuery({
-    queryKey: ["service-addresses", account?.id],
-    queryFn: async () => {
-      const { data, error, count } = await supabase
-        .from("service_addresses")
-        .select("*", { count: "exact" })
-        .eq("account_id", account!.id)
-        .eq("is_active", true)
-        .order("is_default", { ascending: false })
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return {
-        account_id: account!.id,
-        rows: (data || []) as ServiceAddress[],
-        count: count ?? 0,
-      };
-    },
-    enabled: !!account?.id,
-  });
+  const addresses = ((canonical?.serviceAddresses || []) as ServiceAddress[])
+    .filter((a) => a.is_active !== false)
+    .sort((a, b) => {
+      if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+      return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    });
+  const addressesCount = addresses.length;
+  const addressesPayload = { account_id: account?.id ?? null, rows: addresses, count: addressesCount };
 
-  const addresses = addressesPayload?.rows || [];
-  const addressesCount = addressesPayload?.count ?? 0;
+  // Count active/pending/suspended subscriptions per address from snapshot
+  const addressServiceCounts: Record<string, number> = ((canonical?.subscriptions || []) as any[])
+    .filter((s) => s.address_id && ["active", "pending", "suspended"].includes(s.status))
+    .reduce((acc, s) => {
+      acc[s.address_id] = (acc[s.address_id] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-  // Count active/pending/suspended services per address
-  const { data: addressServiceCounts = {} } = useQuery({
-    queryKey: ["address-service-counts", billingCustomer?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("billing_subscriptions")
-        .select("address_id")
-        .eq("customer_id", billingCustomer!.id)
-        .in("status", ["active", "pending", "suspended"])
-        .not("address_id", "is", null);
-      if (error) throw error;
-
-      return (data || []).reduce((acc, row: { address_id: string | null }) => {
-        if (!row.address_id) return acc;
-        acc[row.address_id] = (acc[row.address_id] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-    },
-    enabled: !!billingCustomer?.id,
-  });
 
   useEffect(() => {
     if (import.meta.env.PROD) return;
