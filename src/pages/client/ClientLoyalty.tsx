@@ -56,9 +56,7 @@ export default function ClientLoyalty() {
     const accountIds = canonicalData?.identifiers?.accountIds || [];
     if (accountIds.length === 0) { setLoading(false); return; }
     const accountId = accountIds[0];
-    const [{ data: r }] = await Promise.all([
-      portalClient.from("loyalty_rewards").select("*").eq("is_active", true).order("points_required"),
-    ]);
+    const r = canonicalData?.loyaltyRewards || [];
     const p = (canonicalData?.loyaltyPoints || []).find((row: any) => row.account_id === accountId) || canonicalData?.loyaltyPoints?.[0];
     const h = (canonicalData?.loyaltyTransactions || []).filter((row: any) => !row.account_id || row.account_id === accountId).slice(0, 20);
     setPoints((p as LoyaltyPoints) || { account_id: accountId, total_points: 0, available_points: 0, lifetime_points: 0, tier: "bronze" });
