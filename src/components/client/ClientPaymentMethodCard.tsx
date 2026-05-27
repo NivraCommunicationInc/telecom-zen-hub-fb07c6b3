@@ -79,7 +79,7 @@ export const ClientPaymentMethodCard = () => {
       if (error) throw new Error(error.message || "Erreur");
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Paiement pré-autorisé retiré");
-      qc.invalidateQueries({ queryKey: ["client-paypal-preauth"] });
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       qc.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
       qc.invalidateQueries({ queryKey: ["client-autopay-eligibility"] });
       setConfirmOpen(false);
