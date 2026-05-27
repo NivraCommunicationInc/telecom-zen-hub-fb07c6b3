@@ -461,10 +461,18 @@ const ClientMyServices = () => {
     const name = planName?.toLowerCase() || "";
     if (name.includes("streaming")) return "streaming";
     if (name.includes("mobile")) return "mobile";
-    if (name.includes("tv") || name.includes("giga")) return "tv";
     if (name.includes("internet") || name.includes("fibre")) return "internet";
+    if (name.includes("tv")) return "tv";
     if (name.includes("security") || name.includes("sécurité")) return "security";
     return "other";
+  };
+
+  const getEquipmentDisplayName = (equipment: any) => {
+    const category = String(equipment?.category || "").toLowerCase();
+    if (category.includes("borne") || category.includes("wifi") || category.includes("router")) return "Borne WiFi";
+    if (category.includes("terminal") || category.includes("tv")) return "Terminal TV";
+    if (category.includes("sim")) return "Carte SIM";
+    return equipment?.catalog_name || equipment?.service_name || "Équipement";
   };
 
   // CANONICAL SOURCE: billing_subscriptions + billing_subscription_services ONLY
@@ -537,6 +545,31 @@ const ClientMyServices = () => {
         address_city: sub.service_addresses?.city,
       }));
   });
+
+  const inventoryEquipment = (canonicalData?.equipment || []).map((eq: any) => ({
+    id: `inventory-${eq.id}`,
+    service_name: getEquipmentDisplayName(eq),
+    service_code: eq.catalog_name || eq.category || "equipment",
+    unit_price: 0,
+    quantity: 1,
+    added_at: eq.deployed_at || eq.assigned_at || eq.created_at,
+    parent_plan_name: undefined,
+    subscription_status: eq.status || "assigned",
+    address_id: eq.account_id || null,
+    address_label: undefined,
+    address_line: undefined,
+    address_city: undefined,
+    serial_number: eq.serial_number,
+    mac_address: eq.mac_address,
+    status: eq.status,
+  }));
+
+  const equipmentByKey = new Map<string, any>();
+  [...activeEquipment, ...inventoryEquipment].forEach((eq: any) => {
+    const key = String(eq.serial_number || eq.service_code || eq.id).toLowerCase();
+    if (!equipmentByKey.has(key)) equipmentByKey.set(key, eq);
+  });
+  const allActiveEquipment = Array.from(equipmentByKey.values());
 
   const activeServiceInstances = (serviceInstances || [])
     .filter((svc: any) => ["active", "activated", "installed"].includes(String(svc.status || "").toLowerCase()))
@@ -754,7 +787,7 @@ const ClientMyServices = () => {
           ) : (
             <ServicesByAddress
               services={allActiveServices}
-              equipment={activeEquipment}
+              equipment={allActiveEquipment}
               onServiceAction={(action, svc) => {
                 setSelectedService(svc);
                 if (action === "upgrade") setUpgradeDialogOpen(true);
@@ -941,7 +974,7 @@ const ClientMyServices = () => {
 
           <ServicesByAddress
             services={[]}
-            equipment={activeEquipment}
+            equipment={allActiveEquipment}
             onEquipmentReport={(eq) => {
               setSelectedService(eq);
               setIssueDialogOpen(true);
