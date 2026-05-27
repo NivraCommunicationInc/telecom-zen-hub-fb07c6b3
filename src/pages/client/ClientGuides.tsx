@@ -3,13 +3,12 @@
  * Public installation PDFs from the `installation-guides` storage bucket.
  * TV terminal guides only show when client has TV in any of their orders.
  */
-import { useEffect, useState } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Wifi, Tv } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const BUCKET_BASE = `${SUPABASE_URL}/storage/v1/object/public/installation-guides`;
@@ -32,28 +31,19 @@ const GUIDES: GuideItem[] = [
 
 const ClientGuides = () => {
   const { user } = useClientAuth();
-  const [hasTv, setHasTv] = useState(false);
+  const { data: canonical } = useCanonicalClientData(user?.id);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("user_id", user.id);
-      const orderIds = (orders || []).map(o => o.id);
-      if (orderIds.length === 0) return;
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("plan_name, service_type, description")
-        .in("order_id", orderIds);
-      const hay = (items || [])
-        .flatMap(i => [i.plan_name, i.service_type, i.description])
-        .filter(Boolean)
-        .map(s => String(s).toLowerCase());
-      setHasTv(hay.some(s => TV_KEYWORDS.some(k => s.includes(k))));
-    })();
-  }, [user?.id]);
+  const tvSources = [
+    ...(canonical?.orders || []),
+    ...(canonical?.orderItems || []),
+    ...(canonical?.subscriptions || []),
+    ...(canonical?.serviceInstances || []),
+  ];
+  const hasTv = tvSources
+    .flatMap((item: any) => [item.plan_name, item.service_type, item.description, item.service_category, item.plan_type, item.product_type])
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase())
+    .some((value) => TV_KEYWORDS.some((keyword) => value.includes(keyword)));
 
   const visibleGuides = GUIDES.filter(g => g.type === "wifi" || hasTv);
 

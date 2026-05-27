@@ -4,10 +4,11 @@
  * - Program: 25$/mo discount × 10 months for the referrer, qualified after 2 paid cycles
  * - Reward payout preference: PayPal / Interac e-Transfer / Carte-cadeau Visa-Mastercard
  */
-import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import ClientLayout from "@/components/client/ClientLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { portalClient } from "@/integrations/backend/portalClient";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,66 +80,18 @@ const ClientReferrals = () => {
   const qc = useQueryClient();
   const [savingMethod, setSavingMethod] = useState<string | null>(null);
 
-  // Source of truth: referral_codes (auto-created by trigger trg_auto_create_referral_code).
-  // We also call ensure_client_referral_code to backfill any account created before
-  // the trigger existed, so the displayed code is never empty / never falls back to "—".
-  const { data: codeRow } = useQuery({
-    queryKey: ["client-referral-code", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
+  const { data: canonicalData, refetch } = useCanonicalClientData(user?.id);
+  const codeRow = (canonicalData?.referralCodes || [])[0] || null;
+  const profile = canonicalData?.profile || null;
+  const referrals = canonicalData?.clientReferrals || [];
 
-      let { data } = await supabase
-        .from("referral_codes" as any)
-        .select("code, status, usage_count")
-        .eq("owner_user_id", user.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (!data?.code) {
-        await supabase.rpc("ensure_client_referral_code" as any, { p_user_id: user.id });
-        const refetch = await supabase
-          .from("referral_codes" as any)
-          .select("code, status, usage_count")
-          .eq("owner_user_id", user.id)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        data = refetch.data;
-      }
-
-      return data as any;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: profile } = useQuery({
-    queryKey: ["client-referral-profile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from("profiles")
-        .select("first_name, last_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: referrals = [] } = useQuery({
-    queryKey: ["client-my-referrals", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from("client_referrals" as any)
-        .select("*")
-        .eq("referrer_user_id", user.id)
-        .order("created_at", { ascending: false });
-      return (data as any[]) || [];
-    },
-    enabled: !!user?.id,
-  });
+  useEffect(() => {
+    if (!user?.id || codeRow?.code) return;
+    portalClient.rpc("ensure_client_referral_code" as any, { p_user_id: user.id }).then(() => {
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user.id] });
+      refetch();
+    });
+  }, [user?.id, codeRow?.code, qc, refetch]);
 
   const referralCode = codeRow?.code as string | undefined;
 
@@ -199,7 +152,7 @@ const ClientReferrals = () => {
     if (!user?.id) return;
     setSavingMethod(method);
     try {
-      const { error } = await supabase
+      const { error } = await portalClient
         .from("client_referrals" as any)
         .update({ payment_method: method })
         .eq("referrer_user_id", user.id)
@@ -207,7 +160,7 @@ const ClientReferrals = () => {
       if (error) throw error;
       setSelectedMethod(method);
       toast.success(`Mode de versement mis à jour : ${PAYMENT_LABELS[method]}`);
-      qc.invalidateQueries({ queryKey: ["client-my-referrals", user.id] });
+      qc.invalidateQueries({ queryKey: ["canonical-client-data", user.id] });
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de la mise à jour");
     } finally {

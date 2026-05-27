@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { 
   Package, 
@@ -40,6 +40,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const reasonOptions = [
   { value: "defective", label: "Défectueux (problème de fabrication)" },
@@ -68,6 +69,7 @@ const ClientEquipmentReplacement = () => {
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -83,66 +85,12 @@ const ClientEquipmentReplacement = () => {
     billableAcknowledged: false,
   });
 
-  // Fetch client profile for default address
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch client orders with equipment
-  const { data: orders } = useQuery({
-    queryKey: ["client-orders-equipment", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch replacement tickets
-  const { data: tickets, isLoading } = useQuery({
-    queryKey: ["client-replacement-tickets", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("replacement_tickets")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch replacement order for selected ticket
-  const { data: replacementOrder } = useQuery({
-    queryKey: ["replacement-order", selectedTicket?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("replacement_orders")
-        .select("*")
-        .eq("replacement_ticket_id", selectedTicket?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedTicket?.id,
-  });
+  const profile = canonicalData?.profile ?? null;
+  const orders = (canonicalData?.orders || []).sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)));
+  const tickets = (canonicalData?.replacementTickets || []).sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)));
+  const replacementOrder = selectedTicket
+    ? (canonicalData?.replacementOrders || []).find((order: any) => order.replacement_ticket_id === selectedTicket.id)
+    : null;
 
   // Set default address from profile
   useEffect(() => {
@@ -203,7 +151,7 @@ const ClientEquipmentReplacement = () => {
       return newTicket;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-replacement-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       toast({ title: "Demande créée", description: "Votre demande de remplacement a été soumise." });
       setCreateDialogOpen(false);
       resetForm();

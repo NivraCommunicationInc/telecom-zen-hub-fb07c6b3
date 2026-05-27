@@ -4,9 +4,8 @@
  * with full step-by-step traceability.
  */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { portalClient as portalSupabase } from "@/integrations/backend";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,22 +39,10 @@ const ClientAutoPayLog = () => {
   const { user } = useClientAuth();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const { data: attempts, isLoading } = useQuery({
-    queryKey: ["client-autopay-attempts", user?.id],
-    enabled: !!user?.id,
-    queryFn: async (): Promise<Attempt[]> => {
-      const { data, error } = await portalSupabase
-        .from("paypal_autopay_attempts" as any)
-        .select(
-          "id, status, current_step, steps, paypal_subscription_id, paypal_plan_id, paypal_debug_id, error_message, http_status, started_at, completed_at",
-        )
-        .eq("user_id", user!.id)
-        .order("started_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return (data as unknown as Attempt[]) || [];
-    },
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
+  const attempts = ((canonicalData?.paypalAutopayAttempts || []) as Attempt[])
+    .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)))
+    .slice(0, 50);
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
