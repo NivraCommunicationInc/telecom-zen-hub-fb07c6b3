@@ -118,21 +118,14 @@ const ClientAuthorizedContacts: React.FC = () => {
 
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
-  const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["authorized-contacts", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("authorized_users")
-        .select("*")
-        .eq("client_id", user!.id)
-        .order("is_primary", { ascending: false })
-        .order("created_at", { ascending: false });
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const contacts: AuthorizedContact[] = ((canonical?.authorizedContacts || []) as AuthorizedContact[])
+    .slice()
+    .sort((a, b) => {
+      if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
 
-      if (error) throw error;
-      return data as AuthorizedContact[];
-    },
-  });
 
   const addContactMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
