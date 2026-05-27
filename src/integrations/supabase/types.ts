@@ -21423,6 +21423,7 @@ export type Database = {
           service_type: Database["public"]["Enums"]["cancellation_service_type"]
           staff_notes: string | null
           status: Database["public"]["Enums"]["cancellation_status"]
+          subscription_id: string | null
           updated_at: string
           user_id: string
         }
@@ -21445,6 +21446,7 @@ export type Database = {
           service_type: Database["public"]["Enums"]["cancellation_service_type"]
           staff_notes?: string | null
           status?: Database["public"]["Enums"]["cancellation_status"]
+          subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -21467,6 +21469,7 @@ export type Database = {
           service_type?: Database["public"]["Enums"]["cancellation_service_type"]
           staff_notes?: string | null
           status?: Database["public"]["Enums"]["cancellation_status"]
+          subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -21476,6 +21479,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_cancellation_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
           },
         ]
