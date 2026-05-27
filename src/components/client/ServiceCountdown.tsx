@@ -3,13 +3,12 @@
  * Based on subscription cycle_end_date from V2 billing
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { backendClient } from "@/integrations/backend/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Clock, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
-import { differenceInDays, format, addDays } from "date-fns";
+import { differenceInDays, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 interface ServiceCountdownProps {
   userId: string;
@@ -24,30 +23,11 @@ interface SubscriptionInfo {
 }
 
 export function ServiceCountdown({ userId, compact = false }: ServiceCountdownProps) {
-  const { data: subscriptions, isLoading } = useQuery({
-    queryKey: ["active-subscriptions-v2", userId],
-    queryFn: async () => {
-      // Get customer_id first
-      const { data: customer } = await backendClient
-        .from('billing_customers')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!customer) return [];
-
-      const { data, error } = await backendClient
-        .from('billing_subscriptions')
-        .select('id, plan_name, cycle_end_date, status')
-        .eq('customer_id', customer.id)
-        .in('status', ['active', 'pending_renewal', 'grace_period', 'suspended'])
-        .order('cycle_end_date', { ascending: true });
-
-      if (error) throw error;
-      return (data || []) as SubscriptionInfo[];
-    },
-    enabled: !!userId,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
+  const subscriptions = ((canonicalData?.subscriptions || []) as SubscriptionInfo[])
+    .filter((sub: any) => ['active', 'pending_renewal', 'grace_period', 'suspended'].includes(String(sub?.status || '').toLowerCase()))
+    .filter((sub: any) => !!sub?.cycle_end_date)
+    .sort((a: any, b: any) => new Date(a.cycle_end_date).getTime() - new Date(b.cycle_end_date).getTime());
 
   if (isLoading || !subscriptions || subscriptions.length === 0) {
     return null;

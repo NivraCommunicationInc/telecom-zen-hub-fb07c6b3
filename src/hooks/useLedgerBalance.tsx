@@ -45,75 +45,47 @@ async function fetchLedgerBalance(
   let lastPaymentAmount: number | null = null;
   let lastPaymentMethod: string | null = null;
 
-  // Get customer_id from billing_customers (linked to user_id)
-  const { data: customer, error: customerErr } = await supabaseClient
-    .from("billing_customers")
-    .select("id")
-    .eq("user_id", clientId)
-    .maybeSingle();
+  const { data: snapshot, error } = await supabaseClient.rpc("get_client_history_snapshot", {
+    _user_id: clientId,
+  });
 
-  if (customerErr) {
-    console.warn("[useLedgerBalance] billing_customers lookup failed:", customerErr);
-  }
+  if (error) throw error;
 
-  if (!customer) {
-    // No V2 billing customer → balance is 0
-    return {
-      totalDebits: 0,
-      totalCredits: 0,
-      balance: 0,
-      availableCredit: 0,
-      isCredit: false,
-      display: (0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
-      lastPaymentDate: null,
-      lastPaymentAmount: null,
-      lastPaymentMethod: null,
-      unpaidInvoiceCount: 0,
-    };
-  }
-
-  // ── Debits: sum canonical invoice totals ──
-  const { data: invoices, error: invoicesErr } = await supabaseClient
-    .from("billing_invoices")
-    .select("total, status, balance_due")
-    .eq("customer_id", customer.id)
-    .not("status", "in", '("cancelled","refunded","void")');
-
-  if (invoicesErr) {
-    console.warn("[useLedgerBalance] billing_invoices query failed:", invoicesErr);
-  }
+  const invoices = [
+    ...(((snapshot as any)?.invoices || []) as any[]),
+    ...(((snapshot as any)?.monthlyInvoices || []) as any[]),
+  ];
+  const payments = [
+    ...(((snapshot as any)?.payments || []) as any[]),
+    ...(((snapshot as any)?.legacyPayments || []) as any[]),
+  ];
 
   // CANONICAL INVARIANT: paid/void/cancelled invoices contribute ZERO to balance
   const CLOSED_STATUSES = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
   for (const inv of invoices || []) {
-    totalDebits += Number(inv.total) || 0;
+    totalDebits += Number(inv.total ?? inv.amount ?? inv.total_amount) || 0;
     if (!CLOSED_STATUSES.includes(inv.status) && (Number(inv.balance_due) || 0) > 0) {
       unpaidInvoiceCount++;
     }
   }
 
   // ── Credits: sum confirmed payments ──
-  const { data: payments, error: paymentsErr } = await supabaseClient
-    .from("billing_payments")
-    .select("amount, status, method, received_at, created_at")
-    .eq("customer_id", customer.id)
-    .eq("status", "confirmed")
-    .order("received_at", { ascending: false, nullsFirst: false });
-
-  if (paymentsErr) {
-    console.warn("[useLedgerBalance] billing_payments query failed:", paymentsErr);
-  }
-
   for (const pay of payments || []) {
+    if (!["confirmed", "completed", "paid", "succeeded"].includes(String(pay?.status || "").toLowerCase())) continue;
     totalCredits += Number(pay.amount) || 0;
   }
 
   // Get last payment
   if (payments && payments.length > 0) {
-    const lastPay = payments[0];
-    lastPaymentDate = lastPay.received_at || lastPay.created_at;
-    lastPaymentAmount = Number(lastPay.amount) || null;
-    lastPaymentMethod = lastPay.method;
+    const confirmed = payments
+      .filter((p: any) => ["confirmed", "completed", "paid", "succeeded"].includes(String(p?.status || "").toLowerCase()))
+      .sort((a: any, b: any) => new Date(b.received_at || b.created_at || 0).getTime() - new Date(a.received_at || a.created_at || 0).getTime());
+    const lastPay = confirmed[0];
+    if (lastPay) {
+      lastPaymentDate = lastPay.received_at || lastPay.created_at || null;
+      lastPaymentAmount = Number(lastPay.amount) || null;
+      lastPaymentMethod = lastPay.method || lastPay.payment_method || null;
+    }
   }
 
   // ── Final balance ──
