@@ -31,8 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info, History, MapPin, User, Phone, Mail, Package } from "lucide-react";
 import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -73,64 +74,9 @@ const ClientAppointments = () => {
   const [newTime, setNewTime] = useState("");
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  // Fetch client profile
-  const { data: profile } = useQuery({
-    queryKey: ["client-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  // Get client profile ID for filtering
-  const clientId = profile?.user_id || user?.id;
-  const clientEmail = profile?.email || user?.email;
-
-  const { data: appointments, isLoading } = useQuery({
-    queryKey: ["client-appointments-all", user?.id, clientEmail],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      // SECURITY: Always filter by client_id - never rely solely on RLS
-      const { data, error } = await portalSupabase
-        .from("appointments")
-        .select("*")
-        .eq("client_id", user.id)
-        .order("scheduled_at", { ascending: false });
-      
-      if (error) {
-        console.error("Appointments fetch error:", error);
-        throw error;
-      }
-      
-      console.log("Fetched appointments for client:", data?.length || 0, "appointments");
-      
-      // Fetch technicians for display
-      if (data && data.length > 0) {
-        const techIds = [...new Set(data.filter(a => a.technician_id).map(a => a.technician_id))];
-        if (techIds.length > 0) {
-          const { data: techs } = await portalSupabase
-            .from("technicians")
-            .select("id, full_name, email, phone")
-            .in("id", techIds);
-          
-          return data.map(apt => ({
-            ...apt,
-            technician: techs?.find(t => t.id === apt.technician_id)
-          }));
-        }
-      }
-      
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
+  const profile = canonicalData?.profile;
+  const appointments = canonicalData?.appointments || [];
 
   // Realtime subscription - invalidate on any appointment change
   useEffect(() => {
