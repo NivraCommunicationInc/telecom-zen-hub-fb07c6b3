@@ -24,7 +24,6 @@ import { PortalNotificationBell } from "@/components/client/PortalNotificationBe
 import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
 import PrepaidUrgentBanner from "@/components/client/PrepaidUrgentBanner";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
-import { useOverdueCount } from "@/hooks/useOverdueCount";
 import { usePortalSectionBadges, PortalSectionKey } from "@/hooks/usePortalSectionBadges";
 import { SectionBadge } from "@/components/ui/section-badge";
 import { portalClient } from "@/integrations/backend/portalClient";
@@ -128,21 +127,19 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
   const { badges: sectionBadges } = usePortalSectionBadges();
   const { data: canonicalData } = useCanonicalClientData(user?.id);
-
-  const realtimeScope = useMemo(() => {
-    const ids = canonicalData?.identifiers;
-    return {
-      userId: user?.id ?? null,
-      accountIds: new Set<string>((ids?.accountIds || []).filter(Boolean)),
-      customerIds: new Set<string>([ids?.customerId, ...(ids?.customerIds || [])].filter(Boolean) as string[]),
-      orderIds: new Set<string>((ids?.orderIds || []).filter(Boolean)),
-      subscriptionIds: new Set<string>((ids?.subscriptionIds || []).filter(Boolean)),
-      invoiceIds: new Set<string>((canonicalData?.invoices || []).map((i: any) => i?.id).filter(Boolean)),
-    };
-  }, [canonicalData, user?.id]);
+  const overdueCount = useMemo(() => {
+    const closed = new Set(["paid", "paid_by_promo", "cancelled", "refunded", "void"]);
+    return (canonicalData?.invoices || []).filter((invoice: any) => {
+      const status = String(invoice?.status || "").toLowerCase();
+      return !closed.has(status) && Number(invoice?.balance_due ?? invoice?.total ?? 0) > 0;
+    }).length;
+  }, [canonicalData?.invoices]);
+  const pointsBalance = useMemo(() => {
+    const points = canonicalData?.loyaltyPoints || [];
+    return points.reduce((sum: number, row: any) => sum + (Number(row?.available_points) || 0), 0);
+  }, [canonicalData?.loyaltyPoints]);
 
   const { data: hasStaffRole } = useQuery({
     queryKey: ["user-has-staff-role", user?.id],
@@ -157,21 +154,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     },
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
-  });
-
-  const { data: pointsBalance } = useQuery({
-    queryKey: ["loyalty-points-balance", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-      const { data } = await portalClient
-        .from("loyalty_points")
-        .select("available_points")
-        .eq("client_id", user.id)
-        .maybeSingle();
-      return data?.available_points ?? 0;
-    },
-    enabled: !!user?.id,
-    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -235,50 +217,16 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       }, 750);
     };
 
-    const shouldInvalidateForPayload = (table: string, payload: any) => {
-      const row = payload?.new || payload?.old || {};
-      const scope = realtimeScope;
-      if (!scope.userId) return false;
-
-      if (row.user_id === scope.userId || row.owner_user_id === scope.userId || row.client_id === scope.userId) return true;
-      if (row.account_id && scope.accountIds.has(row.account_id)) return true;
-      if (row.customer_id && scope.customerIds.has(row.customer_id)) return true;
-      if (row.order_id && scope.orderIds.has(row.order_id)) return true;
-      if (row.subscription_id && scope.subscriptionIds.has(row.subscription_id)) return true;
-      if (row.invoice_id && scope.invoiceIds.has(row.invoice_id)) return true;
-      if (table === "orders" && row.id && scope.orderIds.has(row.id)) return true;
-      if (table === "billing_customers" && row.id && scope.customerIds.has(row.id)) return true;
-      if (table === "billing_invoices" && row.id && scope.invoiceIds.has(row.id)) return true;
-      if (table === "billing_subscriptions" && row.id && scope.subscriptionIds.has(row.id)) return true;
-      return false;
-    };
-
-    const handleScopedChange = (table: string) => (payload: any) => {
-      if (shouldInvalidateForPayload(table, payload)) invalidatePortalData();
-    };
-
     const channel = portalClient
-      .channel(`portal-global-sync-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, handleScopedChange("accounts"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, handleScopedChange("orders"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, handleScopedChange("contracts"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "client_auto_documents" }, handleScopedChange("client_auto_documents"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_customers" }, handleScopedChange("billing_customers"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, handleScopedChange("billing_invoices"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, handleScopedChange("billing_payments"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscriptions" }, handleScopedChange("billing_subscriptions"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_subscription_services" }, handleScopedChange("billing_subscription_services"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_instances" }, handleScopedChange("service_instances"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "equipment_inventory" }, handleScopedChange("equipment_inventory"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_addresses" }, handleScopedChange("service_addresses"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_lifecycle" }, handleScopedChange("order_lifecycle"))
+      .channel(`customer-portal-snapshot-sync-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "customer_portal_snapshots", filter: `user_id=eq.${user.id}` }, invalidatePortalData)
       .subscribe();
 
     return () => {
       if (invalidationTimer) clearTimeout(invalidationTimer);
       portalClient.removeChannel(channel);
     };
-  }, [queryClient, user?.id, realtimeScope]);
+  }, [queryClient, user?.id]);
 
   return (
     <ImpersonationProvider>

@@ -26441,6 +26441,66 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_unified_projection: {
+        Row: {
+          account_id: string | null
+          account_ids: string[] | null
+          core_has_data: boolean | null
+          customer_ids: string[] | null
+          last_event_id: string | null
+          last_event_source: string | null
+          last_refreshed_at: string | null
+          order_ids: string[] | null
+          portal_empty: boolean | null
+          projection_version: number | null
+          section_counts: Json | null
+          snapshot: Json | null
+          subscription_ids: string[] | null
+          updated_at: string | null
+          user_id: string | null
+          validation_errors: Json | null
+          validation_status: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          account_ids?: string[] | null
+          core_has_data?: boolean | null
+          customer_ids?: string[] | null
+          last_event_id?: string | null
+          last_event_source?: string | null
+          last_refreshed_at?: string | null
+          order_ids?: string[] | null
+          portal_empty?: boolean | null
+          projection_version?: number | null
+          section_counts?: Json | null
+          snapshot?: Json | null
+          subscription_ids?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+          validation_errors?: Json | null
+          validation_status?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          account_ids?: string[] | null
+          core_has_data?: boolean | null
+          customer_ids?: string[] | null
+          last_event_id?: string | null
+          last_event_source?: string | null
+          last_refreshed_at?: string | null
+          order_ids?: string[] | null
+          portal_empty?: boolean | null
+          projection_version?: number | null
+          section_counts?: Json | null
+          snapshot?: Json | null
+          subscription_ids?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+          validation_errors?: Json | null
+          validation_status?: string | null
+        }
+        Relationships: []
+      }
       employee_financial_summary: {
         Row: {
           available_balance: number | null
@@ -27703,6 +27763,23 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      detect_customer_portal_orphan_relations: {
+        Args: never
+        Returns: {
+          details: Json
+          orphan_type: string
+          source_id: string
+          source_table: string
+        }[]
+      }
+      detect_missing_customer_portal_projections: {
+        Args: never
+        Returns: {
+          core_sources: Json
+          reason: string
+          user_id: string
+        }[]
+      }
       detect_portal_empty_core_populated: {
         Args: never
         Returns: {
@@ -28403,6 +28480,10 @@ export type Database = {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
         Returns: Json
       }
+      repair_customer_portal_projection_batch: {
+        Args: { _limit?: number }
+        Returns: Json
+      }
       repair_customer_portal_snapshot: {
         Args: { _user_id: string }
         Returns: Json
@@ -28413,6 +28494,7 @@ export type Database = {
         Returns: string
       }
       reveal_supplier_password: { Args: { p_id: string }; Returns: string }
+      run_customer_portal_integrity_check: { Args: never; Returns: Json }
       search_clients_unified: {
         Args: {
           search_email?: string
