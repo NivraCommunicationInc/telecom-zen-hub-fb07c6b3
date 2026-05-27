@@ -1,12 +1,11 @@
 /**
- * Hook for counting open invoices - V2 Billing ONLY
- * Single source of truth: billing_invoices.balance_due/status
+ * Hook for counting open invoices from canonical customer portal snapshot only.
  */
 
-import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { backendClient } from "@/integrations/backend/client";
+import { useEffect } from "react";
 
 /**
  * @param userId - The user ID to count open invoices for
@@ -24,22 +23,12 @@ export function useOverdueCount(
     queryFn: async () => {
       if (!userId) return 0;
 
-      const { data: customer } = await client
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (!customer) return 0;
-
-      const { count } = await client
-        .from("billing_invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("customer_id", customer.id)
-        .not("status", "in", '("paid","paid_by_promo","cancelled","refunded","void")')
-        .gt("balance_due", 0);
-
-      return count || 0;
+      const { data, error } = await client.rpc("get_customer_portal_snapshot", { _user_id: userId });
+      if (error) throw error;
+      const closed = new Set(["paid", "paid_by_promo", "cancelled", "refunded", "void"]);
+      return [...(((data as any)?.invoices || []) as any[]), ...(((data as any)?.monthlyInvoices || []) as any[])]
+        .filter((invoice) => !closed.has(String(invoice?.status || "").toLowerCase()) && Number(invoice?.balance_due ?? invoice?.total ?? 0) > 0)
+        .length;
     },
     enabled: !!userId,
     staleTime: 30000,
@@ -49,11 +38,8 @@ export function useOverdueCount(
     if (!userId) return;
 
     const channel = client
-      .channel(`overdue-count-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["overdue-count-unified", userId] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, () => {
+      .channel(`overdue-count-canonical-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "customer_portal_snapshots", filter: `user_id=eq.${userId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ["overdue-count-unified", userId] });
       })
       .subscribe();
