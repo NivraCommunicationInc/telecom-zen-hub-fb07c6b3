@@ -27750,9 +27750,25 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      customer_portal_global_validation: {
+        Args: { _limit?: number; _repair?: boolean }
+        Returns: Json
+      }
+      customer_portal_projection_domain_counts: {
+        Args: { _snapshot: Json }
+        Returns: Json
+      }
       customer_portal_section_counts: {
         Args: { _snapshot: Json }
         Returns: Json
+      }
+      customer_portal_snapshot_array_count: {
+        Args: { _key: string; _snapshot: Json }
+        Returns: number
+      }
+      customer_portal_snapshot_domain_empty: {
+        Args: { _counts: Json }
+        Returns: boolean
       }
       customer_portal_snapshot_is_empty: {
         Args: { _counts: Json }
