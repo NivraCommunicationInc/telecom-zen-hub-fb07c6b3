@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { 
   Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, 
   MessageSquare, Loader2, ChevronDown, ChevronUp 
