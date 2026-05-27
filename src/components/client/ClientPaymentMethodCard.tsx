@@ -44,28 +44,11 @@ export const ClientPaymentMethodCard = () => {
     clearLastError,
   } = useClientAutoPayEnrollment();
 
-  const { data: paypalSub, isLoading } = useQuery({
-    queryKey: ["client-paypal-preauth", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (!customer) return null;
-      const { data } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, paypal_subscription_id")
-        .eq("customer_id", customer.id)
-        .eq("status", "active")
-        .not("paypal_subscription_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data ?? null;
-    },
-  });
+  const { data: canonical, isLoading } = useCanonicalClientData(user?.id);
+  const paypalSub = ((canonical?.subscriptions || []) as any[])
+    .filter((s) => s.status === "active" && s.paypal_subscription_id)
+    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))[0] || null;
+
 
   const isPreAuth = !!paypalSub;
 
