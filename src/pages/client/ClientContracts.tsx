@@ -95,7 +95,7 @@ const ClientContracts = () => {
         }
       );
 
-      queryClient.invalidateQueries({ queryKey: ["client-contracts", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       toast({
         title: "Contrat signé avec succès",
         description: "Votre signature a été enregistrée. Vous pouvez télécharger le contrat signé.",
