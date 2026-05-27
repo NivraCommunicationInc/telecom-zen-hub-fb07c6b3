@@ -27848,6 +27848,10 @@ export type Database = {
         Args: { _details?: Json; _reason: string; _user_id: string }
         Returns: string
       }
+      customer_portal_enrich_snapshot: {
+        Args: { _snapshot: Json; _user_id: string }
+        Returns: Json
+      }
       customer_portal_global_validation: {
         Args: { _limit?: number; _repair?: boolean }
         Returns: Json
