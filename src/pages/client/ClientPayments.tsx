@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink, DollarSign } from "lucide-react";
+import { CreditCard, Banknote, Mail, Copy, Check, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
