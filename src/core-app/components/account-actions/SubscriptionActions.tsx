@@ -2,7 +2,7 @@
  * Subscription management visible action bar for Account 360.
  * NO DROPDOWNS — all actions are visible buttons.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
