@@ -6,9 +6,6 @@
  * TERMINOLOGY: Uses prepaid-friendly labels (no "impayé", "dette", "overdue" visible)
  */
 
-import { useLedgerBalance } from "@/hooks/useLedgerBalance";
-import { useQuery } from "@tanstack/react-query";
-import { portalClient } from "@/integrations/backend/portalClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +23,7 @@ import {
   Calendar
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 // Import centralized labels for prepaid terminology
 import { 
@@ -58,62 +56,31 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 };
 
 export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
-  // Use V2 ledger balance hook with portal client for proper RLS
-  const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(userId, portalClient);
-
-  // Fetch pending invoices from canonical billing_invoices only
-  const { data: pendingInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["pending-invoices-canonical", userId],
-    queryFn: async () => {
-      const allPending: PendingInvoice[] = [];
-
-      // 1. V2 System: billing_invoices
-      const { data: customer } = await portalClient
-        .from('billing_customers')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (customer) {
-        const { data: v2Invoices } = await portalClient
-          .from('billing_invoices')
-          .select('id, invoice_number, due_date, status, total, amount_paid, balance_due')
-          .eq('customer_id', customer.id)
-          .not('status', 'in', '("paid","cancelled","refunded")')
-          .order('due_date', { ascending: true });
-
-        for (const inv of v2Invoices || []) {
-          const balanceDue = Number(inv.balance_due ?? 0);
-          if (balanceDue > 0) {
-            allPending.push({
-              id: inv.id,
-              invoice_number: inv.invoice_number,
-              due_date: inv.due_date,
-              status: inv.status,
-              total: Number(inv.total),
-              amount_paid: Number(inv.amount_paid || 0),
-              balance_due: balanceDue,
-            });
-          }
-        }
-      }
-
-      // Legacy billing table — REMOVED. Single source of truth = billing_invoices V2.
-      // If you see zero invoices, it means the client has no V2 billing_customer record yet.
-
-      // Sort by due date
-      allPending.sort((a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-      });
-
-      return allPending;
-    },
-    enabled: !!userId,
-  });
-
-  const isLoading = ledgerLoading || invoicesLoading;
+  const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
+  const closedStatuses = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
+  const invoices = canonicalData?.invoices || [];
+  const payments = canonicalData?.payments || [];
+  const pendingInvoices: PendingInvoice[] = invoices
+    .filter((inv: any) => !closedStatuses.includes(String(inv.status || "")) && Number(inv.balance_due || 0) > 0)
+    .map((inv: any) => ({
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      due_date: inv.due_date,
+      status: inv.status,
+      total: Number(inv.total || 0),
+      amount_paid: Number(inv.amount_paid || 0),
+      balance_due: Number(inv.balance_due || 0),
+    }))
+    .sort((a, b) => new Date(a.due_date || 8640000000000000).getTime() - new Date(b.due_date || 8640000000000000).getTime());
+  const confirmedPayments = payments.filter((pay: any) => ["confirmed", "completed"].includes(String(pay.status || "")));
+  const totalDebits = invoices
+    .filter((inv: any) => !["void", "cancelled", "refunded"].includes(String(inv.status || "")))
+    .reduce((sum: number, inv: any) => sum + Number(inv.total || 0), 0);
+  const totalCredits = confirmedPayments.reduce((sum: number, pay: any) => sum + Number(pay.amount || 0), 0);
+  const balance = Math.round((totalDebits - totalCredits) * 100) / 100;
+  const lastPayment = [...confirmedPayments].sort(
+    (a: any, b: any) => new Date(b.received_at || b.created_at || 0).getTime() - new Date(a.received_at || a.created_at || 0).getTime(),
+  )[0];
 
   if (isLoading) {
     return (
@@ -131,7 +98,6 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
     );
   }
 
-  const balance = ledger?.balance ?? 0;
   const isCredit = balance < 0;
   const displayBalance = Math.abs(balance);
 
@@ -187,7 +153,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
           </div>
 
           {/* Last Payment Info */}
-          {ledger?.lastPaymentDate && (
+          {lastPayment && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 text-sm mb-4 p-2 bg-muted/30 rounded-lg">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Calendar className="w-4 h-4 flex-shrink-0" />
@@ -195,10 +161,10 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
               </div>
               <div className="text-left sm:text-right pl-6 sm:pl-0">
                 <span className="font-medium text-sm">
-                  {ledger.lastPaymentAmount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                  {Number(lastPayment.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </span>
                 <span className="text-muted-foreground ml-2 text-xs sm:text-sm">
-                  {format(new Date(ledger.lastPaymentDate), "d MMM yyyy", { locale: fr })}
+                  {format(new Date(lastPayment.received_at || lastPayment.created_at), "d MMM yyyy", { locale: fr })}
                 </span>
               </div>
             </div>
