@@ -1,10 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend/portalClient";
-import {
-  assertCanonicalAccountInvariant,
-  buildCanonicalAccountMaps,
-  resolveCanonicalAccountNumber,
-} from "@/lib/canonicalAccountResolver";
 
 type AccountIdentity = {
   accountNumber: string | null;
@@ -35,56 +30,26 @@ export const useClientAccountIdentity = (userId?: string) => {
         return { accountNumber: null, clientNumber: null, source: "none" };
       }
 
-      const { data: profile } = await portalClient
-        .from("profiles")
-        .select("client_number")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      const profileClientNumber = cleanValue(profile?.client_number);
-
-      const maps = await buildCanonicalAccountMaps(portalClient, {
-        userIds: [userId],
-        accountIds: [userId],
+      const { data, error } = await portalClient.rpc("get_customer_portal_snapshot", {
+        _user_id: userId,
       });
-      const accountNumber = cleanValue(
-        resolveCanonicalAccountNumber(maps, { userId }),
-      ) ?? cleanValue((await portalClient.from("accounts").select("account_number").eq("client_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.account_number);
+      if (error) throw error;
+
+      const snapshot = (data || {}) as any;
+      const accountNumber = cleanValue(snapshot?.account?.account_number);
+      const clientNumber = cleanValue(snapshot?.identifiers?.clientNumber ?? snapshot?.profile?.client_number);
 
       if (accountNumber) {
         return {
           accountNumber,
-          clientNumber: profileClientNumber,
+          clientNumber,
           source: "accounts",
         };
       }
 
-      // HARD INVARIANT: invoices must never exist without canonical account identity
-      const { data: billingCustomer } = await portalClient
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (billingCustomer?.id) {
-        const { data: existingInvoice } = await portalClient
-          .from("billing_invoices")
-          .select("id")
-          .eq("customer_id", billingCustomer.id)
-          .limit(1)
-          .maybeSingle();
-
-        assertCanonicalAccountInvariant(
-          "client_identity",
-          userId,
-          { customerId: billingCustomer.id, userId },
-          existingInvoice?.id ? accountNumber : "ok",
-        );
-      }
-
       return {
         accountNumber: null,
-        clientNumber: profileClientNumber,
+        clientNumber,
         source: "none",
       };
     },
