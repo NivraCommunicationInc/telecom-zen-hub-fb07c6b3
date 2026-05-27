@@ -63,8 +63,7 @@ const PaymentDisputeDialog = ({ open, onOpenChange, payment }: PaymentDisputeDia
     onSuccess: (data) => {
       setDisputeNumber(data.dispute_number);
       setStep("success");
-      queryClient.invalidateQueries({ queryKey: ["client-disputes"] });
-      queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
     },
     onError: (error: any) => {
       console.error("Dispute submission error:", error);
