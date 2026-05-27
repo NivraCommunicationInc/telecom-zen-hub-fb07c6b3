@@ -112,7 +112,7 @@ const ClientCancellations = () => {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["client-cancellation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       logActivity("create", "cancellation_request", data.id, { 
         service_type: data.service_type,
         request_number: data.request_number 
