@@ -38,8 +38,10 @@ interface LedgerEntry {
 
 export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
   const { data: canonicalData, isLoading } = useCanonicalClientData(userId);
+  const invoices = [...(canonicalData?.invoices || []), ...(canonicalData?.monthlyInvoices || [])];
+  const payments = [...(canonicalData?.payments || []), ...(canonicalData?.legacyPayments || [])];
   const entries: LedgerEntry[] = [
-    ...((canonicalData?.invoices || []).map((inv: any) => ({
+    ...(invoices.map((inv: any) => ({
       id: inv.id,
       type: 'debit' as const,
       date: inv.created_at,
@@ -48,15 +50,15 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
       reference: inv.invoice_number || null,
       status: String(inv.status || ''),
     }))),
-    ...((canonicalData?.payments || []).map((pay: any) => ({
+    ...(payments.map((pay: any) => ({
       id: pay.id,
       type: 'credit' as const,
-      date: pay.created_at,
-      description: `Paiement ${pay.payment_number || pay.id}`,
+      date: pay.received_at || pay.captured_at || pay.created_at,
+      description: `Paiement ${pay.payment_number || pay.payment_reference || pay.id}`,
       amount: Number(pay.amount) || 0,
-      reference: pay.reference,
+      reference: pay.reference || pay.reference_number || pay.payment_reference || null,
       status: String(pay.status || ''),
-      method: pay.method || undefined,
+      method: pay.method || pay.payment_method || undefined,
     }))),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
