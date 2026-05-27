@@ -6,8 +6,6 @@
  * Lifecycle (canonical, see installation-lifecycle-states memory):
  *   confirmed → processing → shipped → installation → activated
  */
-import { useQuery } from "@tanstack/react-query";
-import { portalClient as portalSupabase } from "@/integrations/backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -139,19 +137,9 @@ export default function ClientOrdersInProgress() {
 
   const orderIds = orders.map((o) => o.id);
 
-  const { data: appointments = [] } = useQuery({
-    queryKey: ["client-orders-in-progress-appointments", orderIds.join(",")],
-    enabled: orderIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("appointments")
-        .select("id, order_id, scheduled_at, status, installation_method")
-        .in("order_id", orderIds)
-        .order("scheduled_at", { ascending: true });
-      if (error) throw error;
-      return (data || []) as AppointmentRow[];
-    },
-  });
+  const appointments = ((canonicalData?.appointments || []) as AppointmentRow[])
+    .filter((appointment) => appointment.order_id && orderIds.includes(appointment.order_id))
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   if (isLoading) {
     return (
