@@ -183,7 +183,7 @@ const ClientAuthorizedContacts: React.FC = () => {
           ? t("Contact updated", "Contact mis à jour")
           : t("Contact added", "Contact ajouté"),
       });
-      queryClient.invalidateQueries({ queryKey: ["authorized-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       closeDialog();
     },
     onError: (error: any) => {
@@ -206,7 +206,7 @@ const ClientAuthorizedContacts: React.FC = () => {
     },
     onSuccess: () => {
       toast({ title: t("Contact removed", "Contact supprimé") });
-      queryClient.invalidateQueries({ queryKey: ["authorized-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
       setDeleteDialogOpen(false);
       setContactToDelete(null);
     },
