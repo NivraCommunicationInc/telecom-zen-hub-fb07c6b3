@@ -18,7 +18,6 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
-import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, Plus, CheckCircle2, XCircle, Bell } from "lucide-react";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
