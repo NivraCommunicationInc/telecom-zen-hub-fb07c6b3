@@ -55,6 +55,10 @@ function OrderConsole({ orderId }: { orderId: string }) {
     return <CoreFieldIntentDetail intentId={orderId} />;
   }
 
+  return <CanonicalOrderConsole orderId={orderId} />;
+}
+
+function CanonicalOrderConsole({ orderId }: { orderId: string }) {
   const proc = useOrderProcessing(orderId);
 
   if (proc.isLoading) {
