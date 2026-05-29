@@ -1,15 +1,22 @@
 /**
  * CoreOrderDetail — Order processing console.
  *
- * Single canonical UI for every order. Field payment intents (FIELD-XXXX)
- * are transparently materialized into a real `orders` row via the
- * `materialize_field_intent` RPC, then rendered with the exact same shell
- * and processing workflow as any other order.
+ * Layout matches the canonical HTML reference:
+ *   ┌──────────────────────────────────────────────────────┐
+ *   │ HEADER (#0f1623 dark) — id · client · pills · SLA    │
+ *   ├──────────────────────────────────────────────────────┤
+ *   │ STEP RAIL (#0b0f1a) — horizontal scrollable tabs     │
+ *   ├──────────────┬───────────────────────────────────────┤
+ *   │ SIDEBAR 200px│  CONTENT (StepContent)                │
+ *   │  · steps     │                                       │
+ *   │  · quick acts│                                       │
+ *   ├──────────────┴───────────────────────────────────────┤
+ *   │ ACTION BAR — client summary · primary CTA            │
+ *   └──────────────────────────────────────────────────────┘
+ *
+ * Logic-level imports / state / mutations are unchanged.
  */
-import { useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useParams, Link } from "react-router-dom";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
@@ -21,9 +28,6 @@ import { StepContent } from "@/core-app/components/order-processing/StepContent"
 import {
   ArrowLeft, Loader2, ShoppingCart,
 } from "lucide-react";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
-const FIELD_REF_RE = /^#?FIELD-([0-9a-f]{8})$/i;
 
 const CoreOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -40,92 +44,10 @@ const CoreOrderDetail = () => {
     );
   }
 
-  return <OrderConsoleResolver orderIdParam={orderId} />;
+  return <OrderConsole orderId={orderId} />;
 };
 
-/**
- * Resolve any incoming id (canonical UUID, FIELD-XXXX ref, or field_payment_intent UUID)
- * into a real `public.orders.id`, materializing the intent if needed.
- */
-function OrderConsoleResolver({ orderIdParam }: { orderIdParam: string }) {
-  const navigate = useNavigate();
-  const normalized = decodeURIComponent(orderIdParam).trim();
-
-  const { data: resolvedOrderId, isLoading, error } = useQuery({
-    queryKey: ["resolve-order-id", normalized],
-    queryFn: async () => {
-      // 1) Direct UUID: check if it's already a real order
-      if (UUID_RE.test(normalized)) {
-        const { data: existing } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("id", normalized)
-          .maybeSingle();
-        if (existing?.id) return existing.id as string;
-
-        // Otherwise treat as a field_payment_intent and materialize through the backend.
-        const { data, error } = await supabase.functions.invoke("materialize-field-intent", {
-          body: { intent_id: normalized },
-        });
-        if (!error && data?.order_id) return data.order_id as string;
-        return null;
-      }
-
-      // 2) FIELD-XXXX ref: resolve to intent then materialize
-      const fieldRef = normalized.match(FIELD_REF_RE)?.[1]?.toLowerCase();
-      if (fieldRef) {
-        const { data, error } = await supabase.functions.invoke("materialize-field-intent", {
-          body: { field_ref: `FIELD-${fieldRef}` },
-        });
-        if (error) throw error;
-        if (!data?.order_id) throw new Error(data?.error || "Commande FIELD introuvable");
-        return data.order_id as string;
-      }
-
-      // 3) Try as order_number
-      const { data: byNumber } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("order_number", normalized)
-        .maybeSingle();
-      return byNumber?.id ?? null;
-    },
-  });
-
-  // If we materialized/resolved to a different id than the URL, rewrite the URL.
-  useEffect(() => {
-    if (resolvedOrderId && resolvedOrderId !== normalized) {
-      navigate(corePath(`/orders/${resolvedOrderId}`), { replace: true });
-    }
-  }, [resolvedOrderId, normalized, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96 bg-[#0a0e16]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#3b82f6]" />
-        <span className="ml-3 text-xs text-[#8b9ab0]">Chargement du dossier…</span>
-      </div>
-    );
-  }
-
-  if (error || !resolvedOrderId) {
-    return (
-      <div className="rounded-lg border border-[#7f0000] bg-[#2d0a0a] p-8 text-center">
-        <p className="text-[#ef9a9a] font-medium text-sm">Erreur de chargement</p>
-        <p className="text-xs text-[#8b9ab0] mt-1">
-          {error instanceof Error ? error.message : "Commande introuvable"}
-        </p>
-        <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-3 inline-block hover:opacity-80">
-          ← Retour aux commandes
-        </Link>
-      </div>
-    );
-  }
-
-  return <CanonicalOrderConsole orderId={resolvedOrderId} />;
-}
-
-function CanonicalOrderConsole({ orderId }: { orderId: string }) {
+function OrderConsole({ orderId }: { orderId: string }) {
   const proc = useOrderProcessing(orderId);
 
   if (proc.isLoading) {
@@ -167,6 +89,7 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
     ? `${Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
     : "—";
 
+  // Build header product-line summary (e.g. "GIGA + TV 25 choix · Terminal Nivra 4K · Router Born Wifi")
   const lineItems: string[] = Array.isArray((order as any).items)
     ? ((order as any).items as any[]).map((it) => it?.name || it?.label).filter(Boolean)
     : [];
@@ -176,6 +99,7 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
 
   return (
     <div className="space-y-2">
+      {/* Back nav */}
       <Link
         to={corePath("/orders")}
         className="inline-flex items-center gap-1.5 text-[11px] text-[#6b7a90] hover:text-white transition-colors mb-1"
@@ -183,11 +107,14 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
         <ArrowLeft className="h-3.5 w-3.5" /> Commandes
       </Link>
 
+      {/* Card-manual processing panel — visible only when a pending intent exists */}
       {order.payment_method === "card_manual" && (
         <CoreCardManualPanel orderId={order.id} orderReference={null} />
       )}
 
+      {/* Main shell — single dark container */}
       <div className="rounded-lg border border-[#1e2535] bg-[#0a0e16] overflow-hidden shadow-2xl">
+        {/* HEADER */}
         <CoreOrderHeader
           order={order}
           profile={profile}
@@ -201,13 +128,16 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
           onRefresh={() => proc.refetch()}
         />
 
+        {/* HORIZONTAL STEP RAIL */}
         <HorizontalStepRail
           steps={proc.workflow}
           activeStep={proc.activeStep}
           onStepClick={(id) => proc.setActiveStep(id)}
         />
 
+        {/* BODY: SIDEBAR | CONTENT */}
         <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] min-h-[560px]">
+          {/* SIDEBAR */}
           <SidebarStepList
             steps={proc.workflow}
             activeStep={proc.activeStep}
@@ -215,6 +145,7 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
             proc={proc}
           />
 
+          {/* CONTENT */}
           <div className="bg-[#0a0e16] border-l border-[#1e2535] overflow-x-auto">
             <div className="p-4">
               <StepContent proc={proc} />
@@ -222,6 +153,7 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
           </div>
         </div>
 
+        {/* ACTION BAR — fixed bottom of console */}
         <div className="px-4 py-2.5 border-t border-[#1e2535] bg-[#0f1623] flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-3 text-[11px] text-[#8b9ab0] flex-wrap min-w-0">
             <span>Client: <strong className="text-white">{clientName}</strong></span>
@@ -233,6 +165,7 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
         </div>
       </div>
 
+      {/* KYC panel + Activity timeline (preserved, below the console) */}
       <div className="space-y-3 mt-3">
         <CoreKycPanel order={proc.order} onRefresh={() => proc.refetch()} />
         <CoreActivityTimeline logs={proc.activityLogs} onAddNote={proc.addNote} orderId={proc.order?.id} />
@@ -242,7 +175,7 @@ function CanonicalOrderConsole({ orderId }: { orderId: string }) {
 }
 
 /* ═══════════════════════════════════════════════════════
- * HORIZONTAL STEP RAIL
+ * HORIZONTAL STEP RAIL — dark scrollable tabs
  * ═══════════════════════════════════════════════════════ */
 function HorizontalStepRail({
   steps,
@@ -284,7 +217,7 @@ function HorizontalStepRail({
 }
 
 /* ═══════════════════════════════════════════════════════
- * SIDEBAR
+ * SIDEBAR — vertical step list + quick actions
  * ═══════════════════════════════════════════════════════ */
 function SidebarStepList({
   steps,
