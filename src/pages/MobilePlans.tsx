@@ -68,14 +68,14 @@ const MobilePlans = () => {
       <main className="pt-24 pb-20 relative">
         {/* Background Effects */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-radial from-blue-500/5 via-transparent to-transparent rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-radial from-cyan-500/5 via-transparent to-transparent rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" />
+          <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.06) 0%, transparent 65%)' }} />
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.04) 0%, transparent 65%)' }} />
         </div>
 
         {/* Hero Section */}
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="text-center max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-blue-500/10 text-blue-500 border-blue-500/20 px-4 py-1.5">
+            <Badge className="mb-6 px-4 py-1.5" style={{ background: 'rgba(124,58,237,0.15)', color: '#C4B5FD', border: '1px solid rgba(124,58,237,0.35)' }}>
               <Smartphone className="w-3.5 h-3.5 mr-1.5" />
               {isFrench ? "Nivra Communications" : "Nivra Communications"}
             </Badge>
@@ -84,7 +84,7 @@ const MobilePlans = () => {
               <span className="block">
                 {isFrench ? "Forfaits Mobiles" : "Mobile Plans"}
               </span>
-              <span className="block bg-gradient-to-r from-blue-500 via-cyan-400 to-cyan-500 bg-clip-text text-transparent">
+              <span className="block" style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 {isFrench ? "Sans vérification de crédit" : "No Credit Check"}
               </span>
             </h1>
@@ -101,7 +101,7 @@ const MobilePlans = () => {
                 <Shield className="w-4 h-4 mr-2" />
                 {isFrench ? "Aucune vérification de crédit" : "No credit check"}
               </Badge>
-              <Badge variant="outline" className="px-4 py-2 text-sm border-blue-500/30 text-blue-500">
+              <Badge variant="outline" className="px-4 py-2 text-sm border-purple-500/30 text-purple-400">
                 <CreditCard className="w-4 h-4 mr-2" />
                 {isFrench ? `${simPrice}$ frais SIM unique` : `$${simPrice} one-time SIM fee`}
               </Badge>
@@ -144,18 +144,18 @@ const MobilePlans = () => {
                 extra={
                   <div
                     className="rounded-2xl p-4 space-y-2.5"
-                    style={{ background: "#FAFAFB", border: "1px solid #ECECEC" }}
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Zap className="w-4 h-4" style={{ color: "#10B981" }} />
-                        <span className="text-sm font-semibold" style={{ color: "#0D0D0D" }}>
+                        <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
                           {isFrench ? "Avec Auto Top-Up" : "With Auto Top-Up"}
                         </span>
                       </div>
                       <span
                         className="px-2.5 py-0.5 text-xs font-bold"
-                        style={{ background: "#ECFDF5", color: "#065F46", borderRadius: 50 }}
+                        style={{ background: "rgba(16,185,129,0.15)", color: "#6EE7B7", borderRadius: 50 }}
                       >
                         {plan.dataAutoTopUp}
                       </span>
@@ -163,13 +163,13 @@ const MobilePlans = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Wifi className="w-4 h-4" style={{ color: "#2563EB" }} />
-                        <span className="text-sm font-semibold" style={{ color: "#0D0D0D" }}>
+                        <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
                           {isFrench ? "Sans Auto Top-Up" : "No Auto Top-Up"}
                         </span>
                       </div>
                       <span
                         className="px-2.5 py-0.5 text-xs font-bold"
-                        style={{ background: "#EFF6FF", color: "#1E40AF", borderRadius: 50 }}
+                        style={{ background: "rgba(37,99,235,0.15)", color: "#93C5FD", borderRadius: 50 }}
                       >
                         {plan.dataNoAutoTopUp}
                       </span>
@@ -232,8 +232,8 @@ const MobilePlans = () => {
 
             <Card className="bg-card/50 border-border">
               <CardContent className="pt-6 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-                  <Globe className="w-7 h-7 text-blue-500" />
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                  <Globe className="w-7 h-7" style={{ color: '#A78BFA' }} />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">
                   {isFrench ? "Couverture nationale 4G" : "Nationwide 4G Coverage"}
@@ -273,7 +273,7 @@ const MobilePlans = () => {
 
         {/* CTA Section */}
         <section className="container mx-auto px-4 relative">
-          <Card className="max-w-3xl mx-auto bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-purple-500/10 border-cyan-500/30">
+          <Card className="max-w-3xl mx-auto border-purple-500/30" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(124,58,237,0.05) 100%)' }}>
             <CardContent className="py-12 text-center">
               <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-4">
                 {isFrench ? "Prêt à commencer?" : "Ready to Get Started?"}

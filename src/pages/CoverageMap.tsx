@@ -124,20 +124,22 @@ export default function CoverageMap() {
   return (
     <>
       <Header />
-      <main className="bg-white">
+      <main style={{ background: '#080612' }}>
         {/* Hero */}
-        <section className="px-5 sm:px-10" style={{ background: "linear-gradient(180deg, #F7F4FF 0%, #FFFFFF 100%)", paddingTop: 56, paddingBottom: 48 }}>
-          <div className="max-w-[1100px] mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background: "#F3EEFF", borderRadius: 50 }}>
-              <MapPin className="w-4 h-4" style={{ color: "#7C3AED" }} />
-              <span className="font-bold uppercase" style={{ color: "#7C3AED", fontSize: 11, letterSpacing: 2 }}>
+        <section className="px-5 sm:px-10" style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 80, paddingBottom: 48, position: 'relative', overflow: 'hidden' }}>
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+          <div aria-hidden className="absolute pointer-events-none" style={{ top: -100, right: -60, width: 400, height: 400, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.15) 0%, transparent 65%)' }} />
+          <div className="max-w-[1100px] mx-auto text-center relative">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background: "rgba(124,58,237,0.15)", border: '1px solid rgba(124,58,237,0.35)', borderRadius: 50 }}>
+              <MapPin className="w-4 h-4" style={{ color: "#A78BFA" }} />
+              <span className="font-bold uppercase" style={{ color: "#C4B5FD", fontSize: 11, letterSpacing: 2 }}>
                 {isFr ? "Couverture Nivra" : "Nivra Coverage"}
               </span>
             </div>
-            <h1 className="font-extrabold mb-4" style={{ color: "#0D0D0D", fontSize: "clamp(28px, 5vw, 44px)", letterSpacing: "-1px", lineHeight: 1.1 }}>
+            <h1 className="font-extrabold mb-4 text-white" style={{ fontSize: "clamp(28px, 5vw, 44px)", letterSpacing: "-1px", lineHeight: 1.1 }}>
               {isFr ? "Vérifiez la couverture à votre adresse" : "Check coverage at your address"}
             </h1>
-            <p className="max-w-2xl mx-auto mb-8" style={{ color: "#555", fontSize: 17, lineHeight: 1.6 }}>
+            <p className="max-w-2xl mx-auto mb-8" style={{ color: "rgba(255,255,255,0.6)", fontSize: 17, lineHeight: 1.6 }}>
               {isFr
                 ? "Entrez une adresse au Québec pour voir les suggestions et confirmer rapidement les services disponibles."
                 : "Enter a Quebec address to see suggestions and quickly confirm available services."}
@@ -145,7 +147,7 @@ export default function CoverageMap() {
 
             {/* Search card */}
             <div className="max-w-2xl mx-auto p-2 flex flex-col sm:flex-row gap-2"
-              style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 20px 50px -20px rgba(124,58,237,0.25), 0 4px 12px rgba(0,0,0,0.05)", border: "1px solid #ECECEC" }}>
+              style={{ background: "rgba(255,255,255,0.04)", borderRadius: 20, boxShadow: "0 20px 50px -20px rgba(124,58,237,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
               <div className="flex-1">
                 <AddressAutocomplete
                   value={search}
@@ -153,7 +155,7 @@ export default function CoverageMap() {
                   onSelect={handleAddressSelect}
                   restrictToQuebec
                   placeholder={isFr ? "Entrez votre adresse au Québec" : "Enter your Quebec address"}
-                  className="h-12 border-0 shadow-none focus-visible:ring-0 text-base"
+                  className="h-12 border-0 shadow-none focus-visible:ring-0 text-base bg-transparent text-white placeholder:text-white/40"
                 />
               </div>
               <Button onClick={() => handleSearch()} className="h-12 px-6 font-bold" style={{ background: "#7C3AED", borderRadius: 50 }}>
@@ -165,9 +167,9 @@ export default function CoverageMap() {
             {resultMsg && (
               <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 max-w-xl text-sm"
                 style={{
-                  background: resultMsg.ok ? "#ECFDF5" : "#FEF2F2",
-                  color: resultMsg.ok ? "#065F46" : "#991B1B",
-                  borderRadius: 12, border: `1px solid ${resultMsg.ok ? "#A7F3D0" : "#FECACA"}`,
+                  background: resultMsg.ok ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
+                  color: resultMsg.ok ? "#6EE7B7" : "#FCA5A5",
+                  borderRadius: 12, border: `1px solid ${resultMsg.ok ? "rgba(16,185,129,0.35)" : "rgba(239,68,68,0.35)"}`,
                 }}>
                 {resultMsg.ok && <CheckCircle2 className="w-4 h-4" />}
                 <span className="font-medium">{resultMsg.text}</span>
@@ -177,22 +179,22 @@ export default function CoverageMap() {
         </section>
 
         {/* Stats */}
-        <section className="px-5 sm:px-10 py-10" style={{ background: "#FFFFFF" }}>
+        <section className="px-5 sm:px-10 py-10" style={{ background: "#0A0A18", borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="max-w-[1100px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: MapPin, label: isFr ? "Villes desservies" : "Cities served", value: stats.cities, color: "#7C3AED" },
-              { icon: Wifi, label: "Internet", value: stats.internet, color: "#2563EB" },
-              { icon: Tv, label: "TV", value: stats.tv, color: "#10B981" },
-              { icon: Smartphone, label: "Mobile", value: stats.mobile, color: "#F59E0B" },
+              { icon: MapPin, label: isFr ? "Villes desservies" : "Cities served", value: stats.cities, color: "#A78BFA" },
+              { icon: Wifi, label: "Internet", value: stats.internet, color: "#60A5FA" },
+              { icon: Tv, label: "TV", value: stats.tv, color: "#34D399" },
+              { icon: Smartphone, label: "Mobile", value: stats.mobile, color: "#FBBF24" },
             ].map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="p-5 text-center" style={{ background: "#FAFAFB", border: "1px solid #ECECEC", borderRadius: 16 }}>
-                  <div className="inline-flex items-center justify-center mb-2" style={{ width: 44, height: 44, borderRadius: 12, background: `${s.color}15` }}>
+                <div key={i} className="p-5 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16 }}>
+                  <div className="inline-flex items-center justify-center mb-2" style={{ width: 44, height: 44, borderRadius: 12, background: `rgba(124,58,237,0.15)` }}>
                     <Icon className="w-5 h-5" style={{ color: s.color }} />
                   </div>
-                  <div className="font-extrabold" style={{ color: "#0D0D0D", fontSize: 28, letterSpacing: "-0.5px" }}>{s.value}</div>
-                  <div style={{ color: "#666", fontSize: 13, marginTop: 2 }}>{s.label}</div>
+                  <div className="font-extrabold text-white" style={{ fontSize: 28, letterSpacing: "-0.5px" }}>{s.value}</div>
+                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginTop: 2 }}>{s.label}</div>
                 </div>
               );
             })}
@@ -202,20 +204,20 @@ export default function CoverageMap() {
         {/* Map */}
         <section className="px-5 sm:px-10 pb-12">
           <div className="max-w-[1100px] mx-auto">
-            <Card className="p-3 sm:p-4" style={{ borderRadius: 20, border: "1px solid #ECECEC", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
+            <Card className="p-3 sm:p-4" style={{ borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", background: 'rgba(255,255,255,0.04)' }}>
               <div className="flex flex-wrap gap-3 mb-3 text-xs px-2">
                 {[
-                  { c: "#7c3aed", l: isFr ? "Service complet" : "Full service" },
-                  { c: "#10b981", l: "Internet + TV" },
-                  { c: "#2563eb", l: "Internet" },
+                  { c: "#A78BFA", l: isFr ? "Service complet" : "Full service" },
+                  { c: "#34D399", l: "Internet + TV" },
+                  { c: "#60A5FA", l: "Internet" },
                   { c: "#94a3b8", l: isFr ? "À venir" : "Coming soon" },
                 ].map((x, i) => (
-                  <span key={i} className="flex items-center gap-1.5 font-medium" style={{ color: "#555" }}>
+                  <span key={i} className="flex items-center gap-1.5 font-medium" style={{ color: "rgba(255,255,255,0.6)" }}>
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: x.c }} />{x.l}
                   </span>
                 ))}
               </div>
-              <div className="rounded-2xl overflow-hidden" style={{ height: "60vh", minHeight: 420, border: "1px solid #EEE" }}>
+              <div className="rounded-2xl overflow-hidden" style={{ height: "60vh", minHeight: 420, border: "1px solid rgba(255,255,255,0.08)" }}>
                 <MapContainer center={[46.8, -71.5]} zoom={6} style={{ height: "100%", width: "100%" }}>
                   <TileLayer
                     attribution='&copy; OpenStreetMap contributors'

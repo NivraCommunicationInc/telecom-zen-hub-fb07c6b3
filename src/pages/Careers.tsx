@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Briefcase,
   MapPin,
@@ -116,58 +113,50 @@ const Careers = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: '#080612', minHeight: '100vh' }}>
       <SEOHead {...SEO_DATA.careers} />
       <Header />
 
       {/* HERO */}
-      <section className="relative overflow-hidden bg-[#EDE9FF] pt-32 pb-24">
-        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-[#7C3AED]/15 blur-3xl" aria-hidden />
-        <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-[#7C3AED]/10 blur-3xl" aria-hidden />
+      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 80, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+        <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
+        <div aria-hidden className="absolute pointer-events-none" style={{ bottom: -100, left: -80, width: 400, height: 400, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.10) 0%, transparent 65%)' }} />
 
         <div className="container relative z-10 mx-auto px-4">
           <div className="mx-auto max-w-4xl text-center">
-            <Badge className="mb-6 rounded-full border-0 bg-white px-4 py-1.5 text-xs font-medium text-[#7C3AED] shadow-sm">
-              <Sparkles className="mr-1.5 h-3 w-3" />
-              On recrute — équipe Nivra Telecom
-            </Badge>
-            <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight text-[#111111] md:text-6xl lg:text-7xl">
+            <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
+              <Sparkles className="w-3 h-3" style={{ color: '#A78BFA' }} />
+              <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+                On recrute — équipe Nivra Telecom
+              </span>
+            </div>
+            <h1 className="font-display font-black text-white" style={{ fontSize: 'clamp(36px, 6vw, 68px)', letterSpacing: '-2px', lineHeight: 1.03, marginBottom: 20 }}>
               Construisez la nouvelle
               <br />
               télécommunication
-              <span className="ml-2 inline-block text-[#7C3AED]">québécoise.</span>
+              <span style={{ marginLeft: 12, background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> québécoise.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-neutral-700 md:text-xl">
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto 36px' }}>
               Chez Nivra, on bâtit des services télécoms simples, transparents et sans engagement.
               Rejoignez une équipe qui livre vite, pense clair et prend soin de ses gens.
             </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button
-                size="lg"
-                asChild
-                className="h-12 rounded-full bg-[#111111] px-7 text-white hover:bg-[#111111]/90"
-              >
-                <a href="#positions">
-                  Voir les postes ouverts
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                asChild
-                className="h-12 rounded-full border-neutral-300 bg-white px-7 text-[#111111] hover:bg-neutral-50"
-              >
-                <Link to="/apply">Candidature spontanée</Link>
-              </Button>
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a href="#positions" style={{ height: 48, borderRadius: 999, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 15, padding: '0 28px', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 20px rgba(124,58,237,0.45)', textDecoration: 'none' }}>
+                Voir les postes ouverts
+                <ArrowRight className="w-4 h-4" />
+              </a>
+              <Link to="/apply" style={{ height: 48, borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 15, padding: '0 28px', display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+                Candidature spontanée
+              </Link>
             </div>
 
             {/* Stats */}
-            <div className="mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/60 bg-white/60 backdrop-blur md:grid-cols-4">
+            <div className="mx-auto mt-14 grid max-w-3xl grid-cols-2 md:grid-cols-4 overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)' }}>
               {stats.map((s) => (
-                <div key={s.label} className="bg-white/80 px-4 py-6 text-center">
-                  <div className="font-display text-3xl font-bold text-[#111111]">{s.value}</div>
-                  <div className="mt-1 text-xs uppercase tracking-wide text-neutral-500">{s.label}</div>
+                <div key={s.label} style={{ background: 'rgba(255,255,255,0.04)', padding: '24px 16px', textAlign: 'center' }}>
+                  <div className="font-display font-bold text-white" style={{ fontSize: 32 }}>{s.value}</div>
+                  <div style={{ marginTop: 4, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(255,255,255,0.4)' }}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -176,14 +165,14 @@ const Careers = () => {
       </section>
 
       {/* VALUES */}
-      <section className="border-y border-neutral-200 bg-white py-24">
+      <section style={{ background: '#0A0A18', borderTop: '1px solid rgba(255,255,255,0.07)', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
-          <div className="mx-auto mb-16 max-w-2xl text-center">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#7C3AED]">Nos valeurs</div>
-            <h2 className="font-display text-4xl font-bold tracking-tight text-[#111111] md:text-5xl">
+          <div className="mx-auto mb-14 max-w-2xl text-center">
+            <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Nos valeurs</div>
+            <h2 className="font-display font-bold text-white" style={{ fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-1px', marginBottom: 14 }}>
               Ce qui nous guide.
             </h2>
-            <p className="mt-4 text-lg text-neutral-600">
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, lineHeight: 1.7 }}>
               Trois principes simples qui se ressentent dans chaque décision, chaque ligne de code, chaque appel client.
             </p>
           </div>
@@ -191,13 +180,14 @@ const Careers = () => {
             {values.map((value) => (
               <div
                 key={value.title}
-                className="group relative overflow-hidden rounded-3xl border border-neutral-200 bg-[#F7F7F7] p-8 transition-all hover:border-[#7C3AED]/30 hover:bg-white hover:shadow-[0_8px_30px_rgb(124,58,237,0.08)]"
+                className="group hover:border-purple-500/30"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 24, padding: 32, transition: 'border-color 0.2s' }}
               >
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C3AED]/10 text-[#7C3AED] transition-colors group-hover:bg-[#7C3AED] group-hover:text-white">
+                <div className="group-hover:bg-[#7C3AED] group-hover:text-white transition-colors" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: 14, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', color: '#A78BFA' }}>
                   <value.icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-display text-xl font-semibold text-[#111111]">{value.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">{value.description}</p>
+                <h3 className="font-display font-semibold text-white" style={{ fontSize: 19, marginBottom: 8 }}>{value.title}</h3>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: 'rgba(255,255,255,0.55)' }}>{value.description}</p>
               </div>
             ))}
           </div>
@@ -205,18 +195,16 @@ const Careers = () => {
       </section>
 
       {/* BENEFITS */}
-      <section className="bg-[#F7F7F7] py-24">
+      <section style={{ background: '#080612', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
-          <div className="mb-16 grid items-end gap-8 md:grid-cols-2">
+          <div className="mb-14 grid items-end gap-8 md:grid-cols-2">
             <div>
-              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#7C3AED]">Avantages</div>
-              <h2 className="font-display text-4xl font-bold tracking-tight text-[#111111] md:text-5xl">
-                On investit dans
-                <br />
-                notre équipe.
+              <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Avantages</div>
+              <h2 className="font-display font-bold text-white" style={{ fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-1px', lineHeight: 1.1 }}>
+                On investit dans<br />notre équipe.
               </h2>
             </div>
-            <p className="text-lg text-neutral-600 md:text-right">
+            <p className="md:text-right" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, lineHeight: 1.7 }}>
               Parce qu'un bon service commence par des gens qui se sentent bien au travail.
             </p>
           </div>
@@ -224,14 +212,15 @@ const Careers = () => {
             {benefits.map((benefit) => (
               <div
                 key={benefit.title}
-                className="flex items-start gap-4 rounded-2xl border border-neutral-200 bg-white p-6 transition-all hover:border-[#7C3AED]/30"
+                className="hover:border-purple-500/30"
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 24, transition: 'border-color 0.2s' }}
               >
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#EDE9FF] text-[#7C3AED]">
-                  <benefit.icon className="h-5 w-5" />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                  <benefit.icon className="h-5 w-5" style={{ color: '#A78BFA' }} />
                 </div>
                 <div>
-                  <h3 className="font-display text-base font-semibold text-[#111111]">{benefit.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-neutral-600">{benefit.description}</p>
+                  <h3 className="font-display font-semibold text-white" style={{ fontSize: 15, marginBottom: 4 }}>{benefit.title}</h3>
+                  <p style={{ fontSize: 13, lineHeight: 1.7, color: 'rgba(255,255,255,0.55)' }}>{benefit.description}</p>
                 </div>
               </div>
             ))}
@@ -240,16 +229,14 @@ const Careers = () => {
       </section>
 
       {/* HIRING PROCESS */}
-      <section className="bg-white py-24">
+      <section style={{ background: '#0A0A18', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
-          <div className="mx-auto mb-16 max-w-2xl text-center">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#7C3AED]">Notre processus</div>
-            <h2 className="font-display text-4xl font-bold tracking-tight text-[#111111] md:text-5xl">
-              De candidat à coéquipier
-              <br />
-              en 4 étapes.
+          <div className="mx-auto mb-14 max-w-2xl text-center">
+            <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Notre processus</div>
+            <h2 className="font-display font-bold text-white" style={{ fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-1px', marginBottom: 14 }}>
+              De candidat à coéquipier<br />en 4 étapes.
             </h2>
-            <p className="mt-4 text-lg text-neutral-600">
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, lineHeight: 1.7 }}>
               Simple, rapide, transparent. On vous tient informé à chaque étape.
             </p>
           </div>
@@ -257,13 +244,13 @@ const Careers = () => {
             {hiringSteps.map((s, i) => (
               <div
                 key={s.step}
-                className="relative rounded-3xl border border-neutral-200 bg-[#F7F7F7] p-8"
+                style={{ position: 'relative', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 24, padding: 32 }}
               >
-                <div className="mb-6 font-display text-5xl font-bold text-[#7C3AED]/30">{s.step}</div>
-                <h3 className="font-display text-lg font-semibold text-[#111111]">{s.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">{s.description}</p>
+                <div className="font-display font-bold" style={{ fontSize: 52, color: 'rgba(124,58,237,0.3)', marginBottom: 20 }}>{s.step}</div>
+                <h3 className="font-display font-semibold text-white" style={{ fontSize: 17, marginBottom: 8 }}>{s.title}</h3>
+                <p style={{ fontSize: 13, lineHeight: 1.7, color: 'rgba(255,255,255,0.55)' }}>{s.description}</p>
                 {i < hiringSteps.length - 1 && (
-                  <ArrowRight className="absolute -right-3 top-1/2 hidden h-5 w-5 -translate-y-1/2 text-[#7C3AED]/40 lg:block" />
+                  <ArrowRight className="absolute -right-3 top-1/2 hidden h-5 w-5 -translate-y-1/2 lg:block" style={{ color: 'rgba(124,58,237,0.4)' }} />
                 )}
               </div>
             ))}
@@ -272,14 +259,14 @@ const Careers = () => {
       </section>
 
       {/* POSITIONS */}
-      <section id="positions" className="scroll-mt-24 bg-[#F7F7F7] py-24">
+      <section id="positions" className="scroll-mt-24" style={{ background: '#080612', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
-          <div className="mx-auto mb-12 max-w-3xl text-center">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#7C3AED]">Opportunités</div>
-            <h2 className="font-display text-4xl font-bold tracking-tight text-[#111111] md:text-5xl">
+          <div className="mx-auto mb-10 max-w-3xl text-center">
+            <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Opportunités</div>
+            <h2 className="font-display font-bold text-white" style={{ fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-1px', marginBottom: 14 }}>
               Postes ouverts
             </h2>
-            <p className="mt-4 text-lg text-neutral-600">
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, lineHeight: 1.7 }}>
               {jobs?.length
                 ? `${jobs.length} opportunité${jobs.length > 1 ? "s" : ""} à pourvoir maintenant.`
                 : "Explorez nos opportunités actuelles."}
@@ -287,21 +274,21 @@ const Careers = () => {
           </div>
 
           {/* Filters */}
-          <div className="mx-auto mb-8 max-w-5xl rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <div className="mx-auto mb-8 max-w-5xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
             <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                <Input
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'rgba(255,255,255,0.35)' }} />
+                <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Rechercher un poste, un mot-clé…"
-                  className="h-11 rounded-xl border-neutral-200 bg-[#F7F7F7] pl-10"
+                  style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', paddingLeft: 40, paddingRight: 16, color: 'white', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
               <select
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
-                className="h-11 rounded-xl border border-neutral-200 bg-white px-4 text-sm text-[#111111] outline-none focus:border-[#7C3AED]"
+                style={{ height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(20,10,40,1)', padding: '0 16px', color: 'rgba(255,255,255,0.8)', fontSize: 14, outline: 'none' }}
                 aria-label="Filtrer par département"
               >
                 {departments.map((d) => (
@@ -313,7 +300,7 @@ const Careers = () => {
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="h-11 rounded-xl border border-neutral-200 bg-white px-4 text-sm text-[#111111] outline-none focus:border-[#7C3AED]"
+                style={{ height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(20,10,40,1)', padding: '0 16px', color: 'rgba(255,255,255,0.8)', fontSize: 14, outline: 'none' }}
                 aria-label="Filtrer par lieu"
               >
                 {locations.map((l) => (
@@ -329,45 +316,44 @@ const Careers = () => {
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-28 animate-pulse rounded-2xl border border-neutral-200 bg-white" />
+                  <div key={i} className="animate-pulse" style={{ height: 112, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }} />
                 ))}
               </div>
             ) : filtered.length > 0 ? (
-              <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+              <div style={{ overflow: 'hidden', borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
                 {filtered.map((position, idx) => (
                   <Link
                     key={position.id}
                     to={`/apply/${position.id}`}
-                    className={`group flex flex-col gap-4 p-6 transition-colors hover:bg-[#EDE9FF]/30 md:flex-row md:items-center md:justify-between ${
-                      idx !== filtered.length - 1 ? "border-b border-neutral-200" : ""
-                    }`}
+                    className="group md:flex-row md:items-center md:justify-between hover:bg-white/[0.03]"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 24, textDecoration: 'none', borderBottom: idx !== filtered.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none', transition: 'background 0.15s' }}
                   >
-                    <div className="flex-1">
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <h3 className="font-display text-lg font-semibold text-[#111111] group-hover:text-[#7C3AED]">
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <h3 className="font-display font-semibold text-white group-hover:text-[#A78BFA]" style={{ fontSize: 17, transition: 'color 0.15s' }}>
                           {position.title}
                         </h3>
-                        <Badge className="rounded-full border-0 bg-[#EDE9FF] px-2.5 py-0.5 text-[11px] font-medium text-[#7C3AED] hover:bg-[#EDE9FF]">
+                        <span style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '2px 10px', fontSize: 11, color: '#C4B5FD', fontWeight: 500 }}>
                           {position.type}
-                        </Badge>
+                        </span>
                       </div>
                       {position.description && (
-                        <p className="mb-3 line-clamp-2 max-w-2xl text-sm text-neutral-600">
+                        <p className="line-clamp-2 max-w-2xl" style={{ marginBottom: 10, fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
                           {position.description}
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-neutral-500">
-                        <span className="flex items-center gap-1.5">
-                          <Building2 className="h-4 w-4 text-[#7C3AED]" />
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Building2 className="h-4 w-4" style={{ color: '#A78BFA' }} />
                           {position.department}
                         </span>
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4 text-[#7C3AED]" />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <MapPin className="h-4 w-4" style={{ color: '#A78BFA' }} />
                           {position.location}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-[#111111] md:text-[#7C3AED]">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: '#A78BFA' }}>
                       Postuler
                       <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                     </div>
@@ -375,27 +361,25 @@ const Careers = () => {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-neutral-200 bg-white py-16 text-center">
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EDE9FF]">
-                  <Briefcase className="h-8 w-8 text-[#7C3AED]" />
+              <div style={{ borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', padding: '64px 0', textAlign: 'center' }}>
+                <div style={{ margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 20, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                  <Briefcase className="h-8 w-8" style={{ color: '#A78BFA' }} />
                 </div>
-                <h3 className="font-display text-xl font-semibold text-[#111111]">
+                <h3 className="font-display font-semibold text-white" style={{ fontSize: 19, marginBottom: 8 }}>
                   {jobs?.length ? "Aucun résultat" : "Aucun poste ouvert actuellement"}
                 </h3>
-                <p className="mx-auto mt-2 max-w-md text-neutral-600">
+                <p style={{ maxWidth: 400, margin: '0 auto 24px', color: 'rgba(255,255,255,0.5)', fontSize: 14, lineHeight: 1.7 }}>
                   {jobs?.length
                     ? "Essayez d'ajuster votre recherche ou vos filtres."
                     : "On n'a pas d'ouverture pour le moment, mais on garde l'œil ouvert sur les talents."}
                 </p>
-                <Button
-                  asChild
-                  className="mt-6 rounded-full bg-[#7C3AED] text-white hover:bg-[#6d28d9]"
+                <Link
+                  to="/apply"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, borderRadius: 999, background: '#7C3AED', color: '#fff', fontWeight: 600, fontSize: 14, padding: '0 24px', textDecoration: 'none' }}
                 >
-                  <Link to="/apply">
-                    <Send className="mr-2 h-4 w-4" />
-                    Candidature spontanée
-                  </Link>
-                </Button>
+                  <Send className="h-4 w-4" />
+                  Candidature spontanée
+                </Link>
               </div>
             )}
           </div>
@@ -403,56 +387,49 @@ const Careers = () => {
       </section>
 
       {/* CTA */}
-      <section className="bg-white py-24">
+      <section style={{ background: '#0A0A18', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
-          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] bg-[#111111] p-10 md:p-16">
-            <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-[#7C3AED]/30 blur-3xl" aria-hidden />
-            <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-[#7C3AED]/20 blur-3xl" aria-hidden />
+          <div className="relative mx-auto max-w-5xl overflow-hidden" style={{ background: '#0D0D20', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 32, padding: '48px 40px' }}>
+            <div aria-hidden className="absolute pointer-events-none" style={{ right: -80, top: -80, width: 320, height: 320, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.3) 0%, transparent 65%)' }} />
+            <div aria-hidden className="absolute pointer-events-none" style={{ left: -80, bottom: -80, width: 320, height: 320, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.2) 0%, transparent 65%)' }} />
             <div className="relative z-10 grid items-center gap-10 md:grid-cols-[1.3fr_1fr]">
               <div>
-                <Badge className="mb-5 rounded-full border-0 bg-white/10 px-3 py-1 text-xs font-medium text-white">
-                  <Globe className="mr-1.5 h-3 w-3" />
-                  Candidature spontanée
-                </Badge>
-                <h2 className="font-display text-3xl font-bold leading-tight text-white md:text-4xl">
-                  Vous ne trouvez pas
-                  <br />
-                  le poste idéal&nbsp;?
+                <div className="inline-flex items-center gap-2 mb-5" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '5px 14px' }}>
+                  <Globe className="w-3 h-3 text-white/60" />
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500 }}>Candidature spontanée</span>
+                </div>
+                <h2 className="font-display font-bold text-white" style={{ fontSize: 'clamp(24px, 3vw, 36px)', letterSpacing: '-0.5px', lineHeight: 1.2, marginBottom: 14 }}>
+                  Vous ne trouvez pas<br />le poste idéal&nbsp;?
                 </h2>
-                <p className="mt-4 max-w-lg text-base leading-relaxed text-white/70">
+                <p style={{ maxWidth: 480, fontSize: 15, lineHeight: 1.7, color: 'rgba(255,255,255,0.6)', marginBottom: 28 }}>
                   Envoyez-nous votre CV. Si votre profil correspond à un besoin futur, nous reviendrons vers vous —
                   promis, pas de silence radio.
                 </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    asChild
-                    size="lg"
-                    className="h-12 rounded-full bg-white px-7 text-[#111111] hover:bg-white/90"
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    to="/apply"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 48, borderRadius: 999, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 15, padding: '0 28px', textDecoration: 'none', boxShadow: '0 4px 20px rgba(124,58,237,0.4)' }}
                   >
-                    <Link to="/apply">
-                      <Send className="mr-2 h-4 w-4" />
-                      Envoyer ma candidature
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="outline"
-                    className="h-12 rounded-full border-white/20 bg-transparent px-7 text-white hover:bg-white/10 hover:text-white"
+                    <Send className="h-4 w-4" />
+                    Envoyer ma candidature
+                  </Link>
+                  <Link
+                    to="/contact"
+                    style={{ display: 'inline-flex', alignItems: 'center', height: 48, borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 15, padding: '0 28px', textDecoration: 'none' }}
                   >
-                    <Link to="/contact">Nous contacter</Link>
-                  </Button>
+                    Nous contacter
+                  </Link>
                 </div>
               </div>
-              <ul className="space-y-3 text-sm text-white/80">
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   "Réponse sous 7 jours ouvrables",
                   "Processus 100% confidentiel",
                   "Suivi humain à chaque étape",
                   "Données conservées selon Loi 25",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
-                    <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#a78bfa]" />
+                  <li key={item} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, color: 'rgba(255,255,255,0.75)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 16px', listStyle: 'none' }}>
+                    <CheckCircle2 className="h-5 w-5 flex-shrink-0" style={{ color: '#A78BFA' }} />
                     {item}
                   </li>
                 ))}

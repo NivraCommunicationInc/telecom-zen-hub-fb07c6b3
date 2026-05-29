@@ -83,14 +83,14 @@ const InternetPlans = () => {
       <main className="pt-24 pb-20 relative">
         {/* Background Effects */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-radial from-cyan-500/5 via-transparent to-transparent rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-radial from-accent/5 via-transparent to-transparent rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" />
+          <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.06) 0%, transparent 65%)' }} />
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.04) 0%, transparent 65%)' }} />
         </div>
 
         {/* Hero Section */}
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="text-center max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-cyan-500/10 text-cyan-500 border-cyan-500/20 px-4 py-1.5">
+            <Badge className="mb-6 px-4 py-1.5" style={{ background: 'rgba(124,58,237,0.15)', color: '#C4B5FD', border: '1px solid rgba(124,58,237,0.35)' }}>
               <Wifi className="w-3.5 h-3.5 mr-1.5" />
               {isFrench ? "Internet haute vitesse" : "High-Speed Internet"}
             </Badge>
@@ -99,7 +99,7 @@ const InternetPlans = () => {
               <span className="block">
                 {isFrench ? "Internet résidentiel" : "Residential Internet"}
               </span>
-              <span className="block bg-gradient-to-r from-cyan-500 via-cyan-400 to-accent bg-clip-text text-transparent">
+              <span className="block" style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 {isFrench ? "au Québec" : "in Quebec"}
               </span>
             </h1>
@@ -116,8 +116,8 @@ const InternetPlans = () => {
         <section className="container mx-auto px-4 mb-16 relative">
           <Card className="max-w-2xl mx-auto bg-card/80 backdrop-blur-sm border-border">
             <CardHeader className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-8 h-8 text-cyan-500" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                <MapPin className="w-8 h-8" style={{ color: '#A78BFA' }} />
               </div>
               <CardTitle className="text-xl md:text-2xl">
                 {isFrench ? "Vérifiez la disponibilité" : "Check Availability"}
@@ -228,8 +228,8 @@ const InternetPlans = () => {
           <Card className="max-w-4xl mx-auto bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-lg border-border/50">
             <CardContent className="p-8 md:p-12">
               <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="w-24 h-24 rounded-2xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                  <Router className="w-12 h-12 text-cyan-500" />
+                <div className="w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                  <Router className="w-12 h-12" style={{ color: '#A78BFA' }} />
                 </div>
                 <div className="flex-1 text-center md:text-left">
                    <h3 className="text-2xl font-bold text-foreground mb-2">
@@ -245,7 +245,7 @@ const InternetPlans = () => {
                       <Shield className="w-3 h-3 mr-1" />
                       {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
                     </Badge>
-                    <Badge variant="outline" className="text-cyan-500 border-cyan-500/30">
+                    <Badge variant="outline" className="border-purple-500/30" style={{ color: '#A78BFA' }}>
                       <Star className="w-3 h-3 mr-1" />
                       {isFrench ? "Défauts fabricant couverts" : "Manufacturer Defects Covered"}
                     </Badge>
@@ -290,8 +290,8 @@ const InternetPlans = () => {
               
               <Card className="bg-card/50 border-border">
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
-                    <Shield className="w-6 h-6 text-cyan-500" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                    <Shield className="w-6 h-6" style={{ color: '#A78BFA' }} />
                   </div>
                   <h3 className="font-semibold text-foreground mb-2">
                     {isFrench ? "100% Indépendant" : "100% Independent"}

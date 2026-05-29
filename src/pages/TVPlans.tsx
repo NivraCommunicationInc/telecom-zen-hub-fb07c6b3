@@ -301,7 +301,7 @@ const TVPlans = () => {
                         <Star className="w-3 h-3 mr-1" />
                         {isFrench ? "Défauts fabricant couverts" : "Manufacturer Defects Covered"}
                       </Badge>
-                      <Badge variant="outline" className="text-cyan-500 border-cyan-500/30">
+                      <Badge variant="outline" className="border-purple-500/30" style={{ color: '#A78BFA' }}>
                         <Package className="w-3 h-3 mr-1" />
                         {isFrench ? "Max 4 terminaux" : "Max 4 terminals"}
                       </Badge>
@@ -321,8 +321,8 @@ const TVPlans = () => {
             <Card className="bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-lg border-border/50">
               <CardContent className="p-8 md:p-12">
                 <div className="flex flex-col md:flex-row items-center gap-8">
-                  <div className="w-24 h-24 rounded-2xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                    <Router className="w-12 h-12 text-cyan-500" />
+                  <div className="w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                    <Router className="w-12 h-12" style={{ color: '#A78BFA' }} />
                   </div>
                   <div className="flex-1 text-center md:text-left">
                     <h3 className="text-2xl font-bold text-foreground mb-2">
@@ -338,7 +338,7 @@ const TVPlans = () => {
                         <Shield className="w-3 h-3 mr-1" />
                         {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
                       </Badge>
-                      <Badge variant="outline" className="text-cyan-500 border-cyan-500/30">
+                      <Badge variant="outline" className="border-purple-500/30" style={{ color: '#A78BFA' }}>
                         <Star className="w-3 h-3 mr-1" />
                         {isFrench ? "Défauts fabricant couverts" : "Manufacturer Defects Covered"}
                       </Badge>
@@ -384,8 +384,8 @@ const TVPlans = () => {
               
               <Card className="bg-card/50 border-border">
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
-                    <Shield className="w-6 h-6 text-cyan-500" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                    <Shield className="w-6 h-6" style={{ color: '#A78BFA' }} />
                   </div>
                   <h3 className="font-semibold text-foreground mb-2">
                     {isFrench ? "100% Indépendant" : "100% Independent"}
