@@ -63,17 +63,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
   }
 
   if (proc.error || !proc.order) {
-    return (
-      <div className="rounded-lg border border-[#7f0000] bg-[#2d0a0a] p-8 text-center">
-        <p className="text-[#ef9a9a] font-medium text-sm">Erreur de chargement</p>
-        <p className="text-xs text-[#8b9ab0] mt-1">
-          {proc.error instanceof Error ? proc.error.message : "Commande introuvable"}
-        </p>
-        <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-3 inline-block hover:opacity-80">
-          ← Retour aux commandes
-        </Link>
-      </div>
-    );
+    return <FieldIntentFallback orderId={orderId} procError={proc.error} />;
   }
 
   const order = proc.order;
