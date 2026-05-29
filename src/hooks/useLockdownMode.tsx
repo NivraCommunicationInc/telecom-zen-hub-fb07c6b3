@@ -20,8 +20,8 @@ export const useLockdownMode = () => {
         .from("site_settings")
         .select("value_json")
         .eq("key", "total_lockdown")
-        .maybeSingle()
         .abortSignal(controller.signal)
+        .maybeSingle()
         .finally(() => window.clearTimeout(timeout));
 
       if (error || !data) {
