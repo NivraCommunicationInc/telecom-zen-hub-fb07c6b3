@@ -66,6 +66,13 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
         .select("order_id, invoice_number, status, total")
         .in("order_id", orderIds);
 
+      const { data: fieldIntents } = await supabase
+        .from("field_payment_intents" as any)
+        .select("id, agent_id, payment_method, status, amount, customer_email, customer_name, created_at, converted_order_id")
+        .is("converted_order_id", null)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
       const maps = await buildCanonicalAccountMaps(supabase, {
         orderIds,
         userIds,
@@ -82,7 +89,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
         }
       }
 
-      return orders.map((o: any): AdminOrder => {
+      const canonicalOrders = orders.map((o: any): AdminOrder => {
         const profile = profileMap.get(o.user_id);
         const invoice = invoiceMap.get(o.id);
         const accountNumber = resolveCanonicalAccountNumber(maps, {
@@ -124,6 +131,34 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
           agent_full_name: o.created_by_agent_id ? (profileMap.get(o.created_by_agent_id)?.full_name ?? null) : null,
         };
       });
+
+      const pendingFieldOrders = (fieldIntents || []).map((intent: any): AdminOrder => ({
+        id: intent.id,
+        order_number: `FIELD-${String(intent.id).slice(0, 8).toUpperCase()}`,
+        user_id: intent.agent_id,
+        service_type: "Vente terrain en attente",
+        order_type: "field_payment_intent",
+        status: intent.status === "paid" || intent.status === "completed" ? "paid" : "pending_payment",
+        payment_status: intent.status,
+        total_amount: Number(intent.amount || 0),
+        risk_flags: null,
+        created_at: intent.created_at,
+        environment: "live",
+        client_full_name: intent.customer_name ?? null,
+        client_email: intent.customer_email ?? null,
+        account_number: null,
+        invoice_number: null,
+        invoice_status: null,
+        kyc_status: null,
+        sla_deadline: null,
+        sla_status: null,
+        payment_method: intent.payment_method ?? null,
+        source: "field_payment_intent",
+        created_by_agent_id: intent.agent_id ?? null,
+        agent_full_name: intent.agent_id ? (profileMap.get(intent.agent_id)?.full_name ?? null) : null,
+      }));
+
+      return [...pendingFieldOrders, ...canonicalOrders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
   });
 }

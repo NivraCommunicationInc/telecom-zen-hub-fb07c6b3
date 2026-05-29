@@ -54,6 +54,8 @@ export interface CanonicalClientData {
   referralCodes: any[];
   clientReferrals: any[];
   paypalAutopayAttempts: any[];
+  fieldQuotes: any[];
+  fieldPaymentIntents: any[];
   identityVerifications: any[];
   documentRequests: any[];
   ticketReplies: any[];
@@ -130,6 +132,8 @@ const emptyCanonicalClientData = (userId: string | null = null): CanonicalClient
   referralCodes: [],
   clientReferrals: [],
   paypalAutopayAttempts: [],
+  fieldQuotes: [],
+  fieldPaymentIntents: [],
   identityVerifications: [],
   documentRequests: [],
   ticketReplies: [],
@@ -227,6 +231,8 @@ export function useCanonicalClientData(userId: Maybe<string>) {
           replacementOrders: Array.isArray(snapshot.replacementOrders) ? snapshot.replacementOrders : [],
            replacementShipments: Array.isArray(snapshot.replacementShipments) ? snapshot.replacementShipments : [],
            replacementTimeline: Array.isArray(snapshot.replacementTimeline) ? snapshot.replacementTimeline : [],
+           fieldQuotes: Array.isArray(snapshot.fieldQuotes) ? snapshot.fieldQuotes : [],
+           fieldPaymentIntents: Array.isArray(snapshot.fieldPaymentIntents) ? snapshot.fieldPaymentIntents : [],
           cancellationRequests: Array.isArray(snapshot.cancellationRequests) ? snapshot.cancellationRequests : [],
           paymentMethods: Array.isArray(snapshot.paymentMethods) ? snapshot.paymentMethods : [],
           authorizedContacts: Array.isArray(snapshot.authorizedContacts) ? snapshot.authorizedContacts : [],
