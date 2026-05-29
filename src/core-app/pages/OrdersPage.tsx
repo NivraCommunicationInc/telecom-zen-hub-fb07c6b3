@@ -67,11 +67,6 @@ const STATUS_FILTERS = [
   { label: "Cancelled", value: "cancelled" },
 ];
 
-const orderDetailPath = (order: { id: string; order_number: string | null; source: string | null }) => {
-  const ref = order.source === "field_payment_intent" && order.order_number ? order.order_number : order.id;
-  return corePath(`/orders/${encodeURIComponent(ref)}`);
-};
-
 const OrdersPage = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -290,7 +285,7 @@ const OrdersPage = () => {
             return (
               <div
                 key={o.id}
-                onClick={() => navigate(orderDetailPath(o))}
+                onClick={() => navigate(corePath(`/orders/${o.id}`))}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -416,7 +411,7 @@ const OrdersPage = () => {
                 )}
 
                 <Link
-                  to={orderDetailPath(o)}
+                  to={corePath(`/orders/${o.id}`)}
                   onClick={(e) => e.stopPropagation()}
                   style={{ textDecoration: "none" }}
                 >
