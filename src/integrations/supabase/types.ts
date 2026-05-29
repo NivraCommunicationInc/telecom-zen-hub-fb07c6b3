@@ -28535,6 +28535,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      materialize_field_intent: {
+        Args: { p_intent_id: string }
+        Returns: string
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
