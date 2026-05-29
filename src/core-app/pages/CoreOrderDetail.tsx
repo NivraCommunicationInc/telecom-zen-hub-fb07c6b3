@@ -6,7 +6,7 @@
  * `materialize_field_intent` RPC, then rendered with the exact same shell
  * and processing workflow as any other order.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
