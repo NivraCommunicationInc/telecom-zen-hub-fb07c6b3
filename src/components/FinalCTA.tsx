@@ -11,7 +11,7 @@ const FinalCTA = () => {
     : ['No contract', '10-min activation', 'Fixed price guaranteed', 'Local support'];
 
   return (
-    <section className="relative overflow-hidden px-5 sm:px-10 py-20 sm:py-24" style={{ background: '#FAFAFB' }}>
+    <section className="relative overflow-hidden px-5 sm:px-10 py-20 sm:py-24" style={{ background: '#080612' }}>
       <div className="max-w-[1180px] mx-auto">
         <div className="relative overflow-hidden" style={{
           background: 'linear-gradient(135deg, #0A0A0F 0%, #16111F 50%, #1F1430 100%)',

@@ -116,12 +116,12 @@ const HomePricing = () => {
 
   if (isLoading) {
     return (
-      <section className="px-5 sm:px-10 py-20 bg-white">
+      <section className="px-5 sm:px-10 py-20" style={{ background: '#080612' }}>
         <div className="max-w-[1180px] mx-auto">
-          <Skeleton className="h-10 w-72 mx-auto mb-3" />
-          <Skeleton className="h-5 w-80 mx-auto mb-12" />
+          <Skeleton className="h-10 w-72 mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          <Skeleton className="h-5 w-80 mx-auto mb-12" style={{ background: 'rgba(255,255,255,0.06)' }} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[460px] rounded-3xl" />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[460px] rounded-3xl" style={{ background: 'rgba(255,255,255,0.04)' }} />)}
           </div>
         </div>
       </section>
@@ -131,7 +131,7 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="relative px-5 sm:px-10 py-20 sm:py-24 overflow-hidden" style={{ background: '#FAFAFB' }}>
+    <section id="forfaits" className="relative px-5 sm:px-10 py-20 sm:py-24 overflow-hidden" style={{ background: '#080612' }}>
       <span id="services" aria-hidden="true" className="block" style={{ scrollMarginTop: 80 }} />
 
       {/* Subtle background accents */}
@@ -140,16 +140,16 @@ const HomePricing = () => {
       <div className="relative max-w-[1180px] mx-auto">
         {/* Section header */}
         <div className="text-center mb-12 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 mb-5 bg-white border border-[#EEE7FF]" style={{ borderRadius: 999, boxShadow: '0 2px 6px rgba(124,58,237,0.06)' }}>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 mb-5" style={{ borderRadius: 999, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)' }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#7C3AED' }} />
             <span className="uppercase font-bold" style={{ color: '#7C3AED', fontSize: 10.5, letterSpacing: 1.6 }}>
               {isFr ? 'Forfaits sans contrat' : 'No-contract plans'}
             </span>
           </div>
-          <h2 className="font-bold mb-4 text-[#0A0A0F]" style={{ fontSize: 'clamp(28px, 4.2vw, 44px)', letterSpacing: '-1.2px', lineHeight: 1.05 }}>
+          <h2 className="font-bold mb-4 text-white" style={{ fontSize: 'clamp(28px, 4.2vw, 44px)', letterSpacing: '-1.2px', lineHeight: 1.05 }}>
             {t('pricing.title')}
           </h2>
-          <p className="max-w-[560px] mx-auto" style={{ color: '#6B6B75', fontSize: 16.5, lineHeight: 1.55 }}>
+          <p className="max-w-[560px] mx-auto" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 16.5, lineHeight: 1.55 }}>
             {t('pricing.subtitle')}
           </p>
         </div>
@@ -167,13 +167,13 @@ const HomePricing = () => {
                 style={{
                   background: isRec
                     ? 'linear-gradient(180deg, #16111F 0%, #0A0A0F 100%)'
-                    : '#FFFFFF',
-                  border: isRec ? '1px solid rgba(124,58,237,0.4)' : '1px solid #ECECF0',
+                    : 'rgba(255,255,255,0.04)',
+                  border: isRec ? '1px solid rgba(124,58,237,0.4)' : '1px solid rgba(255,255,255,0.09)',
                   borderRadius: 24,
                   boxShadow: isRec
                     ? '0 24px 60px -20px rgba(124,58,237,0.55), 0 4px 12px rgba(0,0,0,0.08)'
-                    : '0 2px 16px rgba(15,15,30,0.04)',
-                  color: isRec ? '#FFFFFF' : '#0A0A0F',
+                    : '0 2px 16px rgba(0,0,0,0.3)',
+                  color: '#FFFFFF',
                   overflow: 'hidden',
                 }}
               >
@@ -193,8 +193,8 @@ const HomePricing = () => {
                   {/* Icon */}
                   <div className="mb-5 flex items-center justify-center" style={{
                     width: 44, height: 44, borderRadius: 14,
-                    background: isRec ? 'rgba(124,58,237,0.2)' : '#F3EEFF',
-                    border: isRec ? '1px solid rgba(124,58,237,0.35)' : 'none',
+                    background: 'rgba(124,58,237,0.18)',
+                    border: '1px solid rgba(124,58,237,0.3)',
                   }}>
                     <Icon className="w-5 h-5" style={{ color: isRec ? '#C4A8FF' : '#7C3AED' }} strokeWidth={2.2} />
                   </div>
@@ -208,21 +208,21 @@ const HomePricing = () => {
                   <h3 className="font-bold mb-1" style={{ fontSize: 22, letterSpacing: '-0.5px', lineHeight: 1.15 }}>
                     {plan.name}
                   </h3>
-                  <p className="mb-6" style={{ color: isRec ? 'rgba(255,255,255,0.55)' : '#888892', fontSize: 13 }}>
+                  <p className="mb-6" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>
                     {plan.speed}
                   </p>
 
                   {/* Price */}
                   <div className="mb-6 flex items-baseline gap-0.5">
-                    <span style={{ fontSize: 22, fontWeight: 600, marginRight: 2, color: isRec ? 'rgba(255,255,255,0.7)' : '#0A0A0F' }}>$</span>
+                    <span style={{ fontSize: 22, fontWeight: 600, marginRight: 2, color: 'rgba(255,255,255,0.7)' }}>$</span>
                     <span className="font-bold leading-none" style={{ fontSize: 56, letterSpacing: '-2.5px' }}>
                       {plan.price.toFixed(0)}
                     </span>
-                    <span className="ml-1.5" style={{ color: isRec ? 'rgba(255,255,255,0.55)' : '#888892', fontSize: 14, fontWeight: 500 }}>/mois</span>
+                    <span className="ml-1.5" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, fontWeight: 500 }}>/mois</span>
                   </div>
 
                   {/* Divider */}
-                  <div className="w-full mb-5" style={{ height: 1, background: isRec ? 'rgba(255,255,255,0.08)' : '#F0F0F4' }} />
+                  <div className="w-full mb-5" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
 
                   {/* Features */}
                   <ul className="space-y-2.5 mb-6 flex-1">
@@ -230,19 +230,19 @@ const HomePricing = () => {
                       <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
                         <div className="shrink-0 flex items-center justify-center mt-0.5" style={{
                           width: 16, height: 16, borderRadius: 999,
-                          background: isRec ? 'rgba(124,58,237,0.25)' : '#F3EEFF',
+                          background: 'rgba(124,58,237,0.22)',
                         }}>
                           <Check className="w-2.5 h-2.5" strokeWidth={3.5} style={{ color: isRec ? '#C4A8FF' : '#7C3AED' }} />
                         </div>
-                        <span style={{ color: isRec ? 'rgba(255,255,255,0.88)' : '#3A3A45' }}>{f}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.82)' }}>{f}</span>
                       </li>
                     ))}
                   </ul>
 
                   {/* Equipment line */}
                   <div className="flex items-center justify-between mb-5 px-3.5 py-2.5" style={{
-                    background: isRec ? 'rgba(255,255,255,0.05)' : '#FAFAFB',
-                    border: isRec ? '1px solid rgba(255,255,255,0.08)' : '1px solid #F0F0F4',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.08)',
                     borderRadius: 12,
                   }}>
                     <div className="flex flex-col">
@@ -261,8 +261,9 @@ const HomePricing = () => {
                     className="w-full flex items-center justify-center gap-2 font-semibold transition-all group-hover:gap-3"
                     style={{
                       height: 48, borderRadius: 999,
-                      background: isRec ? '#FFFFFF' : '#0A0A0F',
+                      background: isRec ? '#FFFFFF' : 'rgba(255,255,255,0.1)',
                       color: isRec ? '#0A0A0F' : '#FFFFFF',
+                      border: isRec ? 'none' : '1px solid rgba(255,255,255,0.15)',
                       fontSize: 14,
                     }}
                   >
@@ -276,7 +277,7 @@ const HomePricing = () => {
         </div>
 
         {/* Trust line */}
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mb-6" style={{ color: '#6B6B75', fontSize: 13 }}>
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mb-6" style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
           {[
             isFr ? 'Sans contrat' : 'No contract',
             isFr ? 'Sans frais cachés' : 'No hidden fees',
