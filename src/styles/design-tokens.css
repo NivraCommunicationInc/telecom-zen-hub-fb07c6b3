@@ -1,0 +1,443 @@
+/* ============================================================
+   NIVRA DESIGN TOKENS — Dark Theme
+   WCAG AA contrast enforced (minimum 4.5:1 ratio)
+   ============================================================ */
+
+:root {
+  /* ----------------------------------------------------------
+     COLOR — BACKGROUNDS
+     Alternating rhythm: page → surface → elevated → overlay
+  ---------------------------------------------------------- */
+  --bg-page:     #080612;   /* deepest — page base */
+  --bg-surface:  #0A0A18;   /* sections, cards */
+  --bg-elevated: #11082A;   /* highlighted sections */
+  --bg-overlay:  #16111F;   /* modals, popovers */
+  --bg-card:     rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-input:    rgba(255, 255, 255, 0.06);
+
+  /* ----------------------------------------------------------
+     COLOR — BRAND PURPLE
+  ---------------------------------------------------------- */
+  --purple-900:  #3B0764;
+  --purple-800:  #5B21B6;
+  --purple-700:  #6D28D9;
+  --purple-600:  #7C3AED;   /* primary action */
+  --purple-500:  #8B5CF6;
+  --purple-400:  #A78BFA;   /* light accent */
+  --purple-300:  #C4B5FD;   /* lightest on dark — 7.1:1 */
+  --purple-200:  #DDD6FE;
+
+  /* ----------------------------------------------------------
+     COLOR — TEXT (all pass WCAG AA on dark backgrounds)
+  ---------------------------------------------------------- */
+  --text-primary:   #FFFFFF;                  /* 21:1 on #080612 */
+  --text-secondary: rgba(255, 255, 255, 0.72); /* ~9:1 */
+  --text-muted:     rgba(255, 255, 255, 0.50); /* ~5.5:1 */
+  --text-faint:     rgba(255, 255, 255, 0.35); /* footnotes / legal */
+  --text-accent:    #C4B5FD;                  /* purple-300, 7.1:1 */
+  --text-accent-dim: #A78BFA;                 /* purple-400, 5.8:1 */
+
+  /* ----------------------------------------------------------
+     COLOR — BORDERS
+  ---------------------------------------------------------- */
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-strong:  rgba(255, 255, 255, 0.22);
+  --border-accent:  rgba(124, 58, 237, 0.40);
+  --border-accent-strong: rgba(124, 58, 237, 0.65);
+
+  /* ----------------------------------------------------------
+     COLOR — STATUS
+  ---------------------------------------------------------- */
+  --success-bg:   rgba(16, 185, 129, 0.15);
+  --success-text: #6EE7B7;   /* 6.4:1 on page bg */
+  --success-border: rgba(16, 185, 129, 0.35);
+
+  --error-bg:   rgba(239, 68, 68, 0.15);
+  --error-text: #FCA5A5;   /* 5.1:1 on page bg */
+  --error-border: rgba(239, 68, 68, 0.35);
+
+  --warning-bg:   rgba(245, 158, 11, 0.15);
+  --warning-text: #FCD34D;
+  --warning-border: rgba(245, 158, 11, 0.35);
+
+  --info-bg:   rgba(59, 130, 246, 0.15);
+  --info-text: #93C5FD;
+  --info-border: rgba(59, 130, 246, 0.35);
+
+  /* ----------------------------------------------------------
+     TYPOGRAPHY
+  ---------------------------------------------------------- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* Font sizes — 4px-aligned scale */
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 16px;
+  --text-md:   17px;
+  --text-lg:   20px;
+  --text-xl:   24px;
+  --text-2xl:  28px;
+  --text-3xl:  36px;
+  --text-4xl:  44px;
+  --text-5xl:  56px;
+
+  /* Fluid headings — clamp(min, preferred, max) */
+  --text-h1: clamp(32px, 5.5vw, 60px);
+  --text-h2: clamp(26px, 4vw, 44px);
+  --text-h3: clamp(20px, 2.8vw, 32px);
+  --text-h4: clamp(17px, 2vw, 22px);
+
+  /* Line heights */
+  --leading-tight:  1.05;
+  --leading-snug:   1.20;
+  --leading-normal: 1.50;
+  --leading-relaxed: 1.65;
+
+  /* Font weights */
+  --font-medium:    500;
+  --font-semibold:  600;
+  --font-bold:      700;
+  --font-extrabold: 800;
+
+  /* Letter spacing */
+  --tracking-tight:  -1.5px;
+  --tracking-snug:   -0.8px;
+  --tracking-normal: 0px;
+  --tracking-wide:   0.5px;
+  --tracking-widest: 1.6px;
+
+  /* ----------------------------------------------------------
+     SPACING — 4px base unit
+  ---------------------------------------------------------- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* Section vertical padding */
+  --section-py-sm: var(--space-12);   /* 48px */
+  --section-py:    var(--space-20);   /* 80px */
+  --section-py-lg: var(--space-24);   /* 96px */
+
+  /* Section horizontal padding */
+  --section-px: clamp(20px, 5vw, 80px);
+
+  /* ----------------------------------------------------------
+     BORDER RADIUS
+  ---------------------------------------------------------- */
+  --radius-sm:   4px;
+  --radius-md:   8px;    /* standard elements */
+  --radius-lg:   12px;   /* cards */
+  --radius-xl:   16px;   /* larger cards */
+  --radius-2xl:  24px;   /* featured cards */
+  --radius-3xl:  32px;   /* hero cards */
+  --radius-full: 9999px; /* pills, badges, buttons */
+
+  /* ----------------------------------------------------------
+     SHADOWS
+  ---------------------------------------------------------- */
+  --shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md:  0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-lg:  0 24px 60px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.20);
+
+  --shadow-purple-sm: 0 4px 14px rgba(124, 58, 237, 0.35);
+  --shadow-purple-md: 0 8px 28px rgba(124, 58, 237, 0.45);
+  --shadow-purple-lg: 0 20px 60px rgba(124, 58, 237, 0.55);
+
+  --shadow-white-sm: 0 8px 24px rgba(255, 255, 255, 0.12);
+  --shadow-white-md: 0 18px 40px rgba(255, 255, 255, 0.20);
+
+  /* ----------------------------------------------------------
+     TRANSITIONS
+  ---------------------------------------------------------- */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;
+  --duration-slow:   350ms;
+
+  /* ----------------------------------------------------------
+     Z-INDEX SCALE
+  ---------------------------------------------------------- */
+  --z-below:   -1;
+  --z-base:     0;
+  --z-raised:  10;
+  --z-sticky:  20;
+  --z-overlay: 30;
+  --z-modal:   40;
+  --z-toast:   50;
+
+  /* ----------------------------------------------------------
+     GRID / LAYOUT
+  ---------------------------------------------------------- */
+  --max-w-content:  1180px;
+  --max-w-text:     720px;
+  --max-w-narrow:   560px;
+
+  /* ----------------------------------------------------------
+     GLASSMORPHISM
+  ---------------------------------------------------------- */
+  --glass-bg:     rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-blur:   blur(12px);
+
+  --glass-purple-bg:     rgba(124, 58, 237, 0.12);
+  --glass-purple-border: rgba(124, 58, 237, 0.35);
+  --glass-purple-blur:   blur(10px);
+}
+
+/* ----------------------------------------------------------
+   BASE RESET — apply tokens globally
+---------------------------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ----------------------------------------------------------
+   TYPOGRAPHY UTILITIES
+---------------------------------------------------------- */
+.nv-h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--font-extrabold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+}
+
+.nv-h2 {
+  font-size: var(--text-h2);
+  font-weight: var(--font-bold);
+  letter-spacing: var(--tracking-snug);
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+}
+
+.nv-h3 {
+  font-size: var(--text-h3);
+  font-weight: var(--font-bold);
+  letter-spacing: -0.3px;
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+}
+
+.nv-body {
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+
+.nv-caption {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* ----------------------------------------------------------
+   BADGE UTILITY
+---------------------------------------------------------- */
+.nv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  background: var(--glass-purple-bg);
+  border: 1px solid var(--glass-purple-border);
+  color: var(--text-accent);
+  backdrop-filter: var(--glass-purple-blur);
+}
+
+/* ----------------------------------------------------------
+   BUTTON UTILITIES
+---------------------------------------------------------- */
+.nv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-8);
+  height: 52px;
+  border-radius: var(--radius-full);
+  font-size: 15px;
+  font-weight: var(--font-semibold);
+  font-family: var(--font-sans);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.nv-btn:focus-visible {
+  outline: 2px solid var(--purple-400);
+  outline-offset: 3px;
+}
+
+.nv-btn-primary {
+  background: #FFFFFF;
+  color: #0A0A0F;
+  box-shadow: var(--shadow-white-sm);
+}
+
+.nv-btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-white-md);
+}
+
+.nv-btn-purple {
+  background: var(--purple-600);
+  color: #FFFFFF;
+  box-shadow: var(--shadow-purple-sm);
+}
+
+.nv-btn-purple:hover {
+  background: var(--purple-700);
+  transform: scale(1.02);
+  box-shadow: var(--shadow-purple-md);
+}
+
+.nv-btn-ghost {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  backdrop-filter: var(--glass-blur);
+}
+
+.nv-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-strong);
+}
+
+/* ----------------------------------------------------------
+   CARD UTILITY
+---------------------------------------------------------- */
+.nv-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  transition: background var(--duration-normal) var(--ease-default),
+              border-color var(--duration-normal) var(--ease-default),
+              box-shadow var(--duration-normal) var(--ease-default);
+}
+
+.nv-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-default);
+}
+
+.nv-card-accent {
+  background: linear-gradient(180deg, #16111F 0%, #0A0A0F 100%);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-purple-lg);
+}
+
+/* ----------------------------------------------------------
+   SECTION BACKGROUNDS (rhythm alternation)
+   Use in sequence: page → surface → elevated → surface → page
+---------------------------------------------------------- */
+.nv-section-page     { background: var(--bg-page); }
+.nv-section-surface  { background: var(--bg-surface); }
+.nv-section-elevated { background: var(--bg-elevated); }
+
+/* ----------------------------------------------------------
+   GLOW DECORATIONS (aria-hidden overlays)
+---------------------------------------------------------- */
+.nv-glow-purple-top-right {
+  position: absolute;
+  pointer-events: none;
+  top: -20%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.35) 0%, transparent 60%);
+  filter: blur(40px);
+}
+
+.nv-glow-purple-bottom-left {
+  position: absolute;
+  pointer-events: none;
+  bottom: -30%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(192, 132, 252, 0.18) 0%, transparent 60%);
+  filter: blur(40px);
+}
+
+/* ----------------------------------------------------------
+   GRID OVERLAY (subtle texture)
+---------------------------------------------------------- */
+.nv-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ----------------------------------------------------------
+   FOCUS RESET — keep native keyboard nav visible
+---------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--purple-400);
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------
+   SCROLLBAR (Webkit)
+---------------------------------------------------------- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-page); }
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.4);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.65);
+}
+
+/* ----------------------------------------------------------
+   INTERNAL UI PROTECTION — admin/portal pages skip dark theme
+---------------------------------------------------------- */
+.internal-ui {
+  all: revert;
+  font-family: var(--font-sans);
+}

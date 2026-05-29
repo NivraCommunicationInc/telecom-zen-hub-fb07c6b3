@@ -283,9 +283,15 @@ const Header = () => {
 
       {/* Main navigation */}
       <header
-        className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-sm' : ''}`}
-        style={{ height: 64, background: '#07060D', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-        
+        className="sticky top-0 z-50 transition-all duration-300"
+        style={{
+          height: 64,
+          background: isScrolled ? 'rgba(7,6,13,0.88)' : '#07060D',
+          backdropFilter: isScrolled ? 'blur(16px) saturate(160%)' : 'none',
+          WebkitBackdropFilter: isScrolled ? 'blur(16px) saturate(160%)' : 'none',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: isScrolled ? '0 4px 24px rgba(0,0,0,0.4)' : 'none',
+        }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
           {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}

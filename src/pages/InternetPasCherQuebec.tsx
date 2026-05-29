@@ -110,9 +110,9 @@ const InternetPasCherQuebec = () => {
         </script>
       </Helmet>
 
-      <main className="bg-white">
+      <main style={{ background: '#080612' }}>
         {/* HERO */}
-        <section className="px-6 py-16 md:py-24 max-w-6xl mx-auto">
+        <section className="px-6 py-16 md:py-24 max-w-6xl mx-auto" style={{ paddingTop: 96 }}>
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <span
@@ -121,14 +121,14 @@ const InternetPasCherQuebec = () => {
               >
                 OFFRE QUÉBEC — SANS CONTRAT
               </span>
-              <h1 className="mt-4 text-4xl md:text-5xl font-bold tracking-tight text-gray-900 leading-tight">
-                Internet GIGA pas cher au Québec à <span style={{ color: BRAND }}>60$/mois</span>
+              <h1 className="mt-4 font-bold tracking-tight text-white leading-tight" style={{ fontSize: 'clamp(30px, 5vw, 48px)', letterSpacing: '-1px' }}>
+                Internet GIGA pas cher au Québec à <span style={{ color: '#C4B5FD' }}>60$/mois</span>
               </h1>
-              <p className="mt-4 text-lg text-gray-600">
+              <p className="mt-4 text-lg" style={{ color: 'rgba(255,255,255,0.65)' }}>
                 940 Mbps. Sans contrat. Sans vérification de crédit. Une alternative locale à Bell et Vidéotron — support
                 client en français, équipe basée au Québec.
               </p>
-              <ul className="mt-6 space-y-2 text-gray-700">
+              <ul className="mt-6 space-y-2" style={{ color: 'rgba(255,255,255,0.78)' }}>
                 {[
                   "GIGA 940 Mbps illimité — 60$/mois",
                   "Aucun engagement, annulable en tout temps",
@@ -136,7 +136,7 @@ const InternetPasCherQuebec = () => {
                   "Économisez ~720$/an comparé à Bell",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2">
-                    <Check className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
+                    <Check className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#A78BFA' }} />
                     <span>{line}</span>
                   </li>
                 ))}
@@ -146,7 +146,8 @@ const InternetPasCherQuebec = () => {
             {/* FORM */}
             <div
               id="reserver"
-              className="rounded-2xl border border-gray-200 shadow-xl p-6 md:p-8 bg-white"
+              className="rounded-2xl p-6 md:p-8"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 20px 50px rgba(0,0,0,0.4)' }}
             >
               {submitted ? (
                 <div className="text-center py-8">
@@ -156,15 +157,15 @@ const InternetPasCherQuebec = () => {
                   >
                     <Check className="w-7 h-7 text-white" />
                   </div>
-                  <h2 className="mt-4 text-2xl font-bold text-gray-900">Demande reçue!</h2>
-                  <p className="mt-2 text-gray-600">
+                  <h2 className="mt-4 text-2xl font-bold text-white">Demande reçue!</h2>
+                  <p className="mt-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
                     On vous écrit dans la minute avec les détails. Surveillez aussi votre dossier indésirables au cas où.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                  <h2 className="text-2xl font-bold text-gray-900">Réservez votre forfait</h2>
-                  <p className="text-sm text-gray-500">30 secondes. Aucune carte de crédit requise.</p>
+                  <h2 className="text-2xl font-bold text-white">Réservez votre forfait</h2>
+                  <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>30 secondes. Aucune carte de crédit requise.</p>
 
                   <div className="space-y-1.5">
                     <Label htmlFor="firstName">Prénom *</Label>
@@ -237,7 +238,7 @@ const InternetPasCherQuebec = () => {
                     aria-hidden="true"
                   />
 
-                  <label className="flex items-start gap-3 text-sm text-gray-600 pt-2">
+                  <label className="flex items-start gap-3 text-sm pt-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
                     <Checkbox
                       checked={consent}
                       onCheckedChange={(v) => setConsent(v === true)}
@@ -265,7 +266,7 @@ const InternetPasCherQuebec = () => {
                     )}
                   </Button>
 
-                  <p className="text-xs text-gray-400 text-center">
+                  <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.38)' }}>
                     En soumettant, vous confirmez avoir 18 ans ou plus et résider au Québec.
                   </p>
                 </form>
@@ -275,12 +276,12 @@ const InternetPasCherQuebec = () => {
         </section>
 
         {/* PRICING / WHY */}
-        <section className="bg-gray-50 px-6 py-16">
+        <section className="px-6 py-16" style={{ background: '#0A0A18' }}>
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900">
+            <h2 className="text-3xl md:text-4xl font-bold text-center text-white" style={{ letterSpacing: '-0.8px' }}>
               Bell vous coûte combien de trop?
             </h2>
-            <p className="mt-3 text-center text-gray-600 max-w-2xl mx-auto">
+            <p className="mt-3 text-center max-w-2xl mx-auto" style={{ color: 'rgba(255,255,255,0.6)' }}>
               Comparaison directe sur le même service — Internet GIGA 940 Mbps illimité, sans engagement.
             </p>
 
@@ -292,36 +293,34 @@ const InternetPasCherQuebec = () => {
               ].map((card) => (
                 <div
                   key={card.label}
-                  className={`rounded-2xl p-6 border ${
-                    card.highlight
-                      ? "bg-white shadow-xl scale-105"
-                      : "bg-white border-gray-200"
-                  }`}
-                  style={card.highlight ? { borderColor: BRAND } : {}}
+                  className="rounded-2xl p-6"
+                  style={{
+                    background: card.highlight ? 'linear-gradient(180deg, #16111F 0%, #0A0A0F 100%)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${card.highlight ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.09)'}`,
+                    transform: card.highlight ? 'scale(1.05)' : 'none',
+                    boxShadow: card.highlight ? '0 20px 50px rgba(124,58,237,0.4)' : 'none',
+                  }}
                 >
-                  <div className="text-sm font-semibold text-gray-500">{card.label}</div>
-                  <div
-                    className="mt-3 text-4xl font-bold"
-                    style={{ color: card.highlight ? BRAND : "#111827" }}
-                  >
+                  <div className="text-sm font-semibold" style={{ color: card.highlight ? '#A78BFA' : 'rgba(255,255,255,0.5)' }}>{card.label}</div>
+                  <div className="mt-3 text-4xl font-bold" style={{ color: card.highlight ? '#FFFFFF' : 'rgba(255,255,255,0.7)', letterSpacing: '-1px' }}>
                     {card.price}
-                    <span className="text-base font-normal text-gray-400">/mois</span>
+                    <span className="text-base font-normal" style={{ color: 'rgba(255,255,255,0.4)' }}>/mois</span>
                   </div>
-                  <p className="mt-3 text-sm text-gray-600">{card.note}</p>
+                  <p className="mt-3 text-sm" style={{ color: 'rgba(255,255,255,0.58)' }}>{card.note}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-8 text-center">
-              <p className="text-2xl font-bold text-gray-900">
-                Économisez jusqu'à <span style={{ color: BRAND }}>720$/an</span> avec Nivra.
+            <div className="mt-10 text-center">
+              <p className="text-2xl font-bold text-white">
+                Économisez jusqu'à <span style={{ color: '#C4B5FD' }}>720$/an</span> avec Nivra.
               </p>
             </div>
           </div>
         </section>
 
         {/* TRUST STRIP */}
-        <section className="px-6 py-12 max-w-6xl mx-auto">
+        <section className="px-6 py-16 max-w-6xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8 text-center">
             {[
               { Icon: Wifi, title: "GIGA 940 Mbps", body: "Fibre/coax sur le même réseau Bell/Vidéotron — même qualité." },
@@ -329,23 +328,20 @@ const InternetPasCherQuebec = () => {
               { Icon: MapPin, title: "Support québécois", body: "Équipe locale en français." },
             ].map(({ Icon, title, body }) => (
               <div key={title}>
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center mx-auto"
-                  style={{ backgroundColor: `${BRAND}1a` }}
-                >
-                  <Icon className="w-6 h-6" style={{ color: BRAND }} />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto" style={{ background: 'rgba(124,58,237,0.18)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                  <Icon className="w-6 h-6" style={{ color: '#A78BFA' }} />
                 </div>
-                <h3 className="mt-4 text-lg font-bold text-gray-900">{title}</h3>
-                <p className="mt-2 text-sm text-gray-600">{body}</p>
+                <h3 className="mt-4 text-lg font-bold text-white">{title}</h3>
+                <p className="mt-2 text-sm" style={{ color: 'rgba(255,255,255,0.62)' }}>{body}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* FAQ */}
-        <section className="bg-gray-50 px-6 py-16">
+        <section className="px-6 py-16" style={{ background: '#0A0A18' }}>
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900">Questions fréquentes</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-center text-white" style={{ letterSpacing: '-0.8px' }}>Questions fréquentes</h2>
             <div className="mt-10 space-y-4">
               {[
                 {
@@ -365,11 +361,11 @@ const InternetPasCherQuebec = () => {
                   a: "Habituellement 3 à 7 jours ouvrables. Un technicien Bell/Vidéotron passe (frais inclus).",
                 },
               ].map((item) => (
-                <details key={item.q} className="bg-white rounded-xl p-5 group shadow-sm">
-                  <summary className="font-semibold text-gray-900 cursor-pointer flex items-center justify-between">
+                <details key={item.q} className="rounded-xl p-5 group cursor-pointer" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                  <summary className="font-semibold text-white cursor-pointer flex items-center justify-between">
                     {item.q}
                   </summary>
-                  <p className="mt-3 text-gray-600 text-sm leading-relaxed">{item.a}</p>
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>{item.a}</p>
                 </details>
               ))}
             </div>

@@ -85,31 +85,24 @@ const APropos = () => {
       <SchemaMarkup includeBrand />
       <Header />
       
-      {/* Hero Section */}
-      <section className="pt-28 pb-16 bg-primary relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 -right-20 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
-        </div>
-        <div className="container mx-auto px-4 max-w-5xl relative">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/15 border border-accent/25 mb-5">
-              <Shield className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium text-accent">Fournisseur télécom québécois</span>
-            </div>
-            <h1 className="text-white mb-4">
-              À propos de <span className="text-accent">{COMPANY_CONTACT.companyName}</span>
-            </h1>
-            <p className="text-lg text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
-              <strong>{COMPANY_CONTACT.companyName}</strong> ({COMPANY_CONTACT.legalName}) — Services télécommunications prépayés au Québec. 
-              Simplicité, transparence et contrôle sur vos services.
-            </p>
+      {/* ── Hero ── */}
+      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 80, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+        <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
+        <div className="max-w-[860px] mx-auto px-5 sm:px-10 text-center relative">
+          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
+            <Shield className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
+            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>Fournisseur télécom québécois</span>
           </div>
-        </div>
-        {/* Bottom Wave */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-            <path d="M0 60L60 52C120 44 240 28 360 24C480 20 600 28 720 32C840 36 960 36 1080 32C1200 28 1320 20 1380 16L1440 12V60H0Z" fill="hsl(var(--background))"/>
-          </svg>
+          <h1 className="font-black text-white" style={{ fontSize: 'clamp(32px, 5vw, 54px)', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 16 }}>
+            À propos de{' '}
+            <span style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              {COMPANY_CONTACT.companyName}
+            </span>
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{COMPANY_CONTACT.companyName}</strong> ({COMPANY_CONTACT.legalName}) — Services télécommunications prépayés au Québec. Simplicité, transparence et contrôle sur vos services.
+          </p>
         </div>
       </section>
 

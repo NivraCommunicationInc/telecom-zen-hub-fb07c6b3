@@ -9,7 +9,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const isFr = language === "fr";
 
   const linkStyle: React.CSSProperties = {
-    color: "#666",
+    color: "rgba(255,255,255,0.55)",
     fontSize: 13,
     textDecoration: "none",
     transition: "color 0.2s",
@@ -93,7 +93,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             >
               Telecom
             </div>
-            <p style={{ color: "#666", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+            <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
               {isFr
                 ? "Fournisseur Internet et TV sans contrat au Québec. Premier mois gratuit. Sans vérification de crédit."
                 : "Internet & TV provider without contract in Quebec. First month free. No credit check."}
@@ -183,7 +183,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                   to={link.to}
                   style={linkStyle}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#666")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
                 >
                   {link.label}
                 </Link>
@@ -201,7 +201,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                   to={link.to}
                   style={linkStyle}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#666")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
                 >
                   {link.label}
                 </Link>
@@ -232,7 +232,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 >
                   VISA
                 </div>
-                <span style={{ color: "#666", fontSize: 12 }}>
+                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
                   {isFr ? "Visa accepté" : "Visa accepted"}
                 </span>
               </div>
@@ -257,7 +257,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                     <path d="M18 4.8a11 11 0 0 1 0 12.4A11 11 0 0 1 18 4.8z" fill="#FF5F00"/>
                   </svg>
                 </div>
-                <span style={{ color: "#666", fontSize: 12 }}>
+                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
                   {isFr ? "Mastercard accepté" : "Mastercard accepted"}
                 </span>
               </div>
@@ -283,7 +283,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                     loading="lazy"
                   />
                 </div>
-                <span style={{ color: "#666", fontSize: 12 }}>
+                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
                   {isFr ? "PayPal accepté" : "PayPal accepted"}
                 </span>
               </div>
@@ -297,7 +297,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                     fill="white"
                   />
                 </svg>
-                <span style={{ color: "#666", fontSize: 12 }}>
+                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
                   {isFr ? "Protégé par Cloudflare" : "Protected by Cloudflare"}
                 </span>
               </div>
@@ -308,7 +308,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                   <rect x="3" y="11" width="18" height="11" rx="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                <span style={{ color: "#666", fontSize: 12 }}>
+                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
                   {isFr ? "Chiffrement SSL 256-bit" : "SSL 256-bit Encryption"}
                 </span>
               </div>
@@ -338,7 +338,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               gap: 12,
             }}
           >
-            <p style={{ color: "#555", fontSize: 12, margin: 0 }}>
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
               © {currentYear} {COMPANY_CONTACT.legalName} —{" "}
               {isFr ? "Tous droits réservés" : "All rights reserved"} · Québec, Canada
             </p>
@@ -356,9 +356,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 <Link
                   key={link.to}
                   to={link.to}
-                  style={{ color: "#555", fontSize: 12, textDecoration: "none" }}
+                  style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, textDecoration: "none" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
                 >
                   {link.label}
                 </Link>
