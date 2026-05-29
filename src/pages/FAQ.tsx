@@ -134,8 +134,11 @@ const FAQ = () => {
     [categories]
   );
 
+  const BG = '#080612';
+  const PURPLE = '#7C3AED';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: BG, minHeight: '100vh' }}>
       <SEOHead
         title={isFr ? "FAQ — Internet sans contrat au Québec | Nivra Telecom" : "FAQ — No-Contract Internet in Quebec | Nivra Telecom"}
         description={isFr ? "Réponses aux questions fréquentes sur les forfaits Internet et TV sans contrat de Nivra Telecom au Québec. Prix, couverture, activation, support." : "Answers to frequently asked questions about Nivra Telecom no-contract Internet and TV plans in Quebec. Pricing, coverage, activation, support."}
@@ -143,36 +146,52 @@ const FAQ = () => {
       <FAQSchema faqs={allFaqs} pageUrl="https://nivra-telecom.ca/faq" />
       <BreadcrumbSchema />
       <Header />
-      
-      {/* Hero */}
-      <section className="pt-32 pb-16 bg-gradient-to-b from-navy-900 to-background">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-6">
-            {t('faq.title')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-300">{t('faq.title2')}</span>
+
+      {/* ── Hero ── */}
+      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+        <div aria-hidden className="absolute pointer-events-none" style={{ top: -160, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
+
+        <div className="max-w-[860px] mx-auto px-5 sm:px-10 text-center relative">
+          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
+            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+              {isFr ? 'Centre d\'aide' : 'Help Center'}
+            </span>
+          </div>
+          <h1 className="font-black text-white" style={{ fontSize: 'clamp(32px, 5vw, 54px)', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 16 }}>
+            {t('faq.title')}{' '}
+            <span style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              {t('faq.title2')}
+            </span>
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 500, margin: '0 auto' }}>
             {t('faq.subtitle')}
           </p>
         </div>
       </section>
 
-      {/* FAQ Content */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 max-w-3xl">
-          {categories.map((category) => (
-            <div key={category.title} className="mb-12">
-              <h2 className="font-display text-2xl font-bold text-foreground mb-6">{category.title}</h2>
-              <Accordion type="single" collapsible className="space-y-3">
+      {/* ── FAQ Content ── */}
+      <section style={{ padding: '72px 0', background: BG }}>
+        <div className="max-w-[760px] mx-auto px-5 sm:px-10">
+          {categories.map((category, ci) => (
+            <div key={category.title} style={{ marginBottom: 52 }}>
+              <div className="flex items-center gap-3" style={{ marginBottom: 20 }}>
+                <div style={{ width: 3, height: 22, background: PURPLE, borderRadius: 99 }} />
+                <h2 className="font-bold text-white" style={{ fontSize: 18 }}>{category.title}</h2>
+              </div>
+              <Accordion type="single" collapsible className="space-y-2">
                 {category.questions.map((item, index) => (
                   <AccordionItem
                     key={index}
-                    value={`${category.title}-${index}`}
-                    className="bg-card border border-border rounded-xl px-6"
+                    value={`${ci}-${index}`}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '0 20px' }}
+                    className="border-0"
                   >
-                    <AccordionTrigger className="text-left font-medium text-foreground hover:text-cyan-400 py-4">
+                    <AccordionTrigger className="text-left font-semibold py-4 hover:no-underline" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14 }}>
                       {item.q}
                     </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground pb-4">
+                    <AccordionContent style={{ color: 'rgba(255,255,255,0.58)', fontSize: 14, lineHeight: 1.7, paddingBottom: 16 }}>
                       {item.a}
                     </AccordionContent>
                   </AccordionItem>
@@ -183,22 +202,22 @@ const FAQ = () => {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4 text-center">
-          <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-6">
-            <MessageSquare className="w-8 h-8 text-cyan-400" />
+      {/* ── CTA ── */}
+      <section style={{ background: 'rgba(124,58,237,0.08)', borderTop: '1px solid rgba(124,58,237,0.2)', padding: '72px 24px' }}>
+        <div className="max-w-[560px] mx-auto text-center">
+          <div className="flex items-center justify-center mx-auto mb-6" style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)' }}>
+            <MessageSquare className="w-6 h-6" style={{ color: '#A78BFA' }} />
           </div>
-          <h2 className="font-display text-2xl font-bold text-foreground mb-4">
+          <h2 className="font-bold text-white" style={{ fontSize: 24, letterSpacing: '-0.5px', marginBottom: 12 }}>
             {t('faq.notfound.title')}
           </h2>
-          <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
+          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 16, lineHeight: 1.6, marginBottom: 28 }}>
             {t('faq.notfound.text')}
           </p>
           <Link to="/#contact">
-            <Button variant="hero" size="lg">
+            <button style={{ height: 50, paddingLeft: 32, paddingRight: 32, borderRadius: 10, background: PURPLE, color: '#FFFFFF', fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(124,58,237,0.45)' }}>
               {t('faq.contact')}
-            </Button>
+            </button>
           </Link>
         </div>
       </section>
