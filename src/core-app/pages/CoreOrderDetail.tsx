@@ -63,39 +63,23 @@ function OrderConsoleResolver({ orderIdParam }: { orderIdParam: string }) {
           .maybeSingle();
         if (existing?.id) return existing.id as string;
 
-        // Otherwise treat as a field_payment_intent and materialize
-        const { data: intent } = await supabase
-          .from("field_payment_intents" as any)
-          .select("id, converted_order_id")
-          .eq("id", normalized)
-          .maybeSingle();
-        if (intent) {
-          if ((intent as any).converted_order_id) return (intent as any).converted_order_id as string;
-          const { data: newId, error: rpcErr } = await supabase.rpc("materialize_field_intent" as any, {
-            p_intent_id: normalized,
-          });
-          if (rpcErr) throw rpcErr;
-          return newId as string;
-        }
+        // Otherwise treat as a field_payment_intent and materialize through the backend.
+        const { data, error } = await supabase.functions.invoke("materialize-field-intent", {
+          body: { intent_id: normalized },
+        });
+        if (!error && data?.order_id) return data.order_id as string;
         return null;
       }
 
       // 2) FIELD-XXXX ref: resolve to intent then materialize
       const fieldRef = normalized.match(FIELD_REF_RE)?.[1]?.toLowerCase();
       if (fieldRef) {
-        const { data: intents } = await supabase
-          .from("field_payment_intents" as any)
-          .select("id, converted_order_id")
-          .order("created_at", { ascending: false })
-          .limit(500);
-        const match = (intents || []).find((row: any) => String(row.id).toLowerCase().startsWith(fieldRef)) as any;
-        if (!match) return null;
-        if (match.converted_order_id) return match.converted_order_id as string;
-        const { data: newId, error: rpcErr } = await supabase.rpc("materialize_field_intent" as any, {
-          p_intent_id: match.id,
+        const { data, error } = await supabase.functions.invoke("materialize-field-intent", {
+          body: { field_ref: `FIELD-${fieldRef}` },
         });
-        if (rpcErr) throw rpcErr;
-        return newId as string;
+        if (error) throw error;
+        if (!data?.order_id) throw new Error(data?.error || "Commande FIELD introuvable");
+        return data.order_id as string;
       }
 
       // 3) Try as order_number
