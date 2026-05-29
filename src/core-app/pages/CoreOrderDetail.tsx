@@ -17,6 +17,8 @@
  * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
@@ -24,6 +26,7 @@ import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
 import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
+import { CoreFieldIntentDetail } from "@/core-app/components/order-detail/CoreFieldIntentDetail";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import {
   ArrowLeft, Loader2, ShoppingCart,
@@ -60,17 +63,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
   }
 
   if (proc.error || !proc.order) {
-    return (
-      <div className="rounded-lg border border-[#7f0000] bg-[#2d0a0a] p-8 text-center">
-        <p className="text-[#ef9a9a] font-medium text-sm">Erreur de chargement</p>
-        <p className="text-xs text-[#8b9ab0] mt-1">
-          {proc.error instanceof Error ? proc.error.message : "Commande introuvable"}
-        </p>
-        <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-3 inline-block hover:opacity-80">
-          ← Retour aux commandes
-        </Link>
-      </div>
-    );
+    return <FieldIntentFallback orderId={orderId} procError={proc.error} />;
   }
 
   const order = proc.order;
@@ -284,6 +277,47 @@ function SidebarStepList({
       </div>
       <CoreQuickActions proc={proc} layout="sidebar" />
     </aside>
+  );
+}
+
+/**
+ * Fallback when the canonical order can't be found: try resolving the id
+ * against `field_payment_intents`. If it matches, render the Field intent
+ * console so Core staff can still see and process the sale.
+ */
+function FieldIntentFallback({ orderId, procError }: { orderId: string; procError: unknown }) {
+  const { data: isFieldIntent, isLoading } = useQuery({
+    queryKey: ["core-order-fallback-field-intent", orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("field_payment_intents" as any)
+        .select("id")
+        .eq("id", orderId)
+        .maybeSingle();
+      return !!data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-[#0a0e16]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#3b82f6]" />
+      </div>
+    );
+  }
+
+  if (isFieldIntent) return <CoreFieldIntentDetail intentId={orderId} />;
+
+  return (
+    <div className="rounded-lg border border-[#7f0000] bg-[#2d0a0a] p-8 text-center">
+      <p className="text-[#ef9a9a] font-medium text-sm">Erreur de chargement</p>
+      <p className="text-xs text-[#8b9ab0] mt-1">
+        {procError instanceof Error ? procError.message : "Commande introuvable"}
+      </p>
+      <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-3 inline-block hover:opacity-80">
+        ← Retour aux commandes
+      </Link>
+    </div>
   );
 }
 
