@@ -18,6 +18,9 @@ import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCard
 
 type Props = { intentId: string };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const FIELD_REF_RE = /^#?FIELD-([0-9a-f]{8})$/i;
+
 const money = (n: number | null | undefined) =>
   n == null
     ? "—"
@@ -27,11 +30,28 @@ export function CoreFieldIntentDetail({ intentId }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["core-field-intent-detail", intentId],
     queryFn: async () => {
-      const { data: intent, error: e1 } = await supabase
-        .from("field_payment_intents" as any)
-        .select("*")
-        .eq("id", intentId)
-        .maybeSingle();
+      const normalized = decodeURIComponent(intentId).trim();
+      const fieldRef = normalized.match(FIELD_REF_RE)?.[1]?.toLowerCase();
+      let intent: any = null;
+      let e1: any = null;
+
+      if (UUID_RE.test(normalized)) {
+        const res = await supabase
+          .from("field_payment_intents" as any)
+          .select("*")
+          .eq("id", normalized)
+          .maybeSingle();
+        intent = res.data;
+        e1 = res.error;
+      } else if (fieldRef) {
+        const res = await supabase
+          .from("field_payment_intents" as any)
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(500);
+        intent = (res.data || []).find((row: any) => String(row.id).toLowerCase().startsWith(fieldRef)) || null;
+        e1 = res.error;
+      }
       if (e1) throw e1;
       if (!intent) return null;
 
