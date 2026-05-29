@@ -51,6 +51,14 @@ const CoreOrderDetail = () => {
 };
 
 function OrderConsole({ orderId }: { orderId: string }) {
+  if (/^#?FIELD-[0-9a-f]{8}$/i.test(decodeURIComponent(orderId).trim())) {
+    return <CoreFieldIntentDetail intentId={orderId} />;
+  }
+
+  return <CanonicalOrderConsole orderId={orderId} />;
+}
+
+function CanonicalOrderConsole({ orderId }: { orderId: string }) {
   const proc = useOrderProcessing(orderId);
 
   if (proc.isLoading) {
@@ -289,10 +297,20 @@ function FieldIntentFallback({ orderId, procError }: { orderId: string; procErro
   const { data: isFieldIntent, isLoading } = useQuery({
     queryKey: ["core-order-fallback-field-intent", orderId],
     queryFn: async () => {
+      const normalized = decodeURIComponent(orderId).trim();
+      const fieldRef = normalized.match(/^#?FIELD-([0-9a-f]{8})$/i)?.[1]?.toLowerCase();
+      if (fieldRef) {
+        const { data } = await supabase
+          .from("field_payment_intents" as any)
+          .select("id")
+          .order("created_at", { ascending: false })
+          .limit(500);
+        return (data || []).some((row: any) => String(row.id).toLowerCase().startsWith(fieldRef));
+      }
       const { data } = await supabase
         .from("field_payment_intents" as any)
         .select("id")
-        .eq("id", orderId)
+        .eq("id", normalized)
         .maybeSingle();
       return !!data;
     },
