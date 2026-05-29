@@ -15,14 +15,19 @@ export const useLockdownMode = () => {
     queryFn: async () => {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 2500);
+      let result;
+      try {
+        result = await supabase
+          .from("site_settings")
+          .select("value_json")
+          .eq("key", "total_lockdown")
+          .abortSignal(controller.signal)
+          .maybeSingle();
+      } finally {
+        window.clearTimeout(timeout);
+      }
 
-      const { data, error } = await supabase
-        .from("site_settings")
-        .select("value_json")
-        .eq("key", "total_lockdown")
-        .abortSignal(controller.signal)
-        .maybeSingle()
-        .finally(() => window.clearTimeout(timeout));
+      const { data, error } = result;
 
       if (error || !data) {
         return { enabled: false, activated_at: null, activated_by: null, message_fr: "", message_en: "" };
