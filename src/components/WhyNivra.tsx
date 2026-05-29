@@ -5,26 +5,80 @@ const WhyNivra = () => {
   const { t } = useLanguage();
 
   const points = [
-    { icon: Shield, titleKey: "why.nocontract", textKey: "why.nocontract.desc" },
-    { icon: CheckCircle, titleKey: "why.simple", textKey: "why.simple.desc" },
-    { icon: Headphones, titleKey: "why.support", textKey: "why.support.desc" },
-    { icon: Zap, titleKey: "why.fast", textKey: "why.fast.desc" },
+    { icon: Shield, titleKey: "why.nocontract", textKey: "why.nocontract.desc", accent: '#7C3AED' },
+    { icon: CheckCircle, titleKey: "why.simple", textKey: "why.simple.desc", accent: '#7C3AED' },
+    { icon: Headphones, titleKey: "why.support", textKey: "why.support.desc", accent: '#7C3AED' },
+    { icon: Zap, titleKey: "why.fast", textKey: "why.fast.desc", accent: '#7C3AED' },
   ];
 
   return (
-    <section className="py-10 sm:py-20 lg:py-28 bg-[#0d0d0d]">
+    <section style={{ background: '#0A0A18', padding: '80px 0' }}>
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-        <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-white text-center mb-8 sm:mb-14 tracking-[-0.025em]">
-          {t('why.title')}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-6 lg:gap-7 max-w-[920px] mx-auto">
+
+        {/* Section header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 mb-4" style={{
+            background: 'rgba(124,58,237,0.12)',
+            border: '1px solid rgba(124,58,237,0.3)',
+            borderRadius: 999,
+          }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
+            <span className="font-bold uppercase" style={{ color: '#C4B5FD', fontSize: 10.5, letterSpacing: 1.6 }}>
+              {t('why.title')}
+            </span>
+          </div>
+          <h2
+            className="font-bold text-white"
+            style={{
+              fontSize: 'clamp(26px, 4vw, 40px)',
+              letterSpacing: '-1px',
+              lineHeight: 1.1,
+            }}
+          >
+            {t('why.title')}
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-[1080px] mx-auto">
           {points.map((p) => (
-            <div key={p.titleKey} className="bg-[#1a1a1a] rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-white/10 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.08)] transition-all duration-300 group">
-              <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-lg sm:rounded-xl bg-purple-500/10 flex items-center justify-center mb-4 sm:mb-5 group-hover:bg-purple-500/20 transition-colors">
-                <p.icon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+            <div
+              key={p.titleKey}
+              className="group cursor-default"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                borderRadius: 16,
+                padding: '28px 24px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                transition: 'box-shadow 0.2s, border-color 0.2s, transform 0.2s',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(124,58,237,0.2)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.35)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{
+                width: 48, height: 48,
+                borderRadius: 12,
+                background: 'rgba(124,58,237,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 18,
+                transition: 'background 0.2s',
+              }}>
+                <p.icon className="w-5 h-5" style={{ color: '#A78BFA' }} strokeWidth={2} />
               </div>
-              <h3 className="font-bold text-white mb-1.5 sm:mb-2 text-[15px] sm:text-base">{t(p.titleKey)}</h3>
-              <p className="text-[14px] sm:text-sm text-white/60 leading-relaxed">{t(p.textKey)}</p>
+              <h3 className="font-bold mb-2 text-white" style={{ fontSize: 15, lineHeight: 1.3 }}>
+                {t(p.titleKey)}
+              </h3>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13.5, lineHeight: 1.6 }}>
+                {t(p.textKey)}
+              </p>
             </div>
           ))}
         </div>

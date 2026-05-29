@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, forwardRef } from "react";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const testimonials = [
@@ -22,22 +23,22 @@ const TestimonialsSection = forwardRef<HTMLElement>((_props, ref) => {
   }, [next]);
 
   return (
-    <section ref={ref} aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="px-5 sm:px-10" style={{ background: '#FFFFFF', paddingTop: 48, paddingBottom: 48 }}>
+    <section ref={ref} aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="px-5 sm:px-10" style={{ background: '#0A0A18', paddingTop: 48, paddingBottom: 48 }}>
       <div className="max-w-[1100px] mx-auto">
         <div className="text-center mb-8 sm:mb-12">
-          <p className="uppercase mb-2" style={{ color: '#999999', fontSize: 11, letterSpacing: 2 }}>
+          <p className="uppercase mb-2" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, letterSpacing: 2 }}>
             {isFr ? "Ce que disent nos clients" : "What our customers say"}
           </p>
-          <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: '#111111', letterSpacing: '-0.5px' }}>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white" style={{ letterSpacing: '-0.5px' }}>
             {isFr ? "Ils ont fait le saut" : "They made the switch"}
           </h2>
           <div className="flex items-center justify-center gap-2 mt-3">
-            <div className="flex">
+            <div className="flex gap-0.5">
               {[...Array(5)].map((_, i) => (
-                <span key={i} style={{ color: '#7C3AED', fontSize: 20 }}>★</span>
+                <Star key={i} className="w-5 h-5 fill-current" style={{ color: '#A78BFA' }} />
               ))}
             </div>
-            <span className="font-bold text-lg" style={{ color: '#111111' }}>4.9/5</span>
+            <span className="font-bold text-lg text-white">4.9/5</span>
           </div>
         </div>
 
@@ -49,14 +50,18 @@ const TestimonialsSection = forwardRef<HTMLElement>((_props, ref) => {
           >
             {testimonials.map((t, i) => (
               <div key={i} className="w-full flex-shrink-0 px-4">
-                <div className="max-w-[600px] mx-auto" style={{ background: '#FFFFFF', borderRadius: 20, border: '1px solid #EEEEEE', padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                  <div style={{ color: '#7C3AED', fontSize: 20, marginBottom: 12 }}>★★★★★</div>
-                  <p style={{ fontSize: 16, color: '#444444', lineHeight: 1.7, fontStyle: 'italic', marginBottom: 16 }}>
+                <div className="max-w-[600px] mx-auto" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', padding: 28 }}>
+                  <div className="flex gap-0.5 mb-3">
+                    {[...Array(5)].map((_, si) => (
+                      <Star key={si} className="w-4 h-4 fill-current" style={{ color: '#A78BFA' }} />
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 1.7, fontStyle: 'italic', marginBottom: 16 }}>
                     &ldquo;{t.text}&rdquo;
                   </p>
-                  <div style={{ borderTop: '1px solid #EEEEEE', paddingTop: 12 }}>
-                    <div style={{ fontWeight: 700, color: '#111111', fontSize: 14 }}>{t.name}</div>
-                    <div style={{ fontSize: 13, color: '#999999' }}>{t.location} · {t.service}</div>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
+                    <div style={{ fontWeight: 700, color: '#FFFFFF', fontSize: 14 }}>{t.name}</div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{t.location} · {t.service}</div>
                   </div>
                 </div>
               </div>
@@ -66,16 +71,20 @@ const TestimonialsSection = forwardRef<HTMLElement>((_props, ref) => {
           {/* Arrows */}
           <button
             onClick={prev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center"
-            style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EEEEEE', cursor: 'pointer', fontSize: 18 }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors cursor-pointer"
+            style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
             aria-label={isFr ? "Précédent" : "Previous"}
-          >←</button>
+          >
+            <ChevronLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.6)' }} />
+          </button>
           <button
             onClick={next}
-            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center"
-            style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EEEEEE', cursor: 'pointer', fontSize: 18 }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors cursor-pointer"
+            style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
             aria-label={isFr ? "Suivant" : "Next"}
-          >→</button>
+          >
+            <ChevronRight className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.6)' }} />
+          </button>
         </div>
 
         {/* Dots */}
@@ -85,7 +94,7 @@ const TestimonialsSection = forwardRef<HTMLElement>((_props, ref) => {
               key={i}
               onClick={() => setCurrent(i)}
               className="transition-colors"
-              style={{ width: 8, height: 8, borderRadius: '50%', background: i === current ? '#7C3AED' : '#DDDDDD', border: 'none', cursor: 'pointer' }}
+              style={{ width: 8, height: 8, borderRadius: '50%', background: i === current ? '#7C3AED' : 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer' }}
               aria-label={`Testimonial ${i + 1}`}
             />
           ))}

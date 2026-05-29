@@ -1,30 +1,67 @@
 import { forwardRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Lock, FileText, MapPin, Zap, DollarSign } from "lucide-react";
 
 const TrustBadges = forwardRef<HTMLElement>((_props, ref) => {
   const { language } = useLanguage();
   const isFr = language === "fr";
 
   const badges = [
-    { icon: "🔒", title: isFr ? "Paiement sécurisé" : "Secure payment", sub: "SSL 256-bit" },
-    { icon: "📋", title: isFr ? "Sans contrat" : "No contract", sub: isFr ? "Résiliez à tout moment" : "Cancel anytime" },
-    { icon: "🇨🇦", title: isFr ? "Entreprise québécoise" : "Quebec-based", sub: isFr ? "Support local" : "Local support" },
-    { icon: "⚡", title: isFr ? "Activation rapide" : "Fast activation", sub: "10 min" },
-    { icon: "💰", title: isFr ? "Prix fixe garanti" : "Fixed price", sub: isFr ? "Aucune surprise" : "No surprises" },
+    {
+      icon: Lock,
+      title: isFr ? "Paiement sécurisé" : "Secure payment",
+      sub: "SSL 256-bit",
+    },
+    {
+      icon: FileText,
+      title: isFr ? "Sans contrat" : "No contract",
+      sub: isFr ? "Résiliez à tout moment" : "Cancel anytime",
+    },
+    {
+      icon: MapPin,
+      title: isFr ? "Entreprise québécoise" : "Quebec-based",
+      sub: isFr ? "Support local" : "Local support",
+    },
+    {
+      icon: Zap,
+      title: isFr ? "Activation rapide" : "Fast activation",
+      sub: "10 min",
+    },
+    {
+      icon: DollarSign,
+      title: isFr ? "Prix fixe garanti" : "Fixed price",
+      sub: isFr ? "Aucune surprise" : "No surprises",
+    },
   ];
 
   return (
-    <section ref={ref} style={{ background: '#FFFFFF', borderTop: '1px solid #EEEEEE' }}>
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-2 sm:gap-4 py-6 sm:py-8 px-5 sm:px-10 max-w-[1100px] mx-auto">
-        {badges.map((b, i) => (
-          <div key={i} className="flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-2">
-            <span className="text-xl sm:text-2xl">{b.icon}</span>
-            <div>
-              <div className="font-bold" style={{ color: '#0D0D0D', fontSize: 12 }}>{b.title}</div>
-              <div style={{ color: '#999999', fontSize: 11 }}>{b.sub}</div>
+    <section ref={ref} style={{ background: '#07060D', borderTop: '1px solid rgba(255,255,255,0.07)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex flex-wrap justify-center gap-0 max-w-[1100px] mx-auto py-0">
+        {badges.map((b, i) => {
+          const Icon = b.icon;
+          return (
+            <div
+              key={i}
+              className="flex items-center gap-3 px-6 py-5"
+              style={{
+                borderRight: i < badges.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+              }}
+            >
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'rgba(124,58,237,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Icon className="w-4 h-4" style={{ color: '#A78BFA' }} strokeWidth={2} />
+              </div>
+              <div>
+                <div className="font-bold text-white" style={{ fontSize: 12.5 }}>{b.title}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5 }}>{b.sub}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
