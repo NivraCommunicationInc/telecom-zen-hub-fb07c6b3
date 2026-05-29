@@ -17,6 +17,8 @@
  * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
@@ -24,6 +26,7 @@ import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
 import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
+import { CoreFieldIntentDetail } from "@/core-app/components/order-detail/CoreFieldIntentDetail";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import {
   ArrowLeft, Loader2, ShoppingCart,
