@@ -222,6 +222,15 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Normalize Field quote payloads: older paths stored services as
+        // { services, equipment }, which made Core miss/skip pending field sales.
+        if (!Array.isArray(sale.services) && sale.services && typeof sale.services === "object") {
+          sale.services = [
+            ...(((sale.services as any).services as any[]) || []),
+            ...(((sale.services as any).equipment as any[]) || []),
+          ];
+        }
+
         // ═══ SERVER-SIDE VALIDATION — Block incomplete submissions ═══
         // For card_manual sales (in-person card), email/phone/address may be missing.
         // Apply fallbacks before validation and before orders/account insertion.
@@ -1152,6 +1161,52 @@ Deno.serve(async (req) => {
 
         throw error;
       }
+    }
+
+    if (action === 'materialize_from_quote' && body.quote_id) {
+      const { data: quote, error: quoteError } = await supabaseAdmin
+        .from('field_quotes')
+        .select('*')
+        .eq('id', body.quote_id)
+        .maybeSingle();
+      if (quoteError || !quote) {
+        return new Response(JSON.stringify({ success: false, error: 'Soumission Field introuvable' }), { status: 404, headers: buildCorsHeaders(req) });
+      }
+
+      const ci: any = quote.client_info || {};
+      const customerName = `${ci.first_name || ci.firstName || ''} ${ci.last_name || ci.lastName || ''}`.trim() || body.customer_name || 'Client Field';
+      const fieldServices = [
+        ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
+        ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+      ];
+
+      const { data: sale, error: saleError } = await supabaseAdmin
+        .from('field_sales_orders')
+        .insert({
+          salesperson_id: body.agent_id || quote.agent_id,
+          customer_name: customerName,
+          customer_email: ci.email || body.customer_email || null,
+          customer_phone: ci.phone || null,
+          customer_address: ci.address || null,
+          customer_city: ci.city || null,
+          customer_postal_code: ci.postal_code || ci.postalCode || null,
+          customer_date_of_birth: ci.date_of_birth || ci.dob || null,
+          services: fieldServices,
+          total_amount: Number(body.paypal_amount || quote.total || 0),
+          payment_method: 'paypal',
+          payment_reference: body.paypal_capture_id || null,
+          payment_status: 'confirmed',
+          sync_status: 'pending',
+          discount_data: quote.discount || null,
+          internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement PayPal`,
+        })
+        .select('*')
+        .single();
+      if (saleError || !sale) throw saleError ?? new Error('Création vente Field échouée');
+
+      const result = await syncSaleToOrders(sale);
+      await supabaseAdmin.from('field_quotes').update({ status: 'converted', converted_order_id: result.orderId ?? null }).eq('id', quote.id);
+      return new Response(JSON.stringify({ ...result, field_order_id: sale.id, order_id: result.orderId }), { status: result.success ? 200 : 500, headers: buildCorsHeaders(req) });
     }
 
     // ACTION: sync_single - Called immediately after field sale creation
