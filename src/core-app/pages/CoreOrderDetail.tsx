@@ -17,9 +17,7 @@
  * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
@@ -29,56 +27,56 @@ import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHea
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
-import {
-  ArrowLeft, Loader2, ShoppingCart, CreditCard, ShieldCheck, AlertTriangle,
-} from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type Resolved =
-  | { kind: "order"; orderId: string }
-  | { kind: "pending_field"; intent: any };
-
-async function resolveOrderRouteParam(param: string): Promise<Resolved> {
+/**
+ * Resolve a route param to a real `orders.id`. Admin must be able to open ANY
+ * order — including field_payment_intents that are still pending_payment. In
+ * that case we materialize the order via the canonical engine (from quote_id)
+ * so the standard CoreOrderDetail page renders with full processing options.
+ */
+async function resolveOrderRouteParam(param: string): Promise<string> {
   const value = decodeURIComponent(param).trim();
   if (!value) throw new Error("Identifiant de commande manquant");
 
   if (UUID_RE.test(value)) {
     const { data: byId } = await supabase.from("orders").select("id").eq("id", value).maybeSingle();
-    if (byId?.id) return { kind: "order", orderId: byId.id };
+    if (byId?.id) return byId.id;
   }
 
   const { data: byNumber } = await supabase
     .from("orders").select("id").eq("order_number", value).maybeSingle();
-  if (byNumber?.id) return { kind: "order", orderId: byNumber.id };
+  if (byNumber?.id) return byNumber.id;
 
   if (UUID_RE.test(value)) {
     const { data: intent } = await supabase
       .from("field_payment_intents" as any)
-      .select("*")
+      .select("id, quote_id, agent_id, converted_order_id")
       .eq("id", value)
       .maybeSingle();
 
     if (intent) {
-      const intentRow = intent as any;
-      if (intentRow.converted_order_id) return { kind: "order", orderId: intentRow.converted_order_id };
+      const row = intent as any;
+      if (row.converted_order_id) return row.converted_order_id as string;
+      if (!row.quote_id) throw new Error("Intention sans soumission liée — impossible à matérialiser");
 
-      if (intentRow.status === "paid" || intentRow.status === "completed") {
-        const { data, error } = await supabase.functions.invoke("field-order-engine", {
-          body: {
-            action: "finalize_paid_intent",
-            field_payment_intent_id: intentRow.id,
-            payment_method: "card_manual",
-          },
-        });
-        if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
-        const newId = (data as any)?.order_id;
-        if (newId) return { kind: "order", orderId: newId as string };
-        throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
-      }
+      const { data, error } = await supabase.functions.invoke("field-order-engine", {
+        body: { action: "materialize_from_quote", quote_id: row.quote_id, agent_id: row.agent_id },
+      });
+      if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
+      const newId = (data as any)?.order_id;
+      if (!newId) throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
 
-      // pending_payment / awaiting capture — render interim card-processing screen
-      return { kind: "pending_field", intent: intentRow };
+      // Link the intent → order so subsequent opens are instant and the
+      // card-manual panel (queried by field_payment_intent_id) can attach.
+      await supabase
+        .from("field_payment_intents" as any)
+        .update({ converted_order_id: newId } as any)
+        .eq("id", row.id);
+
+      return newId as string;
     }
   }
 
@@ -134,11 +132,9 @@ function OrderResolver({ routeParam }: { routeParam: string }) {
     );
   }
 
-  if (resolver.data.kind === "pending_field") {
-    return <PendingFieldIntentView intent={resolver.data.intent} routeParam={routeParam} />;
-  }
-  return <OrderConsole orderId={resolver.data.orderId} />;
+  return <OrderConsole orderId={resolver.data} />;
 }
+
 
 function PendingFieldIntentView({ intent, routeParam }: { intent: any; routeParam: string }) {
   const qc = useQueryClient();
