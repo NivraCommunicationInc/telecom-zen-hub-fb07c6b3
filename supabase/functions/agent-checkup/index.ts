@@ -183,7 +183,6 @@ serve(async (req) => {
       .update({
         last_run_at: startedAt,
         last_success_at: new Date().toISOString(),
-        total_runs: (await supabase.rpc("noop")).error ? 0 : 0,
       })
       .eq("agent_name", "checkup");
 
