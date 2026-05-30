@@ -171,10 +171,10 @@ const TVPlans = () => {
               )}
               
               {addressValidated && addressDetails && (
-                <Alert className="border-emerald-500/30 bg-emerald-500/10">
-                  <Check className="h-4 w-4 text-emerald-500" />
-                  <AlertDescription className="text-emerald-500">
-                    {isFrench 
+                <Alert style={{ borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)" }}>
+                  <Check className="h-4 w-4" style={{ color: "#10B981" }} />
+                  <AlertDescription style={{ color: "#10B981" }}>
+                    {isFrench
                       ? "Excellente nouvelle! Le service TV + Internet est disponible à cette adresse."
                       : "Great news! TV + Internet service is available at this address."}
                   </AlertDescription>
@@ -280,8 +280,8 @@ const TVPlans = () => {
             <Card className="bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-lg border-border/50">
               <CardContent className="p-8 md:p-12">
                 <div className="flex flex-col md:flex-row items-center gap-8">
-                  <div className="w-24 h-24 rounded-2xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                    <Monitor className="w-12 h-12 text-purple-500" />
+                  <div className="w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(124,58,237,0.15)" }}>
+                    <Monitor className="w-12 h-12" style={{ color: "#A78BFA" }} />
                   </div>
                   <div className="flex-1 text-center md:text-left">
                     <h3 className="text-2xl font-bold text-foreground mb-2">
@@ -293,11 +293,11 @@ const TVPlans = () => {
                         : "High-performance 4K terminal with voice control remote. Maximum 4 terminals per address. One-time $50 fee per terminal payable before installation."}
                     </p>
                     <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                      <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                      <Badge variant="outline" style={{ color: "#10B981", borderColor: "rgba(16,185,129,0.3)" }}>
                         <Shield className="w-3 h-3 mr-1" />
                         {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
                       </Badge>
-                      <Badge variant="outline" className="text-purple-500 border-purple-500/30">
+                      <Badge variant="outline" style={{ color: "#A78BFA", borderColor: "rgba(124,58,237,0.35)" }}>
                         <Star className="w-3 h-3 mr-1" />
                         {isFrench ? "Défauts fabricant couverts" : "Manufacturer Defects Covered"}
                       </Badge>
@@ -334,7 +334,7 @@ const TVPlans = () => {
                         : "High-performance router included with all plans. One-time $60 fee payable before installation."}
                     </p>
                     <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                      <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                      <Badge variant="outline" style={{ color: "#10B981", borderColor: "rgba(16,185,129,0.3)" }}>
                         <Shield className="w-3 h-3 mr-1" />
                         {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
                       </Badge>
@@ -368,8 +368,8 @@ const TVPlans = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="bg-card/50 border-border">
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
-                    <Check className="w-6 h-6 text-emerald-500" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(124,58,237,0.15)" }}>
+                    <Check className="w-6 h-6" style={{ color: "#A78BFA" }} />
                   </div>
                   <h3 className="font-semibold text-foreground mb-2">
                     {isFrench ? "Aucune vérification de crédit" : "No Credit Check"}

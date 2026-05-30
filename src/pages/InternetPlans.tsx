@@ -154,10 +154,10 @@ const InternetPlans = () => {
               )}
               
               {addressValidated && addressDetails && (
-                <Alert className="border-emerald-500/30 bg-emerald-500/10">
-                  <Check className="h-4 w-4 text-emerald-500" />
-                  <AlertDescription className="text-emerald-500">
-                    {isFrench 
+                <Alert style={{ borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)" }}>
+                  <Check className="h-4 w-4" style={{ color: "#10B981" }} />
+                  <AlertDescription style={{ color: "#10B981" }}>
+                    {isFrench
                       ? "Excellente nouvelle! Le service Internet est disponible à cette adresse."
                       : "Great news! Internet service is available at this address."}
                   </AlertDescription>
@@ -241,7 +241,7 @@ const InternetPlans = () => {
                        : `High-performance WiFi modem mandatory for all Internet plans. One-time $${routerPrice} purchase payable before installation. You own it.`}
                   </p>
                   <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                    <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                    <Badge variant="outline" style={{ color: "#10B981", borderColor: "rgba(16,185,129,0.3)" }}>
                       <Shield className="w-3 h-3 mr-1" />
                       {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
                     </Badge>
@@ -274,8 +274,8 @@ const InternetPlans = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="bg-card/50 border-border">
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
-                    <Check className="w-6 h-6 text-emerald-500" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(124,58,237,0.15)" }}>
+                    <Check className="w-6 h-6" style={{ color: "#A78BFA" }} />
                   </div>
                   <h3 className="font-semibold text-foreground mb-2">
                     {isFrench ? "Aucune vérification de crédit" : "No Credit Check"}
