@@ -9,7 +9,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const isFr = language === "fr";
 
   const linkStyle: React.CSSProperties = {
-    color: "rgba(255,255,255,0.55)",
+    color: "#5a6a85",
     fontSize: 13,
     textDecoration: "none",
     transition: "color 0.2s",
@@ -18,7 +18,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
   const headingStyle: React.CSSProperties = {
     color: "white",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 700,
     letterSpacing: "1.5px",
     textTransform: "uppercase",
@@ -54,46 +54,24 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     <footer
       ref={ref}
       role="contentinfo"
-      style={{ background: "#0A0A0A", borderTop: "1px solid #222" }}
+      style={{ background: "#060910", borderTop: "1px solid rgba(255,255,255,0.05)" }}
       className="text-white"
     >
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "64px 24px 32px" }}>
         {/* 4-column grid */}
         <div
           className="footer-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 48,
-          }}
+          style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 48 }}
         >
           {/* Column 1 — Brand */}
           <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: 24,
-                fontWeight: 800,
-                letterSpacing: "-0.5px",
-                lineHeight: 1,
-              }}
-            >
+            <div style={{ color: "white", fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px", lineHeight: 1 }}>
               NIVRA
             </div>
-            <div
-              style={{
-                color: "#7C3AED",
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                marginTop: 4,
-                marginBottom: 16,
-              }}
-            >
+            <div style={{ color: "#0066CC", fontSize: 13, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", marginTop: 4, marginBottom: 16 }}>
               Telecom
             </div>
-            <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+            <p style={{ color: "#5a6a85", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
               {isFr
                 ? "Fournisseur Internet et TV sans contrat au Québec. Premier mois gratuit. Sans vérification de crédit."
                 : "Internet & TV provider without contract in Quebec. First month free. No credit check."}
@@ -105,18 +83,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
-                style={{
-                  width: 32,
-                  height: 32,
-                  background: "#1a1a1a",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "background 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#7C3AED")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#1a1a1a")}
+                style={{ width: 32, height: 32, background: "#0f1628", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#0066CC")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#0f1628")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
                   <path d="M9.198 21.5h4v-8.01h3.604l.396-3.98h-4V7.5a1 1 0 0 1 1-1h3v-4h-3a5 5 0 0 0-5 5v2.01h-2l-.396 3.98h2.396v8.01Z" />
@@ -128,18 +97,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                style={{
-                  width: 32,
-                  height: 32,
-                  background: "#1a1a1a",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "background 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#7C3AED")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#1a1a1a")}
+                style={{ width: 32, height: 32, background: "#0f1628", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#0066CC")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#0f1628")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                   <rect x="2" y="2" width="20" height="20" rx="5" />
@@ -153,18 +113,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TikTok"
-                style={{
-                  width: 32,
-                  height: 32,
-                  background: "#1a1a1a",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "background 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#7C3AED")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#1a1a1a")}
+                style={{ width: 32, height: 32, background: "#0f1628", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#0066CC")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#0f1628")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43V8.45a8.16 8.16 0 0 0 4.77 1.52V6.55a4.85 4.85 0 0 1-1.84-.13Z" />
@@ -183,7 +134,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                   to={link.to}
                   style={linkStyle}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#5a6a85")}
                 >
                   {link.label}
                 </Link>
@@ -201,7 +152,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                   to={link.to}
                   style={linkStyle}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#5a6a85")}
                 >
                   {link.label}
                 </Link>
@@ -215,67 +166,27 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {/* Visa */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{
-                    background: "#1A1F71",
-                    color: "white",
-                    fontWeight: 800,
-                    fontSize: 11,
-                    padding: "5px 8px",
-                    borderRadius: 4,
-                    letterSpacing: 1,
-                    fontFamily: "Arial, sans-serif",
-                    minWidth: 44,
-                    textAlign: "center",
-                    lineHeight: 1,
-                  }}
-                >
+                <div style={{ background: "#1A1F71", color: "white", fontWeight: 800, fontSize: 11, padding: "5px 8px", borderRadius: 4, letterSpacing: 1, fontFamily: "Arial, sans-serif", minWidth: 44, textAlign: "center", lineHeight: 1 }}>
                   VISA
                 </div>
-                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
-                  {isFr ? "Visa accepté" : "Visa accepted"}
-                </span>
+                <span style={{ color: "#5a6a85", fontSize: 12 }}>{isFr ? "Visa accepté" : "Visa accepted"}</span>
               </div>
 
               {/* Mastercard */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{
-                    background: "#fff",
-                    borderRadius: 4,
-                    padding: "3px 6px",
-                    minWidth: 44,
-                    height: 22,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
+                <div style={{ background: "#fff", borderRadius: 4, padding: "3px 6px", minWidth: 44, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="32" height="20" viewBox="0 0 36 22" style={{ flexShrink: 0, display: "block" }} aria-label="Mastercard">
                     <circle cx="14" cy="11" r="11" fill="#EB001B"/>
                     <circle cx="22" cy="11" r="11" fill="#F79E1B"/>
                     <path d="M18 4.8a11 11 0 0 1 0 12.4A11 11 0 0 1 18 4.8z" fill="#FF5F00"/>
                   </svg>
                 </div>
-                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
-                  {isFr ? "Mastercard accepté" : "Mastercard accepted"}
-                </span>
+                <span style={{ color: "#5a6a85", fontSize: 12 }}>{isFr ? "Mastercard accepté" : "Mastercard accepted"}</span>
               </div>
 
               {/* PayPal */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{
-                    background: "#fff",
-                    borderRadius: 4,
-                    padding: "3px 6px",
-                    minWidth: 44,
-                    height: 22,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
+                <div style={{ background: "#fff", borderRadius: 4, padding: "3px 6px", minWidth: 44, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <img
                     src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg"
                     alt="PayPal"
@@ -283,62 +194,37 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                     loading="lazy"
                   />
                 </div>
-                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
-                  {isFr ? "PayPal accepté" : "PayPal accepted"}
-                </span>
+                <span style={{ color: "#5a6a85", fontSize: 12 }}>{isFr ? "PayPal accepté" : "PayPal accepted"}</span>
               </div>
 
               {/* Cloudflare */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
                 <svg width="20" height="20" viewBox="0 0 100 100" fill="none" aria-hidden="true">
                   <circle cx="50" cy="50" r="50" fill="#F38020" />
-                  <path
-                    d="M67 38C65 30 58 25 50 25C43 25 37 29 34 35C29 35 25 39 25 44C25 49 29 53 34 53H66C71 53 75 49 75 44C75 40 71 37 67 38Z"
-                    fill="white"
-                  />
+                  <path d="M67 38C65 30 58 25 50 25C43 25 37 29 34 35C29 35 25 39 25 44C25 49 29 53 34 53H66C71 53 75 49 75 44C75 40 71 37 67 38Z" fill="white" />
                 </svg>
-                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
-                  {isFr ? "Protégé par Cloudflare" : "Protected by Cloudflare"}
-                </span>
+                <span style={{ color: "#5a6a85", fontSize: 12 }}>{isFr ? "Protégé par Cloudflare" : "Protected by Cloudflare"}</span>
               </div>
 
               {/* SSL */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 12 }}>
-                  {isFr ? "Chiffrement SSL 256-bit" : "SSL 256-bit Encryption"}
-                </span>
+                <span style={{ color: "#5a6a85", fontSize: 12 }}>{isFr ? "Chiffrement SSL 256-bit" : "SSL 256-bit Encryption"}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div
-          style={{
-            borderTop: "1px solid #1a1a1a",
-            marginTop: 48,
-            paddingTop: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-          className="footer-bottom"
-        >
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: 48, paddingTop: 24, display: "flex", flexDirection: "column", gap: 12 }} className="footer-bottom">
           <div
             className="footer-bottom-row"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 12,
-            }}
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}
           >
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
+            <p style={{ color: "#5a6a85", fontSize: 12, margin: 0 }}>
               © {currentYear} {COMPANY_CONTACT.legalName} —{" "}
               {isFr ? "Tous droits réservés" : "All rights reserved"} · Québec, Canada
             </p>
@@ -356,9 +242,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 <Link
                   key={link.to}
                   to={link.to}
-                  style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, textDecoration: "none" }}
+                  style={{ color: "#5a6a85", fontSize: 12, textDecoration: "none" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#5a6a85")}
                 >
                   {link.label}
                 </Link>
@@ -368,22 +254,13 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
       </div>
 
-      {/* Responsive */}
       <style>{`
         @media (max-width: 768px) {
-          .footer-grid {
-            grid-template-columns: 1fr 1fr !important;
-            gap: 32px !important;
-          }
-          .footer-bottom-row {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
+          .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+          .footer-bottom-row { flex-direction: column !important; align-items: flex-start !important; }
         }
         @media (max-width: 480px) {
-          .footer-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .footer-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </footer>
