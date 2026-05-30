@@ -17,9 +17,7 @@
  * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
@@ -29,56 +27,56 @@ import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHea
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
-import {
-  ArrowLeft, Loader2, ShoppingCart, CreditCard, ShieldCheck, AlertTriangle,
-} from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type Resolved =
-  | { kind: "order"; orderId: string }
-  | { kind: "pending_field"; intent: any };
-
-async function resolveOrderRouteParam(param: string): Promise<Resolved> {
+/**
+ * Resolve a route param to a real `orders.id`. Admin must be able to open ANY
+ * order — including field_payment_intents that are still pending_payment. In
+ * that case we materialize the order via the canonical engine (from quote_id)
+ * so the standard CoreOrderDetail page renders with full processing options.
+ */
+async function resolveOrderRouteParam(param: string): Promise<string> {
   const value = decodeURIComponent(param).trim();
   if (!value) throw new Error("Identifiant de commande manquant");
 
   if (UUID_RE.test(value)) {
     const { data: byId } = await supabase.from("orders").select("id").eq("id", value).maybeSingle();
-    if (byId?.id) return { kind: "order", orderId: byId.id };
+    if (byId?.id) return byId.id;
   }
 
   const { data: byNumber } = await supabase
     .from("orders").select("id").eq("order_number", value).maybeSingle();
-  if (byNumber?.id) return { kind: "order", orderId: byNumber.id };
+  if (byNumber?.id) return byNumber.id;
 
   if (UUID_RE.test(value)) {
     const { data: intent } = await supabase
       .from("field_payment_intents" as any)
-      .select("*")
+      .select("id, quote_id, agent_id, converted_order_id")
       .eq("id", value)
       .maybeSingle();
 
     if (intent) {
-      const intentRow = intent as any;
-      if (intentRow.converted_order_id) return { kind: "order", orderId: intentRow.converted_order_id };
+      const row = intent as any;
+      if (row.converted_order_id) return row.converted_order_id as string;
+      if (!row.quote_id) throw new Error("Intention sans soumission liée — impossible à matérialiser");
 
-      if (intentRow.status === "paid" || intentRow.status === "completed") {
-        const { data, error } = await supabase.functions.invoke("field-order-engine", {
-          body: {
-            action: "finalize_paid_intent",
-            field_payment_intent_id: intentRow.id,
-            payment_method: "card_manual",
-          },
-        });
-        if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
-        const newId = (data as any)?.order_id;
-        if (newId) return { kind: "order", orderId: newId as string };
-        throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
-      }
+      const { data, error } = await supabase.functions.invoke("field-order-engine", {
+        body: { action: "materialize_from_quote", quote_id: row.quote_id, agent_id: row.agent_id },
+      });
+      if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
+      const newId = (data as any)?.order_id;
+      if (!newId) throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
 
-      // pending_payment / awaiting capture — render interim card-processing screen
-      return { kind: "pending_field", intent: intentRow };
+      // Link the intent → order so subsequent opens are instant and the
+      // card-manual panel (queried by field_payment_intent_id) can attach.
+      await supabase
+        .from("field_payment_intents" as any)
+        .update({ converted_order_id: newId } as any)
+        .eq("id", row.id);
+
+      return newId as string;
     }
   }
 
@@ -134,153 +132,11 @@ function OrderResolver({ routeParam }: { routeParam: string }) {
     );
   }
 
-  if (resolver.data.kind === "pending_field") {
-    return <PendingFieldIntentView intent={resolver.data.intent} routeParam={routeParam} />;
-  }
-  return <OrderConsole orderId={resolver.data.orderId} />;
+  return <OrderConsole orderId={resolver.data} />;
 }
 
-function PendingFieldIntentView({ intent, routeParam }: { intent: any; routeParam: string }) {
-  const qc = useQueryClient();
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const { data: card, isLoading, refetch } = useQuery({
-    queryKey: ["pending-field-card-intent", intent.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("card_payment_intents")
-        .select("*")
-        .eq("field_payment_intent_id", intent.id)
-        .in("status", ["pending_processing", "processing"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
-    refetchInterval: 15000,
-  });
 
-  const amount = Number(intent.total_amount ?? intent.amount ?? 0).toLocaleString("fr-CA", {
-    style: "currency", currency: "CAD",
-  });
-
-  const handleProcess = async () => {
-    if (!card) return;
-    setError(null);
-    setProcessing(true);
-    try {
-      const { data, error: invErr } = await supabase.functions.invoke("core-process-card-payment", {
-        body: { card_intent_id: card.id },
-      });
-      if (invErr) throw invErr;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Paiement carte confirmé", {
-        description: `PayPal ${(data as any)?.paypal_order_id?.slice(0, 8) || ""}`,
-      });
-      // Re-resolve — converted_order_id should now exist → routes to full OrderConsole
-      await qc.invalidateQueries({ queryKey: ["core-order-detail-resolve", routeParam] });
-      await qc.invalidateQueries({ queryKey: ["admin-orders-v2"] });
-    } catch (e: any) {
-      const msg = e?.message || String(e);
-      setError(msg);
-      toast.error("Paiement refusé", { description: msg });
-      setProcessing(false);
-      await refetch();
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#0a0e16] text-white">
-      <div className="bg-[#0f1623] border-b border-[#1e2535] px-4 py-3 flex items-center gap-3">
-        <Link to={corePath("/orders")} className="text-[#8b9ab0] hover:text-white">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[15px] font-medium text-white truncate font-mono">
-            #FIELD-{String(intent.id).slice(0, 8).toUpperCase()}
-          </h1>
-          <p className="text-[11px] text-[#8b9ab0] mt-0.5 truncate">
-            Vente terrain · {intent.client_email || intent.customer_email || "—"} · {amount}
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-[3px] rounded-full bg-[#7c3a00] text-[#ffb74d]">
-          {intent.status}
-        </span>
-      </div>
-
-      <div className="max-w-2xl mx-auto p-6 space-y-4">
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-xs text-[#8b9ab0]">
-            <Loader2 className="h-4 w-4 animate-spin" /> Chargement de l'intention…
-          </div>
-        ) : !card ? (
-          <div className="rounded-lg border border-[#5a4200] bg-[#2d1f00] p-4 text-[12px] text-[#ffd54f]">
-            <div className="flex items-center gap-2 font-semibold mb-1">
-              <AlertTriangle className="h-4 w-4" /> Aucune carte manuelle en attente
-            </div>
-            Cette vente terrain est en attente de paiement, mais aucune intention carte n'a été déposée.
-            L'agent doit relancer le flux PayPal côté Field.
-          </div>
-        ) : (
-          <div className="rounded-lg border border-[#7C3AED]/40 bg-gradient-to-br from-[#1a1033] to-[#0f0a1f] p-4 shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="h-4 w-4 text-[#A78BFA]" />
-              <h3 className="text-sm font-semibold text-white">💳 Paiement carte manuelle en attente</h3>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 text-[12px]">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-[#6b7a90]">Marque</div>
-                <div className="text-white font-medium">{(card.card_brand || "card").toUpperCase()}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-[#6b7a90]">N°</div>
-                <div className="text-white font-mono">•••• {card.card_last4}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-[#6b7a90]">Expiration</div>
-                <div className="text-white font-mono">{card.card_expiry}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-[#6b7a90]">Titulaire</div>
-                <div className="text-white truncate" title={card.card_name}>{card.card_name}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-[#8b9ab0] mb-3">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#A78BFA]" />
-              Données chiffrées (AES-256-GCM). Supprimées après traitement.
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 rounded border border-red-500/40 bg-red-500/10 p-2 mb-3 text-[11px] text-red-200">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <div>{error}</div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleProcess}
-              disabled={processing}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7C3AED] hover:bg-[#6d28d9] disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-[12px] font-semibold text-white transition-colors"
-            >
-              {processing ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Traitement PayPal en cours…</>
-              ) : (
-                <>Traiter le paiement via PayPal — {Number(card.amount).toLocaleString("fr-CA", { style: "currency", currency: card.currency || "CAD" })}</>
-              )}
-            </button>
-            <p className="text-[10px] text-[#6b7a90] mt-3 text-center">
-              Le dossier de commande complet s'ouvrira automatiquement dès la capture confirmée.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function OrderConsole({ orderId }: { orderId: string }) {
   const proc = useOrderProcessing(orderId);
