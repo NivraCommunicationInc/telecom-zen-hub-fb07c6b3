@@ -1104,7 +1104,7 @@ const AppRoutes = () => {
           <Route path="complaints" element={<Suspense fallback={null}><EmployeeComplaintsPage /></Suspense>} />
           <Route path="academy" element={<Suspense fallback={null}><AcademyPortal portal="cs" /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
-          <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><EmployeeCreateOrder /></CertificationGate></Suspense>} />
+          <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><FieldNewSale exitRedirect="/employee/orders" /></CertificationGate></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
           <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />
