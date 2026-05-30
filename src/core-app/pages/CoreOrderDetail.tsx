@@ -17,7 +17,9 @@
  * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
@@ -28,44 +30,38 @@ import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickAc
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import {
-  ArrowLeft, Loader2, ShoppingCart,
+  ArrowLeft, Loader2, ShoppingCart, CreditCard, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/**
- * Resolve a route param to a real `orders.id` so downstream code never
- * has to branch on `order_type === 'FIELD'`. Three cases:
- *   1. param is an existing orders.id (UUID) → use as-is
- *   2. param is an existing orders.order_number → resolve to id
- *   3. param is a field_payment_intents.id (FIELD virtual order from OrdersPage):
- *        a. if intent.converted_order_id is set → use it
- *        b. else if intent is paid → materialize via field-order-engine
- *        c. else → throw an actionable error
- */
-async function resolveOrderRouteParam(param: string): Promise<string> {
+type Resolved =
+  | { kind: "order"; orderId: string }
+  | { kind: "pending_field"; intent: any };
+
+async function resolveOrderRouteParam(param: string): Promise<Resolved> {
   const value = decodeURIComponent(param).trim();
   if (!value) throw new Error("Identifiant de commande manquant");
 
   if (UUID_RE.test(value)) {
     const { data: byId } = await supabase.from("orders").select("id").eq("id", value).maybeSingle();
-    if (byId?.id) return byId.id;
+    if (byId?.id) return { kind: "order", orderId: byId.id };
   }
 
   const { data: byNumber } = await supabase
     .from("orders").select("id").eq("order_number", value).maybeSingle();
-  if (byNumber?.id) return byNumber.id;
+  if (byNumber?.id) return { kind: "order", orderId: byNumber.id };
 
   if (UUID_RE.test(value)) {
     const { data: intent } = await supabase
       .from("field_payment_intents" as any)
-      .select("id, status, converted_order_id")
+      .select("*")
       .eq("id", value)
       .maybeSingle();
 
     if (intent) {
       const intentRow = intent as any;
-      if (intentRow.converted_order_id) return intentRow.converted_order_id as string;
+      if (intentRow.converted_order_id) return { kind: "order", orderId: intentRow.converted_order_id };
 
       if (intentRow.status === "paid" || intentRow.status === "completed") {
         const { data, error } = await supabase.functions.invoke("field-order-engine", {
@@ -77,13 +73,12 @@ async function resolveOrderRouteParam(param: string): Promise<string> {
         });
         if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
         const newId = (data as any)?.order_id;
-        if (newId) return newId as string;
+        if (newId) return { kind: "order", orderId: newId as string };
         throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
       }
 
-      throw new Error(
-        `Commande FIELD non finalisée (statut intent: ${intentRow.status}). Le paiement doit être complété avant ouverture du dossier.`,
-      );
+      // pending_payment / awaiting capture — render interim card-processing screen
+      return { kind: "pending_field", intent: intentRow };
     }
   }
 
