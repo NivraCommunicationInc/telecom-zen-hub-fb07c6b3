@@ -6118,6 +6118,22 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const count = String(v.count ?? 0);
       const date = fmtDate(v.date) || new Date().toISOString().slice(0, 10);
       const rowsHtml = String(v.clients_html_rows ?? "");
+      const intro = `Voici la liste des comptes actifs dont le dernier check-up de service date de 80, 85 ou 90 jours. Un fichier CSV complet est joint à ce courriel.`;
+      const tableHtml = `
+        <p style="margin:0 0 12px;">${intro}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 16px;">
+          <thead>
+            <tr style="background:#f5f3ff;">
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Compte</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Client</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Courriel</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Téléphone</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Forfait</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Délai</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`;
       return {
         subject: `Rappel check-up client — ${count} clients à vérifier`,
         html: shell({
@@ -6127,26 +6143,13 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroSub: `${count} client(s) à appeler aujourd'hui (${date})`,
           icon: "check",
           greeting,
-          bodyText: `Voici la liste des comptes actifs dont le dernier check-up de service date de 80, 85 ou 90 jours. Un fichier CSV complet est joint à ce courriel.`,
-          customBlockHtml: `
-            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 16px;">
-              <thead>
-                <tr style="background:#f5f3ff;">
-                  <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Compte</th>
-                  <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Client</th>
-                  <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Courriel</th>
-                  <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Téléphone</th>
-                  <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Forfait</th>
-                  <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e9d5ff;">Délai</th>
-                </tr>
-              </thead>
-              <tbody>${rowsHtml}</tbody>
-            </table>`,
+          bodyHtml: tableHtml,
           ctaPrimaryUrl: `${APP_URL}/core/accounts`,
           ctaPrimaryLabel: "Ouvrir les comptes",
         }),
       };
     }
+
 
 
     case "marketing_promotion": {
