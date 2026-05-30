@@ -27443,7 +27443,7 @@ export type Database = {
       _supplier_get_key: { Args: never; Returns: string }
       admin_promote_order_to_confirmed: {
         Args: { p_order_id: string }
-        Returns: undefined
+        Returns: Json
       }
       admin_sign_contract: {
         Args: {
