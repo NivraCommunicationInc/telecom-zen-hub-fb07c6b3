@@ -768,10 +768,13 @@ export function useOrderProcessing(orderId: string | undefined) {
       const orderStatus = String(data?.order?.status || "").toLowerCase();
       if (orderStatus && !BILLABLE_STATUSES.includes(orderStatus)) {
         console.warn(`[confirmPayment] Order status '${orderStatus}' is not billable — auto-promoting to 'confirmed' (admin override)`);
-        const { error: promoteErr } = await supabase
-          .from("orders")
-          .update({ status: "confirmed", updated_at: new Date().toISOString() })
-          .eq("id", orderId!);
+        // Use SECURITY DEFINER RPC with extended statement_timeout (30s) to
+        // accommodate the heavy AFTER-UPDATE trigger cascade on orders
+        // (commission, contract generation, email enqueue, projections...).
+        const { error: promoteErr } = await supabase.rpc(
+          "admin_promote_order_to_confirmed" as any,
+          { p_order_id: orderId! }
+        );
         if (promoteErr) {
           console.error("[confirmPayment] Failed to override order status:", promoteErr);
           throw new Error(`Impossible de débloquer la commande (${orderStatus}) pour confirmation de paiement: ${promoteErr.message}`);
