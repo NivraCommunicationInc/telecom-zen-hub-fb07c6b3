@@ -17,6 +17,8 @@
  * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
@@ -28,6 +30,65 @@ import { StepContent } from "@/core-app/components/order-processing/StepContent"
 import {
   ArrowLeft, Loader2, ShoppingCart,
 } from "lucide-react";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve a route param to a real `orders.id` so downstream code never
+ * has to branch on `order_type === 'FIELD'`. Three cases:
+ *   1. param is an existing orders.id (UUID) → use as-is
+ *   2. param is an existing orders.order_number → resolve to id
+ *   3. param is a field_payment_intents.id (FIELD virtual order from OrdersPage):
+ *        a. if intent.converted_order_id is set → use it
+ *        b. else if intent is paid → materialize via field-order-engine
+ *        c. else → throw an actionable error
+ */
+async function resolveOrderRouteParam(param: string): Promise<string> {
+  const value = decodeURIComponent(param).trim();
+  if (!value) throw new Error("Identifiant de commande manquant");
+
+  if (UUID_RE.test(value)) {
+    const { data: byId } = await supabase.from("orders").select("id").eq("id", value).maybeSingle();
+    if (byId?.id) return byId.id;
+  }
+
+  const { data: byNumber } = await supabase
+    .from("orders").select("id").eq("order_number", value).maybeSingle();
+  if (byNumber?.id) return byNumber.id;
+
+  if (UUID_RE.test(value)) {
+    const { data: intent } = await supabase
+      .from("field_payment_intents" as any)
+      .select("id, status, converted_order_id")
+      .eq("id", value)
+      .maybeSingle();
+
+    if (intent) {
+      const intentRow = intent as any;
+      if (intentRow.converted_order_id) return intentRow.converted_order_id as string;
+
+      if (intentRow.status === "paid" || intentRow.status === "completed") {
+        const { data, error } = await supabase.functions.invoke("field-order-engine", {
+          body: {
+            action: "finalize_paid_intent",
+            field_payment_intent_id: intentRow.id,
+            payment_method: "card_manual",
+          },
+        });
+        if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
+        const newId = (data as any)?.order_id;
+        if (newId) return newId as string;
+        throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
+      }
+
+      throw new Error(
+        `Commande FIELD non finalisée (statut intent: ${intentRow.status}). Le paiement doit être complété avant ouverture du dossier.`,
+      );
+    }
+  }
+
+  throw new Error("Commande introuvable");
+}
 
 const CoreOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -44,8 +105,42 @@ const CoreOrderDetail = () => {
     );
   }
 
-  return <OrderConsole orderId={orderId} />;
+  return <OrderResolver routeParam={orderId} />;
 };
+
+function OrderResolver({ routeParam }: { routeParam: string }) {
+  const resolver = useQuery({
+    queryKey: ["core-order-detail-resolve", routeParam],
+    queryFn: () => resolveOrderRouteParam(routeParam),
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  if (resolver.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-[#0a0e16]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#3b82f6]" />
+        <span className="ml-3 text-xs text-[#8b9ab0]">Résolution du dossier…</span>
+      </div>
+    );
+  }
+
+  if (resolver.error || !resolver.data) {
+    return (
+      <div className="rounded-lg border border-[#7f0000] bg-[#2d0a0a] p-8 text-center">
+        <p className="text-[#ef9a9a] font-medium text-sm">Erreur de chargement</p>
+        <p className="text-xs text-[#8b9ab0] mt-1">
+          {resolver.error instanceof Error ? resolver.error.message : "Commande introuvable"}
+        </p>
+        <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-3 inline-block hover:opacity-80">
+          ← Retour aux commandes
+        </Link>
+      </div>
+    );
+  }
+
+  return <OrderConsole orderId={resolver.data} />;
+}
 
 function OrderConsole({ orderId }: { orderId: string }) {
   const proc = useOrderProcessing(orderId);
