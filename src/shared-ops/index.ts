@@ -40,3 +40,7 @@ export type { AddNoteParams } from "./actions/addOperationalNote";
 
 export { recordPayment } from "./actions/recordPayment";
 export type { RecordPaymentParams, PaymentMethod } from "./actions/recordPayment";
+
+// Components
+export { PaymentMethodPicker } from "./components/PaymentMethodPicker";
+export type { SharedPaymentMethod, PaymentMethodPickerProps } from "./components/PaymentMethodPicker";
