@@ -721,7 +721,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               customer={draft.customer}
               onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
               onNext={() => advance("customer")}
-              onCancel={() => { clearDraft(); navigate(fieldPath("/dashboard")); }}
+              onCancel={() => { clearDraft(); navigate(_exitPath); }}
             />
           )}
 
@@ -860,7 +860,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
                   }
                   toast.success("Transaction annulée. Client informé.");
                   clearDraft();
-                  navigate(fieldPath("/dashboard"));
+                  navigate(_exitPath);
                 } catch (e: any) {
                   logger.warn("Cancel transaction failed", e);
                   toast.error(e?.message || "Échec de l'annulation");
@@ -873,7 +873,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
                     await supabase.from("orders").update({ status: "on_hold" } as any).eq("id", orderId);
                   }
                   toast.success("Commande mise en attente. Vous pouvez la reprendre depuis Mes commandes.");
-                  navigate(fieldPath("/dashboard"));
+                  navigate(_exitPath);
                 } catch (e: any) {
                   logger.warn("Hold transaction failed", e);
                   toast.error(e?.message || "Échec de la mise en attente");
@@ -952,7 +952,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
                   }
                   toast.success("Soumission envoyée au client (valide 7 jours).");
                   clearDraft();
-                  navigate(fieldPath("/dashboard"));
+                  navigate(_exitPath);
                 } catch (e: any) {
                   logger.warn("Convert to quote failed", e);
                   toast.error(e?.message || "Échec de la conversion en soumission");
