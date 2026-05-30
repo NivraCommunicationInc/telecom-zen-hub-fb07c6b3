@@ -1782,7 +1782,9 @@ export function useOrderProcessing(orderId: string | undefined) {
 
     const balanceDue = Number(invoice?.balance_due ?? invoice?.total ?? 1);
     const invoiceStatus = invoice?.status;
-    const invoicePaid = !!invoice && (["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") || balanceDue <= 0);
+    const orderPaymentStatus = String((order as any)?.payment_status || "").toLowerCase();
+    const orderPaid = orderPaymentStatus === "paid" || orderPaymentStatus === "confirmed" || !!((order as any)?.payment_confirmed_at);
+    const invoicePaid = orderPaid || (!!invoice && (["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") || balanceDue <= 0));
 
     const kycStatus = String((order as any)?.kyc_status || "not_required").toLowerCase();
     const kycPolicy = String((order as any)?.kyc_policy || "none").toLowerCase();
@@ -1790,10 +1792,10 @@ export function useOrderProcessing(orderId: string | undefined) {
     const kycOk = !kycRequired || kycStatus === "approved" || kycStatus === "not_required";
 
     const blockers: string[] = [];
-    if (!invoice) {
+    if (!invoice && !orderPaid) {
       blockers.push("aucune facture liée à cette commande");
     } else if (!invoicePaid) {
-      blockers.push(`la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $)`);
+      blockers.push(`la facture ${invoice?.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $)`);
     }
     if (!kycOk) {
       blockers.push(`kyc_status est ${kycStatus}`);
