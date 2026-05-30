@@ -53,31 +53,11 @@ async function resolveOrderRouteParam(param: string): Promise<string> {
   if (UUID_RE.test(value)) {
     const { data: intent } = await supabase
       .from("field_payment_intents" as any)
-      .select("id, quote_id, agent_id, converted_order_id")
+      .select("converted_order_id")
       .eq("id", value)
       .maybeSingle();
-
-    if (intent) {
-      const row = intent as any;
-      if (row.converted_order_id) return row.converted_order_id as string;
-      if (!row.quote_id) throw new Error("Intention sans soumission liée — impossible à matérialiser");
-
-      const { data, error } = await supabase.functions.invoke("field-order-engine", {
-        body: { action: "materialize_from_quote", quote_id: row.quote_id, agent_id: row.agent_id },
-      });
-      if (error) throw new Error(error.message || "Échec de la matérialisation de la commande FIELD");
-      const newId = (data as any)?.order_id;
-      if (!newId) throw new Error("Le moteur FIELD n'a pas retourné d'identifiant de commande");
-
-      // Link the intent → order so subsequent opens are instant and the
-      // card-manual panel (queried by field_payment_intent_id) can attach.
-      await supabase
-        .from("field_payment_intents" as any)
-        .update({ converted_order_id: newId } as any)
-        .eq("id", row.id);
-
-      return newId as string;
-    }
+    const converted = (intent as any)?.converted_order_id;
+    if (converted) return converted as string;
   }
 
   throw new Error("Commande introuvable");
