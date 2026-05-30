@@ -37,9 +37,15 @@ const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 const DRAFT_KEY_BASE = "field_sale_draft";
 
-export default function FieldNewSale() {
+interface FieldNewSaleProps {
+  /** Path used when the agent cancels/holds/converts. Defaults to fieldPath("/dashboard"). */
+  exitRedirect?: string;
+}
+
+export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const _exitPath = exitRedirect ?? fieldPath("/dashboard");
   const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
   const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
   const { user } = useStaffUser();
@@ -715,7 +721,7 @@ export default function FieldNewSale() {
               customer={draft.customer}
               onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
               onNext={() => advance("customer")}
-              onCancel={() => { clearDraft(); navigate(fieldPath("/dashboard")); }}
+              onCancel={() => { clearDraft(); navigate(_exitPath); }}
             />
           )}
 
@@ -854,7 +860,7 @@ export default function FieldNewSale() {
                   }
                   toast.success("Transaction annulée. Client informé.");
                   clearDraft();
-                  navigate(fieldPath("/dashboard"));
+                  navigate(_exitPath);
                 } catch (e: any) {
                   logger.warn("Cancel transaction failed", e);
                   toast.error(e?.message || "Échec de l'annulation");
@@ -867,7 +873,7 @@ export default function FieldNewSale() {
                     await supabase.from("orders").update({ status: "on_hold" } as any).eq("id", orderId);
                   }
                   toast.success("Commande mise en attente. Vous pouvez la reprendre depuis Mes commandes.");
-                  navigate(fieldPath("/dashboard"));
+                  navigate(_exitPath);
                 } catch (e: any) {
                   logger.warn("Hold transaction failed", e);
                   toast.error(e?.message || "Échec de la mise en attente");
@@ -946,7 +952,7 @@ export default function FieldNewSale() {
                   }
                   toast.success("Soumission envoyée au client (valide 7 jours).");
                   clearDraft();
-                  navigate(fieldPath("/dashboard"));
+                  navigate(_exitPath);
                 } catch (e: any) {
                   logger.warn("Convert to quote failed", e);
                   toast.error(e?.message || "Échec de la conversion en soumission");

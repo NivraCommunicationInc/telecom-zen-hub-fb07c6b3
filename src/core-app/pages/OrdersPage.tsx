@@ -162,6 +162,12 @@ const OrdersPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <Link
+            to={corePath("/orders/manual")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-core-accent/50 bg-core-accent/15 px-3.5 py-1.5 text-[11px] font-semibold text-core-accent hover:bg-core-accent/25 transition-colors"
+          >
+            + Nouvelle commande manuelle
+          </Link>
           <button
             onClick={() => refetch()}
             className="inline-flex items-center gap-1.5 rounded-full border border-core-border bg-core-card px-3.5 py-1.5 text-[11px] font-medium text-core-muted hover:text-core-fg hover:border-core-accent/40 transition-colors"
