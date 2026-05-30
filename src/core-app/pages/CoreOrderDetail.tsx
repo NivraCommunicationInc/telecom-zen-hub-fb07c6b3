@@ -26,6 +26,7 @@ import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
 import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
+import { CorePaymentOptionsPanel } from "@/core-app/components/order-detail/CorePaymentOptionsPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 
@@ -182,6 +183,18 @@ function OrderConsole({ orderId }: { orderId: string }) {
       {order.payment_method === "card_manual" && (
         <CoreCardManualPanel orderId={order.id} orderReference={null} />
       )}
+
+      {/* Payment options — link by email / direct PayPal / manual confirm */}
+      <CorePaymentOptionsPanel
+        orderId={order.id}
+        orderNumber={orderNumber}
+        totalAmount={order.total_amount != null ? Number(order.total_amount) : null}
+        clientEmail={order.client_email || profile?.email || null}
+        paymentStatus={(order as any).payment_status ?? null}
+        orderStatus={order.status ?? null}
+        onChanged={() => proc.refetch()}
+      />
+
 
       {/* Main shell — single dark container */}
       <div className="rounded-lg border border-[#1e2535] bg-[#0a0e16] overflow-hidden shadow-2xl">

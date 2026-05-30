@@ -748,6 +748,75 @@ serve(async (req) => {
           break;
         }
 
+        // ───────────────────────────────────────────────────────────
+        // Core order payment link (co:<order_id>) — admin generated a
+        // PayPal link from CoreOrderDetail and the client just paid.
+        // ───────────────────────────────────────────────────────────
+        if (typeof customId === "string" && customId.startsWith("co:")) {
+          const coreOrderId = customId.slice(3);
+          console.log(`[PayPal Webhook] Core order payment capture: ${coreOrderId}`);
+
+          const { data: coreOrder } = await supabase
+            .from("orders")
+            .select("id, order_number, status, payment_status, client_email, client_first_name, client_last_name, total_amount")
+            .eq("id", coreOrderId)
+            .maybeSingle();
+
+          if (!coreOrder) {
+            console.warn(`[PayPal Webhook] Core order not found: ${coreOrderId}`);
+            break;
+          }
+          if (coreOrder.payment_status === "paid") {
+            console.log(`[PayPal Webhook] Core order ${coreOrderId} already paid — skipping`);
+            break;
+          }
+
+          await supabase
+            .from("orders")
+            .update({
+              status: "confirmed",
+              payment_status: "paid",
+              payment_method: "paypal",
+              payment_reference: captureId,
+              provider_payment_id: captureId,
+              payment_confirmed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", coreOrderId);
+
+          await supabase.from("order_status_history").insert({
+            order_id: coreOrderId,
+            status_domain: "payment",
+            old_status: coreOrder.payment_status,
+            new_status: "paid",
+            actor_user_id: null,
+            actor_role: "system",
+            actor_name: "PayPal Webhook",
+            change_reason: "Paiement PayPal reçu (lien admin)",
+            metadata: { capture_id: captureId, amount: captureAmount, custom_id: customId },
+          });
+
+          if (coreOrder.client_email) {
+            const fullName = [coreOrder.client_first_name, coreOrder.client_last_name].filter(Boolean).join(" ") || "client";
+            await supabase.from("email_queue").insert({
+              event_key: `core_paid_${coreOrderId}_${captureId}`,
+              to_email: coreOrder.client_email,
+              template_key: "order_payment_confirmed",
+              template_vars: {
+                client_name: fullName,
+                order_number: coreOrder.order_number || coreOrderId.slice(0, 8),
+                amount: captureAmount.toFixed(2),
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 5,
+            });
+          }
+          break;
+        }
+
+
+
         const { data: v2Check } = await supabase
           .from("billing_invoices")
           .select("id, status")
