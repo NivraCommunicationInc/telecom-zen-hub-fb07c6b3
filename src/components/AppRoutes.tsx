@@ -953,6 +953,7 @@ const AppRoutes = () => {
           <Route path="sla" element={<Suspense fallback={null}><CoreSLAPage /></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><CoreCrm /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
+          <Route path="orders/manual" element={<Suspense fallback={null}><FieldNewSale exitRedirect="/core/orders" /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
