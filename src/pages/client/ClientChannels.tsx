@@ -182,9 +182,39 @@ const ClientChannels = () => {
         })
         .eq("id", orderId);
       if (error) throw error;
+
+      // Send confirmation email (non-blocking)
+      try {
+        const channelList = Array.isArray(channels) ? channels : [];
+        const totalPrice = channelList.reduce(
+          (sum: number, ch: any) => sum + Number(ch?.price || 0),
+          0,
+        );
+        const names = channelList
+          .map((ch: any) => ch?.name)
+          .filter(Boolean)
+          .slice(0, 8)
+          .join(", ") + (channelList.length > 8 ? `, +${channelList.length - 8} autres` : "");
+        await portalSupabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "client_tv_channels_updated",
+            recipientEmail: profile?.email || user?.email,
+            idempotencyKey: `tv_channels_updated_${orderId}_${Date.now()}`,
+            templateData: {
+              first_name: (profile as any)?.first_name || (profile?.full_name || "").split(" ")[0] || "",
+              client_name: profile?.full_name || "",
+              channel_count: String(channelList.length),
+              total_price: `${totalPrice.toFixed(2)} $`,
+              channel_names: names || "—",
+            },
+          },
+        });
+      } catch {
+        /* non-blocking */
+      }
     },
     onSuccess: () => {
-      toast.success("Chaînes mises à jour avec succès!");
+      toast.success("Chaînes mises à jour. Un courriel de confirmation a été envoyé.");
       setEditingOrderId(null);
       setEditingChannels([]);
       queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
