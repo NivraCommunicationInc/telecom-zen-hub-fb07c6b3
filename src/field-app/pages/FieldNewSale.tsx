@@ -37,9 +37,15 @@ const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 const DRAFT_KEY_BASE = "field_sale_draft";
 
-export default function FieldNewSale() {
+interface FieldNewSaleProps {
+  /** Path used when the agent cancels/holds/converts. Defaults to fieldPath("/dashboard"). */
+  exitRedirect?: string;
+}
+
+export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const _exitPath = exitRedirect ?? fieldPath("/dashboard");
   const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
   const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
   const { user } = useStaffUser();
