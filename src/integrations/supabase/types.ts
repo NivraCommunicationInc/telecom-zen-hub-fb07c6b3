@@ -4009,6 +4009,47 @@ export type Database = {
         }
         Relationships: []
       }
+      client_checkups: {
+        Row: {
+          account_id: string
+          checked_at: string
+          checked_by: string | null
+          created_at: string
+          equipment_ok: boolean | null
+          id: string
+          notes: string | null
+          service_ok: boolean | null
+        }
+        Insert: {
+          account_id: string
+          checked_at?: string
+          checked_by?: string | null
+          created_at?: string
+          equipment_ok?: boolean | null
+          id?: string
+          notes?: string | null
+          service_ok?: boolean | null
+        }
+        Update: {
+          account_id?: string
+          checked_at?: string
+          checked_by?: string | null
+          created_at?: string
+          equipment_ok?: boolean | null
+          id?: string
+          notes?: string | null
+          service_ok?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_checkups_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_direct_refunds: {
         Row: {
           account_id: string | null

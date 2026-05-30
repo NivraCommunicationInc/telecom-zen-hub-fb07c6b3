@@ -214,7 +214,6 @@ export function TVChannelActivationStep({ proc }: Props) {
       selected_channels: normalizePersistedChannels(selectedChannels),
       channel_selection_locked: true,
       tv_channels_count: selectedChannels.length,
-      tv_total_price: totalPrice,
       channel_assigned_by: proc.currentUserId || order?.channel_assigned_by || null,
       updated_at: nowIso,
     });
