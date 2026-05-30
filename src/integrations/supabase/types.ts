@@ -27441,6 +27441,10 @@ export type Database = {
         Returns: undefined
       }
       _supplier_get_key: { Args: never; Returns: string }
+      admin_promote_order_to_confirmed: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       admin_sign_contract: {
         Args: {
           p_admin_name: string
