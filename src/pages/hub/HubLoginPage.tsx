@@ -316,6 +316,43 @@ export default function HubLoginPage() {
       );
     }
 
+    if (stage === "mfa_enroll") {
+      return (
+        <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+          <div className="fixed right-3 top-3 z-40">
+            <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
+          <MfaEnrollmentDialog onComplete={() => window.location.reload()} onCancel={handleLogout} />
+        </div>
+      );
+    }
+
+    if (stage === "mfa_verify" && mfaFactorId) {
+      return (
+        <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+          <div className="fixed right-3 top-3 z-40">
+            <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
+          <MfaVerificationGate
+            factorId={mfaFactorId}
+            onVerified={async () => {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user) {
+                createHubSession(session.user.id);
+                await auditAccess("hub_access", "auto");
+                let pending = "";
+                try { pending = sessionStorage.getItem("hub_pending_landing") || ""; } catch { /* noop */ }
+                try { sessionStorage.removeItem("hub_pending_landing"); } catch { /* noop */ }
+                const landing = pending || await resolveStaffLandingPath(session.user.id);
+                navigate(landing, { replace: true });
+              }
+            }}
+            onLogout={handleLogout}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background px-4", themeClass)}>
         <div className="fixed right-3 top-3 z-40">
