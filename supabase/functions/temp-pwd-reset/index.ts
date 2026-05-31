@@ -1,6 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   const log: string[] = [];
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -11,28 +16,37 @@ Deno.serve(async (_req) => {
     const email = "nivratelecom@gmail.com";
     const password = "Ketlie1971$";
 
-    log.push("finding profile...");
-    const { data: profile, error: profileError } = await adminClient
-      .from("profiles")
-      .select("user_id, email")
-      .ilike("email", email)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    if (!profile?.user_id) {
-      return new Response(JSON.stringify({ error: "user not found", log }), { status: 404 });
+    log.push("finding auth user...");
+    let userId: string | null = null;
+    for (let page = 1; page <= 20 && !userId; page += 1) {
+      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw error;
+      const found = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+      userId = found?.id ?? null;
+      if (data.users.length < 1000) break;
+    }
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "auth user not found", log }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     log.push("updating password...");
-    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(profile.user_id, {
+    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
       password,
       email_confirm: true,
     });
     if (updateError) throw updateError;
 
     return new Response(JSON.stringify({ ok: true, user: { id: updateData.user.id, email: updateData.user.email }, log }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: String(e?.message ?? e), log }), { status: 500 });
+    return new Response(JSON.stringify({ error: String(e?.message ?? e), log }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
