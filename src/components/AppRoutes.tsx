@@ -9,7 +9,7 @@ import { lazy, Suspense } from "react";
 const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubCreateAccountPage = lazy(() => import("@/pages/hub/HubCreateAccountPage"));
-const HubForgotPasswordPage = lazy(() => import("@/pages/hub/HubForgotPasswordPage"));
+
 const HubResetPasswordPage = lazy(() => import("@/pages/hub/HubResetPasswordPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
