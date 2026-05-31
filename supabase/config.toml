@@ -1,5 +1,9 @@
 project_id = "xtgngmtxggascbxnswvb"
 
+[functions._temp-pwd-reset]
+verify_jwt = false
+
+
 [functions.verify-lockdown-password]
 verify_jwt = false
 
