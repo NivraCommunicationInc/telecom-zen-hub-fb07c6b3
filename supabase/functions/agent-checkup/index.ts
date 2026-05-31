@@ -8,28 +8,28 @@ serve(async () => {
   );
 
   // Get ALL active clients with complete information
-  const { data: clients } = await supabase
+  const { data: clients, error: clientsError } = await supabase
     .from("accounts")
     .select(`
+      id,
       account_number,
       status,
       activated_at,
       client_id,
-      profiles!accounts_client_id_fkey(
+      profiles!inner(
         full_name,
         first_name,
         last_name,
         email,
         phone
       ),
-      billing_subscriptions(
+      billing_subscriptions!left(
         plan_name,
         monthly_amount,
         status,
-        next_renewal_at,
-        started_at
+        next_renewal_at
       ),
-      service_addresses(
+      service_addresses!left(
         civic_number,
         apartment,
         street,
@@ -37,25 +37,13 @@ serve(async () => {
         province,
         postal_code
       ),
-      equipment_inventory(
+      equipment_inventory!left(
         equipment_type,
         serial_number,
         model,
         status
       ),
-      account_promotions(
-        promotions(
-          name,
-          discount_type,
-          discount_value
-        )
-      ),
-      account_adjustments(
-        description,
-        amount,
-        status
-      ),
-      supplier_accounts(
+      supplier_accounts!left(
         name,
         contact_name,
         phone,
@@ -63,29 +51,39 @@ serve(async () => {
         account_number,
         notes
       ),
-      billing_invoices(
+      billing_payments!left(
+        amount,
+        paid_at,
+        payment_method,
+        status
+      ),
+      billing_invoices!left(
         invoice_number,
         total_amount,
         balance_due,
         status,
         due_date
-      ),
-      billing_payments(
-        amount,
-        paid_at,
-        payment_method,
-        status
       )
     `)
-    .eq("status", "active")
-    .order("account_number");
+    .eq("status", "active");
+
+  console.log("Clients query error:", clientsError);
+  console.log("Clients found:", clients?.length, JSON.stringify(clients?.slice(0, 1)));
+  console.log("Total active clients:", clients?.length || 0);
 
   if (!clients || clients.length === 0) {
+    await supabase.from("agent_audit_log").insert({
+      agent_name: "checkup",
+      action: "weekly_report",
+      result: "no_clients",
+      details: { message: "No active clients found", error: clientsError?.message },
+    });
     return new Response(
-      JSON.stringify({ ok: true, sent: 0 }),
+      JSON.stringify({ ok: true, sent: 0, error: clientsError?.message }),
       { headers: { "Content-Type": "application/json" } }
     );
   }
+
 
   // Build CSV content
   const headers = [
