@@ -72,19 +72,54 @@ export default function HubLoginPage() {
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Enforces MFA enrollment/verification for staff arriving without a specific
+  // portal selection (auto-landing flow). Mirrors verifyAndProceed but without
+  // the per-portal access key check.
+  const enforceMfaThenLand = async (userId: string, landing: string) => {
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role, status, is_active")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .in("role", INTERNAL_ROLES)
+      .maybeSingle();
+
+    const isAdminRole = roleData?.role === "admin";
+    const mfa = await checkMfaStatus();
+
+    if (isAdminRole && !mfa.isEnrolled) {
+      setStage("mfa_enroll");
+      setCheckingSession(false);
+      setLoading(false);
+      try { sessionStorage.setItem("hub_pending_landing", landing); } catch { /* noop */ }
+      return;
+    }
+    if (mfa.isEnrolled && !mfa.isVerified) {
+      setMfaFactorId(mfa.factorId ?? null);
+      setStage("mfa_verify");
+      setCheckingSession(false);
+      setLoading(false);
+      try { sessionStorage.setItem("hub_pending_landing", landing); } catch { /* noop */ }
+      return;
+    }
+
+    createHubSession(userId);
+    await auditAccess("hub_access", "auto");
+    setStage("redirecting");
+    navigate(landing, { replace: true });
+  };
+
   useEffect(() => {
     const checkExisting = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
-        // No portal selected: if user is already signed in, route them to their default
-        // portal based on role; otherwise show the no-portal landing form.
+        // No portal selected: if user is already signed in, enforce MFA first,
+        // then route them to their default portal based on role.
         if (!portal) {
           if (session?.user) {
             const landing = await resolveStaffLandingPath(session.user.id);
-            createHubSession(session.user.id);
-            setStage("redirecting");
-            navigate(landing, { replace: true });
+            await enforceMfaThenLand(session.user.id, landing);
             return;
           }
           setCheckingSession(false);
