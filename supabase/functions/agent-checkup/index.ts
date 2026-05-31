@@ -10,7 +10,7 @@ serve(async () => {
   // 1) Fetch active accounts
   const { data: accounts, error: accountsError } = await supabase
     .from("accounts")
-    .select("id, account_number, status, activated_at, client_id")
+    .select("id, account_number, status, created_at, client_id")
     .eq("status", "active")
     .order("account_number");
 
@@ -215,7 +215,7 @@ serve(async () => {
       sub?.monthly_amount ? sub.monthly_amount + "$" : "",
       sub?.status || "",
       sub?.next_renewal_at ? new Date(sub.next_renewal_at).toLocaleDateString("fr-CA") : "",
-      c.activated_at ? new Date(c.activated_at).toLocaleDateString("fr-CA") : "",
+      c.created_at ? new Date(c.created_at).toLocaleDateString("fr-CA") : "",
       equipements,
       serials,
       supplier?.service_name || "",
