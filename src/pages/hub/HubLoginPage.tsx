@@ -43,6 +43,19 @@ const getSafePortalRedirect = (redirect: string | null, fallback: string) => {
 
 type Stage = "login" | "mfa_enroll" | "mfa_verify" | "redirecting";
 
+const FAIL_THRESHOLD = 3;
+const failKey = (email: string) => `hub_login_fails::${email.toLowerCase()}`;
+const getFailCount = (email: string) => {
+  try { return parseInt(localStorage.getItem(failKey(email)) || "0", 10) || 0; }
+  catch { return 0; }
+};
+const setFailCount = (email: string, n: number) => {
+  try { localStorage.setItem(failKey(email), String(n)); } catch { /* noop */ }
+};
+const clearFailCount = (email: string) => {
+  try { localStorage.removeItem(failKey(email)); } catch { /* noop */ }
+};
+
 export default function HubLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
