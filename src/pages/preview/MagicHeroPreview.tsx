@@ -99,7 +99,7 @@ function FloatingCard({
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ delay, duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }}
       className={className}
     >
       <motion.div
@@ -365,7 +365,7 @@ export default function MagicHeroPreview() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] as const }}
             >
               <Link
                 to="/garantie"
@@ -400,7 +400,7 @@ export default function MagicHeroPreview() {
                   key={i}
                   variants={{
                     hidden: { opacity: 0, y: 24 },
-                    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+                    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } },
                   }}
                   className="inline-block pr-3"
                 >
@@ -420,7 +420,7 @@ export default function MagicHeroPreview() {
                   visible: {
                     opacity: 1,
                     y: 0,
-                    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.5 },
+                    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const, delay: 0.5 },
                   },
                 }}
                 className="text-[clamp(1.6rem,3.5vw,3rem)] text-[#4B5563] dark:text-[#94A3B8]"
