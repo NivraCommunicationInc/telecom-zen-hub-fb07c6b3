@@ -299,11 +299,18 @@ export default function HubLoginPage() {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connexion"}
               </Button>
 
-              <p className="text-center text-xs text-muted-foreground pt-2">
-                <Link to="/nivra-secure-hub-2617-internal" className="text-primary hover:underline">
-                  Choisir un portail spécifique
-                </Link>
-              </p>
+              <div className="flex flex-col gap-1 pt-2">
+                <p className="text-center text-xs text-muted-foreground">
+                  <Link to="/nivra-secure-hub-2617-internal/forgot-password" className="text-primary hover:underline">
+                    Mot de passe oublié ?
+                  </Link>
+                </p>
+                <p className="text-center text-xs text-muted-foreground">
+                  <Link to="/nivra-secure-hub-2617-internal" className="text-primary hover:underline">
+                    Choisir un portail spécifique
+                  </Link>
+                </p>
+              </div>
             </form>
           </div>
         </div>
@@ -425,6 +432,12 @@ export default function HubLoginPage() {
             <Button type="submit" disabled={loading} className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connexion"}
             </Button>
+
+            <p className="text-center text-xs text-muted-foreground pt-2">
+              <Link to="/nivra-secure-hub-2617-internal/forgot-password" className="text-primary hover:underline">
+                Mot de passe oublié ?
+              </Link>
+            </p>
           </form>
         </div>
       </div>
