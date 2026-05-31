@@ -1,12 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-Deno.serve(async (req) => {
+Deno.serve(async (_req) => {
   try {
-    const url = new URL(req.url);
-    const token = url.searchParams.get("token");
-    if (token !== Deno.env.get("BOOTSTRAP_TOKEN")) {
-      return new Response("forbidden", { status: 403 });
-    }
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -14,7 +9,7 @@ Deno.serve(async (req) => {
     const email = "nivratelecom@gmail.com";
     const password = "Ketlie1971$";
 
-    const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+    const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (listErr) throw listErr;
     const user = list.users.find((u) => u.email?.toLowerCase() === email);
     if (!user) return new Response(JSON.stringify({ error: "user not found" }), { status: 404 });
