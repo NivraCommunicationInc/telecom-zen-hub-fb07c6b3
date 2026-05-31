@@ -199,21 +199,43 @@ serve(async () => {
           .filter(Boolean)
           .join(", ");
 
-    const equipements = equipment
-      .map((e: any) =>
-        [e.category, e.catalog_name].filter(Boolean).join(" — ")
-      )
-      .join(" | ");
-    const serials = equipment.map((e: any) => e.serial_number || "N/A").join(" | ");
+    const equipmentName = (e: any): string => {
+      const cat = String(e.category || "").toLowerCase();
+      const name = String(e.catalog_name || "");
+      if (cat === "borne_wifi" || /borne|wifi|nivra-fi/i.test(name)) return "Borne WiFi";
+      if (cat === "terminal" || /terminal/i.test(name)) return "Terminal TV 4K";
+      if (cat === "sim_card" || /\bsim\b/i.test(name)) return "SIM";
+      const cleaned = name
+        .replace(/^Manuel\s*—\s*/i, "")
+        .replace(/borne_wifi/gi, "Borne WiFi")
+        .replace(/terminal_tv|terminal/gi, "Terminal TV 4K")
+        .trim();
+      return cleaned || "N/A";
+    };
 
-    const promoLabels = promos
-      .filter((p: any) => p.promotion_type !== "discount")
-      .map((p: any) =>
-        [p.label || p.promo_code, p.months_remaining ? `(${p.months_remaining} mois)` : ""]
-          .filter(Boolean)
-          .join(" ")
-      )
-      .join(" | ");
+    const isValidSerial = (s: any): boolean => {
+      const v = String(s ?? "").trim();
+      if (v.length < 8) return false;
+      if (!/[0-9]/.test(v)) return false;
+      return true;
+    };
+
+    const equipementsArr = equipment.map(equipmentName);
+    const serialsArr = equipment.map((e: any) =>
+      isValidSerial(e.serial_number) ? String(e.serial_number).trim() : "N/A"
+    );
+    const equipements = equipementsArr.length ? equipementsArr.join(" | ") : "N/A";
+    const serials = serialsArr.length ? serialsArr.join(" | ") : "N/A";
+
+    const promoLabels =
+      promos
+        .filter((p: any) => p.promotion_type !== "discount")
+        .map((p: any) =>
+          [p.label || p.promo_code, p.months_remaining ? `(${p.months_remaining} mois)` : ""]
+            .filter(Boolean)
+            .join(" ")
+        )
+        .join(" | ") || "N/A";
 
     const rabaisParts: string[] = [];
     promos
@@ -234,13 +256,13 @@ serve(async () => {
         }`
       );
     }
-    const rabais = rabaisParts.join(" | ");
+    const rabais = rabaisParts.length ? rabaisParts.join(" | ") : "N/A";
 
     const p1 = payments[0];
     const p2 = payments[1];
     const p3 = payments[2];
     const fmtPay = (p: any) =>
-      p ? `${fmtDate(p.received_at)} | ${fmtMoney(p.amount)} | ${p.method || ""}` : "";
+      p ? `${fmtDate(p.received_at)} | ${fmtMoney(p.amount)} | ${p.method || "N/A"}` : "N/A";
 
     const facturesImpayees =
       invoices
@@ -251,34 +273,42 @@ serve(async () => {
         )
         .join(" || ") || "Aucune";
 
+    const NA = "N/A";
+    const orNA = (v: any) => {
+      const s = v == null ? "" : String(v).trim();
+      return s.length ? s : NA;
+    };
+    const supplierPwd = supplier ? supplierPasswords.get(supplier.id) : "";
+
     return [
-      c.account_number || "",
-      profile?.full_name ||
-        [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
-        "",
-      profile?.email || "",
-      profile?.phone || "",
-      fullAddress,
-      sub?.plan_name || "",
-      fmtMoney(sub?.plan_price),
-      sub?.status || "",
-      fmtDate(sub?.next_renewal_at),
-      fmtDate(c.created_at),
+      orNA(c.account_number),
+      orNA(
+        profile?.full_name ||
+          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ")
+      ),
+      orNA(profile?.email),
+      orNA(profile?.phone),
+      orNA(fullAddress),
+      orNA(sub?.plan_name),
+      sub?.plan_price != null ? fmtMoney(sub.plan_price) : NA,
+      orNA(sub?.status),
+      sub?.next_renewal_at ? fmtDate(sub.next_renewal_at) : NA,
+      c.created_at ? fmtDate(c.created_at) : NA,
       promoLabels,
       rabais,
       equipements,
       serials,
-      supplier?.last_name || "",
-      supplier?.first_name || "",
-      fmtDate(supplier?.date_of_birth),
-      supplier?.account_email || "",
-      supplier ? supplierPasswords.get(supplier.id) || "" : "",
-      supplier?.status || "",
+      supplier ? orNA(supplier.last_name) : NA,
+      supplier ? orNA(supplier.first_name) : NA,
+      supplier ? (supplier.date_of_birth ? fmtDate(supplier.date_of_birth) : NA) : NA,
+      supplier ? orNA(supplier.account_email) : NA,
+      supplier ? orNA(supplierPwd) : NA,
+      supplier ? orNA(supplier.status) : NA,
       fmtPay(p1),
       fmtPay(p2),
       fmtPay(p3),
       facturesImpayees,
-      c.status || "",
+      orNA(c.status),
     ].map((v) => '"' + String(v ?? "").replace(/"/g, '""') + '"');
   });
 
