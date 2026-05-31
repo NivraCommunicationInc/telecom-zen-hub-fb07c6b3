@@ -1,6 +1,6 @@
 project_id = "xtgngmtxggascbxnswvb"
 
-[functions._temp-pwd-reset]
+[functions.temp-pwd-reset]
 verify_jwt = false
 
 
