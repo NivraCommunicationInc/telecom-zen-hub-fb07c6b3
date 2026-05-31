@@ -145,17 +145,10 @@ serve(async () => {
         ?.map((e: any) => e.serial_number || "N/A")
         ?.join(" | ") || "";
 
-    const promotions =
-      c.account_promotions
-        ?.map((ap: any) => ap.promotions?.name || "")
-        ?.filter(Boolean)
-        ?.join(" | ") || "";
+    const promotions = "";
 
-    const rabais =
-      c.account_adjustments
-        ?.filter((adj: any) => adj.status === "active")
-        ?.map((adj: any) => adj.description + " (" + adj.amount + "$)")
-        ?.join(" | ") || "";
+    const rabais = "";
+
 
     const paiements =
       c.billing_payments
