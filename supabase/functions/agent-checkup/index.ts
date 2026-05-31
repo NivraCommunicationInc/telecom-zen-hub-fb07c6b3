@@ -1,204 +1,328 @@
-/**
- * agent-checkup
- * --------------
- * Daily agent (07:00 UTC). Finds active clients whose last service check-up
- * was 80, 85 or 90 days ago (or who never had one) and emails the operations
- * inbox (nivratelecom@gmail.com) with a list + a CSV attachment so an agent
- * can call each client for a service verification.
- *
- * Internal-only digest. Never sends anything to clients.
- */
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+serve(async () => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
 
-const ALERT_EMAIL = "nivratelecom@gmail.com";
-const TARGET_DAYS = [80, 85, 90];
-
-function fmtDateISO(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (isNaN(dt.getTime())) return "";
-  return dt.toISOString().slice(0, 10);
-}
-
-function csvEscape(v: unknown): string {
-  if (v === null || v === undefined) return "";
-  const s = String(v).replace(/\r?\n/g, " ").trim();
-  if (/[",;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase: any = createClient(supabaseUrl, serviceKey);
-
-  const startedAt = new Date().toISOString();
-
-  try {
-    // Pull active accounts with their last checkup (computed in JS – avoids
-    // a complex SQL view and matches the schema reality exactly).
-    const { data: accounts, error: accountsError } = await supabase
-      .from("accounts")
-      .select(`
-        id, account_number, created_at, status, client_id,
-        primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code
-      `)
-      .eq("status", "active")
-      .limit(2000);
-    if (accountsError) throw accountsError;
-    const activeAccounts = (accounts ?? []) as any[];
-    if (activeAccounts.length === 0) {
-      return new Response(JSON.stringify({ ok: true, due: 0, emailed: false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const accountIds = activeAccounts.map((a) => a.id);
-    const userIds = activeAccounts.map((a) => a.client_id).filter(Boolean);
-
-    const [profilesRes, subsRes, checkupsRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, first_name, last_name, email, phone").in("user_id", userIds),
-      supabase.from("billing_subscriptions").select("order_id, plan_name, plan_price, status, next_renewal_at, environment, cycle_start_date").eq("status", "active"),
-      supabase.from("client_checkups").select("account_id, checked_at").in("account_id", accountIds),
-    ]);
-
-    const profilesByUser = new Map<string, any>();
-    for (const p of (profilesRes.data ?? []) as any[]) profilesByUser.set(p.user_id, p);
-
-    const lastCheckupByAccount = new Map<string, string>();
-    for (const c of (checkupsRes.data ?? []) as any[]) {
-      const prev = lastCheckupByAccount.get(c.account_id);
-      if (!prev || new Date(c.checked_at) > new Date(prev)) lastCheckupByAccount.set(c.account_id, c.checked_at);
-    }
-
-    // Map orders→accounts so we can join active subs to accounts.
-    const { data: ordersForSubs } = await supabase
-      .from("orders")
-      .select("id, account_id")
-      .in("account_id", accountIds);
-    const orderToAccount = new Map<string, string>();
-    for (const o of (ordersForSubs ?? []) as any[]) if (o.account_id) orderToAccount.set(o.id, o.account_id);
-
-    const subsByAccount = new Map<string, any>();
-    for (const s of (subsRes.data ?? []) as any[]) {
-      const accId = s.order_id ? orderToAccount.get(s.order_id) : null;
-      if (accId && !subsByAccount.has(accId)) subsByAccount.set(accId, s);
-    }
-
-    const now = Date.now();
-    const due: any[] = [];
-    for (const a of activeAccounts) {
-      const last = lastCheckupByAccount.get(a.id) ?? a.created_at;
-      if (!last) continue;
-      const days = Math.floor((now - new Date(last).getTime()) / (1000 * 60 * 60 * 24));
-      if (!TARGET_DAYS.includes(days)) continue;
-      const prof = a.client_id ? profilesByUser.get(a.client_id) : null;
-      const sub = subsByAccount.get(a.id);
-      due.push({
-        account_id: a.id,
-        account_number: a.account_number ?? "",
-        first_name: prof?.first_name ?? "",
-        last_name: prof?.last_name ?? "",
-        full_name: [prof?.first_name, prof?.last_name].filter(Boolean).join(" ").trim() || "—",
-        email: prof?.email ?? "",
-        phone: prof?.phone ?? "",
-        address: [a.primary_service_address, a.primary_service_city, a.primary_service_province, a.primary_service_postal_code]
-          .filter(Boolean).join(", "),
-        plan_name: sub?.plan_name ?? "",
-        plan_price: sub?.plan_price ?? "",
-        next_renewal_at: fmtDateISO(sub?.next_renewal_at),
-        account_created_at: fmtDateISO(a.created_at),
-        last_checkup: fmtDateISO(last),
-        days_since_last_checkup: days,
-      });
-    }
-
-    if (due.length === 0) {
-      return new Response(JSON.stringify({ ok: true, due: 0, emailed: false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Build CSV
-    const headers = [
-      "account_number", "full_name", "email", "phone", "address",
-      "plan_name", "plan_price", "next_renewal_at", "account_created_at",
-      "last_checkup", "days_since_last_checkup",
-    ];
-    const csvRows = [headers.join(",")];
-    for (const r of due) csvRows.push(headers.map((h) => csvEscape((r as any)[h])).join(","));
-    const csv = csvRows.join("\n");
-    const csvBase64 = btoa(unescape(encodeURIComponent(csv)));
-    const today = new Date().toISOString().slice(0, 10);
-
-    // Inline HTML list — kept readable for an internal email digest.
-    const listHtml = due
-      .map(
-        (r) => `
-          <tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${r.account_number}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${r.full_name}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${r.email}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${r.phone || "—"}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${r.plan_name || "—"}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;">${r.days_since_last_checkup} j</td>
-          </tr>`,
+  // Get ALL active clients with complete information
+  const { data: clients } = await supabase
+    .from("accounts")
+    .select(`
+      account_number,
+      status,
+      activated_at,
+      client_id,
+      profiles!accounts_client_id_fkey(
+        full_name,
+        first_name,
+        last_name,
+        email,
+        phone
+      ),
+      billing_subscriptions(
+        plan_name,
+        monthly_amount,
+        status,
+        next_renewal_at,
+        started_at
+      ),
+      service_addresses(
+        civic_number,
+        apartment,
+        street,
+        city,
+        province,
+        postal_code
+      ),
+      equipment_inventory(
+        equipment_type,
+        serial_number,
+        model,
+        status
+      ),
+      account_promotions(
+        promotions(
+          name,
+          discount_type,
+          discount_value
+        )
+      ),
+      account_adjustments(
+        description,
+        amount,
+        status
+      ),
+      supplier_accounts(
+        name,
+        contact_name,
+        phone,
+        email,
+        account_number,
+        notes
+      ),
+      billing_invoices(
+        invoice_number,
+        total_amount,
+        balance_due,
+        status,
+        due_date
+      ),
+      billing_payments(
+        amount,
+        paid_at,
+        payment_method,
+        status
       )
-      .join("");
+    `)
+    .eq("status", "active")
+    .order("account_number");
 
-    const eventKey = `agent_checkup_${today}`;
-    const { error: qErr } = await supabase.from("email_queue").insert({
-      event_key: eventKey,
-      to_email: ALERT_EMAIL,
-      template_key: "checkup_reminder",
-      template_vars: {
-        count: due.length,
-        date: today,
-        clients: due,
-        clients_html_rows: listHtml,
-      },
+  if (!clients || clients.length === 0) {
+    return new Response(
+      JSON.stringify({ ok: true, sent: 0 }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Build CSV content
+  const headers = [
+    "Numéro de compte",
+    "Nom complet",
+    "Email",
+    "Téléphone",
+    "Adresse complète",
+    "Forfait",
+    "Prix mensuel",
+    "Statut abonnement",
+    "Prochain renouvellement",
+    "Date activation",
+    "Promotions actives",
+    "Rabais actifs",
+    "Équipements",
+    "Numéros de série",
+    "Fournisseur nom",
+    "Fournisseur contact",
+    "Fournisseur téléphone",
+    "Fournisseur email",
+    "Fournisseur compte",
+    "Fournisseur notes",
+    "Derniers paiements (3)",
+    "Factures impayées",
+    "Statut compte",
+  ];
+
+  const rows = clients.map((c: any) => {
+    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+    const sub =
+      c.billing_subscriptions?.find((s: any) => s.status === "active") ||
+      c.billing_subscriptions?.[0];
+    const addr = c.service_addresses?.[0];
+    const supplier = c.supplier_accounts?.[0];
+
+    const fullAddress = addr
+      ? [
+          addr.civic_number,
+          addr.apartment || "",
+          addr.street,
+          addr.city,
+          addr.province,
+          addr.postal_code,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : "";
+
+    const equipements =
+      c.equipment_inventory
+        ?.filter((e: any) => e.status === "assigned")
+        ?.map((e: any) => e.equipment_type + (e.model ? " " + e.model : ""))
+        ?.join(" | ") || "";
+
+    const serials =
+      c.equipment_inventory
+        ?.filter((e: any) => e.status === "assigned")
+        ?.map((e: any) => e.serial_number || "N/A")
+        ?.join(" | ") || "";
+
+    const promotions =
+      c.account_promotions
+        ?.map((ap: any) => ap.promotions?.name || "")
+        ?.filter(Boolean)
+        ?.join(" | ") || "";
+
+    const rabais =
+      c.account_adjustments
+        ?.filter((adj: any) => adj.status === "active")
+        ?.map((adj: any) => adj.description + " (" + adj.amount + "$)")
+        ?.join(" | ") || "";
+
+    const paiements =
+      c.billing_payments
+        ?.sort(
+          (a: any, b: any) =>
+            new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime()
+        )
+        ?.slice(0, 3)
+        ?.map(
+          (p: any) =>
+            new Date(p.paid_at).toLocaleDateString("fr-CA") +
+            " | " +
+            p.amount +
+            "$ | " +
+            p.payment_method +
+            " | " +
+            p.status
+        )
+        ?.join(" || ") || "";
+
+    const facturesImpayees =
+      c.billing_invoices
+        ?.filter((bi: any) => bi.status !== "paid" && bi.balance_due > 0)
+        ?.map(
+          (bi: any) =>
+            bi.invoice_number +
+            " | " +
+            bi.balance_due +
+            "$ | " +
+            (bi.due_date
+              ? new Date(bi.due_date).toLocaleDateString("fr-CA")
+              : "N/A")
+        )
+        ?.join(" || ") || "Aucune";
+
+    return [
+      c.account_number || "",
+      profile?.full_name ||
+        (profile?.first_name + " " + profile?.last_name) ||
+        "",
+      profile?.email || "",
+      profile?.phone || "",
+      fullAddress,
+      sub?.plan_name || "",
+      sub?.monthly_amount ? sub.monthly_amount + "$" : "",
+      sub?.status || "",
+      sub?.next_renewal_at
+        ? new Date(sub.next_renewal_at).toLocaleDateString("fr-CA")
+        : "",
+      c.activated_at
+        ? new Date(c.activated_at).toLocaleDateString("fr-CA")
+        : "",
+      promotions,
+      rabais,
+      equipements,
+      serials,
+      supplier?.name || "",
+      supplier?.contact_name || "",
+      supplier?.phone || "",
+      supplier?.email || "",
+      supplier?.account_number || "",
+      supplier?.notes || "",
+      paiements,
+      facturesImpayees,
+      c.status || "",
+    ].map((v) => '"' + String(v).replace(/"/g, '""') + '"');
+  });
+
+  // Build CSV string
+  const csvContent = [
+    headers.map((h) => '"' + h + '"').join(","),
+    ...rows.map((r) => r.join(",")),
+  ].join("\n");
+
+  // Add BOM for Excel UTF-8
+  const csvWithBOM = "\uFEFF" + csvContent;
+
+  // Convert to base64
+  const base64CSV = btoa(unescape(encodeURIComponent(csvWithBOM)));
+
+  const today = new Date().toLocaleDateString("fr-CA");
+  const filename = `rapport-clients-nivra-${today}.csv`;
+
+  // Send email with attachment via Resend
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+  const emailRes = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Nivra Telecom <noreply@nivra-telecom.ca>",
+      to: ["nivratelecom@gmail.com"],
+      subject: `📊 Rapport hebdomadaire clients Nivra — ${today} (${clients.length} clients actifs)`,
+      html: `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0066CC; padding: 32px 24px; color: #ffffff;">
+    <h1 style="margin: 0; font-size: 24px;">📊 Rapport Hebdomadaire</h1>
+    <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Nivra Telecom — ${today}</p>
+  </div>
+  <div style="padding: 32px 24px; color: #111111;">
+    <h2 style="margin: 0 0 16px; font-size: 18px;">Résumé de la semaine</h2>
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.5;">
+      <strong>${clients.length} clients actifs</strong> dans le rapport ci-joint.
+    </p>
+    <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #444;">
+      Le fichier CSV contient toutes les informations : coordonnées, forfaits,
+      équipements, paiements, factures et fournisseurs.
+    </p>
+  </div>
+  <div style="padding: 16px 24px; background: #F7F7F7; color: #666; font-size: 12px; text-align: center;">
+    Nivra Communications Inc. — support@nivra-telecom.ca
+  </div>
+</div>
+      `,
       attachments: [
         {
-          filename: `checkup-${today}.csv`,
-          content: csvBase64,
-          contentType: "text/csv",
+          filename: filename,
+          content: base64CSV,
+          content_type: "text/csv",
         },
       ],
-      status: "queued",
-      attempts: 0,
-      max_attempts: 5,
-      language: "fr",
-    });
+    }),
+  });
 
-    await supabase
-      .from("agent_registry")
-      .update({
-        last_run_at: startedAt,
-        last_success_at: new Date().toISOString(),
-      })
-      .eq("agent_name", "checkup");
+  const emailResult = await emailRes.json();
 
-    return new Response(
-      JSON.stringify({ ok: true, due: due.length, emailed: !qErr, error: qErr?.message ?? null }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (e: any) {
-    console.error("[agent-checkup] error", e);
-    await supabase
-      .from("agent_registry")
-      .update({ last_run_at: startedAt, last_error_at: new Date().toISOString(), last_error_message: String(e?.message ?? e) })
-      .eq("agent_name", "checkup");
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message ?? e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  // Log in agent_audit_log
+  await supabase.from("agent_audit_log").insert({
+    agent_name: "checkup",
+    action: "weekly_report",
+    result: "success",
+    details: {
+      clients_count: clients.length,
+      filename: filename,
+      email_id: emailResult.id,
+      date: today,
+    },
+  });
+
+  await supabase.from("agent_events").insert({
+    agent_name: "checkup",
+    event_type: "success",
+    message: `Rapport hebdomadaire envoyé — ${clients.length} clients actifs`,
+    details: { filename, date: today },
+  });
+
+  // Update agent_registry last_run
+  await supabase
+    .from("agent_registry")
+    .update({
+      last_run_at: new Date().toISOString(),
+      last_success_at: new Date().toISOString(),
+    })
+    .eq("agent_name", "checkup");
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      clients_count: clients.length,
+      filename: filename,
+      email_sent: emailResult.id ? true : false,
+    }),
+    { headers: { "Content-Type": "application/json" } }
+  );
 });
