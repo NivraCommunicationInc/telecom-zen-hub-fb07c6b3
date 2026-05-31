@@ -11,17 +11,19 @@ Deno.serve(async (_req) => {
     const email = "nivratelecom@gmail.com";
     const password = "Ketlie1971$";
 
-    log.push("finding user...");
-    const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (listError) throw listError;
-
-    const user = listData.users.find((item) => item.email?.toLowerCase() === email);
-    if (!user) {
+    log.push("finding profile...");
+    const { data: profile, error: profileError } = await adminClient
+      .from("profiles")
+      .select("user_id, email")
+      .ilike("email", email)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    if (!profile?.user_id) {
       return new Response(JSON.stringify({ error: "user not found", log }), { status: 404 });
     }
 
     log.push("updating password...");
-    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(user.id, {
+    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(profile.user_id, {
       password,
       email_confirm: true,
     });
