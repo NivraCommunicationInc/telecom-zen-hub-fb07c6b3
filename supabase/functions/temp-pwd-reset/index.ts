@@ -51,7 +51,10 @@ Deno.serve(async (req) => {
       password,
       email_confirm: true,
     });
-    if (updateError) throw updateError;
+    if (updateError) {
+      log.push(`auth update failed: ${JSON.stringify(updateError)}`);
+      throw updateError;
+    }
 
     return new Response(JSON.stringify({ ok: true, user: { id: updateData.user.id, email: updateData.user.email }, log }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
