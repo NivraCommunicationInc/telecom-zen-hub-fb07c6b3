@@ -97,7 +97,7 @@ const MobilePlans = () => {
 
             {/* Key Benefits */}
             <div className="flex flex-wrap justify-center gap-4 mb-10">
-              <Badge variant="outline" className="px-4 py-2 text-sm border-emerald-500/30 text-emerald-500">
+              <Badge variant="outline" className="px-4 py-2 text-sm" style={{ borderColor: "rgba(124,58,237,0.35)", color: "#A78BFA" }}>
                 <Shield className="w-4 h-4 mr-2" />
                 {isFrench ? "Aucune vérification de crédit" : "No credit check"}
               </Badge>
@@ -216,8 +216,8 @@ const MobilePlans = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <Card className="bg-card/50 border-border">
               <CardContent className="pt-6 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-7 h-7 text-emerald-500" />
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(124,58,237,0.15)" }}>
+                  <Shield className="w-7 h-7" style={{ color: "#A78BFA" }} />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">
                   {isFrench ? "Aucune vérification de crédit" : "No Credit Check"}

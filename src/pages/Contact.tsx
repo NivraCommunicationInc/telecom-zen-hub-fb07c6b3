@@ -37,114 +37,104 @@ const Contact = () => {
     }
   ];
 
+  const PURPLE = '#7C3AED';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: '#080612', minHeight: '100vh' }}>
       <SEOHead {...SEO_DATA.contact} />
       <LocalBusinessSchema />
       <Header />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-12 bg-gradient-to-b from-[#0d0d1a] to-background">
-        <div className="container mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ede9fe] border border-[#6b21e8]/20 mb-6">
-            <CheckCircle className="w-4 h-4 text-[#6b21e8]" />
-            <span className="text-sm font-medium text-[#6b21e8]">
-              {isFrench ? "Support client réactif" : "Responsive Customer Support"}
+      {/* ── Hero ── */}
+      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 64, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+        <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
+        <div className="max-w-[900px] mx-auto px-5 sm:px-10 text-center relative">
+          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
+            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+              {isFrench ? 'Support client réactif' : 'Responsive Customer Support'}
             </span>
           </div>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-white mb-6">
-            {isFrench ? "Écrivez-nous" : "Write to Us"}
+          <h1 className="font-black text-white" style={{ fontSize: 'clamp(32px, 5vw, 54px)', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 16 }}>
+            {isFrench ? 'Écrivez-nous' : 'Write to Us'}
           </h1>
-          <p className="text-xl text-white/70 max-w-2xl mx-auto">
-            {isFrench 
-              ? "Nous vous répondons par courriel dans les 2 heures ouvrables."
-              : "We respond by email within 2 business hours."}
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 480, margin: '0 auto' }}>
+            {isFrench
+              ? 'Nous vous répondons par courriel dans les 2 heures ouvrables.'
+              : 'We respond by email within 2 business hours.'}
           </p>
         </div>
       </section>
 
-      {/* Main Content */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-3 gap-12">
-            {/* Support Sidebar */}
+      {/* ── Main Content ── */}
+      <section style={{ padding: '64px 0 80px', background: '#080612' }}>
+        <div className="max-w-[1100px] mx-auto px-5 sm:px-10">
+          <div className="grid lg:grid-cols-3 gap-8">
+
+            {/* Sidebar */}
             <div className="lg:col-span-1">
-              <div className="bg-card border border-border rounded-xl p-6 sticky top-24">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-full bg-[#ede9fe] flex items-center justify-center">
-                    <Mail className="w-6 h-6 text-[#6b21e8]" />
+              <div className="sticky top-24" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 28 }}>
+                <div className="flex items-center gap-3 mb-7">
+                  <div className="flex items-center justify-center" style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', flexShrink: 0 }}>
+                    <Mail className="w-5 h-5" style={{ color: '#A78BFA' }} />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-foreground">
+                    <p className="font-bold text-white" style={{ fontSize: 15 }}>
                       {isFrench ? `Support ${COMPANY_CONTACT.companyName}` : `${COMPANY_CONTACT.companyName} Support`}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {isFrench ? "Réponse rapide garantie" : "Fast response guaranteed"}
+                    </p>
+                    <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>
+                      {isFrench ? 'Réponse rapide garantie' : 'Fast response guaranteed'}
                     </p>
                   </div>
                 </div>
 
-                {/* Support Benefits */}
-                <div className="space-y-4 mb-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
                   {supportBenefits.map((benefit, index) => (
                     <div key={index} className="flex items-start gap-3">
-                      <benefit.icon className="w-5 h-5 text-[#6b21e8] mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">{benefit.text}</span>
+                      <benefit.icon className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#A78BFA' }} />
+                      <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{benefit.text}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Trust Message */}
-                <div className="bg-[#ede9fe] border border-[#6b21e8]/20 rounded-lg p-4 mb-6">
-                  <p className="text-sm text-[#6b21e8] font-medium">
-                    {isFrench 
-                      ? "✓ Aucun frais caché • Suivi clair • Support local" 
-                      : "✓ No hidden fees • Clear tracking • Local support"}
+                <div style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 24 }}>
+                  <p style={{ color: '#C4B5FD', fontSize: 13, fontWeight: 600 }}>
+                    {isFrench ? '✓ Aucun frais caché · Suivi clair · Support local' : '✓ No hidden fees · Clear tracking · Local support'}
                   </p>
                 </div>
 
-                <div className="border-t border-border pt-6 space-y-4">
-                  <h4 className="font-medium text-foreground mb-3">
-                    {isFrench ? "Nous joindre" : "Contact us"}
-                  </h4>
-                  
-                  <Button variant="default" className="w-full justify-start gap-3" style={{ background: '#6b21e8' }} asChild>
-                    <Link to="/portal/auth">
-                      <MessageSquare className="w-4 h-4" />
-                      <span>{isFrench ? "Chat / Ouvrir un ticket" : "Chat / Open a ticket"}</span>
-                    </Link>
-                  </Button>
-                  
-                  <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href={`mailto:${supportEmail.toLowerCase()}`}>
-                      <Mail className="w-4 h-4 text-[#6b21e8]" />
-                      <span>{supportEmail}</span>
-                    </a>
-                  </Button>
-                  
-                  <div className="flex items-start gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                    <Clock className="w-4 h-4 text-[#6b21e8] flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p>{businessHours}</p>
-                    </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <p className="font-semibold text-white" style={{ fontSize: 13, marginBottom: 4 }}>
+                    {isFrench ? 'Nous joindre' : 'Contact us'}
+                  </p>
+                  <Link to="/portal/auth" className="flex items-center justify-center gap-2 font-bold" style={{ height: 46, borderRadius: 10, background: PURPLE, color: '#FFFFFF', fontSize: 14, textDecoration: 'none', boxShadow: '0 4px 16px rgba(124,58,237,0.4)' }}>
+                    <MessageSquare className="w-4 h-4" />
+                    {isFrench ? 'Chat / Ouvrir un ticket' : 'Chat / Open a ticket'}
+                  </Link>
+                  <a href={`mailto:${supportEmail.toLowerCase()}`} className="flex items-center justify-center gap-2 font-semibold" style={{ height: 46, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', fontSize: 14, textDecoration: 'none' }}>
+                    <Mail className="w-4 h-4" style={{ color: '#A78BFA' }} />
+                    {supportEmail}
+                  </a>
+                  <div className="flex items-center gap-2" style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                    <Clock className="w-4 h-4 flex-shrink-0" style={{ color: '#A78BFA' }} />
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{businessHours}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Contact Form */}
+            {/* Form */}
             <div className="lg:col-span-2">
-              <div className="bg-card border border-border rounded-xl p-6 md:p-8">
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-foreground mb-2">
-                    {isFrench ? "Envoyez-nous votre demande" : "Send us your request"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {isFrench 
-                      ? "Activation, installation, changement de service ou support technique — décrivez votre besoin."
-                      : "Activation, installation, service change or technical support — describe your needs."}
-                  </p>
-                </div>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '32px 36px' }}>
+                <h2 className="font-bold text-white" style={{ fontSize: 20, marginBottom: 6 }}>
+                  {isFrench ? 'Envoyez-nous votre demande' : 'Send us your request'}
+                </h2>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 28 }}>
+                  {isFrench
+                    ? 'Activation, installation, changement de service ou support technique — décrivez votre besoin.'
+                    : 'Activation, installation, service change or technical support — describe your needs.'}
+                </p>
                 <ContactForm />
               </div>
             </div>
