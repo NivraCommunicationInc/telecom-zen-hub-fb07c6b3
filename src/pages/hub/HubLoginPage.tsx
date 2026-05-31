@@ -224,20 +224,40 @@ export default function HubLoginPage() {
       });
 
       if (authError || !data.session) {
+        const emailKey = email.trim();
         // Fire-and-forget brute-force tracker (alerts ops on 3+ failures/5min)
         supabase.functions.invoke("track-login-attempt", {
           body: {
-            email_attempted: email.trim(),
+            email_attempted: emailKey,
             success: false,
             failure_reason: authError?.message ?? "no_session",
             portal: portal ?? "hub",
           },
         }).catch(() => { /* never block UX */ });
 
-        setError("Identifiants invalides.");
+        // Per-email failure counter. After FAIL_THRESHOLD failures, silently
+        // trigger a password-reset email if the address matches an active
+        // Nivra Core staff account.
+        const newCount = getFailCount(emailKey) + 1;
+        setFailCount(emailKey, newCount);
+
+        if (newCount >= FAIL_THRESHOLD) {
+          supabase.functions.invoke("hub-password-reset-send", {
+            body: { email: emailKey, redirect_origin: window.location.origin },
+          }).catch(() => { /* silent */ });
+          clearFailCount(emailKey);
+          setError(
+            "Trop de tentatives. Si cette adresse correspond à un compte Nivra Core, un courriel de réinitialisation vient d'être envoyé.",
+          );
+        } else {
+          setError(`Identifiants invalides. (${newCount}/${FAIL_THRESHOLD})`);
+        }
         setLoading(false);
         return;
       }
+
+      // Successful auth → reset failure counter for this email.
+      clearFailCount(email.trim());
 
       // Log successful login (no alert, just history)
       supabase.functions.invoke("track-login-attempt", {
@@ -253,13 +273,10 @@ export default function HubLoginPage() {
       // employee is signing in with their own credentials.
       clearStaffAssistance();
 
-      // No specific portal selected → resolve from role and route there directly.
+      // No specific portal selected → enforce MFA then route to landing.
       if (!portal) {
         const landing = await resolveStaffLandingPath(data.session.user.id);
-        createHubSession(data.session.user.id);
-        await auditAccess("hub_access", "auto");
-        setStage("redirecting");
-        navigate(landing, { replace: true });
+        await enforceMfaThenLand(data.session.user.id, landing);
         return;
       }
 
