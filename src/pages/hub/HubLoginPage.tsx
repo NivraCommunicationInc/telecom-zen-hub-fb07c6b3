@@ -496,10 +496,8 @@ export default function HubLoginPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connexion"}
             </Button>
 
-            <p className="text-center text-xs text-muted-foreground pt-2">
-              <Link to="/nivra-secure-hub-2617-internal/forgot-password" className="text-primary hover:underline">
-                Mot de passe oublié ?
-              </Link>
+            <p className="text-center text-[11px] text-muted-foreground/80 pt-2 leading-relaxed">
+              Après {FAIL_THRESHOLD} tentatives échouées, un lien de réinitialisation sera automatiquement envoyé à votre courriel s'il correspond à un compte Nivra Core.
             </p>
           </form>
         </div>
