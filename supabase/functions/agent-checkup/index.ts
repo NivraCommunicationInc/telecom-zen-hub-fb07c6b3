@@ -7,83 +7,134 @@ serve(async () => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Get ALL active clients with complete information
-  const { data: clients, error: clientsError } = await supabase
+  // 1) Fetch active accounts
+  const { data: accounts, error: accountsError } = await supabase
     .from("accounts")
-    .select(`
-      id,
-      account_number,
-      status,
-      activated_at,
-      client_id,
-      profiles!inner(
-        full_name,
-        first_name,
-        last_name,
-        email,
-        phone
-      ),
-      billing_subscriptions!left(
-        plan_name,
-        monthly_amount,
-        status,
-        next_renewal_at
-      ),
-      service_addresses!left(
-        civic_number,
-        apartment,
-        street,
-        city,
-        province,
-        postal_code
-      ),
-      equipment_inventory!left(
-        equipment_type,
-        serial_number,
-        model,
-        status
-      ),
-      supplier_accounts!left(
-        name,
-        contact_name,
-        phone,
-        email,
-        account_number,
-        notes
-      ),
-      billing_payments!left(
-        amount,
-        paid_at,
-        payment_method,
-        status
-      ),
-      billing_invoices!left(
-        invoice_number,
-        total_amount,
-        balance_due,
-        status,
-        due_date
-      )
-    `)
-    .eq("status", "active");
+    .select("id, account_number, status, activated_at, client_id")
+    .eq("status", "active")
+    .order("account_number");
 
-  console.log("Clients query error:", clientsError);
-  console.log("Clients found:", clients?.length, JSON.stringify(clients?.slice(0, 1)));
-  console.log("Total active clients:", clients?.length || 0);
+  console.log("Accounts query error:", accountsError);
+  console.log("Total active accounts:", accounts?.length || 0);
+  console.log("Sample account:", JSON.stringify(accounts?.slice(0, 1)));
 
-  if (!clients || clients.length === 0) {
+  if (!accounts || accounts.length === 0) {
     await supabase.from("agent_audit_log").insert({
       agent_name: "checkup",
       action: "weekly_report",
       result: "no_clients",
-      details: { message: "No active clients found", error: clientsError?.message },
+      details: { message: "No active accounts found", error: accountsError?.message },
     });
     return new Response(
-      JSON.stringify({ ok: true, sent: 0, error: clientsError?.message }),
+      JSON.stringify({ ok: true, sent: 0, error: accountsError?.message }),
       { headers: { "Content-Type": "application/json" } }
     );
   }
 
+  const accountIds = accounts.map((a) => a.id);
+  const clientIds = Array.from(new Set(accounts.map((a) => a.client_id).filter(Boolean)));
+
+  // 2) Fetch related data in parallel
+  const [
+    profilesRes,
+    addressesRes,
+    equipmentRes,
+    suppliersRes,
+    customersRes,
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("user_id, full_name, first_name, last_name, email, phone")
+      .in("user_id", clientIds),
+    supabase
+      .from("service_addresses")
+      .select("account_id, civic_number, apartment, street, city, province, postal_code")
+      .in("account_id", accountIds),
+    supabase
+      .from("equipment_inventory")
+      .select("account_id, equipment_type, serial_number, model, status")
+      .in("account_id", accountIds),
+    supabase
+      .from("supplier_accounts")
+      .select("client_id, service_name, account_email, monthly_price, status, notes")
+      .in("client_id", clientIds),
+    supabase
+      .from("billing_customers")
+      .select("id, user_id")
+      .in("user_id", clientIds),
+  ]);
+
+  const customerIds = (customersRes.data || []).map((c: any) => c.id);
+  const customerToUser = new Map(
+    (customersRes.data || []).map((c: any) => [c.id, c.user_id])
+  );
+
+  const [subsRes, paymentsRes, invoicesRes] = await Promise.all([
+    supabase
+      .from("billing_subscriptions")
+      .select("customer_id, plan_name, monthly_amount, status, next_renewal_at")
+      .in("customer_id", customerIds.length ? customerIds : ["00000000-0000-0000-0000-000000000000"]),
+    supabase
+      .from("billing_payments")
+      .select("customer_id, amount, paid_at, payment_method, status")
+      .in("customer_id", customerIds.length ? customerIds : ["00000000-0000-0000-0000-000000000000"]),
+    supabase
+      .from("billing_invoices")
+      .select("customer_id, invoice_number, total_amount, balance_due, status, due_date")
+      .in("customer_id", customerIds.length ? customerIds : ["00000000-0000-0000-0000-000000000000"]),
+  ]);
+
+  // Index by user/account
+  const byUserId = <T extends { user_id?: string }>(arr: T[] | null) => {
+    const m = new Map<string, T[]>();
+    (arr || []).forEach((r) => {
+      const k = (r as any).user_id;
+      if (!k) return;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(r);
+    });
+    return m;
+  };
+  const byAccountId = <T extends { account_id?: string }>(arr: T[] | null) => {
+    const m = new Map<string, T[]>();
+    (arr || []).forEach((r) => {
+      const k = (r as any).account_id;
+      if (!k) return;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(r);
+    });
+    return m;
+  };
+  const byClientId = <T extends { client_id?: string }>(arr: T[] | null) => {
+    const m = new Map<string, T[]>();
+    (arr || []).forEach((r) => {
+      const k = (r as any).client_id;
+      if (!k) return;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(r);
+    });
+    return m;
+  };
+  const byCustomerToUser = <T extends { customer_id?: string }>(arr: T[] | null) => {
+    const m = new Map<string, T[]>();
+    (arr || []).forEach((r) => {
+      const uid = customerToUser.get((r as any).customer_id);
+      if (!uid) return;
+      if (!m.has(uid)) m.set(uid, []);
+      m.get(uid)!.push(r);
+    });
+    return m;
+  };
+
+  const profilesByUser = byUserId(profilesRes.data as any);
+  const addressesByAccount = byAccountId(addressesRes.data as any);
+  const equipmentByAccount = byAccountId(equipmentRes.data as any);
+  const suppliersByClient = byClientId(suppliersRes.data as any);
+  const subsByUser = byCustomerToUser(subsRes.data as any);
+  const paymentsByUser = byCustomerToUser(paymentsRes.data as any);
+  const invoicesByUser = byCustomerToUser(invoicesRes.data as any);
+
+  const clients = accounts;
 
   // Build CSV content
   const headers = [
@@ -97,15 +148,12 @@ serve(async () => {
     "Statut abonnement",
     "Prochain renouvellement",
     "Date activation",
-    "Promotions actives",
-    "Rabais actifs",
     "Équipements",
     "Numéros de série",
-    "Fournisseur nom",
-    "Fournisseur contact",
-    "Fournisseur téléphone",
+    "Fournisseur service",
     "Fournisseur email",
-    "Fournisseur compte",
+    "Fournisseur prix",
+    "Fournisseur statut",
     "Fournisseur notes",
     "Derniers paiements (3)",
     "Factures impayées",
@@ -113,103 +161,67 @@ serve(async () => {
   ];
 
   const rows = clients.map((c: any) => {
-    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-    const sub =
-      c.billing_subscriptions?.find((s: any) => s.status === "active") ||
-      c.billing_subscriptions?.[0];
-    const addr = c.service_addresses?.[0];
-    const supplier = c.supplier_accounts?.[0];
+    const profile = (profilesByUser.get(c.client_id) || [])[0];
+    const subs = subsByUser.get(c.client_id) || [];
+    const sub = subs.find((s: any) => s.status === "active") || subs[0];
+    const addr = (addressesByAccount.get(c.id) || [])[0];
+    const supplier = (suppliersByClient.get(c.client_id) || [])[0];
+    const equipment = equipmentByAccount.get(c.id) || [];
+    const payments = paymentsByUser.get(c.client_id) || [];
+    const invoices = invoicesByUser.get(c.client_id) || [];
 
     const fullAddress = addr
-      ? [
-          addr.civic_number,
-          addr.apartment || "",
-          addr.street,
-          addr.city,
-          addr.province,
-          addr.postal_code,
-        ]
+      ? [addr.civic_number, addr.apartment || "", addr.street, addr.city, addr.province, addr.postal_code]
           .filter(Boolean)
           .join(" ")
       : "";
 
-    const equipements =
-      c.equipment_inventory
-        ?.filter((e: any) => e.status === "assigned")
-        ?.map((e: any) => e.equipment_type + (e.model ? " " + e.model : ""))
-        ?.join(" | ") || "";
+    const equipements = equipment
+      .filter((e: any) => e.status === "assigned")
+      .map((e: any) => e.equipment_type + (e.model ? " " + e.model : ""))
+      .join(" | ");
 
-    const serials =
-      c.equipment_inventory
-        ?.filter((e: any) => e.status === "assigned")
-        ?.map((e: any) => e.serial_number || "N/A")
-        ?.join(" | ") || "";
+    const serials = equipment
+      .filter((e: any) => e.status === "assigned")
+      .map((e: any) => e.serial_number || "N/A")
+      .join(" | ");
 
-    const promotions = "";
+    const paiements = payments
+      .sort((a: any, b: any) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime())
+      .slice(0, 3)
+      .map(
+        (p: any) =>
+          (p.paid_at ? new Date(p.paid_at).toLocaleDateString("fr-CA") : "N/A") +
+          " | " + p.amount + "$ | " + (p.payment_method || "") + " | " + p.status
+      )
+      .join(" || ");
 
-    const rabais = "";
-
-
-    const paiements =
-      c.billing_payments
-        ?.sort(
-          (a: any, b: any) =>
-            new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime()
-        )
-        ?.slice(0, 3)
-        ?.map(
-          (p: any) =>
-            new Date(p.paid_at).toLocaleDateString("fr-CA") +
-            " | " +
-            p.amount +
-            "$ | " +
-            p.payment_method +
-            " | " +
-            p.status
-        )
-        ?.join(" || ") || "";
-
-    const facturesImpayees =
-      c.billing_invoices
-        ?.filter((bi: any) => bi.status !== "paid" && bi.balance_due > 0)
-        ?.map(
-          (bi: any) =>
-            bi.invoice_number +
-            " | " +
-            bi.balance_due +
-            "$ | " +
-            (bi.due_date
-              ? new Date(bi.due_date).toLocaleDateString("fr-CA")
-              : "N/A")
-        )
-        ?.join(" || ") || "Aucune";
+    const facturesImpayees = invoices
+      .filter((bi: any) => bi.status !== "paid" && Number(bi.balance_due) > 0)
+      .map(
+        (bi: any) =>
+          bi.invoice_number + " | " + bi.balance_due + "$ | " +
+          (bi.due_date ? new Date(bi.due_date).toLocaleDateString("fr-CA") : "N/A")
+      )
+      .join(" || ") || "Aucune";
 
     return [
       c.account_number || "",
-      profile?.full_name ||
-        (profile?.first_name + " " + profile?.last_name) ||
-        "",
+      profile?.full_name || ((profile?.first_name || "") + " " + (profile?.last_name || "")).trim() || "",
       profile?.email || "",
       profile?.phone || "",
       fullAddress,
       sub?.plan_name || "",
       sub?.monthly_amount ? sub.monthly_amount + "$" : "",
       sub?.status || "",
-      sub?.next_renewal_at
-        ? new Date(sub.next_renewal_at).toLocaleDateString("fr-CA")
-        : "",
-      c.activated_at
-        ? new Date(c.activated_at).toLocaleDateString("fr-CA")
-        : "",
-      promotions,
-      rabais,
+      sub?.next_renewal_at ? new Date(sub.next_renewal_at).toLocaleDateString("fr-CA") : "",
+      c.activated_at ? new Date(c.activated_at).toLocaleDateString("fr-CA") : "",
       equipements,
       serials,
-      supplier?.name || "",
-      supplier?.contact_name || "",
-      supplier?.phone || "",
-      supplier?.email || "",
-      supplier?.account_number || "",
+      supplier?.service_name || "",
+      supplier?.account_email || "",
+      supplier?.monthly_price ? supplier.monthly_price + "$" : "",
+      supplier?.status || "",
       supplier?.notes || "",
       paiements,
       facturesImpayees,
@@ -217,22 +229,17 @@ serve(async () => {
     ].map((v) => '"' + String(v).replace(/"/g, '""') + '"');
   });
 
-  // Build CSV string
   const csvContent = [
     headers.map((h) => '"' + h + '"').join(","),
     ...rows.map((r) => r.join(",")),
   ].join("\n");
 
-  // Add BOM for Excel UTF-8
   const csvWithBOM = "\uFEFF" + csvContent;
-
-  // Convert to base64
   const base64CSV = btoa(unescape(encodeURIComponent(csvWithBOM)));
 
   const today = new Date().toLocaleDateString("fr-CA");
   const filename = `rapport-clients-nivra-${today}.csv`;
 
-  // Send email with attachment via Resend
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
   const emailRes = await fetch("https://api.resend.com/emails", {
@@ -278,7 +285,6 @@ serve(async () => {
 
   const emailResult = await emailRes.json();
 
-  // Log in agent_audit_log
   await supabase.from("agent_audit_log").insert({
     agent_name: "checkup",
     action: "weekly_report",
@@ -298,7 +304,6 @@ serve(async () => {
     details: { filename, date: today },
   });
 
-  // Update agent_registry last_run
   await supabase
     .from("agent_registry")
     .update({
