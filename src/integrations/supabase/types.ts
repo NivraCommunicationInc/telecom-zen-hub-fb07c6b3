@@ -27473,6 +27473,13 @@ export type Database = {
       }
     }
     Functions: {
+      _agent_get_supplier_passwords: {
+        Args: { p_ids: string[] }
+        Returns: {
+          id: string
+          password: string
+        }[]
+      }
       _build_doc_client_payload: {
         Args: { p_account_id?: string; p_client_id: string }
         Returns: Json
