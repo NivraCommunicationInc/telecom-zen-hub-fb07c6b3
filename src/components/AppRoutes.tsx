@@ -9,7 +9,7 @@ import { lazy, Suspense } from "react";
 const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubCreateAccountPage = lazy(() => import("@/pages/hub/HubCreateAccountPage"));
-const HubForgotPasswordPage = lazy(() => import("@/pages/hub/HubForgotPasswordPage"));
+
 const HubResetPasswordPage = lazy(() => import("@/pages/hub/HubResetPasswordPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -1091,7 +1091,7 @@ const AppRoutes = () => {
       <Route path="/nivra-secure-hub-2617-internal" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
       <Route path="/nivra-secure-hub-2617-internal/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
       <Route path="/nivra-secure-hub-2617-internal/create-account" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubCreateAccountPage /></Suspense>} />
-      <Route path="/nivra-secure-hub-2617-internal/forgot-password" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubForgotPasswordPage /></Suspense>} />
+      <Route path="/nivra-secure-hub-2617-internal/forgot-password" element={<Navigate to="/nivra-secure-hub-2617-internal/login" replace />} />
       <Route path="/nivra-secure-hub-2617-internal/reset-password" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubResetPasswordPage /></Suspense>} />
       {/* Decoy 404 for legacy /hub paths — scanners/bots see standard not-found */}
       <Route path="/hub" element={<NotFound />} />

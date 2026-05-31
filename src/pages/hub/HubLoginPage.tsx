@@ -43,6 +43,19 @@ const getSafePortalRedirect = (redirect: string | null, fallback: string) => {
 
 type Stage = "login" | "mfa_enroll" | "mfa_verify" | "redirecting";
 
+const FAIL_THRESHOLD = 3;
+const failKey = (email: string) => `hub_login_fails::${email.toLowerCase()}`;
+const getFailCount = (email: string) => {
+  try { return parseInt(localStorage.getItem(failKey(email)) || "0", 10) || 0; }
+  catch { return 0; }
+};
+const setFailCount = (email: string, n: number) => {
+  try { localStorage.setItem(failKey(email), String(n)); } catch { /* noop */ }
+};
+const clearFailCount = (email: string) => {
+  try { localStorage.removeItem(failKey(email)); } catch { /* noop */ }
+};
+
 export default function HubLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -59,19 +72,54 @@ export default function HubLoginPage() {
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Enforces MFA enrollment/verification for staff arriving without a specific
+  // portal selection (auto-landing flow). Mirrors verifyAndProceed but without
+  // the per-portal access key check.
+  const enforceMfaThenLand = async (userId: string, landing: string) => {
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role, status, is_active")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .in("role", INTERNAL_ROLES)
+      .maybeSingle();
+
+    const isAdminRole = roleData?.role === "admin";
+    const mfa = await checkMfaStatus();
+
+    if (isAdminRole && !mfa.isEnrolled) {
+      setStage("mfa_enroll");
+      setCheckingSession(false);
+      setLoading(false);
+      try { sessionStorage.setItem("hub_pending_landing", landing); } catch { /* noop */ }
+      return;
+    }
+    if (mfa.isEnrolled && !mfa.isVerified) {
+      setMfaFactorId(mfa.factorId ?? null);
+      setStage("mfa_verify");
+      setCheckingSession(false);
+      setLoading(false);
+      try { sessionStorage.setItem("hub_pending_landing", landing); } catch { /* noop */ }
+      return;
+    }
+
+    createHubSession(userId);
+    await auditAccess("hub_access", "auto");
+    setStage("redirecting");
+    navigate(landing, { replace: true });
+  };
+
   useEffect(() => {
     const checkExisting = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
-        // No portal selected: if user is already signed in, route them to their default
-        // portal based on role; otherwise show the no-portal landing form.
+        // No portal selected: if user is already signed in, enforce MFA first,
+        // then route them to their default portal based on role.
         if (!portal) {
           if (session?.user) {
             const landing = await resolveStaffLandingPath(session.user.id);
-            createHubSession(session.user.id);
-            setStage("redirecting");
-            navigate(landing, { replace: true });
+            await enforceMfaThenLand(session.user.id, landing);
             return;
           }
           setCheckingSession(false);
@@ -176,20 +224,40 @@ export default function HubLoginPage() {
       });
 
       if (authError || !data.session) {
+        const emailKey = email.trim();
         // Fire-and-forget brute-force tracker (alerts ops on 3+ failures/5min)
         supabase.functions.invoke("track-login-attempt", {
           body: {
-            email_attempted: email.trim(),
+            email_attempted: emailKey,
             success: false,
             failure_reason: authError?.message ?? "no_session",
             portal: portal ?? "hub",
           },
         }).catch(() => { /* never block UX */ });
 
-        setError("Identifiants invalides.");
+        // Per-email failure counter. After FAIL_THRESHOLD failures, silently
+        // trigger a password-reset email if the address matches an active
+        // Nivra Core staff account.
+        const newCount = getFailCount(emailKey) + 1;
+        setFailCount(emailKey, newCount);
+
+        if (newCount >= FAIL_THRESHOLD) {
+          supabase.functions.invoke("hub-password-reset-send", {
+            body: { email: emailKey, redirect_origin: window.location.origin },
+          }).catch(() => { /* silent */ });
+          clearFailCount(emailKey);
+          setError(
+            "Trop de tentatives. Si cette adresse correspond à un compte Nivra Core, un courriel de réinitialisation vient d'être envoyé.",
+          );
+        } else {
+          setError(`Identifiants invalides. (${newCount}/${FAIL_THRESHOLD})`);
+        }
         setLoading(false);
         return;
       }
+
+      // Successful auth → reset failure counter for this email.
+      clearFailCount(email.trim());
 
       // Log successful login (no alert, just history)
       supabase.functions.invoke("track-login-attempt", {
@@ -205,13 +273,10 @@ export default function HubLoginPage() {
       // employee is signing in with their own credentials.
       clearStaffAssistance();
 
-      // No specific portal selected → resolve from role and route there directly.
+      // No specific portal selected → enforce MFA then route to landing.
       if (!portal) {
         const landing = await resolveStaffLandingPath(data.session.user.id);
-        createHubSession(data.session.user.id);
-        await auditAccess("hub_access", "auto");
-        setStage("redirecting");
-        navigate(landing, { replace: true });
+        await enforceMfaThenLand(data.session.user.id, landing);
         return;
       }
 
@@ -247,6 +312,43 @@ export default function HubLoginPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Redirection vers votre portail…</p>
           </div>
+        </div>
+      );
+    }
+
+    if (stage === "mfa_enroll") {
+      return (
+        <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+          <div className="fixed right-3 top-3 z-40">
+            <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
+          <MfaEnrollmentDialog onComplete={() => window.location.reload()} onCancel={handleLogout} />
+        </div>
+      );
+    }
+
+    if (stage === "mfa_verify" && mfaFactorId) {
+      return (
+        <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+          <div className="fixed right-3 top-3 z-40">
+            <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
+          <MfaVerificationGate
+            factorId={mfaFactorId}
+            onVerified={async () => {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user) {
+                createHubSession(session.user.id);
+                await auditAccess("hub_access", "auto");
+                let pending = "";
+                try { pending = sessionStorage.getItem("hub_pending_landing") || ""; } catch { /* noop */ }
+                try { sessionStorage.removeItem("hub_pending_landing"); } catch { /* noop */ }
+                const landing = pending || await resolveStaffLandingPath(session.user.id);
+                navigate(landing, { replace: true });
+              }
+            }}
+            onLogout={handleLogout}
+          />
         </div>
       );
     }
@@ -299,16 +401,14 @@ export default function HubLoginPage() {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connexion"}
               </Button>
 
-              <div className="flex flex-col gap-1 pt-2">
-                <p className="text-center text-xs text-muted-foreground">
-                  <Link to="/nivra-secure-hub-2617-internal/forgot-password" className="text-primary hover:underline">
-                    Mot de passe oublié ?
-                  </Link>
-                </p>
+              <div className="pt-2">
                 <p className="text-center text-xs text-muted-foreground">
                   <Link to="/nivra-secure-hub-2617-internal" className="text-primary hover:underline">
                     Choisir un portail spécifique
                   </Link>
+                </p>
+                <p className="text-center text-[11px] text-muted-foreground/80 mt-2 leading-relaxed">
+                  Après {FAIL_THRESHOLD} tentatives échouées, un lien de réinitialisation sera automatiquement envoyé à votre courriel s'il correspond à un compte Nivra Core.
                 </p>
               </div>
             </form>
@@ -352,9 +452,18 @@ export default function HubLoginPage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
               createHubSession(session.user.id);
-              await auditAccess("hub_access", portalId!);
-              await auditAccess("portal_entry", portalId!);
-              navigate(portalRedirect, { replace: true });
+              if (portalId) {
+                await auditAccess("hub_access", portalId);
+                await auditAccess("portal_entry", portalId);
+                navigate(portalRedirect, { replace: true });
+              } else {
+                await auditAccess("hub_access", "auto");
+                let pending = "";
+                try { pending = sessionStorage.getItem("hub_pending_landing") || ""; } catch { /* noop */ }
+                try { sessionStorage.removeItem("hub_pending_landing"); } catch { /* noop */ }
+                const landing = pending || await resolveStaffLandingPath(session.user.id);
+                navigate(landing, { replace: true });
+              }
             }
           }}
           onLogout={handleLogout}
@@ -433,10 +542,8 @@ export default function HubLoginPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connexion"}
             </Button>
 
-            <p className="text-center text-xs text-muted-foreground pt-2">
-              <Link to="/nivra-secure-hub-2617-internal/forgot-password" className="text-primary hover:underline">
-                Mot de passe oublié ?
-              </Link>
+            <p className="text-center text-[11px] text-muted-foreground/80 pt-2 leading-relaxed">
+              Après {FAIL_THRESHOLD} tentatives échouées, un lien de réinitialisation sera automatiquement envoyé à votre courriel s'il correspond à un compte Nivra Core.
             </p>
           </form>
         </div>
