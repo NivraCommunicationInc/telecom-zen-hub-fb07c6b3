@@ -415,9 +415,18 @@ export default function HubLoginPage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
               createHubSession(session.user.id);
-              await auditAccess("hub_access", portalId!);
-              await auditAccess("portal_entry", portalId!);
-              navigate(portalRedirect, { replace: true });
+              if (portalId) {
+                await auditAccess("hub_access", portalId);
+                await auditAccess("portal_entry", portalId);
+                navigate(portalRedirect, { replace: true });
+              } else {
+                await auditAccess("hub_access", "auto");
+                let pending = "";
+                try { pending = sessionStorage.getItem("hub_pending_landing") || ""; } catch { /* noop */ }
+                try { sessionStorage.removeItem("hub_pending_landing"); } catch { /* noop */ }
+                const landing = pending || await resolveStaffLandingPath(session.user.id);
+                navigate(landing, { replace: true });
+              }
             }
           }}
           onLogout={handleLogout}
