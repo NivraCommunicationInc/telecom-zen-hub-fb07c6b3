@@ -47,10 +47,7 @@ Deno.serve(async (req) => {
     }
 
     log.push("updating password...");
-    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
-      password,
-      email_confirm: true,
-    });
+    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(userId, { password });
     if (updateError) {
       log.push(`auth update failed: ${JSON.stringify(updateError)}`);
       throw updateError;
