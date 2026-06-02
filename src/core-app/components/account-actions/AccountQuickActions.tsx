@@ -74,16 +74,16 @@ function SendEmailModal({ clientEmail, clientName, onClose }: { clientEmail?: st
     setLoading(true);
     try {
       const { error } = await supabase.from("email_queue").insert({
+        event_key: `manual-email-${clientEmail}-${Date.now()}`,
         template_key: "admin_manual_email",
         to_email: clientEmail,
-        subject: subject.trim(),
         template_vars: {
           client_name: clientName,
           subject: subject.trim(),
-          body: body.trim(),
+          message: body.trim(),
           manual_send: true,
         },
-        status: "pending",
+        status: "queued",
       });
       if (error) throw error;
       toast.success("Courriel ajouté à la file d'envoi");
@@ -139,19 +139,19 @@ function CreateTicketModal({ clientId, clientEmail, clientName, onClose, onRefre
     }
     setLoading(true);
     try {
-      const ticketNumber = `NVR-${String(Date.now()).slice(-6)}`;
-      const { error } = await supabase.from("support_tickets").insert({
-        client_id: clientId,
-        subject: subject.trim(),
-        description: description.trim() || null,
-        category,
-        priority,
-        status: "open",
-        ticket_number: ticketNumber,
-        created_by: "admin",
+      const { data, error } = await supabase.functions.invoke("account-ops-actions", {
+        body: {
+          action: "create_ticket",
+          client_user_id: clientId,
+          subject: subject.trim(),
+          description: description.trim() || subject.trim(),
+          category,
+          priority,
+        },
       });
       if (error) throw error;
-      toast.success(`Ticket ${ticketNumber} créé`);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Ticket créé — courriel envoyé au client");
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -223,20 +223,22 @@ function ScheduleVisitModal({ clientId, clientEmail, accountId, onClose, onRefre
     }
     setLoading(true);
     try {
-      const apptNumber = `RDV-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("appointments").insert({
-        client_id: clientId,
-        client_email: clientEmail || null,
-        title: title.trim(),
-        service_type: serviceType,
-        scheduled_at: new Date(scheduledAt).toISOString(),
-        service_address: address || null,
-        internal_notes: notes || null,
-        appointment_number: apptNumber,
-        status: "scheduled",
+      const { data, error } = await supabase.functions.invoke("account-ops-actions", {
+        body: {
+          action: "schedule_appointment",
+          client_user_id: clientId,
+          account_id: accountId ?? null,
+          title: title.trim(),
+          scheduled_at: new Date(scheduledAt).toISOString(),
+          service_type: serviceType,
+          service_address: address || null,
+          duration_minutes: 60,
+          internal_notes: notes || null,
+        },
       });
       if (error) throw error;
-      toast.success(`Rendez-vous ${apptNumber} planifié`);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Rendez-vous planifié — courriel envoyé au client");
       onRefresh();
       onClose();
     } catch (e: any) {

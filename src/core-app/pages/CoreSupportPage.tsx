@@ -218,9 +218,10 @@ export default function CoreSupportPage() {
         subject: ticket.subject,
         description: ticket.description,
         priority: ticket.priority,
-        category: ticket.is_internal ? ticket.category : ticket.category,
+        category: ticket.category,
         created_by_user_id: user.id,
         created_by_role: "admin",
+        source: ticket.is_internal ? "core_internal" : "core_support_page",
         status: "open",
       };
 

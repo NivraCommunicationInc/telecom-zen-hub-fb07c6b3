@@ -176,7 +176,6 @@ serve(async (req) => {
             account_id: body.account_id ?? null,
             subject,
             description,
-            body: description,
             status: "open",
             priority,
             category,
