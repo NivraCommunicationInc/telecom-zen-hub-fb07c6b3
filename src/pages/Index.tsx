@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight, Wifi, Zap, Shield, Headphones,
   Star, CheckCircle2, Tv, Smartphone, ChevronRight,
-  Award, Clock, MapPin
+  Award, Clock, MapPin,
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Hero from "@/components/Hero";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import SchemaMarkup from "@/components/seo/SchemaMarkup";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
@@ -15,26 +16,13 @@ import LaunchOfferPopup from "@/components/marketing/LaunchOfferPopup";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePublicServices, type PublicService } from "@/hooks/usePublicServices";
 
-/* ─── animation helpers ─────────────────────────────────── */
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 32 },
+  hidden: { opacity: 0, y: 28 },
   visible: (i = 0) => ({
     opacity: 1, y: 0,
     transition: { duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] as const },
   }),
 };
-const fadeIn: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.7 } },
-};
-
-/* ─── constants ─────────────────────────────────────────── */
-const P = "#7C3AED";
-const PL = "#8B5CF6";
-const PE = "#A78BFA";
-const BG = "#0A0A0F";
-const BG2 = "#0F0F1A";
-const CARD = "#1A1A2E";
 
 const FALLBACK_PLANS: PublicService[] = [
   { id:"f1", sku:"", name:"Essentiel", price:39.99, is_recommended:false, category:"Internet", billing_type:"monthly", display_order:1, tags:[], badges:[], is_featured:false, promo_eligible:false, visible_website:true, visible_simulator:false, visible_checkout:true, visible_portal:true, status:"active", activation_fee_rule:null, installation_fee_rule:null, shipping_fee_rule:null, short_description:"Idéal pour surfer et streamer", description:null, features_json:["100 Mbps symétrique","Données illimitées","Sans contrat","Activation en 10 min"] },
@@ -43,25 +31,24 @@ const FALLBACK_PLANS: PublicService[] = [
 ];
 
 const WHY = [
-  { icon: Zap, title:"Activation 10 min", desc:"Votre service actif en moins de 10 minutes. Sans technicien, sans attente." },
-  { icon: Shield, title:"Zéro contrat", desc:"Résiliez ou changez à tout moment, sans frais cachés ni pénalité." },
-  { icon: Wifi, title:"Réseau 99,9% uptime", desc:"Infrastructure haute disponibilité dédiée aux clients Nivra." },
-  { icon: Headphones, title:"Support québécois 24/7", desc:"Équipe locale disponible à toute heure par téléphone, chat et courriel." },
+  { icon: Zap,       title: "Activation 10 min",        desc: "Votre service actif en moins de 10 minutes. Sans technicien, sans attente.",                  accent: "#A78BFA", bg: "rgba(167,139,250,0.12)", border: "rgba(167,139,250,0.35)" },
+  { icon: Shield,    title: "Zéro contrat",              desc: "Résiliez ou changez à tout moment, sans frais cachés ni pénalité.",                           accent: "#06B6D4", bg: "rgba(6,182,212,0.12)",   border: "rgba(6,182,212,0.35)"   },
+  { icon: Wifi,      title: "Réseau 99,9% uptime",       desc: "Infrastructure haute disponibilité dédiée aux clients Nivra.",                                accent: "#10B981", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.35)"  },
+  { icon: Headphones,title: "Support québécois 24/7",    desc: "Équipe locale disponible à toute heure par téléphone, chat et courriel.",                     accent: "#FBBF24", bg: "rgba(251,191,36,0.12)",  border: "rgba(251,191,36,0.35)"  },
 ];
 
 const TESTIMONIALS = [
   { name:"Marie-Claude B.", city:"Montréal", rating:5, quote:"Jamais aussi peu de problèmes avec Internet. Et le service client est vraiment humain — ils répondent vraiment." },
-  { name:"Jean-François L.", city:"Laval", rating:5, quote:"Activation en 8 minutes chrono. Je n'en revenais pas. Le 500 Mbps tourne parfaitement pour 4 personnes en télétravail." },
-  { name:"Sophie T.", city:"Longueuil", rating:5, quote:"Prix honnêtes, pas de surprise à la facture, et ils répondent vraiment au téléphone. Rare de nos jours." },
+  { name:"Jean-François L.", city:"Laval",   rating:5, quote:"Activation en 8 minutes chrono. Je n'en revenais pas. Le 500 Mbps tourne parfaitement pour 4 personnes en télétravail." },
+  { name:"Sophie T.",        city:"Longueuil",rating:5, quote:"Prix honnêtes, pas de surprise à la facture, et ils répondent vraiment au téléphone. Rare de nos jours." },
 ];
 
 const SERVICES = [
-  { icon: Wifi, label:"Internet", sub:"Jusqu'à 1 Gbps", to:"/internet", color:"rgba(124,58,237,0.2)" },
-  { icon: Tv, label:"Télévision", sub:"26+ chaînes HD", to:"/tv", color:"rgba(99,102,241,0.2)" },
-  { icon: Smartphone, label:"Mobile", sub:"Sans contrat", to:"/mobile", color:"rgba(139,92,246,0.2)" },
+  { icon: Wifi,       label:"Internet",   sub:"Jusqu'à 1 Gbps", to:"/internet", accent:"#A78BFA", bg:"rgba(124,58,237,0.12)", border:"rgba(124,58,237,0.35)" },
+  { icon: Tv,         label:"Télévision", sub:"26+ chaînes HD",  to:"/tv",       accent:"#06B6D4", bg:"rgba(6,182,212,0.12)",  border:"rgba(6,182,212,0.35)"  },
+  { icon: Smartphone, label:"Mobile",     sub:"Sans contrat",    to:"/mobile",   accent:"#10B981", bg:"rgba(16,185,129,0.12)", border:"rgba(16,185,129,0.35)" },
 ];
 
-/* ─── component ─────────────────────────────────────────── */
 const Index = () => {
   const { language } = useLanguage();
   const isFr = language === "fr";
@@ -70,7 +57,7 @@ const Index = () => {
   const plans = servicesData && servicesData.length > 0 ? servicesData.slice(0, 3) : FALLBACK_PLANS;
 
   return (
-    <div className="min-h-screen" style={{ background: BG }}>
+    <div className="min-h-screen" style={{ background: "#020209" }}>
       <SEOHead {...SEO_DATA.home} />
       <LocalBusinessSchema />
       <SchemaMarkup includeBrand={false} includeHomeFaq includeProducts />
@@ -80,118 +67,20 @@ const Index = () => {
       <main id="main-content" tabIndex={-1}>
 
         {/* ════════════════════════════════════════════════════
-            HERO — full-screen gradient + animated orbs
+            HERO — premium dark aurora
         ════════════════════════════════════════════════════ */}
-        <section
-          className="relative overflow-hidden"
-          style={{
-            background: "linear-gradient(160deg, #0A0A0F 0%, #14082E 45%, #0A0A0F 100%)",
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          {/* Animated gradient orbs */}
-          <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="nv-orb-1 absolute" style={{ width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.25) 0%, transparent 70%)", top: "-15%", left: "-10%", filter: "blur(40px)" }} />
-            <div className="nv-orb-2 absolute" style={{ width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.18) 0%, transparent 70%)", bottom: "-10%", right: "-5%", filter: "blur(40px)" }} />
-            <div className="nv-orb-3 absolute" style={{ width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)", top: "40%", left: "50%", filter: "blur(60px)" }} />
-          </div>
-
-          {/* Grid overlay */}
-          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
-
-          <div className="container mx-auto px-5 sm:px-10 max-w-[1200px] relative z-10 py-24 sm:py-32">
-            <div className="max-w-[780px]">
-              {/* Badge */}
-              <motion.div custom={0} initial="hidden" animate="visible" variants={fadeUp} className="mb-8">
-                <span className="nv-badge">
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: PE, display: "inline-block", flexShrink: 0 }} />
-                  {isFr ? "Internet · TV · Mobile — Québec" : "Internet · TV · Mobile — Quebec"}
-                </span>
-              </motion.div>
-
-              {/* H1 */}
-              <motion.h1
-                custom={1}
-                initial="hidden"
-                animate="visible"
-                variants={fadeUp}
-                className="font-extrabold text-white"
-                style={{ fontSize: "clamp(40px, 7vw, 80px)", lineHeight: 1.03, letterSpacing: "-2px", marginBottom: 28 }}
-              >
-                {isFr ? (
-                  <>L'Internet<br /><span style={{ backgroundImage: `linear-gradient(135deg, ${PL}, ${PE})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>sans compromis</span><br />au Québec</>
-                ) : (
-                  <>Internet<br /><span style={{ backgroundImage: `linear-gradient(135deg, ${PL}, ${PE})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>without compromise</span><br />in Quebec</>
-                )}
-              </motion.h1>
-
-              {/* Subtitle */}
-              <motion.p
-                custom={2}
-                initial="hidden"
-                animate="visible"
-                variants={fadeUp}
-                style={{ fontSize: "clamp(17px, 2.2vw, 21px)", color: "rgba(255,255,255,0.62)", lineHeight: 1.65, maxWidth: 580, marginBottom: 40 }}
-              >
-                {isFr
-                  ? "Forfaits Internet, TV et mobile sans contrat. Activation en 10 minutes. Prix garantis sans surprises."
-                  : "No-contract Internet, TV and mobile plans. Activated in 10 minutes. Guaranteed prices, no surprises."}
-              </motion.p>
-
-              {/* CTAs */}
-              <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  to="/internet"
-                  style={{ height: 56, paddingLeft: 32, paddingRight: 32, background: P, borderRadius: 999, fontSize: 16, fontWeight: 700, color: "#fff", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 8px 28px rgba(124,58,237,0.5)", transition: "opacity 0.2s, transform 0.2s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.92"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "none"; }}
-                >
-                  {isFr ? "Voir les forfaits" : "See plans"} <ArrowRight className="w-5 h-5" />
-                </Link>
-                <Link
-                  to="/couverture"
-                  style={{ height: 56, paddingLeft: 28, paddingRight: 28, border: "1px solid rgba(124,58,237,0.4)", borderRadius: 999, fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.8)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s", backdropFilter: "blur(8px)" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.7)"; e.currentTarget.style.color = "#fff"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.4)"; e.currentTarget.style.color = "rgba(255,255,255,0.8)"; }}
-                >
-                  <MapPin className="w-4 h-4" />
-                  {isFr ? "Vérifier ma couverture" : "Check coverage"}
-                </Link>
-              </motion.div>
-
-              {/* Trust stats */}
-              <motion.div custom={4} initial="hidden" animate="visible" variants={fadeUp} className="flex flex-wrap gap-6 sm:gap-10 mt-14">
-                {[
-                  { value: "1 Gbps", label: isFr ? "Vitesse max" : "Top speed" },
-                  { value: "19+", label: isFr ? "Villes couvertes" : "Cities covered" },
-                  { value: "10 min", label: isFr ? "Activation" : "Activation" },
-                  { value: "24/7", label: isFr ? "Support local" : "Local support" },
-                ].map((s) => (
-                  <div key={s.label}>
-                    <div className="font-extrabold text-white" style={{ fontSize: 32, letterSpacing: "-1px", lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.label}</div>
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-          </div>
-
-          {/* Bottom fade */}
-          <div aria-hidden className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none" style={{ background: `linear-gradient(to bottom, transparent, ${BG2})` }} />
-        </section>
+        <Hero />
 
         {/* ════════════════════════════════════════════════════
-            SERVICES — quick nav cards
+            SERVICES — glass cards with per-service accent
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: BG2, paddingTop: 72, paddingBottom: 72, borderTop: "1px solid rgba(124,58,237,0.1)" }}>
+        <section style={{ background: "#06040F", paddingTop: 64, paddingBottom: 64, borderTop: "1px solid rgba(124,58,237,0.12)" }}>
           <div className="container mx-auto px-5 sm:px-10 max-w-[1200px]">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {SERVICES.map((s, i) => (
                 <motion.div
                   key={s.label}
-                  initial={{ opacity: 0, y: 24 }}
+                  initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.1 }}
@@ -199,18 +88,32 @@ const Index = () => {
                   <Link
                     to={s.to}
                     className="group flex items-center gap-5 rounded-2xl p-6"
-                    style={{ background: CARD, border: "1px solid rgba(124,58,237,0.15)", textDecoration: "none", transition: "all 0.25s ease", display: "flex" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.45)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(124,58,237,0.2)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.15)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      textDecoration: "none",
+                      transition: "all 0.25s ease",
+                      display: "flex",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = s.border;
+                      e.currentTarget.style.boxShadow = `0 8px 32px ${s.bg}`;
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                      e.currentTarget.style.boxShadow = "none";
+                      e.currentTarget.style.transform = "none";
+                    }}
                   >
-                    <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: s.color, border: "1px solid rgba(124,58,237,0.25)" }}>
-                      <s.icon className="w-7 h-7" style={{ color: PE }} />
+                    <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
+                      <s.icon className="w-7 h-7" style={{ color: s.accent }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold text-white text-lg">{s.label}</div>
-                      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>{s.sub}</div>
+                      <div className="font-bold text-white text-lg" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{s.label}</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>{s.sub}</div>
                     </div>
-                    <ChevronRight className="w-5 h-5 shrink-0 transition-transform group-hover:translate-x-1" style={{ color: PE }} />
+                    <ChevronRight className="w-5 h-5 shrink-0" style={{ color: s.accent, transition: "transform .2s" }} />
                   </Link>
                 </motion.div>
               ))}
@@ -221,14 +124,27 @@ const Index = () => {
         {/* ════════════════════════════════════════════════════
             FORFAITS — live data plan cards
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: BG, paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
+        <section style={{ background: "#020209", paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
           <div className="container mx-auto px-5 sm:px-10 max-w-[1200px]">
-            <motion.div initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-14">
-              <span className="nv-badge mb-6 inline-flex">{isFr ? "Nos forfaits Internet" : "Internet Plans"}</span>
-              <h2 className="font-extrabold text-white mt-5" style={{ fontSize: "clamp(28px, 4.5vw, 52px)", letterSpacing: "-1.5px", lineHeight: 1.08 }}>
-                {isFr ? "Internet sans compromis" : "Internet without compromise"}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-14"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6" style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 100 }}>
+                <Wifi className="w-4 h-4" style={{ color: "#A78BFA" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#A78BFA", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  {isFr ? "Nos forfaits Internet" : "Internet Plans"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(28px, 4.5vw, 52px)", letterSpacing: "-1.5px", lineHeight: 1.08, marginTop: 16 }}>
+                {isFr
+                  ? <>Internet <span className="n-shimmer-text">sans compromis</span></>
+                  : <>Internet <span className="n-shimmer-text">without compromise</span></>}
               </h2>
-              <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 18, marginTop: 14, maxWidth: 520, margin: "14px auto 0" }}>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, marginTop: 12 }}>
                 {isFr ? "Sans contrat · Données illimitées · Activation immédiate" : "No contract · Unlimited data · Instant activation"}
               </p>
             </motion.div>
@@ -237,49 +153,78 @@ const Index = () => {
               {plans.map((plan, i) => (
                 <motion.div
                   key={plan.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  custom={i}
+                  initial="hidden"
+                  whileInView="visible"
                   viewport={{ once: true }}
-                  transition={{ duration: 0.55, delay: i * 0.12, ease: [0.22, 1, 0.36, 1] as const }}
+                  variants={fadeUp}
                   className="flex"
                 >
                   <div
                     className="relative flex flex-col w-full rounded-3xl overflow-hidden"
                     style={{
-                      background: plan.is_recommended ? "linear-gradient(145deg, #1E1040 0%, #1A1A2E 60%)" : CARD,
-                      border: plan.is_recommended ? `1.5px solid ${P}` : "1px solid rgba(124,58,237,0.18)",
-                      boxShadow: plan.is_recommended ? "0 0 0 1px rgba(124,58,237,0.15), 0 24px 60px -16px rgba(124,58,237,0.45)" : "0 4px 24px rgba(0,0,0,0.4)",
+                      background: plan.is_recommended
+                        ? "linear-gradient(145deg, rgba(124,58,237,0.18) 0%, rgba(255,255,255,0.04) 60%)"
+                        : "rgba(255,255,255,0.04)",
+                      border: plan.is_recommended
+                        ? "1.5px solid rgba(124,58,237,0.55)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: plan.is_recommended
+                        ? "0 0 60px rgba(124,58,237,0.18), 0 24px 60px rgba(0,0,0,0.5)"
+                        : "0 4px 24px rgba(0,0,0,0.4)",
                     }}
                   >
                     {plan.is_recommended && (
                       <>
-                        <div aria-hidden style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 40% at 50% -10%, rgba(124,58,237,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
-                        <div className="text-center py-2 text-[10px] font-extrabold uppercase tracking-widest" style={{ background: `linear-gradient(90deg, ${P}, ${PL})`, color: "#fff" }}>
+                        <div aria-hidden style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 40% at 50% -10%, rgba(124,58,237,0.14) 0%, transparent 60%)", pointerEvents: "none" }} />
+                        <div className="text-center py-2" style={{ background: "linear-gradient(90deg, #7C3AED, #8B5CF6)", color: "#fff", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "'JetBrains Mono', monospace" }}>
                           {isFr ? "Plus populaire" : "Most popular"}
                         </div>
                       </>
                     )}
                     <div className="flex flex-col flex-1 p-7 relative">
-                      <div className="font-bold text-white mb-1" style={{ fontSize: 20 }}>{plan.name}</div>
-                      {plan.short_description && <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 20 }}>{plan.short_description}</p>}
+                      <div className="font-bold text-white mb-1" style={{ fontSize: 20, fontFamily: "'Space Grotesk', sans-serif" }}>{plan.name}</div>
+                      {plan.short_description && <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 20 }}>{plan.short_description}</p>}
                       <div className="flex items-baseline gap-1 mb-5">
-                        <span className="font-extrabold text-white" style={{ fontSize: 54, letterSpacing: "-2px", lineHeight: 1 }}>{plan.price.toFixed(0)}</span>
+                        <span className="font-extrabold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 54, letterSpacing: "-2px", lineHeight: 1 }}>{plan.price.toFixed(0)}</span>
                         <span className="font-bold text-white" style={{ fontSize: 22 }}>$</span>
-                        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: 500 }}>/mois</span>
+                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>/mois</span>
                       </div>
-                      <div className="h-px mb-5" style={{ background: "linear-gradient(90deg, transparent, rgba(124,58,237,0.3), transparent)" }} />
+                      <div className="h-px mb-5" style={{ background: "linear-gradient(90deg, transparent, rgba(124,58,237,0.4), transparent)" }} />
                       <ul className="space-y-2.5 mb-7 flex-1">
                         {plan.features_json.map((f) => (
-                          <li key={f} className="flex items-start gap-2.5" style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>
-                            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" style={{ color: plan.is_recommended ? PE : "rgba(124,58,237,0.7)" }} />
+                          <li key={f} className="flex items-start gap-2.5" style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
+                            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" style={{ color: plan.is_recommended ? "#A78BFA" : "rgba(124,58,237,0.7)" }} />
                             {f}
                           </li>
                         ))}
                       </ul>
                       <Link
                         to="/commander"
-                        className="flex items-center justify-center gap-2 font-bold text-white transition-all hover:opacity-90"
-                        style={{ height: 52, borderRadius: 999, fontSize: 15, textDecoration: "none", background: plan.is_recommended ? `linear-gradient(135deg, ${P}, ${PL})` : "rgba(124,58,237,0.12)", border: plan.is_recommended ? "none" : "1px solid rgba(124,58,237,0.35)", boxShadow: plan.is_recommended ? "0 8px 24px rgba(124,58,237,0.4)" : "none" }}
+                        className="flex items-center justify-center gap-2 font-bold text-white"
+                        style={{
+                          height: 52,
+                          borderRadius: 10,
+                          fontSize: 15,
+                          textDecoration: "none",
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          background: plan.is_recommended
+                            ? "linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)"
+                            : "rgba(124,58,237,0.12)",
+                          border: plan.is_recommended ? "none" : "1px solid rgba(124,58,237,0.35)",
+                          boxShadow: plan.is_recommended
+                            ? "0 0 0 1px rgba(124,58,237,0.5), 0 8px 24px rgba(124,58,237,0.4)"
+                            : "none",
+                          transition: "box-shadow .2s, transform .15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                          if (plan.is_recommended) e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.7), 0 12px 32px rgba(124,58,237,0.55)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "none";
+                          if (plan.is_recommended) e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.5), 0 8px 24px rgba(124,58,237,0.4)";
+                        }}
                       >
                         {isFr ? "Commander" : "Order"} <ArrowRight className="w-4 h-4" />
                       </Link>
@@ -290,9 +235,11 @@ const Index = () => {
             </div>
 
             <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.4 }} className="text-center mt-8">
-              <Link to="/internet" style={{ color: PE, fontSize: 15, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+              <Link
+                to="/internet"
+                style={{ color: "#A78BFA", fontSize: 15, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Space Grotesk', sans-serif", transition: "color .2s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = PE)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#A78BFA")}
               >
                 {isFr ? "Voir tous les forfaits" : "View all plans"} <ChevronRight className="w-4 h-4" />
               </Link>
@@ -301,14 +248,27 @@ const Index = () => {
         </section>
 
         {/* ════════════════════════════════════════════════════
-            POURQUOI NIVRA — 4 features
+            POURQUOI NIVRA — feature cards with accent colors
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: BG2, paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
+        <section style={{ background: "#06040F", paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
           <div className="container mx-auto px-5 sm:px-10 max-w-[1200px]">
-            <motion.div initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-14">
-              <span className="nv-badge mb-6 inline-flex">{isFr ? "Pourquoi Nivra" : "Why Nivra"}</span>
-              <h2 className="font-extrabold text-white mt-5" style={{ fontSize: "clamp(28px, 4.5vw, 52px)", letterSpacing: "-1.5px" }}>
-                {isFr ? "Un ISP qui vous respecte" : "An ISP that respects you"}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-14"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6" style={{ background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 100 }}>
+                <Award className="w-4 h-4" style={{ color: "#67E8F9" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#67E8F9", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  {isFr ? "Pourquoi Nivra" : "Why Nivra"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(28px, 4.5vw, 52px)", letterSpacing: "-1.5px", lineHeight: 1.08, marginTop: 16 }}>
+                {isFr
+                  ? <>Un ISP qui <span className="n-shimmer-text">vous respecte</span></>
+                  : <>An ISP that <span className="n-shimmer-text">respects you</span></>}
               </h2>
             </motion.div>
 
@@ -320,17 +280,28 @@ const Index = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="group flex gap-5 rounded-2xl p-7 cursor-default"
-                  style={{ background: CARD, border: "1px solid rgba(124,58,237,0.15)", transition: "all 0.25s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.4)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(124,58,237,0.15)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.15)"; e.currentTarget.style.boxShadow = "none"; }}
+                  className="flex gap-5 rounded-2xl p-7"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    cursor: "default",
+                    transition: "border-color .25s, box-shadow .25s",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = item.border;
+                    (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 32px ${item.bg}`;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)";
+                    (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                  }}
                 >
-                  <div className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)" }}>
-                    <item.icon className="w-6 h-6" style={{ color: PE }} />
+                  <div className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: item.bg, border: `1px solid ${item.border}` }}>
+                    <item.icon className="w-6 h-6" style={{ color: item.accent }} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white mb-2" style={{ fontSize: 17 }}>{item.title}</h3>
-                    <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14.5, lineHeight: 1.65 }}>{item.desc}</p>
+                    <h3 className="font-bold text-white mb-2" style={{ fontSize: 17, fontFamily: "'Space Grotesk', sans-serif" }}>{item.title}</h3>
+                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14.5, lineHeight: 1.65 }}>{item.desc}</p>
                   </div>
                 </motion.div>
               ))}
@@ -341,15 +312,25 @@ const Index = () => {
         {/* ════════════════════════════════════════════════════
             TESTIMONIALS
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: BG, paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
+        <section style={{ background: "#020209", paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
           <div className="container mx-auto px-5 sm:px-10 max-w-[1200px]">
-            <motion.div initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-14">
-              <span className="nv-badge mb-6 inline-flex">
-                <Award className="w-3.5 h-3.5" />
-                {isFr ? "Avis clients" : "Customer reviews"}
-              </span>
-              <h2 className="font-extrabold text-white mt-5" style={{ fontSize: "clamp(28px, 4.5vw, 52px)", letterSpacing: "-1.5px" }}>
-                {isFr ? "Ils ont choisi Nivra" : "They chose Nivra"}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-14"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6" style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 100 }}>
+                <Star className="w-3.5 h-3.5" style={{ color: "#FCD34D" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#FCD34D", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  {isFr ? "Avis clients" : "Customer reviews"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(28px, 4.5vw, 52px)", letterSpacing: "-1.5px", lineHeight: 1.08, marginTop: 16 }}>
+                {isFr
+                  ? <>Ils ont <span className="n-shimmer-text">choisi Nivra</span></>
+                  : <>They <span className="n-shimmer-text">chose Nivra</span></>}
               </h2>
             </motion.div>
 
@@ -362,17 +343,20 @@ const Index = () => {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.12 }}
                   className="flex flex-col gap-5 rounded-2xl p-7"
-                  style={{ background: CARD, border: "1px solid rgba(124,58,237,0.15)" }}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                  }}
                 >
                   <div className="flex gap-0.5">
                     {Array.from({ length: t.rating }).map((_, s) => (
                       <Star key={s} className="w-4 h-4 fill-current" style={{ color: "#F59E0B" }} />
                     ))}
                   </div>
-                  <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 15, lineHeight: 1.7, flex: 1 }}>"{t.quote}"</p>
+                  <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 15, lineHeight: 1.7, flex: 1 }}>"{t.quote}"</p>
                   <div>
-                    <div className="font-semibold text-white" style={{ fontSize: 14 }}>{t.name}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <div className="font-semibold text-white" style={{ fontSize: 14, fontFamily: "'Space Grotesk', sans-serif" }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", gap: 4, marginTop: 3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.05em" }}>
                       <MapPin className="w-3 h-3" />{t.city}
                     </div>
                   </div>
@@ -385,38 +369,89 @@ const Index = () => {
         {/* ════════════════════════════════════════════════════
             CTA FINAL
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: BG2, paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
-          <motion.div initial={{ opacity: 0, y: 32 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="container mx-auto px-5 sm:px-10 max-w-[900px]">
+        <section style={{ background: "#06040F", paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 32 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="container mx-auto px-5 sm:px-10 max-w-[900px]"
+          >
             <div
               className="rounded-3xl relative overflow-hidden text-center"
-              style={{ background: "linear-gradient(135deg, #14082E 0%, #1A0F3A 50%, #0F0920 100%)", border: "1px solid rgba(124,58,237,0.3)", boxShadow: "0 0 120px rgba(124,58,237,0.2), 0 32px 80px rgba(0,0,0,0.6)", padding: "clamp(48px, 8vw, 96px) clamp(24px, 5vw, 72px)" }}
+              style={{
+                background: "linear-gradient(135deg, rgba(124,58,237,0.14) 0%, rgba(255,255,255,0.03) 50%, rgba(6,182,212,0.07) 100%)",
+                border: "1px solid rgba(124,58,237,0.3)",
+                boxShadow: "0 0 120px rgba(124,58,237,0.15), 0 32px 80px rgba(0,0,0,0.6)",
+                padding: "clamp(48px, 8vw, 96px) clamp(24px, 5vw, 72px)",
+              }}
             >
-              {/* Orb inside CTA */}
-              <div aria-hidden style={{ position: "absolute", top: "-30%", left: "50%", transform: "translateX(-50%)", width: 600, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse at center, rgba(124,58,237,0.25), transparent 70%)", pointerEvents: "none", filter: "blur(20px)" }} />
+              {/* Radial glow */}
+              <div aria-hidden style={{ position: "absolute", top: "-30%", left: "50%", transform: "translateX(-50%)", width: 600, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.2), transparent 70%)", pointerEvents: "none", filter: "blur(20px)" }} />
+              {/* Grid overlay */}
               <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)", backgroundSize: "48px 48px" }} />
+
               <div className="relative z-10">
-                <span className="nv-badge mb-6 inline-flex">
-                  <Clock className="w-3.5 h-3.5" />
-                  {isFr ? "Activation en 10 minutes" : "10-minute activation"}
-                </span>
-                <h2 className="font-extrabold text-white mt-5 mb-4" style={{ fontSize: "clamp(28px, 5vw, 56px)", letterSpacing: "-1.5px", lineHeight: 1.06 }}>
-                  {isFr ? "Prêt à passer à Nivra ?" : "Ready to switch to Nivra?"}
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6" style={{ background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 100 }}>
+                  <Clock className="w-3.5 h-3.5" style={{ color: "#67E8F9" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#67E8F9", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    {isFr ? "Activation en 10 minutes" : "10-minute activation"}
+                  </span>
+                </div>
+                <h2 className="font-extrabold text-white mt-2 mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(28px, 5vw, 56px)", letterSpacing: "-1.5px", lineHeight: 1.06 }}>
+                  {isFr
+                    ? <>Prêt à <span className="n-shimmer-text">passer à Nivra</span> ?</>
+                    : <>Ready to <span className="n-shimmer-text">switch to Nivra</span>?</>}
                 </h2>
-                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 18, lineHeight: 1.65, maxWidth: 480, margin: "0 auto 40px" }}>
+                <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 18, lineHeight: 1.65, maxWidth: 480, margin: "0 auto 40px" }}>
                   {isFr ? "Sans contrat, sans technicien, sans surprise. Commandez aujourd'hui." : "No contract, no technician, no surprise. Order today."}
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link
                     to="/commander"
-                    style={{ height: 58, paddingLeft: 36, paddingRight: 36, background: P, borderRadius: 999, fontSize: 17, fontWeight: 700, color: "#fff", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 10px 32px rgba(124,58,237,0.55)", transition: "opacity 0.2s, transform 0.2s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.92"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "none"; }}
+                    className="flex items-center gap-2.5 font-bold text-white"
+                    style={{
+                      height: 58, paddingLeft: 36, paddingRight: 36,
+                      borderRadius: 10, fontSize: 17, textDecoration: "none",
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)",
+                      boxShadow: "0 0 0 1px rgba(124,58,237,0.5), 0 10px 32px rgba(124,58,237,0.5)",
+                      transition: "box-shadow .2s, transform .15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.7), 0 12px 40px rgba(124,58,237,0.65)";
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.5), 0 10px 32px rgba(124,58,237,0.5)";
+                      e.currentTarget.style.transform = "none";
+                    }}
                   >
                     {isFr ? "Commander maintenant" : "Order now"} <ArrowRight className="w-5 h-5" />
                   </Link>
-                  <Link to="/internet" style={{ height: 58, paddingLeft: 28, paddingRight: 28, border: "1px solid rgba(124,58,237,0.4)", borderRadius: 999, fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.75)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.7)"; e.currentTarget.style.color = "#fff"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.4)"; e.currentTarget.style.color = "rgba(255,255,255,0.75)"; }}
+                  <Link
+                    to="/internet"
+                    className="flex items-center gap-2"
+                    style={{
+                      height: 58, paddingLeft: 28, paddingRight: 28,
+                      border: "1px solid rgba(6,182,212,0.35)",
+                      borderRadius: 10, fontSize: 16, fontWeight: 600,
+                      color: "#67E8F9", textDecoration: "none",
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: "rgba(6,182,212,0.06)",
+                      backdropFilter: "blur(8px)",
+                      transition: "border-color .2s, background .2s, box-shadow .2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(6,182,212,0.6)";
+                      e.currentTarget.style.background = "rgba(6,182,212,0.12)";
+                      e.currentTarget.style.boxShadow = "0 0 20px rgba(6,182,212,0.15)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(6,182,212,0.35)";
+                      e.currentTarget.style.background = "rgba(6,182,212,0.06)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                   >
                     {isFr ? "Voir les forfaits" : "See plans"}
                   </Link>
