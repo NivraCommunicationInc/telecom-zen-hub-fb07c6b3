@@ -10,7 +10,7 @@ type Testimonial = {
 };
 
 const fallback: Testimonial[] = [
-  { name: "Marie-Claude B.", location: "Rosemont, Montréal", text: "J'en avais assez de payer Bell 95$ par mois avec un contrat de 2 ans. Avec Nivra, je paie moins et je peux changer quand je veux.", rating: 5 },
+  { name: "Marie-Claude B.", location: "Rosemont, Montréal", text: "J'en avais assez de payer 95$ par mois avec un contrat de 2 ans. Avec Nivra, je paie moins et je peux changer quand je veux.", rating: 5 },
   { name: "Jean-François L.", location: "Laval", text: "On vient d'emménager et on voulait pas signer un contrat. Nivra était parfait — activé en ligne, le modem livré en 2 jours.", rating: 5 },
   { name: "Thanh N.", location: "Brossard", text: "Le support parle français ET vietnamien, c'est rare. J'ai eu de l'aide pour la configuration en moins d'une heure.", rating: 5 },
   { name: "Sophie T.", location: "Plateau-Mont-Royal, Montréal", text: "Étudiante, je déménage chaque année. Avec Nivra, pas de stress de résiliation. J'amène mon forfait avec moi ou j'annule sans frais.", rating: 5 },

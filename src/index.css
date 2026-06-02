@@ -1,5 +1,6 @@
 /* Font loaded via index.html <link> tag for optimal performance */
 @import './styles/design-tokens.css';
+@import './styles/nivra-design.css';
 
 @tailwind base;
 @tailwind components;

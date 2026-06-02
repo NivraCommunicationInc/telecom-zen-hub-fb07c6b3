@@ -79,33 +79,133 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   ];
 
   return (
-    <footer ref={ref} role="contentinfo" style={{ background: BG, borderTop: "1px solid rgba(124,58,237,0.12)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 24px 0" }}>
-
-        {/* Top: brand + columns */}
-        <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "300px 1fr 1fr 1fr", gap: 48, marginBottom: 56 }}>
-
-          {/* Brand column */}
+    <footer
+      ref={ref}
+      role="contentinfo"
+      style={{
+        background: "linear-gradient(180deg, #050510 0%, #020209 100%)",
+        borderTop: "1px solid rgba(124,58,237,0.2)",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      className="text-white"
+    >
+      {/* Footer glow top */}
+      <div aria-hidden style={{
+        position: "absolute", top: 0, left: "20%", right: "20%", height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(124,58,237,0.6), rgba(6,182,212,0.4), rgba(124,58,237,0.6), transparent)",
+        pointerEvents: "none",
+      }} />
+      <div aria-hidden style={{
+        position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+        width: 600, height: 300,
+        background: "radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "64px 24px 32px" }}>
+        {/* 4-column grid */}
+        <div
+          className="footer-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 48,
+          }}
+        >
+          {/* Column 1 — Brand */}
           <div>
-            <div style={{ marginBottom: 6 }}>
-              <span className="font-extrabold text-white" style={{ fontSize: 26, letterSpacing: "-0.5px" }}>NIVRA</span>
-              <span style={{ color: PE, fontSize: 13, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", marginLeft: 8 }}>Telecom</span>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 800, fontSize: 28, letterSpacing: "-1px", lineHeight: 1, color: "#FFFFFF",
+              }}>
+                NIVRA
+              </div>
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                color: "#A78BFA", fontSize: 11, fontWeight: 700,
+                letterSpacing: "3px", textTransform: "uppercase", marginTop: 2,
+              }}>
+                TELECOM
+              </div>
             </div>
-            <p style={{ color: MUTED, fontSize: 13.5, lineHeight: 1.7, marginBottom: 20, maxWidth: 260 }}>
+            <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
               {isFr
                 ? "Fournisseur Internet et TV sans contrat au Québec. Prix honnêtes, service local, aucune surprise."
                 : "No-contract Internet & TV in Quebec. Honest prices, local service, no surprises."}
             </p>
-            <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-              <SocialIcon href="https://facebook.com" label="Facebook">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M9.198 21.5h4v-8.01h3.604l.396-3.98h-4V7.5a1 1 0 0 1 1-1h3v-4h-3a5 5 0 0 0-5 5v2.01h-2l-.396 3.98h2.396v8.01Z" /></svg>
-              </SocialIcon>
-              <SocialIcon href="https://instagram.com" label="Instagram">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="18" cy="6" r="1" fill="white" /></svg>
-              </SocialIcon>
-              <SocialIcon href="https://tiktok.com" label="TikTok">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43V8.45a8.16 8.16 0 0 0 4.77 1.52V6.55a4.85 4.85 0 0 1-1.84-.13Z" /></svg>
-              </SocialIcon>
+            <div style={{ display: "flex", gap: 10 }}>
+              {/* Facebook */}
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: "rgba(255,255,255,0.06)",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#7C3AED")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#1a1a1a")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                  <path d="M9.198 21.5h4v-8.01h3.604l.396-3.98h-4V7.5a1 1 0 0 1 1-1h3v-4h-3a5 5 0 0 0-5 5v2.01h-2l-.396 3.98h2.396v8.01Z" />
+                </svg>
+              </a>
+              {/* Instagram */}
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: "rgba(255,255,255,0.06)",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#7C3AED")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#1a1a1a")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <rect x="2" y="2" width="20" height="20" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="18" cy="6" r="1" fill="white" />
+                </svg>
+              </a>
+              {/* TikTok */}
+              <a
+                href="https://tiktok.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="TikTok"
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: "rgba(255,255,255,0.06)",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#7C3AED")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#1a1a1a")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43V8.45a8.16 8.16 0 0 0 4.77 1.52V6.55a4.85 4.85 0 0 1-1.84-.13Z" />
+                </svg>
+              </a>
             </div>
             {/* Payment badges */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -145,10 +245,30 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ borderTop: "1px solid rgba(124,58,237,0.1)", paddingTop: 24, paddingBottom: 28 }}>
-          <div className="footer-bottom-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, margin: 0 }}>
-              © {currentYear} {COMPANY_CONTACT.legalName} — {isFr ? "Tous droits réservés" : "All rights reserved"} · Québec, Canada
+        <div
+          style={{
+            borderTop: "1px solid rgba(124,58,237,0.15)",
+            marginTop: 48,
+            paddingTop: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+          className="footer-bottom"
+        >
+          <div
+            className="footer-bottom-row"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
+              © {currentYear} {COMPANY_CONTACT.legalName} —{" "}
+              {isFr ? "Tous droits réservés" : "All rights reserved"} · Québec, Canada
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
               {legal.map((l) => (

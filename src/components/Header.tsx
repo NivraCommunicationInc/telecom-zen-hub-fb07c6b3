@@ -226,17 +226,26 @@ const Header = () => {
       <SiteSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
       <PublicSystemStatusBanner />
 
-      {/* Utility bar — desktop */}
-      <div className="hidden lg:block" style={{ background: "#07060F", borderBottom: "1px solid rgba(124,58,237,0.08)" }}>
-        <div className="container mx-auto px-6 max-w-[1280px] flex items-center justify-between h-9">
-          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
-            <Link to="/" className="hover:text-white transition-colors" style={{ color: "inherit", textDecoration: "none" }}>{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="hover:text-white transition-colors" style={{ color: "inherit", textDecoration: "none" }}>{isFr ? "Nous contacter" : "Contact"}</Link>
+      {/* Top utility bar — desktop only */}
+      <div className="hidden lg:block" style={{
+        background: 'rgba(2,2,9,0.95)',
+        borderBottom: '1px solid rgba(124,58,237,0.12)',
+      }}>
+        <div className="container mx-auto px-6 max-w-[1200px] flex items-center justify-between h-9">
+          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ color: '#A78BFA', fontWeight: 700 }}>NIVRA TELECOM</span>
+            <Link to="/contact" className="hover:text-white transition-colors" style={{ color: 'rgba(255,255,255,0.35)' }}>{isFr ? "Nous contacter" : "Contact Us"}</Link>
           </div>
-          <div className="flex items-center gap-5 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-            <Link to="/aide" className="hover:text-white transition-colors" style={{ color: "inherit", textDecoration: "none" }}>{isFr ? "Centre d'aide" : "Help"}</Link>
-            <Link to="/a-propos" className="hover:text-white transition-colors" style={{ color: "inherit", textDecoration: "none" }}>{isFr ? "À propos" : "About"}</Link>
-            <Link to="/emplois" className="hover:text-white transition-colors" style={{ color: "inherit", textDecoration: "none" }}>{isFr ? "Emplois" : "Careers"}</Link>
+          <div className="flex items-center gap-5 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            <Link to="/aide" className="hover:text-white transition-colors">
+              {isFr ? "Centre d'aide" : "Help Center"}
+            </Link>
+            <Link to="/a-propos" className="hover:text-white transition-colors">
+              {isFr ? "À propos" : "About"}
+            </Link>
+            <Link to="/emplois" className="hover:text-white transition-colors">
+              {isFr ? "Emplois" : "Careers"}
+            </Link>
             <LanguageSelector />
           </div>
         </div>
@@ -249,13 +258,18 @@ const Header = () => {
         transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] as const }}
         className="sticky top-0 z-50"
         style={{
-          height: 68,
-          background: isScrolled ? "rgba(10,10,15,0.94)" : "rgba(10,10,15,0.98)",
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
-          borderBottom: isScrolled ? "1px solid rgba(124,58,237,0.18)" : "1px solid rgba(124,58,237,0.08)",
-          boxShadow: isScrolled ? "0 4px 32px rgba(0,0,0,0.5)" : "none",
-          transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+          height: 64,
+          background: isScrolled
+            ? 'rgba(2,2,9,0.85)'
+            : 'rgba(2,2,9,0.6)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          borderBottom: isScrolled
+            ? '1px solid rgba(124,58,237,0.25)'
+            : '1px solid rgba(255,255,255,0.07)',
+          boxShadow: isScrolled
+            ? '0 4px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,58,237,0.1), inset 0 -1px 0 rgba(124,58,237,0.15)'
+            : 'none',
         }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1280px] h-full">

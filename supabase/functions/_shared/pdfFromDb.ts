@@ -303,7 +303,7 @@ export async function buildInvoicePdfAttachment(
         cycle_start_date, cycle_end_date, type, order_id,
         billing_snapshot_account_number,
         customer:billing_customers(id, email, first_name, last_name, phone, user_id),
-        order:orders(id, order_number, service_type),
+        order:orders(id, order_number, service_type, client_full_address),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type, metadata)
       `)
       .eq("id", invoiceId)
@@ -319,6 +319,7 @@ export async function buildInvoicePdfAttachment(
     const order = (invoice as any).order || {};
     const orderId: string | null = (invoice as any).order_id || order?.id || null;
     const orderNumber: string | undefined = order?.order_number || undefined;
+    const orderClientFullAddress: string = (order as any).client_full_address || "";
     const clientName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client";
 
     let accountNumber = (invoice as any).billing_snapshot_account_number || "";
@@ -351,9 +352,13 @@ export async function buildInvoicePdfAttachment(
       phones = tele.phones;
     }
 
-    // Map lines, enriching equipment/phone descriptions when a phone is available
+    // Separate discount lines from service/equipment lines so discounts render correctly
+    const discountLines = lines.filter((l) => (l.line_type || "").toLowerCase() === "discount");
+    const serviceLines = lines.filter((l) => (l.line_type || "").toLowerCase() !== "discount");
+
+    // Map service lines, enriching equipment/phone descriptions when a phone is available
     let phoneIdx = 0;
-    const items = lines.map((l) => {
+    const mappedItems = serviceLines.map((l) => {
       const lt = (l.line_type || "").toLowerCase();
       let description = l.description || "Service";
       if ((lt === "equipment" || lt === "phone") && phones[phoneIdx]) {
@@ -369,6 +374,34 @@ export async function buildInvoicePdfAttachment(
         is_recurring: lt === "recurring" || lt === "service",
       };
     });
+
+    // Build discounts[] for the invoice template's discount section
+    const discounts = discountLines.length > 0
+      ? discountLines.map((l: any) => ({
+          label: l.description || "Rabais",
+          amount: Math.abs(Number(l.unit_price ?? l.line_total ?? 0)),
+        }))
+      : undefined;
+
+    // If billing_invoice_lines has no service lines, fall back to order_items for real service names
+    let items = mappedItems;
+    if (items.length === 0 && orderId) {
+      const { data: orderItems } = await supabase
+        .from("order_items")
+        .select("service_type, plan_name, description, unit_price, quantity, line_total, is_recurring")
+        .eq("order_id", orderId)
+        .order("item_number", { ascending: true });
+      if (Array.isArray(orderItems) && orderItems.length > 0) {
+        items = (orderItems as any[]).map((r) => ({
+          category: (r.service_type as any) || "Other",
+          description: r.plan_name || r.description || r.service_type || "Service",
+          qty: Number(r.quantity || 1),
+          unit_price: Number(r.unit_price ?? 0),
+          amount: Number(r.line_total ?? r.unit_price ?? 0),
+          is_recurring: r.is_recurring === true,
+        }));
+      }
+    }
 
     const isPaid = ((invoice as any).status || "").toLowerCase() === "paid";
 
@@ -386,18 +419,19 @@ export async function buildInvoicePdfAttachment(
         full_name: clientName,
         email: customer.email || "",
         phone: customer.phone || undefined,
-        address_line1: addr.billing.line1,
+        address_line1: addr.billing.line1 || orderClientFullAddress || "",
         city: addr.billing.city,
         province: addr.billing.province,
         postal_code: addr.billing.postal,
       },
       items: items.length ? items : [{
         category: "Other",
-        description: "Service Nivra",
+        description: order?.service_type || "Service Nivra",
         qty: 1,
         unit_price: Number((invoice as any).subtotal ?? (invoice as any).total ?? 0),
         amount: Number((invoice as any).subtotal ?? (invoice as any).total ?? 0),
       }],
+      discounts,
       subtotal: Number((invoice as any).subtotal || 0),
       taxes: {
         gst_rate: 0.05,
@@ -456,7 +490,7 @@ export async function buildReceiptPdfAttachment(
         tps_amount, tvq_amount, amount_paid, payment_method, balance_due,
         billing_snapshot_account_number, order_id,
         customer:billing_customers(email, first_name, last_name, phone, user_id),
-        order:orders(order_number),
+        order:orders(order_number, client_full_address),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
       `)
       .eq("id", invoiceId)
@@ -500,7 +534,8 @@ export async function buildReceiptPdfAttachment(
       userId: customer.user_id,
       orderId: (invoice as any).order_id || null,
     });
-    const clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || undefined;
+    const receiptOrderFullAddress: string = (order as any).client_full_address || "";
+    const clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || receiptOrderFullAddress || undefined;
 
     // ADD-ONLY: detect unpaid card_manual flow → payment_status='pending'
     let orderPaymentMethod: string | null = null;
@@ -518,7 +553,7 @@ export async function buildReceiptPdfAttachment(
 
     const data: ReceiptData = {
       receipt_number: payment?.payment_number || `REC-${invoiceId.slice(0, 8)}`,
-      payment_date: payment?.received_at || payment?.captured_at || (invoice as any).paid_at || new Date().toISOString(),
+      payment_date: payment?.received_at || payment?.captured_at || (invoice as any).paid_at || undefined,
       payment_method: payment?.method || orderPaymentMethod || (invoice as any).payment_method || "Inconnu",
       amount_paid: hasConfirmedPayment
         ? Number(payment?.amount ?? (invoice as any).amount_paid ?? 0)

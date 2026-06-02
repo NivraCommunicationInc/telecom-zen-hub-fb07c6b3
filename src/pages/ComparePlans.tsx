@@ -228,7 +228,6 @@ const ComparePlans = () => {
             </p>
           </div>
         </section>
-      </section>
 
       <main style={{ paddingBottom: 80 }}>
 

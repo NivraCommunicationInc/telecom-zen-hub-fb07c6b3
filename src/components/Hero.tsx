@@ -1,331 +1,582 @@
-import { ArrowRight, Check, Wifi, Shield, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Check, Shield, Zap, Wifi, Activity } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+// Animated counter hook
+function useCountUp(target: number, duration = 1800, started = false) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!started || target === 0) return;
+    const start = performance.now();
+    const raf = (ts: number) => {
+      const p = Math.min((ts - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setCount(Math.floor(ease * target));
+      if (p < 1) requestAnimationFrame(raf);
+    };
+    requestAnimationFrame(raf);
+  }, [target, duration, started]);
+  return count;
+}
 
 const Hero = () => {
   const { t, language } = useLanguage();
-  const isFr = language === 'fr';
-  const { data: services, isLoading } = usePublicServices({ surface: "website", categories: ["Internet"] });
+  const isFr = language === "fr";
+  const { data: services } = usePublicServices({ surface: "website", categories: ["Internet"] });
+  const [visible, setVisible] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
 
   const internetPrice = (() => {
     if (!services || services.length === 0) return null;
-    return Math.min(...services.map(s => Number(s.price))).toFixed(0);
+    return Math.min(...services.map((s) => Number(s.price))).toFixed(0);
   })();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const speed = useCountUp(940, 1600, visible);
 
   return (
     <section
+      ref={heroRef}
       className="relative overflow-hidden"
-      style={{
-        background: 'linear-gradient(160deg, #080612 0%, #11082A 45%, #0C0C18 100%)',
-        minHeight: 580,
-      }}
+      style={{ background: "#020209", minHeight: "100vh" }}
     >
-      {/* Radial glow top-right */}
-      <div
-        aria-hidden
-        className="absolute pointer-events-none"
-        style={{
-          top: -180,
-          right: -120,
-          width: 700,
-          height: 700,
-          background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.22) 0%, transparent 65%)',
-          filter: 'blur(1px)',
-        }}
-      />
-      {/* Radial glow bottom-left */}
-      <div
-        aria-hidden
-        className="absolute pointer-events-none"
-        style={{
-          bottom: -100,
-          left: -100,
-          width: 500,
-          height: 500,
-          background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.1) 0%, transparent 65%)',
-        }}
-      />
+      {/* ── CSS Keyframes ─────────────────────────────────────────── */}
+      <style>{`
+        @keyframes aurora-1 {
+          0%,100% { transform: translate(0,0) scale(1); opacity:.55; }
+          33%      { transform: translate(60px,-40px) scale(1.15); opacity:.7; }
+          66%      { transform: translate(-40px,30px) scale(.95); opacity:.5; }
+        }
+        @keyframes aurora-2 {
+          0%,100% { transform: translate(0,0) scale(1); opacity:.4; }
+          40%      { transform: translate(-80px,50px) scale(1.2); opacity:.6; }
+          75%      { transform: translate(50px,-60px) scale(.9); opacity:.35; }
+        }
+        @keyframes aurora-3 {
+          0%,100% { transform: translate(0,0) scale(1); opacity:.3; }
+          50%      { transform: translate(40px,70px) scale(1.1); opacity:.5; }
+        }
+        @keyframes scanline {
+          0%   { transform: translateY(-100%); opacity:0; }
+          5%   { opacity:.6; }
+          95%  { opacity:.6; }
+          100% { transform: translateY(100vh); opacity:0; }
+        }
+        @keyframes float-card {
+          0%,100% { transform: translateY(0px); }
+          50%      { transform: translateY(-10px); }
+        }
+        @keyframes float-badge {
+          0%,100% { transform: translateY(0px) rotate(-2deg); }
+          50%      { transform: translateY(-8px) rotate(-2deg); }
+        }
+        @keyframes pulse-ring {
+          0%   { transform: scale(.85); opacity:.9; }
+          70%  { transform: scale(1.4); opacity:0; }
+          100% { transform: scale(1.4); opacity:0; }
+        }
+        @keyframes pulse-ring-2 {
+          0%   { transform: scale(.85); opacity:.7; }
+          70%  { transform: scale(1.6); opacity:0; }
+          100% { transform: scale(1.6); opacity:0; }
+        }
+        @keyframes shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes beam-h {
+          0%   { transform: translateX(-100%); opacity:0; }
+          10%  { opacity:1; }
+          90%  { opacity:1; }
+          100% { transform: translateX(100%); opacity:0; }
+        }
+        @keyframes data-flow {
+          0%   { transform: translateY(0); opacity:.7; }
+          100% { transform: translateY(-400px); opacity:0; }
+        }
+        @keyframes slide-up {
+          from { transform: translateY(30px); opacity:0; }
+          to   { transform: translateY(0);    opacity:1; }
+        }
+        @keyframes ticker {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes meter-fill {
+          from { stroke-dashoffset: 565; }
+          to   { stroke-dashoffset: 90; }
+        }
+        @keyframes glow-pulse {
+          0%,100% { filter: blur(40px); opacity:.55; }
+          50%      { filter: blur(55px); opacity:.75; }
+        }
+        .hero-title { animation: slide-up .7s cubic-bezier(.16,1,.3,1) both; }
+        .hero-sub   { animation: slide-up .7s .12s cubic-bezier(.16,1,.3,1) both; }
+        .hero-price { animation: slide-up .7s .22s cubic-bezier(.16,1,.3,1) both; }
+        .hero-ctas  { animation: slide-up .7s .32s cubic-bezier(.16,1,.3,1) both; }
+        .hero-card  { animation: slide-up .8s .2s cubic-bezier(.16,1,.3,1) both; }
+        .shimmer-text {
+          background: linear-gradient(90deg,#fff 0%,#A78BFA 30%,#06B6D4 50%,#A78BFA 70%,#fff 100%);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 4s linear infinite;
+        }
+        .meter-arc {
+          stroke-dasharray: 565;
+          stroke-dashoffset: 565;
+          animation: meter-fill 1.8s .5s cubic-bezier(.16,1,.3,1) forwards;
+        }
+      `}</style>
 
-      {/* Grid lines decorative */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }}
-      />
+      {/* ── Aurora background blobs ─────────────────────────────── */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div style={{
+          position: "absolute", top: "-20%", right: "-10%",
+          width: 900, height: 900, borderRadius: "50%",
+          background: "radial-gradient(ellipse, rgba(124,58,237,0.35) 0%, transparent 65%)",
+          animation: "aurora-1 14s ease-in-out infinite",
+          willChange: "transform",
+        }} />
+        <div style={{
+          position: "absolute", bottom: "-30%", left: "-15%",
+          width: 800, height: 800, borderRadius: "50%",
+          background: "radial-gradient(ellipse, rgba(6,182,212,0.2) 0%, transparent 65%)",
+          animation: "aurora-2 18s ease-in-out infinite",
+          willChange: "transform",
+        }} />
+        <div style={{
+          position: "absolute", top: "30%", left: "35%",
+          width: 600, height: 600, borderRadius: "50%",
+          background: "radial-gradient(ellipse, rgba(139,92,246,0.18) 0%, transparent 65%)",
+          animation: "aurora-3 22s ease-in-out infinite",
+          willChange: "transform",
+        }} />
+      </div>
 
-      <div className="relative max-w-[1100px] mx-auto px-5 sm:px-10 w-full" style={{ paddingTop: 72, paddingBottom: 64 }}>
-        <div className="flex items-center gap-12 lg:gap-16">
+      {/* ── Grid overlay ─────────────────────────────────────────── */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: "linear-gradient(rgba(124,58,237,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.06) 1px, transparent 1px)",
+        backgroundSize: "80px 80px",
+      }} />
 
-          {/* Left column */}
-          <div className="flex-1 max-w-[580px]">
+      {/* ── Scan line ────────────────────────────────────────────── */}
+      <div aria-hidden className="absolute inset-x-0 pointer-events-none" style={{
+        height: 2,
+        background: "linear-gradient(90deg, transparent 0%, rgba(124,58,237,0.5) 20%, rgba(6,182,212,0.6) 50%, rgba(124,58,237,0.5) 80%, transparent 100%)",
+        animation: "scanline 8s linear infinite",
+        boxShadow: "0 0 20px rgba(124,58,237,0.4), 0 0 40px rgba(6,182,212,0.2)",
+      }} />
 
-            {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 mb-6" style={{
-              background: 'rgba(124,58,237,0.15)',
-              border: '1px solid rgba(124,58,237,0.35)',
-              borderRadius: 999,
-              padding: '6px 14px',
+      {/* ── Main content ─────────────────────────────────────────── */}
+      <div className="relative max-w-[1200px] mx-auto px-5 sm:px-10 w-full" style={{ paddingTop: 90, paddingBottom: 80 }}>
+        <div className="flex items-center gap-10 lg:gap-16">
+
+          {/* ── LEFT COLUMN ─────────────────────────────────────── */}
+          <div className="flex-1 max-w-[600px]">
+
+            {/* Status chip */}
+            <div className="hero-title inline-flex items-center gap-2.5 mb-8" style={{
+              background: "rgba(6,182,212,0.08)",
+              border: "1px solid rgba(6,182,212,0.3)",
+              borderRadius: 999, padding: "7px 16px",
             }}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
-              <span className="font-semibold uppercase" style={{ color: '#C4B5FD', fontSize: 11, letterSpacing: 2 }}>
-                {isFr ? 'Internet & TV au Québec' : 'Internet & TV in Quebec'}
+              <span className="relative flex" style={{ width: 8, height: 8 }}>
+                <span style={{
+                  position: "absolute", inset: 0, borderRadius: "50%",
+                  background: "#06B6D4", animation: "pulse-ring 2s ease-out infinite",
+                }} />
+                <span style={{
+                  position: "absolute", inset: 0, borderRadius: "50%",
+                  background: "#06B6D4", animation: "pulse-ring-2 2s .4s ease-out infinite",
+                }} />
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#06B6D4", display: "block" }} />
+              </span>
+              <span style={{ color: "#67E8F9", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>
+                {isFr ? "Réseau actif — Québec" : "Live Network — Quebec"}
               </span>
             </div>
 
             {/* Headline */}
-            <h1
-              className="font-extrabold mb-5 text-white"
-              style={{
-                fontSize: 'clamp(36px, 5.5vw, 60px)',
-                lineHeight: 1.05,
-                letterSpacing: '-1.5px',
-              }}
-            >
-              {t('xhero.title')}{" "}
+            <h1 className="hero-title" style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 800,
+              fontSize: "clamp(42px, 6vw, 76px)",
+              lineHeight: 1.0,
+              letterSpacing: "-2.5px",
+              marginBottom: 24,
+            }}>
+              <span style={{ color: "#FFFFFF", display: "block" }}>
+                {isFr ? "Connectez-vous" : "Connect to"}
+              </span>
+              <span className="shimmer-text" style={{ display: "block", letterSpacing: "-3px" }}>
+                {isFr ? "l'avenir" : "the future"}
+              </span>
               <span style={{
-                background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                display: "block", color: "rgba(255,255,255,0.18)",
+                fontSize: "clamp(20px, 2.5vw, 32px)",
+                fontWeight: 600, letterSpacing: "-0.5px", marginTop: 8,
               }}>
-                {t('xhero.titleAccent')}
+                {isFr ? "Internet · Mobile · TV · Fibre" : "Internet · Mobile · TV · Fibre"}
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="mb-8 max-w-[460px]" style={{ color: 'rgba(255,255,255,0.62)', fontSize: 17, lineHeight: 1.65 }}>
-              {t('xhero.subtitle')}
+            <p className="hero-sub" style={{
+              color: "rgba(255,255,255,0.55)",
+              fontSize: 17, lineHeight: 1.7, maxWidth: 480, marginBottom: 36,
+            }}>
+              {t("xhero.subtitle")}
             </p>
 
-            {/* Price */}
-            <div className="mb-8 flex items-baseline gap-1">
-              {isLoading || internetPrice === null ? (
-                <Skeleton className="h-16 w-32 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }} />
-              ) : (
-                <>
-                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18 }}>{isFr ? 'Dès' : 'From'}</span>
-                  <span className="font-black leading-none ml-2" style={{ color: '#FFFFFF', fontSize: 'clamp(52px, 10vw, 76px)', letterSpacing: '-2px' }}>
-                    {internetPrice}$
+            {/* Speed + price row */}
+            <div className="hero-price flex items-end gap-8 mb-10">
+              <div>
+                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>
+                  {isFr ? "VITESSE MAX" : "MAX SPEED"}
+                </p>
+                <div className="flex items-baseline gap-1">
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontWeight: 800, fontSize: "clamp(52px, 8vw, 88px)",
+                    lineHeight: 1, letterSpacing: "-3px",
+                    color: "#FFFFFF",
+                    fontVariantNumeric: "tabular-nums",
+                  }}>
+                    {speed}
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>/{isFr ? 'mois' : 'mo'}</span>
-                </>
+                  <span style={{ color: "#A78BFA", fontSize: 22, fontWeight: 700, marginLeft: 4 }}>Mbps</span>
+                </div>
+              </div>
+              {internetPrice && (
+                <div style={{ paddingBottom: 6 }}>
+                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>
+                    {isFr ? "À PARTIR DE" : "STARTING AT"}
+                  </p>
+                  <div className="flex items-baseline gap-1">
+                    <span style={{
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontWeight: 800, fontSize: 44, lineHeight: 1, letterSpacing: "-2px", color: "#FFFFFF",
+                    }}>
+                      {internetPrice}$
+                    </span>
+                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 15 }}>/{isFr ? "mois" : "mo"}</span>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Bullets */}
-            <ul className="flex flex-col gap-2.5 sm:flex-row sm:gap-6 mb-10">
-              {[t('xhero.bullet1'), t('xhero.bullet2'), t('xhero.bullet3')].map((text) => (
-                <li key={text} className="flex items-center gap-2 text-sm font-medium" style={{ color: 'rgba(255,255,255,0.72)' }}>
-                  <div className="shrink-0 flex items-center justify-center" style={{
-                    width: 18, height: 18, borderRadius: 999,
-                    background: 'rgba(124,58,237,0.25)',
-                    border: '1px solid rgba(124,58,237,0.4)',
-                  }}>
-                    <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: '#A78BFA' }} />
-                  </div>
+            {/* Feature pills */}
+            <div className="hero-price flex flex-wrap gap-2 mb-10">
+              {[
+                { icon: Check, text: isFr ? "Sans contrat" : "No contract", color: "#10B981" },
+                { icon: Zap,   text: isFr ? "1er mois GRATUIT" : "1st month FREE", color: "#FBBF24" },
+                { icon: Shield,text: isFr ? "Remboursé 30 jours" : "30-day refund", color: "#60A5FA" },
+                { icon: Wifi,  text: isFr ? "Activation en ligne" : "Online activation", color: "#A78BFA" },
+              ].map(({ icon: Icon, text, color }) => (
+                <span key={text} className="inline-flex items-center gap-1.5" style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 999, padding: "8px 14px",
+                  color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: 600,
+                  backdropFilter: "blur(8px)",
+                  transition: "border-color .2s, background .2s",
+                }}>
+                  <Icon className="w-3.5 h-3.5" style={{ color }} />
                   {text}
-                </li>
+                </span>
               ))}
-            </ul>
-
-            {/* Trust badges — no emoji */}
-            <div className="flex flex-wrap gap-2 mb-10">
-              <span className="inline-flex items-center gap-1.5 font-semibold" style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: 'rgba(255,255,255,0.8)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 999,
-                padding: '6px 14px',
-                fontSize: 12,
-              }}>
-                <Zap className="w-3.5 h-3.5" style={{ color: '#FBBF24' }} />
-                {isFr ? 'Premier mois GRATUIT' : 'First month FREE'}
-              </span>
-              <span className="inline-flex items-center gap-1.5 font-semibold" style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: 'rgba(255,255,255,0.8)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 999,
-                padding: '6px 14px',
-                fontSize: 12,
-              }}>
-                <Shield className="w-3.5 h-3.5" style={{ color: '#34D399' }} />
-                {isFr ? 'Satisfait ou remboursé 30 jours' : '30-day money-back'}
-              </span>
             </div>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="hero-ctas flex flex-col sm:flex-row gap-3">
               <Link
                 to="/forfaits"
-                className="flex items-center justify-center gap-2 px-8 font-bold text-white transition-all w-full sm:w-auto cursor-pointer"
+                className="flex items-center justify-center gap-2 font-bold text-white cursor-pointer"
                 style={{
-                  height: 54,
-                  borderRadius: 8,
-                  background: '#7C3AED',
-                  fontSize: 15,
-                  boxShadow: '0 4px 24px rgba(124,58,237,0.45)',
+                  height: 56, padding: "0 32px", borderRadius: 10, fontSize: 15,
+                  background: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)",
+                  boxShadow: "0 0 0 1px rgba(124,58,237,0.5), 0 8px 32px rgba(124,58,237,0.45), 0 0 60px rgba(124,58,237,0.2)",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  transition: "box-shadow .2s, transform .2s",
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.background = '#6D28D9';
-                  e.currentTarget.style.boxShadow = '0 6px 32px rgba(124,58,237,0.6)';
+                  e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.7), 0 12px 40px rgba(124,58,237,0.6), 0 0 80px rgba(124,58,237,0.3)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.background = '#7C3AED';
-                  e.currentTarget.style.boxShadow = '0 4px 24px rgba(124,58,237,0.45)';
+                  e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.5), 0 8px 32px rgba(124,58,237,0.45), 0 0 60px rgba(124,58,237,0.2)";
+                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
-                {t('xhero.cta')}
+                {t("xhero.cta")}
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                to="/forfaits"
-                className="flex items-center justify-center gap-2 px-7 font-semibold transition-all w-full sm:w-auto cursor-pointer"
+                to="/couverture"
+                className="flex items-center justify-center gap-2 font-semibold cursor-pointer"
                 style={{
-                  height: 54,
-                  borderRadius: 8,
-                  border: '1.5px solid rgba(255,255,255,0.2)',
-                  color: 'rgba(255,255,255,0.85)',
-                  fontSize: 15,
-                  background: 'rgba(255,255,255,0.04)',
+                  height: 56, padding: "0 28px", borderRadius: 10, fontSize: 15,
+                  border: "1px solid rgba(6,182,212,0.35)",
+                  color: "#67E8F9",
+                  background: "rgba(6,182,212,0.06)",
+                  backdropFilter: "blur(8px)",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  transition: "border-color .2s, background .2s, box-shadow .2s",
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = "rgba(6,182,212,0.6)";
+                  e.currentTarget.style.background = "rgba(6,182,212,0.12)";
+                  e.currentTarget.style.boxShadow = "0 0 20px rgba(6,182,212,0.15)";
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.borderColor = "rgba(6,182,212,0.35)";
+                  e.currentTarget.style.background = "rgba(6,182,212,0.06)";
+                  e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                {isFr ? 'Voir tous les forfaits' : 'See all plans'}
+                <Activity className="w-4 h-4" />
+                {isFr ? "Vérifier ma couverture" : "Check my coverage"}
               </Link>
             </div>
           </div>
 
-          {/* Right column — telecom stats visual */}
-          <div className="hidden lg:flex flex-1 items-center justify-center">
-            <div className="relative w-full max-w-[380px]">
+          {/* ── RIGHT COLUMN — Speed visualizer ──────────────────── */}
+          <div className="hero-card hidden lg:flex flex-1 items-center justify-center">
+            <div className="relative" style={{ width: 420 }}>
 
-              {/* Main card */}
+              {/* Main glassmorphism card */}
               <div style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 20,
-                padding: '32px 28px',
-                backdropFilter: 'blur(12px)',
+                background: "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 28,
+                padding: "36px 32px 32px",
+                backdropFilter: "blur(24px)",
+                boxShadow: "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.15), inset 0 1px 0 rgba(255,255,255,0.08)",
+                animation: "float-card 6s ease-in-out infinite",
               }}>
-                <div className="flex items-center gap-3 mb-6">
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 10,
-                    background: 'rgba(124,58,237,0.2)',
-                    border: '1px solid rgba(124,58,237,0.3)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Wifi className="w-5 h-5" style={{ color: '#A78BFA' }} />
-                  </div>
-                  <div>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5 }}>
-                      {isFr ? 'Réseau Fibre' : 'Fibre Network'}
-                    </p>
-                    <p style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700, marginTop: 1 }}>
-                      {isFr ? 'Actif · 99.9% disponibilité' : 'Active · 99.9% uptime'}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Speed stat */}
-                <div style={{
-                  background: 'rgba(124,58,237,0.12)',
-                  border: '1px solid rgba(124,58,237,0.25)',
-                  borderRadius: 12,
-                  padding: '20px 24px',
-                  marginBottom: 12,
-                }}>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>
-                    {isFr ? 'Vitesse maximale' : 'Max speed'}
-                  </p>
-                  <p className="font-black" style={{ color: '#FFFFFF', fontSize: 42, letterSpacing: '-2px', lineHeight: 1 }}>
-                    1 <span style={{ color: '#A78BFA' }}>Gbps</span>
-                  </p>
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 4 }}>
-                    {isFr ? 'Téléchargement symétrique' : 'Symmetric download'}
-                  </p>
-                </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: isFr ? 'Technologie' : 'Technology', value: 'Fibre optique' },
-                    { label: isFr ? 'Activation' : 'Activation', value: isFr ? '3–5 jours' : '3–5 days' },
-                    { label: isFr ? 'Couverture' : 'Coverage', value: 'Québec' },
-                    { label: isFr ? 'Contrat' : 'Contract', value: isFr ? 'Aucun' : 'None' },
-                  ].map(stat => (
-                    <div key={stat.label} style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                      borderRadius: 10,
-                      padding: '12px 14px',
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div style={{
+                      width: 42, height: 42, borderRadius: 12,
+                      background: "linear-gradient(135deg, rgba(124,58,237,0.4) 0%, rgba(6,182,212,0.2) 100%)",
+                      border: "1px solid rgba(124,58,237,0.3)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 0 20px rgba(124,58,237,0.3)",
                     }}>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
-                        {stat.label}
+                      <Wifi className="w-5 h-5" style={{ color: "#A78BFA" }} />
+                    </div>
+                    <div>
+                      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+                        NIVRA NETWORK
                       </p>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>
-                        {stat.value}
+                      <p style={{ color: "#FFFFFF", fontSize: 14, fontWeight: 700, marginTop: 1 }}>
+                        {isFr ? "Fibre Optique — Actif" : "Fibre Optics — Active"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {["#EF4444", "#F59E0B", "#10B981"].map((c) => (
+                      <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c, opacity: .7 }} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Speed meter SVG */}
+                <div className="flex justify-center mb-6">
+                  <div className="relative" style={{ width: 200, height: 200 }}>
+                    <svg viewBox="0 0 200 200" width="200" height="200" style={{ transform: "rotate(-90deg)" }}>
+                      {/* Track */}
+                      <circle cx="100" cy="100" r="90" fill="none"
+                        stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                      {/* Glow track */}
+                      <circle cx="100" cy="100" r="90" fill="none"
+                        stroke="url(#speedGrad)" strokeWidth="10"
+                        strokeLinecap="round" className="meter-arc"
+                        style={{ filter: "drop-shadow(0 0 8px rgba(124,58,237,0.8)) drop-shadow(0 0 20px rgba(6,182,212,0.4))" }}
+                      />
+                      <defs>
+                        <linearGradient id="speedGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#7C3AED" />
+                          <stop offset="50%" stopColor="#A78BFA" />
+                          <stop offset="100%" stopColor="#06B6D4" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    {/* Center content */}
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <span style={{
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontWeight: 800, fontSize: 48, lineHeight: 1,
+                        color: "#FFFFFF", letterSpacing: "-2px",
+                        fontVariantNumeric: "tabular-nums",
+                      }}>
+                        {speed}
+                      </span>
+                      <span style={{ color: "#A78BFA", fontSize: 14, fontWeight: 700, marginTop: 2 }}>Mbps</span>
+                      <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {isFr ? "VITESSE MAX" : "MAX SPEED"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live stats row */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[
+                    { label: "PING", value: "4ms", color: "#10B981" },
+                    { label: "JITTER", value: "0.3ms", color: "#06B6D4" },
+                    { label: "UPTIME", value: "99.9%", color: "#A78BFA" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.07)",
+                      borderRadius: 12, padding: "12px",
+                      textAlign: "center",
+                    }}>
+                      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>
+                        {label}
+                      </p>
+                      <p style={{ color, fontSize: 16, fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif" }}>
+                        {value}
                       </p>
                     </div>
                   ))}
                 </div>
+
+                {/* Beam animation bar */}
+                <div style={{ position: "relative", height: 2, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 16 }}>
+                  <div style={{
+                    position: "absolute", top: 0, left: 0, height: "100%", width: "40%",
+                    background: "linear-gradient(90deg, transparent, #7C3AED, #06B6D4, transparent)",
+                    animation: "beam-h 2.5s ease-in-out infinite",
+                  }} />
+                </div>
+
+                {/* Tech tags */}
+                <div className="flex flex-wrap gap-2">
+                  {["IPv6 Ready", "CGNAT-Free", "Fibre XGS-PON", "WPA3"].map((tag) => (
+                    <span key={tag} style={{
+                      background: "rgba(124,58,237,0.12)",
+                      border: "1px solid rgba(124,58,237,0.25)",
+                      borderRadius: 6, padding: "4px 10px",
+                      color: "#C4B5FD", fontSize: 10, fontWeight: 700,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: .5,
+                    }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
 
-              {/* Floating badge — no contract */}
+              {/* Floating badge — NO CONTRACT */}
               <div style={{
-                position: 'absolute',
-                top: -18,
-                right: -18,
-                background: '#7C3AED',
-                borderRadius: 12,
-                padding: '10px 16px',
-                boxShadow: '0 8px 32px rgba(124,58,237,0.5)',
+                position: "absolute", top: -20, right: -20,
+                background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+                borderRadius: 14, padding: "12px 18px",
+                boxShadow: "0 12px 40px rgba(124,58,237,0.55), 0 0 0 1px rgba(124,58,237,0.4)",
+                animation: "float-badge 5s ease-in-out infinite",
               }}>
-                <p style={{ color: '#FFFFFF', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5, margin: 0 }}>
-                  {isFr ? 'Sans contrat' : 'No contract'}
+                <p style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {isFr ? "Sans contrat" : "No contract"}
                 </p>
               </div>
+
+              {/* Floating cyan chip — bottom left */}
+              <div style={{
+                position: "absolute", bottom: 20, left: -30,
+                background: "rgba(6,182,212,0.1)",
+                border: "1px solid rgba(6,182,212,0.4)",
+                borderRadius: 12, padding: "10px 16px",
+                backdropFilter: "blur(12px)",
+                animation: "float-badge 7s 1s ease-in-out infinite",
+                boxShadow: "0 8px 24px rgba(6,182,212,0.2)",
+              }}>
+                <p style={{ color: "#67E8F9", fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 2 }}>
+                  ACTIVATION
+                </p>
+                <p style={{ color: "#FFFFFF", fontSize: 13, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {isFr ? "En ligne 24h" : "Online 24h"}
+                </p>
+              </div>
+
+              {/* Glow under card */}
+              <div aria-hidden style={{
+                position: "absolute", bottom: -60, left: "10%", right: "10%", height: 120,
+                background: "radial-gradient(ellipse, rgba(124,58,237,0.4) 0%, transparent 70%)",
+                animation: "glow-pulse 4s ease-in-out infinite",
+                pointerEvents: "none",
+              }} />
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* Bottom stat bar */}
+      {/* ── Animated stats ticker ────────────────────────────────── */}
       <div style={{
-        borderTop: '1px solid rgba(255,255,255,0.07)',
-        background: 'rgba(0,0,0,0.3)',
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(12px)",
+        overflow: "hidden",
+        position: "relative",
       }}>
-        <div className="max-w-[1100px] mx-auto px-5 sm:px-10" style={{ paddingTop: 20, paddingBottom: 20 }}>
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12">
-            {[
-              { value: '1 Gbps', label: isFr ? 'Vitesse max fibre' : 'Max fibre speed' },
-              { value: '99.9%', label: isFr ? 'Disponibilité réseau' : 'Network uptime' },
-              { value: '5G/LTE', label: isFr ? 'Réseau mobile' : 'Mobile network' },
-              { value: '7j/7', label: isFr ? 'Support client' : 'Customer support' },
-            ].map(stat => (
-              <div key={stat.value} className="flex items-center gap-3">
-                <span className="font-black" style={{ color: '#FFFFFF', fontSize: 18, letterSpacing: '-0.5px' }}>
-                  {stat.value}
-                </span>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
-                  {stat.label}
-                </span>
-              </div>
-            ))}
-          </div>
+        {/* Fade edges */}
+        <div aria-hidden style={{
+          position: "absolute", left: 0, top: 0, bottom: 0, width: 120, zIndex: 2,
+          background: "linear-gradient(90deg, rgba(2,2,9,1) 0%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+        <div aria-hidden style={{
+          position: "absolute", right: 0, top: 0, bottom: 0, width: 120, zIndex: 2,
+          background: "linear-gradient(90deg, transparent 0%, rgba(2,2,9,1) 100%)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ display: "flex", animation: "ticker 30s linear infinite", width: "max-content" }}>
+          {[...Array(2)].map((_, rep) => (
+            <div key={rep} className="flex items-center" style={{ gap: 0 }}>
+              {[
+                { val: "940 Mbps", desc: isFr ? "Vitesse max fibre" : "Max fibre speed" },
+                { val: "99.9%", desc: isFr ? "Disponibilité réseau" : "Network uptime" },
+                { val: "4 ms", desc: isFr ? "Latence moyenne" : "Avg latency" },
+                { val: "22+ villes", desc: isFr ? "Couverture Québec" : "Quebec coverage" },
+                { val: "5G LTE", desc: isFr ? "Réseau mobile" : "Mobile network" },
+                { val: "0$", desc: isFr ? "Frais d'installation" : "Setup fees" },
+                { val: "7j/7", desc: isFr ? "Support client" : "Customer support" },
+                { val: "IPv6", desc: isFr ? "Prêt pour demain" : "Future-ready" },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center" style={{ padding: "18px 32px" }}>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontWeight: 800, fontSize: 18, color: "#FFFFFF", letterSpacing: "-0.5px", marginRight: 10,
+                  }}>
+                    {s.val}
+                  </span>
+                  <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, fontWeight: 500 }}>
+                    {s.desc}
+                  </span>
+                  {i < 7 && (
+                    <span style={{ marginLeft: 32, color: "rgba(124,58,237,0.5)", fontSize: 18 }}>·</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
     </section>

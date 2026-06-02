@@ -318,25 +318,43 @@ function normalizePayload(
       return {
         ...base,
         notice_number: p.notice_number || `SUS-${Date.now()}`,
+        service_name: p.service_name || p.plan_name || "Service Nivra",
         suspension_date: p.suspension_date || nowIso(),
         reason: p.reason || "Solde impayé",
         amount_due: Number(p.amount_due ?? 0),
+        invoice_numbers: Array.isArray(p.invoice_numbers) ? p.invoice_numbers : undefined,
+        reactivation_fee: p.reactivation_fee ? Number(p.reactivation_fee) : undefined,
+        reactivation_instructions: p.reactivation_instructions || undefined,
       };
 
     case "cancellation_confirmation":
       return {
         ...base,
         confirmation_number: p.confirmation_number || `CAN-${Date.now()}`,
+        service_name: p.service_name || p.plan_name || "Service Nivra",
         cancellation_date: p.cancellation_date || nowIso(),
+        effective_date: p.effective_date || p.cancellation_date || nowIso(),
         reason: p.reason || "—",
+        final_balance: Number(p.final_balance ?? p.amount_due ?? 0),
+        equipment_to_return: Array.isArray(p.equipment_to_return) ? p.equipment_to_return : undefined,
+        refund_pending: p.refund_pending ? Number(p.refund_pending) : undefined,
+        notes: p.notes,
       };
 
     case "chargeback_notice":
       return {
         ...base,
         notice_number: p.notice_number || `CHB-${Date.now()}`,
-        chargeback_opened_at: p.chargeback_opened_at || nowIso(),
-        amount: Number(p.amount ?? 0),
+        chargeback_date: p.chargeback_date || p.chargeback_opened_at || nowIso(),
+        invoice_number: p.invoice_number || "—",
+        invoice_date: p.invoice_date || p.created_at || base.issue_date,
+        invoice_amount: Number(p.invoice_amount ?? p.amount ?? 0),
+        chargeback_amount: Number(p.chargeback_amount ?? p.amount ?? 0),
+        bank_reference: p.bank_reference || undefined,
+        reason_code: p.reason_code || undefined,
+        reactivation_fee: Number(p.reactivation_fee ?? 25),
+        total_due: Number(p.total_due ?? (Number(p.chargeback_amount ?? p.amount ?? 0) + Number(p.reactivation_fee ?? 25))),
+        response_deadline: p.response_deadline || p.due_date || nowIso(),
       };
 
     case "final_refund_receipt":
@@ -344,9 +362,12 @@ function normalizePayload(
         ...base,
         receipt_number: p.receipt_number || `REF-${Date.now()}`,
         refund_amount: Number(p.refund_amount ?? 0),
-        refund_date: p.refund_date || nowIso(),
-        method: p.method || "manual",
-        reference: p.reference || "—",
+        processed_date: p.processed_date || p.refund_date || nowIso(),
+        refund_method: p.refund_method || p.method || "Remboursement manuel",
+        reference_number: p.reference_number || p.reference || undefined,
+        related_invoice: p.related_invoice || p.invoice_number || undefined,
+        reason: p.reason || "Remboursement suite a annulation de service",
+        account_closed: p.account_closed ?? false,
       };
 
     case "delivery_slip":
@@ -356,8 +377,24 @@ function normalizePayload(
         order_number: p.order_number || "—",
         carrier: p.carrier || "—",
         tracking_number: p.tracking_number || "—",
-        shipped_at: p.shipped_at || nowIso(),
-        equipment_details: p.equipment_details || [],
+        estimated_delivery: p.estimated_delivery || undefined,
+        delivery_address: p.delivery_address || base.client_address || "—",
+        delivery_city: p.delivery_city || base.client_city || "",
+        delivery_province: p.delivery_province || base.client_province || "QC",
+        delivery_postal: p.delivery_postal || base.client_postal || "",
+        items: Array.isArray(p.items)
+          ? p.items.map((it: any) => ({
+              description: it.description || it.name || String(it),
+              serial_number: it.serial_number || it.imei || undefined,
+              quantity: Number(it.quantity || 1),
+            }))
+          : Array.isArray(p.equipment_details)
+            ? (p.equipment_details as any[]).map((e: any) => ({
+                description: e.name || e.description || String(e),
+                serial_number: e.serial_number || e.imei || undefined,
+                quantity: Number(e.quantity || 1),
+              }))
+            : [],
       };
 
     case "return_instructions":
@@ -365,16 +402,38 @@ function normalizePayload(
         ...base,
         instruction_number: p.instruction_number || `RET-${Date.now()}`,
         order_number: p.order_number || "—",
-        items: Array.isArray(p.items) ? p.items : [],
+        items: Array.isArray(p.items) ? p.items.map((it: any) => ({
+          description: it.description || it.name || String(it),
+          serial_number: it.serial_number || it.imei || undefined,
+        })) : [],
+        return_deadline: p.return_deadline || p.due_date || nowIso(),
+        return_address: p.return_address || "1799 Av. Pierre-Péladeau",
+        return_city: p.return_city || "Laval",
+        return_province: p.return_province || "QC",
+        return_postal: p.return_postal || "H7T 2Y5",
+        non_return_fee: Number(p.non_return_fee ?? 60),
+        return_method: p.return_method || undefined,
+        rma_number: p.rma_number || undefined,
       };
 
     case "installation_report":
       return {
         ...base,
         report_number: p.report_number || `INS-${Date.now()}`,
-        installation_date: p.installation_date || nowIso(),
+        appointment_date: p.appointment_date || p.installation_date || p.scheduled_at || nowIso(),
         technician_name: p.technician_name || "—",
-        equipment_installed: p.equipment_installed || [],
+        technician_id: p.technician_id || undefined,
+        service_address: p.service_address || base.client_address || "—",
+        service_city: p.service_city || base.client_city || "",
+        service_province: p.service_province || base.client_province || "QC",
+        service_postal: p.service_postal || base.client_postal || "",
+        service_installed: p.service_installed || p.service_name || p.plan_name || "Service Nivra",
+        equipment_installed: Array.isArray(p.equipment_installed) ? p.equipment_installed : [],
+        outcome: p.outcome || "success",
+        notes: p.notes,
+        start_time: p.start_time || undefined,
+        end_time: p.end_time || undefined,
+        client_signature_required: p.client_signature_required ?? false,
       };
 
     case "activation_confirmation": {
@@ -405,23 +464,40 @@ function normalizePayload(
         ...base,
         demand_number: p.demand_number || `MED-${Date.now()}`,
         demand_date: p.demand_date || nowIso(),
-        amount_due: Number(p.amount_due ?? 0),
+        total_due: Number(p.total_due ?? p.amount_due ?? 0),
+        invoices: Array.isArray(p.invoices) ? p.invoices.map((inv: any) => ({
+          invoice_number: String(inv.invoice_number || "—"),
+          invoice_date: String(inv.invoice_date || inv.date || ""),
+          amount: Number(inv.amount ?? 0),
+          days_overdue: Number(inv.days_overdue ?? 0),
+        })) : [],
+        response_deadline: p.response_deadline || p.due_date || nowIso(),
+        legal_basis: p.legal_basis || undefined,
       };
 
     case "collections_transfer":
       return {
         ...base,
         transfer_number: p.transfer_number || `COL-${Date.now()}`,
-        transfer_date: p.transfer_date || nowIso(),
-        amount: Number(p.amount ?? 0),
+        transfer_effective_date: p.transfer_effective_date || p.transfer_date || nowIso(),
+        total_transferred: Number(p.total_transferred ?? p.amount ?? 0),
+        collection_agency_name: p.collection_agency_name || "Agence de recouvrement",
+        collection_agency_phone: p.collection_agency_phone || undefined,
+        collection_agency_email: p.collection_agency_email || undefined,
+        collection_agency_reference: p.collection_agency_reference || undefined,
+        credit_bureau_reported: p.credit_bureau_reported ?? false,
       };
 
     case "complaint_acknowledgment":
       return {
         ...base,
         acknowledgment_number: p.acknowledgment_number || `PLT-${Date.now()}`,
-        complaint_date: p.complaint_date || nowIso(),
-        complaint_subject: p.complaint_subject || "—",
+        complaint_received_date: p.complaint_received_date || p.complaint_date || nowIso(),
+        complaint_summary: p.complaint_summary || p.complaint_subject || p.description || "Plainte client",
+        case_number: p.case_number || p.ticket_number || p.acknowledgment_number || `PLT-${Date.now()}`,
+        assigned_agent: p.assigned_agent || undefined,
+        expected_resolution_date: p.expected_resolution_date || p.due_date || nowIso(),
+        next_step: p.next_step || undefined,
       };
 
     case "preauthorization_confirmation":
@@ -429,8 +505,12 @@ function normalizePayload(
         ...base,
         confirmation_number: p.confirmation_number || `PRE-${Date.now()}`,
         authorized_amount: Number(p.authorized_amount ?? 0),
-        authorized_at: p.authorized_at || nowIso(),
-        method: p.method || "card",
+        payment_method: p.payment_method || p.method || "Carte de credit",
+        capture_deadline: p.capture_deadline || p.due_date || p.authorized_at || nowIso(),
+        related_order: p.related_order || p.order_number || undefined,
+        related_invoice: p.related_invoice || p.invoice_number || undefined,
+        purpose: p.purpose || "Pre-autorisation de paiement",
+        notes: p.notes || undefined,
       };
 
     default:

@@ -10,7 +10,7 @@ export const PublicLayout = ({ children }: PublicLayoutProps) => {
   useLiveActivityTracker();
 
   return (
-    <div className="text-foreground">
+    <div style={{ background: "#020209", minHeight: "100vh", color: "#fff" }}>
       <a href="#main-content" className="skip-nav">
         Aller au contenu principal
       </a>

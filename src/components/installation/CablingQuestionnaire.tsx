@@ -36,7 +36,7 @@ const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
     helpText: isFrench
       ? "Ce type de prise est généralement utilisé par des services Internet ou télévision par câble tels que :"
       : "This type of outlet is typically used by cable Internet or TV services such as:",
-    providerExamples: ["Vidéotron", "Fizz", "Cogeco", "Rogers", "Shaw"],
+    providerExamples: ["Grands fournisseurs câble/coax"],
     showOutletImage: true,
     options: [
       { value: "yes", label: isFrench ? "Oui" : "Yes" },
@@ -69,7 +69,7 @@ const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
     helpText: isFrench
       ? "Par exemple avec :"
       : "For example with:",
-    providerExamples: ["Vidéotron", "Fizz", "Cogeco", "Rogers"],
+    providerExamples: ["Fournisseurs câble/coax au Québec"],
     options: [
       { value: "yes", label: isFrench ? "Oui" : "Yes" },
       { value: "no", label: isFrench ? "Non" : "No" },

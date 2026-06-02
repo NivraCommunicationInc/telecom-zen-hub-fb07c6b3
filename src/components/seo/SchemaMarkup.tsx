@@ -132,10 +132,10 @@ export const HOME_FAQ_SCHEMA = {
     },
     {
       "@type": "Question",
-      name: "Quelle est la différence entre Nivra et Bell ou Vidéotron?",
+      name: "Qu'est-ce qui distingue Nivra des grands fournisseurs?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Contrairement à Bell et Vidéotron, Nivra Telecom offre des forfaits prépayés sans contrat, sans vérification de crédit et sans frais cachés. Vous payez mois par mois et pouvez annuler quand vous voulez.",
+        text: "Contrairement aux grands fournisseurs, Nivra Telecom offre des forfaits prépayés sans contrat, sans vérification de crédit et sans frais cachés. Vous payez mois par mois et pouvez annuler quand vous voulez.",
       },
     },
     {
