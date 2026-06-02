@@ -44,7 +44,7 @@ const Hero = () => {
     <section
       ref={heroRef}
       className="relative overflow-hidden"
-      style={{ background: "#020209", minHeight: "100vh" }}
+      style={{ background: "#020209", minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
       {/* ── CSS Keyframes ─────────────────────────────────────────── */}
       <style>{`
@@ -176,7 +176,7 @@ const Hero = () => {
       }} />
 
       {/* ── Main content ─────────────────────────────────────────── */}
-      <div className="relative max-w-[1200px] mx-auto px-5 sm:px-10 w-full" style={{ paddingTop: 90, paddingBottom: 80 }}>
+      <div className="relative max-w-[1200px] mx-auto px-5 sm:px-10 w-full" style={{ paddingTop: 90, paddingBottom: 80, flex: 1 }}>
         <div className="flex items-center gap-10 lg:gap-16">
 
           {/* ── LEFT COLUMN ─────────────────────────────────────── */}

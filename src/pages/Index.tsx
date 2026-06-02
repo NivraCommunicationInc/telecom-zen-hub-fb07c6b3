@@ -49,6 +49,18 @@ const SERVICES = [
   { icon: Smartphone, label:"Mobile",     sub:"Sans contrat",    to:"/mobile",   accent:"#10B981", bg:"rgba(16,185,129,0.12)", border:"rgba(16,185,129,0.35)" },
 ];
 
+const getFeatures = (plan: PublicService): string[] => {
+  if (plan.features_json && plan.features_json.length > 0) return plan.features_json;
+  if (plan.description) {
+    return plan.description
+      .split(/•|\||\n|;/g)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+  }
+  return [];
+};
+
 const Index = () => {
   const { language } = useLanguage();
   const isFr = language === "fr";
@@ -57,14 +69,19 @@ const Index = () => {
   const plans = servicesData && servicesData.length > 0 ? servicesData.slice(0, 3) : FALLBACK_PLANS;
 
   return (
-    <div className="min-h-screen" style={{ background: "#020209" }}>
+    <div className="min-h-screen" style={{ background: "#020209", position: "relative" }}>
+      {/* Global grid overlay across all sections */}
+      <div aria-hidden style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)", backgroundSize: "80px 80px", pointerEvents: "none", zIndex: 0 }} />
+      {/* Slow-moving global aurora */}
+      <div aria-hidden style={{ position: "fixed", top: "30%", right: "-20%", width: 800, height: 800, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0, animation: "n-aurora-1 20s ease-in-out infinite" }} />
+      <div aria-hidden style={{ position: "fixed", bottom: "10%", left: "-15%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0, animation: "n-aurora-2 26s ease-in-out infinite" }} />
       <SEOHead {...SEO_DATA.home} />
       <LocalBusinessSchema />
       <SchemaMarkup includeBrand={false} includeHomeFaq includeProducts />
       <Header />
       <HomeStatusBanner />
 
-      <main id="main-content" tabIndex={-1}>
+      <main id="main-content" tabIndex={-1} style={{ position: "relative", zIndex: 1 }}>
 
         {/* ════════════════════════════════════════════════════
             HERO — premium dark aurora
@@ -74,7 +91,7 @@ const Index = () => {
         {/* ════════════════════════════════════════════════════
             SERVICES — glass cards with per-service accent
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: "#06040F", paddingTop: 64, paddingBottom: 64, borderTop: "1px solid rgba(124,58,237,0.12)" }}>
+        <section style={{ background: "#06040F", paddingTop: 40, paddingBottom: 40, borderTop: "1px solid rgba(124,58,237,0.12)" }}>
           <div className="container mx-auto px-5 sm:px-10 max-w-[1200px]">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {SERVICES.map((s, i) => (
@@ -184,7 +201,9 @@ const Index = () => {
                     )}
                     <div className="flex flex-col flex-1 p-7 relative">
                       <div className="font-bold text-white mb-1" style={{ fontSize: 20, fontFamily: "'Space Grotesk', sans-serif" }}>{plan.name}</div>
-                      {plan.short_description && <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 20 }}>{plan.short_description}</p>}
+                      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 20 }}>
+                        {plan.short_description || (isFr ? "Internet haute vitesse · Sans contrat" : "High-speed internet · No contract")}
+                      </p>
                       <div className="flex items-baseline gap-1 mb-5">
                         <span className="font-extrabold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 54, letterSpacing: "-2px", lineHeight: 1 }}>{plan.price.toFixed(0)}</span>
                         <span className="font-bold text-white" style={{ fontSize: 22 }}>$</span>
@@ -192,7 +211,7 @@ const Index = () => {
                       </div>
                       <div className="h-px mb-5" style={{ background: "linear-gradient(90deg, transparent, rgba(124,58,237,0.4), transparent)" }} />
                       <ul className="space-y-2.5 mb-7 flex-1">
-                        {plan.features_json.map((f) => (
+                        {getFeatures(plan).map((f) => (
                           <li key={f} className="flex items-start gap-2.5" style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
                             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" style={{ color: plan.is_recommended ? "#A78BFA" : "rgba(124,58,237,0.7)" }} />
                             {f}
@@ -369,7 +388,7 @@ const Index = () => {
         {/* ════════════════════════════════════════════════════
             CTA FINAL
         ════════════════════════════════════════════════════ */}
-        <section style={{ background: "#06040F", paddingTop: 96, paddingBottom: 96, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
+        <section style={{ background: "#06040F", paddingTop: 64, paddingBottom: 64, borderTop: "1px solid rgba(124,58,237,0.08)" }}>
           <motion.div
             initial={{ opacity: 0, y: 32 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -383,7 +402,7 @@ const Index = () => {
                 background: "linear-gradient(135deg, rgba(124,58,237,0.14) 0%, rgba(255,255,255,0.03) 50%, rgba(6,182,212,0.07) 100%)",
                 border: "1px solid rgba(124,58,237,0.3)",
                 boxShadow: "0 0 120px rgba(124,58,237,0.15), 0 32px 80px rgba(0,0,0,0.6)",
-                padding: "clamp(48px, 8vw, 96px) clamp(24px, 5vw, 72px)",
+                padding: "clamp(36px, 5vw, 64px) clamp(24px, 5vw, 72px)",
               }}
             >
               {/* Radial glow */}
