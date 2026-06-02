@@ -184,14 +184,21 @@ export default function JobListings() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-background pt-16">
-      <section className="border-b bg-card">
-        <div className="container max-w-6xl mx-auto px-4 py-12 md:py-16 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-            <Briefcase className="h-6 w-6 text-primary" />
+      <main className="min-h-screen" style={{ background: '#020209', paddingTop: 64 }}>
+      <section className="relative overflow-hidden" style={{ paddingTop: 80, paddingBottom: 64 }}>
+        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+        <div className="container max-w-6xl mx-auto px-4 text-center" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="n-animate-in inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 100, padding: '6px 16px' }}>
+            <Briefcase style={{ width: 14, height: 14, color: '#7C3AED' }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#A78BFA', letterSpacing: '0.08em' }}>CARRIÈRES</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">Joignez l'équipe Nivra</h1>
-          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+          <h1 className="n-animate-in-delay-1 text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 60px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16 }}>
+            Joignez{' '}<span className="n-shimmer-text">l'équipe Nivra</span>
+          </h1>
+          <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 480, margin: '0 auto' }}>
             Découvrez nos opportunités de carrière au Québec.
           </p>
         </div>

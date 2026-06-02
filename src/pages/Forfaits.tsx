@@ -82,7 +82,7 @@ const Forfaits = () => {
     }
   };
 
-  const BG = '#080612';
+  const BG = '#020209';
   const CARD_BG = 'rgba(255,255,255,0.04)';
   const BORDER = 'rgba(255,255,255,0.08)';
   const PURPLE = '#7C3AED';
@@ -96,36 +96,45 @@ const Forfaits = () => {
       <Header />
 
       {/* ── Hero ── */}
-      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
-        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <div aria-hidden className="absolute pointer-events-none" style={{ top: -160, right: -100, width: 600, height: 600, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.2) 0%, transparent 65%)' }} />
+      <section style={{ paddingTop: 100, paddingBottom: 72, position: 'relative', overflow: 'hidden', background: '#020209' }}>
+        {/* Aurora */}
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.3) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.15) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        {/* Grid */}
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        {/* Scan line */}
+        <div aria-hidden style={{ position: 'absolute', inset: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
 
         <div className="max-w-[1100px] mx-auto px-5 sm:px-10 text-center relative">
-          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
-            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <div className="n-animate-in inline-flex items-center gap-2.5 mb-8" style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#06B6D4', display: 'inline-block', boxShadow: '0 0 8px #06B6D4' }} />
+            <span style={{ color: '#67E8F9', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
               {isFr ? 'Sans contrat · Prix fixe garanti' : 'No contract · Fixed price guaranteed'}
             </span>
           </div>
 
-          <h1 className="font-black text-white" style={{ fontSize: 'clamp(36px, 5vw, 60px)', letterSpacing: '-2px', lineHeight: 1.05, marginBottom: 16 }}>
-            {isFr ? 'Nos forfaits' : 'Our Plans'}
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(42px, 6vw, 72px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+            {isFr ? (
+              <><span style={{ color: '#fff' }}>Nos </span><span className="n-shimmer-text">forfaits</span></>
+            ) : (
+              <><span style={{ color: '#fff' }}>Our </span><span className="n-shimmer-text">plans</span></>
+            )}
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 520, margin: '0 auto 40px' }}>
+          <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.7, maxWidth: 520, margin: '0 auto 48px' }}>
             {isFr
               ? 'Internet et TV sans contrat au Québec — prix fixe garanti, aucune surprise.'
               : 'No-contract Internet and TV in Quebec — guaranteed fixed price, no surprises.'}
           </p>
 
-          <div className="flex flex-wrap justify-center gap-8 sm:gap-16">
+          <div className="n-animate-in-delay-3 flex flex-wrap justify-center gap-4">
             {[
-              { val: isFr ? 'Dès 45$/mois' : 'From $45/mo', sub: isFr ? 'taxes incluses' : 'taxes included' },
-              { val: isFr ? 'Sans contrat' : 'No contract', sub: isFr ? 'résiliez à tout moment' : 'cancel anytime' },
-              { val: '10 min', sub: isFr ? 'activation en ligne' : 'online activation' },
+              { val: isFr ? 'Dès 45$/mois' : 'From $45/mo', sub: isFr ? 'taxes incluses' : 'taxes included', color: '#A78BFA' },
+              { val: isFr ? 'Sans contrat' : 'No contract', sub: isFr ? 'résiliez à tout moment' : 'cancel anytime', color: '#06B6D4' },
+              { val: '10 min', sub: isFr ? 'activation en ligne' : 'online activation', color: '#10B981' },
             ].map((s) => (
-              <div key={s.val} className="text-center">
-                <div className="font-black text-white" style={{ fontSize: 22, letterSpacing: '-0.5px' }}>{s.val}</div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 2 }}>{s.sub}</div>
+              <div key={s.val} className="text-center px-6 py-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, backdropFilter: 'blur(12px)' }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', color: s.color }}>{s.val}</div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>{s.sub}</div>
               </div>
             ))}
           </div>
@@ -202,54 +211,76 @@ const Forfaits = () => {
 
           {/* Plan cards */}
           {!isLoading && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className="relative overflow-hidden transition-all duration-200"
+                  className="relative overflow-hidden"
                   style={{
                     background: card.popular
-                      ? 'linear-gradient(160deg, rgba(124,58,237,0.18) 0%, rgba(124,58,237,0.06) 100%)'
-                      : CARD_BG,
-                    border: card.popular ? '1.5px solid rgba(124,58,237,0.55)' : `1px solid ${BORDER}`,
-                    borderRadius: 20,
-                    boxShadow: card.popular ? '0 8px 40px rgba(124,58,237,0.25)' : 'none',
+                      ? 'linear-gradient(160deg, rgba(124,58,237,0.2) 0%, rgba(124,58,237,0.06) 100%)'
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                    border: card.popular ? '1px solid rgba(124,58,237,0.55)' : '1px solid rgba(255,255,255,0.09)',
+                    borderRadius: 24,
+                    backdropFilter: 'blur(24px)',
+                    boxShadow: card.popular
+                      ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    transition: 'transform .25s, box-shadow .25s, border-color .25s',
                   }}
-                  onMouseEnter={e => { if (!card.popular) (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.3)'; }}
-                  onMouseLeave={e => { if (!card.popular) (e.currentTarget as HTMLElement).style.borderColor = BORDER; }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                    if (!card.popular) {
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.4)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 30px 80px rgba(124,58,237,0.2), inset 0 1px 0 rgba(255,255,255,0.08)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                    (e.currentTarget as HTMLElement).style.borderColor = card.popular ? 'rgba(124,58,237,0.55)' : 'rgba(255,255,255,0.09)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = card.popular
+                      ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)';
+                  }}
                 >
+                  {/* Popular badge */}
                   {card.popular && (
-                    <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{ background: PURPLE, color: '#FFFFFF', padding: '9px 0', fontSize: 11, letterSpacing: 1.5 }}>
-                      <span>★</span> {isFr ? 'Le plus populaire' : 'Most Popular'}
+                    <div style={{ position: 'relative', overflow: 'hidden' }}>
+                      <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{ background: 'linear-gradient(90deg, #7C3AED, #6D28D9)', color: '#FFFFFF', padding: '10px 0', fontSize: 10, letterSpacing: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+                        {isFr ? 'PLUS POPULAIRE' : 'MOST POPULAR'}
+                      </div>
+                      {/* Beam */}
+                      <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', animation: 'n-beam-h 3s ease-in-out infinite' }} />
                     </div>
                   )}
 
                   <div style={{ padding: '28px 28px 32px' }}>
-                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 }}>
-                      {isFr ? 'Forfait' : 'Plan'}
+                    <p className="n-label" style={{ marginBottom: 8 }}>
+                      {isFr ? 'Forfait Nivra' : 'Nivra Plan'}
                     </p>
-                    <h3 className="font-extrabold text-white" style={{ fontSize: 22, letterSpacing: '-0.5px', marginBottom: 20 }}>
+                    <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', marginBottom: 24, color: '#fff' }}>
                       {card.title}
                     </h3>
 
                     <div className="flex items-baseline gap-1" style={{ marginBottom: 4 }}>
-                      <span className="font-black text-white" style={{ fontSize: 54, letterSpacing: '-2px', lineHeight: 1 }}>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 56, letterSpacing: '-2.5px', lineHeight: 1, color: '#FFFFFF' }}>
                         ${card.price}
                       </span>
-                      <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 16 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>
                         /{isFr ? 'mois' : 'mo'}
                       </span>
                     </div>
-                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, marginBottom: 24 }}>
-                      {isFr ? 'taxes incluses · prix fixe garanti' : 'taxes included · guaranteed fixed price'}
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 24, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>
+                      {isFr ? 'TAXES INCLUSES · PRIX FIXE' : 'TAX INCLUDED · FIXED PRICE'}
                     </p>
 
-                    <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', marginBottom: 22 }} />
+                    <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(124,58,237,0.3), rgba(6,182,212,0.2), transparent)', marginBottom: 22 }} />
 
-                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 11 }}>
                       {card.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>
-                          <div className="shrink-0 flex items-center justify-center" style={{ width: 18, height: 18, borderRadius: 999, background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.4)', marginTop: 1 }}>
+                        <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.78)' }}>
+                          <div className="shrink-0 flex items-center justify-center" style={{ width: 18, height: 18, borderRadius: 999, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.45)', marginTop: 1 }}>
                             <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: '#A78BFA' }} />
                           </div>
                           {f}
@@ -261,15 +292,29 @@ const Forfaits = () => {
 
                     <button
                       onClick={() => navigate(card.link)}
-                      className="w-full flex items-center justify-center gap-2 font-bold transition-all duration-200"
+                      className="w-full flex items-center justify-center gap-2 font-bold"
                       style={{
-                        height: 50, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14,
-                        background: card.popular ? PURPLE : 'rgba(255,255,255,0.08)',
+                        height: 52, borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14,
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        background: card.popular
+                          ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)'
+                          : 'rgba(255,255,255,0.08)',
                         color: '#FFFFFF',
-                        boxShadow: card.popular ? '0 4px 20px rgba(124,58,237,0.5)' : 'none',
+                        boxShadow: card.popular ? '0 8px 32px rgba(124,58,237,0.5)' : 'none',
+                        transition: 'box-shadow .2s, background .2s, transform .15s',
                       }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = card.popular ? '#6D28D9' : 'rgba(255,255,255,0.14)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = card.popular ? PURPLE : 'rgba(255,255,255,0.08)'; }}
+                      onMouseEnter={e => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.background = card.popular ? 'linear-gradient(135deg, #6D28D9 0%, #5B21B6 100%)' : 'rgba(255,255,255,0.14)';
+                        el.style.boxShadow = card.popular ? '0 12px 40px rgba(124,58,237,0.65)' : 'none';
+                        el.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={e => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.background = card.popular ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)';
+                        el.style.boxShadow = card.popular ? '0 8px 32px rgba(124,58,237,0.5)' : 'none';
+                        el.style.transform = 'translateY(0)';
+                      }}
                     >
                       {isFr ? 'Choisir ce forfait' : 'Choose this plan'}
                       <ArrowRight className="w-4 h-4" />

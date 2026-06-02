@@ -113,18 +113,27 @@ export default function PhoneCatalog() {
   return (
     <>
       <Header />
-      <main id="main-content" className="min-h-screen bg-background pt-20">
-        <div className="container mx-auto px-4 py-10">
-          <header className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-2">
-              {isFr ? "Téléphones" : "Phones"}
+      <main id="main-content" style={{ minHeight: '100vh', background: '#020209', paddingTop: 64 }}>
+        {/* Hero */}
+        <section className="relative overflow-hidden" style={{ paddingTop: 80, paddingBottom: 48, textAlign: 'center' }}>
+          <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <div className="n-animate-in inline-flex items-center gap-2 mb-5" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 100, padding: '6px 16px' }}>
+              <Smartphone style={{ width: 14, height: 14, color: '#7C3AED' }} />
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#A78BFA', letterSpacing: '0.08em' }}>{isFr ? 'CATALOGUE' : 'CATALOG'}</span>
+            </div>
+            <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 60px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 12, color: '#fff' }}>
+              {isFr ? <>Nos <span className="n-shimmer-text">téléphones</span></> : <>Our <span className="n-shimmer-text">phones</span></>}
             </h1>
-            <p className="text-lg text-muted-foreground">
-              {isFr
-                ? "Appareils neufs, remis à neuf et usagés"
-                : "New, refurbished and used devices"}
+            <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)' }}>
+              {isFr ? "Appareils neufs, remis à neuf et usagés" : "New, refurbished and used devices"}
             </p>
-          </header>
+          </div>
+        </section>
+        <div className="container mx-auto px-4 py-4">
 
           {/* Filters */}
           <Card className="mb-6">

@@ -17,11 +17,12 @@ const cardStyle: React.CSSProperties = {
 };
 
 const h2Style: React.CSSProperties = {
+  fontFamily: "'Space Grotesk', sans-serif",
   fontSize: 28,
   fontWeight: 800,
   color: '#FFFFFF',
   marginBottom: 28,
-  letterSpacing: '-0.5px',
+  letterSpacing: '-1.5px',
 };
 
 const bodyText: React.CSSProperties = {
@@ -39,26 +40,28 @@ export default function Presse() {
         <link rel="canonical" href="https://nivra-telecom.ca/presse" />
       </Helmet>
 
-      <div style={{ background: '#080612', minHeight: '100vh' }}>
+      <div style={{ background: '#020209', minHeight: '100vh' }}>
         <Header />
 
         {/* HERO */}
-        <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', padding: '96px 24px 72px', position: 'relative', overflow: 'hidden' }}>
-          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-          <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
-          <div style={{ maxWidth: 820, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
-            <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
+        <section className="relative overflow-hidden" style={{ padding: '120px 24px 80px' }}>
+          <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 550, height: 550, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+          <div style={{ maxWidth: 820, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
+            <div className="n-animate-in inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
-              <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#A78BFA', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 Salle de presse
               </span>
             </div>
-            <h1 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, color: '#FFFFFF', margin: '0 0 20px', letterSpacing: '-1.5px', lineHeight: 1.05 }}>
-              Nivra Telecom dans les médias
+            <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(32px, 5vw, 56px)', fontWeight: 800, color: '#FFFFFF', margin: '0 0 20px', letterSpacing: '-2.5px', lineHeight: 1.0 }}>
+              Nivra Telecom{' '}<span className="n-shimmer-text">dans les médias</span>
             </h1>
-            <p style={{ marginTop: 0, fontSize: 17, color: 'rgba(255,255,255,0.62)', lineHeight: 1.65 }}>
+            <p className="n-animate-in-delay-2" style={{ fontSize: 17, color: 'rgba(255,255,255,0.6)', lineHeight: 1.65 }}>
               Pour toute demande médiatique :{" "}
-              <a href={`mailto:${PRESS_EMAIL}`} style={{ color: '#C4B5FD', fontWeight: 600, textDecoration: 'none' }}>
+              <a href={`mailto:${PRESS_EMAIL}`} style={{ color: '#A78BFA', fontWeight: 600, textDecoration: 'none' }}>
                 {PRESS_EMAIL}
               </a>
             </p>
@@ -66,7 +69,7 @@ export default function Presse() {
         </section>
 
         {/* FACTS */}
-        <section style={{ padding: '80px 24px', background: '#0A0A18' }}>
+        <section style={{ padding: '80px 24px', background: '#020209' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={h2Style}>Nivra Telecom en chiffres</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
@@ -89,7 +92,7 @@ export default function Presse() {
         </section>
 
         {/* PRESS KIT */}
-        <section style={{ padding: '80px 24px', background: '#080612' }}>
+        <section style={{ padding: '80px 24px', background: '#020209' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={h2Style}>Kit média</h2>
             <div style={{ display: 'grid', gap: 16 }}>
@@ -155,7 +158,7 @@ Nivra Telecom se positionne comme une alternative directe aux fournisseurs natio
         </section>
 
         {/* RELEASES */}
-        <section style={{ padding: '80px 24px', background: '#0A0A18' }}>
+        <section style={{ padding: '80px 24px', background: '#020209' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={h2Style}>Communiqués</h2>
             <article style={{ border: '1px solid rgba(124,58,237,0.25)', borderRadius: 20, padding: 28, background: 'rgba(124,58,237,0.06)' }}>
@@ -180,7 +183,7 @@ Nivra Telecom se positionne comme une alternative directe aux fournisseurs natio
         </section>
 
         {/* CONTACT */}
-        <section style={{ padding: '80px 24px', background: '#080612' }}>
+        <section style={{ padding: '80px 24px', background: '#020209' }}>
           <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(135deg, #16111F 0%, #0A0A0F 100%)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 24, padding: '64px 40px' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <Mail size={24} style={{ color: '#A78BFA' }} />

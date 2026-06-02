@@ -117,9 +117,11 @@ const PayPalSubscriptionReturn = () => {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />
-      <div className="container mx-auto px-4 py-12 max-w-2xl">
+      <div className="relative container mx-auto px-4 py-12 max-w-2xl">
         {status === "loading" && (
           <Card>
             <CardContent className="py-16 text-center space-y-4">
@@ -151,14 +153,14 @@ const PayPalSubscriptionReturn = () => {
               </p>
 
               {orderNumber && (
-                <div className="inline-block px-4 py-2 bg-white rounded-lg border border-emerald-200">
+                <div className="inline-block px-4 py-2 rounded-lg" style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)" }}>
                   <span className="text-xs text-muted-foreground">Commande&nbsp;</span>
                   <span className="font-mono font-bold text-foreground">#{orderNumber}</span>
                 </div>
               )}
 
               {nextBillingTime && (
-                <div className="inline-block px-4 py-2 ml-2 bg-white rounded-lg border border-emerald-200">
+                <div className="inline-block px-4 py-2 ml-2 rounded-lg" style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)" }}>
                   <span className="text-xs text-muted-foreground">Prochain prélèvement&nbsp;</span>
                   <span className="font-semibold text-foreground">
                     {new Date(nextBillingTime).toLocaleDateString("fr-CA", {
@@ -170,8 +172,8 @@ const PayPalSubscriptionReturn = () => {
                 </div>
               )}
 
-              <div className="bg-white rounded-xl p-4 border border-emerald-200 text-left text-sm space-y-2">
-                <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+              <div className="rounded-xl p-4 text-left text-sm space-y-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                <div className="flex items-center gap-2 font-semibold" style={{ color: "#6ee7b7" }}>
                   <CreditCard className="w-4 h-4" /> Prochaines étapes
                 </div>
                 <ul className="space-y-1 text-muted-foreground pl-6 list-disc">
@@ -194,10 +196,10 @@ const PayPalSubscriptionReturn = () => {
         )}
 
         {status === "error" && (
-          <Card className="border-red-200 bg-red-50/50">
+          <Card style={{ border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)" }}>
             <CardHeader>
-              <div className="w-16 h-16 mx-auto mb-2 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-red-600" />
+              <div className="w-16 h-16 mx-auto mb-2 rounded-full flex items-center justify-center" style={{ background: "rgba(239,68,68,0.15)" }}>
+                <AlertCircle className="w-8 h-8" style={{ color: "#fca5a5" }} />
               </div>
               <CardTitle className="text-center text-xl">
                 Confirmation impossible
@@ -205,8 +207,8 @@ const PayPalSubscriptionReturn = () => {
             </CardHeader>
             <CardContent className="space-y-4 text-center">
               <p className="text-sm text-foreground">{errorMsg}</p>
-              <div className="bg-white rounded-xl p-4 border border-red-200 text-left text-sm">
-                <div className="flex items-center gap-2 text-red-700 font-semibold mb-2">
+              <div className="rounded-xl p-4 text-left text-sm" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <div className="flex items-center gap-2 font-semibold mb-2" style={{ color: "#fca5a5" }}>
                   <Mail className="w-4 h-4" /> Besoin d'aide ?
                 </div>
                 <p className="text-muted-foreground">

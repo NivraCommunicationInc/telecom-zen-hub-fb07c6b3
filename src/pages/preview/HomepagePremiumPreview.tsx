@@ -292,7 +292,7 @@ function PremiumHero() {
           >
             Internet fibre 1 010 Mbps, télévision IPTV et mobile — chez vous en
             2 jours, sans engagement, sans vérification de crédit. L'alternative
-            québécoise à Bell et Vidéotron.
+            la vraie alternative sans contrat au Québec.
           </motion.p>
 
           <motion.div
@@ -457,7 +457,7 @@ function PremiumHero() {
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] leading-snug" style={{ color: BRAND.textSoft }}>
-                  vs forfait équivalent chez Bell ou Vidéotron
+                  vs forfait équivalent chez un grand fournisseur
                 </p>
               </div>
             </motion.div>
@@ -617,31 +617,30 @@ function PremiumPricing() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumComparison() {
-  const rows: Array<{ feature: string; nivra: string | boolean; bell: string | boolean; videotron: string | boolean }> = [
-    { feature: "Prix Internet GIGA", nivra: "60 $/mois", bell: "95–115 $/mois", videotron: "80–100 $/mois" },
-    { feature: "Engagement", nivra: "Aucun", bell: "24 mois", videotron: "24 mois" },
-    { feature: "Vérification de crédit", nivra: false, bell: true, videotron: true },
-    { feature: "Premier mois", nivra: "GRATUIT", bell: "Payé", videotron: "Payé" },
-    { feature: "Frais de résiliation", nivra: "0 $", bell: "200–400 $", videotron: "200 $" },
-    { feature: "Support local Québec", nivra: true, bell: false, videotron: true },
+  const rows: Array<{ feature: string; nivra: string | boolean; other: string | boolean }> = [
+    { feature: "Prix Internet GIGA", nivra: "60 $/mois", other: "80–120 $/mois" },
+    { feature: "Engagement", nivra: "Aucun", other: "24 mois" },
+    { feature: "Vérification de crédit", nivra: false, other: true },
+    { feature: "Premier mois", nivra: "GRATUIT", other: "Payé" },
+    { feature: "Frais de résiliation", nivra: "0 $", other: "200–400 $" },
+    { feature: "Support local Québec", nivra: true, other: false },
   ];
   return (
     <Section
       eyebrow="Comparaison"
       title={<>Pourquoi <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(90deg, ${BRAND.violet}, ${BRAND.violetDark})` }}>Nivra</span> ?</>}
-      subtitle="Voyez ce qui nous différencie de Bell et Vidéotron."
+      subtitle="Voyez ce qui nous différencie des grands fournisseurs."
       style={{ background: BRAND.bg }}
     >
       <div
         className="overflow-hidden rounded-3xl border backdrop-blur"
         style={{ background: "rgba(255,255,255,0.6)", borderColor: BRAND.lavenderBorder }}
       >
-        <div className="grid grid-cols-4 gap-0">
+        <div className="grid grid-cols-3 gap-0">
           <div className="border-b border-r p-5" style={{ borderColor: BRAND.lavenderBorder }} />
           {[
             { name: "Nivra", highlight: true },
-            { name: "Bell", highlight: false },
-            { name: "Vidéotron", highlight: false },
+            { name: "Grands fournisseurs", highlight: false },
           ].map((co) => (
             <div
               key={co.name}
@@ -664,7 +663,7 @@ function PremiumComparison() {
   );
 }
 
-function ContrastRow({ row, isLast }: { row: { feature: string; nivra: string | boolean; bell: string | boolean; videotron: string | boolean }; isLast: boolean }) {
+function ContrastRow({ row, isLast }: { row: { feature: string; nivra: string | boolean; other: string | boolean }; isLast: boolean }) {
   const borderStyle = isLast ? {} : { borderBottom: `1px solid ${BRAND.lavenderBorder}` };
   const render = (v: string | boolean) => {
     if (typeof v === "boolean") {
@@ -682,11 +681,8 @@ function ContrastRow({ row, isLast }: { row: { feature: string; nivra: string | 
       <div className="border-r p-5 text-center" style={{ ...borderStyle, borderRightColor: BRAND.lavenderBorder, background: `${BRAND.lavender}66`, color: BRAND.violetDark }}>
         {render(row.nivra)}
       </div>
-      <div className="border-r p-5 text-center" style={{ ...borderStyle, borderRightColor: BRAND.lavenderBorder, color: BRAND.textMuted }}>
-        {render(row.bell)}
-      </div>
       <div className="p-5 text-center" style={{ ...borderStyle, color: BRAND.textMuted }}>
-        {render(row.videotron)}
+        {render(row.other)}
       </div>
     </>
   );
@@ -773,7 +769,7 @@ function PremiumTestimonials() {
       name: "Marie L.",
       city: "Montréal",
       service: "Internet GIGA",
-      quote: "Installation en 2 jours, vitesse incroyable, et c'est 35$ moins cher que mon ancien forfait Bell. Aucun regret.",
+      quote: "Installation en 2 jours, vitesse incroyable, et c'est 35$ moins cher que mon ancien forfait. Aucun regret.",
       rating: 5,
     },
     {
@@ -976,7 +972,7 @@ export default function HomepagePremiumPreview() {
         style={{ background: BRAND.lavender, borderColor: BRAND.lavenderBorder }}
       >
         <p className="text-xs" style={{ color: BRAND.textSoft }}>
-          🧪 PREVIEW V3 — Premium light theme (Fizz/Bell/Rogers/Fido grade).
+          🧪 PREVIEW V3 — Premium light theme (enterprise telecom grade).
           La homepage live à <code className="rounded bg-white px-1.5 py-0.5">/</code> n'est pas touchée.
         </p>
       </div>

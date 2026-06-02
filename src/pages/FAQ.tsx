@@ -24,11 +24,11 @@ const FAQ = () => {
       questions: [
         {
           q: isFr ? 'Combien coûte Internet sans contrat au Québec avec Nivra Telecom ?' : 'How much does no-contract Internet cost in Quebec with Nivra Telecom?',
-          a: isFr ? 'Nos forfaits Internet sans contrat débutent à 45$/mois taxes incluses. Contrairement à Bell et Vidéotron, le prix affiché est le prix réel — aucuns frais cachés, aucune augmentation après 12 mois.' : 'Our no-contract Internet plans start at $45/month taxes included. Unlike Bell and Vidéotron, the price shown is the real price — no hidden fees, no increase after 12 months.',
+          a: isFr ? 'Nos forfaits Internet sans contrat débutent à 45$/mois taxes incluses. Contrairement aux grands fournisseurs, le prix affiché est le prix réel — aucuns frais cachés, aucune augmentation après 12 mois.' : 'Our no-contract Internet plans start at $45/month taxes included. Unlike other major providers, the price shown is the real price — no hidden fees, no increase after 12 months.',
         },
         {
-          q: isFr ? 'Est-ce que Nivra Telecom est moins cher que Bell ou Vidéotron ?' : 'Is Nivra Telecom cheaper than Bell or Vidéotron?',
-          a: isFr ? 'Oui. En moyenne, nos clients économisent entre 20$ et 45$ par mois par rapport à Bell et Vidéotron pour une vitesse équivalente. Sans compter l\'absence de frais de résiliation et de contrat de 2 ans.' : 'Yes. On average, our customers save between $20 and $45 per month compared to Bell and Vidéotron for equivalent speeds. Not to mention the absence of cancellation fees and 2-year contracts.',
+          q: isFr ? 'Est-ce que Nivra Telecom est moins cher que les grands fournisseurs ?' : 'Is Nivra Telecom cheaper than other major providers?',
+          a: isFr ? 'Oui. En moyenne, nos clients économisent entre 20$ et 45$ par mois par rapport aux grands fournisseurs pour une vitesse équivalente. Sans compter l\'absence de frais de résiliation et de contrat de 2 ans.' : 'Yes. On average, our customers save between $20 and $45 per month compared to other major providers for equivalent speeds. Not to mention the absence of cancellation fees and 2-year contracts.',
         },
         {
           q: isFr ? 'Y a-t-il des frais d\'installation ou d\'activation ?' : 'Are there installation or activation fees?',
@@ -134,7 +134,7 @@ const FAQ = () => {
     [categories]
   );
 
-  const BG = '#080612';
+  const BG = '#020209';
   const PURPLE = '#7C3AED';
 
   return (
@@ -148,24 +148,24 @@ const FAQ = () => {
       <Header />
 
       {/* ── Hero ── */}
-      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
-        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <div aria-hidden className="absolute pointer-events-none" style={{ top: -160, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
+      <section style={{ paddingTop: 110, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.25) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-20%', left: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
 
         <div className="max-w-[860px] mx-auto px-5 sm:px-10 text-center relative">
-          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A78BFA' }} />
-            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <div className="n-animate-in inline-flex items-center gap-2 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: '#A78BFA', boxShadow: '0 0 8px #A78BFA' }} />
+            <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
               {isFr ? 'Centre d\'aide' : 'Help Center'}
             </span>
           </div>
-          <h1 className="font-black text-white" style={{ fontSize: 'clamp(32px, 5vw, 54px)', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 16 }}>
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 64px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
             {t('faq.title')}{' '}
-            <span style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              {t('faq.title2')}
-            </span>
+            <span className="n-shimmer-text">{t('faq.title2')}</span>
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 500, margin: '0 auto' }}>
+          <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.65, maxWidth: 500, margin: '0 auto' }}>
             {t('faq.subtitle')}
           </p>
         </div>
@@ -175,23 +175,25 @@ const FAQ = () => {
       <section style={{ padding: '72px 0', background: BG }}>
         <div className="max-w-[760px] mx-auto px-5 sm:px-10">
           {categories.map((category, ci) => (
-            <div key={category.title} style={{ marginBottom: 52 }}>
-              <div className="flex items-center gap-3" style={{ marginBottom: 20 }}>
-                <div style={{ width: 3, height: 22, background: PURPLE, borderRadius: 99 }} />
-                <h2 className="font-bold text-white" style={{ fontSize: 18 }}>{category.title}</h2>
+            <div key={category.title} style={{ marginBottom: 56 }}>
+              <div className="flex items-center gap-3" style={{ marginBottom: 22 }}>
+                <div style={{ width: 3, height: 22, background: 'linear-gradient(180deg, #7C3AED, #06B6D4)', borderRadius: 99 }} />
+                <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, color: '#fff', letterSpacing: '-0.3px' }}>
+                  {category.title}
+                </h2>
               </div>
               <Accordion type="single" collapsible className="space-y-2">
                 {category.questions.map((item, index) => (
                   <AccordionItem
                     key={index}
                     value={`${ci}-${index}`}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '0 20px' }}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '0 20px', backdropFilter: 'blur(12px)', transition: 'border-color .2s' }}
                     className="border-0"
                   >
-                    <AccordionTrigger className="text-left font-semibold py-4 hover:no-underline" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14 }}>
+                    <AccordionTrigger className="text-left font-semibold py-5 hover:no-underline" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>
                       {item.q}
                     </AccordionTrigger>
-                    <AccordionContent style={{ color: 'rgba(255,255,255,0.58)', fontSize: 14, lineHeight: 1.7, paddingBottom: 16 }}>
+                    <AccordionContent style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.75, paddingBottom: 18 }}>
                       {item.a}
                     </AccordionContent>
                   </AccordionItem>
@@ -203,19 +205,24 @@ const FAQ = () => {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ background: 'rgba(124,58,237,0.08)', borderTop: '1px solid rgba(124,58,237,0.2)', padding: '72px 24px' }}>
-        <div className="max-w-[560px] mx-auto text-center">
-          <div className="flex items-center justify-center mx-auto mb-6" style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)' }}>
-            <MessageSquare className="w-6 h-6" style={{ color: '#A78BFA' }} />
+      <section style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(6,182,212,0.06) 100%)', borderTop: '1px solid rgba(124,58,237,0.2)', padding: '80px 24px', position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 300, background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', pointerEvents: 'none' }} />
+        <div className="max-w-[560px] mx-auto text-center relative">
+          <div className="flex items-center justify-center mx-auto mb-6" style={{ width: 64, height: 64, borderRadius: 18, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)' }}>
+            <MessageSquare className="w-7 h-7" style={{ color: '#A78BFA' }} />
           </div>
-          <h2 className="font-bold text-white" style={{ fontSize: 24, letterSpacing: '-0.5px', marginBottom: 12 }}>
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 28, letterSpacing: '-1px', color: '#fff', marginBottom: 12 }}>
             {t('faq.notfound.title')}
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 16, lineHeight: 1.6, marginBottom: 28 }}>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, lineHeight: 1.65, marginBottom: 32 }}>
             {t('faq.notfound.text')}
           </p>
           <Link to="/#contact">
-            <button style={{ height: 50, paddingLeft: 32, paddingRight: 32, borderRadius: 10, background: PURPLE, color: '#FFFFFF', fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(124,58,237,0.45)' }}>
+            <button
+              style={{ height: 52, paddingLeft: 36, paddingRight: 36, borderRadius: 12, background: PURPLE, color: '#FFFFFF', fontWeight: 700, fontSize: 15, fontFamily: "'Space Grotesk', sans-serif", border: 'none', cursor: 'pointer', boxShadow: '0 8px 32px rgba(124,58,237,0.5)', transition: 'transform .15s, box-shadow .15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 14px 40px rgba(124,58,237,0.6)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(124,58,237,0.5)'; }}
+            >
               {t('faq.contact')}
             </button>
           </Link>

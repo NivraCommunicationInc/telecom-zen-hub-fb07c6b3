@@ -921,10 +921,12 @@ const GuestCheckout = () => {
   const fmt = (v: number) => v.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />
 
-      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
+      <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
         <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-2">Commander</h1>
         <p className="text-muted-foreground mb-8">Aucun compte requis — commandez en quelques minutes</p>
 
@@ -1607,7 +1609,7 @@ const GuestCheckout = () => {
                       Commande #{orderResult.orderNumber}
                     </p>
 
-                    <div className="bg-white rounded-xl p-6 text-left space-y-4 max-w-md mx-auto border border-emerald-200">
+                    <div className="rounded-xl p-6 text-left space-y-4 max-w-md mx-auto" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)" }}>
                       <h3 className="font-semibold text-foreground">Résumé</h3>
                       {selectedServices.map(s => (
                         <div key={s.id} className="flex justify-between text-sm">

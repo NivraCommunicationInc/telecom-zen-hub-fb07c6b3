@@ -1,4 +1,4 @@
-import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Mail, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles, Info } from "lucide-react";
+﻿import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Mail, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -199,71 +199,53 @@ const ServicesDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }}>
       <SEOHead {...SEO_DATA.services} />
       <Header />
       
-      <main className="pt-24 pb-20 relative">
-        {/* 3D Parallax Background */}
-        <div className="parallax-container absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Layer 1 - Deep background */}
-          <div className="parallax-layer parallax-layer-2 absolute inset-0">
-            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-radial from-cyan-500/5 via-transparent to-transparent rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-radial from-accent/5 via-transparent to-transparent rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" />
+      {/* ── Hero ── */}
+      <section style={{ paddingTop: 110, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.22) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.5), rgba(124,58,237,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+        <div className="max-w-[1100px] mx-auto px-5 sm:px-10 text-center relative">
+          <div className="n-animate-in inline-flex items-center gap-2.5 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+            <Sparkles className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
+            <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+              {isFrench ? 'Services télécom Nivra' : 'Nivra Telecom Services'}
+            </span>
           </div>
-          
-          {/* Layer 2 - Mid background */}
-          <div className="parallax-layer parallax-layer-1 absolute inset-0">
-            <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-gradient-radial from-purple-500/8 via-transparent to-transparent rounded-full blur-2xl float-3d" />
-            <div className="absolute bottom-1/4 right-1/4 w-[350px] h-[350px] bg-gradient-radial from-cyan-400/8 via-transparent to-transparent rounded-full blur-2xl float-3d-delayed" />
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(40px, 6vw, 68px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+            {isFrench ? <><span>Nos </span><span className="n-shimmer-text">services</span><span> télécom</span></> : <><span>Our </span><span className="n-shimmer-text">Telecom</span><span> Services</span></>}
+          </h1>
+          <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 36px' }}>
+            {isFrench
+              ? 'Activation, installation et support — tout au même endroit pour particuliers et entreprises.'
+              : 'Activation, installation and support — all in one place for home and business.'}
+          </p>
+          <div className="flex flex-wrap justify-center gap-4 n-animate-in-delay-3">
+            <button
+              onClick={() => { const el = document.getElementById('contact-cta'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
+              style={{ height: 52, paddingLeft: 28, paddingRight: 28, borderRadius: 12, background: 'linear-gradient(135deg, #7C3AED, #6D28D9)', color: '#fff', fontWeight: 700, fontSize: 15, fontFamily: "'Space Grotesk', sans-serif", border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 32px rgba(124,58,237,0.5)', transition: 'transform .15s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'}
+            >
+              <ArrowRight className="w-5 h-5" />
+              {isFrench ? 'Demander une soumission' : 'Request a quote'}
+            </button>
+            <a
+              href={`mailto:${COMPANY_CONTACT.supportEmail}`}
+              style={{ height: 52, paddingLeft: 28, paddingRight: 28, borderRadius: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
+            >
+              <Mail className="w-4 h-4" />
+              {isFrench ? 'Nous écrire' : 'Email us'}
+            </a>
           </div>
-
-          {/* Decorative geometric shapes */}
-          <div className="absolute top-40 right-20 w-32 h-32 border border-accent/10 rounded-2xl rotate-12 float-3d" />
-          <div className="absolute top-60 left-16 w-20 h-20 border border-cyan-500/10 rounded-xl -rotate-12 float-3d-delayed" />
-          <div className="absolute bottom-40 right-1/3 w-24 h-24 border border-purple-500/10 rounded-lg rotate-45 float-3d" />
         </div>
+      </section>
 
-        {/* Hero Section with 3D Text */}
-        <section className="container mx-auto px-4 mb-20 relative">
-          <div className="text-center max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-accent/10 text-accent border-accent/20 px-4 py-1.5 card-3d">
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              {isFrench ? "Services télécom Nivra" : "Nivra Telecom Services"}
-            </Badge>
-            
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-              <span className="block text-3d-dark">
-                {isFrench ? "Nos services" : "Our Services"}
-              </span>
-              <span className="block bg-gradient-to-r from-accent via-cyan-400 to-accent bg-clip-text text-transparent">
-                {isFrench ? "télécom au Québec" : "Telecom in Quebec"}
-              </span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-              {isFrench 
-                ? "Activation, installation et support — tout au même endroit pour particuliers et entreprises."
-                : "Activation, installation and support — all in one place for home and business."}
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="hero" size="xl" className="btn-3d" onClick={() => {
-                const contactSection = document.getElementById('contact-cta');
-                if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth' });
-              }}>
-                <ArrowRight className="w-5 h-5 mr-2" />
-                {isFrench ? "Demander une soumission" : "Request a quote"}
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <a href={`mailto:${COMPANY_CONTACT.supportEmail}`}>
-                  <Mail className="w-4 h-4 mr-2" />
-                  {isFrench ? "Nous écrire" : "Email us"}
-                </a>
-              </Button>
-            </div>
-          </div>
-        </section>
+      <main className="pb-20 relative">
 
         {/* Services Grid with 3D Cards */}
         <section className="container mx-auto px-4 mb-20 relative">

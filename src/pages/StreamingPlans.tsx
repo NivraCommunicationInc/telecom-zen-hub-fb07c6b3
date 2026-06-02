@@ -1,15 +1,18 @@
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Film, Music, Tv, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { backendClient } from "@/integrations/backend";
 import type { StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+
+const BG = '#020209';
+const VIOLET = '#7C3AED';
+const CYAN = '#06B6D4';
+const VIOLET_LIGHT = '#A78BFA';
 
 const categoryLabels: Record<string, { en: string; fr: string }> = {
   video: { en: "Video", fr: "Vidéo" },
@@ -41,7 +44,7 @@ const StreamingPlans = () => {
       videoTitle: "Video Streaming",
       musicTitle: "Music Streaming",
       perMonth: "/month",
-      subscribe: "Subscribe Now",
+      subscribe: "Subscribe",
       noServices: "No streaming services available at the moment",
       loading: "Loading services...",
       bundleTitle: "Bundle & Save",
@@ -66,94 +69,141 @@ const StreamingPlans = () => {
   const t = texts[language];
 
   const CategoryIcon = ({ category }: { category: string }) => {
-    if (category === "video") return <Film className="w-6 h-6" />;
-    if (category === "music") return <Music className="w-6 h-6" />;
-    return <Tv className="w-6 h-6" />;
+    const isMusic = category === 'music';
+    const color = isMusic ? CYAN : VIOLET_LIGHT;
+    const bg = isMusic ? 'rgba(6,182,212,0.15)' : 'rgba(124,58,237,0.15)';
+    const Icon = category === "video" ? Film : category === "music" ? Music : Tv;
+    return (
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon style={{ width: 20, height: 20, color }} />
+      </div>
+    );
   };
 
-  const ServiceCard = ({ service }: { service: StreamingCatalogItem }) => (
-    <Card className="hover:shadow-lg transition-shadow border-border/50 hover:border-primary/30 h-full flex flex-col">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <CategoryIcon category={service.category} />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{service.name}</CardTitle>
-              <Badge variant="outline" className="mt-1 text-xs">
-                {categoryLabels[service.category]?.[language] || service.category}
-              </Badge>
+  const ServiceCard = ({ service }: { service: StreamingCatalogItem }) => {
+    const [hovered, setHovered] = useState(false);
+    const isMusic = service.category === 'music';
+    const accentColor = isMusic ? CYAN : VIOLET;
+    return (
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background: hovered ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${hovered ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 16,
+          padding: 24,
+          backdropFilter: 'blur(24px)',
+          transition: 'all 0.3s ease',
+          transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column' as const,
+          cursor: 'default',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <CategoryIcon category={service.category} />
+          <div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, color: '#fff' }}>{service.name}</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: isMusic ? CYAN : VIOLET_LIGHT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              {categoryLabels[service.category]?.[language] || service.category}
             </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col">
-        <p className="text-muted-foreground text-sm mb-4">{service.description}</p>
-        
+
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginBottom: 16, lineHeight: 1.6, flex: 1 }}>{service.description}</p>
+
         {Array.isArray(service.features) && service.features.length > 0 && (
-          <div className="space-y-2 mb-4 flex-1">
+          <div style={{ marginBottom: 16 }}>
             {service.features.map((feature, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                <span>{feature}</span>
+              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                <Check style={{ width: 14, height: 14, color: '#10B981', marginTop: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{feature}</span>
               </div>
             ))}
           </div>
         )}
-        
-        <div className="mt-auto pt-4 border-t">
-          <div className="flex items-end justify-between">
-            <div>
-              <span className="text-3xl font-bold text-primary">
-                ${service.price_monthly.toFixed(2)}
-              </span>
-              <span className="text-muted-foreground text-sm">{t.perMonth}</span>
-            </div>
-            <Button asChild size="sm">
-              <Link to="/portal/auth">{t.subscribe}</Link>
-            </Button>
+
+        <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontSize: 28, fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif", color: accentColor }}>
+              ${service.price_monthly.toFixed(2)}
+            </span>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginLeft: 2 }}>{t.perMonth}</span>
           </div>
+          <Link
+            to="/portal/auth"
+            style={{
+              background: `linear-gradient(135deg, ${VIOLET}, ${CYAN})`,
+              color: '#fff',
+              borderRadius: 10,
+              padding: '8px 18px',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "'Space Grotesk', sans-serif",
+              textDecoration: 'none',
+              display: 'inline-block',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            {t.subscribe}
+          </Link>
         </div>
-      </CardContent>
-    </Card>
-  );
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: BG, minHeight: '100vh' }}>
       <SEOHead {...SEO_DATA.streaming} />
       <Header />
-      
-      <section className="relative py-16 md:py-24 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Sparkles className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">{t.title}</h1>
+
+      {/* Hero */}
+      <section className="relative overflow-hidden" style={{ paddingTop: 120, paddingBottom: 80 }}>
+        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+
+        <div className="container mx-auto px-4 text-center" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="n-animate-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 100, padding: '6px 16px', marginBottom: 24 }}>
+            <Sparkles style={{ width: 14, height: 14, color: VIOLET }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: VIOLET_LIGHT, letterSpacing: '0.08em' }}>STREAMING+</span>
           </div>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 64px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+            {language === 'fr' ? (
+              <>Forfaits{' '}<span className="n-shimmer-text">Streaming+</span></>
+            ) : (
+              <><span className="n-shimmer-text">Streaming+</span>{' '}Plans</>
+            )}
+          </h1>
+          <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 560, margin: '0 auto' }}>
             {t.subtitle}
           </p>
         </div>
       </section>
 
-      <main className="container mx-auto px-4 py-12">
+      <main className="container mx-auto px-4" style={{ paddingBottom: 80 }}>
         {isLoading ? (
-          <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">{t.loading}</p>
+          <div style={{ textAlign: 'center', padding: '64px 0' }}>
+            <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid rgba(124,58,237,0.2)`, borderTopColor: VIOLET, margin: '0 auto 16px' }} />
+            <p style={{ color: 'rgba(255,255,255,0.5)' }}>{t.loading}</p>
           </div>
         ) : !services || services.length === 0 ? (
-          <div className="text-center py-16">
-            <Tv className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-lg">{t.noServices}</p>
+          <div style={{ textAlign: 'center', padding: '64px 0' }}>
+            <Tv style={{ width: 64, height: 64, color: 'rgba(255,255,255,0.2)', margin: '0 auto 16px' }} />
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18 }}>{t.noServices}</p>
           </div>
         ) : (
-          <div className="space-y-12">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
             {videoServices.length > 0 && (
               <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <Film className="w-6 h-6 text-primary" />
-                  <h2 className="text-2xl font-bold">{t.videoTitle}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(124,58,237,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Film style={{ width: 18, height: 18, color: VIOLET_LIGHT }} />
+                  </div>
+                  <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 24, color: '#fff', margin: 0 }}>{t.videoTitle}</h2>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {videoServices.map((service) => (
@@ -165,9 +215,11 @@ const StreamingPlans = () => {
 
             {musicServices.length > 0 && (
               <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <Music className="w-6 h-6 text-primary" />
-                  <h2 className="text-2xl font-bold">{t.musicTitle}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Music style={{ width: 18, height: 18, color: CYAN }} />
+                  </div>
+                  <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 24, color: '#fff', margin: 0 }}>{t.musicTitle}</h2>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {musicServices.map((service) => (
@@ -177,26 +229,44 @@ const StreamingPlans = () => {
               </section>
             )}
 
-            <section className="mt-16">
-              <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
-                <CardContent className="py-8 text-center">
-                  <h3 className="text-2xl font-bold mb-2">{t.bundleTitle}</h3>
-                  <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+            {/* Bundle CTA */}
+            <section style={{ marginTop: 16 }}>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 20, padding: '48px 32px', textAlign: 'center', backdropFilter: 'blur(24px)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-30%', left: '50%', transform: 'translateX(-50%)', width: 400, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 28, color: '#fff', marginBottom: 12 }}>{t.bundleTitle}</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', maxWidth: 480, margin: '0 auto 32px' }}>
                     {t.bundleDesc}
                   </p>
-                  <div className="flex flex-wrap justify-center gap-4">
-                    <Button asChild variant="outline">
-                      <Link to="/internet">{t.viewPlans} - Internet</Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link to="/tv">{t.viewPlans} - TV</Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link to="/mobile">{t.viewPlans} - Mobile</Link>
-                    </Button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16 }}>
+                    {[
+                      { to: '/internet', label: `${t.viewPlans} — Internet` },
+                      { to: '/tv', label: `${t.viewPlans} — TV` },
+                      { to: '/mobile', label: `${t.viewPlans} — Mobile` },
+                    ].map(({ to, label }) => (
+                      <Link
+                        key={to}
+                        to={to}
+                        style={{
+                          background: 'rgba(124,58,237,0.12)',
+                          border: '1px solid rgba(124,58,237,0.35)',
+                          color: VIOLET_LIGHT,
+                          borderRadius: 12,
+                          padding: '10px 24px',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          textDecoration: 'none',
+                          display: 'inline-block',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {label}
+                      </Link>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </section>
           </div>
         )}

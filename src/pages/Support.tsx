@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -187,7 +187,7 @@ const Support = () => {
       ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }}>
       <SEOHead
         title={isFr ? "Support — Nivra Télécom" : "Support — Nivra Telecom"}
         description={
@@ -198,21 +198,31 @@ const Support = () => {
       />
       <Header />
 
-      {/* ── Hero ── */}
-      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
-        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
-        <div className="max-w-[900px] mx-auto px-5 sm:px-10 text-center relative">
-          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
-            <HelpCircle className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
-            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>Support</span>
+      {/* Hero */}
+      <section className="relative overflow-hidden" style={{ paddingTop: 120, paddingBottom: 80 }}>
+        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 550, height: 550, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+        <div className="container mx-auto px-4 text-center" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="n-animate-in inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 100, padding: '6px 16px' }}>
+            <HelpCircle style={{ width: 14, height: 14, color: '#7C3AED' }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#A78BFA', letterSpacing: '0.08em' }}>SUPPORT</span>
           </div>
-          <h1 className="font-black text-white" style={{ fontSize: 'clamp(32px, 5vw, 54px)', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 16 }}>
-            {isFr ? <>Besoin d'aide?{' '}<span style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>On est là pour vous.</span></> : <>Need help?{' '}<span style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>We're here for you.</span></>}
+          <h1 className="n-animate-in-delay-1 text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 60px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16 }}>
+            {isFr ? (
+              <>Besoin d'aide?{' '}<span className="n-shimmer-text">On est là.</span></>
+            ) : (
+              <>Need help?{' '}<span className="n-shimmer-text">We're here.</span></>
+            )}
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 17, lineHeight: 1.65 }}>
-            {isFr ? 'Support 7 jours sur 7 · 8h à 20h · ' : 'Support 7 days a week · 8AM to 8PM · '}
-            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#A78BFA' }}>{SUPPORT_EMAIL}</a>
+          <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 560, margin: '0 auto' }}>
+            {isFr
+              ? "Support 7 jours sur 7 • 8h à 20h • "
+              : "Support 7 days a week • 8AM to 8PM • "}
+            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#A78BFA', textDecoration: 'none', fontWeight: 600 }}>
+              {SUPPORT_EMAIL}
+            </a>
           </p>
         </div>
       </section>

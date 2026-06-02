@@ -84,7 +84,9 @@ const Install = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div style={{ background: '#020209' }} className="relative min-h-screen flex flex-col overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.13) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">

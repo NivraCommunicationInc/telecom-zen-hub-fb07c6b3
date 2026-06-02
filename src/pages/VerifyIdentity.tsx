@@ -240,7 +240,7 @@ const VerifyIdentityPage = () => {
   // ── Loading / terminal states ───────────────────────────────────────
   if (pageState === "loading") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-slate-400 animate-spin mx-auto mb-4" />
           <p className="text-slate-600">Validation du lien...</p>
@@ -251,11 +251,11 @@ const VerifyIdentityPage = () => {
 
   if (pageState === "expired") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="py-10 text-center">
             <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Session expirée</h1>
+            <h1 className="text-xl font-bold text-white mb-2">Session expirée</h1>
             <p className="text-slate-600 text-sm">
               Ce lien de vérification a expiré (20 minutes). Veuillez retourner à la caisse et régénérer un nouveau code QR.
             </p>
@@ -267,11 +267,11 @@ const VerifyIdentityPage = () => {
 
   if (pageState === "error") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="py-10 text-center">
             <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Erreur</h1>
+            <h1 className="text-xl font-bold text-white mb-2">Erreur</h1>
             <p className="text-slate-600 text-sm">{errorMessage}</p>
           </CardContent>
         </Card>
@@ -281,11 +281,11 @@ const VerifyIdentityPage = () => {
 
   if (pageState === "success") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="py-10 text-center">
             <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Documents soumis avec succès</h1>
+            <h1 className="text-xl font-bold text-white mb-2">Documents soumis avec succès</h1>
             <p className="text-slate-600 text-sm mb-4">
               Vos documents ont été soumis pour vérification manuelle. Un administrateur les examinera sous peu.
             </p>
@@ -302,11 +302,11 @@ const VerifyIdentityPage = () => {
 
   if (pageState === "submitting") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
           <p className="text-slate-700 font-medium">Envoi de vos documents...</p>
-          <p className="text-slate-500 text-sm mt-1">Veuillez ne pas fermer cette page.</p>
+          <p className="text-white/50 text-sm mt-1">Veuillez ne pas fermer cette page.</p>
         </div>
       </div>
     );
@@ -324,11 +324,11 @@ const VerifyIdentityPage = () => {
         {[1, 2, 3].map((n) => (
           <div key={n} className="flex items-center gap-2">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-              n < stepNum ? "bg-emerald-500 text-white" : n === stepNum ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"
+              n < stepNum ? "bg-emerald-500 text-white" : n === stepNum ? "bg-violet-600 text-white" : "bg-white/10 text-white/50"
             }`}>
               {n < stepNum ? <CheckCircle2 className="w-4 h-4" /> : n}
             </div>
-            {n < 3 && <div className={`w-6 h-0.5 ${n < stepNum ? "bg-emerald-500" : "bg-slate-200"}`} />}
+            {n < 3 && <div className={`w-6 h-0.5 ${n < stepNum ? "bg-emerald-500" : "bg-white/10"}`} />}
           </div>
         ))}
       </div>
@@ -336,14 +336,16 @@ const VerifyIdentityPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200 px-4 py-4 sticky top-0 z-10">
+    <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.13) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div style={{ background: 'rgba(2,2,9,0.9)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }} className="relative px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="w-6 h-6 text-slate-700" />
             <div>
-              <h1 className="text-lg font-bold text-slate-900">Nivra — Vérification d'identité</h1>
-              <p className="text-xs text-slate-500">Vérification sécurisée pour votre commande</p>
+              <h1 className="text-lg font-bold text-white">Nivra — Vérification d'identité</h1>
+              <p className="text-xs text-white/50">Vérification sécurisée pour votre commande</p>
             </div>
           </div>
           <TimerBadge />
@@ -383,7 +385,7 @@ const VerifyIdentityPage = () => {
               </CardContent>
             </Card>
             <Button
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white"
+              className="w-full bg-violet-600 hover:bg-violet-700 text-white"
               disabled={!consentGiven}
               onClick={() => setPageState("step1_type")}
             >
@@ -410,18 +412,18 @@ const VerifyIdentityPage = () => {
                       onClick={() => setIdType(opt.value)}
                       className={`w-full text-left rounded-xl border-2 transition-all p-4 flex items-center gap-3 min-h-[64px] ${
                         selected
-                          ? "border-slate-900 bg-slate-900 text-white shadow-md"
-                          : "border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50"
+                          ? "border-violet-500 bg-violet-600/20 text-white shadow-md"
+                          : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.08]"
                       }`}
                     >
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
-                        selected ? "bg-white/15" : "bg-slate-100"
+                        selected ? "bg-white/15" : "bg-white/[0.06]"
                       }`}>
                         <Icon className={`w-6 h-6 ${selected ? "text-white" : "text-slate-700"}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold ${selected ? "text-white" : "text-slate-900"}`}>{opt.label}</p>
-                        <p className={`text-xs mt-0.5 ${selected ? "text-white/80" : "text-slate-500"}`}>{opt.description}</p>
+                        <p className={`text-sm font-semibold ${selected ? "text-white" : "text-white"}`}>{opt.label}</p>
+                        <p className={`text-xs mt-0.5 ${selected ? "text-white/80" : "text-white/50"}`}>{opt.description}</p>
                       </div>
                       {selected && <CheckCircle2 className="w-5 h-5 text-white shrink-0" />}
                     </button>
@@ -447,7 +449,7 @@ const VerifyIdentityPage = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" /> Retour
               </Button>
               <Button
-                className="flex-[2] bg-slate-900 hover:bg-slate-800 text-white"
+                className="flex-[2] bg-violet-600 hover:bg-violet-700 text-white"
                 disabled={!idType}
                 onClick={() => setPageState("step2_capture")}
               >
@@ -467,10 +469,10 @@ const VerifyIdentityPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-slate-500 mb-3">Prenez une photo du recto de votre {selectedDoc?.label.toLowerCase()}.</p>
+                <p className="text-xs text-white/50 mb-3">Prenez une photo du recto de votre {selectedDoc?.label.toLowerCase()}.</p>
                 {frontPreview ? (
                   <div className="space-y-3">
-                    <img src={frontPreview} alt="Recto" className="w-full rounded-lg border border-slate-200" />
+                    <img src={frontPreview} alt="Recto" className="w-full rounded-lg border border-white/10" />
                     <Button variant="outline" size="sm" onClick={() => { setFrontFile(null); setFrontPreview(null); }}>
                       Reprendre la photo
                     </Button>
@@ -494,10 +496,10 @@ const VerifyIdentityPage = () => {
               </CardHeader>
               <CardContent>
                 {!needsBack ? (
-                  <p className="text-sm text-slate-500 text-center py-4">Non requis pour ce type de document.</p>
+                  <p className="text-sm text-white/50 text-center py-4">Non requis pour ce type de document.</p>
                 ) : backPreview ? (
                   <div className="space-y-3">
-                    <img src={backPreview} alt="Verso" className="w-full rounded-lg border border-slate-200" />
+                    <img src={backPreview} alt="Verso" className="w-full rounded-lg border border-white/10" />
                     <Button variant="outline" size="sm" onClick={() => { setBackFile(null); setBackPreview(null); }}>
                       Reprendre la photo
                     </Button>
@@ -525,7 +527,7 @@ const VerifyIdentityPage = () => {
                 </p>
                 {selfiePreview ? (
                   <div className="space-y-3">
-                    <img src={selfiePreview} alt="Selfie" className="w-full rounded-lg border border-slate-200" />
+                    <img src={selfiePreview} alt="Selfie" className="w-full rounded-lg border border-white/10" />
                     <Button variant="outline" size="sm" onClick={() => { setSelfieFile(null); setSelfiePreview(null); }}>
                       Reprendre le selfie
                     </Button>
@@ -546,7 +548,7 @@ const VerifyIdentityPage = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" /> Retour
               </Button>
               <Button
-                className="flex-[2] bg-slate-900 hover:bg-slate-800 text-white py-6 text-base"
+                className="flex-[2] bg-violet-600 hover:bg-violet-700 text-white py-6 text-base"
                 disabled={!canGoToConfirm}
                 onClick={() => setPageState("step3_confirm")}
               >
@@ -569,27 +571,27 @@ const VerifyIdentityPage = () => {
                 <div className="grid grid-cols-3 gap-2">
                   {frontPreview && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Recto</p>
-                      <img src={frontPreview} alt="Recto" className="w-full aspect-square object-cover rounded-lg border border-slate-200" />
+                      <p className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Recto</p>
+                      <img src={frontPreview} alt="Recto" className="w-full aspect-square object-cover rounded-lg border border-white/10" />
                     </div>
                   )}
                   {backPreview && needsBack && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Verso</p>
-                      <img src={backPreview} alt="Verso" className="w-full aspect-square object-cover rounded-lg border border-slate-200" />
+                      <p className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Verso</p>
+                      <img src={backPreview} alt="Verso" className="w-full aspect-square object-cover rounded-lg border border-white/10" />
                     </div>
                   )}
                   {selfiePreview && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Selfie</p>
-                      <img src={selfiePreview} alt="Selfie" className="w-full aspect-square object-cover rounded-lg border border-slate-200" />
+                      <p className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Selfie</p>
+                      <img src={selfiePreview} alt="Selfie" className="w-full aspect-square object-cover rounded-lg border border-white/10" />
                     </div>
                   )}
                 </div>
 
-                <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs space-y-1">
-                  <div className="flex justify-between"><span className="text-slate-500">Type de document</span><span className="text-slate-900 font-medium">{selectedDoc?.label}</span></div>
-                  {needsProvince && <div className="flex justify-between"><span className="text-slate-500">Province</span><span className="text-slate-900 font-medium">{idProvince}</span></div>}
+                <div className="rounded-lg bg-white/[0.04] border border-white/10 p-3 text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-white/50">Type de document</span><span className="text-white font-medium">{selectedDoc?.label}</span></div>
+                  {needsProvince && <div className="flex justify-between"><span className="text-white/50">Province</span><span className="text-white font-medium">{idProvince}</span></div>}
                 </div>
 
                 <div className="flex items-start gap-3 pt-2">

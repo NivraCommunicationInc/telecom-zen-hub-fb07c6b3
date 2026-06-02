@@ -77,7 +77,7 @@ const ClientVerifyEmail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Vérification de votre email...</p>
@@ -88,7 +88,7 @@ const ClientVerifyEmail = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-2" />
@@ -116,7 +116,7 @@ const ClientVerifyEmail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-2" />

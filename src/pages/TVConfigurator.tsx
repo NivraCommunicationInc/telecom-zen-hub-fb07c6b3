@@ -249,10 +249,10 @@ const TVConfigurator = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div style={{ minHeight: '100vh', background: '#020209' }} className="flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="w-10 h-10 animate-spin text-[#003366] mx-auto" />
-          <p className="text-slate-400 text-sm">{isFr ? "Chargement du simulateur..." : "Loading simulator..."}</p>
+          <Loader2 className="w-10 h-10 animate-spin text-[#7C3AED] mx-auto" />
+          <p className="text-white/50 text-sm">{isFr ? "Chargement du simulateur..." : "Loading simulator..."}</p>
         </div>
       </div>
     );
@@ -266,21 +266,23 @@ const TVConfigurator = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div style={{ minHeight: '100vh', background: '#020209' }} className="flex flex-col">
       <Header />
-      {/* HERO — Full-width immersive header */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      <section className="bg-[#003366] relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNCkiLz48L2c+PC9zdmc+')] opacity-60" />
-        <div className="container mx-auto px-4 max-w-[1100px] py-12 md:py-16 relative z-10 text-center">
-          <Badge className="bg-sky-400/15 text-sky-200 border-sky-400/20 mb-4 text-xs px-3 py-1 font-semibold">
-            <Tv className="w-3.5 h-3.5 mr-1.5" />
-            {isFr ? "Simulateur Nivra" : "Nivra Simulator"}
-          </Badge>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-[1.08] mb-3">
-            {isFr ? "Composez votre forfait TV" : "Build your TV package"}
+      {/* HERO */}
+      <section className="relative overflow-hidden" style={{ paddingTop: 100, paddingBottom: 48 }}>
+        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+        <div className="container mx-auto px-4 max-w-[1100px] text-center" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="n-animate-in inline-flex items-center gap-2 mb-5" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 100, padding: '6px 16px' }}>
+            <Tv style={{ width: 14, height: 14, color: '#7C3AED' }} />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#A78BFA', letterSpacing: '0.08em' }}>{isFr ? "SIMULATEUR NIVRA" : "NIVRA SIMULATOR"}</span>
+          </div>
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(32px, 5vw, 56px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+            {isFr ? <>Composez votre{' '}<span className="n-shimmer-text">forfait TV</span></> : <>Build your{' '}<span className="n-shimmer-text">TV package</span></>}
           </h1>
-          <p className="text-sm md:text-base text-blue-200/50 max-w-lg mx-auto">
+          <p className="n-animate-in-delay-2" style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', maxWidth: 480, margin: '0 auto' }}>
             {isFr
               ? "Sélectionnez votre plan, personnalisez vos options et commandez en quelques clics."
               : "Select your plan, customize your options and order in a few clicks."}
@@ -291,7 +293,7 @@ const TVConfigurator = () => {
       {/* ═══════════════════════════════════════════════════════ */}
       {/* STEP PROGRESS BAR — telecom simulator nav */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+      <div className="sticky top-0 z-40 border-b border-white/10 backdrop-blur-xl" style={{ background: 'rgba(2,2,9,0.85)' }}>
         <div className="container mx-auto px-4 max-w-[1100px]">
           <div className="flex items-center justify-between h-14 md:h-16 overflow-x-auto">
             {STEPS.map((step, i) => (
@@ -301,15 +303,15 @@ const TVConfigurator = () => {
                 className={cn(
                   "flex items-center gap-2.5 px-3 md:px-5 py-2 rounded-lg transition-colors whitespace-nowrap text-sm font-medium",
                   activeStep === step.num
-                    ? "text-[#003366]"
-                    : step.done ? "text-slate-500 hover:text-slate-700" : "text-slate-300"
+                    ? "text-[#7C3AED]"
+                    : step.done ? "text-white/55 hover:text-white/80" : "text-white/30"
                 )}
               >
                 <div className={cn(
                   "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors",
                   activeStep === step.num
-                    ? "bg-[#003366] text-white"
-                    : step.done ? "bg-slate-100 text-slate-600" : "bg-slate-50 text-slate-300"
+                    ? "bg-[#7C3AED] text-white"
+                    : step.done ? "bg-white/[0.08] text-white/65" : "bg-white/[0.04]/[0.02] text-white/30"
                 )}>
                   {step.done && activeStep !== step.num ? <Check className="w-3.5 h-3.5" /> : step.num}
                 </div>
@@ -330,7 +332,7 @@ const TVConfigurator = () => {
 
         {/* ── STEP 1: Plan Selection ── */}
         <div ref={el => { sectionRefs.current[1] = el; }} className="scroll-mt-20">
-          <div className="bg-slate-50 py-10 md:py-14">
+          <div className="bg-white/[0.04]/[0.02] py-10 md:py-14">
             <div className="container mx-auto px-4 max-w-[1100px]">
               <SimulatorSectionHeader
                 step={1}
@@ -351,13 +353,13 @@ const TVConfigurator = () => {
                       className={cn(
                         "relative rounded-2xl border-2 cursor-pointer transition-all duration-200 overflow-hidden",
                         isSelected
-                          ? "border-[#003366] shadow-xl shadow-blue-900/8 scale-[1.01]"
-                          : "border-slate-200 hover:border-slate-300 hover:shadow-lg"
+                          ? "border-[#7C3AED] shadow-xl shadow-purple-900/8 scale-[1.01]"
+                          : "border-white/10 hover:border-white/20 hover:shadow-lg"
                       )}
                     >
                       {/* Selected indicator ribbon */}
                       {isSelected && (
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#003366]" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#7C3AED]" />
                       )}
 
                       {/* Premium badge for top-tier */}
@@ -369,13 +371,13 @@ const TVConfigurator = () => {
                         </div>
                       )}
 
-                      <div className="bg-white p-5 md:p-6">
+                      <div className="bg-white/[0.04] p-5 md:p-6">
                         {/* Price header */}
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                              isSelected ? "bg-[#003366] border-[#003366] scale-110" : "border-slate-300"
+                              isSelected ? "bg-[#7C3AED] border-[#7C3AED] scale-110" : "border-slate-300"
                             )}>
                               {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
@@ -384,8 +386,8 @@ const TVConfigurator = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-3xl font-extrabold text-[#003366] tabular-nums">{plan.price.toFixed(0)}<span className="text-sm font-bold text-slate-400">$</span></div>
-                            <div className="text-[11px] text-slate-400 font-medium -mt-0.5">/{isFr ? "mois" : "mo"}</div>
+                            <div className="text-3xl font-extrabold text-[#7C3AED] tabular-nums">{plan.price.toFixed(0)}<span className="text-sm font-bold text-white/40">$</span></div>
+                            <div className="text-[11px] text-white/40 font-medium -mt-0.5">/{isFr ? "mois" : "mo"}</div>
                           </div>
                         </div>
 
@@ -415,7 +417,7 @@ const TVConfigurator = () => {
                         {meta.features.length > 0 && (
                           <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
                             {meta.features.slice(0, 3).map((f, i) => (
-                              <div key={i} className="flex items-start gap-2 text-xs text-slate-500">
+                              <div key={i} className="flex items-start gap-2 text-xs text-white/55">
                                 <Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
                                 <span>{f}</span>
                               </div>
@@ -429,9 +431,9 @@ const TVConfigurator = () => {
               </div>
 
               {tvPlans.length === 0 && (
-                <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white py-16 text-center">
-                  <Tv className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-400">{isFr ? "Aucun forfait disponible" : "No plans available"}</p>
+                <div className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.04] py-16 text-center">
+                  <Tv className="w-10 h-10 text-white/30 mx-auto mb-3" />
+                  <p className="text-white/40">{isFr ? "Aucun forfait disponible" : "No plans available"}</p>
                 </div>
               )}
             </div>
@@ -441,7 +443,7 @@ const TVConfigurator = () => {
         {/* ── STEP 2: Streaming ── */}
         {streamingServices.length > 0 && (
           <div ref={el => { sectionRefs.current[2] = el; }} className="scroll-mt-20">
-            <div className="bg-white py-10 md:py-14 border-t border-slate-100">
+            <div className="bg-white/[0.04] py-10 md:py-14 border-t border-slate-100">
               <div className="container mx-auto px-4 max-w-[1100px]">
                 <SimulatorSectionHeader
                   step={2}
@@ -452,7 +454,7 @@ const TVConfigurator = () => {
 
                 {videoStreaming.length > 0 && (
                   <div className="mb-8">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-4">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 flex items-center gap-2 mb-4">
                       <MonitorPlay className="w-4 h-4" /> {isFr ? "Vidéo & Films" : "Video & Movies"}
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -465,7 +467,7 @@ const TVConfigurator = () => {
 
                 {musicStreaming.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-4">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 flex items-center gap-2 mb-4">
                       <Music className="w-4 h-4" /> {isFr ? "Musique" : "Music"}
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -482,7 +484,7 @@ const TVConfigurator = () => {
 
         {/* ── STEP 3: Equipment ── */}
         <div ref={el => { sectionRefs.current[3] = el; }} className="scroll-mt-20">
-          <div className="bg-slate-50 py-10 md:py-14 border-t border-slate-100">
+          <div className="bg-white/[0.04]/[0.02] py-10 md:py-14 border-t border-slate-100">
             <div className="container mx-auto px-4 max-w-[1100px]">
               <SimulatorSectionHeader
                 step={3}
@@ -493,67 +495,67 @@ const TVConfigurator = () => {
               <div className="grid md:grid-cols-2 gap-5">
                 {/* Terminal Card */}
                 {terminalProduct && (
-                  <div className="rounded-2xl border-2 border-[#003366]/15 bg-white overflow-hidden">
-                    <div className="bg-[#003366]/5 px-5 py-3 flex items-center justify-between">
+                  <div className="rounded-2xl border-2 border-[#7C3AED]/15 bg-white/[0.04] overflow-hidden">
+                    <div className="bg-[#7C3AED]/5 px-5 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Monitor className="w-4 h-4 text-[#003366]" />
-                        <span className="text-xs font-bold text-[#003366] uppercase tracking-wider">{isFr ? "Terminal TV" : "TV Terminal"}</span>
+                        <Monitor className="w-4 h-4 text-[#7C3AED]" />
+                        <span className="text-xs font-bold text-[#7C3AED] uppercase tracking-wider">{isFr ? "Terminal TV" : "TV Terminal"}</span>
                       </div>
-                      <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
+                      <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
                     </div>
                     <div className="p-5">
                       <h4 className="font-bold text-slate-900 mb-1">{terminalProduct.name}</h4>
-                      <p className="text-xs text-slate-400 mb-4">{terminalProduct.description}</p>
+                      <p className="text-xs text-white/40 mb-4">{terminalProduct.description}</p>
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-2xl font-extrabold text-slate-900">{terminalProduct.price.toFixed(0)}</span>
-                          <span className="text-sm text-slate-400 ml-0.5">$ / {isFr ? "unité" : "unit"}</span>
+                          <span className="text-sm text-white/40 ml-0.5">$ / {isFr ? "unité" : "unit"}</span>
                         </div>
                       </div>
                       <Separator className="my-4" />
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm text-slate-600">{isFr ? "Quantité totale" : "Total quantity"}</span>
+                        <span className="text-sm text-white/65">{isFr ? "Quantité totale" : "Total quantity"}</span>
                         <div className="flex items-center gap-2.5">
                           <button onClick={() => setExtraTerminals(Math.max(0, extraTerminals - 1))} disabled={extraTerminals === 0}
-                            className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 disabled:opacity-20 transition-all">
+                            className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/[0.04]/[0.02] disabled:opacity-20 transition-all">
                             <Minus className="w-3.5 h-3.5" />
                           </button>
                           <span className="w-6 text-center font-bold text-slate-900 tabular-nums">{totalTerminals}</span>
                           <button onClick={() => setExtraTerminals(Math.min(3, extraTerminals + 1))}
-                            className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all">
+                            className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/[0.04]/[0.02] transition-all">
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-400">{isFr ? "Sous-total équipement" : "Equipment subtotal"}</span>
-                        <span className="text-sm font-bold text-slate-700">{(terminalProduct.price * totalTerminals).toFixed(0)} $</span>
+                        <span className="text-xs text-white/40">{isFr ? "Sous-total équipement" : "Equipment subtotal"}</span>
+                        <span className="text-sm font-bold text-white/80">{(terminalProduct.price * totalTerminals).toFixed(0)} $</span>
                       </div>
-                      <p className="text-[10px] text-slate-300 mt-2">{isFr ? "Minimum 1, maximum 4 terminaux par adresse" : "Minimum 1, maximum 4 terminals per address"}</p>
+                      <p className="text-[10px] text-white/30 mt-2">{isFr ? "Minimum 1, maximum 4 terminaux par adresse" : "Minimum 1, maximum 4 terminals per address"}</p>
                     </div>
                   </div>
                 )}
 
                 {/* Router / Borne Card — ALWAYS REQUIRED */}
                 {routerProduct && (
-                  <div className="rounded-2xl border-2 border-[#003366]/15 bg-white overflow-hidden">
-                    <div className="bg-[#003366]/5 px-5 py-3 flex items-center justify-between">
+                  <div className="rounded-2xl border-2 border-[#7C3AED]/15 bg-white/[0.04] overflow-hidden">
+                    <div className="bg-[#7C3AED]/5 px-5 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Wifi className="w-4 h-4 text-[#003366]" />
-                        <span className="text-xs font-bold text-[#003366] uppercase tracking-wider">
+                        <Wifi className="w-4 h-4 text-[#7C3AED]" />
+                        <span className="text-xs font-bold text-[#7C3AED] uppercase tracking-wider">
                           {isFr ? "Borne WiFi (Routeur)" : "WiFi Router"}
                         </span>
                       </div>
-                      <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
+                      <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
                     </div>
                     <div className="p-5">
                       <h4 className="font-bold text-slate-900 mb-1">{routerProduct.name}</h4>
-                      <p className="text-xs text-slate-400 mb-4">{routerProduct.description || (isFr ? "1 borne requise par adresse" : "1 router required per address")}</p>
+                      <p className="text-xs text-white/40 mb-4">{routerProduct.description || (isFr ? "1 borne requise par adresse" : "1 router required per address")}</p>
                       <div>
                         <span className="text-2xl font-extrabold text-slate-900">{routerProduct.price.toFixed(0)}</span>
-                        <span className="text-sm text-slate-400 ml-0.5">$</span>
+                        <span className="text-sm text-white/40 ml-0.5">$</span>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-3">{isFr ? "Exactement 1 borne par adresse · Inclus automatiquement" : "Exactly 1 per address · Automatically included"}</p>
+                      <p className="text-[10px] text-white/40 mt-3">{isFr ? "Exactement 1 borne par adresse · Inclus automatiquement" : "Exactly 1 per address · Automatically included"}</p>
                     </div>
                   </div>
                 )}
@@ -564,7 +566,7 @@ const TVConfigurator = () => {
 
         {/* ── STEP 4: Installation ── */}
         <div ref={el => { sectionRefs.current[4] = el; }} className="scroll-mt-20">
-          <div className="bg-white py-10 md:py-14 border-t border-slate-100">
+          <div className="bg-white/[0.04] py-10 md:py-14 border-t border-slate-100">
             <div className="container mx-auto px-4 max-w-[1100px]">
               <SimulatorSectionHeader
                 step={4}
@@ -579,19 +581,19 @@ const TVConfigurator = () => {
                   className={cn(
                     "rounded-2xl border-2 p-6 cursor-pointer transition-all text-center",
                     installMethod === "technician"
-                      ? "border-[#003366] bg-[#003366]/[0.02] shadow-xl shadow-blue-900/8"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg"
+                      ? "border-[#7C3AED] bg-[#7C3AED]/[0.02] shadow-xl shadow-purple-900/8"
+                      : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:shadow-lg"
                   )}
                 >
                   <div className={cn(
                     "w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
-                    installMethod === "technician" ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-400"
+                    installMethod === "technician" ? "bg-[#7C3AED] text-white" : "bg-white/[0.08] text-white/40"
                   )}>
                     <Wrench className="w-7 h-7" />
                   </div>
                   <h4 className="font-bold text-slate-900 mb-1">{isFr ? "Technicien à domicile" : "Home technician"}</h4>
-                  <p className="text-lg font-extrabold text-[#003366] mb-3">{TECHNICIAN_INSTALL_FEE} $</p>
-                  <ul className="text-left space-y-2 text-xs text-slate-500">
+                  <p className="text-lg font-extrabold text-[#7C3AED] mb-3">{TECHNICIAN_INSTALL_FEE} $</p>
+                  <ul className="text-left space-y-2 text-xs text-white/55">
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Installation complète sur place" : "Complete on-site installation"}</li>
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Vérification du câblage" : "Wiring verification"}</li>
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Activation et test de services" : "Service activation & testing"}</li>
@@ -604,22 +606,22 @@ const TVConfigurator = () => {
                   className={cn(
                     "rounded-2xl border-2 p-6 cursor-pointer transition-all text-center",
                     installMethod === "self"
-                      ? "border-[#003366] bg-[#003366]/[0.02] shadow-xl shadow-blue-900/8"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg"
+                      ? "border-[#7C3AED] bg-[#7C3AED]/[0.02] shadow-xl shadow-purple-900/8"
+                      : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:shadow-lg"
                   )}
                 >
                   <div className={cn(
                     "w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
-                    installMethod === "self" ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-400"
+                    installMethod === "self" ? "bg-[#7C3AED] text-white" : "bg-white/[0.08] text-white/40"
                   )}>
                     <Package className="w-7 h-7" />
                   </div>
                   <h4 className="font-bold text-slate-900 mb-1">{isFr ? "Auto-installation" : "Self-install"}</h4>
                   <div className="mb-3">
                     <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">{isFr ? "Gratuit" : "Free"}</Badge>
-                    <span className="text-xs text-slate-400 ml-2">+ {STANDARD_DELIVERY_FEE} $ {isFr ? "livraison" : "shipping"}</span>
+                    <span className="text-xs text-white/40 ml-2">+ {STANDARD_DELIVERY_FEE} $ {isFr ? "livraison" : "shipping"}</span>
                   </div>
-                  <ul className="text-left space-y-2 text-xs text-slate-500">
+                  <ul className="text-left space-y-2 text-xs text-white/55">
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Équipement livré à domicile" : "Equipment shipped home"}</li>
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Guide d'installation inclus" : "Installation guide included"}</li>
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Support technique si besoin" : "Tech support if needed"}</li>
@@ -634,39 +636,39 @@ const TVConfigurator = () => {
       {/* ═══════════════════════════════════════════════════════ */}
       {/* BOTTOM STICKY BAR — Premium pricing action bar */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-8px_30px_-10px_rgba(0,0,0,0.1)]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/[0.04] border-t border-white/10 shadow-[0_-8px_30px_-10px_rgba(0,0,0,0.1)]">
         <div className="container mx-auto px-4 max-w-[1100px]">
           <div className="flex items-center justify-between h-[72px] md:h-20 gap-4">
             {/* Left: selected plan summary */}
             <div className="flex-1 min-w-0 hidden sm:block">
               {selectedPlan ? (
                 <div>
-                  <p className="text-xs text-slate-400 font-medium">{isFr ? "Forfait sélectionné" : "Selected plan"}</p>
+                  <p className="text-xs text-white/40 font-medium">{isFr ? "Forfait sélectionné" : "Selected plan"}</p>
                   <p className="text-sm font-bold text-slate-900 truncate">{selectedPlan.name}</p>
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">{isFr ? "Aucun forfait sélectionné" : "No plan selected"}</p>
+                <p className="text-sm text-white/40">{isFr ? "Aucun forfait sélectionné" : "No plan selected"}</p>
               )}
             </div>
 
             {/* Center: pricing breakdown */}
             <div className="flex items-center gap-4 md:gap-6">
               <div className="text-right">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{isFr ? "Mensuel" : "Monthly"}</p>
-                <p className="text-lg md:text-xl font-extrabold text-[#003366] tabular-nums">{pricing.recurringSubtotal.toFixed(2)} $</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-bold">{isFr ? "Mensuel" : "Monthly"}</p>
+                <p className="text-lg md:text-xl font-extrabold text-[#7C3AED] tabular-nums">{pricing.recurringSubtotal.toFixed(2)} $</p>
               </div>
               {pricing.oneTimeSubtotal > 0 && (
                 <>
                   <div className="w-px h-8 bg-slate-200" />
                   <div className="text-right">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{isFr ? "Unique" : "One-time"}</p>
-                    <p className="text-lg md:text-xl font-extrabold text-slate-700 tabular-nums">{pricing.oneTimeSubtotal.toFixed(2)} $</p>
+                    <p className="text-[10px] text-white/40 uppercase tracking-wider font-bold">{isFr ? "Unique" : "One-time"}</p>
+                    <p className="text-lg md:text-xl font-extrabold text-white/80 tabular-nums">{pricing.oneTimeSubtotal.toFixed(2)} $</p>
                   </div>
                 </>
               )}
               <div className="w-px h-8 bg-slate-200 hidden md:block" />
               <div className="text-right hidden md:block">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{isFr ? "Total est." : "Est. total"}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-bold">{isFr ? "Total est." : "Est. total"}</p>
                 <p className="text-lg font-extrabold text-slate-900 tabular-nums">~{fmt(pricing.grandTotal)}</p>
               </div>
             </div>
@@ -675,7 +677,7 @@ const TVConfigurator = () => {
             <Button
               onClick={handleContinue}
               disabled={!canProceed}
-              className="h-11 md:h-12 px-6 md:px-8 text-sm md:text-base font-bold bg-[#003366] hover:bg-[#002244] rounded-xl shrink-0"
+              className="h-11 md:h-12 px-6 md:px-8 text-sm md:text-base font-bold bg-[#7C3AED] hover:bg-[#002244] rounded-xl shrink-0"
             >
               {isFr ? "Commander" : "Order"}
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -693,12 +695,12 @@ const TVConfigurator = () => {
 function SimulatorSectionHeader({ step, title, subtitle, optional }: { step: number; title: string; subtitle: string; optional?: boolean }) {
   return (
     <div className="text-center mb-8 md:mb-10">
-      <div className="inline-flex items-center gap-2 bg-slate-100 rounded-full px-3 py-1 mb-3">
-        <span className="w-5 h-5 rounded-full bg-[#003366] text-white flex items-center justify-center text-[10px] font-bold">{step}</span>
-        {optional && <Badge variant="outline" className="text-[10px] border-slate-300 text-slate-400">Optionnel</Badge>}
+      <div className="inline-flex items-center gap-2 bg-white/[0.08] rounded-full px-3 py-1 mb-3">
+        <span className="w-5 h-5 rounded-full bg-[#7C3AED] text-white flex items-center justify-center text-[10px] font-bold">{step}</span>
+        {optional && <Badge variant="outline" className="text-[10px] border-slate-300 text-white/40">Optionnel</Badge>}
       </div>
       <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-1">{title}</h2>
-      <p className="text-sm text-slate-400 max-w-lg mx-auto">{subtitle}</p>
+      <p className="text-sm text-white/40 max-w-lg mx-auto">{subtitle}</p>
     </div>
   );
 }
@@ -715,21 +717,21 @@ function StreamingTile({
       className={cn(
         "rounded-xl border-2 p-4 cursor-pointer transition-all text-center",
         selected
-          ? "border-[#003366] bg-[#003366]/[0.02] shadow-md"
-          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+          ? "border-[#7C3AED] bg-[#7C3AED]/[0.02] shadow-md"
+          : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:shadow-sm"
       )}
     >
       <div className={cn(
         "w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-2.5 transition-colors",
-        selected ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-400"
+        selected ? "bg-[#7C3AED] text-white" : "bg-white/[0.08] text-white/40"
       )}>
         <MonitorPlay className="w-5 h-5" />
       </div>
       <p className="font-semibold text-sm text-slate-900 mb-0.5 truncate">{service.name}</p>
-      <p className="text-xs text-slate-400 font-medium">{service.monthly_price.toFixed(2)} $/{isFr ? "mois" : "mo"}</p>
+      <p className="text-xs text-white/40 font-medium">{service.monthly_price.toFixed(2)} $/{isFr ? "mois" : "mo"}</p>
       {selected && (
         <div className="mt-2">
-          <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px]">
+          <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border-0 text-[10px]">
             <Check className="w-3 h-3 mr-0.5" /> {isFr ? "Ajouté" : "Added"}
           </Badge>
         </div>

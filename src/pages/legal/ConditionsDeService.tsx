@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+﻿import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { COMPANY_CONTACT } from "@/config/company";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";
@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 const ConditionsDeService = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }}>
       <Header />
       
       <main className="pt-24 pb-16">
@@ -82,8 +82,8 @@ const ConditionsDeService = () => {
               </ul>
             </section>
 
-            <section className="space-y-4 rounded-2xl p-6" style={{ background: '#EDE9FF', border: '1px solid #DDD6FE' }}>
-              <h2 className="text-2xl font-display font-bold" style={{ color: '#5B21B6' }}>
+            <section className="space-y-4 rounded-2xl p-6" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)' }}>
+              <h2 className="text-2xl font-display font-bold" style={{ color: '#A78BFA' }}>
                 2.3. Garantie satisfait ou remboursé — 30 jours
               </h2>
               <p className="text-foreground">

@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+﻿import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SEO from "@/components/seo/SEO";
 import SchemaMarkup from "@/components/seo/SchemaMarkup";
@@ -76,7 +76,7 @@ const APropos = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }}>
       <SEO
         title="À propos de Nivra Telecom | Fournisseur Internet Québec"
         description="Nivra Telecom est un fournisseur Internet et TV québécois qui offre des services prépayés sans contrat. Notre mission: rendre Internet accessible à tous."
@@ -86,22 +86,22 @@ const APropos = () => {
       <Header />
       
       {/* ── Hero ── */}
-      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 80, position: 'relative', overflow: 'hidden' }}>
-        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
+      <section style={{ paddingTop: 110, paddingBottom: 80, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.25) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
         <div className="max-w-[860px] mx-auto px-5 sm:px-10 text-center relative">
-          <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
+          <div className="n-animate-in inline-flex items-center gap-2 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
             <Shield className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
-            <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>Fournisseur télécom québécois</span>
+            <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Fournisseur télécom québécois</span>
           </div>
-          <h1 className="font-black text-white" style={{ fontSize: 'clamp(32px, 5vw, 54px)', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 16 }}>
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 64px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
             À propos de{' '}
-            <span style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              {COMPANY_CONTACT.companyName}
-            </span>
+            <span className="n-shimmer-text">{COMPANY_CONTACT.companyName}</span>
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto' }}>
-            <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{COMPANY_CONTACT.companyName}</strong> ({COMPANY_CONTACT.legalName}) — Services télécommunications prépayés au Québec. Simplicité, transparence et contrôle sur vos services.
+          <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.85)' }}>{COMPANY_CONTACT.companyName}</strong> ({COMPANY_CONTACT.legalName}) — Services télécommunications prépayés au Québec. Simplicité, transparence et contrôle sur vos services.
           </p>
         </div>
       </section>
@@ -111,7 +111,7 @@ const APropos = () => {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="mb-4">Notre mission</h2>
+              <h2 className="mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, letterSpacing: '-1.5px', color: '#fff' }}>Notre mission</h2>
               <p className="text-muted-foreground mb-6 leading-relaxed">
                 <strong>{COMPANY_CONTACT.companyName}</strong> offre des services de téléphonie mobile prépayée, Internet, télévision et sécurité 
                 au Québec. Notre approche : <strong>simplicité</strong>, <strong>transparence</strong> et 
@@ -152,7 +152,7 @@ const APropos = () => {
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-10">
-            <h2 className="mb-3">Nos services</h2>
+            <h2 className="mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, letterSpacing: '-1.5px', color: '#fff' }}>Nos services</h2>
             <p className="text-muted-foreground">Des solutions télécoms complètes pour le Québec</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
@@ -174,7 +174,7 @@ const APropos = () => {
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="mb-4">Zones desservies</h2>
+              <h2 className="mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, letterSpacing: '-1.5px', color: '#fff' }}>Zones desservies</h2>
               <p className="text-muted-foreground mb-6 leading-relaxed">
                 Nous desservons principalement le <strong>Québec</strong>, avec une couverture optimale dans 
                 la région du Grand Montréal. Livraison express disponible dans certaines zones.
@@ -213,7 +213,7 @@ const APropos = () => {
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-10">
-            <h2 className="mb-3">Pourquoi choisir {COMPANY_CONTACT.companyName}?</h2>
+            <h2 className="mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, letterSpacing: '-1.5px', color: '#fff' }}>Pourquoi choisir {COMPANY_CONTACT.companyName}?</h2>
             <p className="text-muted-foreground">Ce qui nous différencie</p>
           </div>
           <div className="grid md:grid-cols-2 gap-5">
@@ -239,7 +239,7 @@ const APropos = () => {
       <section className="section-padding">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-12">
-            <h2 className="mb-3">Comment ça fonctionne</h2>
+            <h2 className="mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, letterSpacing: '-1.5px', color: '#fff' }}>Comment ça fonctionne</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
               4 étapes simples pour vos services télécoms
             </p>
@@ -292,7 +292,7 @@ const APropos = () => {
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="bg-card border border-border rounded-2xl p-8">
-            <h2 className="text-center mb-8">Nous joindre</h2>
+            <h2 className="text-center mb-8" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, letterSpacing: '-1.5px', color: '#fff' }}>Nous joindre</h2>
             <div className="grid md:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">

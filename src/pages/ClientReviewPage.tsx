@@ -78,8 +78,10 @@ function StarPicker({
 
 function ShellCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen w-full bg-background text-foreground">
-      <div className="max-w-2xl mx-auto px-4 py-10 md:py-16">
+    <div style={{ background: '#020209' }} className="relative min-h-screen w-full text-foreground overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div className="relative max-w-2xl mx-auto px-4 py-10 md:py-16">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-primary text-primary-foreground">
             N

@@ -1,11 +1,13 @@
-import Header from "@/components/Header";
+﻿import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { COMPANY_CONTACT } from "@/config/company";
 
 const TermsOfUse = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <SEOHead {...SEO_DATA.terms} />
       <Header />
       

@@ -30,39 +30,33 @@ const Contest = () => {
       />
       
       <Header />
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 pt-16">
+      <div style={{ background: '#020209' }} className="min-h-screen pt-16">
         {/* Hero Section */}
-        <section className="relative py-16 md:py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5" />
-          <div className="container relative">
-            <div className="max-w-4xl mx-auto text-center space-y-6">
-              <Badge variant="secondary" className="text-lg px-4 py-2">
-                <Gift className="w-5 h-5 mr-2 inline" />
-                Concours exclusif
-              </Badge>
-              
-              <h1 className="text-4xl md:text-6xl font-display font-bold tracking-tight">
-                Gagnez <span className="text-primary">500$ cash</span>
-              </h1>
-              
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Devenez client Nivra et participez automatiquement à notre grand tirage!
-              </p>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                <Button size="lg" asChild>
-                  <Link to="/internet">
-                    <Trophy className="w-5 h-5 mr-2" />
-                    Voir nos forfaits
-                  </Link>
-                </Button>
-                <Button variant="outline" size="lg" asChild>
-                  <Link to="/contact">
-                    <Phone className="w-5 h-5 mr-2" />
-                    Nous contacter
-                  </Link>
-                </Button>
-              </div>
+        <section className="relative overflow-hidden" style={{ paddingTop: 80, paddingBottom: 64, textAlign: 'center' }}>
+          <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.25) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+          <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+          <div className="container relative max-w-4xl mx-auto px-4">
+            <div className="n-animate-in inline-flex items-center gap-2 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+              <Trophy className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
+              <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Concours exclusif</span>
+            </div>
+            <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 64px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+              Gagnez <span className="n-shimmer-text">500$ cash</span>
+            </h1>
+            <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto 32px' }}>
+              Devenez client Nivra et participez automatiquement à notre grand tirage!
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to="/internet" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', color: '#fff', borderRadius: 12, padding: '12px 28px', fontWeight: 700, fontSize: 15, textDecoration: 'none', transition: 'opacity 0.2s' }}>
+                <Trophy className="w-5 h-5" />
+                Voir nos forfaits
+              </Link>
+              <Link to="/contact" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 12, padding: '12px 28px', fontWeight: 600, fontSize: 15, textDecoration: 'none', transition: 'all 0.2s' }}>
+                <Phone className="w-5 h-5" />
+                Nous contacter
+              </Link>
             </div>
           </div>
         </section>

@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
-import { Wifi, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Loader2 } from "lucide-react";
+import { Wifi, Check, MapPin, Shield, ArrowRight, AlertTriangle, Router, Loader2 } from "lucide-react";
 import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import Header from "@/components/Header";
@@ -16,45 +13,46 @@ import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { ItemListSchema } from "@/components/seo";
 import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
-import PremiumPlanCard from "@/components/shared/PremiumPlanCard";
 
+const BG = '#020209';
+const PURPLE = '#7C3AED';
+const CYAN = '#06B6D4';
 
 const InternetPlans = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const isFrench = language === 'fr';
-  
+
   const [address, setAddress] = useState("");
   const [addressDetails, setAddressDetails] = useState<AddressValue | null>(null);
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
 
   const planViewTracked = useRef(false);
-  useEffect(() => { if (planViewTracked.current) return; planViewTracked.current = true; trackLiveActivity("plan_view", "Consultation: Forfaits Internet", { metadata: { category: "internet" } }); }, []);
+  useEffect(() => {
+    if (planViewTracked.current) return;
+    planViewTracked.current = true;
+    trackLiveActivity("plan_view", "Consultation: Forfaits Internet", { metadata: { category: "internet" } });
+  }, []);
 
-  // Fetch plans from database
   const { plans: rawPlans, isLoading: isLoadingPlans } = useInternetPlans(isFrench);
   const { plans } = useAutoTranslatePlans(rawPlans);
   const { routerPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
-  
   const isLoading = isLoadingPlans || isLoadingEquipment;
 
   const handleAddressSelect = (details: AddressValue) => {
     setAddressDetails(details);
     setAddress(details.line1);
-    
-    // Check if it's a Quebec address
     const postalCode = details.postalCode || "";
     const region = details.region || "";
     const isQuebec = /^[GHJ]/i.test(postalCode) || region.toUpperCase().includes("QC") || region.toUpperCase().includes("QUEBEC");
-    
     if (isQuebec) {
       setAddressValidated(true);
       setAddressError("");
     } else {
       setAddressValidated(false);
       setAddressError(
-        isFrench 
+        isFrench
           ? "Service disponible uniquement au Québec. Veuillez entrer une adresse québécoise valide."
           : "Service available only in Quebec. Please enter a valid Quebec address."
       );
@@ -67,7 +65,7 @@ const InternetPlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background" data-testid="internet-plans-page">
+    <div style={{ background: BG, minHeight: '100vh' }} data-testid="internet-plans-page">
       <SEOHead {...SEO_DATA.internet} />
       <ItemListSchema
         listName="Forfaits Internet Nivra Telecom"
@@ -80,296 +78,381 @@ const InternetPlans = () => {
         ]}
       />
       <Header />
-      <main className="pt-24 pb-20 relative">
-        {/* Background Effects */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.06) 0%, transparent 65%)' }} />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.04) 0%, transparent 65%)' }} />
-        </div>
 
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 mb-16 relative">
-          <div className="text-center max-w-4xl mx-auto">
-            <Badge className="mb-6 px-4 py-1.5" style={{ background: 'rgba(124,58,237,0.15)', color: '#C4B5FD', border: '1px solid rgba(124,58,237,0.35)' }}>
-              <Wifi className="w-3.5 h-3.5 mr-1.5" />
-              {isFrench ? "Internet haute vitesse" : "High-Speed Internet"}
-            </Badge>
-            
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-              <span className="block">
-                {isFrench ? "Internet résidentiel" : "Residential Internet"}
-              </span>
-              <span className="block" style={{ background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {isFrench ? "au Québec" : "in Quebec"}
-              </span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-              {isFrench 
-                ? "Connexion fiable et rapide. Borne Nivra WiFi requise — 60$ (achat unique). Aucune vérification de crédit requise."
-                : "Fast and reliable connection. Nivra WiFi modem required — $60 (one-time purchase). No credit check required."}
-            </p>
-          </div>
-        </section>
+      {/* ── Hero ── */}
+      <section style={{ paddingTop: 110, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
+        {/* Aurora blobs */}
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.28) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.14) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        {/* Grid */}
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        {/* Scan line */}
+        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
 
-        {/* Address Validation Section */}
-        <section className="container mx-auto px-4 mb-16 relative">
-          <Card className="max-w-2xl mx-auto bg-card/80 backdrop-blur-sm border-border">
-            <CardHeader className="text-center">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.15)' }}>
-                <MapPin className="w-8 h-8" style={{ color: '#A78BFA' }} />
-              </div>
-              <CardTitle className="text-xl md:text-2xl">
-                {isFrench ? "Vérifiez la disponibilité" : "Check Availability"}
-              </CardTitle>
-              <p className="text-muted-foreground">
-                {isFrench 
-                  ? "Entrez votre adresse pour voir si le service est disponible chez vous"
-                  : "Enter your address to see if service is available at your location"}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <AddressAutocomplete
-                  value={address}
-                  onValueChange={(value) => {
-                    setAddress(value);
-                    if (!value) {
-                      setAddressValidated(false);
-                      setAddressDetails(null);
-                      setAddressError("");
-                    }
-                  }}
-                  onSelect={handleAddressSelect}
-                  placeholder={isFrench ? "123 rue Exemple, Montréal, QC H1A 1A1" : "123 Example St, Montreal, QC H1A 1A1"}
-                  restrictToQuebec={true}
-                />
-              </div>
-              
-              {addressError && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{addressError}</AlertDescription>
-                </Alert>
-              )}
-              
-              {addressValidated && addressDetails && (
-                <Alert style={{ borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)" }}>
-                  <Check className="h-4 w-4" style={{ color: "#10B981" }} />
-                  <AlertDescription style={{ color: "#10B981" }}>
-                    {isFrench
-                      ? "Excellente nouvelle! Le service Internet est disponible à cette adresse."
-                      : "Great news! Internet service is available at this address."}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Loading State */}
-        {isLoading && (
-          <section className="container mx-auto px-4 mb-16 relative">
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <span className="ml-3 text-muted-foreground">
-                {isFrench ? "Chargement des forfaits..." : "Loading plans..."}
-              </span>
-            </div>
-          </section>
-        )}
-
-        {/* Plans Grid */}
-        {!isLoading && (
-        <section className="container mx-auto px-4 mb-16 relative">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-              {isFrench ? "Nos forfaits Internet" : "Our Internet Plans"}
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              {isFrench 
-                ? "Choisissez le forfait qui correspond à vos besoins"
-                : "Choose the plan that fits your needs"}
-            </p>
+        <div className="max-w-[1100px] mx-auto px-5 sm:px-10 text-center relative">
+          {/* Badge */}
+          <div className="n-animate-in inline-flex items-center gap-2.5 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+            <Wifi className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
+            <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+              {isFrench ? 'Internet haute vitesse · Fibre XGS-PON' : 'High-speed Internet · XGS-PON Fibre'}
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-            {plans.map((plan) => (
-              <PremiumPlanCard
-                key={plan.id}
-                name={plan.speed}
-                subtitle={isFrench ? "Internet haute vitesse" : "High-speed Internet"}
-                price={plan.price}
-                priceUnit={isFrench ? "/mois" : "/month"}
-                features={plan.features}
-                featured={plan.featured}
-                badge={plan.badge}
-                description={plan.description}
-                equipmentType="internet"
-                ctaLabel={isFrench ? "Commencer" : "Get Started"}
-                disabled={!addressValidated}
-                onClick={() => handleGetStarted(plan.id)}
-              />
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(42px, 6vw, 72px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+            {isFrench ? (
+              <><span>Internet résidentiel </span><span className="n-shimmer-text">Québec</span></>
+            ) : (
+              <><span>Residential Internet </span><span className="n-shimmer-text">Quebec</span></>
+            )}
+          </h1>
+
+          <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 48px' }}>
+            {isFrench
+              ? 'Connexion fibre haute performance. Borne Nivra WiFi requise — 60$ (achat unique). Aucune vérification de crédit.'
+              : 'High-performance fibre connection. Nivra WiFi modem required — $60 (one-time). No credit check required.'}
+          </p>
+
+          <div className="n-animate-in-delay-3 flex flex-wrap justify-center gap-4">
+            {[
+              { val: isFrench ? 'Dès 45$/mois' : 'From $45/mo', sub: isFrench ? 'taxes incluses' : 'taxes included', color: '#A78BFA' },
+              { val: isFrench ? 'Sans contrat' : 'No contract', sub: isFrench ? 'résiliez à tout moment' : 'cancel anytime', color: CYAN },
+              { val: isFrench ? 'Fibre XGS-PON' : 'XGS-PON Fibre', sub: isFrench ? 'technologie avancée' : 'advanced technology', color: '#10B981' },
+              { val: isFrench ? 'CGNAT-Free' : 'CGNAT-Free', sub: 'IPv6 · WPA3', color: '#F59E0B' },
+            ].map((s) => (
+              <div key={s.val} className="text-center px-5 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, backdropFilter: 'blur(12px)' }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '-0.5px', color: s.color }}>{s.val}</div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>{s.sub}</div>
+              </div>
             ))}
           </div>
-          
-          {!addressValidated && (
-            <p className="text-center text-muted-foreground mt-6">
-              {isFrench 
-                ? "Vérifiez d'abord la disponibilité à votre adresse pour continuer"
-                : "First verify availability at your address to continue"}
+        </div>
+      </section>
+
+      <main style={{ paddingBottom: 80 }}>
+        <div className="max-w-[1100px] mx-auto px-5 sm:px-10">
+
+          {/* ── Address validation ── */}
+          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 20, padding: '32px 36px', marginBottom: 52, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto', backdropFilter: 'blur(16px)' }}>
+            <div className="flex flex-col items-center mb-5">
+              <div className="flex items-center justify-center mb-4" style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                <MapPin className="w-7 h-7" style={{ color: '#A78BFA' }} />
+              </div>
+              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 20, color: '#fff', marginBottom: 6, textAlign: 'center' }}>
+                {isFrench ? 'Vérifiez la disponibilité' : 'Check Availability'}
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, textAlign: 'center', maxWidth: 380 }}>
+                {isFrench
+                  ? 'Entrez votre adresse pour confirmer la disponibilité du service'
+                  : 'Enter your address to confirm service availability'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <AddressAutocomplete
+                value={address}
+                onValueChange={(value) => {
+                  setAddress(value);
+                  if (!value) { setAddressValidated(false); setAddressDetails(null); setAddressError(""); }
+                }}
+                onSelect={handleAddressSelect}
+                placeholder={isFrench ? '123 rue Exemple, Montréal, QC H1A 1A1' : '123 Example St, Montreal, QC H1A 1A1'}
+                restrictToQuebec={true}
+              />
+            </div>
+
+            {addressError && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{addressError}</AlertDescription>
+              </Alert>
+            )}
+
+            {addressValidated && addressDetails && (
+              <div className="mt-3 flex items-center gap-2 justify-center" style={{ color: '#34D399', fontSize: 13 }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Check className="w-3 h-3" strokeWidth={3} />
+                </div>
+                {isFrench ? 'Service disponible à cette adresse' : 'Service available at this address'}
+              </div>
+            )}
+          </div>
+
+          {/* ── Plans section heading ── */}
+          <div className="text-center mb-10">
+            <p className="n-label" style={{ marginBottom: 12 }}>
+              {isFrench ? 'Nos forfaits' : 'Our plans'}
+            </p>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-1.5px', color: '#fff', marginBottom: 8 }}>
+              {isFrench ? 'Internet haute vitesse' : 'High-Speed Internet'}
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 16 }}>
+              {isFrench ? 'Choisissez le forfait adapté à vos besoins' : 'Choose the plan that fits your needs'}
+            </p>
+          </div>
+
+          {/* Loading */}
+          {isLoading && (
+            <div className="flex justify-center items-center py-16 gap-3">
+              <Loader2 className="w-7 h-7 animate-spin" style={{ color: PURPLE }} />
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>
+                {isFrench ? 'Chargement des forfaits...' : 'Loading plans...'}
+              </span>
+            </div>
+          )}
+
+          {/* ── Plan cards ── */}
+          {!isLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="relative overflow-hidden"
+                  style={{
+                    background: plan.featured
+                      ? 'linear-gradient(160deg, rgba(124,58,237,0.2) 0%, rgba(124,58,237,0.06) 100%)'
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                    border: plan.featured ? '1px solid rgba(124,58,237,0.55)' : '1px solid rgba(255,255,255,0.09)',
+                    borderRadius: 24,
+                    backdropFilter: 'blur(24px)',
+                    boxShadow: plan.featured
+                      ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    transition: 'transform .25s, box-shadow .25s, border-color .25s',
+                    cursor: addressValidated ? 'pointer' : 'default',
+                    opacity: addressValidated ? 1 : 0.6,
+                  }}
+                  onMouseEnter={e => {
+                    if (!addressValidated) return;
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                    if (!plan.featured) {
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.4)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 30px 80px rgba(124,58,237,0.2), inset 0 1px 0 rgba(255,255,255,0.08)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                    (e.currentTarget as HTMLElement).style.borderColor = plan.featured ? 'rgba(124,58,237,0.55)' : 'rgba(255,255,255,0.09)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = plan.featured
+                      ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)';
+                  }}
+                  onClick={() => addressValidated && handleGetStarted(plan.id)}
+                >
+                  {plan.featured && plan.badge && (
+                    <div style={{ position: 'relative', overflow: 'hidden' }}>
+                      <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{ background: 'linear-gradient(90deg, #7C3AED, #6D28D9)', color: '#FFFFFF', padding: '10px 0', fontSize: 10, letterSpacing: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+                        {plan.badge}
+                      </div>
+                      <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', animation: 'n-beam-h 3s ease-in-out infinite' }} />
+                    </div>
+                  )}
+
+                  <div style={{ padding: '28px 28px 32px' }}>
+                    <p className="n-label" style={{ marginBottom: 8 }}>
+                      {isFrench ? 'Forfait Internet' : 'Internet Plan'}
+                    </p>
+                    <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', marginBottom: 24, color: '#fff' }}>
+                      {plan.speed}
+                    </h3>
+
+                    <div className="flex items-baseline gap-1" style={{ marginBottom: 4 }}>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 56, letterSpacing: '-2.5px', lineHeight: 1, color: '#FFFFFF' }}>
+                        ${plan.price}
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>
+                        /{isFrench ? 'mois' : 'mo'}
+                      </span>
+                    </div>
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 24, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>
+                      {isFrench ? 'TAXES INCLUSES · PRIX FIXE' : 'TAX INCLUDED · FIXED PRICE'}
+                    </p>
+
+                    <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(124,58,237,0.3), rgba(6,182,212,0.2), transparent)', marginBottom: 22 }} />
+
+                    {plan.description && (
+                      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 1.55, marginBottom: 16 }}>
+                        {plan.description}
+                      </p>
+                    )}
+
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 11 }}>
+                      {plan.features.slice(0, 5).map((f, i) => (
+                        <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.78)' }}>
+                          <div className="shrink-0 flex items-center justify-center" style={{ width: 18, height: 18, borderRadius: 999, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.45)', marginTop: 1 }}>
+                            <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: '#A78BFA' }} />
+                          </div>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <EquipmentRequiredBox type="internet" />
+
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addressValidated && handleGetStarted(plan.id); }}
+                      disabled={!addressValidated}
+                      className="w-full flex items-center justify-center gap-2 font-bold"
+                      style={{
+                        height: 52, borderRadius: 12, border: 'none', cursor: addressValidated ? 'pointer' : 'not-allowed',
+                        fontSize: 14, fontFamily: "'Space Grotesk', sans-serif",
+                        background: plan.featured ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)',
+                        color: '#FFFFFF',
+                        boxShadow: plan.featured ? '0 8px 32px rgba(124,58,237,0.5)' : 'none',
+                        transition: 'box-shadow .2s, background .2s, transform .15s',
+                        marginTop: 4,
+                      }}
+                      onMouseEnter={e => {
+                        if (!addressValidated) return;
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.background = plan.featured ? 'linear-gradient(135deg, #6D28D9 0%, #5B21B6 100%)' : 'rgba(255,255,255,0.14)';
+                        el.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={e => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.background = plan.featured ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)';
+                        el.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      {isFrench ? 'Choisir ce forfait' : 'Choose this plan'}
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!addressValidated && !isLoading && (
+            <p className="text-center" style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, marginTop: -40, marginBottom: 48, fontFamily: "'JetBrains Mono', monospace" }}>
+              {isFrench ? '↑ Vérifiez d\'abord la disponibilité à votre adresse' : '↑ First verify availability at your address'}
             </p>
           )}
-        </section>
-        )}
 
-        {/* Equipment Section */}
-        <section className="container mx-auto px-4 mb-16 relative">
-          <Card className="max-w-4xl mx-auto bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-lg border-border/50">
-            <CardContent className="p-8 md:p-12">
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(124,58,237,0.15)' }}>
-                  <Router className="w-12 h-12" style={{ color: '#A78BFA' }} />
-                </div>
-                <div className="flex-1 text-center md:text-left">
-                   <h3 className="text-2xl font-bold text-foreground mb-2">
-                     Borne Nivra WiFi
-                   </h3>
-                   <p className="text-muted-foreground mb-4">
-                     {isFrench 
-                       ? `Borne WiFi haute performance obligatoire pour tous les forfaits Internet. Achat unique de ${routerPrice}$ payable avant l'installation. Vous en êtes propriétaire.`
-                       : `High-performance WiFi modem mandatory for all Internet plans. One-time $${routerPrice} purchase payable before installation. You own it.`}
-                  </p>
-                  <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                    <Badge variant="outline" style={{ color: "#10B981", borderColor: "rgba(16,185,129,0.3)" }}>
-                      <Shield className="w-3 h-3 mr-1" />
-                      {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
-                    </Badge>
-                    <Badge variant="outline" className="border-purple-500/30" style={{ color: '#A78BFA' }}>
-                      <Star className="w-3 h-3 mr-1" />
-                      {isFrench ? "Défauts fabricant couverts" : "Manufacturer Defects Covered"}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-foreground">${routerPrice}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {isFrench ? "Frais uniques" : "One-time fee"}
-                  </div>
+          {/* ── Equipment ── */}
+          <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(255,255,255,0.04) 100%)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 20, padding: '36px 40px', marginBottom: 48, backdropFilter: 'blur(16px)' }}>
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="flex items-center justify-center flex-shrink-0" style={{ width: 80, height: 80, borderRadius: 20, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                <Router className="w-10 h-10" style={{ color: '#A78BFA' }} />
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <p className="n-label" style={{ marginBottom: 6 }}>
+                  {isFrench ? 'Équipement requis' : 'Required equipment'}
+                </p>
+                <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 22, color: '#fff', marginBottom: 8 }}>
+                  Borne Nivra WiFi
+                </h3>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
+                  {isFrench
+                    ? `Borne WiFi haute performance obligatoire pour tous les forfaits Internet. Achat unique de ${routerPrice}$ payable avant l'installation. Vous en êtes propriétaire.`
+                    : `High-performance WiFi modem mandatory for all Internet plans. One-time $${routerPrice} purchase payable before installation. You own it.`}
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                  {[
+                    { label: isFrench ? 'Garantie 1 an' : '1-Year Warranty', color: '#10B981' },
+                    { label: isFrench ? 'Défauts fabricant couverts' : 'Manufacturer Defects Covered', color: '#A78BFA' },
+                  ].map((tag) => (
+                    <span key={tag.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.06)', border: `1px solid ${tag.color}30`, borderRadius: 999, padding: '4px 12px', fontSize: 12, color: tag.color, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
+                      <Shield className="w-3 h-3" />
+                      {tag.label}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </section>
+              <div className="text-center flex-shrink-0">
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 44, letterSpacing: '-2px', color: '#fff' }}>${routerPrice}</div>
+                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>
+                  {isFrench ? 'FRAIS UNIQUES' : 'ONE-TIME FEE'}
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* Business Rules */}
-        <section className="container mx-auto px-4 mb-16 relative">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-4">
-                {isFrench ? "Ce qui nous différencie" : "What Sets Us Apart"}
+          {/* ── What sets us apart ── */}
+          <div className="mb-16">
+            <div className="text-center mb-10">
+              <p className="n-label" style={{ marginBottom: 12 }}>
+                {isFrench ? 'Notre avantage' : 'Our advantage'}
+              </p>
+              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(24px, 3vw, 36px)', letterSpacing: '-1px', color: '#fff' }}>
+                {isFrench ? 'Ce qui nous différencie' : 'What Sets Us Apart'}
               </h2>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(124,58,237,0.15)" }}>
-                    <Check className="w-6 h-6" style={{ color: "#A78BFA" }} />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {[
+                {
+                  icon: <Check className="w-6 h-6" strokeWidth={2.5} style={{ color: '#10B981' }} />,
+                  iconBg: 'rgba(16,185,129,0.12)',
+                  iconBorder: 'rgba(16,185,129,0.3)',
+                  title: isFrench ? 'Aucune vérification de crédit' : 'No Credit Check',
+                  desc: isFrench ? 'Nous ne vérifions jamais votre crédit. Accès universel.' : 'We never check your credit. Universal access.',
+                },
+                {
+                  icon: <Shield className="w-6 h-6" strokeWidth={2} style={{ color: '#A78BFA' }} />,
+                  iconBg: 'rgba(124,58,237,0.12)',
+                  iconBorder: 'rgba(124,58,237,0.3)',
+                  title: isFrench ? '100% Indépendant' : '100% Independent',
+                  desc: isFrench ? 'Aucune affiliation avec les grands fournisseurs.' : 'No affiliation with major carriers.',
+                },
+                {
+                  icon: <MapPin className="w-6 h-6" strokeWidth={2} style={{ color: '#F59E0B' }} />,
+                  iconBg: 'rgba(245,158,11,0.12)',
+                  iconBorder: 'rgba(245,158,11,0.3)',
+                  title: isFrench ? 'Pièce d\'identité requise' : 'ID Required',
+                  desc: isFrench ? 'Vérification d\'identité gouvernementale pour sécuriser votre compte.' : 'Government ID verification to secure your account.',
+                },
+              ].map((item) => (
+                <div key={item.title} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '28px 24px', backdropFilter: 'blur(12px)', textAlign: 'center' }}>
+                  <div className="flex items-center justify-center mx-auto mb-4" style={{ width: 52, height: 52, borderRadius: 14, background: item.iconBg, border: `1px solid ${item.iconBorder}` }}>
+                    {item.icon}
                   </div>
-                  <h3 className="font-semibold text-foreground mb-2">
-                    {isFrench ? "Aucune vérification de crédit" : "No Credit Check"}
+                  <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 16, color: '#fff', marginBottom: 8 }}>
+                    {item.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {isFrench 
-                      ? "Nous ne vérifions jamais votre crédit"
-                      : "We never check your credit"}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.15)' }}>
-                    <Shield className="w-6 h-6" style={{ color: '#A78BFA' }} />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-2">
-                    {isFrench ? "100% Indépendant" : "100% Independent"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {isFrench 
-                      ? "Aucune affiliation avec les fournisseurs"
-                      : "No carrier affiliations"}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
-                    <MapPin className="w-6 h-6 text-amber-500" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-2">
-                    {isFrench ? "Pièce d'identité requise" : "ID Required"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {isFrench 
-                      ? "Vérification d'identité gouvernementale"
-                      : "Government ID verification required"}
-                  </p>
-                </CardContent>
-              </Card>
+                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, lineHeight: 1.6 }}>{item.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </section>
 
-        {/* Info Box */}
-        <section className="container mx-auto px-4 mb-16 relative">
-          <div className="max-w-4xl mx-auto">
+          {/* ── Info Box ── */}
+          <div className="mb-12">
             <InternetInfoBox isFrench={isFrench} />
           </div>
-        </section>
 
-        {/* Terms & Conditions */}
-        <section className="container mx-auto px-4 mb-16 relative">
-          <div className="max-w-4xl mx-auto">
-            <Card className="bg-card/50 border-border">
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  {isFrench ? "Termes et conditions : Contrats de service Nivra Communications" : "Terms and conditions: Nivra Communications Service Contracts"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm text-muted-foreground">
-                {isFrench ? (
-                  <>
-                    <p>• Les contrats doivent être affichés en français en premier pour la conformité au Québec.</p>
-                    <p>• Aucun partenariat ni commission avec les fournisseurs de télécommunications.</p>
-                    <p>• Aucune vérification de crédit requise.</p>
-                    <p>• Une pièce d'identité gouvernementale est requise pour valider toute commande.</p>
-                  </>
-                ) : (
-                  <>
-                    <p>• Contracts must be shown in French first for Quebec compliance.</p>
-                    <p>• No carrier partnerships or commissions.</p>
-                    <p>• No credit check required.</p>
-                    <p>• Government ID required to validate any order.</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+          {/* ── Terms ── */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '28px 32px', marginBottom: 24, backdropFilter: 'blur(8px)' }}>
+            <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 14 }}>
+              {isFrench ? 'Termes et conditions — Nivra Communications' : 'Terms and conditions — Nivra Communications'}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(isFrench ? [
+                'Les contrats doivent être affichés en français en premier pour la conformité au Québec.',
+                'Aucun partenariat ni commission avec les fournisseurs de télécommunications.',
+                'Aucune vérification de crédit requise.',
+                'Une pièce d\'identité gouvernementale est requise pour valider toute commande.',
+              ] : [
+                'Contracts must be shown in French first for Quebec compliance.',
+                'No carrier partnerships or commissions.',
+                'No credit check required.',
+                'Government ID required to validate any order.',
+              ]).map((t, i) => (
+                <div key={i} className="flex items-start gap-2" style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+                  <span style={{ color: '#7C3AED', marginTop: 1 }}>•</span>
+                  <span>{t}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </section>
 
-        {/* Delivery Notice */}
-        <section className="container mx-auto px-4 mb-8 relative">
-          <div className="max-w-4xl mx-auto text-center">
-            <p className="text-sm text-muted-foreground italic">
-              {isFrench 
-                ? "Livraison : L'équipement Nivra est normalement livré dans les 48 heures ouvrables en zone urbaine et 72 heures ouvrables en zone rurale après la commande. Des délais peuvent survenir pendant les jours fériés."
-                : "Delivery: Nivra equipment is normally delivered within 48 working hours in urban areas and 72 working hours in rural areas after the order. Delays may occur during holidays."}
-            </p>
-          </div>
-        </section>
+          {/* ── Delivery notice ── */}
+          <p style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic', marginBottom: 24, fontFamily: "'JetBrains Mono', monospace" }}>
+            {isFrench
+              ? "Livraison : L'équipement Nivra est normalement livré dans les 48h ouvrables en zone urbaine et 72h en zone rurale. Des délais peuvent survenir lors des jours fériés."
+              : "Delivery: Nivra equipment is normally delivered within 48 working hours in urban areas and 72 hours in rural areas. Delays may occur during holidays."}
+          </p>
+        </div>
       </main>
 
       <Footer />

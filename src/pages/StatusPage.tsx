@@ -151,34 +151,40 @@ const StatusPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
+    <div style={{ background: '#020209', minHeight: '100vh', display: 'flex', flexDirection: 'column' }} className="relative overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />
-      
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl">
+
+      <main className="relative flex-1 container mx-auto px-4 max-w-6xl" style={{ paddingTop: 100, paddingBottom: 64 }}>
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Activity className="w-8 h-8 text-primary" />
+            <div style={{ padding: 12, borderRadius: 14, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)' }}>
+              <Activity className="w-7 h-7" style={{ color: '#A78BFA' }} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(22px, 3vw, 32px)', letterSpacing: '-1px', color: '#fff' }}>
                 {isFr ? "État des systèmes" : "System Status"}
               </h1>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>
                 {isFr ? "Surveillance et état des services Nivra" : "Nivra services monitoring and status"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground hidden md:inline-flex items-center gap-1">
+            <span className="hidden md:inline-flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
               <Clock className="w-3 h-3" />
               {isFr ? "Dernière vérification:" : "Last check:"} {format(lastRefresh, "HH:mm")}
             </span>
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+            <button
+              onClick={handleRefresh}
+              className="flex items-center gap-2 font-semibold"
+              style={{ height: 38, paddingLeft: 16, paddingRight: 16, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', fontSize: 13, cursor: 'pointer', transition: 'background .2s' }}
+            >
               <RefreshCw className="w-4 h-4" />
               {isFr ? "Actualiser" : "Refresh"}
-            </Button>
+            </button>
           </div>
         </div>
 

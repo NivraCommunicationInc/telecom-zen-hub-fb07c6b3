@@ -297,7 +297,7 @@ function LiveProductCards({ mouseX, mouseY }: { mouseX: number; mouseY: number }
             </span>
           </div>
           <p className="mt-1 text-[11px] leading-snug text-[#6B7280] dark:text-[#94A3B8]">
-            vs forfait équivalent chez Bell ou Vidéotron
+            vs forfait équivalent chez un grand fournisseur
           </p>
         </div>
       </FloatingCard>
@@ -437,7 +437,7 @@ export default function MagicHeroPreview() {
             >
               Internet fibre 1 010 Mbps, télévision IPTV et mobile —
               chez vous en 2 jours, sans engagement, sans vérification de
-              crédit. L'alternative québécoise à Bell et Vidéotron.
+              crédit. La vraie alternative sans contrat au Québec.
             </motion.p>
 
             {/* CTAs */}

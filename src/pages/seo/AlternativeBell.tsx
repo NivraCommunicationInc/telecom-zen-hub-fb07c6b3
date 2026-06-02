@@ -12,16 +12,16 @@ import SchemaMarkup from "@/components/seo/SchemaMarkup";
 
 const FAQS = [
   {
-    q: "Combien puis-je économiser en quittant Bell ou Vidéotron?",
+    q: "Combien puis-je économiser en changeant de fournisseur?",
     a: "La plupart de nos clients économisent entre 25$ et 55$ par mois, soit 300$ à 660$ par année.",
   },
   {
-    q: "Comment annuler mon contrat Bell ou Vidéotron?",
-    a: "Vous devez les contacter directement. Des frais de résiliation peuvent s'appliquer si vous êtes encore sous contrat. Nous pouvons vous aider à planifier la transition.",
+    q: "Comment annuler mon contrat actuel?",
+    a: "Vous devez contacter votre fournisseur actuel directement. Des frais de résiliation peuvent s'appliquer si vous êtes encore sous contrat. Nous pouvons vous aider à planifier la transition.",
   },
   {
-    q: "La vitesse Internet est-elle comparable à Bell ou Vidéotron?",
-    a: "Oui. Notre forfait GIGA offre 1 010 Mbps réels, équivalent ou supérieur aux forfaits standards de Bell et Vidéotron.",
+    q: "La vitesse Internet Nivra est-elle comparable aux grands fournisseurs?",
+    a: "Oui. Notre forfait GIGA offre 1 010 Mbps réels, équivalent ou supérieur aux forfaits standards des grands fournisseurs.",
   },
   {
     q: "Y a-t-il des frais cachés?",
@@ -45,33 +45,37 @@ export default function AlternativeBell() {
   const yearly = savings * 12;
 
   return (
-    <div className="min-h-screen">
+    <div style={{ background: '#020209' }} className="min-h-screen">
       <SEO
-        title="Meilleure Alternative à Bell et Vidéotron au Québec | Nivra Telecom"
-        description="Fatigué des contrats Bell et Vidéotron? Nivra Telecom offre Internet GIGA à 60$/mois sans contrat au Québec. Économisez jusqu'à 600$/an."
+        title="La vraie alternative sans contrat au Québec | Nivra Telecom"
+        description="Fatigué des contrats sans fin? Nivra Telecom offre Internet GIGA à 60$/mois sans contrat au Québec. Économisez jusqu'à 600$/an."
         canonical="https://nivra-telecom.ca/alternative-bell-videotron-quebec"
         keywords={[
-          "alternative bell",
-          "alternative vidéotron",
-          "remplacer bell québec",
-          "internet moins cher que bell",
+          "alternative fournisseur internet québec",
+          "internet sans contrat québec",
+          "changer fournisseur internet québec",
+          "internet moins cher québec",
           "fournisseur internet québec sans contrat",
         ]}
       />
       <SchemaMarkup includeBrand includeProducts extra={[FAQ_SCHEMA]} />
       <Header />
       <main id="main-content" tabIndex={-1}>
-        <section className="bg-gradient-to-br from-primary/10 via-background to-background py-20 px-4">
-          <div className="max-w-5xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Libérez-vous de <span className="text-primary">Bell et Vidéotron</span>
+        <section className="relative overflow-hidden" style={{ paddingTop: 96, paddingBottom: 64, textAlign: 'center' }}>
+          <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.22) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.10) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+          <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+          <div className="max-w-5xl mx-auto px-4 relative">
+            <h1 className="n-animate-in" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(30px, 5vw, 56px)', letterSpacing: '-2px', lineHeight: 1.05, marginBottom: 16, color: '#fff' }}>
+              <span className="n-shimmer-text">La vraie alternative</span> sans contrat au Québec
             </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="n-animate-in-delay-1" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto 28px' }}>
               Internet GIGA à 60$/mois. Sans contrat. Sans vérification de crédit. Économisez jusqu'à 600$/an.
             </p>
-            <Button asChild size="lg" className="text-lg">
-              <Link to="/couverture">Calculer mes économies</Link>
-            </Button>
+            <Link to="/couverture" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', color: '#fff', borderRadius: 12, padding: '12px 28px', fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>
+              Calculer mes économies
+            </Link>
           </div>
         </section>
 
@@ -126,7 +130,7 @@ export default function AlternativeBell() {
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
               {[
-                ["Aucun contrat de 24 mois", "Bell et Vidéotron exigent 24 mois — Nivra: 0 mois."],
+                ["Aucun contrat de 24 mois", "Les grands fournisseurs exigent 24 mois — Nivra: 0 mois."],
                 ["Aucune vérification de crédit", "Pas de crédit requis, tout le monde accepté."],
                 ["Prix fixe garanti", "Pas d'augmentation surprise après 6 mois."],
                 ["Résiliation gratuite", "Pas de frais de 200-400$ comme chez les géants."],
@@ -159,8 +163,8 @@ export default function AlternativeBell() {
                   <tr className="bg-primary/10">
                     <th className="text-left p-4"></th>
                     <th className="p-4 text-primary font-bold">Nivra</th>
-                    <th className="p-4">Bell</th>
-                    <th className="p-4">Vidéotron</th>
+                    <th className="p-4">Fournisseur A</th>
+                    <th className="p-4">Fournisseur B</th>
                   </tr>
                 </thead>
                 <tbody>

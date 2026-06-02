@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -148,7 +148,7 @@ const JobApplication = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-background">
+      <div style={{ background: "#020209", minHeight: "100vh" }}>
         <Header />
         <div className="pt-32 pb-20">
           <div className="container mx-auto px-4 max-w-2xl text-center">
@@ -174,10 +174,12 @@ const JobApplication = () => {
   const positionTitle = job?.title || "Candidature spontanée";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />
 
-      <div className="pt-32 pb-20">
+      <div className="relative pt-32 pb-20">
         <div className="container mx-auto px-4 max-w-2xl">
           <Button variant="ghost" className="mb-6" asChild>
             <Link to="/careers">

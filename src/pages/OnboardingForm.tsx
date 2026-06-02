@@ -209,7 +209,7 @@ export default function OnboardingForm() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -217,7 +217,7 @@ export default function OnboardingForm() {
 
   if (errorMsg) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="p-6 max-w-md text-center space-y-3">
           <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto" />
           <h1 className="text-lg font-bold">Lien non valide</h1>
@@ -230,7 +230,7 @@ export default function OnboardingForm() {
   if (submitted) {
     const firstName = (meta?.applicant_first_name || meta?.full_legal_name?.split(" ")[0] || "").trim();
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="p-8 max-w-lg text-center space-y-4">
           <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" />
           <h1 className="text-2xl font-bold">Merci{firstName ? ` ${firstName}` : ""}!</h1>
@@ -254,8 +254,10 @@ export default function OnboardingForm() {
   ];
 
   return (
-    <div className="min-h-screen bg-background py-6 px-3">
-      <div className="max-w-2xl mx-auto space-y-4">
+    <div style={{ background: '#020209' }} className="relative min-h-screen py-6 px-3 overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.13) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div className="relative max-w-2xl mx-auto space-y-4">
         {/* Header */}
         <div className="text-center space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">

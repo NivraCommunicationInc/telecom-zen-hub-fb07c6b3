@@ -214,7 +214,7 @@ export default function ComplaintPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-background text-foreground">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center px-4 py-12 text-foreground">
         <Helmet>
           <title>Plainte soumise — Nivra Telecom</title>
           <meta name="robots" content="noindex,nofollow" />
@@ -264,7 +264,9 @@ export default function ComplaintPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div style={{ background: '#020209' }} className="relative min-h-screen text-foreground overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Helmet>
         <title>Soumettre une plainte — Nivra Telecom</title>
         <meta name="description" content="Soumettez une plainte à Nivra Telecom. Délais de réponse garantis." />

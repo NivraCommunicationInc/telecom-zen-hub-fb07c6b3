@@ -336,7 +336,7 @@ export default function QuoteCheckout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
@@ -344,7 +344,7 @@ export default function QuoteCheckout() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md w-full mx-4">
           <CardContent className="pt-6 text-center">
             <FileText className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -358,7 +358,7 @@ export default function QuoteCheckout() {
 
   if (completed) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <Card className="max-w-lg w-full mx-4 border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="pt-8 text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto" />
@@ -389,8 +389,10 @@ export default function QuoteCheckout() {
   // PHASE 2: PayPal payment step
   if (awaitingPayment && invoiceId) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
-        <div className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+      <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.15) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
+        <div className="border-b sticky top-0 z-10" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(2,2,9,0.9)', backdropFilter: 'blur(16px)' }}>
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">N</span>
@@ -467,9 +469,11 @@ export default function QuoteCheckout() {
 
   // PHASE 1: KYC Form
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+    <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.15) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
       {/* Header */}
-      <div className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+      <div className="border-b sticky top-0 z-10" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(2,2,9,0.9)', backdropFilter: 'blur(16px)' }}>
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">N</span>

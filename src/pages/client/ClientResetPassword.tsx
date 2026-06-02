@@ -201,7 +201,7 @@ const ClientResetPassword = () => {
 
   if (validating) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Vérification du lien...</p>
@@ -212,7 +212,7 @@ const ClientResetPassword = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-2" />
@@ -234,7 +234,7 @@ const ClientResetPassword = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-2" />
@@ -257,7 +257,7 @@ const ClientResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
         {/* Header */}
         <div className="text-center">

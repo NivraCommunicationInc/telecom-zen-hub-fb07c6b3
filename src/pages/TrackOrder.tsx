@@ -264,13 +264,18 @@ const TrackOrder = () => {
           : "Track your Nivra Telecom order status in real time."}
       />
       <Header />
-      <div className="min-h-[85vh] bg-gradient-to-b from-muted/30 via-background to-background py-8 md:py-16 px-4 pt-24 md:pt-28">
-        <div className="container mx-auto max-w-4xl">
-          
+      <div style={{ background: '#020209' }} className="relative min-h-[85vh] py-8 md:py-16 px-4 pt-24 md:pt-28 overflow-hidden">
+        {/* Aurora */}
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.10) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+
+        <div className="relative container mx-auto max-w-4xl">
+
           {/* Back Button */}
           <div className="mb-6 print:hidden">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => navigate(-1)}
               className="gap-2 text-muted-foreground hover:text-foreground"
             >
@@ -281,15 +286,15 @@ const TrackOrder = () => {
 
           {/* Hero Header */}
           <div className="text-center mb-10 animate-fade-in">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-accent to-accent/70 shadow-lg shadow-accent/25 mb-6">
-              <Package className="w-10 h-10 text-accent-foreground" />
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-6" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)' }}>
+              <Package className="w-10 h-10" style={{ color: '#A78BFA' }} />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">
-              {isFr ? "Suivi de commande" : "Track Your Order"}
+            <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(26px, 4vw, 40px)', letterSpacing: '-1.5px', color: '#fff', marginBottom: 12 }}>
+              {isFr ? <>Suivi de <span className="n-shimmer-text">commande</span></> : <>Track Your <span className="n-shimmer-text">Order</span></>}
             </h1>
-            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              {isFr 
-                ? "Entrez vos informations pour voir l'état de votre commande en temps réel." 
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, maxWidth: 520, margin: '0 auto' }}>
+              {isFr
+                ? "Entrez vos informations pour voir l'état de votre commande en temps réel."
                 : "Enter your details to check your order status in real time."}
             </p>
           </div>

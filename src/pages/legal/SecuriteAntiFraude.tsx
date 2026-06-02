@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Sécurité & anti-fraude — Public information page
  * Route: /securite-anti-fraude
  * Conseils aux clients pour reconnaître et signaler les tentatives de fraude.
@@ -17,7 +17,9 @@ export default function SecuriteAntiFraude() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <SEOHead
         title="Sécurité & anti-fraude | Nivra Telecom"
         description="Conseils pour reconnaître les fraudes par hameçonnage, SMS, appels frauduleux. Comment protéger votre compte Nivra Telecom et signaler une tentative."
@@ -92,7 +94,7 @@ export default function SecuriteAntiFraude() {
             <div className="rounded-xl border border-border bg-card p-5">
               <h3 className="font-semibold text-foreground mb-2">☎️ Appels frauduleux (vishing)</h3>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• L'appelant prétend être de Nivra, Bell, Vidéotron, Telus ou même de l'ARC.</li>
+                <li>• L'appelant prétend être de Nivra, d'un grand fournisseur télécom ou même de l'ARC.</li>
                 <li>• Il connaît votre nom mais demande des « confirmations » d'informations sensibles.</li>
                 <li>• Pression pour agir immédiatement, refus de vous laisser rappeler.</li>
                 <li>• Demande de paiement urgent ou de fournir un code de vérification.</li>

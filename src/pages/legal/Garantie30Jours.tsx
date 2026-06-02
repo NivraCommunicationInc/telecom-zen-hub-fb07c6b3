@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Garantie 30 jours — Public marketing + policy page
  * Routes: /garantie (FR) and /guarantee (EN)
  * Premium redesign matching top telecom brands.
@@ -173,7 +173,7 @@ const Garantie30Jours = () => {
   const stepIcons = [Mail, Package, RefreshCw, CreditCard];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }}>
       <SEOHead
         title={isFr ? "Garantie 30 jours satisfait ou remboursé | Nivra Telecom" : "30-day money-back guarantee | Nivra Telecom"}
         description={t.subtitle}
@@ -183,16 +183,9 @@ const Garantie30Jours = () => {
 
       <main>
         {/* HERO — dark with animated gradient */}
-        <section className="relative overflow-hidden pt-28 pb-20 sm:pt-36 sm:pb-28" style={{ background: "#111111" }}>
-          {/* Animated gradient orbs */}
-          <div
-            className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full opacity-30 blur-3xl animate-pulse"
-            style={{ background: "radial-gradient(circle, #7C3AED 0%, transparent 70%)" }}
-          />
-          <div
-            className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl animate-pulse"
-            style={{ background: "radial-gradient(circle, #7C3AED 0%, transparent 70%)", animationDelay: "1s" }}
-          />
+        <section className="relative overflow-hidden pt-28 pb-20 sm:pt-36 sm:pb-28" style={{ background: "#020209" }}>
+          <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 550, height: 550, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.22) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div aria-hidden style={{ position: 'absolute', bottom: '-20%', left: '-8%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
           {/* Grid pattern overlay */}
           <div
             className="absolute inset-0 opacity-[0.03]"
@@ -266,16 +259,16 @@ const Garantie30Jours = () => {
         </section>
 
         {/* REFUNDED vs NOT REFUNDED */}
-        <section className="py-20 sm:py-28" style={{ background: "#FFFFFF" }}>
+        <section className="py-20 sm:py-28" style={{ background: "#020209" }}>
           <div className="max-w-[1100px] mx-auto px-5 sm:px-10">
             <div className="grid md:grid-cols-2 gap-6">
               {/* GREEN — Refunded */}
               <div
-                className="rounded-3xl p-8 sm:p-10 transition-all hover:shadow-xl hover:-translate-y-1"
+                className="rounded-3xl p-8 sm:p-10 transition-all hover:-translate-y-1"
                 style={{
-                  background: "#FFFFFF",
-                  border: "2px solid #10B981",
-                  boxShadow: "0 4px 20px rgba(16, 185, 129, 0.08)",
+                  background: "rgba(16,185,129,0.06)",
+                  border: "2px solid rgba(16,185,129,0.5)",
+                  boxShadow: "0 4px 20px rgba(16, 185, 129, 0.12)",
                 }}
               >
                 <div className="flex items-center gap-3 mb-6">
@@ -285,16 +278,16 @@ const Garantie30Jours = () => {
                   >
                     <Check className="w-7 h-7 text-white" strokeWidth={3} />
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: "#111111" }}>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: "#FFFFFF" }}>
                     {t.refundedTitle}
                   </h2>
                 </div>
                 <ul className="space-y-4">
                   {t.refunded.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-base" style={{ color: "#374151" }}>
+                    <li key={item} className="flex items-start gap-3 text-base" style={{ color: "rgba(255,255,255,0.75)" }}>
                       <div
                         className="w-6 h-6 rounded-full shrink-0 mt-0.5 flex items-center justify-center"
-                        style={{ background: "#10B98120" }}
+                        style={{ background: "rgba(16,185,129,0.2)" }}
                       >
                         <Check className="w-4 h-4" style={{ color: "#10B981" }} strokeWidth={3} />
                       </div>
@@ -306,11 +299,11 @@ const Garantie30Jours = () => {
 
               {/* RED — Not refunded */}
               <div
-                className="rounded-3xl p-8 sm:p-10 transition-all hover:shadow-xl hover:-translate-y-1"
+                className="rounded-3xl p-8 sm:p-10 transition-all hover:-translate-y-1"
                 style={{
-                  background: "#FFFFFF",
-                  border: "2px solid #EF4444",
-                  boxShadow: "0 4px 20px rgba(239, 68, 68, 0.08)",
+                  background: "rgba(239,68,68,0.06)",
+                  border: "2px solid rgba(239,68,68,0.5)",
+                  boxShadow: "0 4px 20px rgba(239, 68, 68, 0.12)",
                 }}
               >
                 <div className="flex items-center gap-3 mb-6">
@@ -320,16 +313,16 @@ const Garantie30Jours = () => {
                   >
                     <X className="w-7 h-7 text-white" strokeWidth={3} />
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: "#111111" }}>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: "#FFFFFF" }}>
                     {t.notRefundedTitle}
                   </h2>
                 </div>
                 <ul className="space-y-4">
                   {t.notRefunded.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-base" style={{ color: "#374151" }}>
+                    <li key={item} className="flex items-start gap-3 text-base" style={{ color: "rgba(255,255,255,0.75)" }}>
                       <div
                         className="w-6 h-6 rounded-full shrink-0 mt-0.5 flex items-center justify-center"
-                        style={{ background: "#EF444420" }}
+                        style={{ background: "rgba(239,68,68,0.2)" }}
                       >
                         <X className="w-4 h-4" style={{ color: "#EF4444" }} strokeWidth={3} />
                       </div>
@@ -343,16 +336,16 @@ const Garantie30Jours = () => {
         </section>
 
         {/* 4-STEP TIMELINE */}
-        <section className="py-20 sm:py-28" style={{ background: "#F7F7F7" }}>
+        <section className="py-20 sm:py-28" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <div className="max-w-[1200px] mx-auto px-5 sm:px-10">
             <div className="text-center mb-14">
               <h2
                 className="text-3xl sm:text-5xl font-extrabold mb-4"
-                style={{ color: "#111111", letterSpacing: "-1px" }}
+                style={{ color: "#FFFFFF", letterSpacing: "-1px" }}
               >
                 {t.howTitle}
               </h2>
-              <p className="text-lg" style={{ color: "#666666", maxWidth: 600, margin: "0 auto" }}>
+              <p className="text-lg" style={{ color: "rgba(255,255,255,0.55)", maxWidth: 600, margin: "0 auto" }}>
                 {t.howSubtitle}
               </p>
             </div>
@@ -386,19 +379,19 @@ const Garantie30Jours = () => {
 
                       {/* Card */}
                       <div
-                        className="bg-white rounded-2xl p-6 w-full transition-all hover:shadow-lg hover:-translate-y-1"
-                        style={{ border: "1px solid #EEEEEE" }}
+                        className="rounded-2xl p-6 w-full transition-all hover:-translate-y-1"
+                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(12px)" }}
                       >
                         <div
                           className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 mx-auto"
-                          style={{ background: "#EDE9FF" }}
+                          style={{ background: "rgba(124,58,237,0.15)" }}
                         >
-                          <Icon className="w-6 h-6" style={{ color: "#7C3AED" }} />
+                          <Icon className="w-6 h-6" style={{ color: "#A78BFA" }} />
                         </div>
-                        <h3 className="font-bold text-lg mb-2" style={{ color: "#111111" }}>
+                        <h3 className="font-bold text-lg mb-2" style={{ color: "#FFFFFF" }}>
                           {step.t}
                         </h3>
-                        <p className="text-sm leading-relaxed" style={{ color: "#666666" }}>
+                        <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
                           {step.d}
                         </p>
                       </div>
@@ -411,11 +404,11 @@ const Garantie30Jours = () => {
         </section>
 
         {/* TRUST BADGES — 3 large cards */}
-        <section className="py-20 sm:py-28" style={{ background: "#FFFFFF" }}>
+        <section className="py-20 sm:py-28" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <div className="max-w-[1100px] mx-auto px-5 sm:px-10">
             <h2
               className="text-3xl sm:text-5xl font-extrabold mb-14 text-center"
-              style={{ color: "#111111", letterSpacing: "-1px" }}
+              style={{ color: "#FFFFFF", letterSpacing: "-1px" }}
             >
               {t.trustTitle}
             </h2>
@@ -452,11 +445,11 @@ const Garantie30Jours = () => {
         </section>
 
         {/* FAQ — clean accordion */}
-        <section className="py-20 sm:py-28" style={{ background: "#F7F7F7" }}>
+        <section className="py-20 sm:py-28" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <div className="max-w-[820px] mx-auto px-5 sm:px-10">
             <h2
               className="text-3xl sm:text-5xl font-extrabold mb-12 text-center"
-              style={{ color: "#111111", letterSpacing: "-1px" }}
+              style={{ color: "#FFFFFF", letterSpacing: "-1px" }}
             >
               {t.faqTitle}
             </h2>
@@ -468,26 +461,26 @@ const Garantie30Jours = () => {
                     key={i}
                     className="rounded-2xl overflow-hidden transition-all"
                     style={{
-                      background: "#FFFFFF",
-                      border: isOpen ? "1px solid #7C3AED" : "1px solid #EEEEEE",
-                      boxShadow: isOpen ? "0 8px 24px rgba(124, 58, 237, 0.08)" : "none",
+                      background: isOpen ? "rgba(124,58,237,0.06)" : "rgba(255,255,255,0.04)",
+                      border: isOpen ? "1px solid rgba(124,58,237,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: isOpen ? "0 8px 24px rgba(124, 58, 237, 0.15)" : "none",
                     }}
                   >
                     <button
                       onClick={() => setOpenFaq(isOpen ? null : i)}
-                      className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-[#FAFAFA]"
+                      className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-white/[0.03]"
                     >
-                      <span className="font-semibold text-base sm:text-lg" style={{ color: "#111111" }}>
+                      <span className="font-semibold text-base sm:text-lg" style={{ color: "#FFFFFF" }}>
                         {faq.q}
                       </span>
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all"
                         style={{
-                          background: isOpen ? "#7C3AED" : "#EDE9FF",
+                          background: isOpen ? "#7C3AED" : "rgba(124,58,237,0.15)",
                           transform: isOpen ? "rotate(45deg)" : "rotate(0)",
                         }}
                       >
-                        <Plus className="w-4 h-4" style={{ color: isOpen ? "#FFFFFF" : "#7C3AED" }} strokeWidth={3} />
+                        <Plus className="w-4 h-4" style={{ color: isOpen ? "#FFFFFF" : "#A78BFA" }} strokeWidth={3} />
                       </div>
                     </button>
                     <div
@@ -497,7 +490,7 @@ const Garantie30Jours = () => {
                       <div className="overflow-hidden">
                         <p
                           className="px-6 pb-5 text-base leading-relaxed"
-                          style={{ color: "#555555" }}
+                          style={{ color: "rgba(255,255,255,0.6)" }}
                         >
                           {faq.a}
                         </p>

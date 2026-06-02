@@ -168,7 +168,7 @@ export default function KycVerificationPage() {
       )}
 
       {expiresLabel && (
-        <p className="text-xs text-center text-slate-500 mt-6">Lien valide jusqu'au {expiresLabel}</p>
+        <p className="text-xs text-center text-white/50 mt-6">Lien valide jusqu'au {expiresLabel}</p>
       )}
     </Shell>
   );
@@ -180,24 +180,26 @@ export default function KycVerificationPage() {
 
 function Shell({ info, children }: { info: { orderNumber?: string; planName?: string } | null; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-start justify-center px-4 py-8 sm:py-12">
-      <div className="w-full max-w-2xl">
+    <div style={{ background: '#020209' }} className="relative min-h-screen flex items-start justify-center px-4 py-8 sm:py-12 overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.15) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div className="relative w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#7c3aed] text-white mb-3 shadow-lg shadow-[#7c3aed]/20">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Vérification d'identité</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Vérification d'identité</h1>
           {info?.orderNumber && (
-            <p className="text-sm text-slate-500 mt-1">Commande #{info.orderNumber}{info?.planName ? ` · ${info.planName}` : ""}</p>
+            <p className="text-sm text-white/50 mt-1">Commande #{info.orderNumber}{info?.planName ? ` · ${info.planName}` : ""}</p>
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 sm:p-7">
+        <div style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)' }} className="p-5 sm:p-7">
           {children}
         </div>
 
-        <div className="mt-6 flex items-start gap-2 text-xs text-slate-500 px-2">
+        <div className="mt-6 flex items-start gap-2 text-xs text-white/50 px-2">
           <Lock className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
           <p>Vos documents d'identité sont supprimés automatiquement après vérification. Nivra Telecom ne conserve aucune copie de vos pièces d'identité une fois la vérification terminée.</p>
         </div>
@@ -217,19 +219,19 @@ function ProgressBar({ step }: { step: Step }) {
       <div className="flex items-center justify-between mb-2">
         {items.map((it, i) => (
           <div key={it.n} className="flex-1 flex items-center">
-            <div className={`flex items-center gap-2 ${step >= it.n ? "text-[#7c3aed]" : "text-slate-400"}`}>
-              <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 ${step >= it.n ? "bg-[#7c3aed] border-[#7c3aed] text-white" : "border-slate-300 bg-white"}`}>
+            <div className={`flex items-center gap-2 ${step >= it.n ? "text-[#7c3aed]" : "text-white/35"}`}>
+              <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 ${step >= it.n ? "bg-[#7c3aed] border-[#7c3aed] text-white" : "border-white/15 bg-white/[0.04]"}`}>
                 {step > it.n ? <CheckCircle2 className="h-4 w-4" /> : it.n}
               </div>
               <span className="text-xs sm:text-sm font-medium hidden sm:inline">{it.label}</span>
             </div>
             {i < items.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-2 ${step > it.n ? "bg-[#7c3aed]" : "bg-slate-200"}`} />
+              <div className={`flex-1 h-0.5 mx-2 ${step > it.n ? "bg-[#7c3aed]" : "bg-white/10"}`} />
             )}
           </div>
         ))}
       </div>
-      <p className="text-xs text-slate-500 text-center sm:hidden">Étape {step} sur 3</p>
+      <p className="text-xs text-white/50 text-center sm:hidden">Étape {step} sur 3</p>
     </div>
   );
 }
@@ -237,8 +239,8 @@ function ProgressBar({ step }: { step: Step }) {
 function StepOne({ docType, onPick }: { docType: DocType | null; onPick: (t: DocType) => void }) {
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-900 mb-1">Quel type de document allez-vous utiliser ?</h2>
-      <p className="text-sm text-slate-500 mb-5">Choisissez une pièce d'identité gouvernementale valide avec photo.</p>
+      <h2 className="text-lg font-semibold text-white mb-1">Quel type de document allez-vous utiliser ?</h2>
+      <p className="text-sm text-white/50 mb-5">Choisissez une pièce d'identité gouvernementale valide avec photo.</p>
 
       <div className="space-y-3">
         {DOC_OPTIONS.map(({ id, label, sub, Icon }) => {
@@ -251,17 +253,17 @@ function StepOne({ docType, onPick }: { docType: DocType | null; onPick: (t: Doc
               className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
                 active
                   ? "border-[#7c3aed] bg-[#7c3aed]/5 shadow-sm"
-                  : "border-slate-200 bg-white hover:border-[#7c3aed]/40 hover:bg-slate-50"
+                  : "border-white/10 bg-white/[0.04] hover:border-violet-500/40 hover:bg-white/[0.08]"
               }`}
             >
-              <div className={`h-11 w-11 rounded-lg flex items-center justify-center flex-shrink-0 ${active ? "bg-[#7c3aed] text-white" : "bg-slate-100 text-slate-600"}`}>
+              <div className={`h-11 w-11 rounded-lg flex items-center justify-center flex-shrink-0 ${active ? "bg-[#7c3aed] text-white" : "bg-white/[0.06] text-white/60"}`}>
                 <Icon className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900">{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
+                <p className="font-semibold text-white">{label}</p>
+                <p className="text-xs text-white/50 mt-0.5">{sub}</p>
               </div>
-              <ArrowRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              <ArrowRight className="h-4 w-4 text-white/35 flex-shrink-0" />
             </button>
           );
         })}
@@ -283,8 +285,8 @@ function StepTwo({
 }) {
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-900 mb-1">Téléversez 3 photos</h2>
-      <p className="text-sm text-slate-500 mb-5">Assurez-vous que les photos sont nettes, bien éclairées et que tout le texte est lisible.</p>
+      <h2 className="text-lg font-semibold text-white mb-1">Téléversez 3 photos</h2>
+      <p className="text-sm text-white/50 mb-5">Assurez-vous que les photos sont nettes, bien éclairées et que tout le texte est lisible.</p>
 
       <div className="space-y-4">
         <UploadSlot
@@ -324,7 +326,7 @@ function StepTwo({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-white/65 hover:text-white px-3 py-2 rounded-lg transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
@@ -332,7 +334,7 @@ function StepTwo({
           type="button"
           disabled={!canNext}
           onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#7c3aed] text-white font-semibold px-5 py-2.5 text-sm hover:bg-[#6d28d9] disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#7c3aed] text-white font-semibold px-5 py-2.5 text-sm hover:bg-[#6d28d9] disabled:bg-white/20 disabled:cursor-not-allowed transition-colors"
         >
           Continuer <ArrowRight className="h-4 w-4" />
         </button>
@@ -356,13 +358,13 @@ function UploadSlot({
   const hasFile = !!file && !!preview;
 
   return (
-    <div className={`rounded-xl border-2 transition-all ${hasFile ? "border-emerald-300 bg-emerald-50/30" : "border-dashed border-slate-300 bg-slate-50 hover:border-[#7c3aed]/40 hover:bg-slate-100"}`}>
+    <div className={`rounded-xl border-2 transition-all ${hasFile ? "border-emerald-500/50 bg-emerald-500/10" : "border-dashed border-white/15 bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.06]"}`}>
       {hasFile ? (
         <div className="flex items-center gap-3 p-3">
           <img src={preview!} alt={label} className="h-20 w-20 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">{label}</p>
-            <p className="text-xs text-slate-500 truncate">{file!.name} · {(file!.size / 1024).toFixed(0)} Ko</p>
+            <p className="text-sm font-semibold text-white truncate">{label}</p>
+            <p className="text-xs text-white/50 truncate">{file!.name} · {(file!.size / 1024).toFixed(0)} Ko</p>
             <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5">
               <CheckCircle2 className="h-3.5 w-3.5" /> Téléversé
             </div>
@@ -370,7 +372,7 @@ function UploadSlot({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="h-8 w-8 rounded-full bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0"
+            className="h-8 w-8 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white/50 flex items-center justify-center flex-shrink-0"
             aria-label="Retirer"
           >
             <X className="h-4 w-4" />
@@ -382,17 +384,17 @@ function UploadSlot({
           onClick={() => inputRef.current?.click()}
           className="w-full flex items-center gap-3 p-4 text-left"
         >
-          <div className="h-11 w-11 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[#7c3aed] flex-shrink-0">
+          <div className="h-11 w-11 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center text-violet-400 flex-shrink-0">
             {icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900">{label}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{help}</p>
+            <p className="text-sm font-semibold text-white">{label}</p>
+            <p className="text-xs text-white/50 mt-0.5">{help}</p>
           </div>
           <div className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-[#7c3aed] text-white text-xs font-semibold px-3 py-1.5">
             <Upload className="h-3.5 w-3.5" /> Choisir
           </div>
-          <Camera className="h-5 w-5 text-slate-400 sm:hidden flex-shrink-0" />
+          <Camera className="h-5 w-5 text-white/35 sm:hidden flex-shrink-0" />
         </button>
       )}
       <input
@@ -428,39 +430,39 @@ function StepThree({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-900 mb-1">Confirmez votre soumission</h2>
-      <p className="text-sm text-slate-500 mb-5">Vérifiez que les 3 photos sont nettes et lisibles avant de soumettre.</p>
+      <h2 className="text-lg font-semibold text-white mb-1">Confirmez votre soumission</h2>
+      <p className="text-sm text-white/50 mb-5">Vérifiez que les 3 photos sont nettes et lisibles avant de soumettre.</p>
 
-      <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-2.5 mb-4 text-sm">
-        <span className="text-slate-500">Type de document :</span>{" "}
-        <span className="font-semibold text-slate-900">{docLabel}</span>
+      <div className="rounded-lg bg-white/[0.04] border border-white/10 px-4 py-2.5 mb-4 text-sm">
+        <span className="text-white/50">Type de document :</span>{" "}
+        <span className="font-semibold text-white">{docLabel}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
         {thumbs.map(({ slot, label }) => (
           <div key={slot} className="space-y-1.5">
-            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-white/[0.06] border border-white/10">
               {previews[slot] ? (
                 <img src={previews[slot]!} alt={label} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-400">
+                <div className="w-full h-full flex items-center justify-center text-white/30">
                   <AlertCircle className="h-5 w-5" />
                 </div>
               )}
             </div>
-            <p className="text-xs text-center font-medium text-slate-600">{label}</p>
+            <p className="text-xs text-center font-medium text-white/65">{label}</p>
           </div>
         ))}
       </div>
 
-      <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-slate-200 bg-white hover:bg-slate-50 p-3 transition-colors">
+      <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] p-3 transition-colors">
         <input
           type="checkbox"
           checked={confirmed}
           onChange={(e) => setConfirmed(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#7c3aed] focus:ring-[#7c3aed]"
+          className="mt-0.5 h-4 w-4 rounded border-white/20 text-violet-500 focus:ring-violet-500"
         />
-        <span className="text-sm text-slate-700">
+        <span className="text-sm text-white/75">
           Je confirme que ces documents sont les miens et sont valides.
         </span>
       </label>
@@ -474,7 +476,7 @@ function StepThree({
           type="button"
           onClick={onBack}
           disabled={submitting}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-white/65 hover:text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-40"
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
@@ -482,7 +484,7 @@ function StepThree({
           type="button"
           onClick={onSubmit}
           disabled={!confirmed || submitting}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#7c3aed] text-white font-semibold px-5 py-2.5 text-sm hover:bg-[#6d28d9] disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#7c3aed] text-white font-semibold px-5 py-2.5 text-sm hover:bg-[#6d28d9] disabled:bg-white/20 disabled:cursor-not-allowed transition-colors"
         >
           {submitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> Envoi…</>
@@ -498,7 +500,7 @@ function StepThree({
 function renderTerminal(state: State, err: string | null) {
   if (state === "loading") {
     return (
-      <div className="flex items-center justify-center py-10 text-slate-500">
+      <div className="flex items-center justify-center py-10 text-white/50">
         <Loader2 className="h-5 w-5 animate-spin mr-2" /> Chargement…
       </div>
     );
@@ -507,8 +509,8 @@ function renderTerminal(state: State, err: string | null) {
     return (
       <div className="text-center py-6">
         <AlertCircle className="h-10 w-10 mx-auto text-red-500 mb-3" />
-        <h2 className="text-lg font-semibold text-slate-900">Lien expiré</h2>
-        <p className="text-sm text-slate-500 mt-2">
+        <h2 className="text-lg font-semibold text-white">Lien expiré</h2>
+        <p className="text-sm text-white/50 mt-2">
           Ce lien de vérification n'est plus valide. Contactez notre équipe à{" "}
           <a className="text-[#7c3aed] underline" href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>{" "}
           pour recevoir un nouveau lien.
@@ -520,8 +522,8 @@ function renderTerminal(state: State, err: string | null) {
     return (
       <div className="text-center py-6">
         <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
-        <h2 className="text-lg font-semibold text-slate-900">Vérification déjà reçue</h2>
-        <p className="text-sm text-slate-500 mt-2">Votre pièce d'identité a déjà été soumise. Vous recevrez une confirmation par courriel une fois validée.</p>
+        <h2 className="text-lg font-semibold text-white">Vérification déjà reçue</h2>
+        <p className="text-sm text-white/50 mt-2">Votre pièce d'identité a déjà été soumise. Vous recevrez une confirmation par courriel une fois validée.</p>
       </div>
     );
   }
@@ -529,8 +531,8 @@ function renderTerminal(state: State, err: string | null) {
     return (
       <div className="text-center py-6">
         <AlertCircle className="h-10 w-10 mx-auto text-red-500 mb-3" />
-        <h2 className="text-lg font-semibold text-slate-900">Lien invalide</h2>
-        <p className="text-sm text-slate-500 mt-2">{err}</p>
+        <h2 className="text-lg font-semibold text-white">Lien invalide</h2>
+        <p className="text-sm text-white/50 mt-2">{err}</p>
       </div>
     );
   }
@@ -538,8 +540,8 @@ function renderTerminal(state: State, err: string | null) {
   return (
     <div className="text-center py-6">
       <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500 mb-3" />
-      <h2 className="text-lg font-semibold text-slate-900">Documents reçus ✓</h2>
-      <p className="text-sm text-slate-500 mt-2">
+      <h2 className="text-lg font-semibold text-white">Documents reçus ✓</h2>
+      <p className="text-sm text-white/50 mt-2">
         Merci. Notre équipe vérifiera votre identité dans les meilleurs délais et vous recevrez une confirmation par courriel.
       </p>
     </div>

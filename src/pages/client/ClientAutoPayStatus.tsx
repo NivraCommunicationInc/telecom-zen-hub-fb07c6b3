@@ -36,7 +36,7 @@ const ClientAutoPayStatus = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardContent className="p-6 space-y-4 text-center">
           {state === "waiting" ? (

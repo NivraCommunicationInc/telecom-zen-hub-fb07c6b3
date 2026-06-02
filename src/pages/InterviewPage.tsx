@@ -752,7 +752,7 @@ export default function InterviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -760,7 +760,7 @@ export default function InterviewPage() {
 
   if (error === "invalid" || !applicant) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md p-8 text-center">
           <AlertCircle className="w-12 h-12 mx-auto text-destructive mb-3" />
           <p className="text-lg font-medium">{t.invalid}</p>
@@ -771,7 +771,7 @@ export default function InterviewPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-lg p-10 text-center">
           <CheckCircle2 className="w-14 h-14 mx-auto text-emerald-500 mb-4" />
           <h1 className="text-2xl font-bold mb-2">{t.doneTitle}</h1>
@@ -832,8 +832,10 @@ export default function InterviewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-10 px-4">
-      <div className="max-w-3xl mx-auto">
+    <div style={{ background: '#020209' }} className="relative min-h-screen py-10 px-4 overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.13) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div className="relative max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <div className="text-3xl font-extrabold tracking-tight text-primary">NIVRA</div>
           <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">

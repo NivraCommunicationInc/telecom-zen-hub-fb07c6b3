@@ -301,7 +301,7 @@ export default function PhoneCheckout() {
     return (
       <>
         <Header />
-        <main className="min-h-screen pt-20 flex items-center justify-center">
+        <main style={{ minHeight: '100vh', background: '#020209', paddingTop: 80 }} className=" flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </main>
         <Footer />
@@ -313,7 +313,7 @@ export default function PhoneCheckout() {
     return (
       <>
         <Header />
-        <main className="min-h-screen pt-20">
+        <main style={{ minHeight: '100vh', background: '#020209', paddingTop: 80 }} className="">
           <div className="container mx-auto px-4 py-16 text-center">
             <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
             <h1 className="text-2xl font-bold mb-2">{isFr ? "Appareil indisponible" : "Phone unavailable"}</h1>
@@ -328,8 +328,10 @@ export default function PhoneCheckout() {
   return (
     <>
       <Header />
-      <main id="main-content" className="min-h-screen bg-background pt-20">
-        <div className="container mx-auto px-4 py-10 max-w-4xl">
+      <main id="main-content" style={{ minHeight: '100vh', background: '#020209', paddingTop: 80 }} className="relative overflow-hidden">
+        <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.15) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div className="relative container mx-auto px-4 py-10 max-w-4xl">
           <h1 className="text-3xl font-bold mb-8">{isFr ? "Finaliser votre commande" : "Complete your order"}</h1>
 
           {/* SECTION 1 — Product summary + mode toggle */}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Plan Comparator Page
  * Allows users to compare Internet, TV, and Mobile plans side-by-side
  */
@@ -196,7 +196,7 @@ const ComparePlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: "#020209", minHeight: "100vh" }}>
       <SEOHead 
         title={isFrench ? "Comparer les forfaits | Nivra Telecom" : "Compare Plans | Nivra Telecom"}
         description={isFrench 
@@ -205,39 +205,39 @@ const ComparePlans = () => {
       />
       <Header />
       
-      <main className="pt-24 pb-20 relative">
-        {/* Background Effects */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-radial from-primary/5 via-transparent to-transparent rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-radial from-accent/5 via-transparent to-transparent rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" />
-        </div>
-
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 mb-12 relative">
-          <div className="text-center max-w-3xl mx-auto">
-            <Badge className="mb-6 bg-primary/10 text-primary border-primary/20 px-4 py-1.5">
-              <Filter className="w-3.5 h-3.5 mr-1.5" />
+      {/* Hero */}
+      <section style={{ paddingTop: 110, paddingBottom: 60, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.25) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+        <div className="max-w-[1100px] mx-auto px-5 sm:px-10 text-center relative">
+          <div className="n-animate-in inline-flex items-center gap-2.5 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+            <Filter className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
+            <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
               {isFrench ? "Comparateur de forfaits" : "Plan Comparator"}
-            </Badge>
-            
-            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 leading-tight">
-              {isFrench ? "Comparez nos forfaits" : "Compare Our Plans"}
-            </h1>
-            
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              {isFrench 
-                ? "Sélectionnez jusqu'à 4 forfaits pour les comparer côte-à-côte et trouver celui qui vous convient."
+            </span>
+          </div>
+          <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 5.5vw, 64px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 16, color: '#fff' }}>
+            {isFrench ? <><span>Comparez </span><span className="n-shimmer-text">nos forfaits</span></> : <><span>Compare </span><span className="n-shimmer-text">Our Plans</span></>}
+          </h1>
+          <p className="n-animate-in-delay-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto' }}>
+            {isFrench
+              ? "Sélectionnez jusqu'à 4 forfaits pour les comparer côte-à-côte et trouver celui qui vous convient."
                 : "Select up to 4 plans to compare side-by-side and find the one that's right for you."}
             </p>
           </div>
         </section>
+      </section>
+
+      <main style={{ paddingBottom: 80 }}>
 
         {/* Loading State */}
         {isLoading && (
           <section className="container mx-auto px-4 mb-12">
             <div className="flex justify-center items-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <span className="ml-3 text-muted-foreground">
+              <Loader2 className="w-7 h-7 animate-spin" style={{ color: '#7C3AED' }} />
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, marginLeft: 12 }}>
                 {isFrench ? "Chargement des forfaits..." : "Loading plans..."}
               </span>
             </div>

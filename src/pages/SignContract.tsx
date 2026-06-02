@@ -418,8 +418,10 @@ function ShellPage({
 }) {
   const tr = useMemo(() => t[lang || "fr"], [lang]);
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-secondary/40 to-background px-3 py-6 sm:px-0">
-      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-primary/5">
+    <div style={{ background: '#020209' }} className="relative min-h-screen px-3 py-6 sm:px-0 overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-5%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.2) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.1) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div className="relative mx-auto max-w-2xl overflow-hidden rounded-2xl shadow-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}>
         {setLang && (
           <div className="flex justify-end gap-2 px-5 pt-4 sm:px-8">
             <button
@@ -439,7 +441,7 @@ function ShellPage({
           </div>
         )}
         {children}
-        <div className="border-t border-border bg-secondary/50 px-5 py-3 sm:px-8">
+        <div className="border-t px-5 py-3 sm:px-8" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
           <p className="text-center text-[10px] text-muted-foreground">{tr.poweredBy}</p>
         </div>
       </div>

@@ -76,7 +76,7 @@ const InternetPasCherQuebec = () => {
         <title>Internet pas cher au Québec — GIGA 60$/mois sans contrat | Nivra Telecom</title>
         <meta
           name="description"
-          content="Internet GIGA 940 Mbps à 60$/mois sans contrat, sans vérification de crédit. Alternative locale à Bell et Vidéotron au Québec. Réservation en 30 secondes."
+          content="Internet GIGA 940 Mbps à 60$/mois sans contrat, sans vérification de crédit. Fournisseur local québécois, sans engagement. Réservation en 30 secondes."
         />
         <link rel="canonical" href="https://nivra-telecom.ca/internet-pas-cher-quebec" />
         <meta property="og:title" content="Internet pas cher au Québec — GIGA 60$/mois sans contrat" />
@@ -110,22 +110,23 @@ const InternetPasCherQuebec = () => {
         </script>
       </Helmet>
 
-      <main style={{ background: '#080612' }}>
+      <main style={{ background: '#020209' }}>
         {/* HERO */}
-        <section className="px-6 py-16 md:py-24 max-w-6xl mx-auto" style={{ paddingTop: 96 }}>
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+        <section className="relative overflow-hidden px-6 max-w-6xl mx-auto" style={{ paddingTop: 100, paddingBottom: 64 }}>
+          <div style={{ position: 'absolute', top: '-20%', left: '-15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), rgba(6,182,212,0.4), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
+          <div className="grid md:grid-cols-2 gap-12 items-center" style={{ position: 'relative', zIndex: 2 }}>
             <div>
-              <span
-                className="inline-block px-3 py-1 text-xs font-semibold tracking-wider rounded-full text-white"
-                style={{ backgroundColor: BRAND }}
-              >
-                OFFRE QUÉBEC — SANS CONTRAT
-              </span>
-              <h1 className="mt-4 font-bold tracking-tight text-white leading-tight" style={{ fontSize: 'clamp(30px, 5vw, 48px)', letterSpacing: '-1px' }}>
-                Internet GIGA pas cher au Québec à <span style={{ color: '#C4B5FD' }}>60$/mois</span>
+              <div className="n-animate-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 100, padding: '6px 16px', marginBottom: 20 }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#A78BFA', letterSpacing: '0.08em' }}>OFFRE QUÉBEC — SANS CONTRAT</span>
+              </div>
+              <h1 className="n-animate-in-delay-1 font-bold leading-tight text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(30px, 5vw, 52px)', letterSpacing: '-2px', marginTop: 0 }}>
+                Internet GIGA pas cher au Québec à{' '}<span className="n-shimmer-text">60$/mois</span>
               </h1>
               <p className="mt-4 text-lg" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                940 Mbps. Sans contrat. Sans vérification de crédit. Une alternative locale à Bell et Vidéotron — support
+                940 Mbps. Sans contrat. Sans vérification de crédit. Un fournisseur local québécois — support
                 client en français, équipe basée au Québec.
               </p>
               <ul className="mt-6 space-y-2" style={{ color: 'rgba(255,255,255,0.78)' }}>
@@ -133,7 +134,7 @@ const InternetPasCherQuebec = () => {
                   "GIGA 940 Mbps illimité — 60$/mois",
                   "Aucun engagement, annulable en tout temps",
                   "Tout le monde accepté — pas de vérif. crédit",
-                  "Économisez ~720$/an comparé à Bell",
+                  "Économisez ~720$/an comparé à votre forfait actuel",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2">
                     <Check className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#A78BFA' }} />
@@ -276,10 +277,10 @@ const InternetPasCherQuebec = () => {
         </section>
 
         {/* PRICING / WHY */}
-        <section className="px-6 py-16" style={{ background: '#0A0A18' }}>
+        <section className="px-6 py-16" style={{ background: '#020209' }}>
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-white" style={{ letterSpacing: '-0.8px' }}>
-              Bell vous coûte combien de trop?
+              Votre fournisseur actuel vous coûte combien de trop?
             </h2>
             <p className="mt-3 text-center max-w-2xl mx-auto" style={{ color: 'rgba(255,255,255,0.6)' }}>
               Comparaison directe sur le même service — Internet GIGA 940 Mbps illimité, sans engagement.
@@ -287,8 +288,8 @@ const InternetPasCherQuebec = () => {
 
             <div className="mt-10 grid md:grid-cols-3 gap-6">
               {[
-                { label: "Bell", price: "100-120$", note: "Internet GIGA seul, prix promo limité à 12 mois" },
-                { label: "Vidéotron", price: "90-110$", note: "Avec frais d'installation, contrat 24 mois" },
+                { label: "Grands fournisseurs A", price: "100-120$", note: "Internet GIGA seul, prix promo limité à 12 mois" },
+                { label: "Grands fournisseurs B", price: "90-110$", note: "Avec frais d'installation, contrat 24 mois" },
                 { label: "Nivra", price: "60$", note: "Prix réel, sans contrat, sans vérif. crédit", highlight: true },
               ].map((card) => (
                 <div
@@ -323,7 +324,7 @@ const InternetPasCherQuebec = () => {
         <section className="px-6 py-16 max-w-6xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8 text-center">
             {[
-              { Icon: Wifi, title: "GIGA 940 Mbps", body: "Fibre/coax sur le même réseau Bell/Vidéotron — même qualité." },
+              { Icon: Wifi, title: "GIGA 940 Mbps", body: "Fibre/coax sur infrastructure certifiée — même qualité que les grands réseaux." },
               { Icon: Shield, title: "Sans contrat", body: "Annulable en tout temps, aucune pénalité." },
               { Icon: MapPin, title: "Support québécois", body: "Équipe locale en français." },
             ].map(({ Icon, title, body }) => (
@@ -339,7 +340,7 @@ const InternetPasCherQuebec = () => {
         </section>
 
         {/* FAQ */}
-        <section className="px-6 py-16" style={{ background: '#0A0A18' }}>
+        <section className="px-6 py-16" style={{ background: '#020209' }}>
           <div className="max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-white" style={{ letterSpacing: '-0.8px' }}>Questions fréquentes</h2>
             <div className="mt-10 space-y-4">
@@ -350,15 +351,15 @@ const InternetPasCherQuebec = () => {
                 },
                 {
                   q: "Pas de vérification de crédit, comment c'est possible?",
-                  a: "On utilise le mode prépayé du réseau Bell/Vidéotron. Vous payez d'avance, donc aucun risque de notre côté. Tout le monde est accepté.",
+                  a: "On utilise le mode prépayé sur réseau certifié. Vous payez d'avance, donc aucun risque de notre côté. Tout le monde est accepté.",
                 },
                 {
                   q: "C'est quoi la couverture?",
-                  a: "Partout où Bell ou Vidéotron offrent l'Internet GIGA au Québec — Montréal, Laval, Longueuil, Québec, Sherbrooke, Trois-Rivières et beaucoup d'autres villes.",
+                  a: "Dans toutes les grandes villes du Québec — Montréal, Laval, Longueuil, Québec, Sherbrooke, Trois-Rivières et beaucoup d'autres villes. Vérifiez votre adresse sur notre carte de couverture.",
                 },
                 {
                   q: "Combien de temps pour l'installation?",
-                  a: "Habituellement 3 à 7 jours ouvrables. Un technicien Bell/Vidéotron passe (frais inclus).",
+                  a: "Habituellement 3 à 7 jours ouvrables. Un technicien certifié passe à votre domicile (frais inclus).",
                 },
               ].map((item) => (
                 <details key={item.q} className="rounded-xl p-5 group cursor-pointer" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>

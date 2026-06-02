@@ -51,8 +51,8 @@ export const CheckoutProgress = ({
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all border-2",
                     isCompleted && "bg-emerald-500 border-emerald-500 text-white",
-                    isCurrent && "bg-white border-slate-900 text-slate-900",
-                    !isCompleted && !isCurrent && "bg-white border-slate-300 text-slate-400",
+                    isCurrent && "bg-violet-600 border-violet-500 text-white",
+                    !isCompleted && !isCurrent && "bg-white/[0.06] border-white/20 text-white/40",
                     isClickable && "cursor-pointer hover:scale-105"
                   )}
                 >
@@ -60,7 +60,7 @@ export const CheckoutProgress = ({
                 </button>
                 <span className={cn(
                   "mt-1.5 text-xs font-medium",
-                  (isCompleted || isCurrent) ? "text-slate-900" : "text-slate-400"
+                  (isCompleted || isCurrent) ? "text-white" : "text-white/35"
                 )}>
                   {isFrench ? step.labelFr : step.labelEn}
                 </span>
@@ -69,7 +69,7 @@ export const CheckoutProgress = ({
               {index < steps.length - 1 && (
                 <div className={cn(
                   "h-0.5 flex-1 mx-1 -mt-5",
-                  currentStep > step.id ? "bg-emerald-500" : "bg-slate-200"
+                  currentStep > step.id ? "bg-emerald-500" : "bg-white/10"
                 )} />
               )}
             </div>
@@ -89,9 +89,9 @@ export const CheckoutProgress = ({
                 key={step.id}
                 className={cn(
                   "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium flex-shrink-0",
-                  isCompleted && "bg-emerald-50 text-emerald-700",
-                  isCurrent && "bg-slate-900 text-white",
-                  !isCompleted && !isCurrent && "bg-slate-100 text-slate-400"
+                  isCompleted && "bg-emerald-500/15 text-emerald-400",
+                  isCurrent && "bg-violet-600 text-white",
+                  !isCompleted && !isCurrent && "bg-white/[0.06] text-white/35"
                 )}
               >
                 {isCompleted ? <Check className="w-3.5 h-3.5" /> : <span>{step.id}</span>}

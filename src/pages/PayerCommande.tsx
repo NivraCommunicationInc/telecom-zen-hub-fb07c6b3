@@ -132,8 +132,8 @@ export default function PayerCommande() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-violet-50">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -145,11 +145,11 @@ export default function PayerCommande() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-6 w-6 text-red-500 shrink-0 mt-0.5" />
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Commande introuvable</h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <h2 className="text-lg font-bold text-white">Commande introuvable</h2>
+              <p className="mt-2 text-sm text-white/60">
                 {error ||
                   "Ce lien n'est plus valide. Contactez votre représentant Nivra ou écrivez à"}{" "}
-                <a className="text-violet-700 underline" href="mailto:support@nivra-telecom.ca">
+                <a className="text-violet-400 underline" href="mailto:support@nivra-telecom.ca">
                   support@nivra-telecom.ca
                 </a>
                 .
@@ -180,12 +180,12 @@ export default function PayerCommande() {
         <Card>
           <div className="text-center space-y-3 py-4">
             <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-2xl font-bold text-white">
               Cette commande a déjà été payée.
             </h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-white/60">
               Merci ! Un reçu a été envoyé par courriel. Une question ?{" "}
-              <a className="text-violet-700 underline" href="mailto:support@nivra-telecom.ca">
+              <a className="text-violet-400 underline" href="mailto:support@nivra-telecom.ca">
                 support@nivra-telecom.ca
               </a>
             </p>
@@ -195,10 +195,10 @@ export default function PayerCommande() {
         <Card>
           <div className="text-center space-y-3 py-4">
             <AlertCircle className="h-14 w-14 text-amber-500 mx-auto" />
-            <h2 className="text-2xl font-bold text-slate-900">Ce lien a expiré.</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-2xl font-bold text-white">Ce lien a expiré.</h2>
+            <p className="text-sm text-white/60">
               Contactez votre représentant Nivra ou écrivez à{" "}
-              <a className="text-violet-700 underline" href="mailto:support@nivra-telecom.ca">
+              <a className="text-violet-400 underline" href="mailto:support@nivra-telecom.ca">
                 support@nivra-telecom.ca
               </a>{" "}
               pour obtenir un nouveau lien.
@@ -209,19 +209,19 @@ export default function PayerCommande() {
         <>
           <Card>
             <div className="space-y-1 mb-4">
-              <p className="text-xs uppercase tracking-wider text-violet-700 font-semibold">
+              <p className="text-xs uppercase tracking-wider text-violet-400 font-semibold">
                 Commande en attente
               </p>
-              <h2 className="text-2xl font-bold text-slate-900">
+              <h2 className="text-2xl font-bold text-white">
                 Compléter votre commande
               </h2>
-              <p className="text-sm text-slate-500">
-                Présentée par <span className="font-medium text-slate-700">{agent_name}</span>
+              <p className="text-sm text-white/50">
+                Présentée par <span className="font-medium text-white/75">{agent_name}</span>
               </p>
             </div>
 
             {quote ? (
-              <div className="border-t border-slate-200 pt-4 space-y-3">
+              <div className="border-t border-white/10 pt-4 space-y-3">
                 <SummaryRow label="Client" value={quote.client_info?.first_name || quote.client_info?.last_name
                   ? `${quote.client_info?.first_name || ""} ${quote.client_info?.last_name || ""}`.trim()
                   : intent.customer_name || "—"} />
@@ -254,21 +254,21 @@ export default function PayerCommande() {
                   />
                 )}
 
-                <div className="border-t border-slate-200 pt-3 space-y-2">
+                <div className="border-t border-white/10 pt-3 space-y-2">
                   <SummaryRow label="Sous-total" value={fmt(quote.subtotal)} muted />
                   <SummaryRow label="TPS (5%)" value={fmt(quote.tps)} muted />
                   <SummaryRow label="TVQ (9,975%)" value={fmt(quote.tvq)} muted />
                 </div>
 
-                <div className="border-t border-slate-200 pt-3 flex items-baseline justify-between">
-                  <span className="text-base font-semibold text-slate-900">Total à payer</span>
-                  <span className="text-2xl font-bold text-violet-700">
+                <div className="border-t border-white/10 pt-3 flex items-baseline justify-between">
+                  <span className="text-base font-semibold text-white">Total à payer</span>
+                  <span className="text-2xl font-bold text-violet-400">
                     {fmt(quote.total)}
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="border-t border-slate-200 pt-4">
+              <div className="border-t border-white/10 pt-4">
                 <SummaryRow label="Total à payer" value={fmt(intent.amount)} />
               </div>
             )}
@@ -293,7 +293,7 @@ export default function PayerCommande() {
                 type="button"
                 disabled={resending || resendOk}
                 onClick={handleResend}
-                className="w-full h-12 rounded-xl border border-slate-300 bg-white text-slate-800 font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full h-12 rounded-xl border border-white/15 bg-white/[0.04] text-white font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {resending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -305,7 +305,7 @@ export default function PayerCommande() {
                 {resendOk ? "Lien renvoyé ✓" : "📧 Recevoir un nouveau lien"}
               </button>
 
-              <p className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-1">
+              <p className="flex items-center justify-center gap-2 text-xs text-white/50 pt-1">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Paiement sécurisé via PayPal — aucun compte requis
               </p>
@@ -321,22 +321,22 @@ export default function PayerCommande() {
 
 function Page({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50">
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm">
+    <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <header style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(2,2,9,0.85)', backdropFilter: 'blur(12px)', position: 'relative' }}>
         <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
           <a href="https://nivra-telecom.ca" className="flex items-center gap-2">
-            <span className="text-xl font-black tracking-tight text-violet-700">
-              Nivra
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Telecom
-            </span>
+            <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-1px', color: '#A78BFA', fontFamily: "'Space Grotesk', sans-serif" }}>Nivra</span>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', fontFamily: "'JetBrains Mono', monospace" }}>Telecom</span>
           </a>
-          <span className="text-xs text-slate-400">Paiement sécurisé</span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#06B6D4' }} /> Paiement sécurisé
+          </span>
         </div>
       </header>
       <main className="mx-auto max-w-2xl px-4 py-6 space-y-4">{children}</main>
-      <footer className="mx-auto max-w-2xl px-4 py-8 text-center text-xs text-slate-400">
+      <footer className="mx-auto max-w-2xl px-4 py-8 text-center" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
         © {new Date().getFullYear()} Nivra Telecom — support@nivra-telecom.ca
       </footer>
     </div>
@@ -345,7 +345,7 @@ function Page({ children }: { children: React.ReactNode }) {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', padding: 20 }}>
       {children}
     </div>
   );
@@ -364,12 +364,12 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className={`text-sm ${muted ? "text-slate-500" : "text-slate-700"}`}>
+      <span className={`text-sm ${muted ? "text-white/50" : "text-white/75"}`}>
         {label}
       </span>
       <span
         className={`text-sm font-semibold tabular-nums ${
-          accent || (muted ? "text-slate-600" : "text-slate-900")
+          accent || (muted ? "text-white/60" : "text-white")
         }`}
       >
         {value}

@@ -113,29 +113,28 @@ const Careers = () => {
   ];
 
   return (
-    <div style={{ background: '#080612', minHeight: '100vh' }}>
+    <div style={{ background: '#020209', minHeight: '100vh' }}>
       <SEOHead {...SEO_DATA.careers} />
       <Header />
 
       {/* HERO */}
-      <section style={{ background: 'linear-gradient(160deg, #080612 0%, #11082A 55%, #0C0C18 100%)', paddingTop: 96, paddingBottom: 80, position: 'relative', overflow: 'hidden' }}>
-        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <div aria-hidden className="absolute pointer-events-none" style={{ top: -140, right: -80, width: 500, height: 500, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.18) 0%, transparent 65%)' }} />
-        <div aria-hidden className="absolute pointer-events-none" style={{ bottom: -100, left: -80, width: 400, height: 400, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.10) 0%, transparent 65%)' }} />
+      <section style={{ paddingTop: 110, paddingBottom: 80, position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.28) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.14) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), rgba(6,182,212,0.5), transparent)', animation: 'n-scanline 10s linear infinite', pointerEvents: 'none' }} />
 
         <div className="container relative z-10 mx-auto px-4">
           <div className="mx-auto max-w-4xl text-center">
-            <div className="inline-flex items-center gap-2 mb-6" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 999, padding: '6px 16px' }}>
-              <Sparkles className="w-3 h-3" style={{ color: '#A78BFA' }} />
-              <span style={{ color: '#C4B5FD', fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+            <div className="n-animate-in inline-flex items-center gap-2 mb-8" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 999, padding: '7px 18px' }}>
+              <Sparkles className="w-3.5 h-3.5" style={{ color: '#A78BFA' }} />
+              <span style={{ color: '#A78BFA', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
                 On recrute — équipe Nivra Telecom
               </span>
             </div>
-            <h1 className="font-display font-black text-white" style={{ fontSize: 'clamp(36px, 6vw, 68px)', letterSpacing: '-2px', lineHeight: 1.03, marginBottom: 20 }}>
-              Construisez la nouvelle
-              <br />
-              télécommunication
-              <span style={{ marginLeft: 12, background: 'linear-gradient(90deg, #A78BFA 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> québécoise.</span>
+            <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(36px, 6vw, 68px)', letterSpacing: '-2.5px', lineHeight: 1.0, marginBottom: 20, color: '#fff' }}>
+              Construisez la nouvelle<br />
+              <span className="n-shimmer-text">télécommunication</span><span style={{ color: '#fff' }}> québécoise.</span>
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, lineHeight: 1.65, maxWidth: 560, margin: '0 auto 36px' }}>
               Chez Nivra, on bâtit des services télécoms simples, transparents et sans engagement.
@@ -165,7 +164,7 @@ const Careers = () => {
       </section>
 
       {/* VALUES */}
-      <section style={{ background: '#0A0A18', borderTop: '1px solid rgba(255,255,255,0.07)', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
+      <section style={{ background: '#020209', borderTop: '1px solid rgba(255,255,255,0.07)', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-14 max-w-2xl text-center">
             <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Nos valeurs</div>
@@ -195,7 +194,7 @@ const Careers = () => {
       </section>
 
       {/* BENEFITS */}
-      <section style={{ background: '#080612', padding: '80px 0' }}>
+      <section style={{ background: '#020209', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
           <div className="mb-14 grid items-end gap-8 md:grid-cols-2">
             <div>
@@ -229,7 +228,7 @@ const Careers = () => {
       </section>
 
       {/* HIRING PROCESS */}
-      <section style={{ background: '#0A0A18', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
+      <section style={{ background: '#020209', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-14 max-w-2xl text-center">
             <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Notre processus</div>
@@ -259,7 +258,7 @@ const Careers = () => {
       </section>
 
       {/* POSITIONS */}
-      <section id="positions" className="scroll-mt-24" style={{ background: '#080612', padding: '80px 0' }}>
+      <section id="positions" className="scroll-mt-24" style={{ background: '#020209', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-10 max-w-3xl text-center">
             <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#A78BFA' }}>Opportunités</div>
@@ -387,7 +386,7 @@ const Careers = () => {
       </section>
 
       {/* CTA */}
-      <section style={{ background: '#0A0A18', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
+      <section style={{ background: '#020209', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '80px 0' }}>
         <div className="container mx-auto px-4">
           <div className="relative mx-auto max-w-5xl overflow-hidden" style={{ background: '#0D0D20', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 32, padding: '48px 40px' }}>
             <div aria-hidden className="absolute pointer-events-none" style={{ right: -80, top: -80, width: 320, height: 320, background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.3) 0%, transparent 65%)' }} />
