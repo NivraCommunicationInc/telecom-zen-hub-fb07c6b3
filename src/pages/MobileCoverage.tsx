@@ -170,16 +170,6 @@ const MobileCoverage = () => {
                 : "Check Nivra mobile availability at your address and view the Quebec map."}
             </p>
 
-            {/* Network stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-10">
-              {networkStats.map((stat, i) => (
-                <div key={i} className="p-4 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14 }}>
-                  <div className="font-extrabold mb-1" style={{ fontSize: 24, color: "#A78BFA", letterSpacing: "-0.5px" }}>{stat.value}</div>
-                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
-
             {/* Address check */}
             <div className="max-w-2xl mx-auto p-2 flex flex-col sm:flex-row gap-2" style={{ background: "rgba(255,255,255,0.04)", borderRadius: 20, boxShadow: "0 20px 50px -20px rgba(124,58,237,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
               <div className="flex-1">
@@ -252,36 +242,26 @@ const MobileCoverage = () => {
           </div>
         </section>
 
-        {/* Stats bar + Map */}
-        <section className="px-5 sm:px-10 py-10" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          {/* Telecom stats bar */}
-          <div className="max-w-[1100px] mx-auto mb-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { value: "22+",           label: isFr ? "Villes desservies" : "Cities served" },
-              { value: "500 000+",      label: isFr ? "Résidents couverts" : "Residents covered" },
-              { value: "940 Mbps",      label: isFr ? "Vitesse maximale" : "Max speed" },
-              { value: isFr ? "Sans contrat" : "No contract", label: isFr ? "Ni engagement" : "No commitment" },
-            ].map((s, i) => (
-              <div key={i} className="p-4 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 14 }}>
-                <div className="font-extrabold mb-1" style={{ color: "#A78BFA", fontSize: 20, letterSpacing: "-0.5px" }}>{s.value}</div>
-                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{s.label}</div>
+        {/* Map */}
+        <section className="px-5 sm:px-10 py-10" style={{ background: "#020209", borderTop: "1px solid rgba(124,58,237,0.15)" }}>
+          <div className="max-w-[1100px] mx-auto" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 20, padding: "16px", boxShadow: "0 0 60px -20px rgba(124,58,237,0.15)" }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 8px rgba(52,211,153,0.8)" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  {isFr ? "Réseau 4G en direct" : "Live 4G network"}
+                </span>
               </div>
-            ))}
-          </div>
-
-          {/* Map card */}
-          <div className="max-w-[1100px] mx-auto" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "12px" }}>
-            <div className="flex flex-wrap gap-3 mb-3 text-xs px-2">
-              <span className="flex items-center gap-1.5 font-medium" style={{ color: "rgba(255,255,255,0.6)" }}>
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#7C3AED" }} />
+              <span className="flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: "#7C3AED" }} />
                 {isFr ? "Zones de couverture mobile" : "Mobile coverage zones"}
               </span>
             </div>
-            <div className="rounded-2xl overflow-hidden" style={{ height: "55vh", minHeight: 380, border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="rounded-2xl overflow-hidden" style={{ height: "55vh", minHeight: 380, border: "1px solid rgba(124,58,237,0.15)" }}>
               <MapContainer center={[45.8, -73.6]} zoom={9} style={{ height: "100%", width: "100%" }}>
                 <TileLayer
-                  attribution='&copy; OpenStreetMap contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
                 <FlyToControl target={mapTarget} />
                 {COVERAGE_ZONES.map((z) => (
@@ -309,99 +289,128 @@ const MobileCoverage = () => {
                 ))}
               </MapContainer>
             </div>
-            <div className="mt-3 px-2 flex items-center gap-2">
-              <span style={{ color: "#7C3AED", fontSize: 16, lineHeight: 1 }}>&#9899;</span>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500 }}>
-                Zones de service Nivra Telecom
-              </span>
-            </div>
           </div>
         </section>
 
         {/* Coverage Regions */}
-        <section className="px-5 sm:px-10 pb-12" style={{ background: "#020209" }}>
+        <section className="px-5 sm:px-10 py-16" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="max-w-[1100px] mx-auto">
-            <div className="mb-8 text-center">
-              <h2 className="font-extrabold text-white mb-2" style={{ fontSize: "clamp(20px,3vw,28px)", letterSpacing: "-0.5px" }}>
-                {isFr ? "Régions desservies" : "Service Regions"}
+            <div className="mb-10 text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4" style={{ background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 100 }}>
+                <Signal className="w-3.5 h-3.5" style={{ color: "#A78BFA" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#A78BFA", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>
+                  {isFr ? "Carte de couverture 4G" : "4G Coverage map"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(24px,3.5vw,36px)", letterSpacing: "-1px" }}>
+                {isFr ? <>Régions <span className="n-shimmer-text">desservies</span></> : <>Service <span className="n-shimmer-text">regions</span></>}
               </h2>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15 }}>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, maxWidth: 520, margin: "0 auto" }}>
                 {isFr ? "Couverture disponible dans les principales agglomérations du Québec" : "Coverage available in Quebec's main urban areas"}
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-              {REGIONS.map((r, i) => (
-                <div key={i} className="flex gap-4 p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 14 }}>
-                  <div className="shrink-0 rounded-full" style={{ background: "#7C3AED", width: 8, height: 8, flexShrink: 0, marginTop: 6 }} />
-                  <div>
-                    <p className="font-bold text-white mb-1" style={{ fontSize: 14 }}>{r.label}</p>
-                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 1.6 }}>{r.cities}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              {REGIONS.map((r, i) => {
+                const colors = ["#A78BFA", "#60A5FA", "#34D399", "#FBBF24"];
+                return (
+                  <div key={i} className="flex gap-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, transition: "border-color 0.2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = `${colors[i]}40`)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)")}
+                  >
+                    <div style={{ width: 4, flexShrink: 0, background: `linear-gradient(180deg, ${colors[i]}, ${colors[i]}80)`, borderRadius: "14px 0 0 14px" }} />
+                    <div className="flex-1 p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-extrabold" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: colors[i], letterSpacing: "0.1em", textTransform: "uppercase" }}>R{String(i + 1).padStart(2, "0")}</span>
+                        <p className="font-bold text-white" style={{ fontSize: 14 }}>{r.label}</p>
+                      </div>
+                      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12.5, lineHeight: 1.7 }}>{r.cities}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <div className="p-4" style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 12 }}>
-              <div className="flex gap-3">
-                <span style={{ color: "#A78BFA", fontSize: 16, flexShrink: 0 }}>&#9432;</span>
-                <div>
-                  <p className="font-semibold mb-1" style={{ color: "#C4B5FD", fontSize: 13 }}>
-                    {isFr ? "Zones en expansion — Tier 2" : "Expansion Zones — Tier 2"}
-                  </p>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 1.6 }}>
-                    {isFr
-                      ? "Grâce à des projets d'expansion actifs, les services s'étendent à : Abitibi-Témiscamingue, Bas-Saint-Laurent, Gaspésie, Côte-Nord (partielle)."
-                      : "Through active expansion projects, services are extending to: Abitibi-Témiscamingue, Bas-Saint-Laurent, Gaspésie, Côte-Nord (partial)."}
-                  </p>
-                </div>
+            <div className="flex gap-4 p-5" style={{ background: "rgba(124,58,237,0.07)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 14 }}>
+              <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.35)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+              </div>
+              <div>
+                <p className="font-bold mb-1" style={{ color: "#C4B5FD", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em" }}>
+                  {isFr ? "ZONES EN EXPANSION — TIER 2" : "EXPANSION ZONES — TIER 2"}
+                </p>
+                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 1.6 }}>
+                  {isFr
+                    ? "Grâce à des projets d'expansion actifs, les services s'étendent à : Abitibi-Témiscamingue, Bas-Saint-Laurent, Gaspésie, Côte-Nord (partielle)."
+                    : "Through active expansion projects, services are extending to: Abitibi-Témiscamingue, Bas-Saint-Laurent, Gaspésie, Côte-Nord (partial)."}
+                </p>
               </div>
             </div>
           </div>
         </section>
 
         {/* Network Features */}
-        <section className="px-5 sm:px-10 py-14" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+        <section className="px-5 sm:px-10 py-16" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <div className="max-w-[1100px] mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="font-extrabold text-white mb-2" style={{ fontSize: "clamp(20px,3vw,28px)", letterSpacing: "-0.5px" }}>
-                {isFr ? "Caractéristiques du réseau" : "Network Features"}
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4" style={{ background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: 100 }}>
+                <Zap className="w-3.5 h-3.5" style={{ color: "#67E8F9" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#67E8F9", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>
+                  {isFr ? "Infrastructure réseau" : "Network infrastructure"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(24px,3.5vw,36px)", letterSpacing: "-1px" }}>
+                {isFr ? <>Caractéristiques du <span className="n-shimmer-text">réseau</span></> : <>Network <span className="n-shimmer-text">features</span></>}
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-              {coverageFeatures.map((f, i) => (
-                <div key={i} className="p-6 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, transition: "border-color 0.2s" }}>
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(124,58,237,0.15)" }}>
-                    <f.icon className="w-7 h-7" style={{ color: "#A78BFA" }} />
+              {coverageFeatures.map((f, i) => {
+                const accents = ["#A78BFA", "#60A5FA", "#34D399", "#F9A8D4"];
+                return (
+                  <div key={i} className="p-6 text-center group" style={{ background: "rgba(255,255,255,0.03)", border: `1px solid rgba(255,255,255,0.07)`, borderRadius: 18, transition: "border-color 0.25s, transform 0.25s", cursor: "default" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = `${accents[i]}35`; e.currentTarget.style.transform = "translateY(-3px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"; e.currentTarget.style.transform = "translateY(0)"; }}
+                  >
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: `radial-gradient(circle, ${accents[i]}20 0%, rgba(255,255,255,0.03) 100%)`, border: `1px solid ${accents[i]}30` }}>
+                      <f.icon className="w-6 h-6" style={{ color: accents[i] }} />
+                    </div>
+                    <h3 className="font-bold text-white mb-2" style={{ fontSize: 14, letterSpacing: "-0.3px" }}>{f.title}</h3>
+                    <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.65 }}>{f.desc}</p>
                   </div>
-                  <h3 className="font-semibold text-white mb-2" style={{ fontSize: 15 }}>{f.title}</h3>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 1.6 }}>{f.desc}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
 
         {/* How to Subscribe */}
-        <section className="px-5 sm:px-10 py-14" style={{ background: "#020209" }}>
+        <section className="px-5 sm:px-10 py-16" style={{ background: "linear-gradient(180deg, #020209 0%, rgba(124,58,237,0.04) 50%, #020209 100%)" }}>
           <div className="max-w-[1100px] mx-auto">
             <div className="text-center mb-12">
-              <h2 className="font-extrabold text-white mb-2" style={{ fontSize: "clamp(20px,3vw,28px)", letterSpacing: "-0.5px" }}>
-                {isFr ? "Comment s'abonner" : "How to Subscribe"}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4" style={{ background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 100 }}>
+                <ArrowRight className="w-3.5 h-3.5" style={{ color: "#A78BFA" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#A78BFA", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>
+                  {isFr ? "Processus d'activation" : "Activation process"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(24px,3.5vw,36px)", letterSpacing: "-1px" }}>
+                {isFr ? <>Activez votre service <span className="n-shimmer-text">en 4 étapes</span></> : <>Get activated <span className="n-shimmer-text">in 4 steps</span></>}
               </h2>
               <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15 }}>
-                {isFr ? "Rejoignez Nivra en quelques étapes simples" : "Join Nivra in a few simple steps"}
+                {isFr ? "Rejoignez Nivra en quelques minutes" : "Join Nivra in just a few minutes"}
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
               {subscriptionSteps.map((item, i) => (
-                <div key={i} className="relative text-center">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-white text-lg" style={{ background: "#7C3AED" }}>
-                    {item.step}
+                <div key={i} className="relative p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 18 }}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-extrabold shrink-0" style={{ background: "linear-gradient(135deg, #7C3AED, #5B21B6)", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, boxShadow: "0 4px 20px -4px rgba(124,58,237,0.6)" }}>
+                      {item.step}
+                    </div>
+                    {i < subscriptionSteps.length - 1 && (
+                      <div className="hidden lg:block flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(124,58,237,0.4), transparent)" }} />
+                    )}
                   </div>
-                  <h3 className="font-semibold text-white mb-2" style={{ fontSize: 15 }}>{item.title}</h3>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>{item.desc}</p>
-                  {i < subscriptionSteps.length - 1 && (
-                    <div className="hidden lg:block absolute top-6 left-[60%] h-[2px]" style={{ width: "80%", background: "rgba(124,58,237,0.3)" }} />
-                  )}
+                  <h3 className="font-bold text-white mb-2" style={{ fontSize: 14, letterSpacing: "-0.3px" }}>{item.title}</h3>
+                  <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.6 }}>{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -470,32 +479,35 @@ const MobileCoverage = () => {
 
         {/* CTA */}
         <section className="px-5 sm:px-10 pb-16 pt-8" style={{ background: "#020209" }}>
-          <div className="max-w-[1100px] mx-auto p-8 sm:p-10 text-center" style={{
-            background: "linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)",
+          <div className="max-w-[1100px] mx-auto text-center relative overflow-hidden" style={{
+            background: "linear-gradient(135deg, #4C1D95 0%, #7C3AED 50%, #5B21B6 100%)",
             borderRadius: 24,
-            boxShadow: "0 20px 60px -20px rgba(124,58,237,0.5)",
+            boxShadow: "0 20px 80px -20px rgba(124,58,237,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
+            padding: "clamp(40px, 6vw, 64px) 24px",
           }}>
-            <h2 className="font-extrabold text-white mb-3" style={{ fontSize: "clamp(22px, 3.5vw, 32px)", letterSpacing: "-0.5px" }}>
-              {isFr ? "Prêt à rejoindre Nivra ?" : "Ready to Join Nivra?"}
-            </h2>
-            <p className="mb-6 max-w-xl mx-auto text-white" style={{ opacity: 0.85, fontSize: 16 }}>
-              {isFr ? "Découvrez nos forfaits mobiles prépayés flexibles et sans engagement." : "Discover our flexible prepaid mobile plans with no commitment."}
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <button
-                onClick={() => navigate("/mobile")}
-                className="inline-flex items-center gap-2 px-6 py-3 font-bold"
-                style={{ background: "#FFFFFF", color: "#7C3AED", borderRadius: 50, border: "none", cursor: "pointer" }}
-              >
-                {isFr ? "Voir les forfaits" : "View Plans"} <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => navigate("/contact")}
-                className="inline-flex items-center gap-2 px-6 py-3 font-bold"
-                style={{ background: "rgba(255,255,255,0.12)", color: "#FFFFFF", borderRadius: 50, border: "1px solid rgba(255,255,255,0.3)", cursor: "pointer" }}
-              >
-                {isFr ? "Nous contacter" : "Contact Us"}
-              </button>
+            <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "40px 40px", pointerEvents: "none" }} />
+            <div aria-hidden style={{ position: "absolute", top: "-40%", left: "50%", transform: "translateX(-50%)", width: 600, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,255,255,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 100 }}>
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 6px rgba(52,211,153,1)" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.9)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>
+                  {isFr ? "Disponible maintenant" : "Available now"}
+                </span>
+              </div>
+              <h2 className="font-extrabold text-white mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(26px, 4vw, 44px)", letterSpacing: "-1.5px", lineHeight: 1.1 }}>
+                {isFr ? "Prêt à rejoindre Nivra ?" : "Ready to Join Nivra?"}
+              </h2>
+              <p className="mb-8 max-w-lg mx-auto text-white" style={{ opacity: 0.8, fontSize: 16, lineHeight: 1.6 }}>
+                {isFr ? "Forfaits mobiles prépayés flexibles, sans engagement, sans vérification de crédit." : "Flexible prepaid mobile plans, no commitment, no credit check."}
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button onClick={() => navigate("/mobile")} className="inline-flex items-center gap-2 px-7 py-3.5 font-bold" style={{ background: "#FFFFFF", color: "#7C3AED", borderRadius: 50, border: "none", cursor: "pointer", fontSize: 15 }}>
+                  {isFr ? "Voir les forfaits" : "View Plans"} <ArrowRight className="w-4 h-4" />
+                </button>
+                <button onClick={() => navigate("/contact")} className="inline-flex items-center gap-2 px-7 py-3.5 font-bold" style={{ background: "rgba(255,255,255,0.1)", color: "#FFFFFF", borderRadius: 50, border: "1px solid rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 15 }}>
+                  {isFr ? "Nous contacter" : "Contact Us"}
+                </button>
+              </div>
             </div>
           </div>
         </section>
