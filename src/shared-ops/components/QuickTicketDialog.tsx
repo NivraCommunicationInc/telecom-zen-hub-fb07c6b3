@@ -81,8 +81,14 @@ export function QuickTicketDialog({
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast.success(isReminder ? "Rappel envoyé au client" : "Ticket créé — courriel envoyé");
       onClose();
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual error from edge function response
+      let msg = e?.message || "Erreur inconnue";
+      try {
+        const body = await (e?.context as Response)?.json?.();
+        if (body?.error) msg = body.error;
+      } catch {}
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
