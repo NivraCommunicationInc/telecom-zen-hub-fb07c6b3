@@ -33,7 +33,7 @@ interface InvoiceActionsProps {
   onRefresh: () => void;
 }
 
-type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharge" | "addCredit" | "refundPayment";
+type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharge" | "addCredit" | "refundPayment" | "cancelInvoice";
 
 type ManualMethod = "paypal" | "interac" | "cash" | "debit_credit" | "bank_transfer" | "other";
 type ApplyMode = "invoice" | "account";
