@@ -56,6 +56,7 @@ const CoreServicesPage = lazy(() => import("./pages/CoreServicesPage"));
 const CoreCatalogPage = lazy(() => import("./pages/CoreCatalogPage"));
 const CoreTVSurMesurePage = lazy(() => import("./pages/CoreTVSurMesurePage"));
 const CoreChannelsPage = lazy(() => import("./pages/CoreChannelsPage"));
+const CoreGrilleCanaux = lazy(() => import("./pages/CoreGrilleCanaux"));
 const CoreStreamingPage = lazy(() => import("./pages/CoreStreamingPage"));
 const CoreContractsPage = lazy(() => import("./pages/CoreContractsPage"));
 
@@ -194,6 +195,7 @@ const CoreApp = () => {
                 <Route path="catalog" element={<S><CoreCatalogPage /></S>} />
                 <Route path="tv-sur-mesure" element={<S><CoreTVSurMesurePage /></S>} />
                 <Route path="channels" element={<S><CoreChannelsPage /></S>} />
+                <Route path="grille-canaux" element={<S><CoreGrilleCanaux /></S>} />
                 <Route path="streaming" element={<S><CoreStreamingPage /></S>} />
                 <Route path="contracts" element={<S><CoreContractsPage /></S>} />
                 {/* Marketing */}

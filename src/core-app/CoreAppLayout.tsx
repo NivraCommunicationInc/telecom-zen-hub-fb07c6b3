@@ -158,6 +158,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Boxes, label: "Catalog", href: "/catalog" },
       { icon: MonitorPlay, label: "TV sur mesure", href: "/tv-sur-mesure" },
       { icon: Tv, label: "TV Channels", href: "/channels" },
+      { icon: Tv, label: "Grille canaux", href: "/grille-canaux" },
       { icon: Film, label: "Streaming+", href: "/streaming" },
       { icon: FileText, label: "Contracts", href: "/contracts" },
       { icon: Package, label: "Equipment", href: "/equipment" },
