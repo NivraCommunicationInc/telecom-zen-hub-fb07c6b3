@@ -133,6 +133,7 @@ export function InvoiceActionMenu({
       {modal === "addCharge" && <AdjustmentModal type="charge" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "addCredit" && <AdjustmentModal type="credit" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "refundPayment" && <RefundModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "cancelInvoice" && <CancelInvoiceModal invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
     </>
   );
 }
