@@ -49,7 +49,7 @@ function SpeedGauge({ speed, phase, maxMbps = 1000 }: { speed: number; phase: Ph
       {/* Filled arc */}
       <circle cx={CX} cy={CY} r={R} fill="none" stroke={`url(#${gradId})`} strokeWidth={20} strokeLinecap="round"
         strokeDasharray={`${filled} ${CIRC - filled}`} transform={`rotate(150,${CX},${CY})`}
-        filter="url(#glow)" style={{ transition: "stroke-dasharray 0.2s ease-out" }} />
+        filter="url(#glow)" style={{ transition: "stroke-dasharray 0.12s ease-out" }} />
 
       {/* Tick marks */}
       {[0, 100, 250, 500, 750, 1000].map(v => {
@@ -81,34 +81,63 @@ function useSpeedTest() {
   const [liveSpeed, setLive]  = useState(0);
   const [results, setResults] = useState<Results | null>(null);
   const engineRef             = useRef<InstanceType<typeof SpeedTest> | null>(null);
+  const tickerRef             = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const run = useCallback(() => {
     engineRef.current?.pause();
+    if (tickerRef.current) clearInterval(tickerRef.current);
     setResults(null);
     setLive(0);
     setPhase("ping");
 
-    const engine = new SpeedTest({ autoStart: false });
+    const engine = new SpeedTest({
+      autoStart: false,
+      // Skip packet-loss (WebRTC) — we only need latency + bandwidth
+      measurements: [
+        { type: "latency",  numPackets: 4 },
+        { type: "download", bytes: 1e5,  count: 4, bypassMinDuration: true },
+        { type: "download", bytes: 5e5,  count: 4, bypassMinDuration: true },
+        { type: "download", bytes: 1e6,  count: 4, bypassMinDuration: true },
+        { type: "download", bytes: 1e7,  count: 4 },
+        { type: "download", bytes: 2.5e7, count: 4 },
+        { type: "latency",  numPackets: 4 },
+        { type: "upload",   bytes: 1e5,  count: 4, bypassMinDuration: true },
+        { type: "upload",   bytes: 5e5,  count: 4, bypassMinDuration: true },
+        { type: "upload",   bytes: 1e6,  count: 4, bypassMinDuration: true },
+        { type: "upload",   bytes: 1e7,  count: 4 },
+      ],
+    });
     engineRef.current = engine;
 
-    engine.onResultsChange = () => {
-      const r  = engine.results;
-      const dl = r.getDownloadBandwidth();
-      const ul = r.getUploadBandwidth();
-      if (ul !== undefined) {
-        setPhase("upload");
-        setLive(Math.round((ul || 0) / 1e6));
-      } else if (dl !== undefined) {
-        setPhase("download");
-        setLive(Math.round((dl || 0) / 1e6));
+    // Running max so the needle climbs and never drops back
+    let maxDl = 0, maxUl = 0;
+
+    // Poll at 150 ms — gives smooth animation between measurement blocks
+    tickerRef.current = setInterval(() => {
+      const r     = engine.results;
+      const dlPts = r.getDownloadBandwidthPoints();
+      const ulPts = r.getUploadBandwidthPoints();
+      if (ulPts.length) {
+        maxUl = Math.max(maxUl, ulPts[ulPts.length - 1].bps);
+        setLive(Math.round(maxUl / 1e6));
+      } else if (dlPts.length) {
+        maxDl = Math.max(maxDl, dlPts[dlPts.length - 1].bps);
+        setLive(Math.round(maxDl / 1e6));
       }
+    }, 150);
+
+    // Phase detection only — live speed is driven by the ticker above
+    engine.onResultsChange = ({ type }) => {
+      if (type === "download") setPhase("download");
+      else if (type === "upload") setPhase("upload");
     };
 
     engine.onFinish = (r) => {
+      if (tickerRef.current) clearInterval(tickerRef.current);
       const dl     = Math.round((r.getDownloadBandwidth() || 0) / 1e6);
       const ul     = Math.round((r.getUploadBandwidth()   || 0) / 1e6);
       const ping   = Math.round( r.getUnloadedLatency()   || 0);
-      const jitter = Math.round( r.getUnloadedJitter()    || 0);
+      const jitter = Math.round((r.getUnloadedJitter()    || 0));
       setResults({
         download: dl, upload: ul,
         ping, jitter, pingMin: ping, pingMax: ping,
@@ -118,18 +147,27 @@ function useSpeedTest() {
       setPhase("done");
     };
 
-    engine.onError = (e) => { console.error(e); setPhase("error"); };
+    engine.onError = (e) => {
+      if (tickerRef.current) clearInterval(tickerRef.current);
+      console.error(e);
+      setPhase("error");
+    };
+
     engine.play();
   }, []);
 
   const reset = useCallback(() => {
     engineRef.current?.pause();
+    if (tickerRef.current) clearInterval(tickerRef.current);
     setPhase("idle");
     setLive(0);
     setResults(null);
   }, []);
 
-  useEffect(() => () => { engineRef.current?.pause(); }, []);
+  useEffect(() => () => {
+    engineRef.current?.pause();
+    if (tickerRef.current) clearInterval(tickerRef.current);
+  }, []);
 
   return { phase, liveSpeed, results, run, reset };
 }
