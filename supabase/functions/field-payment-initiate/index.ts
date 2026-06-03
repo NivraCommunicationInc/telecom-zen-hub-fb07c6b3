@@ -89,6 +89,10 @@ Deno.serve(async (req) => {
     if (quote.agent_id !== agentId) {
       return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
     }
+    // Enforce amount matches the quote total (prevent under-charging fraud)
+    if (Math.round(amount * 100) !== Math.round(Number(quote.total) * 100)) {
+      return new Response(JSON.stringify({ error: "Le montant ne correspond pas à la soumission" }), { status: 400, headers });
+    }
 
     // 1) Create the payment intent row first (so we own the UUID)
     const { data: intent, error: iErr } = await admin

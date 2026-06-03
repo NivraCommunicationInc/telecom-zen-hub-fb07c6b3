@@ -207,21 +207,24 @@ serve(async (req) => {
       }
       signatureVerified = true;
     } else {
-      // HARDENING (post-audit): Don't return 500 if config is missing — that causes
-      // PayPal to give up retrying and we lose recurring payments. Instead, log a
-      // critical alert and process the event anyway. Operators should treat this as
-      // an alarm and add PAYPAL_WEBHOOK_ID asap.
-      console.error("[PayPal Webhook] CRITICAL: PAYPAL_WEBHOOK_ID not configured — processing UNVERIFIED");
+      // SECURITY: Fail closed — do not process unverified webhooks.
+      // If PAYPAL_WEBHOOK_ID is missing, reject with 503 so PayPal retries later.
+      // Operators must configure PAYPAL_WEBHOOK_ID to restore webhook processing.
+      console.error("[PayPal Webhook] CRITICAL: PAYPAL_WEBHOOK_ID not configured — rejecting webhook");
       await supabase.from("billing_system_alerts").insert({
-        alert_type: "paypal_webhook_unverified",
+        alert_type: "paypal_webhook_config_missing",
         entity_type: "paypal_webhook",
         entity_reference: req.headers.get("paypal-transmission-id"),
         details: {
-          reason: "PAYPAL_WEBHOOK_ID secret missing — signature could not be verified",
+          reason: "PAYPAL_WEBHOOK_ID secret missing — webhook rejected for security",
           ip: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
           ts: new Date().toISOString(),
         },
-      });
+      }).catch(() => {});
+      return new Response(
+        JSON.stringify({ error: "Webhook signature verification not configured" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const event: PayPalWebhookEvent = JSON.parse(rawBody);

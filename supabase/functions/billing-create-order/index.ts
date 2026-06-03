@@ -92,8 +92,43 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
+    // ── Auth gate: require a valid JWT ──────────────────────────────────────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerClient: any = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser }, error: callerErr } = await callerClient.auth.getUser();
+    if (callerErr || !callerUser?.id) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerId = callerUser.id;
+    // ────────────────────────────────────────────────────────────────────────
+
     const body: CreateOrderRequest = await req.json();
-    
+
+    // ── IDOR guard: if user_id differs from caller, require staff role ──────
+    if (body.user_id && body.user_id !== callerId) {
+      const { data: roleRow } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerId)
+        .maybeSingle();
+      const staffRoles = ["admin", "super_admin", "owner", "employee", "agent", "field_agent"];
+      if (!roleRow || !staffRoles.includes(roleRow.role)) {
+        return new Response(JSON.stringify({ error: "Cannot create order for another user" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     // IDENTITY CORE: Hydrate identity from profiles if user_id provided
     if (body.user_id) {
       const { data: profile } = await supabase

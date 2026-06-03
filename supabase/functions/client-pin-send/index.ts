@@ -43,12 +43,7 @@ function buildPrimaryFromEmail(): string {
 
 // Get CORS headers with proper origin validation
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  // Check if origin is in whitelist or is a lovable.app/lovableproject.com domain
-  const isAllowed = requestOrigin && (
-    ALLOWED_ORIGINS.includes(requestOrigin) ||
-    requestOrigin.endsWith(".lovable.app") ||
-    requestOrigin.endsWith(".lovableproject.com")
-  );
+  const isAllowed = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin);
 
   return {
     "Access-Control-Allow-Origin": isAllowed ? requestOrigin : ALLOWED_ORIGINS[0],

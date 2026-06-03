@@ -87,10 +87,12 @@ export function useAdminSecretSession() {
       // If auth isn't ready yet (route remount), don't nuke the secret session.
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.warn("[useAdminSecretSession] No auth session yet; accepting local secret session and will re-check later");
-        setSessionExpiresAt(new Date(stored.expiresAt));
-        setIsValidSession(true);
-        return true;
+        // No Supabase auth session — hard-fail. The secret session is only valid
+        // when the user is fully authenticated. The SIGNED_IN event will re-trigger
+        // verifySession() once auth hydrates.
+        console.warn("[useAdminSecretSession] No auth session — rejecting secret session until auth is ready");
+        setIsValidSession(false);
+        return false;
       }
 
       const { data, error } = await supabase.functions.invoke("admin-session-check", {

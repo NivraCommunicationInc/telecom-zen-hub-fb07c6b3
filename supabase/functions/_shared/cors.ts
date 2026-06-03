@@ -43,20 +43,7 @@ export const getCorsHeaders = (requestOrigin: string | Request | null | undefine
   console.log(`[CORS] Request origin: ${origin}, Allowed: ${JSON.stringify(allowedOrigins)}`);
   
   // Check if the request origin is in the allowed list
-  const isAllowed = allowedOrigins.some(allowed => {
-    // Exact match
-    if (allowed === origin) return true;
-
-    // Always allow Lovable preview domains (variable subdomains)
-    if (origin.endsWith('.lovableproject.com')) return true;
-    if (origin.endsWith('.lovable.app')) return true;
-
-    // Backwards compatibility: if allowed contains a pattern, allow matching subdomains
-    if (allowed.includes('lovable.app') && origin.endsWith('.lovable.app')) return true;
-    if (allowed.includes('lovableproject.com') && origin.endsWith('.lovableproject.com')) return true;
-
-    return false;
-  });
+  const isAllowed = allowedOrigins.some(allowed => allowed === origin);
 
   // Only set the specific origin if it's allowed
   const corsOrigin = isAllowed ? origin : allowedOrigins[0] || '';
