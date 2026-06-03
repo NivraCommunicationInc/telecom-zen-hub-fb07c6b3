@@ -1454,12 +1454,8 @@ async function processChargebackFees(
     stats.errors_count++;
   }
 
-  const TPS_RATE = 0.05;
-  const TVQ_RATE = 0.09975;
   const REACT_FEE = 15;
-  const reactTps = Math.round(REACT_FEE * TPS_RATE * 100) / 100;
-  const reactTvq = Math.round(REACT_FEE * TVQ_RATE * 100) / 100;
-  const reactTotal = Math.round((REACT_FEE + reactTps + reactTvq) * 100) / 100;
+  const { tps: reactTps, tvq: reactTvq, total: reactTotal } = computeTaxes(REACT_FEE);
 
   for (const acct of resolvedAccounts || []) {
     try {

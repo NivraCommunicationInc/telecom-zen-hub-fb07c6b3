@@ -38,7 +38,12 @@ async function inviteNew(supabase: any) {
     if (!ageOk(a.date_of_birth)) reasons.push("Moins de 18 ans");
     if (a.accepts_commission_only === false) reasons.push("Refus commission only");
     const equip = Array.isArray(a.available_equipment) ? a.available_equipment : [];
-    if (!equip.some((e: string) => /ipad|tablet|tablette/i.test(e))) reasons.push("Pas d'iPad/tablette");
+    // Load equipment pattern from DB if available, otherwise use default
+    const { data: equipRule } = await supabase
+      .from("recruitment_rules").select("value").eq("key", "required_equipment_pattern").eq("is_active", true).maybeSingle()
+      .catch(() => ({ data: null }));
+    const equipPattern = equipRule?.value ? new RegExp(String(equipRule.value), "i") : /ipad|tablet|tablette/i;
+    if (!equip.some((e: string) => equipPattern.test(e))) reasons.push("Pas d'iPad/tablette");
 
     const { data: existing } = await supabase.from("profiles").select("user_id")
       .eq("email", String(a.email).toLowerCase()).eq("account_status", "active").maybeSingle();

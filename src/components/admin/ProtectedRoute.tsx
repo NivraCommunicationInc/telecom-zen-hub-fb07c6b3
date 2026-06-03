@@ -33,7 +33,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   // Handle idle timeout - auto logout after 30 minutes of inactivity
   const handleIdleLogout = useCallback(async () => {
-    console.log("[ProtectedRoute] Idle timeout - logging out admin");
+    if (import.meta.env.DEV) console.log("[ProtectedRoute] Idle timeout - logging out admin");
     toast.info("Session expirée pour inactivité", {
       description: "Vous avez été déconnecté après 30 minutes d'inactivité.",
     });
@@ -71,7 +71,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
       // CRITICAL: Check secret code session validity
       if (isSecretSessionValid === false) {
-        console.log("[AdminGuard] Secret code session invalid or missing - redirecting to login");
+        if (import.meta.env.DEV) console.log("[AdminGuard] Secret code session invalid or missing - redirecting to login");
         setIsVerifying(false);
         setIsAdminVerified(false);
         
@@ -88,7 +88,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         const lastCheckTime = lastCheck ? parseInt(lastCheck, 10) : 0;
         
         if (now - lastCheckTime > SESSION_RECHECK_INTERVAL_MS) {
-          console.log("[AdminGuard] Session check interval exceeded, validating with backend...");
+          if (import.meta.env.DEV) console.log("[AdminGuard] Session check interval exceeded, validating with backend...");
           
           // Verify session is still valid with Supabase
           const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
@@ -129,7 +129,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
         // SECURITY: Verify admin-only role from database - never trust client state
         // IMPORTANT: Admin portal is STRICTLY admin-only. Employees must NOT have access.
-        console.log("[AdminGuard] Checking role for user:", user.id);
+        if (import.meta.env.DEV) console.log("[AdminGuard] Checking role for user:", user.id);
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role, status, require_password_change, require_pin_change")
@@ -137,7 +137,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           .eq("role", "admin")
           .maybeSingle();
 
-        console.log("[AdminGuard] Role query result:", { roleData, error: error?.message });
+        if (import.meta.env.DEV) console.log("[AdminGuard] Role query result:", { roleData, error: error?.message });
 
         if (error) {
           console.error("[AdminGuard] Error verifying role:", error);
@@ -150,7 +150,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
         // SECURITY: Non-admin attempting to access /admin/*
         if (!roleData || roleData.role !== "admin") {
-          console.warn("[AdminGuard] SECURITY: Unauthorized role:", roleData?.role || "none");
+          if (import.meta.env.DEV) console.warn("[AdminGuard] SECURITY: Unauthorized role:", roleData?.role || "none");
           
           // Log blocked access attempt to audit log (only once per mount)
           if (!hasLoggedBlockedAccess.current) {
@@ -185,7 +185,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
         // Check status - only active admins allowed
         if (roleData.status !== "active") {
-          console.warn("[AdminGuard] Admin account not active:", roleData.status);
+          if (import.meta.env.DEV) console.warn("[AdminGuard] Admin account not active:", roleData.status);
           setIsVerifying(false);
           setIsAdminVerified(false);
           setRequiresCredentialUpdate(false);
@@ -239,14 +239,14 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   // Not logged in - redirect to admin login
   if (!user || !session) {
-    console.log("[AdminGuard] No user/session, redirecting to login");
+    if (import.meta.env.DEV) console.log("[AdminGuard] No user/session, redirecting to login");
     sessionStorage.removeItem("admin_last_auth_check");
     return <Navigate to="/admin/login" replace />;
   }
 
   // Secret code session not valid - redirect to login
   if (isSecretSessionValid === false) {
-    console.log("[AdminGuard] Secret code session invalid, redirecting to login");
+    if (import.meta.env.DEV) console.log("[AdminGuard] Secret code session invalid, redirecting to login");
     return <Navigate to="/admin/login" replace />;
   }
 
@@ -262,7 +262,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   // SECURITY: Not verified as admin - show access denied + redirect away
   if (requireAdmin && !isAdminVerified) {
-    console.log("[AdminGuard] Admin not verified, showing access denied");
+    if (import.meta.env.DEV) console.log("[AdminGuard] Admin not verified, showing access denied");
 
     // Redirect away automatically (no lingering on /admin)
     setTimeout(() => {

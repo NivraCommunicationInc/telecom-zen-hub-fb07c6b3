@@ -1,7 +1,9 @@
 /**
  * Edge Function: kyc-health
- * Simple health check for KYC system. Returns 200 + version + timestamp.
+ * Real health check for KYC system — verifies DB connectivity and active session count.
  */
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -13,21 +15,45 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } }
+  );
+
+  const checks: { name: string; ok: boolean; detail?: string }[] = [];
+
+  // Check 1: kyc_requests table accessible
+  try {
+    const { count, error } = await supabase
+      .from("kyc_requests")
+      .select("id", { count: "exact", head: true })
+      .not("status", "in", '("approved","rejected","cancelled")');
+    checks.push({ name: "kyc_requests table", ok: !error, detail: error?.message ?? `${count ?? 0} pending sessions` });
+  } catch (e) {
+    checks.push({ name: "kyc_requests table", ok: false, detail: String(e) });
+  }
+
+  // Check 2: identity_verification_sessions accessible
+  try {
+    const { error } = await supabase
+      .from("identity_verification_sessions")
+      .select("id", { count: "exact", head: true })
+      .limit(1);
+    checks.push({ name: "identity_verification_sessions table", ok: !error, detail: error?.message });
+  } catch (e) {
+    checks.push({ name: "identity_verification_sessions table", ok: false, detail: String(e) });
+  }
+
+  const allOk = checks.every(c => c.ok);
+
   return new Response(
     JSON.stringify({
-      version: "1.1.0",
-      status: "healthy",
+      version: "1.2.0",
+      status: allOk ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
-      session_flow: "created → submitted → manual_review → approved/rejected",
-      auto_approve: false,
-      functions: [
-        "generate-verification-qr",
-        "validate-verification-token",
-        "submit-id-verification",
-        "admin-review-verification",
-        "process-id-ocr",
-      ],
+      checks,
     }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    { status: allOk ? 200 : 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

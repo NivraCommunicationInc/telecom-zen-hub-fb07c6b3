@@ -60,8 +60,10 @@ serve(async (req) => {
       p_created_by_role: "system",
       p_customer_id: null,
     });
-    // We expect an error because invoice doesn't exist — but the RPC itself must be callable
-    const rpcReachable = !error || /not.found|invoice/i.test(error?.message || "");
+    // RPC is reachable if it ran (even with DB-level error). Only fail if the function itself is missing.
+    const functionMissing = error?.code === "PGRST202" ||
+      ((error?.message || "").toLowerCase().includes("function") && (error?.message || "").toLowerCase().includes("not"));
+    const rpcReachable = !error || !functionMissing;
     checks.push({
       name: "PayPal payment capture RPC",
       ok: rpcReachable,

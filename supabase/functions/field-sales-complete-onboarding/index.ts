@@ -115,7 +115,7 @@ serve(async (req: Request) => {
     const pinHash = await hashPinPBKDF2(pin, pinSalt);
 
     // Update user_roles with PIN and onboarding status
-    const { error: roleError } = await adminClient
+    const { data: updatedRoles, error: roleError } = await adminClient
       .from("user_roles")
       .update({
         staff_pin_hash: pinHash,
@@ -132,11 +132,15 @@ serve(async (req: Request) => {
         status: "active",
       })
       .eq("user_id", userId)
-      .eq("role", "field_sales");
+      .eq("role", "field_sales")
+      .select("user_id");
 
     if (roleError) {
       console.error("[field-sales-complete-onboarding] Role update error:", roleError);
       return json(500, { ok: false, message: "Erreur lors de la configuration du compte" });
+    }
+    if (!updatedRoles || updatedRoles.length === 0) {
+      return json(400, { ok: false, message: "Rôle field_sales introuvable — onboarding déjà complété ou rôle non assigné" });
     }
 
     // Log the successful onboarding
