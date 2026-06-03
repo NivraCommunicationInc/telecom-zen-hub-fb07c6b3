@@ -321,7 +321,7 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Ligne de commande</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.catalog_name || eq.item_name} — S/N: {eq.serial_number || eq.imei || eq.mac_address || (Array.isArray(eq.serial_numbers) ? eq.serial_numbers.join(", ") : null) || "—"}</option>))}
             </select>
           </div>
           <div>
@@ -510,7 +510,7 @@ function ReplaceEquipmentModal({ equipment, onClose, onRefresh }: { equipment: a
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.catalog_name || it.item_name} — S/N: {it.serial_number || it.imei || it.mac_address || (Array.isArray(it.serial_numbers) ? it.serial_numbers.join(", ") : null) || "—"}</option>))}
             </select>
           </div>
           <div>
@@ -592,7 +592,7 @@ function ExchangeEquipmentModal({ equipment, onClose, onRefresh }: { equipment: 
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement actuel</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.catalog_name || it.item_name} — S/N: {it.serial_number || it.imei || it.mac_address || (Array.isArray(it.serial_numbers) ? it.serial_numbers.join(", ") : null) || "—"}</option>))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -667,7 +667,7 @@ function ChangeStatusModal({ equipment, onClose, onRefresh }: { equipment: any[]
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.catalog_name || it.item_name} — S/N: {it.serial_number || it.imei || it.mac_address || (Array.isArray(it.serial_numbers) ? it.serial_numbers.join(", ") : null) || "—"}</option>))}
             </select>
           </div>
           <div>
@@ -736,7 +736,7 @@ function ChargeReplacementModal({ equipment, clientId, onClose, onRefresh }: { e
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.catalog_name || it.item_name} — S/N: {it.serial_number || it.imei || it.mac_address || (Array.isArray(it.serial_numbers) ? it.serial_numbers.join(", ") : null) || "—"}</option>))}
             </select>
           </div>
           <div>
