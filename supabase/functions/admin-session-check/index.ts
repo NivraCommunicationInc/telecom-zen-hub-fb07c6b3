@@ -53,9 +53,30 @@ const requestId = `session-check-${Date.now()}-${crypto.randomUUID().slice(0, 8)
       );
     }
 
-    // Create Supabase client with service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Bind session check to the authenticated caller — admin_user_id must match the JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Auth required" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser } } = await callerClient.auth.getUser();
+    if (!callerUser?.id || callerUser.id !== admin_user_id) {
+      console.error(`[${requestId}] JWT mismatch: caller=${callerUser?.id} requested=${admin_user_id}`);
+      return new Response(
+        JSON.stringify({ valid: false, error: "Unauthorized" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Create Supabase client with service role
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Hash the session token

@@ -75,15 +75,14 @@ async function resolveCaller(authHeader: string | null): Promise<{
     const { data: roles } = await admin
       .from("user_roles")
       .select("role")
-      .eq("user_id", caller.userId);
+      .eq("user_id", user.id);
 
     // Also allow admin_users (active admins)
-    const { data: _adminRow } = await adminClient.from("admin_users").select("user_id").eq("user_id", caller.userId).eq("is_active", true).maybeSingle();
-    if (_adminRow && !caller.role) caller.role = "admin";
+    const { data: _adminRow } = await admin.from("admin_users").select("user_id").eq("user_id", user.id).eq("is_active", true).maybeSingle();
 
-    const role =
-      (roles ?? []).find((r: any) => ["admin", "supervisor", "employee"].includes(r.role))?.role ??
-      "client";
+    const role = _adminRow
+      ? "admin"
+      : (roles ?? []).find((r: any) => ["admin", "supervisor", "employee"].includes(r.role))?.role ?? "client";
 
     return { userId: user.id, email: user.email ?? null, role };
   } catch {

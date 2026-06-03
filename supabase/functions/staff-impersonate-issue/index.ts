@@ -70,15 +70,19 @@ Deno.serve(async (req) => {
 
     // Resolve the APP origin (NOT the Supabase functions host) for the redirect.
     // Priority: explicit body.origin → Origin header → Referer → fallback.
+    const ALLOWED_APP_ORIGINS = [
+      "https://nivra-telecom.ca",
+      "https://www.nivra-telecom.ca",
+    ];
     const headerOrigin = req.headers.get("origin");
     const refererOrigin = (() => {
       const r = req.headers.get("referer");
       try { return r ? new URL(r).origin : null; } catch { return null; }
     })();
-    const appOrigin = (bodyOrigin && /^https?:\/\//i.test(bodyOrigin) ? bodyOrigin : null)
-      || headerOrigin
-      || refererOrigin
-      || "https://www.nivra-telecom.ca";
+    const candidateOrigin = bodyOrigin || headerOrigin || refererOrigin;
+    const appOrigin = (candidateOrigin && ALLOWED_APP_ORIGINS.includes(candidateOrigin))
+      ? candidateOrigin
+      : "https://www.nivra-telecom.ca";
 
     const redirectTo = `${appOrigin}${portalPath}?staff_imp=${encodeURIComponent(v.session_id)}&staff_imp_isolated=1`;
 

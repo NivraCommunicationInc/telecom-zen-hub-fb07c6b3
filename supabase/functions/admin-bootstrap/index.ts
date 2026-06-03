@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
     if (existingAdmins && existingAdmins.length > 0) {
       console.log("[admin-bootstrap] Bootstrap disabled - admin already exists");
       return new Response(
-        JSON.stringify({ error: "Bootstrap désactivé - Un administrateur existe déjà", disabled: true }),
+        JSON.stringify({ error: "Bootstrap non disponible" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

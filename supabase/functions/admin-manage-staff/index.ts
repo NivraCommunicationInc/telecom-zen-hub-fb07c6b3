@@ -990,7 +990,12 @@ serve(async (req: Request) => {
         if (role === "employee" || role === "technician") {
           const stepEmp = `${createStep}.db_upsert_employee`;
           const pinSalt = generateSalt();
-          const effectivePin = pin || "312026";
+          // Generate a cryptographically random 6-digit PIN if none provided.
+          // require_pin_change=true (set below) forces the employee to change it on first login.
+          const effectivePin = pin || (() => {
+            const bytes = crypto.getRandomValues(new Uint32Array(1));
+            return String((bytes[0] % 900000) + 100000);
+          })();
           const pinHash = await hashPinPBKDF2(effectivePin, pinSalt);
 
           const { error: empError } = await adminClient.from("employees").upsert({

@@ -134,8 +134,8 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<RateLimit
     };
   } catch (error) {
     console.error("[RateLimit] Error checking rate limit:", error);
-    // Fail open on error (allow the request) but log it
-    return { allowed: true, remaining: config.maxAttempts };
+    // Fail closed — never bypass rate limits on DB errors
+    return { allowed: false, remaining: 0 };
   }
 }
 
