@@ -97,17 +97,21 @@ function useSpeedTest() {
 
   // ── Ping
   const doPing = useCallback(async (h: Record<string, string>) => {
-    const times: number[] = [];
-    for (let i = 0; i < PING_N; i++) {
-      const t = performance.now();
-      await fetch(PING_URL, { cache: "no-store", headers: h });
-      times.push(performance.now() - t);
+    try {
+      const times: number[] = [];
+      for (let i = 0; i < PING_N; i++) {
+        const t = performance.now();
+        await fetch(PING_URL, { cache: "no-store", headers: h, signal: AbortSignal.timeout(5_000) });
+        times.push(performance.now() - t);
+      }
+      times.sort((a, b) => a - b);
+      const trimmed = times.slice(1, -1);
+      const avg  = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+      const jitter = trimmed.reduce((s, v) => s + Math.abs(v - avg), 0) / trimmed.length;
+      return { ping: Math.round(avg), jitter: Math.round(jitter), pingMin: Math.round(times[0]), pingMax: Math.round(times[times.length - 1]) };
+    } catch {
+      return { ping: 0, jitter: 0, pingMin: 0, pingMax: 0 };
     }
-    times.sort((a, b) => a - b);
-    const trimmed = times.slice(1, -1);
-    const avg  = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
-    const jitter = trimmed.reduce((s, v) => s + Math.abs(v - avg), 0) / trimmed.length;
-    return { ping: Math.round(avg), jitter: Math.round(jitter), pingMin: Math.round(times[0]), pingMax: Math.round(times[times.length - 1]) };
   }, []);
 
   // ── Generic throughput runner — bytes are reported incrementally via onChunk
@@ -136,8 +140,7 @@ function useSpeedTest() {
     const worker = async () => {
       while (!signal.aborted && performance.now() - start < durationMs) {
         try {
-          // per-request 12 s hard timeout so a stalled fetch never hangs the test
-          const reqSig = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+          const reqSig = AbortSignal.timeout(12_000);
           const resp = await makeFetch(reqSig, h);
           if (!resp.ok) { await resp.body?.cancel(); continue; }
           await readBody(resp, (n) => { total += n; });
