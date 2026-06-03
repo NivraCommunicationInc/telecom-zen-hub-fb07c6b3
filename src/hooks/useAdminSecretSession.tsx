@@ -47,7 +47,6 @@ export function useAdminSecretSession() {
       setSessionExpiresAt(new Date(expiresAt));
       setIsValidSession(true);
       setUsingDefaultCode(isDefaultCode);
-      console.log("[useAdminSecretSession] Session stored, expires at:", expiresAt);
     } catch (err) {
       console.error("[useAdminSecretSession] Failed to store session:", err);
     }
@@ -62,7 +61,6 @@ export function useAdminSecretSession() {
       setIsValidSession(false);
       setSessionExpiresAt(null);
       setUsingDefaultCode(false);
-      console.log("[useAdminSecretSession] Session cleared");
     } catch (err) {
       console.error("[useAdminSecretSession] Failed to clear session:", err);
     }
@@ -81,7 +79,6 @@ export function useAdminSecretSession() {
     // Default to local validity (token exists + not expired) and only hard-fail if backend confirms invalid.
     try {
       setIsChecking(true);
-      console.log("[useAdminSecretSession] Verifying session with backend...");
 
       // Ensure auth session is hydrated before invoking protected functions.
       // If auth isn't ready yet (route remount), don't nuke the secret session.
@@ -116,7 +113,6 @@ export function useAdminSecretSession() {
         return false;
       }
 
-      console.log("[useAdminSecretSession] Session valid, expires at:", data.expires_at);
       setSessionExpiresAt(new Date(data.expires_at || stored.expiresAt));
       setIsValidSession(true);
       return true;

@@ -206,6 +206,33 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    // TOCTOU mitigation: if two requests raced past the inFlight check, detect
+    // the duplicate immediately after insert and discard the later run.
+    {
+      const { data: concurrent } = await supabase
+        .from("cancellation_runs")
+        .select("id, started_at")
+        .eq("account_id", account.id)
+        .eq("status", "running")
+        .order("started_at", { ascending: true });
+
+      if (concurrent && concurrent.length > 1) {
+        const first = concurrent[0];
+        if (first.id !== runRow.id) {
+          await supabase
+            .from("cancellation_runs")
+            .update({ status: "cancelled", completed_at: new Date().toISOString() })
+            .eq("id", runRow.id)
+            .eq("status", "running");
+          return new Response(
+            JSON.stringify({ ok: true, already_running: true, run_id: first.id, message: "A cancellation is already in progress." }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
     runId = runRow.id;
     recordStep("run_started", true, { run_id: runId, scope, reason });
 

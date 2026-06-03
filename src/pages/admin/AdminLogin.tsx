@@ -36,24 +36,13 @@ const AdminLogin = () => {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
 
-  // DEBUG: Log auth state
-  console.log("[AdminLogin] render", { 
-    hasUser: !!user, 
-    hasSession: !!session, 
-    isLoading,
-    isChecking,
-    isValidSession 
-  });
 
   // Redirect if already authenticated AND has valid secret session
   useEffect(() => {
     if (!isLoading && !isChecking && user && session && isValidSession === true) {
-      console.log("[AdminLogin] Already authenticated with valid secret session, redirecting to /admin");
       navigate("/admin", { replace: true });
     }
-    // If user is authenticated but secret session is invalid, show secret code dialog
     if (!isLoading && !isChecking && user && session && isValidSession === false) {
-      console.log("[AdminLogin] User authenticated but secret session expired, showing dialog");
       setPendingUserId(user.id);
       setPendingUserEmail(user.email || "");
       setShowSecretDialog(true);
@@ -92,7 +81,8 @@ const AdminLogin = () => {
 
       setIsSubmitting(true);
 
-      const redirectUrl = `${window.location.origin}/nivra-secure-hub-2617-internal/reset-password`;
+      const adminResetPath = import.meta.env.VITE_ADMIN_RESET_PATH || "/nivra-secure-hub-2617-internal/reset-password";
+      const redirectUrl = `${window.location.origin}${adminResetPath}`;
       const { error } = await adminClient.auth.resetPasswordForEmail(submittedEmail, {
         redirectTo: redirectUrl,
       });
@@ -135,11 +125,6 @@ const AdminLogin = () => {
         password: submittedPassword,
       });
 
-      console.log("[AdminLogin] sign-in result", {
-        hasUser: !!data?.user,
-        hasSession: !!data?.session,
-        error: signInError,
-      });
 
       if (signInError) {
         toast({
@@ -205,7 +190,6 @@ const AdminLogin = () => {
         }
 
         // Credentials OK - Show secret code dialog
-        console.log("[AdminLogin] Credentials verified, showing secret code dialog");
         setPendingUserId(authUser.id);
         setPendingUserEmail(authUser.email || submittedEmail);
         setShowSecretDialog(true);
@@ -223,7 +207,6 @@ const AdminLogin = () => {
   };
 
   const handleSecretSuccess = (sessionToken: string, expiresAt: string, usingDefaultCode: boolean) => {
-    console.log("[AdminLogin] Secret code verified successfully");
 
     // Store the session
     if (pendingUserId) {
