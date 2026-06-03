@@ -91,8 +91,11 @@ export function ScheduleAppointmentDialog({
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast.success("Rendez-vous planifié — courriel envoyé");
       onClose();
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

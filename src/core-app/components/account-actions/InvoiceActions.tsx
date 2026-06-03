@@ -212,7 +212,10 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'application du paiement");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -363,7 +366,10 @@ function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices:
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors du paiement");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -506,7 +512,10 @@ function SendInvoiceModal({
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur d'envoi");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -570,7 +579,10 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -704,7 +716,10 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -816,7 +831,10 @@ function CancelInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[];
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'annulation");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

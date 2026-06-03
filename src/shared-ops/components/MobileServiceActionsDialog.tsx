@@ -167,8 +167,11 @@ export function MobileServiceActionsDialog({
       });
       toast.success(`Recharge ${fmt(num)} appliquée — courriel envoyé`);
       onClose();
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     }
   };
 
@@ -189,8 +192,11 @@ export function MobileServiceActionsDialog({
       });
       toast.success(`Option « ${name} » ajoutée`);
       setAddonName(""); setAddonPrice("");
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     }
   };
 
@@ -202,8 +208,11 @@ export function MobileServiceActionsDialog({
         addon_id: addon.id,
       });
       toast.success("Option retirée");
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     }
   };
 
@@ -231,8 +240,11 @@ export function MobileServiceActionsDialog({
       });
       toast.success("Action SIM appliquée — courriel envoyé");
       onClose();
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     }
   };
 

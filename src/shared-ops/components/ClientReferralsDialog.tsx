@@ -105,8 +105,11 @@ export function ClientReferralsDialog({ open, onClose, clientUserId, clientName 
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       setReferrals(((data as { referrals: Referral[] }).referrals) || []);
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -132,8 +135,11 @@ export function ClientReferralsDialog({ open, onClose, clientUserId, clientName 
       await load();
       setSelected(null);
       setRewardRef(""); setRewardProvider(""); setRewardAmount(""); setActionReason("");
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

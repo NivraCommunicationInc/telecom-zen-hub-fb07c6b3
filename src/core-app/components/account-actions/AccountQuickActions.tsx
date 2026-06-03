@@ -89,7 +89,10 @@ function SendEmailModal({ clientEmail, clientName, onClose }: { clientEmail?: st
       toast.success("Courriel ajouté à la file d'envoi");
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -155,7 +158,10 @@ function CreateTicketModal({ clientId, clientEmail, clientName, onClose, onRefre
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -242,7 +248,10 @@ function ScheduleVisitModal({ clientId, clientEmail, accountId, onClose, onRefre
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

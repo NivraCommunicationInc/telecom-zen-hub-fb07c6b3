@@ -105,7 +105,10 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
         setScoreNotes(data.score.notes ?? "");
       }
     } catch (e: any) {
-      toast.error(e.message || "Erreur de chargement");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -146,7 +149,10 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
       setTab("incidents");
       await load();
     } catch (e: any) {
-      toast.error(e.message || "Erreur d'enregistrement");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -169,7 +175,10 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
       toast.success("Incident mis à jour");
       await load();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +208,10 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
       setScoreReason("");
       await load();
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

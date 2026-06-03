@@ -6,6 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {
   action: "send_email" | "list_templates";
@@ -103,8 +104,8 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    const { data: isStaffData } = await admin.rpc("has_staff_role", { _user_id: userData.user.id });
-    if (isStaffData !== true) return json({ error: "forbidden" }, 403);
+    const { isStaff } = await checkStaffAuth(admin, userData.user.id);
+    if (!isStaff) return json({ error: "forbidden" }, 403);
 
     const body = (await req.json()) as Body;
 

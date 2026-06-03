@@ -52,8 +52,11 @@ export function InternalNoteDialog({ open, onClose, clientUserId, clientName, ac
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast.success("Note interne enregistrée");
       onClose();
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (e: any) {
+      // Extract actual server error if available
+      let msg = e?.message || "Erreur";
+      try { const b = await (e?.context as Response)?.json?.(); if (b?.error) msg = b.error; } catch {}
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

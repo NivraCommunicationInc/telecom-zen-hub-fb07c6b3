@@ -86,20 +86,6 @@ export function NipBypassReasonDialog({
         },
       });
 
-      // Log to internal_audit_log
-      await logInternalAudit({
-        action: "nip_bypass_access",
-        category: "security",
-        portal,
-        targetType: "client",
-        targetId: customerId,
-        details: {
-          bypass_reason: reason,
-          note: note.trim() || null,
-          account_id: accountId ?? null,
-        },
-      });
-
       onBypassGranted();
     } catch (err) {
       console.error("[NipBypass] Security logging failed — access DENIED:", err);
