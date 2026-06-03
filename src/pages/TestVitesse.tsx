@@ -14,8 +14,9 @@ const UL_STREAMS = 4;
 const PING_N   = 8;
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL as string;
 const ANON_KEY      = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-const DL_URL   = `${SUPABASE_URL}/functions/v1/speedtest-server?action=download`;
-const PING_URL = `${SUPABASE_URL}/functions/v1/speedtest-server?action=ping`;
+// Download + ping use same-origin static files (no auth, no cold start, no CORS)
+const DL_URL   = "/speedtest-10mb.bin";
+const PING_URL = "/ping";
 const UL_URL   = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
 const INFO_URL = `${SUPABASE_URL}/functions/v1/speedtest-info`;
 
@@ -95,18 +96,18 @@ function useSpeedTest() {
     return { Authorization: `Bearer ${token}`, apikey: ANON_KEY };
   }, []);
 
-  // ── Ping
-  const doPing = useCallback(async (h: Record<string, string>) => {
+  // ── Ping — same-origin /ping file, no auth headers needed
+  const doPing = useCallback(async (_h: Record<string, string>) => {
     try {
       const times: number[] = [];
       for (let i = 0; i < PING_N; i++) {
         const t = performance.now();
-        await fetch(PING_URL, { cache: "no-store", headers: h, signal: AbortSignal.timeout(5_000) });
+        await fetch(`${PING_URL}?t=${t}`, { cache: "no-store" });
         times.push(performance.now() - t);
       }
       times.sort((a, b) => a - b);
       const trimmed = times.slice(1, -1);
-      const avg  = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+      const avg    = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
       const jitter = trimmed.reduce((s, v) => s + Math.abs(v - avg), 0) / trimmed.length;
       return { ping: Math.round(avg), jitter: Math.round(jitter), pingMin: Math.round(times[0]), pingMax: Math.round(times[times.length - 1]) };
     } catch {
@@ -140,7 +141,7 @@ function useSpeedTest() {
     const worker = async () => {
       while (!signal.aborted && performance.now() - start < durationMs) {
         try {
-          const reqSig = AbortSignal.timeout(12_000);
+          const reqSig = AbortSignal.timeout(30_000);
           const resp = await makeFetch(reqSig, h);
           if (!resp.ok) { await resp.body?.cancel(); continue; }
           await readBody(resp, (n) => { total += n; });
@@ -155,10 +156,10 @@ function useSpeedTest() {
     return Math.round((total * 8) / elapsed / 1_000_000);
   }, []);
 
-  // ── Download: stream 4 MB chunks, count bytes as they arrive
+  // ── Download: stream 10 MB same-origin file, count bytes as they arrive
   const doDownload = useCallback(async (h: Record<string, string>, signal: AbortSignal, onSpeed: (s: number) => void) =>
     throughput(
-      (sig, hh) => fetch(DL_URL, { cache: "no-store", headers: hh, signal: sig }),
+      (sig, _hh) => fetch(`${DL_URL}?t=${Math.random()}`, { cache: "no-store", signal: sig }),
       async (r, onChunk) => {
         const reader = r.body!.getReader();
         while (true) {

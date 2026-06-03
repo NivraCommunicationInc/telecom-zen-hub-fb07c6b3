@@ -17,14 +17,13 @@ Deno.serve(async (req) => {
 
   let isp = "—", city = "—", region = "—", country = "CA";
   try {
-    const r = await fetch(`https://ipinfo.io/${ip}/json?token=`, { signal: AbortSignal.timeout(3000) });
+    const r = await fetch(`https://ip-api.com/json/${ip}?fields=org,city,regionName`, { signal: AbortSignal.timeout(3000) });
     if (r.ok) {
       const d = await r.json();
-      // org looks like "AS5769 Videotron Telecom Ltee" — strip ASN prefix
+      // ip-api returns org like "AS5769 Videotron Telecom Ltee" — strip ASN prefix
       isp = d.org ? d.org.replace(/^AS\d+\s+/, "").trim() : "—";
       city = d.city || "—";
-      region = d.region || "—";
-      country = d.country || "CA";
+      region = d.regionName || "—";
     }
   } catch { /* ipinfo unavailable, keep defaults */ }
 
