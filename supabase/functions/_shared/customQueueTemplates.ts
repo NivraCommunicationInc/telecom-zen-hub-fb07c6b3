@@ -5780,10 +5780,8 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Temps requis", "Moins de 2 minutes"],
             ["Votre avis est", "Confidentiel"],
           ],
-          ctaPrimaryUrl: reviewUrl,
-          ctaPrimaryLabel: "Partager mon expérience",
-          ctaSecondaryUrl: googleReviewUrl,
-          ctaSecondaryLabel: "Laisser un avis Google",
+          ctaPrimaryUrl: googleReviewUrl,
+          ctaPrimaryLabel: "Laisser mon avis Google",
           helpHtml: `Des questions? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
         }),
       };
