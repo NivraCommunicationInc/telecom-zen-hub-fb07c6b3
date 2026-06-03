@@ -2,23 +2,15 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { TicketCheck, Mail, Share2, RefreshCw, Server, Wifi, ArrowDown, ArrowUp } from "lucide-react";
+import SpeedTest from "@cloudflare/speedtest";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 
 // ─── Constants ────────────────────────────────────────────────
-const DL_MS    = 12_000;   // 12 s download
-const UL_MS    = 10_000;   // 10 s upload
-const DL_STREAMS = 8;
-const UL_STREAMS = 4;
-const PING_N   = 8;
-const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL as string;
-const ANON_KEY      = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-// Download + ping use same-origin static files (no auth, no cold start, no CORS)
-const DL_URL   = "/speedtest-10mb.bin";
-const PING_URL = "/ping";
-const UL_URL   = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
-const INFO_URL = `${SUPABASE_URL}/functions/v1/speedtest-info`;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const ANON_KEY     = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const INFO_URL     = `${SUPABASE_URL}/functions/v1/speedtest-info`;
 
 // ─── Types ────────────────────────────────────────────────────
 type Phase = "idle" | "ping" | "download" | "upload" | "done" | "error";
@@ -83,149 +75,61 @@ function SpeedGauge({ speed, phase, maxMbps = 1000 }: { speed: number; phase: Ph
   );
 }
 
-// ─── Speed test engine ────────────────────────────────────────
+// ─── Speed test engine (Cloudflare edge network) ─────────────
 function useSpeedTest() {
   const [phase, setPhase]     = useState<Phase>("idle");
   const [liveSpeed, setLive]  = useState(0);
   const [results, setResults] = useState<Results | null>(null);
-  const abortCtrl             = useRef<AbortController | null>(null);
+  const engineRef             = useRef<InstanceType<typeof SpeedTest> | null>(null);
 
-  const headers = useCallback(async (): Promise<Record<string, string>> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token ?? ANON_KEY;
-    return { Authorization: `Bearer ${token}`, apikey: ANON_KEY };
-  }, []);
+  const run = useCallback(() => {
+    engineRef.current?.pause();
+    setResults(null);
+    setLive(0);
+    setPhase("ping");
 
-  // ── Ping — same-origin /ping file, no auth headers needed
-  const doPing = useCallback(async (_h: Record<string, string>) => {
-    try {
-      const times: number[] = [];
-      for (let i = 0; i < PING_N; i++) {
-        const t = performance.now();
-        await fetch(`${PING_URL}?t=${t}`, { cache: "no-store" });
-        times.push(performance.now() - t);
-      }
-      times.sort((a, b) => a - b);
-      const trimmed = times.slice(1, -1);
-      const avg    = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
-      const jitter = trimmed.reduce((s, v) => s + Math.abs(v - avg), 0) / trimmed.length;
-      return { ping: Math.round(avg), jitter: Math.round(jitter), pingMin: Math.round(times[0]), pingMax: Math.round(times[times.length - 1]) };
-    } catch {
-      return { ping: 0, jitter: 0, pingMin: 0, pingMax: 0 };
-    }
-  }, []);
+    const engine = new SpeedTest({ autoStart: false });
+    engineRef.current = engine;
 
-  // ── Generic throughput runner — bytes are reported incrementally via onChunk
-  const throughput = useCallback(async (
-    makeFetch: (signal: AbortSignal, h: Record<string, string>) => Promise<Response>,
-    readBody: (r: Response, onChunk: (n: number) => void) => Promise<void>,
-    durationMs: number,
-    streams: number,
-    h: Record<string, string>,
-    signal: AbortSignal,
-    onSpeed: (s: number) => void,
-  ): Promise<number> => {
-    let total = 0;
-    const start = performance.now();
-    let lastT = start, lastB = 0;
-
-    const ticker = setInterval(() => {
-      const now = performance.now();
-      const dt  = (now - lastT) / 1000;
-      if (dt > 0.1) {
-        onSpeed(((total - lastB) * 8) / dt / 1_000_000);
-        lastT = now; lastB = total;
-      }
-    }, 50);
-
-    const worker = async () => {
-      while (!signal.aborted && performance.now() - start < durationMs) {
-        try {
-          const reqSig = AbortSignal.timeout(30_000);
-          const resp = await makeFetch(reqSig, h);
-          if (!resp.ok) { await resp.body?.cancel(); continue; }
-          await readBody(resp, (n) => { total += n; });
-        } catch { /* AbortError / TimeoutError / network error — just move on */ }
+    engine.onResultsChange = () => {
+      const r  = engine.results;
+      const dl = r.getDownloadBandwidth();
+      const ul = r.getUploadBandwidth();
+      if (ul !== undefined) {
+        setPhase("upload");
+        setLive(Math.round((ul || 0) / 1e6));
+      } else if (dl !== undefined) {
+        setPhase("download");
+        setLive(Math.round((dl || 0) / 1e6));
       }
     };
 
-    await Promise.all(Array.from({ length: streams }, worker).map(p => p.catch(() => {})));
-    clearInterval(ticker);
-
-    const elapsed = (performance.now() - start) / 1000;
-    return Math.round((total * 8) / elapsed / 1_000_000);
-  }, []);
-
-  // ── Download: stream 10 MB same-origin file, count bytes as they arrive
-  const doDownload = useCallback(async (h: Record<string, string>, signal: AbortSignal, onSpeed: (s: number) => void) =>
-    throughput(
-      (sig, _hh) => fetch(`${DL_URL}?t=${Math.random()}`, { cache: "no-store", signal: sig }),
-      async (r, onChunk) => {
-        const reader = r.body!.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done || !value) break;
-          onChunk(value.byteLength);
-        }
-      },
-      DL_MS, DL_STREAMS, h, signal, onSpeed,
-    ), [throughput]);
-
-  // ── Upload: POST random 512 KB chunks
-  const doUpload = useCallback(async (h: Record<string, string>, signal: AbortSignal, onSpeed: (s: number) => void) => {
-    const SZ = 512 * 1024;
-    const buf = new Uint8Array(SZ);
-    let seed = 0xCAFEBABE >>> 0;
-    for (let i = 0; i < SZ; i++) { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; seed = seed >>> 0; buf[i] = seed & 0xFF; }
-    return throughput(
-      (sig, hh) => fetch(UL_URL, { method: "POST", body: buf.slice(), headers: { ...hh, "Content-Type": "application/octet-stream" }, signal: sig }),
-      async (_r, onChunk) => { onChunk(SZ); },
-      UL_MS, UL_STREAMS, h, signal, onSpeed,
-    );
-  }, [throughput]);
-
-  const run = useCallback(async () => {
-    abortCtrl.current?.abort();
-    const ctrl = new AbortController();
-    abortCtrl.current = ctrl;
-    setResults(null);
-    setLive(0);
-
-    try {
-      const h = await headers();
-
-      setPhase("ping"); setLive(0);
-      const pingStats = await doPing(h);
-      if (ctrl.signal.aborted) return;
-
-      setPhase("download"); setLive(0);
-      const dl = await doDownload(h, ctrl.signal, setLive);
-      if (ctrl.signal.aborted) return;
-
-      setPhase("upload"); setLive(0);
-      const ul = await doUpload(h, ctrl.signal, setLive);
-      if (ctrl.signal.aborted) return;
-
-      const r: Results = {
-        ...pingStats,
-        download: dl,
-        upload: ul,
+    engine.onFinish = (r) => {
+      const dl     = Math.round((r.getDownloadBandwidth() || 0) / 1e6);
+      const ul     = Math.round((r.getUploadBandwidth()   || 0) / 1e6);
+      const ping   = Math.round( r.getUnloadedLatency()   || 0);
+      const jitter = Math.round( r.getUnloadedJitter()    || 0);
+      setResults({
+        download: dl, upload: ul,
+        ping, jitter, pingMin: ping, pingMax: ping,
         id: Math.floor(Math.random() * 1e13).toString().padStart(13, "0"),
-      };
-      setResults(r);
+      });
       setLive(dl);
       setPhase("done");
-    } catch (e: any) {
-      if (e?.name !== "AbortError") { console.error(e); setPhase("error"); }
-    }
-  }, [headers, doPing, doDownload, doUpload]);
+    };
 
-  const reset = useCallback(() => {
-    abortCtrl.current?.abort();
-    setPhase("idle"); setLive(0); setResults(null);
+    engine.onError = (e) => { console.error(e); setPhase("error"); };
+    engine.play();
   }, []);
 
-  useEffect(() => () => { abortCtrl.current?.abort(); }, []);
+  const reset = useCallback(() => {
+    engineRef.current?.pause();
+    setPhase("idle");
+    setLive(0);
+    setResults(null);
+  }, []);
+
+  useEffect(() => () => { engineRef.current?.pause(); }, []);
 
   return { phase, liveSpeed, results, run, reset };
 }
@@ -325,7 +229,7 @@ export default function TestVitesse() {
                 <div style={{ width: "100%", maxWidth: 360 }}>
                   <SpeedGauge speed={liveSpeed} phase={phase} />
                   <div className="flex justify-center mt-2">
-                    <button onClick={() => { import("./TestVitesse").then(() => {}); window.location.reload(); }} style={{ padding: "6px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'JetBrains Mono',monospace", cursor: "pointer", letterSpacing: "0.05em" }}>
+                    <button onClick={reset} style={{ padding: "6px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'JetBrains Mono',monospace", cursor: "pointer", letterSpacing: "0.05em" }}>
                       ANNULER
                     </button>
                   </div>
@@ -431,10 +335,10 @@ export default function TestVitesse() {
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Serveur de test</span>
                   </div>
                   <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#fff", marginBottom: 3 }}>
-                    Nivra Telecom
+                    Cloudflare Edge
                   </div>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                    Québec, Canada
+                    Réseau global
                   </div>
                   {results && (
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#FBBF24", marginTop: 1 }}>
