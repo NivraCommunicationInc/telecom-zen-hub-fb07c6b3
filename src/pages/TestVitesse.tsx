@@ -5,12 +5,8 @@ import { TicketCheck, Mail, Share2, RefreshCw, Server, Wifi, ArrowDown, ArrowUp 
 import SpeedTest from "@cloudflare/speedtest";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
 
 // ─── Constants ────────────────────────────────────────────────
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const ANON_KEY     = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-const INFO_URL     = `${SUPABASE_URL}/functions/v1/speedtest-info`;
 
 // ─── Types ────────────────────────────────────────────────────
 type Phase = "idle" | "ping" | "download" | "upload" | "done" | "error";
@@ -178,16 +174,16 @@ export default function TestVitesse() {
   const [info, setInfo] = useState<ClientInfo>({ ip: "…", isp: "…", city: "…", region: "…" });
   const [infoLoaded, setInfoLoaded] = useState(false);
 
-  // Fetch client info on mount
+  // Fetch client info directly from browser — no backend needed
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const token = session?.access_token ?? ANON_KEY;
-      const h: HeadersInit = { Authorization: `Bearer ${token}`, apikey: ANON_KEY };
-      fetch(INFO_URL, { headers: h })
-        .then(r => r.json())
-        .then(d => { setInfo({ ip: d.ip || "—", isp: d.isp || "—", city: d.city || "—", region: d.region || "—" }); setInfoLoaded(true); })
-        .catch(() => { setInfo({ ip: "—", isp: "Réseau inconnu", city: "—", region: "QC" }); setInfoLoaded(true); });
-    });
+    fetch("https://ipapi.co/json/", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => {
+        const isp = d.org ? d.org.replace(/^AS\d+\s+/, "").trim() : "—";
+        setInfo({ ip: d.ip || "—", isp: isp || "—", city: d.city || "—", region: d.region || "—" });
+        setInfoLoaded(true);
+      })
+      .catch(() => { setInfo({ ip: "—", isp: "—", city: "—", region: "—" }); setInfoLoaded(true); });
   }, []);
 
   const share = () => {
