@@ -1,535 +1,508 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { TicketCheck, Mail, Share2, RefreshCw, Wifi, ArrowDown, ArrowUp, Activity } from "lucide-react";
+import { TicketCheck, Mail, Share2, RefreshCw, Server, Wifi, ArrowDown, ArrowUp } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 
-// ── Config ─────────────────────────────────────────────────────
-const DOWNLOAD_DURATION_MS = 10_000;
-const UPLOAD_DURATION_MS   = 10_000;
-const PARALLEL_STREAMS     = 4;
-const MAX_SCALE_MBPS       = 1000;
-const PING_ROUNDS          = 8;
+// ─── Constants ────────────────────────────────────────────────
+const DL_MS    = 12_000;   // 12 s download
+const UL_MS    = 10_000;   // 10 s upload
+const DL_STREAMS = 8;
+const UL_STREAMS = 4;
+const PING_N   = 8;
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL as string;
+const ANON_KEY      = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const DL_URL   = `${SUPABASE_URL}/functions/v1/speedtest-server?action=download`;
+const PING_URL = `${SUPABASE_URL}/functions/v1/speedtest-server?action=ping`;
+const UL_URL   = `${SUPABASE_URL}/functions/v1/speedtest-upload`;
+const INFO_URL = `${SUPABASE_URL}/functions/v1/speedtest-info`;
 
+// ─── Types ────────────────────────────────────────────────────
 type Phase = "idle" | "ping" | "download" | "upload" | "done" | "error";
+interface ClientInfo { ip: string; isp: string; city: string; region: string; }
+interface Results { ping: number; jitter: number; pingMin: number; pingMax: number; download: number; upload: number; id: string; }
 
-interface Results {
-  ping: number;
-  jitter: number;
-  download: number;
-  upload: number;
-}
-
-// ── Gauge SVG ───────────────────────────────────────────────────
-// 240° arc, starting at bottom-left (210° from right = 7 o'clock)
-const CX = 200, CY = 210, R = 158;
+// ─── Arc gauge (SVG) ──────────────────────────────────────────
+const R = 140, CX = 180, CY = 180;
 const CIRC = 2 * Math.PI * R;
-const ARC_DEG = 240;
-const ARC_LEN = CIRC * (ARC_DEG / 360);
-const START_DEG = 150; // rotate so arc starts at 210° position (7 o'clock)
+const ARC_DEG = 240, ARC_LEN = CIRC * (ARC_DEG / 360);
 
-function GaugeArc({ pct, color }: { pct: number; color: string }) {
-  const filled = Math.max(0, Math.min(1, pct)) * ARC_LEN;
+function pctToArc(pct: number) { return Math.max(0, Math.min(1, pct)) * ARC_LEN; }
+
+function SpeedGauge({ speed, phase, maxMbps = 1000 }: { speed: number; phase: Phase; maxMbps?: number }) {
+  const pct = speed / maxMbps;
+  const filled = pctToArc(pct);
+  const gradId = phase === "upload" ? "ulG" : "dlG";
+  const color = phase === "upload" ? "#06B6D4" : "#A78BFA";
+
   return (
-    <circle
-      cx={CX} cy={CY} r={R}
-      fill="none"
-      stroke={color}
-      strokeWidth={18}
-      strokeLinecap="round"
-      strokeDasharray={`${filled} ${CIRC - filled}`}
-      transform={`rotate(${START_DEG}, ${CX}, ${CY})`}
-      style={{ transition: "stroke-dasharray 0.25s ease-out" }}
-    />
+    <svg viewBox="0 0 360 300" width="100%" style={{ maxWidth: 360 }}>
+      <defs>
+        <linearGradient id="dlG" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#7C3AED" /><stop offset="100%" stopColor="#A78BFA" />
+        </linearGradient>
+        <linearGradient id="ulG" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#0891B2" /><stop offset="100%" stopColor="#06B6D4" />
+        </linearGradient>
+        <filter id="glow"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+      </defs>
+
+      {/* Track */}
+      <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={20} strokeLinecap="round"
+        strokeDasharray={`${ARC_LEN} ${CIRC - ARC_LEN}`} transform={`rotate(150,${CX},${CY})`} />
+
+      {/* Filled arc */}
+      <circle cx={CX} cy={CY} r={R} fill="none" stroke={`url(#${gradId})`} strokeWidth={20} strokeLinecap="round"
+        strokeDasharray={`${filled} ${CIRC - filled}`} transform={`rotate(150,${CX},${CY})`}
+        filter="url(#glow)" style={{ transition: "stroke-dasharray 0.2s ease-out" }} />
+
+      {/* Tick marks */}
+      {[0, 100, 250, 500, 750, 1000].map(v => {
+        const a = (150 + (v / maxMbps) * 240) * Math.PI / 180;
+        const ri = R - 22, ro = R - 10;
+        return <line key={v} x1={CX + ri * Math.cos(a)} y1={CY + ri * Math.sin(a)} x2={CX + ro * Math.cos(a)} y2={CY + ro * Math.sin(a)} stroke="rgba(255,255,255,0.15)" strokeWidth={v % 500 === 0 ? 2 : 1} />;
+      })}
+
+      {/* Center number */}
+      <text x={CX} y={CY - 12} textAnchor="middle" dominantBaseline="middle"
+        fill="#fff" fontSize={speed >= 100 ? 56 : 62} fontFamily="'Space Grotesk',sans-serif" fontWeight={800} letterSpacing={-2} filter="url(#glow)">
+        {speed < 10 ? speed.toFixed(1) : Math.round(speed)}
+      </text>
+      <text x={CX} y={CY + 32} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize={13} fontFamily="'JetBrains Mono',monospace">
+        Mbps
+      </text>
+
+      {/* Phase label */}
+      <text x={CX} y={270} textAnchor="middle" fill={color} fontSize={11} fontFamily="'JetBrains Mono',monospace" letterSpacing={2.5}>
+        {phase === "ping" ? "LATENCE" : phase === "download" ? "TÉLÉCHARGEMENT" : "ENVOI"}
+      </text>
+    </svg>
   );
 }
 
-function SpeedGauge({ speed, phase, results }: {
-  speed: number;
-  phase: Phase;
-  results: Results | null;
-}) {
-  const pct = Math.min(speed / MAX_SCALE_MBPS, 1);
-  const displaySpeed = speed < 10 ? speed.toFixed(1) : Math.round(speed).toString();
-
-  const phaseColor = phase === "download" ? "#A78BFA" : phase === "upload" ? "#06B6D4" : phase === "ping" ? "#FBBF24" : "#ffffff";
-  const arcColor = phase === "download" ? "url(#dlGrad)"
-    : phase === "upload" ? "url(#ulGrad)"
-    : phase === "done" ? "url(#doneGrad)"
-    : "rgba(255,255,255,0.25)";
-
-  return (
-    <div className="flex flex-col items-center" style={{ userSelect: "none" }}>
-      <svg viewBox="0 0 400 340" width="360" height="306" style={{ overflow: "visible" }}>
-        <defs>
-          <linearGradient id="dlGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#7C3AED" />
-            <stop offset="100%" stopColor="#A78BFA" />
-          </linearGradient>
-          <linearGradient id="ulGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#0891B2" />
-            <stop offset="100%" stopColor="#06B6D4" />
-          </linearGradient>
-          <linearGradient id="doneGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#7C3AED" />
-            <stop offset="50%" stopColor="#06B6D4" />
-            <stop offset="100%" stopColor="#10B981" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-
-        {/* Background arc */}
-        <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={18} strokeLinecap="round"
-          strokeDasharray={`${ARC_LEN} ${CIRC - ARC_LEN}`} transform={`rotate(${START_DEG}, ${CX}, ${CY})`} />
-
-        {/* Filled arc */}
-        <GaugeArc pct={pct} color={arcColor} />
-
-        {/* Scale ticks */}
-        {[0, 100, 200, 300, 500, 750, 1000].map(val => {
-          const angle = (START_DEG + (val / MAX_SCALE_MBPS) * ARC_DEG) * (Math.PI / 180);
-          const innerR = R - 24, outerR = R - 12;
-          const x1 = CX + innerR * Math.cos(angle), y1 = CY + innerR * Math.sin(angle);
-          const x2 = CX + outerR * Math.cos(angle), y2 = CY + outerR * Math.sin(angle);
-          const tx = CX + (R - 36) * Math.cos(angle), ty = CY + (R - 36) * Math.sin(angle);
-          return (
-            <g key={val}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.2)" strokeWidth={val === 0 || val === 1000 ? 2 : 1} />
-              {[0, 100, 500, 1000].includes(val) && (
-                <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.3)" fontSize={10} fontFamily="'JetBrains Mono', monospace">
-                  {val === 1000 ? "1G" : val}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Center speed display */}
-        {phase !== "idle" && (
-          <>
-            <text x={CX} y={CY - 12} textAnchor="middle" dominantBaseline="middle"
-              fill="#ffffff" fontSize={phase === "ping" ? 44 : 62}
-              fontFamily="'Space Grotesk', sans-serif" fontWeight={800} letterSpacing={-2}
-              filter={phase !== "done" ? "url(#glow)" : undefined}>
-              {phase === "ping" ? "…" : displaySpeed}
-            </text>
-            <text x={CX} y={CY + 36} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize={14}
-              fontFamily="'JetBrains Mono', monospace">
-              {phase === "ping" ? "PING" : "Mbps"}
-            </text>
-          </>
-        )}
-
-        {phase === "idle" && (
-          <text x={CX} y={CY + 8} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize={16}
-            fontFamily="'JetBrains Mono', monospace">
-            PRÊT
-          </text>
-        )}
-
-        {/* Phase label */}
-        <text x={CX} y={300} textAnchor="middle" fill={phaseColor} fontSize={12}
-          fontFamily="'JetBrains Mono', monospace" letterSpacing={2}>
-          {phase === "idle" ? "" : phase === "ping" ? "LATENCE" : phase === "download" ? "TÉLÉCHARGEMENT" : phase === "upload" ? "ENVOI" : phase === "done" ? "TERMINÉ" : "ERREUR"}
-        </text>
-      </svg>
-
-      {/* Results bar (shown after done) */}
-      {results && (
-        <div className="flex gap-6 mt-2">
-          {[
-            { label: "PING", value: `${results.ping} ms`, icon: <Activity className="w-3.5 h-3.5" />, color: "#FBBF24" },
-            { label: "JITTER", value: `${results.jitter} ms`, icon: <Activity className="w-3.5 h-3.5" />, color: "rgba(255,255,255,0.4)" },
-            { label: "↓ DL", value: `${results.download} Mbps`, icon: <ArrowDown className="w-3.5 h-3.5" />, color: "#A78BFA" },
-            { label: "↑ UL", value: `${results.upload} Mbps`, icon: <ArrowUp className="w-3.5 h-3.5" />, color: "#06B6D4" },
-          ].map(s => (
-            <div key={s.label} className="flex flex-col items-center gap-0.5">
-              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>{s.label}</span>
-              <span style={{ color: s.color, fontSize: 15, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700 }}>{s.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Speed Test Engine ──────────────────────────────────────────
+// ─── Speed test engine ────────────────────────────────────────
 function useSpeedTest() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [speed, setSpeed] = useState(0);
+  const [phase, setPhase]     = useState<Phase>("idle");
+  const [liveSpeed, setLive]  = useState(0);
   const [results, setResults] = useState<Results | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const abortCtrl             = useRef<AbortController | null>(null);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const DOWNLOAD_URL = `${supabaseUrl}/functions/v1/speedtest-server?action=download`;
-  const PING_URL = `${supabaseUrl}/functions/v1/speedtest-server?action=ping`;
-  const UPLOAD_URL = `${supabaseUrl}/functions/v1/speedtest-upload`;
-
-  const getHeaders = useCallback(async () => {
+  const headers = useCallback(async (): Promise<Record<string, string>> => {
     const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : {} as Record<string, string>;
+    const token = session?.access_token ?? ANON_KEY;
+    return { Authorization: `Bearer ${token}`, apikey: ANON_KEY };
   }, []);
 
-  const measurePing = useCallback(async (headers: Record<string, string>) => {
+  // ── Ping
+  const doPing = useCallback(async (h: Record<string, string>) => {
     const times: number[] = [];
-    for (let i = 0; i < PING_ROUNDS; i++) {
-      const t0 = performance.now();
-      await fetch(PING_URL, { cache: "no-store", headers });
-      times.push(performance.now() - t0);
+    for (let i = 0; i < PING_N; i++) {
+      const t = performance.now();
+      await fetch(PING_URL, { cache: "no-store", headers: h });
+      times.push(performance.now() - t);
     }
     times.sort((a, b) => a - b);
-    const trimmed = times.slice(1, -1); // drop best and worst
-    const avg = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
-    const jitter = Math.max(...trimmed) - Math.min(...trimmed);
-    return { ping: Math.round(avg), jitter: Math.round(jitter) };
-  }, [PING_URL]);
-
-  const measureDownload = useCallback(async (
-    headers: Record<string, string>,
-    signal: AbortSignal,
-    onProgress: (mbps: number) => void,
-  ) => {
-    let totalBytes = 0;
-    const start = performance.now();
-    const lastUpdate = { t: start, b: 0 };
-
-    const stream = async () => {
-      while (!signal.aborted && performance.now() - start < DOWNLOAD_DURATION_MS) {
-        const resp = await fetch(DOWNLOAD_URL, { cache: "no-store", headers, signal });
-        const reader = resp.body!.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done || signal.aborted) break;
-          totalBytes += value.byteLength;
-          const now = performance.now();
-          if (now - lastUpdate.t >= 250) {
-            const elapsed = (now - lastUpdate.t) / 1000;
-            const bytes = totalBytes - lastUpdate.b;
-            onProgress((bytes * 8) / elapsed / 1_000_000);
-            lastUpdate.t = now;
-            lastUpdate.b = totalBytes;
-          }
-        }
-      }
-    };
-
-    await Promise.all(Array.from({ length: PARALLEL_STREAMS }, stream).map(p => p.catch(() => {})));
-    const elapsed = (performance.now() - start) / 1000;
-    return Math.round((totalBytes * 8) / elapsed / 1_000_000);
-  }, [DOWNLOAD_URL]);
-
-  const measureUpload = useCallback(async (
-    headers: Record<string, string>,
-    signal: AbortSignal,
-    onProgress: (mbps: number) => void,
-  ) => {
-    const CHUNK = 512 * 1024; // 512 KB per POST
-    let totalBytes = 0;
-    const start = performance.now();
-    const lastUpdate = { t: start, b: 0 };
-    // Pre-build a chunk of non-compressible data
-    const payload = new Uint8Array(CHUNK);
-    let seed = 0xCAFEBABE;
-    for (let i = 0; i < CHUNK; i++) { seed ^= seed << 13; seed ^= seed >> 17; payload[i] = seed & 0xFF; }
-
-    const stream = async () => {
-      while (!signal.aborted && performance.now() - start < UPLOAD_DURATION_MS) {
-        await fetch(UPLOAD_URL, {
-          method: "POST",
-          body: payload,
-          headers: { ...headers, "Content-Type": "application/octet-stream" },
-          signal,
-        });
-        totalBytes += CHUNK;
-        const now = performance.now();
-        if (now - lastUpdate.t >= 250) {
-          const elapsed = (now - lastUpdate.t) / 1000;
-          const bytes = totalBytes - lastUpdate.b;
-          onProgress((bytes * 8) / elapsed / 1_000_000);
-          lastUpdate.t = now;
-          lastUpdate.b = totalBytes;
-        }
-      }
-    };
-
-    const streams = Math.min(PARALLEL_STREAMS - 1, 3);
-    await Promise.all(Array.from({ length: streams }, stream).map(p => p.catch(() => {})));
-    const elapsed = (performance.now() - start) / 1000;
-    return Math.round((totalBytes * 8) / elapsed / 1_000_000);
-  }, [UPLOAD_URL]);
-
-  const start = useCallback(async () => {
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    setResults(null);
-    setSpeed(0);
-
-    try {
-      const headers = await getHeaders();
-
-      // 1. Ping
-      setPhase("ping");
-      setSpeed(0);
-      const { ping, jitter } = await measurePing(headers);
-
-      if (ctrl.signal.aborted) return;
-
-      // 2. Download
-      setPhase("download");
-      setSpeed(0);
-      const dl = await measureDownload(headers, ctrl.signal, setSpeed);
-
-      if (ctrl.signal.aborted) return;
-
-      // 3. Upload
-      setPhase("upload");
-      setSpeed(0);
-      const ul = await measureUpload(headers, ctrl.signal, setSpeed);
-
-      if (ctrl.signal.aborted) return;
-
-      const finalResults = { ping, jitter, download: dl, upload: ul };
-      setResults(finalResults);
-      setSpeed(dl); // show download on gauge at the end
-      setPhase("done");
-    } catch (e: any) {
-      if (e.name !== "AbortError") {
-        console.error("Speed test error:", e);
-        setPhase("error");
-      }
-    }
-  }, [getHeaders, measurePing, measureDownload, measureUpload]);
-
-  const reset = useCallback(() => {
-    abortRef.current?.abort();
-    setPhase("idle");
-    setSpeed(0);
-    setResults(null);
+    const trimmed = times.slice(1, -1);
+    const avg  = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+    const jitter = trimmed.reduce((s, v) => s + Math.abs(v - avg), 0) / trimmed.length;
+    return { ping: Math.round(avg), jitter: Math.round(jitter), pingMin: Math.round(times[0]), pingMax: Math.round(times[times.length - 1]) };
   }, []);
 
-  useEffect(() => () => { abortRef.current?.abort(); }, []);
+  // ── Generic throughput runner — bytes are reported incrementally via onChunk
+  const throughput = useCallback(async (
+    makeFetch: (signal: AbortSignal, h: Record<string, string>) => Promise<Response>,
+    readBody: (r: Response, onChunk: (n: number) => void) => Promise<void>,
+    durationMs: number,
+    streams: number,
+    h: Record<string, string>,
+    signal: AbortSignal,
+    onSpeed: (s: number) => void,
+  ): Promise<number> => {
+    let total = 0;
+    const start = performance.now();
+    let lastT = start, lastB = 0;
 
-  return { phase, speed, results, start, reset };
+    const ticker = setInterval(() => {
+      const now = performance.now();
+      const dt  = (now - lastT) / 1000;
+      if (dt > 0.1) {
+        onSpeed(((total - lastB) * 8) / dt / 1_000_000);
+        lastT = now; lastB = total;
+      }
+    }, 50);
+
+    const worker = async () => {
+      while (!signal.aborted && performance.now() - start < durationMs) {
+        try {
+          // per-request 12 s hard timeout so a stalled fetch never hangs the test
+          const reqSig = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+          const resp = await makeFetch(reqSig, h);
+          if (!resp.ok) { await resp.body?.cancel(); continue; }
+          await readBody(resp, (n) => { total += n; });
+        } catch { /* AbortError / TimeoutError / network error — just move on */ }
+      }
+    };
+
+    await Promise.all(Array.from({ length: streams }, worker).map(p => p.catch(() => {})));
+    clearInterval(ticker);
+
+    const elapsed = (performance.now() - start) / 1000;
+    return Math.round((total * 8) / elapsed / 1_000_000);
+  }, []);
+
+  // ── Download: stream 4 MB chunks, count bytes as they arrive
+  const doDownload = useCallback(async (h: Record<string, string>, signal: AbortSignal, onSpeed: (s: number) => void) =>
+    throughput(
+      (sig, hh) => fetch(DL_URL, { cache: "no-store", headers: hh, signal: sig }),
+      async (r, onChunk) => {
+        const reader = r.body!.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done || !value) break;
+          onChunk(value.byteLength);
+        }
+      },
+      DL_MS, DL_STREAMS, h, signal, onSpeed,
+    ), [throughput]);
+
+  // ── Upload: POST random 512 KB chunks
+  const doUpload = useCallback(async (h: Record<string, string>, signal: AbortSignal, onSpeed: (s: number) => void) => {
+    const SZ = 512 * 1024;
+    const buf = new Uint8Array(SZ);
+    let seed = 0xCAFEBABE >>> 0;
+    for (let i = 0; i < SZ; i++) { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; seed = seed >>> 0; buf[i] = seed & 0xFF; }
+    return throughput(
+      (sig, hh) => fetch(UL_URL, { method: "POST", body: buf.slice(), headers: { ...hh, "Content-Type": "application/octet-stream" }, signal: sig }),
+      async (_r, onChunk) => { onChunk(SZ); },
+      UL_MS, UL_STREAMS, h, signal, onSpeed,
+    );
+  }, [throughput]);
+
+  const run = useCallback(async () => {
+    abortCtrl.current?.abort();
+    const ctrl = new AbortController();
+    abortCtrl.current = ctrl;
+    setResults(null);
+    setLive(0);
+
+    try {
+      const h = await headers();
+
+      setPhase("ping"); setLive(0);
+      const pingStats = await doPing(h);
+      if (ctrl.signal.aborted) return;
+
+      setPhase("download"); setLive(0);
+      const dl = await doDownload(h, ctrl.signal, setLive);
+      if (ctrl.signal.aborted) return;
+
+      setPhase("upload"); setLive(0);
+      const ul = await doUpload(h, ctrl.signal, setLive);
+      if (ctrl.signal.aborted) return;
+
+      const r: Results = {
+        ...pingStats,
+        download: dl,
+        upload: ul,
+        id: Math.floor(Math.random() * 1e13).toString().padStart(13, "0"),
+      };
+      setResults(r);
+      setLive(dl);
+      setPhase("done");
+    } catch (e: any) {
+      if (e?.name !== "AbortError") { console.error(e); setPhase("error"); }
+    }
+  }, [headers, doPing, doDownload, doUpload]);
+
+  const reset = useCallback(() => {
+    abortCtrl.current?.abort();
+    setPhase("idle"); setLive(0); setResults(null);
+  }, []);
+
+  useEffect(() => () => { abortCtrl.current?.abort(); }, []);
+
+  return { phase, liveSpeed, results, run, reset };
 }
 
-// ── Component ───────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────
 export default function TestVitesse() {
-  const { phase, speed, results, start, reset } = useSpeedTest();
+  const { phase, liveSpeed, results, run, reset } = useSpeedTest();
+  const [info, setInfo] = useState<ClientInfo>({ ip: "…", isp: "…", city: "…", region: "…" });
+  const [infoLoaded, setInfoLoaded] = useState(false);
 
-  const shareResult = () => {
+  // Fetch client info on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token ?? ANON_KEY;
+      const h: HeadersInit = { Authorization: `Bearer ${token}`, apikey: ANON_KEY };
+      fetch(INFO_URL, { headers: h })
+        .then(r => r.json())
+        .then(d => { setInfo({ ip: d.ip || "—", isp: d.isp || "—", city: d.city || "—", region: d.region || "—" }); setInfoLoaded(true); })
+        .catch(() => { setInfo({ ip: "—", isp: "Réseau inconnu", city: "—", region: "QC" }); setInfoLoaded(true); });
+    });
+  }, []);
+
+  const share = () => {
     if (!results) return;
-    const text = `🚀 Test de vitesse Nivra Telecom\n↓ ${results.download} Mbps téléchargement\n↑ ${results.upload} Mbps envoi\n📡 ${results.ping} ms ping\nnivra-telecom.ca/test-vitesse`;
-    if (navigator.share) navigator.share({ text }).catch(() => {});
-    else navigator.clipboard.writeText(text);
+    const txt = `Test de vitesse Nivra Telecom\n↓ ${results.download} Mbps  ↑ ${results.upload} Mbps  📡 ${results.ping} ms\nnivra-telecom.ca/test-vitesse`;
+    navigator.share?.({ text: txt }).catch(() => navigator.clipboard.writeText(txt)) ?? navigator.clipboard.writeText(txt);
   };
 
-  const planMatch = (mbps: number) => {
-    if (mbps >= 800) return { label: "Internet Giga ✓", color: "#10B981" };
-    if (mbps >= 400) return { label: "Internet 500 Mbps ✓", color: "#A78BFA" };
-    if (mbps >= 80) return { label: "Internet 100 Mbps ✓", color: "#06B6D4" };
-    return { label: "En dessous du forfait de base", color: "#F87171" };
-  };
+  const isRunning = phase === "ping" || phase === "download" || phase === "upload";
+  const progressPct = phase === "ping" ? 15 : phase === "download" ? 55 : phase === "upload" ? 90 : phase === "done" ? 100 : 0;
 
   return (
     <>
       <Helmet>
         <title>Test de vitesse Internet — Nivra Telecom</title>
-        <meta name="description" content="Testez votre vitesse Internet Nivra en temps réel — téléchargement, envoi et latence mesurés depuis nos serveurs au Québec." />
+        <meta name="description" content="Testez votre vitesse Internet en temps réel — téléchargement, envoi et latence mesurés depuis nos serveurs au Québec." />
         <link rel="canonical" href="https://nivra-telecom.ca/test-vitesse" />
       </Helmet>
-
       <Header />
 
       <div style={{ minHeight: "100vh", background: "#020209", color: "#fff", paddingTop: 64 }}>
+        {/* Aurora bg */}
+        <div aria-hidden style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none", backgroundImage: "linear-gradient(rgba(124,58,237,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.04) 1px,transparent 1px)", backgroundSize: "80px 80px", zIndex: 0 }} />
+        <div aria-hidden style={{ position: "fixed", top: "20%", right: "-15%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle,rgba(124,58,237,0.07) 0%,transparent 70%)", animation: "n-aurora-1 20s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
 
-        {/* Hero */}
-        <section className="relative overflow-hidden" style={{ paddingTop: 60, paddingBottom: 40, textAlign: "center" }}>
-          <div aria-hidden style={{ position: "absolute", top: "-20%", left: "-10%", width: 550, height: 550, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)", animation: "n-aurora-1 18s ease-in-out infinite", pointerEvents: "none" }} />
-          <div aria-hidden style={{ position: "absolute", bottom: "-20%", right: "-10%", width: 450, height: 450, borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)", animation: "n-aurora-2 14s ease-in-out infinite", pointerEvents: "none" }} />
-          <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px)", backgroundSize: "80px 80px", pointerEvents: "none" }} />
+        <main style={{ position: "relative", zIndex: 1, maxWidth: 720, margin: "0 auto", padding: "40px 20px 80px" }}>
 
-          <div style={{ position: "relative", zIndex: 2, maxWidth: 700, margin: "0 auto", padding: "0 24px" }}>
-            <div className="n-animate-in inline-flex items-center gap-2 mb-5" style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 100, padding: "6px 16px" }}>
-              <Wifi style={{ width: 14, height: 14, color: "#A78BFA" }} />
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#A78BFA", letterSpacing: "0.1em", textTransform: "uppercase" }}>Test de vitesse Nivra</span>
+          {/* Title */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 mb-4" style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 100, padding: "6px 16px" }}>
+              <Wifi className="w-3.5 h-3.5" style={{ color: "#A78BFA" }} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#A78BFA", letterSpacing: "0.1em", textTransform: "uppercase" }}>Test de vitesse</span>
             </div>
-            <h1 className="n-animate-in-delay-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: "clamp(28px, 5vw, 52px)", letterSpacing: "-2px", lineHeight: 1.05, marginBottom: 12, color: "#fff" }}>
-              Testez votre <span className="n-shimmer-text">vitesse Internet</span>
+            <h1 style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 800, fontSize: "clamp(26px,5vw,42px)", letterSpacing: "-1.5px", color: "#fff" }}>
+              Testez votre <span className="n-shimmer-text">connexion Internet</span>
             </h1>
-            <p className="n-animate-in-delay-2" style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", marginBottom: 0 }}>
-              Mesuré depuis nos serveurs au Québec · Téléchargement, envoi, latence
-            </p>
           </div>
-        </section>
 
-        {/* Gauge + CTA */}
-        <section style={{ maxWidth: 540, margin: "0 auto", padding: "0 24px 40px", textAlign: "center" }}>
+          {/* ── Main test card ── */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 28, padding: "32px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
 
-          {/* Gauge */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 28, padding: "32px 24px 24px", marginBottom: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
-            <SpeedGauge speed={speed} phase={phase} results={results} />
+            {/* Progress bar */}
+            <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginBottom: 28, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg,#7C3AED,#06B6D4)", borderRadius: 2, transition: "width 0.6s ease" }} />
+            </div>
 
-            {/* Start / Reset button */}
-            <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "center" }}>
+            {/* Center area */}
+            <div className="flex flex-col items-center">
+
+              {/* ── IDLE: GO button ── */}
               {phase === "idle" && (
                 <button
-                  onClick={start}
-                  style={{ height: 52, padding: "0 40px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)", color: "#fff", fontWeight: 800, fontSize: 15, fontFamily: "'Space Grotesk', sans-serif", cursor: "pointer", boxShadow: "0 0 0 1px rgba(124,58,237,0.5), 0 8px 28px rgba(124,58,237,0.45)", transition: "box-shadow .18s, transform .15s", letterSpacing: "-0.3px" }}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.7), 0 12px 36px rgba(124,58,237,0.6)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.5), 0 8px 28px rgba(124,58,237,0.45)"; e.currentTarget.style.transform = "none"; }}
+                  onClick={run}
+                  style={{
+                    width: 200, height: 200, borderRadius: "50%",
+                    background: "radial-gradient(circle at 35% 35%, rgba(124,58,237,0.5) 0%, rgba(80,20,180,0.35) 60%, rgba(30,5,80,0.4) 100%)",
+                    border: "2px solid rgba(124,58,237,0.6)",
+                    boxShadow: "0 0 0 12px rgba(124,58,237,0.06), 0 0 0 24px rgba(124,58,237,0.03), 0 8px 40px rgba(124,58,237,0.5)",
+                    cursor: "pointer",
+                    color: "#fff",
+                    fontFamily: "'Space Grotesk',sans-serif",
+                    fontWeight: 800,
+                    fontSize: 38,
+                    letterSpacing: -1,
+                    transition: "box-shadow .2s, transform .15s",
+                    animation: "n-border-glow 3s ease-in-out infinite",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 0 0 16px rgba(124,58,237,0.1), 0 0 0 32px rgba(124,58,237,0.05), 0 12px 50px rgba(124,58,237,0.7)"; e.currentTarget.style.transform = "scale(1.04)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 0 0 12px rgba(124,58,237,0.06), 0 0 0 24px rgba(124,58,237,0.03), 0 8px 40px rgba(124,58,237,0.5)"; e.currentTarget.style.transform = "scale(1)"; }}
                 >
-                  ▶ Démarrer le test
+                  GO
                 </button>
               )}
 
-              {(phase === "ping" || phase === "download" || phase === "upload") && (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-                  {/* Progress bar */}
-                  <div style={{ width: 280, height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
-                    <div style={{
-                      height: "100%",
-                      background: phase === "ping" ? "#FBBF24" : phase === "download" ? "linear-gradient(90deg, #7C3AED, #A78BFA)" : "linear-gradient(90deg, #0891B2, #06B6D4)",
-                      borderRadius: 2,
-                      width: phase === "ping" ? "33%" : phase === "download" ? "66%" : "99%",
-                      transition: "width .5s ease",
-                      animation: "n-beam-h 1.5s ease-in-out infinite",
-                    }} />
+              {/* ── TESTING: Gauge ── */}
+              {isRunning && (
+                <div style={{ width: "100%", maxWidth: 360 }}>
+                  <SpeedGauge speed={liveSpeed} phase={phase} />
+                  <div className="flex justify-center mt-2">
+                    <button onClick={() => { import("./TestVitesse").then(() => {}); window.location.reload(); }} style={{ padding: "6px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'JetBrains Mono',monospace", cursor: "pointer", letterSpacing: "0.05em" }}>
+                      ANNULER
+                    </button>
                   </div>
-                  <button onClick={reset} style={{ height: 38, padding: "0 20px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", cursor: "pointer", letterSpacing: "0.05em" }}>
-                    ANNULER
-                  </button>
                 </div>
               )}
 
-              {(phase === "done" || phase === "error") && (
-                <div className="flex gap-3">
-                  <button
-                    onClick={reset}
-                    className="flex items-center gap-2"
-                    style={{ height: 46, padding: "0 22px", borderRadius: 10, border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#A78BFA", fontSize: 13, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", cursor: "pointer" }}
-                  >
-                    <RefreshCw className="w-4 h-4" /> Nouveau test
-                  </button>
-                  {results && (
-                    <button
-                      onClick={shareResult}
-                      className="flex items-center gap-2"
-                      style={{ height: 46, padding: "0 22px", borderRadius: 10, border: "1px solid rgba(6,182,212,0.4)", background: "rgba(6,182,212,0.08)", color: "#67E8F9", fontSize: 13, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", cursor: "pointer" }}
-                    >
+              {/* ── RESULTS ── */}
+              {phase === "done" && results && (
+                <div style={{ width: "100%" }}>
+                  {/* Result ID */}
+                  <div className="text-center mb-6">
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em" }}>
+                      RÉSULTAT #{results.id}
+                    </span>
+                  </div>
+
+                  {/* DL / UL big numbers */}
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    {[
+                      { label: "Téléchargement", value: results.download, unit: "Mbps", icon: <ArrowDown className="w-5 h-5" />, color: "#A78BFA", glow: "rgba(124,58,237,0.3)" },
+                      { label: "Envoi", value: results.upload, unit: "Mbps", icon: <ArrowUp className="w-5 h-5" />, color: "#06B6D4", glow: "rgba(6,182,212,0.3)" },
+                    ].map(m => (
+                      <div key={m.label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${m.glow}`, borderRadius: 20, padding: "24px 20px", textAlign: "center", boxShadow: `0 0 30px ${m.glow.replace("0.3", "0.12")}` }}>
+                        <div className="flex items-center justify-center gap-2 mb-2" style={{ color: m.color }}>
+                          {m.icon}
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>{m.label}</span>
+                        </div>
+                        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 800, fontSize: 52, letterSpacing: -2, lineHeight: 1, color: "#fff" }}>
+                          {m.value}
+                        </div>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{m.unit}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Ping stats */}
+                  <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 16, padding: "18px 20px", marginBottom: 20 }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>LATENCE</span>
+                    </div>
+                    <div className="flex justify-around">
+                      {[
+                        { label: "PING", value: `${results.ping} ms`, color: "#FBBF24" },
+                        { label: "MIN", value: `${results.pingMin} ms`, color: "rgba(255,255,255,0.6)" },
+                        { label: "MAX", value: `${results.pingMax} ms`, color: "rgba(255,255,255,0.6)" },
+                        { label: "JITTER", value: `${results.jitter} ms`, color: "rgba(255,255,255,0.5)" },
+                      ].map(s => (
+                        <div key={s.label} className="text-center">
+                          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 20, color: s.color }}>{s.value}</div>
+                          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", marginTop: 2 }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 justify-center">
+                    <button onClick={reset} className="flex items-center gap-2" style={{ height: 44, padding: "0 22px", borderRadius: 10, border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#A78BFA", fontSize: 14, fontWeight: 600, fontFamily: "'Space Grotesk',sans-serif", cursor: "pointer" }}>
+                      <RefreshCw className="w-4 h-4" /> Nouveau test
+                    </button>
+                    <button onClick={share} className="flex items-center gap-2" style={{ height: 44, padding: "0 22px", borderRadius: 10, border: "1px solid rgba(6,182,212,0.4)", background: "rgba(6,182,212,0.08)", color: "#67E8F9", fontSize: 14, fontWeight: 600, fontFamily: "'Space Grotesk',sans-serif", cursor: "pointer" }}>
                       <Share2 className="w-4 h-4" /> Partager
                     </button>
-                  )}
+                  </div>
                 </div>
               )}
 
+              {/* ── ERROR ── */}
               {phase === "error" && (
-                <p style={{ color: "#F87171", fontSize: 13, marginTop: 8 }}>
-                  Erreur — vérifiez votre connexion et réessayez.
-                </p>
+                <div className="text-center py-8">
+                  <p style={{ color: "#F87171", marginBottom: 16 }}>Erreur lors du test. Vérifiez votre connexion.</p>
+                  <button onClick={reset} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#A78BFA", cursor: "pointer", fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600 }}>Réessayer</button>
+                </div>
               )}
             </div>
 
-            {/* Plan match */}
-            {results && (
-              <div style={{ marginTop: 20, padding: "12px 20px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12 }}>
-                {(() => {
-                  const m = planMatch(results.download);
-                  return <p style={{ color: m.color, fontSize: 14, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>{m.label}</p>;
-                })()}
+            {/* ── Info bar (ISP + Server) ── */}
+            <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Client ISP */}
+                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wifi className="w-3.5 h-3.5" style={{ color: "#A78BFA" }} />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Votre réseau</span>
+                  </div>
+                  <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#fff", marginBottom: 3 }}>
+                    {infoLoaded ? info.isp : "Détection…"}
+                  </div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                    {infoLoaded ? info.ip : "—"}
+                  </div>
+                  {infoLoaded && info.city !== "—" && (
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>
+                      {info.city}, {info.region}
+                    </div>
+                  )}
+                </div>
+
+                {/* Server */}
+                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Server className="w-3.5 h-3.5" style={{ color: "#06B6D4" }} />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Serveur de test</span>
+                  </div>
+                  <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#fff", marginBottom: 3 }}>
+                    Nivra Telecom
+                  </div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                    Québec, Canada
+                  </div>
+                  {results && (
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#FBBF24", marginTop: 1 }}>
+                      {results.ping} ms ping
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Server info */}
-          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.05em" }}>
-            SERVEUR · QUÉBEC, CANADA · NIVRA TELECOM
-          </p>
-        </section>
-
-        {/* Info cards */}
-        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 48px" }}>
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            {[
-              { icon: <ArrowDown className="w-5 h-5" style={{ color: "#A78BFA" }} />, bg: "rgba(124,58,237,0.12)", title: "Téléchargement", lines: ["Streams parallèles", "Mesure sur 10 secondes"] },
-              { icon: <ArrowUp className="w-5 h-5" style={{ color: "#06B6D4" }} />, bg: "rgba(6,182,212,0.12)", title: "Envoi", lines: ["Paquets compressibles", "Mesure sur 10 secondes"] },
-              { icon: <Activity className="w-5 h-5" style={{ color: "#FBBF24" }} />, bg: "rgba(245,158,11,0.12)", title: "Latence & Jitter", lines: ["8 pings consécutifs", "Résultat en millisecondes"] },
-            ].map(c => (
-              <div key={c.title} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 24px" }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>{c.icon}</div>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, marginBottom: 6, color: "#fff" }}>{c.title}</div>
-                {c.lines.map(l => <div key={l} style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>{l}</div>)}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Plan comparison */}
-        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 48px" }}>
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 16, color: "#fff", letterSpacing: "-0.5px" }}>
-            Comparez avec votre forfait Nivra
-          </h2>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 460 }}>
+          {/* ── Plan comparison ── */}
+          <div style={{ marginTop: 32 }}>
+            <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 14, color: "#fff", letterSpacing: "-0.5px" }}>
+              Comparez avec votre forfait
+            </h2>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 16, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: "rgba(124,58,237,0.12)" }}>
-                    {["Forfait", "Téléchargement", "Envoi", "Latence typique"].map(h => (
-                      <th key={h} style={{ padding: "14px 18px", textAlign: "left", fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.6)", letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</th>
+                  <tr style={{ background: "rgba(124,58,237,0.1)" }}>
+                    {["Forfait", "↓ Téléchargement", "↑ Envoi", "Latence"].map(h => (
+                      <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    { plan: "Internet 100 Mbps", down: "~90 Mbps",    up: "~20 Mbps",   ping: "< 20 ms" },
-                    { plan: "Internet 500 Mbps", down: "~450 Mbps",   up: "~50 Mbps",   ping: "< 15 ms" },
-                    { plan: "Internet Giga",     down: "~1 000 Mbps", up: "~100 Mbps",  ping: "< 10 ms" },
-                  ].map((row, i) => (
-                    <tr key={row.plan} style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: results && ((i === 0 && results.download >= 80) || (i === 1 && results.download >= 400) || (i === 2 && results.download >= 800)) ? "rgba(124,58,237,0.06)" : undefined }}>
-                      <td style={{ padding: "14px 18px", fontSize: 14, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", color: "#fff" }}>{row.plan}</td>
-                      <td style={{ padding: "14px 18px", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", color: "#A78BFA" }}>{row.down}</td>
-                      <td style={{ padding: "14px 18px", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", color: "#06B6D4" }}>{row.up}</td>
-                      <td style={{ padding: "14px 18px", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", color: "#FBBF24" }}>{row.ping}</td>
-                    </tr>
-                  ))}
+                    { plan: "Internet 100", down: 90, downLabel: "~90 Mbps", upLabel: "~20 Mbps", ping: "< 20 ms" },
+                    { plan: "Internet 500", down: 450, downLabel: "~450 Mbps", upLabel: "~50 Mbps", ping: "< 15 ms" },
+                    { plan: "Internet Giga", down: 900, downLabel: "~1 000 Mbps", upLabel: "~100 Mbps", ping: "< 10 ms" },
+                  ].map((row, i) => {
+                    const isMatch = results && (
+                      (i === 0 && results.download >= 60 && results.download < 400) ||
+                      (i === 1 && results.download >= 400 && results.download < 800) ||
+                      (i === 2 && results.download >= 800)
+                    );
+                    return (
+                      <tr key={row.plan} style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: isMatch ? "rgba(124,58,237,0.08)" : undefined }}>
+                        <td style={{ padding: "13px 16px", fontSize: 13, fontWeight: 600, fontFamily: "'Space Grotesk',sans-serif", color: isMatch ? "#A78BFA" : "#fff" }}>
+                          {row.plan} {isMatch && "✓"}
+                        </td>
+                        <td style={{ padding: "13px 16px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", color: "#A78BFA" }}>{row.downLabel}</td>
+                        <td style={{ padding: "13px 16px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", color: "#06B6D4" }}>{row.upLabel}</td>
+                        <td style={{ padding: "13px 16px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", color: "#FBBF24" }}>{row.ping}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            <p style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
+              Vitesse mesurée en conditions réelles — câblage, distance au routeur et appareils actifs influencent le résultat.
+            </p>
           </div>
-          <p style={{ marginTop: 12, fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
-            Si votre vitesse est inférieure à 70 % de votre forfait, contactez notre support.
-          </p>
-        </section>
 
-        {/* Support CTA */}
-        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 20, padding: "32px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-            <div aria-hidden style={{ position: "absolute", top: "-40%", left: "50%", transform: "translateX(-50%)", width: 300, height: 250, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 6, color: "#fff", letterSpacing: "-0.5px" }}>
-                Un problème avec votre connexion ?
-              </h3>
-              <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 24, fontSize: 14 }}>Notre équipe est disponible 7j/7 pour vous aider.</p>
-              <div className="flex gap-3 flex-wrap justify-center">
-                <a href="mailto:support@nivra-telecom.ca" className="flex items-center gap-2" style={{ padding: "11px 22px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", textDecoration: "none", fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", fontSize: 14 }}>
-                  <Mail className="w-4 h-4" /> Contacter le support
-                </a>
-                <Link to="/portal/tickets" className="flex items-center gap-2" style={{ padding: "11px 22px", borderRadius: 10, background: "linear-gradient(135deg, #7C3AED, #6D28D9)", color: "#fff", textDecoration: "none", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
-                  <TicketCheck className="w-4 h-4" /> Ouvrir un ticket
-                </Link>
-              </div>
+          {/* ── Support ── */}
+          <div style={{ marginTop: 28, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 20, padding: "28px", textAlign: "center" }}>
+            <h3 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 6, color: "#fff" }}>
+              Vitesse inférieure à votre forfait ?
+            </h3>
+            <p style={{ color: "rgba(255,255,255,0.4)", marginBottom: 20, fontSize: 13 }}>Notre équipe technique est disponible 7j/7.</p>
+            <div className="flex gap-3 flex-wrap justify-center">
+              <a href="mailto:support@nivra-telecom.ca" className="flex items-center gap-2" style={{ padding: "10px 20px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", textDecoration: "none", fontWeight: 600, fontFamily: "'Space Grotesk',sans-serif", fontSize: 13 }}>
+                <Mail className="w-4 h-4" /> Support
+              </a>
+              <Link to="/portal/tickets" className="flex items-center gap-2" style={{ padding: "10px 20px", borderRadius: 10, background: "linear-gradient(135deg,#7C3AED,#6D28D9)", color: "#fff", textDecoration: "none", fontWeight: 700, fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
+                <TicketCheck className="w-4 h-4" /> Ouvrir un ticket
+              </Link>
             </div>
           </div>
-        </section>
 
+        </main>
       </div>
       <Footer />
     </>
