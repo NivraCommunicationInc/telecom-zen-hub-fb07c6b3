@@ -108,6 +108,9 @@ export function InvoiceActionMenu({
         <button onClick={() => setModal("refundPayment")} className={actionWarning}>
           <RotateCcw className="h-3 w-3" /> Remboursement
         </button>
+        <button onClick={() => setModal("cancelInvoice")} className={actionWarning}>
+          <Ban className="h-3 w-3" /> Annuler facture
+        </button>
       </div>
 
       {modal === "recordPayment" && (
