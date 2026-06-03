@@ -313,6 +313,7 @@ const StatusPage = lazy(() => import("@/pages/StatusPage"));
 const Install = lazy(() => import("@/pages/Install"));
 const ComparePlans = lazy(() => import("@/pages/ComparePlans"));
 const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
+const GrilleCanaux = lazy(() => import("@/pages/GrilleCanaux"));
 const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 const PayPalSubscriptionReturn = lazy(() => import("@/pages/PayPalSubscriptionReturn"));
 const ClientAutoPayLog = lazy(() => import("@/pages/client/ClientAutoPayLog"));
@@ -585,6 +586,7 @@ const AppRoutes = () => {
       <Route path="/streaming" element={<MaintenanceGuard><PublicLayout><StreamingPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/compare" element={<MaintenanceGuard><PublicLayout><ComparePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/television-sur-mesure" element={<MaintenanceGuard><PublicLayout><TVConfigurator /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/grille-canaux" element={<MaintenanceGuard><GrilleCanaux /></MaintenanceGuard>} />
       <Route path="/careers" element={<MaintenanceGuard><PublicLayout><Careers /></PublicLayout></MaintenanceGuard>} />
       <Route path="/carrieres" element={<Navigate to="/careers" replace />} />
       <Route path="/emplois" element={<MaintenanceGuard><PublicLayout><JobListings /></PublicLayout></MaintenanceGuard>} />

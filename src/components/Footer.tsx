@@ -28,6 +28,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: "Mobile", to: "/mobile" },
     { label: "Streaming", to: "/streaming" },
     { label: isFr ? "Comparer les forfaits" : "Compare Plans", to: "/compare" },
+    { label: isFr ? "Grille des canaux" : "Channel Guide", to: "/grille-canaux" },
     { label: isFr ? "Carte de couverture" : "Coverage Map", to: "/couverture" },
     { label: isFr ? "Programme de parrainage" : "Refer a Friend", to: "/parrainage" },
     { label: isFr ? "Commander" : "Order Now", to: "/commander" },
