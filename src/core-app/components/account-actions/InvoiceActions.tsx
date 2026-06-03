@@ -134,7 +134,109 @@ export function InvoiceActionMenu({
       {modal === "addCharge" && <AdjustmentModal type="charge" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "addCredit" && <AdjustmentModal type="credit" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "refundPayment" && <RefundModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "cancelInvoice" && <CancelInvoiceModal invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
     </>
+  );
+}
+
+function CancelInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; onClose: () => void; onRefresh: () => void }) {
+  const cancellable = useMemo(
+    () => invoices.filter((i: any) => !["cancelled", "void", "paid", "paid_by_promo", "refunded"].includes(i.status)),
+    [invoices],
+  );
+  const [selectedId, setSelectedId] = useState(cancellable[0]?.id || "");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const inv = cancellable.find((i: any) => i.id === selectedId);
+
+  const handleCancel = async () => {
+    if (!inv) return;
+    if (!reason.trim()) { toast.error("Une raison est requise pour annuler"); return; }
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("billing_invoices")
+        .update({
+          status: "cancelled",
+          balance_due: 0,
+          notes: inv.notes ? `${inv.notes}\n\n[ANNULÉE] ${reason.trim()}` : `[ANNULÉE] ${reason.trim()}`,
+        } as any)
+        .eq("id", inv.id);
+      if (error) throw error;
+
+      const user = (await supabase.auth.getUser()).data.user;
+      await supabase.from("activity_logs").insert({
+        user_id: user?.id || "system",
+        entity_type: "billing_invoice",
+        entity_id: inv.id,
+        action: "invoice_cancelled",
+        reason: reason.trim(),
+        details: {
+          invoice_number: inv.invoice_number,
+          previous_status: inv.status,
+          previous_balance: inv.balance_due,
+          total: inv.total,
+          source: "account_360",
+        },
+      });
+
+      toast.success(`Facture ${inv.invoice_number} annulée`);
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de l'annulation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2 text-red-500">
+            <XCircle className="h-4 w-4" /> Annuler une facture
+          </DialogTitle>
+        </DialogHeader>
+        {cancellable.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground py-4">Aucune facture annulable (payées et déjà annulées exclues).</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture à annuler</label>
+              <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
+                {cancellable.map((i: any) => (
+                  <option key={i.id} value={i.id}>
+                    {i.invoice_number} — {Number(i.total || 0).toFixed(2)} $ — Solde: {Number(i.balance_due || 0).toFixed(2)} $ ({i.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {inv && (
+              <div className="p-2 rounded-md bg-muted/50 text-[10px] space-y-1">
+                <p><span className="font-semibold">Facture:</span> {inv.invoice_number}</p>
+                <p><span className="font-semibold">Total:</span> {Number(inv.total || 0).toFixed(2)} $</p>
+                <p><span className="font-semibold">Solde dû:</span> {Number(inv.balance_due || 0).toFixed(2)} $</p>
+                <p><span className="font-semibold">Statut actuel:</span> {inv.status || "—"}</p>
+              </div>
+            )}
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Raison de l'annulation *</label>
+              <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Ex: facturation erronée, doublon, client annulé" className="text-[11px]" />
+            </div>
+            <p className="text-[10px] text-amber-500">⚠️ La facture sera marquée « cancelled », son solde sera ramené à 0, et l'action sera tracée dans le journal d'audit.</p>
+          </div>
+        )}
+        <DialogFooter className="gap-2">
+          <button onClick={onClose} className={btnSecondary}>Annuler</button>
+          {cancellable.length > 0 && (
+            <button onClick={handleCancel} disabled={loading || !reason.trim()} className="rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40">
+              {loading ? "…" : "Confirmer l'annulation"}
+            </button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
