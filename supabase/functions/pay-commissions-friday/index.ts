@@ -191,12 +191,14 @@ Deno.serve(async (req) => {
 
     if (totalAmount <= 0) continue;
 
-    // 5. Flip commissions → paid.
+    // 5. Flip commissions → paid. Also set paid_in_run_id so process-payroll won't re-pay them.
     const paidAt = new Date().toISOString();
+    const syntheticRunId = `friday-${payDateISO}`;
     const { error: updErr } = await supabase
       .from("field_commissions")
-      .update({ status: "paid", paid_at: paidAt })
-      .in("id", agg.ids);
+      .update({ status: "paid", paid_at: paidAt, paid_in_run_id: syntheticRunId })
+      .in("id", agg.ids)
+      .is("paid_in_run_id", null);
     if (updErr) {
       results.push({ agent_id: agentId, error: updErr.message });
       continue;

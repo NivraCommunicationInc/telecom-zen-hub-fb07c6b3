@@ -84,6 +84,11 @@ async function runDaily(supabase: any) {
     const { data: p } = await supabase.from("profiles").select("email, first_name, full_name").eq("user_id", a.client_id).maybeSingle();
     if (!p?.email) continue;
 
+    // CASL: only send retention emails to clients who have consented to marketing
+    const { data: emailPrefs } = await supabase.from("client_email_preferences")
+      .select("marketing_emails").eq("client_id", a.client_id).maybeSingle();
+    if (emailPrefs?.marketing_emails === false) continue;
+
     const ageDays = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 86400_000);
     const ai = await geminiOffer({
       full_name: p.full_name, plan_name: sub?.plan_name ?? "Forfait Nivra",

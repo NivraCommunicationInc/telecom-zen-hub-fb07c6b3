@@ -167,15 +167,15 @@ const TOOLS = [
   {
     name: "suspend_account",
     description:
-      "Suspend a customer account. Use ONLY when the user explicitly asks. Records the staff member's " +
-      "identity in the audit trail. Will fail if there's no active subscription to suspend.",
+      "Suspend a customer account. Use ONLY when the user explicitly asks AND confirms. First call WITHOUT confirmed to explain what will happen. Only set confirmed: true after the user says 'yes, confirm' or equivalent.",
     input_schema: {
       type: "object",
       properties: {
         account_id: { type: "string" },
         reason: { type: "string" },
+        confirmed: { type: "boolean", description: "Must be true — user has explicitly confirmed this action" },
       },
-      required: ["account_id", "reason"],
+      required: ["account_id", "reason", "confirmed"],
     },
   },
   {
@@ -194,16 +194,17 @@ const TOOLS = [
     name: "trigger_cancellation",
     description:
       "Trigger the orchestrated cancellation engine (cancel-account function). Cascades PayPal, " +
-      "subscriptions, invoices, commissions, email. Use ONLY when the user explicitly asks to cancel. " +
-      "scope='service' keeps the account open; scope='full' closes it permanently.",
+      "subscriptions, invoices, commissions, email. Use ONLY when the user explicitly asks to cancel AND confirms. " +
+      "scope='service' keeps the account open; scope='full' closes it permanently. Always confirm before executing.",
     input_schema: {
       type: "object",
       properties: {
         account_id: { type: "string" },
         scope: { type: "string", enum: ["service", "full"] },
         reason: { type: "string" },
+        confirmed: { type: "boolean", description: "Must be true — user has explicitly confirmed this cancellation" },
       },
-      required: ["account_id", "scope", "reason"],
+      required: ["account_id", "scope", "reason", "confirmed"],
     },
   },
   {
@@ -477,6 +478,7 @@ async function executeTool(
         const reason = input.reason as string;
         const months = (input.months as number) ?? 1;
         if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: "Invalid amount" };
+        if (amount > 500) return { ok: false, error: "Crédit maximum 500$ CAD par NOVA. Pour un montant supérieur, un admin doit l'appliquer manuellement dans Core." };
         const { data, error } = await supabase
           .from("account_adjustments")
           .insert({
@@ -496,6 +498,7 @@ async function executeTool(
       }
 
       case "suspend_account": {
+        if (!input.confirmed) return { ok: false, error: "Confirmation requise. Demandez à l'utilisateur de confirmer explicitement, puis relancez avec confirmed: true." };
         const accountId = input.account_id as string;
         const { error } = await supabase
           .from("accounts")
@@ -533,6 +536,7 @@ async function executeTool(
       }
 
       case "trigger_cancellation": {
+        if (!input.confirmed) return { ok: false, error: "Confirmation requise. Demandez à l'utilisateur de confirmer explicitement l'annulation, puis relancez avec confirmed: true." };
         // Delegate to the cancel-account orchestrator built earlier — atomic + audited.
         const res = await fetch(`${SUPABASE_URL}/functions/v1/cancel-account`, {
           method: "POST",
@@ -642,6 +646,15 @@ async function executeTool(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Auth gate: nova-brain is internal — require service role or AGENT_SECRET
+  const _nb_auth = req.headers.get("Authorization") ?? "";
+  const _nb_secret = Deno.env.get("AGENT_SECRET");
+  if (_nb_auth !== `Bearer ${SERVICE_KEY}` && (!_nb_secret || _nb_auth !== `Bearer ${_nb_secret}`)) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) {

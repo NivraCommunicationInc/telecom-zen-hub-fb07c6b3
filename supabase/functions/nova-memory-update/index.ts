@@ -44,7 +44,8 @@ serve(async (req) => {
     }
 
     const transcript = messages
-      .map((m: any) => `[${m.role.toUpperCase()}] ${m.content}`)
+      .filter((m: any) => m?.role === "user" || m?.role === "assistant")
+      .map((m: any) => `[${String(m.role).toUpperCase()}] ${String(m.content ?? "").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 3000)}`)
       .join("\n\n");
 
     const extractionPrompt = `Analyse cette conversation entre Oldo (fondateur Nivra Telecom) et NOVA (son IA).

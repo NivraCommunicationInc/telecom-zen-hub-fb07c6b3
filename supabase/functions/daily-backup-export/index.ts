@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
 
     // ── UPDATE LOG ─────────────────────────────────────────────────
     if (logId) {
-      await supabase
+      const { error: logErr } = await supabase
         .from("daily_backup_log")
         .update({
           status: "success",
@@ -333,6 +333,7 @@ Deno.serve(async (req) => {
           completed_at: new Date().toISOString(),
         })
         .eq("id", logId);
+      if (logErr) console.error("[DAILY-BACKUP] Failed to update log — deduplication may fail next run:", logErr.message);
     }
 
     return new Response(JSON.stringify({

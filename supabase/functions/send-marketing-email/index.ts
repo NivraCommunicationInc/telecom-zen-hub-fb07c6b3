@@ -180,7 +180,7 @@ serve(async (req) => {
         query = query.eq("preferred_language", segmentFilters.language);
       }
 
-      const { data } = await query.limit(5000);
+      const { data } = await query.limit(500);
       clients = data || [];
 
       // Filter by service if needed (requires join with service_instances)
@@ -236,6 +236,11 @@ serve(async (req) => {
     const portalUrl = supabaseUrl.replace(".supabase.co", "").replace("https://", "https://");
 
     for (const client of clients) {
+      // Block internal Nivra addresses from receiving marketing emails
+      if (client.email && (client.email.endsWith("@nivra-telecom.ca") || client.email.endsWith("@nivratelecom.ca"))) {
+        failedCount++;
+        continue;
+      }
       // Pre-generate sendId so it can be embedded in tracking pixel + click links
       const sendId = crypto.randomUUID();
       const unsubToken = await generateUnsubscribeToken(client.email);

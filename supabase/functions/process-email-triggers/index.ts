@@ -140,13 +140,29 @@ serve(async (req: Request) => {
         if (unsubscribed) {
           await supabase
             .from("email_trigger_queue")
-            .update({ 
-              status: "skipped", 
+            .update({
+              status: "skipped",
               processed_at: new Date().toISOString(),
               error_message: "Client is unsubscribed"
             })
             .eq("id", trigger.id);
           continue;
+        }
+
+        // CASL: check marketing consent for non-transactional triggers
+        if (trigger.trigger_type && String(trigger.trigger_type).includes("marketing")) {
+          const { data: emailPrefs } = await supabase
+            .from("client_email_preferences")
+            .select("marketing_emails")
+            .eq("client_id", trigger.client_id)
+            .maybeSingle();
+          if (emailPrefs?.marketing_emails === false) {
+            await supabase.from("email_trigger_queue").update({
+              status: "skipped", processed_at: new Date().toISOString(),
+              error_message: "Client has not consented to marketing emails (CASL)",
+            }).eq("id", trigger.id);
+            continue;
+          }
         }
 
         // Prepare variables for template

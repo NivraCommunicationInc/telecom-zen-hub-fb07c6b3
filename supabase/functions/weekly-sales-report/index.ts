@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
         top_agents_rows_html: topAgentsRows || `<tr><td colspan="3" style="padding:8px;color:#888">Aucune vente</td></tr>`,
         plan_breakdown_rows_html: planRows,
       },
-    }).catch((e) => console.error("[weekly-sales-report] enqueue failed", e));
+    });
 
     return new Response(JSON.stringify({
       success: true,
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("[weekly-sales-report] error", e);
     return new Response(JSON.stringify({ error: String(e) }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

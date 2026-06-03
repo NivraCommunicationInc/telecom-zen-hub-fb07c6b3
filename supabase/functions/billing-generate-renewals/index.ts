@@ -84,8 +84,8 @@ serve(async (req) => {
           .eq("subscription_id", sub.id)
           .eq("type", "renewal")
           .eq("cycle_start_date", newCycleStart.toISOString().split('T')[0])
-          .single();
-        
+          .maybeSingle();
+
         if (existingInvoice) {
           console.log(`[billing-generate-renewals] Invoice already exists for subscription ${sub.id}`);
           continue;

@@ -160,11 +160,24 @@ Deno.serve(async (req) => {
     }
 
     if ((a.consecutive_failures ?? 0) >= 3 && a.status === "active") {
-      const ok = await restartAgent(a.function_name);
-      await logEvent(supabase, AGENT, ok ? "auto_fix" : "error",
-        ok ? `Redémarrage forcé de ${a.agent_name} réussi` : `Échec du redémarrage de ${a.agent_name}`,
-        { agent: a.agent_name });
-      actions++;
+      // Guard against infinite restart cascade: max 3 restarts per agent per 24h
+      const since24h = new Date(Date.now() - 24 * 3600_000).toISOString();
+      const { count: restartsToday } = await supabase
+        .from("agent_events")
+        .select("id", { count: "exact", head: true })
+        .eq("agent_name", AGENT)
+        .eq("event_type", "auto_fix")
+        .ilike("details->agent", `%${a.agent_name}%`)
+        .gte("created_at", since24h);
+      if ((restartsToday ?? 0) >= 3) {
+        await logEvent(supabase, AGENT, "warning", `Redémarrage de ${a.agent_name} suspendu — limite 3/jour atteinte`, { agent: a.agent_name });
+      } else {
+        const ok = await restartAgent(a.function_name);
+        await logEvent(supabase, AGENT, ok ? "auto_fix" : "error",
+          ok ? `Redémarrage forcé de ${a.agent_name} réussi` : `Échec du redémarrage de ${a.agent_name}`,
+          { agent: a.agent_name });
+        actions++;
+      }
     }
 
     if (newHealth < 50 || a.status === "error") {
