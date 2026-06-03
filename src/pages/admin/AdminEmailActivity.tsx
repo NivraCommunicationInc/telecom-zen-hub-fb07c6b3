@@ -58,6 +58,8 @@ const TEMPLATE_OPTIONS = [
   { key: "appointment_cancelled", label: "RDV annulé", category: "Rendez-vous" },
   { key: "contract_ready", label: "Contrat prêt", category: "Contrat" },
   { key: "contract_signed", label: "Contrat signé", category: "Contrat" },
+  { key: "review_request_activation", label: "Demande d'avis — client actif", category: "Avis" },
+  { key: "review_request_deactivation", label: "Demande d'avis — résiliation", category: "Avis" },
 ];
 
 const AdminEmailActivity = () => {
