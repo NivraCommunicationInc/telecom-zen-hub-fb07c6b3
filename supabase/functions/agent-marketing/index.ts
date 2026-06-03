@@ -153,6 +153,11 @@ async function logAudit(supabase: any, action: string, result: string, details: 
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const _auth = req.headers.get("Authorization") ?? "";
+  const _agentSecret = Deno.env.get("AGENT_SECRET");
+  if (_auth !== `Bearer ${SERVICE_KEY}` && (!_agentSecret || _auth !== `Bearer ${_agentSecret}`)) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
   const startedAt = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 

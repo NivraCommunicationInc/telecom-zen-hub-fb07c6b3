@@ -10,7 +10,7 @@
  */
 import {
   corsHeaders, makeClient, logEvent, logAudit, updateRegistry,
-  queueEmail, callGeminiJSON, jsonResponse, ADMIN_EMAIL,
+  queueEmail, callGeminiJSON, jsonResponse, ADMIN_EMAIL, requireServiceAuth,
 } from "../_shared/agentHelpers.ts";
 
 const AGENT = "google-ads-monitor";
@@ -60,6 +60,8 @@ async function gaqlSearch(token: string, query: string): Promise<any[]> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const unauth = requireServiceAuth(req);
+  if (unauth) return unauth;
   const t0 = Date.now();
   const supabase = makeClient();
   try {

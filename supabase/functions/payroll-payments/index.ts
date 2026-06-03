@@ -168,13 +168,20 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  // Auth gate: require authenticated admin/hr — payroll operations must be authorized
+  const _authHeader = req.headers.get("Authorization");
+  if (!_authHeader?.startsWith("Bearer ")) return json({ error: "Authentication required" }, 401);
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
 
   const action = String(body.action || "").trim();
-  const actor = await getActor(supabase, req.headers.get("Authorization"));
+  const actor = await getActor(supabase, _authHeader);
+  if (!actor.id) return json({ error: "Invalid authentication" }, 401);
+  const PAYROLL_ROLES = new Set(["admin", "super_admin", "owner", "hr"]);
+  if (!PAYROLL_ROLES.has(actor.role ?? "")) return json({ error: "Insufficient permissions — admin/hr required" }, 403);
 
   try {
     // ====== CREATE ======

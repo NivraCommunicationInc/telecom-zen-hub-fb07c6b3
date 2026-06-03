@@ -32,6 +32,31 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
+    // Auth gate: require JWT from authenticated staff
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerClient: any = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser }, error: callerErr } = await callerClient.auth.getUser();
+    if (callerErr || !callerUser?.id) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: callerRole } = await supabase
+      .from("user_roles").select("role").eq("user_id", callerUser.id).eq("status", "active").maybeSingle();
+    const staffRoles = ["admin", "super_admin", "owner", "employee", "agent", "field_agent", "billing_admin"];
+    if (!callerRole || !staffRoles.includes(callerRole.role)) {
+      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body: CreateSubscriptionRequest = await req.json();
     
     let customerId = body.customer_id;
