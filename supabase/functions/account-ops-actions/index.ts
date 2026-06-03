@@ -10,6 +10,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,9 +90,7 @@ serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: roles } = await admin
-    .from("user_roles").select("role").eq("user_id", user.id);
-  const isStaff = (roles || []).some((r: { role: string }) => ALLOWED_ROLES.has(r.role));
+  const { isStaff, callerRole } = await checkStaffAuth(admin, user.id);
   if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
 
   let body: Body;
@@ -102,11 +101,6 @@ serve(async (req) => {
   if (!action || !client_user_id) {
     return json(400, { error: "Champs requis: action, client_user_id" });
   }
-
-  // Caller role (for note attribution)
-  const callerRole =
-    (roles || []).map((r: { role: string }) => r.role)
-      .find((r: string) => ALLOWED_ROLES.has(r)) || "support";
 
   // Caller name
   const { data: callerProfile } = await admin

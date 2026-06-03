@@ -9,6 +9,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { sendSmsNotification, toE164 } from "../_shared/smsHelper.ts";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {
   action: "list_recent" | "send_sms" | "resolve_phone";
@@ -58,8 +59,8 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    const { data: isStaff } = await admin.rpc("has_staff_role", { _user_id: userData.user.id });
-    if (isStaff !== true) return json({ error: "forbidden" }, 403);
+      const { isStaff } = await checkStaffAuth(admin, user.id);
+  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
 
     const body = (await req.json()) as Body;
     if (!body?.client_user_id || !body?.action) {

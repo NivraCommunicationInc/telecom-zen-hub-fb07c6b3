@@ -5,6 +5,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {
   client_user_id: string;
@@ -48,10 +49,8 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     // Staff role check via has_staff_role helper
-    const { data: isStaff } = await admin.rpc("has_staff_role", {
-      _user_id: userData.user.id,
-    });
-    if (isStaff !== true) {
+      const { isStaff } = await checkStaffAuth(admin, user.id);
+  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
       return json({ error: "forbidden" }, 403);
     }
 

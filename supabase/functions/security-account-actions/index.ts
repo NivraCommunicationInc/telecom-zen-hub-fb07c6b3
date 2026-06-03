@@ -10,6 +10,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {
   action: string;
@@ -38,8 +39,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    const { data: isStaffData } = await admin.rpc("has_staff_role", { _user_id: userData.user.id });
-    const isStaff = isStaffData === true;
+    const { isStaff } = await checkStaffAuth(admin, userData.user.id);
     if (!isStaff) return json({ error: "forbidden" }, 403);
 
     // Sensitive actions require admin role specifically (not just any staff).

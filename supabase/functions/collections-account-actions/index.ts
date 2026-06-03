@@ -13,6 +13,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,8 +82,8 @@ serve(async (req) => {
 
   const { data: roles } = await admin
     .from("user_roles").select("role").eq("user_id", user.id);
-  const roleList = (roles || []).map((r: { role: string }) => r.role);
-  const isStaff = roleList.some((r: string) => STAFF_ROLES.has(r));
+  const { isStaff, callerRole: _callerRole, roles: _roles } = await checkStaffAuth(admin, user.id);
+  const roleList = _roles;
   if (!isStaff) return json(403, { error: "Action réservée à l'équipe recouvrement" });
 
   let body: Body;

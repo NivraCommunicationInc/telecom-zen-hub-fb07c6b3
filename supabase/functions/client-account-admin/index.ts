@@ -7,6 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -78,7 +79,7 @@ serve(async (req) => {
     .select("role")
     .eq("user_id", user.id);
   const allowedRoles = new Set(["admin", "employee", "agent", "manager", "core_admin", "super_admin", "supervisor"]);
-  const isStaff = (roles || []).some((r: any) => allowedRoles.has(r.role));
+  const { isStaff } = await checkStaffAuth(admin, user.id);
   if (!isStaff) return json(403, { error: "Réservé au personnel autorisé" });
   // Admin gate for sensitive actions (email change, etc.)
   const adminRoles = new Set(["admin", "core_admin", "super_admin"]);

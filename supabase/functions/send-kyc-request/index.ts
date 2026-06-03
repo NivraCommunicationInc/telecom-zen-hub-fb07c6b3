@@ -7,6 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const PUBLIC_BASE = "https://nivra-telecom.ca";
 
@@ -66,9 +67,7 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const adminId = userData.user.id;
 
-    const { data: roles } = await supabaseService.from("user_roles").select("role").eq("user_id", adminId);
-    const allowedRoles = ["admin", "supervisor", "employee", "billing_admin"];
-    const isStaff = roles?.some((r: any) => allowedRoles.includes(r.role));
+    const { isStaff } = await checkStaffAuth(supabaseService, adminId);
     if (!isStaff) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body: Body = await req.json();

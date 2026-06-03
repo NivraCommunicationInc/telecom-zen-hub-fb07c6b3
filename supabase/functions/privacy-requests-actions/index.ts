@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const STAFF_ROLES = ["admin", "employee", "supervisor", "support"];
 
@@ -19,8 +20,8 @@ Deno.serve(async (req) => {
     const user = userData.user;
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: isStaffData } = await admin.rpc("has_staff_role", { _user_id: user.id });
-    if (isStaffData !== true) return json({ error: "Forbidden" }, 403);
+        const { isStaff } = await checkStaffAuth(admin, user.id);
+    if (!isStaff) return json({ error: "Forbidden" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const { action, clientId, accountId, requestId, requestType, description, reason, status, refusalReason, internalNotes } = body;

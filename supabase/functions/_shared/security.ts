@@ -25,15 +25,14 @@ export async function requireAuth(req: Request) {
     { global: { headers: { Authorization: authHeader } } }
   );
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data, error } = await supabase.auth.getClaims(token);
-  if (error || !data?.claims) {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) {
     throw { status: 401, message: "Session invalide" };
   }
 
   return {
-    userId: data.claims.sub as string,
-    claims: data.claims,
+    userId: data.user.id,
+    claims: data.user,
     supabase,
   };
 }
