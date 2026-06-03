@@ -2,11 +2,9 @@ project_id = "xtgngmtxggascbxnswvb"
 
 [functions.nova-watchdog]
 verify_jwt = false
-schedule = "*/30 * * * *"
 
 [functions.agent-supervisor]
 verify_jwt = false
-schedule = "*/15 * * * *"
 
 [functions.temp-pwd-reset]
 verify_jwt = false
