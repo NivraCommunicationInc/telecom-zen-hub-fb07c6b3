@@ -22,6 +22,7 @@ const actionBtn = "flex items-center gap-1.5 rounded-md border border-border bg-
 const actionDefault = `${actionBtn} text-foreground/80 hover:text-foreground hover:border-primary/30`;
 const actionAccent = `${actionBtn} text-primary hover:text-primary hover:border-primary/40`;
 const actionWarning = `${actionBtn} text-amber-500 hover:text-amber-400 hover:border-amber-500/40`;
+const actionDanger = `${actionBtn} text-red-500 hover:text-red-400 hover:border-red-500/40`;
 
 interface InvoiceActionsProps {
   invoices: any[];
