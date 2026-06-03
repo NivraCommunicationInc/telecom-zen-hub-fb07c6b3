@@ -78,11 +78,14 @@ Deno.serve(async (req) => {
         tickets = (data ?? []) as any[];
       }
 
+      const maskEmail = (e: string | null) => e ? e.replace(/^(.{2}).*@/, "$1***@") : null;
+      const maskPhone = (p: string | null) => p ? p.replace(/\d(?=\d{2})/g, "*") : null;
+
       contextBlock = JSON.stringify({
         client: cust ? {
           nom: [cust.first_name, cust.last_name].filter(Boolean).join(" "),
-          email: cust.email,
-          telephone: cust.phone,
+          email: maskEmail(cust.email),
+          telephone: maskPhone(cust.phone),
           client_depuis: cust.created_at,
         } : null,
         finances: {

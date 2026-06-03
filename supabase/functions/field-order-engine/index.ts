@@ -359,6 +359,15 @@ Deno.serve(async (req) => {
       const order = orderRes.data;
       if (!order) return new Response(JSON.stringify({ error: "Commande introuvable" }), { status: 404, headers });
 
+      // IDOR guard: agents can only view their own orders
+      if (order.salesperson_id !== userId) {
+        const { data: roleRow } = await admin.from("user_roles").select("role").eq("user_id", userId).eq("status", "active").maybeSingle();
+        const managerRoles = ["admin", "super_admin", "owner", "supervisor"];
+        if (!roleRow || !managerRoles.includes(roleRow.role)) {
+          return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
+        }
+      }
+
       // Fetch related canonical data if converted
       let canonical = null;
       let invoice = null;
@@ -411,7 +420,16 @@ Deno.serve(async (req) => {
       const mine = url.searchParams.get("mine") === "true";
 
       let query = admin.from("field_sales_orders").select("*").order("created_at", { ascending: false }).limit(100);
-      if (mine) query = query.eq("salesperson_id", userId);
+      if (mine) {
+        query = query.eq("salesperson_id", userId);
+      } else {
+        // Non-mine list: only admin/supervisor can see all orders — others see their own
+        const { data: roleRow } = await admin.from("user_roles").select("role").eq("user_id", userId).eq("status", "active").maybeSingle();
+        const managerRoles = ["admin", "super_admin", "owner", "supervisor"];
+        if (!roleRow || !managerRoles.includes(roleRow.role)) {
+          query = query.eq("salesperson_id", userId);
+        }
+      }
       if (status) query = query.eq("status", status);
       if (paymentStatus) query = query.eq("payment_status", paymentStatus);
       if (syncStatus) query = query.eq("sync_status", syncStatus);

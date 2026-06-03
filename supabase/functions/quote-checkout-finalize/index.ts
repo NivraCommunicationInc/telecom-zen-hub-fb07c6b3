@@ -122,6 +122,20 @@ serve(async (req) => {
     }
 
     if (!order) {
+      // Re-check for concurrent requests that may have created an order between our initial read and now
+      const { data: freshQuote } = await supabase
+        .from("quotes").select("converted_order_id").eq("id", quote_id).single();
+      if (freshQuote?.converted_order_id) {
+        const { data: concurrentOrder } = await supabase
+          .from("orders").select("*").eq("id", freshQuote.converted_order_id).maybeSingle();
+        if (concurrentOrder) {
+          order = concurrentOrder;
+          console.log("[quote-checkout-finalize] Concurrent request detected — reusing order:", order.id);
+        }
+      }
+    }
+
+    if (!order) {
       const orderNumber = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
       const { data: newOrder, error: orderErr } = await supabase

@@ -950,11 +950,17 @@ serve(async (req) => {
   const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   try {
-    const { message, sessionId, language = "fr", conversationHistory = [], verifiedClientId: incomingVerifiedId } = await req.json() as ChatRequest;
+    const { message, sessionId, language = "fr", conversationHistory: rawHistory = [], verifiedClientId: incomingVerifiedId } = await req.json() as ChatRequest;
 
     if (!message || typeof message !== "string" || message.length > 2000) {
       return new Response(JSON.stringify({ error: "Invalid message" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Sanitize conversation history: strip system role injections, cap size
+    const conversationHistory = (Array.isArray(rawHistory) ? rawHistory : [])
+      .filter((m: any) => m?.role === "user" || m?.role === "assistant")
+      .slice(-15)
+      .map((m: any) => ({ role: m.role, content: typeof m.content === "string" ? m.content.slice(0, 2000) : "" }));
     if (!sessionId || typeof sessionId !== "string") {
       return new Response(JSON.stringify({ error: "Invalid sessionId" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

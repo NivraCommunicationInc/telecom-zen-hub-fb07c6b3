@@ -227,7 +227,8 @@ Deno.serve(async (req) => {
       if (iErr) return json({ error: iErr.message }, 500);
 
       await logEvent(supabase, inserted.id, "created", { from_entry: entryId, net_amount: netAmount }, actor);
-      return json({ payment: inserted });
+      // Return only non-PII fields — employee email and banking details stay server-side
+      return json({ payment: { id: inserted.id, payroll_entry_id: inserted.payroll_entry_id, employee_name: inserted.employee_name, employee_number: inserted.employee_number, net_amount: inserted.net_amount, gross_amount: inserted.gross_amount, payment_status: inserted.payment_status, payment_method: inserted.payment_method, scheduled_date: inserted.scheduled_date, requires_approval: inserted.requires_approval, created_at: inserted.created_at } });
     }
 
     // ====== UPDATE (notes, scheduled_date, method, bank info) ======

@@ -20,6 +20,30 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // IP-based rate limiting: 5 attempts per 15 minutes to prevent brute force
+  const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || req.headers.get("cf-connecting-ip")
+    || "unknown";
+  const rlAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
+  const rlWindow = 15 * 60 * 1000;
+  const rlKey = `lockdown_verify:${clientIP}`;
+  const rlNow = new Date().toISOString();
+  const rlWindowStart = new Date(Date.now() - rlWindow).toISOString();
+  const { count: attemptCount } = await rlAdmin
+    .from("rate_limits").select("id", { count: "exact", head: true })
+    .eq("key", rlKey).gte("created_at", rlWindowStart);
+  if ((attemptCount ?? 0) >= 5) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Trop de tentatives. Réessayez dans 15 minutes." }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  await rlAdmin.from("rate_limits").insert({ key: rlKey, created_at: rlNow }).catch(() => {});
+
   try {
     const { password } = await req.json();
 

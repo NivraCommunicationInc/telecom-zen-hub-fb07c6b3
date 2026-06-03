@@ -216,6 +216,9 @@ serve(async (req) => {
       }
 
       case "approve_session": {
+        if (!["admin", "supervisor", "kyc_agent"].includes(callerRole)) {
+          return json(403, { error: "Approbation KYC réservée aux admin, superviseurs et agents KYC" });
+        }
         if (!body.session_id) return json(400, { error: "session_id requis" });
         const { err } = await verifyClientSession(body.session_id);
         if (err) return json(400, { error: err });
@@ -258,6 +261,9 @@ serve(async (req) => {
       }
 
       case "reject_session": {
+        if (!["admin", "supervisor", "kyc_agent"].includes(callerRole)) {
+          return json(403, { error: "Refus KYC réservé aux admin, superviseurs et agents KYC" });
+        }
         if (!body.session_id) return json(400, { error: "session_id requis" });
         if (!body.review_reason?.trim()) return json(400, { error: "Motif de refus requis" });
         const { err } = await verifyClientSession(body.session_id);
