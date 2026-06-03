@@ -573,6 +573,11 @@ async function processLegacyRenewals(
       const hasPayPal = !!sub.paypal_subscription_id;
       const paymentMethod = hasPayPal ? "paypal" : "interac";
 
+      if (!sub.customer_id) {
+        stats.errors.push(`Subscription ${sub.id} missing customer_id — skipping renewal`);
+        continue;
+      }
+
       const { data: invoice, error: invErr } = await supabase
         .from("billing_invoices")
         .insert({

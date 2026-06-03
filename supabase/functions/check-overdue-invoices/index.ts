@@ -22,35 +22,12 @@ serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    console.log("[check-overdue-invoices] DEPRECATED — proxying to billing-check-overdue");
-
-    const { data, error } = await supabase.functions.invoke("billing-check-overdue", {
-      body: {},
-    });
-
-    if (error) {
-      console.error("[check-overdue-invoices] Proxy error:", error);
-      throw new Error(`Proxy to billing-check-overdue failed: ${error.message}`);
-    }
-
-    return new Response(
-      JSON.stringify({
-        deprecated: true,
-        message: "This function is deprecated. All logic now runs via billing-check-overdue.",
-        proxied_result: data,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error: any) {
-    console.error("[check-overdue-invoices] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-    );
-  }
+  // DEPRECATED: This endpoint is retired. Point cron jobs to billing-check-overdue directly.
+  return new Response(
+    JSON.stringify({
+      gone: true,
+      message: "This endpoint is retired. Use billing-check-overdue instead.",
+    }),
+    { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
 });

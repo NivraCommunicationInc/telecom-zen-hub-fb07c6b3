@@ -48,7 +48,13 @@ const RRQ_WITHHOLDING_FLOOR_RATE = 0.01;
 
 // ─────────── Helpers ───────────
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const ESTms = (d: Date) => d.getTime() - 5 * 3600_000;
+// Dynamic Toronto offset — handles EST (UTC-5) in winter and EDT (UTC-4) in summer
+const getTorontoOffsetMs = (d: Date) => {
+  const utcStr = d.toLocaleString("en-US", { timeZone: "UTC" });
+  const torStr = d.toLocaleString("en-US", { timeZone: "America/Toronto" });
+  return (new Date(utcStr).getTime() - new Date(torStr).getTime());
+};
+const ESTms = (d: Date) => d.getTime() - getTorontoOffsetMs(d);
 
 function lastThursdayCutoffUTC(now: Date): Date {
   // Find most recent Thursday at 18:00 EST <= now (in UTC = 23:00 UTC).

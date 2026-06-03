@@ -84,23 +84,25 @@ serve(async (req) => {
         .maybeSingle();
       if (existing) continue;
 
-      await admin.from("nova_actions").insert({
+      const { error: alertErr } = await admin.from("nova_actions").insert({
         action_type: "send_alert",
         action_payload: { title: a.title, message: a.message, severity: a.severity, category: a.category },
         status: a.severity === "critical" ? "pending" : "completed",
         requires_approval: a.severity === "critical",
         result: { source: "nova-watchdog", auto_generated: true },
       });
+      if (alertErr) console.error("[nova-watchdog] Failed to insert alert:", alertErr.message);
 
-      // Critical → also enqueue email to Oldo
+      // Critical → also enqueue email to Oldo (even if nova_action insert failed)
       if (a.severity === "critical") {
-        await admin.from("email_queue").insert({
+        const { error: emailErr } = await admin.from("email_queue").insert({
           to_email: "nivratelecom@gmail.com",
           template_key: "nova_alert_critical",
           template_vars: { title: a.title, message: a.message, category: a.category },
           status: "queued",
           language: "fr",
         });
+        if (emailErr) console.error("[nova-watchdog] Failed to enqueue critical alert email:", emailErr.message);
       }
       inserted++;
     }

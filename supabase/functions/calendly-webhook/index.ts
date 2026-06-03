@@ -108,6 +108,21 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("email", invitee.email)
         .single();
 
+      // Idempotency: skip if appointment already exists for this email + time
+      const { data: existingAppt } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("client_email", invitee.email.toLowerCase())
+        .eq("scheduled_at", scheduledEvent.start_time)
+        .maybeSingle();
+
+      if (existingAppt) {
+        console.log("Appointment already exists, skipping duplicate webhook:", existingAppt.id);
+        return new Response(JSON.stringify({ success: true, appointment: existingAppt, deduplicated: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: appointment, error: insertError } = await supabase
         .from("appointments")
         .insert({

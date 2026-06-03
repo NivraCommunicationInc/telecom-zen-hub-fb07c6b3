@@ -113,15 +113,18 @@ Deno.serve(async (req) => {
 
   for (const row of rows as QueueRow[]) {
     try {
-      // Mark as processing to prevent double-processing
-      const { error: lockErr } = await supabase
+      // Atomic lock: only succeeds if status is still queued/failed (concurrent-safe)
+      const { data: lockedRow, error: lockErr } = await supabase
         .from("email_queue")
         .update({ status: "processing", attempts: (row.attempts || 0) + 1 })
         .eq("id", row.id)
-        .in("status", ["queued", "failed"]);
+        .in("status", ["queued", "failed"])
+        .select("id")
+        .maybeSingle();
 
-      if (lockErr) {
-        results.push({ id: row.id, status: "lock_failed", reason: lockErr.message });
+      if (lockErr || !lockedRow) {
+        // Another instance already grabbed this row — skip silently
+        results.push({ id: row.id, status: "skipped", reason: lockErr?.message ?? "concurrent_lock" });
         continue;
       }
 

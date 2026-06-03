@@ -19,16 +19,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Treat "EST" as fixed UTC-5 (per spec).
-const EST_OFFSET_HOURS = 5;
+// Dynamically compute the Toronto UTC offset (handles EST/EDT DST transitions).
+function getTorontoOffsetHours(d: Date): number {
+  const utcStr = d.toLocaleString("en-US", { timeZone: "UTC" });
+  const torStr = d.toLocaleString("en-US", { timeZone: "America/Toronto" });
+  return Math.round((new Date(utcStr).getTime() - new Date(torStr).getTime()) / 3600_000);
+}
 
 /**
- * Compute the cutoff = most recent Thursday 18:00 EST (<= now), in UTC.
- * 18:00 EST = 23:00 UTC.
+ * Compute the cutoff = most recent Thursday 18:00 Toronto time (<= now), in UTC.
  */
 function lastThursdayCutoffUTC(now: Date): Date {
-  // Work in EST by shifting now back by EST offset.
-  const estNow = new Date(now.getTime() - EST_OFFSET_HOURS * 3600_000);
+  const offsetHours = getTorontoOffsetHours(now);
+  const estNow = new Date(now.getTime() - offsetHours * 3600_000);
   const dow = estNow.getUTCDay(); // 0=Sun..4=Thu..6=Sat (in EST clock)
   // Days back to Thursday (4).
   let back = (dow - 4 + 7) % 7;
@@ -45,7 +48,7 @@ function lastThursdayCutoffUTC(now: Date): Date {
  * Period start = Sunday 00:00 EST of the week containing the cutoff.
  */
 function periodStartUTC(cutoffUTC: Date): Date {
-  const est = new Date(cutoffUTC.getTime() - EST_OFFSET_HOURS * 3600_000);
+  const est = new Date(cutoffUTC.getTime() - getTorontoOffsetHours(cutoffUTC) * 3600_000);
   const dow = est.getUTCDay(); // 0=Sun
   const sun = new Date(est);
   sun.setUTCDate(sun.getUTCDate() - dow);
@@ -57,7 +60,7 @@ function periodStartUTC(cutoffUTC: Date): Date {
  * Is `friday` the last Friday of its month (in EST)?
  */
 function isLastFridayOfMonth(friday: Date): boolean {
-  const est = new Date(friday.getTime() - EST_OFFSET_HOURS * 3600_000);
+  const est = new Date(friday.getTime() - getTorontoOffsetHours(friday) * 3600_000);
   const month = est.getUTCMonth();
   const next = new Date(est);
   next.setUTCDate(next.getUTCDate() + 7);

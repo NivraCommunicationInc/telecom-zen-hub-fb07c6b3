@@ -1111,6 +1111,24 @@ Deno.serve(async (req) => {
                 ignoreDuplicates: false,
               });
 
+            // Also write to field_commissions (the payroll-eligible table read by pay-commissions-friday).
+            // Status starts as "pending" — a supervisor must approve before payday.
+            await supabaseAdmin
+              .from("field_commissions")
+              .upsert({
+                agent_id: sale.salesperson_id,
+                amount: totalCommission,
+                status: "pending",
+                earned_at: new Date().toISOString(),
+                order_id: canonicalOrder.id,
+                field_order_id: sale.id,
+                notes: `field-sales-sync: rate=${(commissionRate * 100).toFixed(0)}% bonus=${bonusAmount.toFixed(2)}$`,
+              }, {
+                onConflict: "field_order_id",
+                ignoreDuplicates: true,
+              })
+              .catch((e: any) => console.error("[field-sales-sync] field_commissions upsert failed (non-blocking):", e?.message));
+
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
         } catch (commErr: any) {
