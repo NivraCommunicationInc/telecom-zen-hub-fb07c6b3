@@ -44,6 +44,33 @@ serve(async (req) => {
       });
     }
 
+    // Auth gate: require admin/supervisor JWT — this endpoint reads full customer financial data
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const _callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser }, error: callerErr } = await _callerClient.auth.getUser();
+    if (callerErr || !callerUser?.id) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const _sb = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: _role } = await _sb
+      .from("user_roles").select("role").eq("user_id", callerUser.id).eq("status", "active").maybeSingle();
+    const _coreRoles = ["admin", "super_admin", "owner", "supervisor", "employee", "billing_admin"];
+    if (!_role || !_coreRoles.includes(_role.role)) {
+      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { customerId } = await req.json();
     if (!customerId || typeof customerId !== "string") {
       return new Response(JSON.stringify({ error: "customerId required" }), {

@@ -285,6 +285,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // IDOR guard: caller must own this letter or be admin/hr
+    if (letter.user_id !== user.id) {
+      const { data: roleRow } = await supabase
+        .from("user_roles").select("role").eq("user_id", user.id).eq("status", "active").maybeSingle();
+      const adminHrRoles = ["admin", "super_admin", "owner", "hr"];
+      if (!roleRow || !adminHrRoles.includes(roleRow.role)) {
+        return new Response(JSON.stringify({ error: "Access denied" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Fetch employee profile
     const { data: profile } = await supabase
       .from("profiles")

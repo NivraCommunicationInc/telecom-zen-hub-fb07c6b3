@@ -88,8 +88,43 @@ serve(async (req) => {
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
     const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca";
 
+    // Auth gate: require JWT from authenticated staff
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerClient: any = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser }, error: callerErr } = await callerClient.auth.getUser();
+    if (callerErr || !callerUser?.id) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: callerRole } = await supabase
+      .from("user_roles").select("role").eq("user_id", callerUser.id).eq("status", "active").maybeSingle();
+    const staffRoles = ["admin", "super_admin", "owner", "employee", "agent", "field_agent", "billing_admin"];
+    if (!callerRole || !staffRoles.includes(callerRole.role)) {
+      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body: CreateOrderRequest = await req.json();
-    
+
+    // IDOR guard: user_id in body must match caller unless caller is staff
+    if (body.user_id && body.user_id !== callerUser.id) {
+      const adminRoles = ["admin", "super_admin", "owner"];
+      if (!adminRoles.includes(callerRole.role)) {
+        return new Response(JSON.stringify({ error: "Cannot create order for another user" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // IDENTITY CORE: Hydrate identity from profiles if user_id provided
     if (body.user_id) {
       const { data: profile } = await supabase
