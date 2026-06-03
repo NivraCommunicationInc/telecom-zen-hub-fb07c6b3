@@ -767,3 +767,97 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
     </Dialog>
   );
 }
+
+function CancelInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; onClose: () => void; onRefresh: () => void }) {
+  const cancellable = useMemo(
+    () => invoices.filter((i: any) => !["paid", "paid_by_promo", "void", "cancelled", "refunded"].includes(String(i.status || "").toLowerCase())),
+    [invoices],
+  );
+  const [selectedInvoice, setSelectedInvoice] = useState(cancellable[0]?.id || "");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const inv = cancellable.find((i: any) => i.id === selectedInvoice);
+
+  const handleSubmit = async () => {
+    if (!inv) return;
+    if (!reason.trim()) {
+      toast.error("Raison obligatoire");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("billing_invoices")
+        .update({
+          status: "cancelled" as any,
+          balance_due: 0,
+          notes: `[ANNULÉE] ${reason.trim()}${inv.notes ? `\n---\n${inv.notes}` : ""}`,
+        })
+        .eq("id", inv.id);
+      if (error) throw error;
+
+      const user = (await supabase.auth.getUser()).data.user;
+      await supabase.from("activity_logs").insert({
+        user_id: user?.id || "system",
+        entity_type: "billing_invoice",
+        entity_id: inv.id,
+        action: "invoice_cancelled",
+        reason: reason.trim(),
+        details: {
+          invoice_number: inv.invoice_number,
+          previous_status: inv.status,
+          previous_balance: inv.balance_due,
+          source: "account_360",
+        },
+      });
+
+      toast.success(`Facture ${inv.invoice_number} annulée`);
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de l'annulation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2"><Ban className="h-4 w-4 text-amber-500" /> Annuler une facture</DialogTitle>
+        </DialogHeader>
+        {cancellable.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground py-4">Aucune facture annulable (déjà payée, remboursée ou annulée).</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture</label>
+              <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
+                {cancellable.map((i: any) => (
+                  <option key={i.id} value={i.id}>{i.invoice_number} — {Number(i.total || 0).toFixed(2)} $ ({i.status})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Raison (obligatoire)</label>
+              <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Raison de l'annulation" className="text-[11px]" />
+            </div>
+            <div className="rounded-md border border-amber-500/20 bg-amber-500/5 p-2.5 text-[10px] text-amber-300">
+              ⚠️ La facture passera au statut « annulée », le solde dû sera remis à 0 $. Action tracée dans l'audit.
+            </div>
+          </div>
+        )}
+        <DialogFooter className="gap-2">
+          <button onClick={onClose} className={btnSecondary}>Fermer</button>
+          {cancellable.length > 0 && (
+            <button onClick={handleSubmit} disabled={loading || !reason.trim()} className={btnPrimary}>
+              {loading ? "…" : "Confirmer annulation"}
+            </button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
