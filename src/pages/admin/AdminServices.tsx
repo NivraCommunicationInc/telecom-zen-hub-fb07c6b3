@@ -137,142 +137,142 @@ const officialCatalogue = [
   },
   // TV + Internet Bundles
   {
-    name: "Internet 100 + TV Basic",
+    name: "Internet 100 + Télé La Base",
     category: "TV + Internet",
     price: 75,
-    description: "26 general channels included",
+    description: "24 chaînes La Base • Internet 100 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "100 Mbps download",
-      channels: 26,
-      channel_type: "General channels",
-      features: ["Unlimited data", "7/7 support"]
+      internet: "100 Mbit/s illimité",
+      channels: 24,
+      channel_type: "24 chaînes La Base",
+      features: ["Données illimitées", "Aucun contrat", "Prix à vie garanti", "Support 7j/7"]
     }
   },
   {
-    name: "Internet 500 + TV 5 choix",
+    name: "Internet 500 + Télé 5 choix",
     category: "TV + Internet",
     price: 80,
-    description: "32 popular channels, 5 channels picker",
+    description: "29 chaînes — 24 La Base + 5 choix Populaires • Internet 500 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "500 Mbps download",
-      channels: 32,
-      channel_type: "Popular channels",
-      picker: "5 channels picker",
-      features: ["Unlimited data", "Priority support"]
+      internet: "500 Mbit/s illimité",
+      channels: 29,
+      channel_type: "24 La Base + 5 choix Populaires",
+      picker: "5 choix parmi les chaînes Populaires",
+      features: ["Données illimitées", "Aucun contrat", "Prix à vie garanti", "Support prioritaire"]
     }
   },
   {
-    name: "Internet 500 + TV 10 choix",
+    name: "Internet 500 + Télé 10 choix",
     category: "TV + Internet",
     price: 90,
-    description: "37 popular + sports channels, 10 channels picker",
+    description: "34 chaînes — 24 La Base + 10 choix Populaires et Sportives • Internet 500 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "500 Mbps download",
-      channels: 37,
-      channel_type: "Popular + sports channels",
-      picker: "10 channels picker",
-      features: ["Unlimited data", "Priority support"]
+      internet: "500 Mbit/s illimité",
+      channels: 34,
+      channel_type: "24 La Base + 10 choix Populaires et Sportives",
+      picker: "10 choix parmi les chaînes Populaires et Sportives",
+      features: ["Données illimitées", "Aucun contrat", "Prix à vie garanti", "Support prioritaire"]
     }
   },
   {
-    name: "Internet 500 + TV 15 choix",
+    name: "Internet 500 + Télé 15 choix",
     category: "TV + Internet",
     price: 95,
-    description: "42 popular + sports channels, 15 channels picker",
+    description: "39 chaînes — 24 La Base + 15 choix Populaires et Sportives • Internet 500 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "500 Mbps download",
-      channels: 42,
-      channel_type: "Popular + sports channels",
-      picker: "15 channels picker",
-      features: ["Unlimited data", "Priority support"]
+      internet: "500 Mbit/s illimité",
+      channels: 39,
+      channel_type: "24 La Base + 15 choix Populaires et Sportives",
+      picker: "15 choix parmi les chaînes Populaires et Sportives",
+      features: ["Données illimitées", "Aucun contrat", "Prix à vie garanti", "Support prioritaire"]
     }
   },
   {
-    name: "Internet 500 + TV 25 choix",
+    name: "Internet 500 + Télé 25 choix",
     category: "TV + Internet",
     price: 110,
-    description: "52 popular + sports channels, 25 channels picker, VIP support",
+    description: "49 chaînes — 24 La Base + 25 choix Populaires et Sportives • Internet 500 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "500 Mbps download",
-      channels: 52,
-      channel_type: "Popular + sports channels",
-      picker: "25 channels picker",
-      features: ["Unlimited data", "VIP support"]
+      internet: "500 Mbit/s illimité",
+      channels: 49,
+      channel_type: "24 La Base + 25 choix Populaires et Sportives",
+      picker: "25 choix parmi les chaînes Populaires et Sportives",
+      features: ["Données illimitées", "Aucun contrat", "Prix à vie garanti", "Support VIP"]
     }
   },
   // GIGA Bundles
   {
-    name: "GIGA + TV Basic",
+    name: "Internet GIGA + Télé La Base",
     category: "GIGA Bundles",
     price: 85,
-    description: "26 general channels included",
+    description: "24 chaînes La Base • Internet GIGA 940 Mbit/s illimité • Ultra-faible latence • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "940 Mbps download (GIGA Speed)",
-      channels: 26,
-      channel_type: "General channels",
-      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
+      internet: "GIGA 940 Mbit/s illimité",
+      channels: 24,
+      channel_type: "24 chaînes La Base",
+      features: ["Données illimitées", "Ultra-faible latence", "Aucun contrat", "Prix à vie garanti", "Support VIP"]
     }
   },
   {
-    name: "GIGA + TV 5 choix",
+    name: "Internet GIGA + Télé 5 choix",
     category: "GIGA Bundles",
     price: 95,
-    description: "32 popular channels, 5 channels picker",
+    description: "29 chaînes — 24 La Base + 5 choix Populaires • Internet GIGA 940 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "940 Mbps download (GIGA Speed)",
-      channels: 32,
-      channel_type: "Popular channels",
-      picker: "5 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
+      internet: "GIGA 940 Mbit/s illimité",
+      channels: 29,
+      channel_type: "24 La Base + 5 choix Populaires",
+      picker: "5 choix parmi les chaînes Populaires",
+      features: ["Données illimitées", "Ultra-faible latence", "Aucun contrat", "Prix à vie garanti", "Support VIP"]
     }
   },
   {
-    name: "GIGA + TV 10 choix",
+    name: "Internet GIGA + Télé 10 choix",
     category: "GIGA Bundles",
     price: 105,
-    description: "37 popular + sports channels, 10 channels picker",
+    description: "34 chaînes — 24 La Base + 10 choix Populaires et Sportives • Internet GIGA 940 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "940 Mbps download (GIGA Speed)",
-      channels: 37,
-      channel_type: "Popular + sports channels",
-      picker: "10 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
+      internet: "GIGA 940 Mbit/s illimité",
+      channels: 34,
+      channel_type: "24 La Base + 10 choix Populaires et Sportives",
+      picker: "10 choix parmi les chaînes Populaires et Sportives",
+      features: ["Données illimitées", "Ultra-faible latence", "Aucun contrat", "Prix à vie garanti", "Support VIP"]
     }
   },
   {
-    name: "GIGA + TV 15 choix",
+    name: "Internet GIGA + Télé 15 choix",
     category: "GIGA Bundles",
     price: 110,
-    description: "42 popular + sports channels, 15 channels picker",
+    description: "39 chaînes — 24 La Base + 15 choix Populaires et Sportives • Internet GIGA 940 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "940 Mbps download (GIGA Speed)",
-      channels: 42,
-      channel_type: "Popular + sports channels",
-      picker: "15 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
+      internet: "GIGA 940 Mbit/s illimité",
+      channels: 39,
+      channel_type: "24 La Base + 15 choix Populaires et Sportives",
+      picker: "15 choix parmi les chaînes Populaires et Sportives",
+      features: ["Données illimitées", "Ultra-faible latence", "Aucun contrat", "Prix à vie garanti", "Support VIP"]
     }
   },
   {
-    name: "GIGA + TV 25 choix",
+    name: "Internet GIGA + Télé 25 choix",
     category: "GIGA Bundles",
     price: 120,
-    description: "52 popular + sports channels, 25 channels picker, VIP support",
+    description: "49 chaînes — 24 La Base + 25 choix Populaires et Sportives • Internet GIGA 940 Mbit/s illimité • Prix à vie garanti",
     billing_type: "monthly",
     plan_details: {
-      internet: "940 Mbps download (GIGA Speed)",
-      channels: 52,
-      channel_type: "Popular + sports channels",
-      picker: "25 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
+      internet: "GIGA 940 Mbit/s illimité",
+      channels: 49,
+      channel_type: "24 La Base + 25 choix Populaires et Sportives",
+      picker: "25 choix parmi les chaînes Populaires et Sportives",
+      features: ["Données illimitées", "Ultra-faible latence", "Aucun contrat", "Prix à vie garanti", "Support VIP"]
     }
   },
   // Mobile Plans

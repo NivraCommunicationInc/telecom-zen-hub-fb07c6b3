@@ -318,36 +318,33 @@ export function useTVPlans(isFrench: boolean) {
   const mapTVPlan = (s: PublicService, isGigaPlan: boolean): TVPlan => {
     const channels = extractChannels(s.description || "");
     const lowerName = s.name.toLowerCase();
-    const isBasic = lowerName.includes("basic");
+    const isBase = lowerName.includes("la base");
     const choicesMatch = s.name.match(/(\d+)\s*choix/i);
     const choices = choicesMatch ? parseInt(choicesMatch[1]) : 0;
+    const speed = isGigaPlan ? "GIGA 940 Mbit/s" : s.name.includes("100") ? "100 Mbit/s" : "500 Mbit/s";
 
     const fallbackFeatures = [
-      isFrench
-        ? `${isGigaPlan ? "Internet GIGA" : "Internet"} ${isGigaPlan ? "1 Gbps" : "500 Mbps"} inclus`
-        : `${isGigaPlan ? "GIGA 1 Gbps" : "500 Mbps"} internet included`,
-      isFrench ? `${channels} chaînes` : `${channels} channels`,
-      ...(choices > 0 ? [isFrench ? `${choices} chaînes au choix` : `${choices} channels of your choice`] : []),
-      isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
+      isFrench ? "24 chaînes La Base" : "24 Base channels",
+      ...(choices > 0 ? [isFrench ? `${choices} choix parmi les chaînes Populaires et Sportives` : `${choices} choice channels`] : []),
+      isFrench ? `${channels} chaînes au total` : `${channels} total channels`,
+      isFrench ? `Internet ${speed} inclus` : `${speed} Internet included`,
+      isFrench ? "Données incluses illimitées" : "Unlimited data included",
+      isFrench ? "Prix à vie garanti — peut seulement diminuer" : "Price locked for life — can only go down",
     ];
 
     return {
       id: s.id,
       sku: s.sku || "",
       name: s.name,
-      internetSpeed: isGigaPlan ? "1 Gbps" : s.name.includes("100") ? "100 Mbps" : "500 Mbps",
+      internetSpeed: isGigaPlan ? "GIGA 940 Mbit/s" : s.name.includes("100") ? "100 Mbit/s" : "500 Mbit/s",
       price: Number(s.price),
       channels,
-      channelType: isBasic
-        ? isFrench
-          ? "chaînes générales"
-          : "general channels"
-        : isFrench
-          ? "chaînes populaires"
-          : "popular channels",
+      channelType: isBase
+        ? isFrench ? "chaînes La Base" : "base channels"
+        : isFrench ? "chaînes populaires et sportives" : "popular & sports channels",
       description: s.short_description || s.description || "",
       features: s.features_json.length > 0 ? s.features_json : fallbackFeatures,
-      badge: s.badges[0] || (isGigaPlan ? "GIGA" : isFrench ? "POPULAIRE" : "POPULAR"),
+      badge: s.badges[0] || (isGigaPlan ? "PRIX À VIE · GIGA" : isFrench ? "PRIX À VIE" : "PRICE FOR LIFE"),
       badgeColor: isGigaPlan ? "bg-gradient-to-r from-orange-500 to-red-500" : "bg-accent",
       featured: Boolean(s.is_featured || s.is_recommended),
     };
