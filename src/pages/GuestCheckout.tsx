@@ -179,7 +179,25 @@ const GuestCheckout = () => {
   // Pre-select from URL param
   useEffect(() => {
     const planId = searchParams.get("plan");
-    if (planId && services?.length) {
+    if (!planId) return;
+
+    // Forfait test interne — URL privée, jamais visible aux clients
+    if (planId === "TEST-NIVRA-1") {
+      if (!selectedServices.some(s => s.id === "TEST-NIVRA-1")) {
+        setSelectedServices([{
+          id: "TEST-NIVRA-1", sku: "TEST-NIVRA-1",
+          name: "Forfait Test Interne — 1 $",
+          description: "Forfait de validation de paiement — usage interne uniquement",
+          price: 1,
+          category: "Streaming", // Streaming = aucun frais (borne, livraison, activation)
+          plan_code: "TEST-NIVRA-1",
+        }]);
+        setStep(2);
+      }
+      return;
+    }
+
+    if (services?.length) {
       const svc = services.find(s => s.id === planId || s.sku === planId);
       if (svc && !selectedServices.some(s => s.id === svc.id)) {
         setSelectedServices([{
