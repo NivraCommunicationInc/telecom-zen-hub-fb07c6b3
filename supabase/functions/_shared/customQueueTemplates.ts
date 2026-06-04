@@ -669,7 +669,7 @@ export function renderQueueTemplate(
     case "payment_failed":
     case "paypal_charge_failed_retry": {
       const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
-      const paymentUrl = String(v.payment_url || `${portalUrl}/facturation`);
+      const paymentUrl = String(v.payment_url || `${portalUrl}/billing`);
       return {
         subject: `Action requise — Paiement non traité`,
         html: shell({
@@ -688,6 +688,35 @@ export function renderQueueTemplate(
           ctaPrimaryLabel: "Mettre à jour mon paiement",
           helpVariant: "warning",
           helpHtml: `<strong style="color:#1a1a2e;">Important :</strong> Sans mise à jour, votre service pourrait être suspendu.`,
+        }),
+      };
+    }
+
+    // Email envoyé immédiatement via paypal-webhook quand un paiement récurrent échoue.
+    // Distinct de paypal_charge_failed_retry (J+1/J+2) — c'est la notification J+0.
+    case "paypal_recurring_payment_failed": {
+      const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
+      const planName = esc(v.plan_name || "votre service Nivra");
+      const portalBilling = `${portalUrl}/billing`;
+      return {
+        subject: `Action requise — Paiement mensuel non traité`,
+        html: shell({
+          preheader: `Votre paiement mensuel pour ${planName} n'a pas été traité.`,
+          badge: "ACTION REQUISE",
+          heroTitle: "Votre paiement n'a pas été traité",
+          icon: "alert",
+          greeting,
+          bodyText: `Votre paiement mensuel pour <strong>${planName}</strong> n'a pas pu être traité${amount ? ` (${amount})` : ""}. Pour éviter toute interruption de service, veuillez vérifier votre méthode de paiement.`,
+          cardTitle: "Que faire maintenant ?",
+          cardRows: [
+            ["1. Vérifiez votre compte PayPal", "Assurez-vous qu'il est actif et approvisionné"],
+            ["2. Mettez à jour si nécessaire", "Connectez un autre mode de paiement"],
+            ["3. Une nouvelle tentative", "sera effectuée automatiquement sous 24h"],
+          ],
+          ctaPrimaryUrl: portalBilling,
+          ctaPrimaryLabel: "Vérifier mon paiement",
+          helpVariant: "warning",
+          helpHtml: `<strong>Important :</strong> Sans correction, votre service pourrait être suspendu. Contactez-nous à <a href="mailto:support@nivra-telecom.ca" style="color:#7c3aed;">support@nivra-telecom.ca</a> si vous avez besoin d'aide.`,
         }),
       };
     }
