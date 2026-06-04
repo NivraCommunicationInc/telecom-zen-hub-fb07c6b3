@@ -228,18 +228,11 @@ export const PayPalButton = ({ amount, invoiceId, orderId, description, customer
 
     const script = document.createElement("script");
     script.id = PAYPAL_SDK_ID;
-    script.src = [
-      `https://www.paypal.com/sdk/js`,
-      `?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}`,
-      `&currency=CAD`,
-      `&locale=fr_CA`,
-      `&enable-funding=card,applepay,googlepay`,
-      `&components=buttons,card-fields,funding-eligibility`,
-    ].join("");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card,applepay,googlepay&components=buttons,funding-eligibility`;
     script.async = true;
     script.onload = () => {
       setSdkState("ready");
-      setHasCardFields(!!window.paypal?.CardFields);
+      setHasCardFields(false); // card-fields retiré du SDK pour stabilité
     };
     script.onerror = () => setSdkState("error");
     document.body.appendChild(script);
