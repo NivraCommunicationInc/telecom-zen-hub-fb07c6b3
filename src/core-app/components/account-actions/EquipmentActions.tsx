@@ -383,15 +383,61 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
 
 function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: any[]; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(equipment[0]?.id || "");
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
+  const selected = equipment.find((e: any) => e.id === selectedId);
 
   const handleRemove = async () => {
-    if (!selectedId) return;
+    if (!selectedId || !selected) return;
+    if (!reason.trim()) { toast.error("Raison du retrait requise"); return; }
     setLoading(true);
     try {
-      const { error } = await supabase.from("equipment_order_lines").delete().eq("id", selectedId);
-      if (error) throw error;
-      toast.success("Équipement retiré");
+      if (isInventoryRow(selected)) {
+        // Authoritative inventory row → release back to stock so it can be reassigned.
+        const { error, data } = await supabase
+          .from("equipment_inventory")
+          .update({
+            status: "in_stock",
+            account_id: null,
+            order_id: null,
+            subscription_id: null,
+            assigned_at: null,
+            deployed_at: null,
+          } as any)
+          .eq("id", selectedId)
+          .select("id");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Aucune ligne d'inventaire mise à jour (vérifiez vos permissions).");
+      } else {
+        // Snapshot row from equipment_order_lines → delete the line.
+        const { error, data } = await supabase
+          .from("equipment_order_lines")
+          .delete()
+          .eq("id", selectedId)
+          .select("id");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Aucune ligne de commande supprimée (vérifiez vos permissions).");
+      }
+
+      const user = (await supabase.auth.getUser()).data.user;
+      await supabase.from("activity_logs").insert({
+        user_id: user?.id || "system",
+        entity_type: "equipment",
+        entity_id: selectedId,
+        action: "equipment_removed",
+        reason: reason.trim(),
+        details: {
+          source: "account_360",
+          equipment_label: eqLabel(selected),
+          released_to_stock: isInventoryRow(selected),
+        },
+      });
+
+      toast.success(
+        isInventoryRow(selected)
+          ? "Équipement retiré du compte et remis en stock"
+          : "Équipement retiré du compte",
+      );
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -405,15 +451,28 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader><DialogTitle className="text-sm font-bold flex items-center gap-2 text-red-500"><Trash2 className="h-4 w-4" /> Retirer un équipement</DialogTitle></DialogHeader>
-        <div>
-          <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
-          <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-            {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eqLabel(eq)}</option>))}
-          </select>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
+            <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eqLabel(eq)}</option>))}
+            </select>
+            {selected && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {isInventoryRow(selected)
+                  ? "Cet équipement sera remis dans l'inventaire libre (statut « in_stock ») et pourra être réassigné à un autre compte."
+                  : "Cette ligne de commande sera supprimée du compte."}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Raison (obligatoire)</label>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} className="text-[11px]" placeholder="Ex: Retour client, annulation, échange…" />
+          </div>
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          <button onClick={handleRemove} disabled={loading} className="rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40">{loading ? "…" : "Retirer"}</button>
+          <button onClick={handleRemove} disabled={loading || !reason.trim()} className="rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40">{loading ? "…" : "Retirer"}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
