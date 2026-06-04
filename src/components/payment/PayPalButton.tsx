@@ -60,10 +60,10 @@ const InlineCardForm = ({
   const [cardholderName, setCardholderName] = useState(
     [customer?.first_name, customer?.last_name].filter(Boolean).join(" ")
   );
-  // Billing address — pre-filled from customer's service address
-  const [billingPostal, setBillingPostal] = useState(customer?.address?.postal_code || "");
-  const [billingAddress, setBillingAddress] = useState(customer?.address?.address_line_1 || "");
-  const [billingCity, setBillingCity]       = useState(customer?.address?.admin_area_2 || "");
+  // Adresse de facturation = adresse de service (obligatoire pour éviter les fraudes)
+  const billingAddress = customer?.address?.address_line_1 || "";
+  const billingCity    = customer?.address?.admin_area_2   || "";
+  const billingPostal  = (customer?.address?.postal_code   || "").replace(/\s/g, "").toUpperCase();
 
   const [submitting, setSubmitting] = useState(false);
   const [fieldsReady, setFieldsReady] = useState(false);
@@ -173,7 +173,7 @@ const InlineCardForm = ({
     e.preventDefault();
     if (submitting || !cardFieldsRef.current || capturedRef.current) return;
     if (!cardholderName.trim()) { setFieldError("Entrez le nom sur la carte"); return; }
-    if (!billingPostal.trim())  { setFieldError("Entrez le code postal de facturation"); return; }
+    if (!billingPostal)         { setFieldError("Adresse de service manquante — retournez à l'étape 2 et entrez votre adresse."); return; }
     if (normalizedAmount <= 0)  { setFieldError("Montant invalide"); return; }
 
     setFieldError(null);
@@ -249,27 +249,16 @@ const InlineCardForm = ({
         </div>
       </div>
 
-      {/* Adresse de facturation */}
-      <div className="space-y-3 pt-1">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Adresse de facturation</p>
-        <div>
-          <Label className="text-xs font-medium mb-1.5 block">Adresse</Label>
-          <Input value={billingAddress} onChange={e => setBillingAddress(e.target.value)}
-            placeholder="123 rue Principale" disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs font-medium mb-1.5 block">Ville</Label>
-            <Input value={billingCity} onChange={e => setBillingCity(e.target.value)}
-              placeholder="Montréal" disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
-          </div>
-          <div>
-            <Label className="text-xs font-medium mb-1.5 block">Code postal <span className="text-red-500">*</span></Label>
-            <Input value={billingPostal} onChange={e => setBillingPostal(e.target.value.toUpperCase())}
-              placeholder="H1A 1A1" maxLength={7} disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
+      {/* Adresse de facturation = adresse de service */}
+      {billingAddress && (
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 flex items-start gap-2">
+          <span className="text-blue-500 text-base leading-none mt-0.5">ℹ</span>
+          <div className="text-xs text-blue-700">
+            <span className="font-semibold">Adresse de facturation :</span> votre adresse de service est utilisée automatiquement
+            {billingAddress && <span className="block text-blue-600 mt-0.5">{billingAddress}{billingCity ? `, ${billingCity}` : ""}{billingPostal ? ` ${billingPostal}` : ""}</span>}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Erreur */}
       {fieldError && (
