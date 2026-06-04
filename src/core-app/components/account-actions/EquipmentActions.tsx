@@ -466,7 +466,7 @@ function ReplaceEquipmentModal({ equipment, onClose, onRefresh }: { equipment: a
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div>
@@ -548,7 +548,7 @@ function ExchangeEquipmentModal({ equipment, onClose, onRefresh }: { equipment: 
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement actuel</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -623,7 +623,7 @@ function ChangeStatusModal({ equipment, onClose, onRefresh }: { equipment: any[]
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div>
@@ -692,7 +692,7 @@ function ChargeReplacementModal({ equipment, clientId, onClose, onRefresh }: { e
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div>
