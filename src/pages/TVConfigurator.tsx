@@ -273,7 +273,7 @@ const TVConfigurator = () => {
       includeShipping: installMethod === "self", createdAt: new Date().toISOString(),
     };
     sessionStorage.setItem("nivra_tv_cart", JSON.stringify(payload));
-    navigate("/portal/new-order");
+    navigate(`/commander?plan=${selectedPlan.id}`);
   };
 
   const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " $";
