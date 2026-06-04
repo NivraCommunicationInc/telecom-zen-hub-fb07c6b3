@@ -175,28 +175,71 @@ const TVConfigurator = () => {
   const videoStreaming = useMemo(() => streamingServices.filter((s) => s.category === "video"), [streamingServices]);
   const musicStreaming = useMemo(() => streamingServices.filter((s) => s.category === "music"), [streamingServices]);
 
+  // ─── Derive internet speeds + TV tiers from DB plans ───
+  const internetSpeeds = useMemo(() => {
+    const speeds: Array<{ key: string; label: string; speedNum: string }> = [];
+    if (tvPlans.some(p => /Internet 100/i.test(p.name))) speeds.push({ key: '100', label: 'Internet 100', speedNum: '100' });
+    if (tvPlans.some(p => /Internet 500/i.test(p.name))) speeds.push({ key: '500', label: 'Internet 500', speedNum: '500' });
+    if (tvPlans.some(p => /GIGA/i.test(p.name))) speeds.push({ key: 'GIGA', label: 'Internet GIGA', speedNum: '940' });
+    return speeds;
+  }, [tvPlans]);
+
+  const tvTiers = useMemo(() => {
+    const tiers: Array<{ key: string; label: string; choix: number; totalChannels: number }> = [];
+    const basePlan = tvPlans.find(p => p.name.toLowerCase().includes('la base'));
+    if (basePlan) {
+      const m = extractPlanMeta(basePlan);
+      tiers.push({ key: 'la-base', label: isFr ? 'Télé La Base' : 'TV Base', choix: 0, totalChannels: m.channels || 24 });
+    }
+    [5, 10, 15, 25].forEach(n => {
+      const plan = tvPlans.find(p => p.name.toLowerCase().includes(`${n} choix`));
+      if (plan) {
+        const m = extractPlanMeta(plan);
+        tiers.push({ key: `${n}-choix`, label: isFr ? `Télé ${n} choix` : `TV ${n} picks`, choix: n, totalChannels: m.channels || (24 + n) });
+      }
+    });
+    return tiers;
+  }, [tvPlans, isFr]);
+
   // ─── Selection state ───
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [selectedSpeedIndex, setSelectedSpeedIndex] = useState(internetSpeeds.length > 0 ? internetSpeeds.length - 1 : 0); // default GIGA
+  const [selectedTierKey, setSelectedTierKey] = useState('15-choix');
   const [selectedStreamingIds, setSelectedStreamingIds] = useState<Set<string>>(new Set());
-  const [extraTerminals, setExtraTerminals] = useState(0); // extra beyond the required 1
-  const includeRouter = true; // ALWAYS required — 1 borne per address, not toggleable
+  const [extraTerminals, setExtraTerminals] = useState(0);
+  const includeRouter = true;
   const [installMethod, setInstallMethod] = useState<InstallMethod>(null);
 
+  // Init default speed index once plans load
   useEffect(() => {
-    if (tvPlans.length > 0) {
-      const idx = Math.min(selectedIndex, tvPlans.length - 1);
-      setSelectedPlanId(tvPlans[idx].id);
-    }
-  }, [tvPlans, selectedIndex]);
+    if (internetSpeeds.length > 0) setSelectedSpeedIndex(internetSpeeds.length - 1);
+  }, [internetSpeeds.length]);
 
-  const goToIndex = (idx: number) => {
-    const clamped = Math.max(0, Math.min(idx, tvPlans.length - 1));
-    setSelectedIndex(clamped);
+  // Init default tier once tiers load
+  useEffect(() => {
+    if (tvTiers.length > 0 && !tvTiers.find(t => t.key === selectedTierKey)) {
+      setSelectedTierKey(tvTiers[Math.floor(tvTiers.length / 2)]?.key || tvTiers[0].key);
+    }
+  }, [tvTiers]);
+
+  const goToSpeedIndex = (idx: number) => {
+    setSelectedSpeedIndex(Math.max(0, Math.min(idx, internetSpeeds.length - 1)));
     setActiveStep(1);
   };
 
-  const selectedPlan = useMemo(() => tvPlans.find(p => p.id === selectedPlanId) || null, [tvPlans, selectedPlanId]);
+  // Find plan matching (speed + tier)
+  const selectedPlan = useMemo(() => {
+    const speed = internetSpeeds[selectedSpeedIndex];
+    const tier = tvTiers.find(t => t.key === selectedTierKey);
+    if (!speed || !tier) return tvPlans[0] || null;
+    return tvPlans.find(p => {
+      const n = p.name.toLowerCase();
+      const hasSpeed = speed.key === 'GIGA' ? n.includes('giga') : n.includes(`internet ${speed.key}`);
+      const hasTier = tier.choix === 0 ? n.includes('la base') : n.includes(`${tier.choix} choix`);
+      return hasSpeed && hasTier;
+    }) || null;
+  }, [tvPlans, internetSpeeds, selectedSpeedIndex, selectedTierKey, tvTiers]);
+
+  const selectedPlanId = selectedPlan?.id || null;
   const totalTerminals = 1 + extraTerminals;
 
   const toggleStreaming = (id: string) => {
@@ -346,115 +389,159 @@ const TVConfigurator = () => {
             <div className="container mx-auto px-4 max-w-[1100px]">
               <SimulatorSectionHeader
                 step={1}
-                title={isFr ? "Choisissez votre forfait Internet + TV" : "Choose your Internet + TV plan"}
-                subtitle={isFr ? `${tvPlans.length} forfaits disponibles — tous prépayés, sans contrat` : `${tvPlans.length} plans available — all prepaid, no contract`}
+                title={isFr ? "Composez votre forfait Internet + TV" : "Build your Internet + TV plan"}
+                subtitle={isFr ? "Choisissez votre vitesse Internet, puis votre forfait TV — le prix s'ajuste automatiquement" : "Choose your Internet speed, then your TV tier — price updates instantly"}
               />
 
-              {/* ── CAROUSEL — plan centré sélectionné, gauche/droite transparents ── */}
-              {tvPlans.length === 0 ? (
+              {internetSpeeds.length === 0 ? (
                 <div className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.04] py-16 text-center">
                   <Tv className="w-10 h-10 text-white/30 mx-auto mb-3" />
                   <p className="text-white/40">{isFr ? "Aucun forfait disponible" : "No plans available"}</p>
                 </div>
               ) : (
                 <div>
-                  {/* Carousel track */}
-                  <div className="relative flex items-center justify-center gap-3 md:gap-4" style={{ minHeight: 420, overflow: 'hidden', padding: '12px 0' }}>
-
-                    {/* LEFT — prev plan (transparent) */}
-                    <div
-                      onClick={() => selectedIndex > 0 && goToIndex(selectedIndex - 1)}
-                      style={{
-                        flex: '0 0 clamp(200px, 28vw, 280px)',
-                        opacity: selectedIndex > 0 ? 0.42 : 0,
-                        transform: `scale(0.87) translateX(28px)`,
-                        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                        cursor: selectedIndex > 0 ? 'pointer' : 'default',
-                        pointerEvents: selectedIndex > 0 ? 'auto' : 'none',
-                        filter: 'brightness(0.6)',
-                      }}
-                    >
-                      {selectedIndex > 0 && <PlanCarouselCard plan={tvPlans[selectedIndex - 1]} isSelected={false} isFr={isFr} />}
-                    </div>
-
-                    {/* CENTER — selected plan */}
-                    <div
-                      style={{
-                        flex: '0 0 clamp(280px, 36vw, 380px)',
-                        opacity: 1,
-                        transform: 'scale(1)',
-                        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                        zIndex: 10,
-                        position: 'relative',
-                      }}
-                    >
-                      {tvPlans[selectedIndex] && (
-                        <PlanCarouselCard plan={tvPlans[selectedIndex]} isSelected isFr={isFr} />
-                      )}
-                    </div>
-
-                    {/* RIGHT — next plan (transparent) */}
-                    <div
-                      onClick={() => selectedIndex < tvPlans.length - 1 && goToIndex(selectedIndex + 1)}
-                      style={{
-                        flex: '0 0 clamp(200px, 28vw, 280px)',
-                        opacity: selectedIndex < tvPlans.length - 1 ? 0.42 : 0,
-                        transform: `scale(0.87) translateX(-28px)`,
-                        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                        cursor: selectedIndex < tvPlans.length - 1 ? 'pointer' : 'default',
-                        pointerEvents: selectedIndex < tvPlans.length - 1 ? 'auto' : 'none',
-                        filter: 'brightness(0.6)',
-                      }}
-                    >
-                      {selectedIndex < tvPlans.length - 1 && (
-                        <PlanCarouselCard plan={tvPlans[selectedIndex + 1]} isSelected={false} isFr={isFr} />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Nav arrows + dots */}
-                  <div className="flex items-center justify-center gap-4 mt-4">
-                    <button
-                      onClick={() => goToIndex(selectedIndex - 1)}
-                      disabled={selectedIndex === 0}
-                      className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-20"
-                      style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)', color: '#A78BFA' }}
-                    >
-                      <ChevronDown className="w-4 h-4 rotate-90" />
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      {tvPlans.map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => goToIndex(i)}
-                          style={{
-                            width: i === selectedIndex ? 24 : 7,
-                            height: 7,
-                            borderRadius: 999,
-                            background: i === selectedIndex ? '#7C3AED' : 'rgba(255,255,255,0.2)',
-                            border: 'none',
-                            transition: 'all 0.3s ease',
-                            cursor: 'pointer',
-                            padding: 0,
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => goToIndex(selectedIndex + 1)}
-                      disabled={selectedIndex === tvPlans.length - 1}
-                      className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-20"
-                      style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)', color: '#A78BFA' }}
-                    >
-                      <ChevronDown className="w-4 h-4 -rotate-90" />
-                    </button>
-                  </div>
-
-                  <p className="text-center text-xs text-white/30 mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {selectedIndex + 1} / {tvPlans.length} — {isFr ? "cliquez sur un forfait adjacent pour le sélectionner" : "click an adjacent plan to select it"}
+                  {/* ── 1A: Internet speed carousel ── */}
+                  <p className="text-center text-xs font-bold uppercase tracking-widest text-white/40 mb-5" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2 }}>
+                    {isFr ? '① Vitesse Internet' : '① Internet Speed'}
                   </p>
+
+                  <div className="relative flex items-center justify-center gap-3 md:gap-5 mb-3" style={{ overflow: 'hidden', padding: '8px 0' }}>
+                    {/* LEFT */}
+                    <div
+                      onClick={() => selectedSpeedIndex > 0 && goToSpeedIndex(selectedSpeedIndex - 1)}
+                      style={{
+                        flex: '0 0 clamp(160px, 24vw, 240px)',
+                        opacity: selectedSpeedIndex > 0 ? 0.4 : 0,
+                        transform: 'scale(0.86) translateX(24px)',
+                        transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
+                        cursor: selectedSpeedIndex > 0 ? 'pointer' : 'default',
+                        pointerEvents: selectedSpeedIndex > 0 ? 'auto' : 'none',
+                        filter: 'brightness(0.55)',
+                      }}
+                    >
+                      {selectedSpeedIndex > 0 && <SpeedCarouselCard speed={internetSpeeds[selectedSpeedIndex - 1]} isSelected={false} isFr={isFr} />}
+                    </div>
+
+                    {/* CENTER */}
+                    <div style={{ flex: '0 0 clamp(240px, 32vw, 320px)', zIndex: 10, transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+                      <SpeedCarouselCard speed={internetSpeeds[selectedSpeedIndex]} isSelected isFr={isFr} />
+                    </div>
+
+                    {/* RIGHT */}
+                    <div
+                      onClick={() => selectedSpeedIndex < internetSpeeds.length - 1 && goToSpeedIndex(selectedSpeedIndex + 1)}
+                      style={{
+                        flex: '0 0 clamp(160px, 24vw, 240px)',
+                        opacity: selectedSpeedIndex < internetSpeeds.length - 1 ? 0.4 : 0,
+                        transform: 'scale(0.86) translateX(-24px)',
+                        transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
+                        cursor: selectedSpeedIndex < internetSpeeds.length - 1 ? 'pointer' : 'default',
+                        pointerEvents: selectedSpeedIndex < internetSpeeds.length - 1 ? 'auto' : 'none',
+                        filter: 'brightness(0.55)',
+                      }}
+                    >
+                      {selectedSpeedIndex < internetSpeeds.length - 1 && <SpeedCarouselCard speed={internetSpeeds[selectedSpeedIndex + 1]} isSelected={false} isFr={isFr} />}
+                    </div>
+                  </div>
+
+                  {/* Speed dots */}
+                  <div className="flex items-center justify-center gap-2 mb-10">
+                    <button onClick={() => goToSpeedIndex(selectedSpeedIndex - 1)} disabled={selectedSpeedIndex === 0}
+                      className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-20"
+                      style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#A78BFA' }}>
+                      <ChevronDown className="w-3.5 h-3.5 rotate-90" />
+                    </button>
+                    {internetSpeeds.map((_, i) => (
+                      <button key={i} onClick={() => goToSpeedIndex(i)} style={{ width: i === selectedSpeedIndex ? 20 : 6, height: 6, borderRadius: 999, background: i === selectedSpeedIndex ? '#7C3AED' : 'rgba(255,255,255,0.2)', border: 'none', transition: 'all 0.3s', cursor: 'pointer', padding: 0 }} />
+                    ))}
+                    <button onClick={() => goToSpeedIndex(selectedSpeedIndex + 1)} disabled={selectedSpeedIndex === internetSpeeds.length - 1}
+                      className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-20"
+                      style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#A78BFA' }}>
+                      <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                    </button>
+                  </div>
+
+                  {/* ── 1B: TV tier comparison ── */}
+                  <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.3), rgba(6,182,212,0.2), transparent)', marginBottom: 32 }} />
+
+                  <p className="text-center text-xs font-bold uppercase tracking-widest text-white/40 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2 }}>
+                    {isFr ? '② Comparez les forfaits divertissement télé' : '② Compare TV entertainment plans'}
+                  </p>
+                  <p className="text-center text-xs text-white/30 mb-6">{isFr ? 'Sélectionnez un forfait — le prix s\'ajuste automatiquement' : 'Select a plan — price updates automatically'}</p>
+
+                  <div className="flex gap-3 overflow-x-auto pb-2 justify-start md:justify-center" style={{ scrollbarWidth: 'none' }}>
+                    {tvTiers.map((tier) => {
+                      const isTierSelected = selectedTierKey === tier.key;
+                      const baseChannels = tier.choix > 0 ? tier.totalChannels - tier.choix : tier.totalChannels;
+                      // Price for this tier with current speed
+                      const tierPrice = tvPlans.find(p => {
+                        const n = p.name.toLowerCase();
+                        const spd = internetSpeeds[selectedSpeedIndex];
+                        if (!spd) return false;
+                        const hasSpeed = spd.key === 'GIGA' ? n.includes('giga') : n.includes(`internet ${spd.key}`);
+                        const hasTier = tier.choix === 0 ? n.includes('la base') : n.includes(`${tier.choix} choix`);
+                        return hasSpeed && hasTier;
+                      })?.price;
+
+                      return (
+                        <div
+                          key={tier.key}
+                          onClick={() => setSelectedTierKey(tier.key)}
+                          className="flex-shrink-0 cursor-pointer transition-all duration-200"
+                          style={{
+                            width: 155,
+                            borderRadius: 16,
+                            border: isTierSelected ? '2px solid rgba(124,58,237,0.7)' : '2px solid rgba(255,255,255,0.09)',
+                            background: isTierSelected ? 'linear-gradient(160deg, rgba(124,58,237,0.2) 0%, rgba(10,10,15,1) 100%)' : 'rgba(255,255,255,0.04)',
+                            boxShadow: isTierSelected ? '0 0 24px rgba(124,58,237,0.35)' : 'none',
+                            overflow: 'hidden',
+                            transform: isTierSelected ? 'translateY(-4px)' : 'translateY(0)',
+                          }}
+                        >
+                          {/* Top accent */}
+                          <div style={{ height: 3, background: isTierSelected ? 'linear-gradient(90deg, #7C3AED, #6D28D9)' : 'transparent', transition: 'all 0.2s' }} />
+
+                          <div style={{ padding: '14px 14px 16px' }}>
+                            {/* Tier name */}
+                            <p style={{ fontSize: 12, fontWeight: 700, color: isTierSelected ? '#C4B5FD' : 'rgba(255,255,255,0.6)', marginBottom: 10, lineHeight: 1.3 }}>{tier.label}</p>
+
+                            {/* Channel count big */}
+                            <div className="flex items-baseline gap-1 mb-8px" style={{ marginBottom: 8 }}>
+                              <span style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1, color: isTierSelected ? '#fff' : 'rgba(255,255,255,0.65)' }}>{tier.totalChannels}</span>
+                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 2 }}>{isFr ? 'ch.' : 'ch.'}</span>
+                            </div>
+
+                            {/* Base + choix breakdown */}
+                            <div className="flex flex-col gap-1.5 mb-10px" style={{ marginBottom: 10 }}>
+                              <span style={{ background: 'rgba(124,58,237,0.2)', borderRadius: 999, padding: '2px 7px', fontSize: 9.5, color: '#C4B5FD', fontWeight: 600, display: 'inline-block', width: 'fit-content' }}>
+                                {baseChannels} {isFr ? 'La Base' : 'Base'}
+                              </span>
+                              {tier.choix > 0 && (
+                                <span style={{ background: 'rgba(16,185,129,0.15)', borderRadius: 999, padding: '2px 7px', fontSize: 9.5, color: '#6EE7B7', fontWeight: 600, display: 'inline-block', width: 'fit-content' }}>
+                                  +{tier.choix} {isFr ? 'au choix' : 'picks'}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Price */}
+                            {tierPrice != null && (
+                              <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, marginTop: 4 }}>
+                                <span style={{ fontSize: 22, fontWeight: 800, color: isTierSelected ? '#A78BFA' : 'rgba(255,255,255,0.5)', letterSpacing: '-1px' }}>{tierPrice.toFixed(0)}</span>
+                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginLeft: 2 }}>$/{isFr ? 'mois' : 'mo'}</span>
+                              </div>
+                            )}
+
+                            {isTierSelected && (
+                              <div className="flex items-center gap-1 mt-2" style={{ color: '#A78BFA', fontSize: 10, fontWeight: 600 }}>
+                                <Check className="w-3 h-3" strokeWidth={3} />
+                                {isFr ? 'Sélectionné' : 'Selected'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -757,6 +844,69 @@ function StreamingTile({
           </Badge>
         </div>
       )}
+    </div>
+  );
+}
+
+function SpeedCarouselCard({ speed, isSelected, isFr }: { speed: { key: string; label: string; speedNum: string }; isSelected: boolean; isFr: boolean }) {
+  const isGiga = speed.key === 'GIGA';
+  return (
+    <div className="relative rounded-2xl overflow-hidden" style={{
+      background: isSelected ? 'linear-gradient(160deg, rgba(124,58,237,0.2) 0%, rgba(10,10,15,1) 100%)' : 'rgba(255,255,255,0.05)',
+      border: isSelected ? '2px solid rgba(124,58,237,0.6)' : '2px solid rgba(255,255,255,0.1)',
+      boxShadow: isSelected ? '0 0 40px rgba(124,58,237,0.35)' : '0 4px 20px rgba(0,0,0,0.4)',
+    }}>
+      {/* PRIX À VIE banner */}
+      <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{
+        background: isSelected ? 'linear-gradient(90deg, #7C3AED, #6D28D9)' : 'linear-gradient(90deg, rgba(124,58,237,0.45), rgba(109,40,217,0.45))',
+        color: '#fff', padding: '8px 0', fontSize: 9, letterSpacing: 1.8,
+        fontFamily: "'JetBrains Mono', monospace",
+      }}>
+        <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+        {isFr ? 'PRIX À VIE GARANTI' : 'PRICE LOCKED FOR LIFE'}
+        <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+      </div>
+
+      <div style={{ padding: '18px 18px 20px' }}>
+        <p style={{ fontSize: 10.5, fontWeight: 700, color: isSelected ? '#C4B5FD' : 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: "'JetBrains Mono', monospace", marginBottom: 12 }}>
+          {isFr ? 'FORFAIT INTERNET' : 'INTERNET PLAN'}
+        </p>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 14, letterSpacing: '-0.4px' }}>{speed.label}</h3>
+
+        <div style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.22)', borderRadius: 12, padding: '14px 16px' }}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Wifi className="w-3 h-3" style={{ color: '#67E8F9' }} />
+            <span style={{ color: '#67E8F9', fontSize: 8.5, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>INTERNET</span>
+          </div>
+          <div className="flex items-baseline gap-1.5 mb-2">
+            <span style={{ fontSize: 48, fontWeight: 800, letterSpacing: '-2.5px', lineHeight: 1, color: '#fff' }}>{speed.speedNum}</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{isFr ? 'Mbit/s' : 'Mbit/s'}</span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+              <Check className="w-3 h-3 shrink-0" strokeWidth={3} style={{ color: '#67E8F9' }} />
+              {isFr ? `Jusqu'à ${speed.speedNum} Mbit/s` : `Up to ${speed.speedNum} Mbit/s`}
+            </div>
+            <div className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+              <Check className="w-3 h-3 shrink-0" strokeWidth={3} style={{ color: '#67E8F9' }} />
+              {isFr ? 'Données illimitées' : 'Unlimited data'}
+            </div>
+            {isGiga && (
+              <div className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+                <Zap className="w-3 h-3 shrink-0" style={{ color: '#F59E0B' }} />
+                {isFr ? 'Ultra-faible latence' : 'Ultra-low latency'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {isSelected && (
+          <div className="flex items-center justify-center gap-1.5 mt-3" style={{ color: '#A78BFA', fontSize: 11, fontWeight: 600 }}>
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            {isFr ? 'Vitesse sélectionnée' : 'Selected speed'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
