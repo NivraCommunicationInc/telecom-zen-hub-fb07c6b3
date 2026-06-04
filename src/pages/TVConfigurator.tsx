@@ -176,6 +176,7 @@ const TVConfigurator = () => {
   const musicStreaming = useMemo(() => streamingServices.filter((s) => s.category === "music"), [streamingServices]);
 
   // ─── Selection state ───
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedStreamingIds, setSelectedStreamingIds] = useState<Set<string>>(new Set());
   const [extraTerminals, setExtraTerminals] = useState(0); // extra beyond the required 1
@@ -183,8 +184,17 @@ const TVConfigurator = () => {
   const [installMethod, setInstallMethod] = useState<InstallMethod>(null);
 
   useEffect(() => {
-    if (tvPlans.length > 0 && !selectedPlanId) setSelectedPlanId(tvPlans[0].id);
-  }, [tvPlans, selectedPlanId]);
+    if (tvPlans.length > 0) {
+      const idx = Math.min(selectedIndex, tvPlans.length - 1);
+      setSelectedPlanId(tvPlans[idx].id);
+    }
+  }, [tvPlans, selectedIndex]);
+
+  const goToIndex = (idx: number) => {
+    const clamped = Math.max(0, Math.min(idx, tvPlans.length - 1));
+    setSelectedIndex(clamped);
+    setActiveStep(1);
+  };
 
   const selectedPlan = useMemo(() => tvPlans.find(p => p.id === selectedPlanId) || null, [tvPlans, selectedPlanId]);
   const totalTerminals = 1 + extraTerminals;
@@ -340,127 +350,111 @@ const TVConfigurator = () => {
                 subtitle={isFr ? `${tvPlans.length} forfaits disponibles — tous prépayés, sans contrat` : `${tvPlans.length} plans available — all prepaid, no contract`}
               />
 
-              {/* Plan grid — 2-column on lg for comparison feel */}
-              <div className="grid md:grid-cols-2 gap-4 md:gap-5">
-                {tvPlans.map((plan) => {
-                  const isSelected = selectedPlanId === plan.id;
-                  const meta = extractPlanMeta(plan);
-                  const baseChannels = meta.choix > 0 ? meta.channels - meta.choix : meta.channels;
-                  const isGiga = meta.speed === "GIGA";
-
-                  return (
-                    <div
-                      key={plan.id}
-                      onClick={() => { setSelectedPlanId(plan.id); setActiveStep(1); }}
-                      className={cn(
-                        "relative rounded-2xl border-2 cursor-pointer transition-all duration-200 overflow-hidden flex flex-col",
-                        isSelected
-                          ? "border-[#7C3AED] shadow-xl shadow-purple-900/30 scale-[1.01]"
-                          : "border-white/10 hover:border-white/20 hover:shadow-lg"
-                      )}
-                      style={{ background: isSelected ? 'linear-gradient(160deg, rgba(124,58,237,0.18) 0%, rgba(10,10,15,1) 100%)' : 'rgba(255,255,255,0.04)' }}
-                    >
-                      {/* PRIX À VIE banner */}
-                      <div style={{ position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
-                        <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{
-                          background: isSelected ? 'linear-gradient(90deg, #7C3AED, #6D28D9)' : 'linear-gradient(90deg, rgba(124,58,237,0.5), rgba(109,40,217,0.5))',
-                          color: '#fff', padding: '8px 0', fontSize: 9.5, letterSpacing: 2,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}>
-                          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
-                          {isFr ? 'PRIX À VIE GARANTI' : 'PRICE LOCKED FOR LIFE'}
-                          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
-                        </div>
-                        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', animation: 'n-beam-h 4s ease-in-out infinite' }} />
-                      </div>
-
-                      <div className="p-4 md:p-5 flex flex-col flex-1">
-                        {/* Header: radio + name + price */}
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-0.5",
-                              isSelected ? "bg-[#7C3AED] border-[#7C3AED] scale-110" : "border-white/30"
-                            )}>
-                              {isSelected && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <h3 className="text-sm md:text-base font-bold text-white leading-snug">{plan.name}</h3>
-                          </div>
-                          <div className="text-right shrink-0 ml-3">
-                            <div className="text-3xl font-extrabold text-[#A78BFA] tabular-nums">{plan.price.toFixed(0)}<span className="text-sm font-bold text-white/40">$</span></div>
-                            <div className="text-[11px] text-white/40 font-medium -mt-0.5">/{isFr ? "mois" : "mo"}</div>
-                          </div>
-                        </div>
-
-                        {/* TÉLÉ section */}
-                        {meta.channels > 0 && (
-                          <div style={{ background: 'rgba(124,58,237,0.09)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <Tv className="w-3 h-3 shrink-0" style={{ color: '#A78BFA' }} />
-                              <span style={{ color: '#A78BFA', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
-                                {isFr ? 'TÉLÉ' : 'TV'}
-                              </span>
-                            </div>
-                            <div className="flex items-baseline gap-1.5 mb-2">
-                              <span style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1, color: '#fff' }}>{meta.channels}</span>
-                              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{isFr ? 'chaînes' : 'channels'}</span>
-                            </div>
-                            {meta.choix > 0 ? (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span style={{ background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 999, padding: '2px 8px', fontSize: 10.5, color: '#C4B5FD', fontWeight: 600 }}>
-                                  {baseChannels} {isFr ? 'La Base' : 'Base'}
-                                </span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 700 }}>+</span>
-                                <span style={{ background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 999, padding: '2px 8px', fontSize: 10.5, color: '#6EE7B7', fontWeight: 600 }}>
-                                  {meta.choix} {isFr ? 'au choix' : 'of your choice'}
-                                </span>
-                              </div>
-                            ) : (
-                              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>{isFr ? 'Chaînes La Base' : 'Base channels'}</span>
-                            )}
-                          </div>
-                        )}
-
-                        {/* INTERNET section */}
-                        {meta.speed && (
-                          <div style={{ background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <Wifi className="w-3 h-3 shrink-0" style={{ color: '#67E8F9' }} />
-                              <span style={{ color: '#67E8F9', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>INTERNET</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p style={{ fontWeight: 700, fontSize: 15, color: '#fff', letterSpacing: '-0.3px' }}>
-                                  {isGiga ? 'GIGA 940 Mbit/s' : `${meta.speed} illimité`}
-                                </p>
-                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 1 }}>{isFr ? 'Données illimitées incluses' : 'Unlimited data included'}</p>
-                              </div>
-                              {isGiga && <Zap className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Key features */}
-                        {meta.features.length > 0 && (
-                          <div className="space-y-1.5 pt-2 border-t border-white/[0.07]">
-                            {meta.features.slice(0, 2).map((f, i) => (
-                              <div key={i} className="flex items-start gap-2 text-xs text-white/55">
-                                <Check className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />
-                                <span>{f}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {tvPlans.length === 0 && (
+              {/* ── CAROUSEL — plan centré sélectionné, gauche/droite transparents ── */}
+              {tvPlans.length === 0 ? (
                 <div className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.04] py-16 text-center">
                   <Tv className="w-10 h-10 text-white/30 mx-auto mb-3" />
                   <p className="text-white/40">{isFr ? "Aucun forfait disponible" : "No plans available"}</p>
+                </div>
+              ) : (
+                <div>
+                  {/* Carousel track */}
+                  <div className="relative flex items-center justify-center gap-3 md:gap-4" style={{ minHeight: 420, overflow: 'hidden', padding: '12px 0' }}>
+
+                    {/* LEFT — prev plan (transparent) */}
+                    <div
+                      onClick={() => selectedIndex > 0 && goToIndex(selectedIndex - 1)}
+                      style={{
+                        flex: '0 0 clamp(200px, 28vw, 280px)',
+                        opacity: selectedIndex > 0 ? 0.42 : 0,
+                        transform: `scale(0.87) translateX(28px)`,
+                        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                        cursor: selectedIndex > 0 ? 'pointer' : 'default',
+                        pointerEvents: selectedIndex > 0 ? 'auto' : 'none',
+                        filter: 'brightness(0.6)',
+                      }}
+                    >
+                      {selectedIndex > 0 && <PlanCarouselCard plan={tvPlans[selectedIndex - 1]} isSelected={false} isFr={isFr} />}
+                    </div>
+
+                    {/* CENTER — selected plan */}
+                    <div
+                      style={{
+                        flex: '0 0 clamp(280px, 36vw, 380px)',
+                        opacity: 1,
+                        transform: 'scale(1)',
+                        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                        zIndex: 10,
+                        position: 'relative',
+                      }}
+                    >
+                      {tvPlans[selectedIndex] && (
+                        <PlanCarouselCard plan={tvPlans[selectedIndex]} isSelected isFr={isFr} />
+                      )}
+                    </div>
+
+                    {/* RIGHT — next plan (transparent) */}
+                    <div
+                      onClick={() => selectedIndex < tvPlans.length - 1 && goToIndex(selectedIndex + 1)}
+                      style={{
+                        flex: '0 0 clamp(200px, 28vw, 280px)',
+                        opacity: selectedIndex < tvPlans.length - 1 ? 0.42 : 0,
+                        transform: `scale(0.87) translateX(-28px)`,
+                        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                        cursor: selectedIndex < tvPlans.length - 1 ? 'pointer' : 'default',
+                        pointerEvents: selectedIndex < tvPlans.length - 1 ? 'auto' : 'none',
+                        filter: 'brightness(0.6)',
+                      }}
+                    >
+                      {selectedIndex < tvPlans.length - 1 && (
+                        <PlanCarouselCard plan={tvPlans[selectedIndex + 1]} isSelected={false} isFr={isFr} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Nav arrows + dots */}
+                  <div className="flex items-center justify-center gap-4 mt-4">
+                    <button
+                      onClick={() => goToIndex(selectedIndex - 1)}
+                      disabled={selectedIndex === 0}
+                      className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-20"
+                      style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)', color: '#A78BFA' }}
+                    >
+                      <ChevronDown className="w-4 h-4 rotate-90" />
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {tvPlans.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => goToIndex(i)}
+                          style={{
+                            width: i === selectedIndex ? 24 : 7,
+                            height: 7,
+                            borderRadius: 999,
+                            background: i === selectedIndex ? '#7C3AED' : 'rgba(255,255,255,0.2)',
+                            border: 'none',
+                            transition: 'all 0.3s ease',
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => goToIndex(selectedIndex + 1)}
+                      disabled={selectedIndex === tvPlans.length - 1}
+                      className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-20"
+                      style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)', color: '#A78BFA' }}
+                    >
+                      <ChevronDown className="w-4 h-4 -rotate-90" />
+                    </button>
+                  </div>
+
+                  <p className="text-center text-xs text-white/30 mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {selectedIndex + 1} / {tvPlans.length} — {isFr ? "cliquez sur un forfait adjacent pour le sélectionner" : "click an adjacent plan to select it"}
+                  </p>
                 </div>
               )}
             </div>
@@ -763,6 +757,102 @@ function StreamingTile({
           </Badge>
         </div>
       )}
+    </div>
+  );
+}
+
+function PlanCarouselCard({ plan, isSelected, isFr }: { plan: ServicePublic; isSelected: boolean; isFr: boolean }) {
+  const meta = extractPlanMeta(plan);
+  const baseChannels = meta.choix > 0 ? meta.channels - meta.choix : meta.channels;
+  const isGiga = meta.speed === "GIGA";
+
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden flex flex-col"
+      style={{
+        background: isSelected
+          ? 'linear-gradient(160deg, rgba(124,58,237,0.2) 0%, rgba(10,10,15,1) 100%)'
+          : 'rgba(255,255,255,0.05)',
+        border: isSelected ? '2px solid rgba(124,58,237,0.6)' : '2px solid rgba(255,255,255,0.1)',
+        boxShadow: isSelected ? '0 0 40px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.08)' : '0 4px 24px rgba(0,0,0,0.4)',
+      }}
+    >
+      {/* PRIX À VIE banner */}
+      <div style={{ position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{
+          background: isSelected ? 'linear-gradient(90deg, #7C3AED, #6D28D9)' : 'linear-gradient(90deg, rgba(124,58,237,0.5), rgba(109,40,217,0.5))',
+          color: '#fff', padding: '8px 0', fontSize: 9, letterSpacing: 1.8,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+          {isFr ? 'PRIX À VIE GARANTI' : 'PRICE LOCKED FOR LIFE'}
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+        </div>
+        {isSelected && <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', animation: 'n-beam-h 4s ease-in-out infinite' }} />}
+      </div>
+
+      <div className="p-4 flex flex-col gap-3">
+        {/* Name + price */}
+        <div className="flex items-start justify-between gap-2">
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.3, flex: 1 }}>{plan.name}</h3>
+          <div className="text-right shrink-0">
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#A78BFA', lineHeight: 1 }}>{plan.price.toFixed(0)}<span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>$</span></div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>/{isFr ? 'mois' : 'mo'}</div>
+          </div>
+        </div>
+
+        {/* TÉLÉ */}
+        {meta.channels > 0 && (
+          <div style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: 10, padding: '10px 12px' }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Tv className="w-2.5 h-2.5 shrink-0" style={{ color: '#A78BFA' }} />
+              <span style={{ color: '#A78BFA', fontSize: 8.5, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>{isFr ? 'TÉLÉ' : 'TV'}</span>
+            </div>
+            <div className="flex items-baseline gap-1 mb-1.5">
+              <span style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1, color: '#fff' }}>{meta.channels}</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{isFr ? 'chaînes' : 'ch.'}</span>
+            </div>
+            {meta.choix > 0 ? (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span style={{ background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 999, padding: '1px 7px', fontSize: 10, color: '#C4B5FD', fontWeight: 600 }}>
+                  {baseChannels} {isFr ? 'La Base' : 'Base'}
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>+</span>
+                <span style={{ background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 999, padding: '1px 7px', fontSize: 10, color: '#6EE7B7', fontWeight: 600 }}>
+                  {meta.choix} {isFr ? 'choix' : 'picks'}
+                </span>
+              </div>
+            ) : (
+              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{isFr ? 'Chaînes La Base' : 'Base channels'}</span>
+            )}
+          </div>
+        )}
+
+        {/* INTERNET */}
+        {meta.speed && (
+          <div style={{ background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: 10, padding: '10px 12px' }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Wifi className="w-2.5 h-2.5 shrink-0" style={{ color: '#67E8F9' }} />
+              <span style={{ color: '#67E8F9', fontSize: 8.5, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>INTERNET</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{isGiga ? 'GIGA 940 Mbit/s' : `${meta.speed} illimité`}</p>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 1 }}>{isFr ? 'Données illimitées' : 'Unlimited data'}</p>
+              </div>
+              {isGiga && <Zap className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />}
+            </div>
+          </div>
+        )}
+
+        {/* Selected indicator */}
+        {isSelected && (
+          <div className="flex items-center justify-center gap-1.5 pt-1" style={{ color: '#A78BFA', fontSize: 11, fontWeight: 600 }}>
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            {isFr ? 'Forfait sélectionné' : 'Selected plan'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
