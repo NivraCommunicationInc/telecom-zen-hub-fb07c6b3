@@ -322,6 +322,7 @@ const GuestCheckout = () => {
   const SIM_PRICE = simPrice ?? 25;
   const ESIM_PRICE = SIM_PRICE; // Per nivra-telecom.ca/frais-possibles — eSIM and physical SIM both $25
 
+  const isTestPlan = selectedServices.length > 0 && selectedServices.every(s => s.sku === "TEST-NIVRA-1");
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
   // Both physical SIM and eSIM are billed at SIM_PRICE ($25) per nivra-telecom.ca/frais-possibles.
@@ -335,6 +336,8 @@ const GuestCheckout = () => {
   // ── Live server pricing ──
   useEffect(() => {
     if (selectedServices.length === 0) { setLiveServerPricing(null); return; }
+    // Forfait test — utiliser uniquement le calcul client-side (pas de welcome discount serveur)
+    if (isTestPlan) { setLiveServerPricing(null); return; }
     if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
     // Reset immediately so client-side fallback shows while server call is in flight
     setLiveServerPricing(null);
@@ -433,7 +436,8 @@ const GuestCheckout = () => {
     // Skip if already applied or if user manually applied a different code
     if (appliedPromo) return;
     if (autoApplyAttempted) return;
-    if (isStreamingOnlyOrder) return; // streaming-only orders don't get first-month-free
+    if (isStreamingOnlyOrder) return;
+    if (isTestPlan) return; // forfait test — pas de welcome discount
     if (selectedServices.length === 0) return;
     setAutoApplyAttempted(true);
 
