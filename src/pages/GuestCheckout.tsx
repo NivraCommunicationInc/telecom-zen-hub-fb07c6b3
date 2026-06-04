@@ -506,6 +506,19 @@ const GuestCheckout = () => {
         return;
       }
 
+      // ── Sauvegarder le paiement immédiatement — avant toute autre opération ──
+      // Si le client rafraîchit la page après paiement, on garde la trace
+      if (paypalCaptureId) {
+        sessionStorage.setItem("nivra_pending_payment", JSON.stringify({
+          captureId: paypalCaptureId,
+          amount: todayTotal,
+          email: email.trim().toLowerCase(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          timestamp: new Date().toISOString(),
+        }));
+      }
+
       // ── Full creation flow ──
       // Step 1: Create/find account — try edge function first, fall back to signUp
       let userId: string | null = null;
@@ -524,12 +537,13 @@ const GuestCheckout = () => {
         });
         if (!accountError && accountResult?.success) {
           userId = accountResult.user_id;
+          console.log("[GuestCheckout] Account via edge function:", userId);
         }
       } catch (e) {
         console.warn("[GuestCheckout] auto-create-client-account failed:", e);
       }
 
-      // Fallback: client-side signUp (works with anon key)
+      // Fallback 1: signUp direct (nouveaux clients)
       if (!userId) {
         try {
           const { data: sd } = await supabase.auth.signUp({
@@ -539,21 +553,39 @@ const GuestCheckout = () => {
           });
           if (sd?.user?.id) {
             userId = sd.user.id;
-          } else {
-            // Email already exists — look up the profile
-            const { data: prof } = await supabase.from("profiles").select("user_id").eq("email", email.trim().toLowerCase()).maybeSingle();
-            userId = (prof as any)?.user_id || null;
+            console.log("[GuestCheckout] Account via signUp:", userId);
           }
         } catch (e2) {
           console.warn("[GuestCheckout] signUp fallback failed:", e2);
         }
       }
 
+      // Fallback 2: chercher le profil existant par email
       if (!userId) {
-        toast.error("Impossible de créer votre compte. Veuillez réessayer ou contacter le support.");
+        try {
+          const { data: prof } = await supabase.from("profiles").select("user_id").eq("email", email.trim().toLowerCase()).maybeSingle();
+          userId = (prof as any)?.user_id || null;
+          if (userId) console.log("[GuestCheckout] Account via profile lookup:", userId);
+        } catch (e3) {
+          console.warn("[GuestCheckout] Profile lookup failed:", e3);
+        }
+      }
+
+      // Si aucun userId — le paiement est confirmé mais on ne peut pas créer la commande.
+      // On affiche quand même la confirmation avec le numéro de capture PayPal.
+      if (!userId) {
+        console.error("[GuestCheckout] All account creation methods failed. Payment captured:", paypalCaptureId);
+        setOrderResult({
+          orderNumber: paypalCaptureId,
+          orderId: paypalCaptureId,
+          isNewAccount: false,
+          paymentOnly: true,
+        });
+        setStep(6);
+        sessionStorage.removeItem("nivra_pending_payment");
+        toast.success("Paiement confirmé ! Notre équipe va compléter votre commande sous peu.");
         return;
       }
-      console.log("[GuestCheckout] Account created/found:", userId, "isNew:", accountResult.is_new_account);
 
       // Step 1b: KYC removed from public checkout — always not_required.
       const kycStatusForOrder = "not_required";
