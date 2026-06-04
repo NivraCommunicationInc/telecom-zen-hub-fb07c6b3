@@ -9,6 +9,7 @@
         "@capacitor/cli": "^8.3.0",
         "@capacitor/core": "^8.3.0",
         "@capacitor/ios": "^8.3.0",
+        "@cloudflare/speedtest": "^1.10.0",
         "@elevenlabs/react": "^1.6.1",
         "@hookform/resolvers": "^3.10.0",
         "@radix-ui/react-accordion": "^1.2.11",
@@ -299,6 +300,8 @@
     "@capacitor/core": ["@capacitor/core@8.3.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/core/-/core-8.3.1.tgz", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-UF8ItlHguU1Z6GXfPTeT2gakf+ctNI8pAS1kwSBQlsJMlfD4OPoto/SmKnOxKCQvnF4WRcdWeg6C0zREUNaAQg=="],
 
     "@capacitor/ios": ["@capacitor/ios@8.3.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/ios/-/ios-8.3.1.tgz", { "peerDependencies": { "@capacitor/core": "^8.3.0" } }, "sha512-BEhLyYYHWJLib4mpaPMaaylbC8meqgxbNYwQJH2svsSLW7yo/hFie+Zoo66a44XnqcMd2tvmAuzimWunXZi/xA=="],
+
+    "@cloudflare/speedtest": ["@cloudflare/speedtest@1.10.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@cloudflare/speedtest/-/speedtest-1.10.1.tgz", {}, "sha512-VRS5cONxbK82MLufBcihPzQXdYgJexj7x2cu4oIv8lSOFfSrKNM/sfzBpBYbrqPuubOY4Xm111RbM3SEzHCkwQ=="],
 
     "@elevenlabs/client": ["@elevenlabs/client@1.7.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@elevenlabs/client/-/client-1.7.1.tgz", { "dependencies": { "@elevenlabs/types": "0.14.0", "livekit-client": "2.16.1" } }, "sha512-6l+jFkOenIgypxuz4zXLRnSqH2mZAYdsuRYe7O6OgYSzaUVj/KQJnjiSAFvSTctfrFYodPqOSen/b7Nebnc8fA=="],
 
