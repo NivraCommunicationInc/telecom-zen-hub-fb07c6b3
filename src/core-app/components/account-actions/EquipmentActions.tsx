@@ -13,6 +13,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShoppingCart, RefreshCw, Package, Trash2, ArrowRightLeft, DollarSign, Link2, ToggleLeft } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 
+/** Equipment array is a mix of equipment_inventory rows and equipment_order_lines rows. */
+function eqLabel(eq: any): string {
+  const name = eq?.catalog_name || eq?.item_name || "Équipement";
+  const serial =
+    eq?.serial_number ||
+    eq?.imei ||
+    eq?.mac_address ||
+    (Array.isArray(eq?.serial_numbers) ? eq.serial_numbers[0] : null) ||
+    eq?.sku ||
+    eq?.item_sku ||
+    "S/N inconnu";
+  return `${name} — S/N: ${serial}`;
+}
+/** Detect whether an equipment row came from equipment_inventory (has catalog_name) vs equipment_order_lines. */
+function isInventoryRow(eq: any): boolean {
+  return !!eq && typeof eq.catalog_name !== "undefined" && !Array.isArray(eq.serial_numbers);
+}
+
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
