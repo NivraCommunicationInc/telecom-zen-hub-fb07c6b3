@@ -310,7 +310,7 @@ export const PayPalButton = ({
   useEffect(() => {
     if (window.paypal) { setSdkReady(true); setHasCardFields(!!window.paypal.CardFields); return; }
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card&components=buttons,card-fields,funding-eligibility`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card,applepay,googlepay&components=buttons,card-fields,applepay,googlepay,funding-eligibility`;
     script.async = true;
     script.onload = () => { setSdkReady(true); setHasCardFields(!!window.paypal?.CardFields); };
     script.onerror = () => { toast.error("Erreur de chargement PayPal"); };
