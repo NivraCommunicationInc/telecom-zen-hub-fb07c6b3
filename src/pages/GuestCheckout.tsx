@@ -32,6 +32,7 @@ import {
   type InstallationDetailsData,
 } from "@/components/checkout/CheckoutShippingAndActivation";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
+import { ConfirmationSuccess } from "@/components/checkout/ConfirmationSuccess";
 
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { AutoPayPalOption } from "@/components/checkout/AutoPayPalOption";
@@ -1732,87 +1733,20 @@ const GuestCheckout = () => {
 
             {/* ═══ STEP 6: CONFIRMATION ═══ */}
             {step === 6 && orderResult && (
-              <div className="space-y-6">
-                <Card className="border-emerald-200 bg-emerald-50/50">
-                  <CardContent className="py-8 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">Commande confirmée !</h2>
-                    <p className="text-muted-foreground mb-4">
-                      Commande #{orderResult.orderNumber}
-                    </p>
-
-                    <div className="rounded-xl p-6 text-left space-y-4 max-w-md mx-auto" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)" }}>
-                      <h3 className="font-semibold text-foreground">Résumé</h3>
-                      {selectedServices.map(s => (
-                        <div key={s.id} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{s.name}</span>
-                          <span className="font-medium text-foreground">{fmt(s.price)}/mois</span>
-                        </div>
-                      ))}
-                      <Separator />
-                      <div className="flex justify-between text-sm font-bold">
-                        <span>Total payé aujourd'hui</span>
-                        <span>{fmt(todayTotal)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Prochaine facturation</span>
-                        <span>{fmt(monthlyTotalWithTax)}/mois</span>
-                      </div>
-                    </div>
-
-                    {/* Account setup CTA */}
-                    <div className="mt-6 p-4 bg-primary/5 rounded-xl border border-primary/20 max-w-md mx-auto">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-foreground mb-1">
-                        ✅ Commande confirmée !
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Un compte client a été créé automatiquement avec votre adresse courriel.
-                      </p>
-                      <div className="flex items-center gap-2 justify-center text-xs text-primary">
-                        <Mail className="w-4 h-4" />
-                        <span>Vérifiez votre boîte de réception à <strong>{email}</strong> pour accéder à votre espace client.</span>
-                      </div>
-                    </div>
-
-
-
-                    {/* Next steps */}
-                    <div className="mt-6 text-left max-w-md mx-auto space-y-3">
-                      <h3 className="font-semibold text-foreground text-sm">Prochaines étapes</h3>
-                      <div className="flex items-start gap-3 text-sm">
-                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-xs font-bold text-primary">1</span>
-                        </div>
-                        <p className="text-muted-foreground">Cliquez sur le lien dans votre courriel pour définir votre mot de passe</p>
-                      </div>
-                      <div className="flex items-start gap-3 text-sm">
-                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-xs font-bold text-primary">2</span>
-                        </div>
-                        <p className="text-muted-foreground">Connectez-vous à votre portail pour suivre votre commande</p>
-                      </div>
-                      <div className="flex items-start gap-3 text-sm">
-                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-xs font-bold text-primary">3</span>
-                        </div>
-                        <p className="text-muted-foreground">
-                          {requiresInstallation
-                            ? `Rendez-vous d'installation: ${selectedDate} à ${selectedTime}`
-                            : "Votre équipement sera expédié sous 2-5 jours ouvrables"
-                          }
-                        </p>
-                      </div>
-                    </div>
-
-                    <Button className="mt-6" onClick={() => navigate("/")}>
-                      Retour à l'accueil
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+              <ConfirmationSuccess
+                isFrench
+                orderNumber={orderResult.orderNumber}
+                serviceName={selectedServices.map(s => s.name).join(", ") || "Forfait Nivra"}
+                serviceDescription={selectedServices.length > 1 ? `${selectedServices.length} services` : undefined}
+                totalPaid={todayTotal}
+                monthlyAmount={monthlyTotalWithTax}
+                installationAddress={addressStreet ? `${addressStreet}, ${addressCity}` : undefined}
+                installationDate={selectedDate || undefined}
+                installationTime={selectedTime || undefined}
+                installationMethod={installationChoice === "technician" ? "technician" : "auto"}
+                onViewOrders={() => navigate("/portal")}
+                onPrint={() => window.print()}
+              />
             )}
           </div>
 
