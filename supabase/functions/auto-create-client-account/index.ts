@@ -186,6 +186,15 @@ serve(async (req) => {
         .is("user_id", null); // Only update if not already linked
     }
 
+    // Schedule NPS survey for J+7 via email_queue trigger
+    await supabase.from("email_queue").insert({
+      to_email: email,
+      template_key: "nps_survey_scheduled",
+      template_vars: { first_name: body.first_name, days: 7, order_id: body.order_id || null },
+      status: "queued",
+      scheduled_for: new Date(Date.now() + 7 * 86400_000).toISOString(),
+    }).catch(() => {}); // non-blocking
+
     // Emails are intentionally not sent here. The canonical order sync sends
     // them in the correct order after the order/invoice/documents exist.
 

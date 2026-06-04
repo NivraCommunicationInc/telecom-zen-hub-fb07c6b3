@@ -245,6 +245,36 @@ const TOOLS = [
         required: ["reason", "summary"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_order_status",
+      description: "Check the status of a customer's order by order number. For existing customers.",
+      parameters: {
+        type: "object",
+        properties: {
+          order_number: { type: "string", description: "Order number like ORD-20260603-ABC123" }
+        },
+        required: ["order_number"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "report_outage",
+      description: "Submit a service outage report from a client. Creates a support ticket.",
+      parameters: {
+        type: "object",
+        properties: {
+          client_email: { type: "string" },
+          service_type: { type: "string", enum: ["internet", "tv", "mobile", "all"] },
+          description: { type: "string" }
+        },
+        required: ["client_email", "service_type", "description"]
+      }
+    }
   }
 ];
 
@@ -728,6 +758,32 @@ async function handleToolCall(
         } as any);
         if (error) throw error;
         return { result: fr ? "✅ Demande envoyée! Notre équipe vous contactera rapidement." : "✅ Request sent!" };
+      }
+
+      case "check_order_status": {
+        const { data: order, error } = await supabase
+          .from("orders")
+          .select("order_number, status, created_at, updated_at")
+          .eq("order_number", args.order_number)
+          .maybeSingle();
+        if (error) throw error;
+        if (!order) return { result: fr ? "Commande introuvable." : "Order not found." };
+        const o = order as any;
+        return { result: fr ? `Commande ${o.order_number} — Statut: ${o.status}. Dernière mise à jour: ${new Date(o.updated_at).toLocaleDateString("fr-CA")}.` : `Order ${o.order_number} — Status: ${o.status}. Last updated: ${new Date(o.updated_at).toLocaleDateString("en-CA")}.` };
+      }
+
+      case "report_outage": {
+        const { data: ticket, error } = await supabase.from("support_tickets").insert({
+          client_email: args.client_email,
+          subject: fr ? `Panne de service — ${args.service_type}` : `Service outage — ${args.service_type}`,
+          description: args.description,
+          category: "technical",
+          priority: "urgent",
+          status: "open",
+          source: "chatbot",
+        } as any).select("ticket_number").single();
+        if (error) throw error;
+        return { result: fr ? `✅ Panne signalée. Ticket: ${(ticket as any).ticket_number}. Notre équipe enquête en priorité.` : `✅ Outage reported. Ticket: ${(ticket as any).ticket_number}. Our team is investigating with priority.` };
       }
 
       default:

@@ -1,8 +1,7 @@
 /**
  * COMBO DECOMPOSITION MAP — Nivra Telecom
  * 
- * Combos are UX/sales abstractions ONLY. They must NEVER be used as
- * Stripe subscription items. When a combo is selected, it is decomposed
+ * Combos are UX/sales abstractions ONLY. When a combo is selected, it is decomposed
  * into individual billable items (base internet + TV pack).
  * 
  * Each combo maps to exactly:
@@ -29,9 +28,8 @@ export interface ComboDecomposition {
  *   internet_100 = $45, internet_500 = $50, internet_giga = $60
  *   tvpack_famille = $44.99, tvpack_sports = $49.99, etc.
  * 
- * Combo prices are promotional bundles — the individual Stripe prices
- * are authoritative. Any discount is applied via Stripe coupons, NOT
- * by creating a single bundled price.
+ * Combo prices are promotional bundles — the individual plan prices
+ * are authoritative. Discounts are applied at the invoice level.
  */
 const COMBO_MAP: Record<string, DecomposedItem[]> = {
   // Internet 100 + TV Basic → internet_100 + tvpack_famille

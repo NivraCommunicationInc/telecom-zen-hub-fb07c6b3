@@ -224,6 +224,35 @@ const TOOLS = [
       required: ["account_id", "subject", "body"],
     },
   },
+  {
+    name: "create_work_order",
+    description: "Create a technician work order for installation, repair, or service visit. Use when a customer needs a technician. Requires confirmed: true.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        work_type: { type: "string", enum: ["installation", "repair", "upgrade", "disconnection"] },
+        notes: { type: "string" },
+        priority: { type: "string", enum: ["normal", "urgent"], description: "Default: normal" },
+        confirmed: { type: "boolean", description: "Must be true — user confirmed" },
+      },
+      required: ["account_id", "work_type", "notes", "confirmed"],
+    },
+  },
+  {
+    name: "initiate_porting",
+    description: "Initiate a phone number portability request. Use when customer wants to port their number from another provider.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        phone_number: { type: "string", description: "Number to port in E.164 format" },
+        current_provider: { type: "string" },
+        confirmed: { type: "boolean", description: "Must be true" },
+      },
+      required: ["account_id", "phone_number", "current_provider", "confirmed"],
+    },
+  },
 
   // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
   {
@@ -576,6 +605,35 @@ async function executeTool(
           .maybeSingle();
         if (error) return { ok: false, error: error.message };
         return { ok: true, result: data };
+      }
+
+      case "create_work_order": {
+        if (!input.confirmed) return { ok: false, error: "Confirmation requise pour créer un ordre de travail." };
+        const { data, error } = await supabase.from("work_orders").insert({
+          account_id: input.account_id as string,
+          work_type: input.work_type as string,
+          notes: input.notes as string,
+          priority: (input.priority as string) || "normal",
+          status: "pending",
+          created_by: "nova-brain",
+          created_at: new Date().toISOString(),
+        }).select("id").maybeSingle();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: { work_order_id: data?.id } };
+      }
+
+      case "initiate_porting": {
+        if (!input.confirmed) return { ok: false, error: "Confirmation requise pour initier un porting." };
+        const { data, error } = await supabase.from("porting_requests").insert({
+          account_id: input.account_id as string,
+          phone_number: input.phone_number as string,
+          current_provider: input.current_provider as string,
+          status: "initiated",
+          created_by: "nova-brain",
+          created_at: new Date().toISOString(),
+        }).select("id").maybeSingle();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, result: { porting_request_id: data?.id } };
       }
 
       // ─── CUSTOMER EMAIL (must be confirmed by user) ─────────────────

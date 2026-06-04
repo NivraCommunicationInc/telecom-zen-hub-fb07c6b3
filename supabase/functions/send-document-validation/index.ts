@@ -96,7 +96,7 @@ const PAYMENT = {
   method: "card",
   status: "confirmed",
   received_at: "2026-03-18T03:10:32.928Z",
-  provider: "Stripe",
+  provider: "PayPal",
 };
 
 // Invoice lines — EXCLUDING internal "Ajustement taxable de réconciliation"
@@ -519,7 +519,7 @@ function generateInvoice(): Uint8Array {
   };
 
   drawPayField("Montant payé", fmt(PAYMENT.amount));
-  drawPayField("Méthode", "Carte de crédit (Stripe)");
+  drawPayField("Méthode", "PayPal");
   drawPayField("Date", fmtDate(PAYMENT.received_at));
   drawPayField("Référence", PAYMENT.payment_number);
 

@@ -37,7 +37,7 @@ const INVOICE_NUMBER = "8548553";
 const ORDER_DATE = "2026-03-18";
 const DUE_DATE = "2026-03-18";
 const PAYMENT_NUMBER = "5174657336";
-const PAYMENT_METHOD = "Carte de crédit (Stripe)";
+const PAYMENT_METHOD = "PayPal";
 
 const LINES = [
   { desc: "GIGA + TV 25 choix", amount: 100.00, type: "service" },

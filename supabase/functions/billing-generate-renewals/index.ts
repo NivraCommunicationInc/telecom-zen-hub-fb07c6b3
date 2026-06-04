@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 // STRIPE DISABLED — import removed: createNivraPaymentIntent
 
 const corsHeaders = {
@@ -360,6 +361,7 @@ serve(async (req) => {
     
   } catch (error: unknown) {
     console.error("[billing-generate-renewals] Error:", error);
+    await reportEdgeError(error, { function: "billing-generate-renewals" }).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

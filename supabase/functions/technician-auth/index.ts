@@ -1,21 +1,64 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
-// Technician portal has been disabled
-serve(async (req) => {
-  // Handle CORS preflight
-  const preflightResponse = handleCorsPreflightRequest(req);
-  if (preflightResponse) return preflightResponse;
-  
-  const origin = req.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
+Deno.serve(async (req) => {
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
-  return new Response(
-    JSON.stringify({ 
-      ok: false, 
-      reason: "portal_disabled", 
-      message: "Le portail technicien a été désactivé." 
-    }),
-    { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
+  try {
+    const { email, password } = await req.json();
+    if (!email || !password) {
+      return new Response(
+        JSON.stringify({ error: "email et password requis" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+    );
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      return new Response(
+        JSON.stringify({ error: "Identifiants invalides" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: roleData } = await admin
+      .from("user_roles")
+      .select("role, status")
+      .eq("user_id", data.user.id)
+      .in("role", ["technician", "admin", "supervisor"])
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(
+        JSON.stringify({ error: "Accès technicien requis" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        access_token: data.session?.access_token,
+        user_id: data.user.id,
+        role: roleData.role,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: String(e) }),
+      { status: 500, headers: { ...getCorsHeaders(null), "Content-Type": "application/json" } },
+    );
+  }
 });

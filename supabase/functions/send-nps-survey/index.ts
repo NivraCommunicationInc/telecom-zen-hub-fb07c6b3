@@ -1,63 +1,128 @@
-// Send NPS survey to a client (idempotent within 90 days)
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * send-nps-survey
+ *
+ * Sends an NPS survey email to a client via email_queue.
+ * Guards against re-sending within 90 days.
+ *
+ * Payload: { account_id, order_id, client_email, first_name, days_since_activation }
+ */
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Auth gate: service role only
+  const auth = req.headers.get("Authorization") ?? "";
+  const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  if (auth !== `Bearer ${svcKey}`) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
   try {
-    const { account_id } = await req.json();
-    if (!account_id) {
-      return new Response(JSON.stringify({ error: "account_id required" }), { status: 400, headers: corsHeaders });
+    const body = await req.json() as {
+      account_id?: string;
+      order_id?: string;
+      client_email: string;
+      first_name: string;
+      days_since_activation?: number;
+    };
+
+    const { account_id, order_id, client_email, first_name } = body;
+
+    if (!client_email) {
+      return new Response(
+        JSON.stringify({ error: "client_email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
-    // Already sent in 90d?
-    const since = new Date(Date.now() - 90 * 86400 * 1000).toISOString();
-    const { data: recent } = await supabase
-      .from("nps_surveys").select("id").eq("account_id", account_id).gte("sent_at", since).maybeSingle();
-    if (recent) {
-      return new Response(JSON.stringify({ skipped: "recent_survey_exists" }), { headers: corsHeaders });
+    // Check: has this client already received an NPS in the last 90 days?
+    const cutoff90 = new Date(Date.now() - 90 * 86400_000).toISOString();
+    const { data: recent, error: checkError } = await supabase
+      .from("nps_surveys_sent")
+      .select("id, sent_at")
+      .eq("client_email", client_email.toLowerCase())
+      .gte("sent_at", cutoff90)
+      .limit(1);
+
+    if (checkError) {
+      console.error("[send-nps-survey] Check error:", checkError);
+      throw new Error(`DB check failed: ${checkError.message}`);
     }
 
-    const { data: account } = await supabase
-      .from("accounts").select("id, client_id").eq("id", account_id).maybeSingle();
-    if (!account) return new Response(JSON.stringify({ error: "account_not_found" }), { status: 404, headers: corsHeaders });
+    if (recent && recent.length > 0) {
+      console.log(`[send-nps-survey] Skipped - already sent to ${client_email} within 90 days`);
+      return new Response(
+        JSON.stringify({ success: false, skipped: true, reason: "nps_sent_within_90_days" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    const { data: profile } = await supabase
-      .from("profiles").select("email, full_name, preferred_language").eq("user_id", account.client_id).maybeSingle();
-    if (!profile?.email) return new Response(JSON.stringify({ error: "no_email" }), { status: 400, headers: corsHeaders });
+    // Generate unique token
+    const token = crypto.randomUUID();
+    const npsLink = `https://nivra-telecom.ca/feedback?token=${token}`;
 
-    const { data: inserted, error: insErr } = await supabase
-      .from("nps_surveys")
-      .insert({ account_id, client_id: account.client_id, trigger_event: "manual" })
-      .select("id, public_token").single();
-    if (insErr) throw insErr;
-
-    const npsUrl = `https://nivra-telecom.ca/nps/${inserted.public_token}`;
-    await supabase.from("email_queue").insert({
-      event_key: `nps_${inserted.id}`,
-      to_email: profile.email,
+    // Insert into email_queue
+    const { error: queueError } = await supabase.from("email_queue").insert({
+      to_email: client_email.toLowerCase(),
       template_key: "nps_survey",
       template_vars: {
-        client_name: profile.full_name || "Client",
-        nps_url: npsUrl,
-        nps_token: inserted.public_token,
+        first_name,
+        nps_link: npsLink,
+        order_id: order_id ?? null,
       },
-      language: profile.preferred_language || "fr",
       status: "queued",
     });
 
-    return new Response(JSON.stringify({ survey_url: npsUrl, id: inserted.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (queueError) {
+      console.error("[send-nps-survey] email_queue insert error:", queueError);
+      throw new Error(`email_queue insert failed: ${queueError.message}`);
+    }
+
+    // Record in nps_surveys_sent
+    const { error: trackError } = await supabase.from("nps_surveys_sent").insert({
+      account_id: account_id ?? null,
+      order_id: order_id ?? null,
+      client_email: client_email.toLowerCase(),
+      token,
+      sent_at: new Date().toISOString(),
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: corsHeaders });
+
+    if (trackError) {
+      console.error("[send-nps-survey] nps_surveys_sent insert error:", trackError);
+      // Not fatal - email is already queued; log and continue.
+    }
+
+    console.log(`[send-nps-survey] Queued NPS for ${client_email}, token=${token}`);
+
+    return new Response(
+      JSON.stringify({ success: true, token }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (error: unknown) {
+    console.error("[send-nps-survey] Error:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });

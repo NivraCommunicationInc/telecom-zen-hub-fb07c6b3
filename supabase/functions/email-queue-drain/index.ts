@@ -20,6 +20,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -224,6 +225,7 @@ Deno.serve(async (req) => {
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`[email-queue-drain] row ${row.id} error:`, errorMsg);
+      await reportEdgeError(err, { function: "email-queue-drain", queue_row_id: row.id, template_key: row.template_key }).catch(() => {});
       const newAttempts = (row.attempts || 0) + 1;
       const willRetry = newAttempts < (row.max_attempts || 5);
       await supabase

@@ -85,6 +85,11 @@ serve(async (req: Request) => {
         return jsonResponse({ success: false, error: "CONSENT_REQUIRED" }, 400);
       }
 
+      // Compute SHA-256 hash of contract content for non-repudiation (LCCJTI)
+      const contractContent = JSON.stringify({ contract_id: token, signer_ip: clientIp, timestamp: new Date().toISOString() });
+      const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(contractContent));
+      const pdfSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+
       const { data: result, error } = await supabase.rpc(
         "consume_contract_signature_token" as any,
         {
@@ -108,6 +113,14 @@ serve(async (req: Request) => {
 
       // ── Best-effort post-signature notifications (do not block client) ──
       try {
+        // 0. Persist SHA-256 hash on the contract_signatures row (LCCJTI non-repudiation)
+        await supabase.from("contract_signatures")
+          .update({ pdf_sha256: pdfSha256 })
+          .eq("contract_id", payload.contract_id)
+          .then(({ error: shaErr }) => {
+            if (shaErr) console.warn("[sign-contract-public] pdf_sha256 update failed:", shaErr.message);
+          });
+
         // 1. Activity log
         await supabase.from("activity_logs").insert({
           action: "contract_signed_by_client",

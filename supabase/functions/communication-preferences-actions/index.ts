@@ -105,6 +105,17 @@ Deno.serve(async (req) => {
             .from("client_email_preferences")
             .upsert({ client_id: body.client_user_id, ...prefPatch }, { onConflict: "client_id" });
           if (error) throw error;
+
+          // CASL audit trail — log every preference change with IP
+          const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("cf-connecting-ip") || null;
+          await admin.from("consent_audit_trail").insert({
+            client_id: body.client_user_id,
+            channel: "all",
+            action: "preference_change",
+            consent_source: "client_portal",
+            ip_address: clientIp,
+            user_agent: req.headers.get("user-agent"),
+          }).catch(() => {});
         }
 
         // Update profile language/notification channel if requested
@@ -157,6 +168,17 @@ Deno.serve(async (req) => {
           .from("client_email_preferences")
           .upsert({ client_id: body.client_user_id, ...off }, { onConflict: "client_id" });
         if (error) throw error;
+
+        // CASL audit trail — log every preference change with IP
+        const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("cf-connecting-ip") || null;
+        await admin.from("consent_audit_trail").insert({
+          client_id: body.client_user_id,
+          channel: "all",
+          action: "preference_change",
+          consent_source: "client_portal",
+          ip_address: clientIp,
+          user_agent: req.headers.get("user-agent"),
+        }).catch(() => {});
 
         await admin.from("admin_audit_log").insert({
           admin_user_id: userData.user.id,
