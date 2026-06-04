@@ -87,6 +87,8 @@ const CHECKOUT_STEPS = [
   { id: 6, labelFr: "Confirmation", labelEn: "Confirmation" },
 ];
 
+const CHECKOUT_DRAFT_KEY = "nivra_checkout_draft";
+
 const GuestCheckout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -170,6 +172,51 @@ const GuestCheckout = () => {
 
   // Stable cart UUID — satisfies paypal-create-order guard without creating a DB record first.
   const clientCartIdRef = useRef<string>('cart_' + crypto.randomUUID());
+
+  // ── Restaurer le state depuis sessionStorage au montage ──
+  useEffect(() => {
+    try {
+      // Si URL a un plan param, laisser le useEffect URL-param gérer les services
+      if (searchParams.get("plan")) return;
+      const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.step > 1) setStep(s.step);
+      if (s.selectedServices?.length) setSelectedServices(s.selectedServices);
+      if (s.addressStreet)     setAddressStreet(s.addressStreet);
+      if (s.addressApartment)  setAddressApartment(s.addressApartment);
+      if (s.addressCity)       setAddressCity(s.addressCity);
+      if (s.addressProvince)   setAddressProvince(s.addressProvince);
+      if (s.addressPostalCode) setAddressPostalCode(s.addressPostalCode);
+      if (s.firstName)         setFirstName(s.firstName);
+      if (s.lastName)          setLastName(s.lastName);
+      if (s.email)             setEmail(s.email);
+      if (s.phone)             setPhone(s.phone);
+      if (s.dateOfBirth)       setDateOfBirth(s.dateOfBirth);
+      if (s.installationChoice) setInstallationChoice(s.installationChoice);
+      if (s.selectedDate)      setSelectedDate(s.selectedDate);
+      if (s.selectedTime)      setSelectedTime(s.selectedTime);
+      if (s.notes)             setNotes(s.notes);
+      if (s.paypalCaptureId)   { setPaypalCaptureId(s.paypalCaptureId); setPaymentComplete(true); }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sauvegarder le state dans sessionStorage à chaque changement ──
+  useEffect(() => {
+    if (step === 6) { sessionStorage.removeItem(CHECKOUT_DRAFT_KEY); return; }
+    if (step < 2) return;
+    try {
+      sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify({
+        step, selectedServices,
+        addressStreet, addressApartment, addressCity, addressProvince, addressPostalCode,
+        firstName, lastName, email, phone, dateOfBirth,
+        installationChoice, selectedDate, selectedTime, notes,
+        paypalCaptureId, paymentComplete,
+      }));
+    } catch {}
+  }, [step, selectedServices, addressStreet, addressApartment, addressCity, addressProvince,
+      addressPostalCode, firstName, lastName, email, phone, dateOfBirth,
+      installationChoice, selectedDate, selectedTime, notes, paypalCaptureId, paymentComplete]);
 
   // ── Data hooks ──
   const { data: services, isLoading: servicesLoading } = usePublicServices({ surface: "checkout" });
