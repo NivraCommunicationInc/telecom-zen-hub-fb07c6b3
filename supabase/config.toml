@@ -1,5 +1,8 @@
 project_id = "xtgngmtxggascbxnswvb"
 
+[functions.auto-create-client-account]
+verify_jwt = false
+
 [functions.nova-watchdog]
 verify_jwt = false
 

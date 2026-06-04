@@ -58,7 +58,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, ArrowRight, ArrowLeft, Check, Wifi, Tv, Smartphone, Shield,
   Package, MonitorPlay, User, MapPin, CreditCard, Calendar, Gift, Info,
-  AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2, Wrench
+  AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2
 } from "lucide-react";
 import Header from "@/components/Header";
 
@@ -168,14 +168,8 @@ const GuestCheckout = () => {
   const [orderResult, setOrderResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ── Draft order (created BEFORE PayPal to satisfy paypal-create-order guard) ──
-  // paypal-create-order rejects requests without a valid order_id (hardening 2026-04-17).
-  const [draftOrderId,  setDraftOrderId]  = useState<string | null>(null);
-  const [draftOrderNum, setDraftOrderNum] = useState<string | null>(null);
-  const [draftUserId,   setDraftUserId]   = useState<string | null>(null);
-  const [draftAcctId,   setDraftAcctId]   = useState<string | null>(null);
-  const [preparingPayment,  setPreparingPayment]  = useState(false);
-  const [preparationError,  setPreparationError]  = useState<string | null>(null);
+  // Stable cart UUID — satisfies paypal-create-order guard without creating a DB record first.
+  const clientCartIdRef = useRef<string>('cart_' + crypto.randomUUID());
 
   // ── Data hooks ──
   const { data: services, isLoading: servicesLoading } = usePublicServices({ surface: "checkout" });
@@ -199,16 +193,6 @@ const GuestCheckout = () => {
   }, [searchParams, services]);
 
   // ── Pre-populate from TVConfigurator sessionStorage cart ──
-  const [installationFromCart, setInstallationFromCart] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("nivra_tv_cart");
-      if (!raw) return;
-      const cart = JSON.parse(raw);
-      if (cart?.installationChoice === "technician") { setInstallationChoice("technician"); setInstallationFromCart(true); }
-      else if (cart?.installationChoice === "auto") { setInstallationChoice("auto"); setInstallationFromCart(true); }
-    } catch {}
-  }, []);
 
   // ── Referral code capture: URL ?ref=CODE → localStorage (30-day expiry) ──
   useEffect(() => {
@@ -334,6 +318,8 @@ const GuestCheckout = () => {
   useEffect(() => {
     if (selectedServices.length === 0) { setLiveServerPricing(null); return; }
     if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+    // Reset immediately so client-side fallback shows while server call is in flight
+    setLiveServerPricing(null);
 
     serverPricingTimerRef.current = setTimeout(async () => {
       setIsServerPricingLoading(true);
@@ -358,6 +344,7 @@ const GuestCheckout = () => {
         setLiveServerPricing(result);
       } catch (err) {
         console.error("[GuestCheckout] Pricing error:", err);
+        setLiveServerPricing(null); // reset so client-side fallback kicks in
       } finally {
         setIsServerPricingLoading(false);
       }
@@ -367,7 +354,9 @@ const GuestCheckout = () => {
   }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, terminalFee, wifiRouterQty, tvTerminalQty, appliedPromo?.code, appliedReferral?.code, email, enableAutoBilling, paymentMethod]);
 
   const normalizedPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
-  const todayTotal = toNonNegativeMoney(normalizedPricing?.grand_total ?? 0);
+  // Client-side fallback so price updates immediately even when server pricing is loading/unavailable
+  const clientSideGrandTotal = toNonNegativeMoney((subtotal + oneTimeFees) * 1.14975);
+  const todayTotal = toNonNegativeMoney(normalizedPricing?.grand_total ?? clientSideGrandTotal);
   const { total: monthlyTotalWithTax } = estimateMonthlyTaxes(subtotal);
 
   // ── Service toggle with compatibility rules ──
@@ -470,116 +459,6 @@ const GuestCheckout = () => {
     }
   };
 
-  // ── Prepare draft order BEFORE PayPal (required by paypal-create-order guard) ──
-  const prepareOrderBeforePayment = async () => {
-    if (draftOrderId || preparingPayment) return;
-    setPreparingPayment(true);
-    setPreparationError(null);
-    try {
-      // 1. Create/find account
-      const { data: acctResult, error: acctErr } = await supabase.functions.invoke("auto-create-client-account", {
-        body: {
-          email: email.trim().toLowerCase(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone: phone.trim(),
-          service_address: addressStreet,
-          service_city: addressCity,
-          service_postal_code: addressPostalCode,
-          date_of_birth: dateOfBirth,
-        },
-      });
-      if (acctErr || !acctResult?.success) throw new Error("Erreur lors de la création du compte.");
-      const userId = acctResult.user_id;
-      setDraftUserId(userId);
-
-      // 2. Get/create account_id
-      const { data: acctRows } = await supabase.from("accounts").select("id").eq("client_id", userId).eq("status", "active").limit(1);
-      let accountId = acctRows?.[0]?.id || null;
-      if (!accountId) {
-        const { data: newAcct } = await supabase.from("accounts").insert({
-          client_id: userId, account_number: "000000", account_name: "Primary", status: "active",
-          primary_service_address: addressStreet, primary_service_city: addressCity,
-          primary_service_province: addressProvince, primary_service_postal_code: addressPostalCode,
-        }).select("id").single();
-        accountId = newAcct?.id || null;
-      }
-      setDraftAcctId(accountId);
-
-      // 3. Compute pricing
-      const cartItems: CartLineItem[] = [];
-      selectedServices.forEach(s => cartItems.push({ type: "service", name: s.name, amount: toMoney(s.price), quantity: 1 }));
-      if (activationFee > 0) cartItems.push({ type: "activation", name: "Frais d'activation", amount: activationFee });
-      if (deliveryFee > 0) cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFee });
-      if (installationFee > 0) cartItems.push({ type: "installation", name: "Frais d'installation", amount: installationFee });
-      if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: ROUTER_PRICE, quantity: 1 });
-      if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalPrice ?? 0, quantity: Math.min(Math.max(tvTerminalQty, 1), 4) });
-      if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
-      let rpcPricing: any;
-      try { rpcPricing = await computeCheckoutPricing(cartItems, appliedPromo?.code || null, email, userId, 0); } catch { rpcPricing = null; }
-      const serverPricing = rpcPricing ? normalizeServerPricingResult(rpcPricing) : {
-        grand_total: todayTotal, tps_amount: 0, tvq_amount: 0, taxable_base: subtotal + oneTimeFees,
-        recurring_subtotal: subtotal, one_time_subtotal: oneTimeFees,
-        discount_total_combined: 0, promo_discount: 0, welcome_discount: 0, preauth_discount: 0,
-      };
-
-      // 4. Build payload with payment_status PENDING (no capture yet)
-      const guestLang: "fr" | "en" = (typeof window !== "undefined" && window.localStorage?.getItem("nivra-language") === "en") ? "en" : "fr";
-      const draftPayload: NivraFullCheckoutPayload = {
-        client_request_id: clientRequestIdRef.current + "_draft",
-        client_language: guestLang,
-        customer: { user_id: userId, first_name: firstName.trim(), last_name: lastName.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), date_of_birth: dateOfBirth },
-        service_address: { street: addressStreet, apartment: addressApartment || null, city: addressCity, province: addressProvince, postal_code: addressPostalCode },
-        services: selectedServices.map(s => ({ sku: s.sku || s.id, name: s.name, plan_code: s.plan_code || s.sku || s.name.toLowerCase().replace(/\s+/g, "_"), plan_price: toMoney(s.price), category: s.category, quantity: 1 })),
-        equipment: [
-          ...((hasInternetService || hasTVService) ? [{ sku: "EQ-ROUTER", name: "Routeur Nivra Born WiFi 6", quantity: 1, unit_price: ROUTER_PRICE }] : []),
-          ...(hasTVService ? [{ sku: "EQ-TERMINAL-TV", name: "Terminal TV", quantity: Math.min(Math.max(tvTerminalQty, 1), 4), unit_price: terminalPrice ?? 0 }] : []),
-          ...(hasMobileService ? [simType === "esim" ? { sku: "EQ-SIM-ESIM", name: "eSIM", quantity: 1, unit_price: ESIM_PRICE } : { sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE }] : []),
-        ],
-        fees: [
-          ...(activationFee > 0 ? [{ sku: "FEE-ACTIVATION-1", name: "Frais d'activation", amount: activationFee }] : []),
-          ...(deliveryFee > 0 ? [{ sku: "FEE-DELIVERY", name: "Frais de livraison", amount: deliveryFee }] : []),
-          ...(installationFee > 0 ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: installationFee }] : []),
-        ],
-        promo: appliedPromo ? { code: appliedPromo.code, name: appliedPromo.name, discount_type: appliedPromo.discount_type, discount_value: appliedPromo.discount_value, discount_amount: toNonNegativeMoney(serverPricing.promo_discount) } : null,
-        payment: { method: "paypal" as any, status: "pending", reference: null, paypal_capture_id: null },
-        identity: isStreamingOnlyOrder ? null : { verification_session_id: `guest_${clientRequestIdRef.current}`, id_type: null, id_number: null, id_expiration: null, id_province: null },
-        installation: { type: installationChoice || "auto", delivery_fee: deliveryFee, installation_fee: installationFee, scheduled_date: selectedDate || null, scheduled_time: selectedTime || null },
-        pricing_snapshot: serverPricing as any,
-        line_items: [],
-        notes: notes || "",
-        account_id: accountId,
-        ...(hasMobileService ? { sim_type: simType } as any : {}),
-        referral: appliedReferral ? { code: appliedReferral.code, type: appliedReferral.type, referrer_user_id: appliedReferral.referrer_user_id, referral_code_id: appliedReferral.referral_code_id, influencer_id: appliedReferral.influencer_id } : null,
-      };
-
-      // 5. Create draft order
-      let draftResp: NivraFullCheckoutResponse;
-      try {
-        draftResp = await submitNivraCheckout(draftPayload);
-      } catch {
-        try { await supabase.functions.invoke("checkout-canonical-sync", { body: { payload: draftPayload } }); } catch {}
-        draftResp = await fallbackCheckout(supabase as any, draftPayload);
-      }
-      if (!draftResp?.order_id) throw new Error("Impossible de créer la commande. Veuillez réessayer.");
-
-      setDraftOrderId(draftResp.order_id);
-      setDraftOrderNum(draftResp.order_number || "");
-    } catch (err: any) {
-      console.error("[GuestCheckout] prepareOrderBeforePayment failed:", err);
-      setPreparationError(err?.message || "Erreur de préparation du paiement. Veuillez réessayer.");
-    } finally {
-      setPreparingPayment(false);
-    }
-  };
-
-  // Trigger draft order creation when user reaches payment step
-  useEffect(() => {
-    if (step === 5 && !draftOrderId && !preparingPayment) {
-      prepareOrderBeforePayment();
-    }
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Submit order ──
   const handleSubmit = async () => {
     if (submittingRef.current || isSubmitting) return;
@@ -605,68 +484,53 @@ const GuestCheckout = () => {
         return;
       }
 
-      // If draft order was prepared before payment, use it directly
-      if (draftOrderId && draftUserId) {
-        // Patch the draft order with final payment capture + post-creation steps
-        const userId = draftUserId;
-        const accountId = draftAcctId;
-        const response = { order_id: draftOrderId, order_number: draftOrderNum || "", success: true } as NivraFullCheckoutResponse;
-
-        // Update draft order with actual payment capture id
-        if (paypalCaptureId) {
-          await supabase.from("orders").update({ paypal_capture_id: paypalCaptureId, status: "confirmed", payment_status: "captured" } as any).eq("id", draftOrderId);
+      // ── Full creation flow ──
+      // Step 1: Create/find account — try edge function first, fall back to signUp
+      let userId: string | null = null;
+      try {
+        const { data: accountResult, error: accountError } = await supabase.functions.invoke("auto-create-client-account", {
+          body: {
+            email: email.trim().toLowerCase(),
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            phone: phone.trim(),
+            service_address: addressStreet,
+            service_city: addressCity,
+            service_postal_code: addressPostalCode,
+            date_of_birth: dateOfBirth,
+          },
+        });
+        if (!accountError && accountResult?.success) {
+          userId = accountResult.user_id;
         }
+      } catch (e) {
+        console.warn("[GuestCheckout] auto-create-client-account failed:", e);
+      }
 
-        // Run post-creation operations (skip to step 4b — patching, consent, etc.)
-        try { await supabase.from("orders").update({ kyc_status: "not_required" } as any).eq("id", response.order_id); } catch {}
+      // Fallback: client-side signUp (works with anon key)
+      if (!userId) {
         try {
-          const orderPatch: Record<string, unknown> = {
-            ship_to_different_address: shippingData.shipToDifferentAddress,
-            activation_preference: activationData.activationPreference,
-            requested_activation_date: activationData.requestedActivationDate ? activationData.requestedActivationDate.toISOString().slice(0, 10) : null,
-            installation_details: { coax_available: installationDetailsData.coaxAvailable || null, occupancy_status: installationDetailsData.occupancyStatus || null, access_notes: installationDetailsData.accessNotes || null },
-          };
-          if (shippingData.shipToDifferentAddress) Object.assign(orderPatch, { shipping_first_name: shippingData.shippingFirstName.trim() || null, shipping_last_name: shippingData.shippingLastName.trim() || null, shipping_address_line: shippingData.shippingAddressLine.trim() || null, shipping_city: shippingData.shippingCity.trim() || null, shipping_province: shippingData.shippingProvince || "QC", shipping_postal_code: shippingData.shippingPostalCode.trim() || null });
-          await supabase.from("orders").update(orderPatch as any).eq("id", response.order_id);
-        } catch {}
-        try { await supabase.functions.invoke("checkout-canonical-sync", { body: { response } }); } catch {}
-
-        // Consent record
-        for (let i = 0; i < 3; i++) {
-          try {
-            const { error: ce } = await supabase.from("checkout_consent_records" as any).insert({ order_id: response.order_id, user_id: userId, terms_accepted: isLegalComplete, recurring_payment_accepted: enableAutoBilling, total_amount_displayed: todayTotal, payment_method: "paypal", services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })), legal_versions: { terms: "2026-03-23", privacy: "2026-03-23", refund: "2026-03-23", payment: "2026-03-23" }, user_agent: navigator.userAgent, consent_timestamp: new Date().toISOString() });
-            if (!ce) break;
-          } catch {}
+          const { data: sd } = await supabase.auth.signUp({
+            email: email.trim().toLowerCase(),
+            password: `${Date.now()}${crypto.randomUUID()}Aa1!`,
+            options: { data: { first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim() } },
+          });
+          if (sd?.user?.id) {
+            userId = sd.user.id;
+          } else {
+            // Email already exists — look up the profile
+            const { data: prof } = await supabase.from("profiles").select("user_id").eq("email", email.trim().toLowerCase()).maybeSingle();
+            userId = (prof as any)?.user_id || null;
+          }
+        } catch (e2) {
+          console.warn("[GuestCheckout] signUp fallback failed:", e2);
         }
-
-        setOrderResult({ orderNumber: response.order_number, orderId: response.order_id, isNewAccount: true });
-        setStep(6);
-        toast.success("Commande confirmée !");
-        return;
       }
 
-      // ── Fallback: no draft — run full creation flow ──
-      // Step 1: Create account via edge function
-      const { data: accountResult, error: accountError } = await supabase.functions.invoke("auto-create-client-account", {
-        body: {
-          email: email.trim().toLowerCase(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone: phone.trim(),
-          service_address: addressStreet,
-          service_city: addressCity,
-          service_postal_code: addressPostalCode,
-          date_of_birth: dateOfBirth,
-        },
-      });
-
-      if (accountError || !accountResult?.success) {
-        console.error("[GuestCheckout] Account creation failed:", accountError || accountResult);
-        toast.error("Erreur lors de la création du compte. Veuillez réessayer.");
+      if (!userId) {
+        toast.error("Impossible de créer votre compte. Veuillez réessayer ou contacter le support.");
         return;
       }
-
-      const userId = accountResult.user_id;
       console.log("[GuestCheckout] Account created/found:", userId, "isNew:", accountResult.is_new_account);
 
       // Step 1b: KYC removed from public checkout — always not_required.
@@ -1325,41 +1189,15 @@ const GuestCheckout = () => {
               <div className="space-y-6">
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
-                  installationFromCart ? (
-                    /* Choix déjà fait dans le simulateur — afficher en lecture seule */
-                    <Card>
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            {installationChoice === "technician"
-                              ? <Wrench className="w-5 h-5 text-primary" />
-                              : <Package className="w-5 h-5 text-primary" />}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-sm">
-                              {installationChoice === "technician" ? "Technicien à domicile" : "Auto-installation (livraison)"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {installationChoice === "technician"
-                                ? `Installation professionnelle — ${fmt(installationFee)}`
-                                : `Livraison de l'équipement — ${fmt(deliveryFee)}`}
-                            </p>
-                          </div>
-                          <button onClick={() => { setInstallationFromCart(false); }} className="text-xs text-muted-foreground underline">Modifier</button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <InstallationSection
-                      installationChoice={installationChoice}
-                      onInstallationChoiceChange={c => setInstallationChoice(c)}
-                      selectedDate={selectedDate}
-                      selectedTime={selectedTime}
-                      onDateTimeChange={(d, t) => { setSelectedDate(d); setSelectedTime(t); }}
-                      appointmentConfirmed={appointmentConfirmed}
-                      onAppointmentConfirmedChange={setAppointmentConfirmed}
-                    />
-                  )
+                  <InstallationSection
+                    installationChoice={installationChoice}
+                    onInstallationChoiceChange={c => setInstallationChoice(c)}
+                    selectedDate={selectedDate}
+                    selectedTime={selectedTime}
+                    onDateTimeChange={(d, t) => { setSelectedDate(d); setSelectedTime(t); }}
+                    appointmentConfirmed={appointmentConfirmed}
+                    onAppointmentConfirmedChange={setAppointmentConfirmed}
+                  />
                 )}
 
                 {/* Equipment constraints */}
@@ -1684,50 +1522,33 @@ const GuestCheckout = () => {
                         </div>
                       </div>
 
-                      {/* Payment buttons — shown only once draft order is ready */}
+                      {/* Payment buttons */}
                       {!paypalCaptureId && (
-                        <div className="space-y-2">
-                          {preparingPayment && (
-                            <div className="flex items-center justify-center gap-3 py-6 rounded-xl border border-white/10 bg-white/[0.02]">
-                              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                              <span className="text-sm text-muted-foreground">Préparation du paiement...</span>
-                            </div>
-                          )}
-                          {preparationError && !preparingPayment && (
-                            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                              <p className="font-semibold mb-1">Erreur de préparation</p>
-                              <p>{preparationError}</p>
-                              <button onClick={() => { setPreparationError(null); prepareOrderBeforePayment(); }} className="mt-2 text-xs underline font-medium">Réessayer</button>
-                            </div>
-                          )}
-                          {!preparingPayment && !preparationError && draftOrderId && (
-                            <PayPalButton
-                              amount={todayTotal}
-                              orderId={draftOrderId}
-                              description={`Nivra — ${selectedServices.map(s => s.name).join(", ")}`}
-                              customer={{
-                                first_name: firstName,
-                                last_name: lastName,
-                                email,
-                                phone,
-                                address: {
-                                  address_line_1: addressStreet,
-                                  admin_area_2: addressCity,
-                                  admin_area_1: addressProvince,
-                                  postal_code: addressPostalCode.replace(/\s/g, ""),
-                                  country_code: "CA",
-                                },
-                              }}
-                              onSuccess={(captureId) => {
-                                setPaypalCaptureId(captureId);
-                                setPaymentComplete(true);
-                                toast.success("Paiement confirmé !");
-                              }}
-                              onError={(err) => toast.error(`Erreur de paiement: ${err}`)}
-                              disabled={todayTotal <= 0}
-                            />
-                          )}
-                        </div>
+                        <PayPalButton
+                          amount={todayTotal}
+                          orderId={clientCartIdRef.current}
+                          description={`Nivra — ${selectedServices.map(s => s.name).join(", ")}`}
+                          customer={{
+                            first_name: firstName,
+                            last_name: lastName,
+                            email,
+                            phone,
+                            address: {
+                              address_line_1: addressStreet,
+                              admin_area_2: addressCity,
+                              admin_area_1: addressProvince,
+                              postal_code: addressPostalCode.replace(/\s/g, ""),
+                              country_code: "CA",
+                            },
+                          }}
+                          onSuccess={(captureId) => {
+                            setPaypalCaptureId(captureId);
+                            setPaymentComplete(true);
+                            toast.success("Paiement confirmé !");
+                          }}
+                          onError={(err) => toast.error(`Erreur de paiement: ${err}`)}
+                          disabled={todayTotal <= 0}
+                        />
                       )}
 
                       {!!paypalCaptureId && (

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Tv, Wifi, Monitor, Wrench, Check, Plus, Minus,
+  Tv, Wifi, Monitor, Check, Plus, Minus,
   ArrowRight, MonitorPlay, Loader2, Package, Music,
   Zap, ChevronDown, Star, ShieldCheck
 } from "lucide-react";
@@ -31,8 +31,7 @@ export interface TVCartPayload {
 
 import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 
-type InstallMethod = "technician" | "self" | null;
-type SimulatorStep = 1 | 2 | 3 | 4;
+type SimulatorStep = 1 | 2 | 3;
 
 interface ServicePublic {
   id: string;
@@ -140,8 +139,6 @@ const TVConfigurator = () => {
   const sectionRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const canonicalFees = useCanonicalFees();
 
-  const TECHNICIAN_INSTALL_FEE = canonicalFees.installationTechnician || 25;
-  const STANDARD_DELIVERY_FEE = canonicalFees.deliverySelfInstall || 20;
   const ACTIVATION_FEE_SINGLE  = canonicalFees.activationSingle || 10;
 
   const [activeStep, setActiveStep] = useState<SimulatorStep>(1);
@@ -208,7 +205,6 @@ const TVConfigurator = () => {
   const [selectedStreamingIds, setSelectedStreamingIds] = useState<Set<string>>(new Set());
   const [extraTerminals, setExtraTerminals] = useState(0);
   const includeRouter = true;
-  const [installMethod, setInstallMethod] = useState<InstallMethod>(null);
 
   // Set defaults once catalog loads
   useEffect(() => {
@@ -253,14 +249,13 @@ const TVConfigurator = () => {
     if (terminalProduct) oneTimeItems.push({ name: `${terminalProduct.name}${totalTerminals > 1 ? ` ×${totalTerminals}` : ""}`, price: terminalProduct.price * totalTerminals });
     if (includeRouter && routerProduct) oneTimeItems.push({ name: routerProduct.name, price: routerProduct.price });
     if (selectedPlan) oneTimeItems.push({ name: "Activation", price: ACTIVATION_FEE_SINGLE });
-    if (installMethod === "technician") oneTimeItems.push({ name: isFr ? "Installation technicien" : "Technician install", price: TECHNICIAN_INSTALL_FEE });
-    if (installMethod === "self") oneTimeItems.push({ name: isFr ? "Livraison" : "Shipping", price: STANDARD_DELIVERY_FEE });
+    // Installation/livraison choisie dans le checkout, pas ici
 
     const recurringSubtotal = recurringItems.reduce((s, i) => s + i.price, 0);
     const oneTimeSubtotal   = oneTimeItems.reduce((s, i) => s + i.price, 0);
     const { total: grandTotal } = estimateTaxes(recurringSubtotal + oneTimeSubtotal);
     return { recurringItems, oneTimeItems, recurringSubtotal, oneTimeSubtotal, grandTotal };
-  }, [selectedPlan, selectedStreamingIds, streamingServices, terminalProduct, totalTerminals, routerProduct, installMethod, isFr, ACTIVATION_FEE_SINGLE, TECHNICIAN_INSTALL_FEE, STANDARD_DELIVERY_FEE]);
+  }, [selectedPlan, selectedStreamingIds, streamingServices, terminalProduct, totalTerminals, routerProduct, isFr, ACTIVATION_FEE_SINGLE]);
 
   const handleContinue = () => {
     if (!selectedPlan) return;
@@ -269,8 +264,8 @@ const TVConfigurator = () => {
       selectedStreamingIds: Array.from(selectedStreamingIds),
       terminalProductId: terminalProduct?.id || null, terminalQuantity: totalTerminals,
       routerProductId: includeRouter && routerProduct ? routerProduct.id : null,
-      installationChoice: installMethod === "technician" ? "technician" : installMethod === "self" ? "auto" : null,
-      includeShipping: installMethod === "self", createdAt: new Date().toISOString(),
+      installationChoice: null,
+      includeShipping: false, createdAt: new Date().toISOString(),
     };
     sessionStorage.setItem("nivra_tv_cart", JSON.stringify(payload));
     navigate(`/commander?plan=${selectedPlan.id}`);
@@ -278,7 +273,7 @@ const TVConfigurator = () => {
 
   const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " $";
   const isLoading   = servicesLoading || streamingLoading || equipmentLoading;
-  const canProceed  = !!selectedPlan && !!installMethod;
+  const canProceed  = !!selectedPlan;
 
   const goToSpeed = (idx: number) => {
     setSelectedSpeedIdx(Math.max(0, Math.min(idx, catalog.speeds.length - 1)));
@@ -289,7 +284,6 @@ const TVConfigurator = () => {
     { num: 1 as SimulatorStep, label: isFr ? "Forfait" : "Plan",       done: !!selectedPlan },
     { num: 2 as SimulatorStep, label: "Streaming",                       done: true },
     { num: 3 as SimulatorStep, label: isFr ? "Équipement" : "Equipment", done: true },
-    { num: 4 as SimulatorStep, label: "Installation",                    done: !!installMethod },
   ];
 
   if (isLoading) {
@@ -657,54 +651,6 @@ const TVConfigurator = () => {
 
         {/* ══════════════════════════════════════ */}
         {/* STEP 4 — Installation                 */}
-        {/* ══════════════════════════════════════ */}
-        <div ref={el => { sectionRefs.current[4] = el; }} className="scroll-mt-20">
-          <div className="bg-white/[0.04] py-10 md:py-14 border-t border-white/10">
-            <div className="container mx-auto px-4 max-w-[1100px]">
-              <SimulatorSectionHeader step={4}
-                title={isFr ? "Mode d'installation" : "Installation method"}
-                subtitle={isFr ? "Comment souhaitez-vous activer vos services ?" : "How would you like to activate your services?"}
-              />
-              <div className="grid md:grid-cols-2 gap-5 max-w-[800px] mx-auto">
-                <div onClick={() => setInstallMethod(installMethod === "technician" ? null : "technician")}
-                  className={cn("rounded-2xl border-2 p-6 cursor-pointer transition-all text-center",
-                    installMethod === "technician" ? "border-[#7C3AED] bg-[#7C3AED]/5 shadow-xl shadow-purple-900/20" : "border-white/10 bg-white/[0.04] hover:border-white/20"
-                  )}>
-                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
-                    installMethod === "technician" ? "bg-[#7C3AED] text-white" : "bg-white/[0.08] text-white/40")}>
-                    <Wrench className="w-7 h-7" />
-                  </div>
-                  <h4 className="font-bold text-white mb-2">{isFr ? "Technicien à domicile" : "Home technician"}</h4>
-                  <p className="text-xl font-extrabold text-[#7C3AED] mb-3">{TECHNICIAN_INSTALL_FEE} $</p>
-                  <ul className="text-left space-y-2 text-xs text-white/55">
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Installation complète sur place" : "Complete on-site installation"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Vérification du câblage" : "Wiring verification"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Activation et test de services" : "Service activation & testing"}</li>
-                  </ul>
-                </div>
-                <div onClick={() => setInstallMethod(installMethod === "self" ? null : "self")}
-                  className={cn("rounded-2xl border-2 p-6 cursor-pointer transition-all text-center",
-                    installMethod === "self" ? "border-[#7C3AED] bg-[#7C3AED]/5 shadow-xl shadow-purple-900/20" : "border-white/10 bg-white/[0.04] hover:border-white/20"
-                  )}>
-                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
-                    installMethod === "self" ? "bg-[#7C3AED] text-white" : "bg-white/[0.08] text-white/40")}>
-                    <Package className="w-7 h-7" />
-                  </div>
-                  <h4 className="font-bold text-white mb-2">{isFr ? "Auto-installation" : "Self-install"}</h4>
-                  <div className="mb-3">
-                    <Badge className="bg-emerald-900/40 text-emerald-300 border-emerald-600/40 text-xs font-bold">{isFr ? "Gratuit" : "Free"}</Badge>
-                    <span className="text-xs text-white/40 ml-2">+ {STANDARD_DELIVERY_FEE} $ {isFr ? "livraison" : "shipping"}</span>
-                  </div>
-                  <ul className="text-left space-y-2 text-xs text-white/55">
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Équipement livré à domicile" : "Equipment shipped home"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Guide d'installation inclus" : "Installation guide included"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Support technique si besoin" : "Tech support if needed"}</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
 
       {/* ══ Bottom sticky bar ══ */}
