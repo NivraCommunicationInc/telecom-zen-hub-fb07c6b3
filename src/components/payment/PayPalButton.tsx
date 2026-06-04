@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, CreditCard, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
@@ -14,8 +16,8 @@ interface CustomerInfo {
   address?: {
     address_line_1?: string;
     address_line_2?: string;
-    admin_area_2?: string; // City
-    admin_area_1?: string; // Province/State
+    admin_area_2?: string;
+    admin_area_1?: string;
     postal_code?: string;
     country_code?: string;
   };
@@ -24,8 +26,8 @@ interface CustomerInfo {
 export interface PayPalPayerAddress {
   address_line_1?: string;
   address_line_2?: string;
-  admin_area_2?: string; // city
-  admin_area_1?: string; // province/state
+  admin_area_2?: string;
+  admin_area_1?: string;
   postal_code?: string;
   country_code?: string;
 }
@@ -36,7 +38,6 @@ interface PayPalButtonProps {
   orderId?: string;
   description?: string;
   customer?: CustomerInfo;
-  /** Payment number from Nivra Core — used to notify backend after capture */
   paymentNumber?: string;
   onSuccess?: (captureId: string, payerAddress?: PayPalPayerAddress | null) => void;
   onError?: (error: string) => void;
@@ -47,276 +48,346 @@ interface PayPalButtonProps {
 
 declare global {
   interface Window {
-    paypal?: {
-      Buttons: (config: unknown) => {
-        render: (container: string | HTMLElement) => Promise<void>;
-        isEligible?: () => boolean;
-      };
-      FUNDING?: {
-        CARD: string;
-        PAYPAL: string;
-      };
-    };
+    paypal?: any;
   }
 }
 
-export const PayPalButton = ({
-  amount,
-  invoiceId,
-  orderId,
-  description,
-  customer,
-  paymentNumber,
-  onSuccess,
-  onError,
-  onCancel,
-  disabled = false,
-  className = "",
+// ── Inline card form using PayPal CardFields API ──
+const InlineCardForm = ({
+  amount, invoiceId, orderId, description, customer, paymentNumber,
+  onSuccess, onError, onCancel, disabled,
 }: PayPalButtonProps) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
-  const containerId = `paypal-button-container-${invoiceId || orderId || "main"}`;
-  const cardContainerId = `paypal-card-container-${invoiceId || orderId || "main"}`;
+  const [cardholderName, setCardholderName] = useState(
+    [customer?.first_name, customer?.last_name].filter(Boolean).join(" ")
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [fieldsReady, setFieldsReady] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const cardFieldsRef = useRef<any>(null);
+  const numberId  = `cf-number-${orderId || invoiceId || "main"}`;
+  const expiryId  = `cf-expiry-${orderId || invoiceId || "main"}`;
+  const cvvId     = `cf-cvv-${orderId || invoiceId || "main"}`;
+  const mountedRef = useRef(false);
+  const inFlightRef = useRef(false);
 
-  // IMPORTANT:
-  // Plusieurs parties du site refetch en arrière-plan (bannières statut, sécurité, etc.).
-  // Si on recrée les boutons PayPal à chaque re-render, PayPal peut fermer la fenêtre
-  // (ou annuler le flux) et l'utilisateur revient au checkout.
-  // => On stabilise les callbacks + on ne re-render les boutons que si les props
-  //    réellement pertinentes changent.
-  const callbacksRef = useRef({ onSuccess, onError, onCancel });
+  const normalizedAmount = useMemo(() => Math.round(amount * 100) / 100, [amount]);
+
+  const createPayPalOrder = async () => {
+    const { data, error } = await supabase.functions.invoke("paypal-create-order", {
+      body: {
+        amount: normalizedAmount,
+        invoice_id: invoiceId,
+        order_id: orderId,
+        description: description || "Paiement Nivra Telecom",
+        customer,
+      },
+    });
+    if (error) throw error;
+    if (!data?.paypal_order_id) throw new Error("Aucun ID de commande PayPal retourné");
+    return data.paypal_order_id as string;
+  };
+
+  const capturePayPalOrder = async (paypalOrderId: string) => {
+    const { data, error } = await supabase.functions.invoke("paypal-capture-order", {
+      body: { paypal_order_id: paypalOrderId, invoice_id: invoiceId, order_id: orderId },
+    });
+    if (error) throw error;
+    if (!data?.capture_id) throw new Error("Capture ID manquant");
+    return { captureId: data.capture_id as string, payerAddress: data.payer_address ?? null };
+  };
+
   useEffect(() => {
-    callbacksRef.current = { onSuccess, onError, onCancel };
-  }, [onSuccess, onError, onCancel]);
+    if (mountedRef.current) return;
+    if (!window.paypal?.CardFields) return;
 
-  const customerSignature = useMemo(() => {
-    const a = customer?.address;
-    return [
-      customer?.first_name ?? "",
-      customer?.last_name ?? "",
-      customer?.email ?? "",
-      customer?.phone ?? "",
-      a?.address_line_1 ?? "",
-      a?.address_line_2 ?? "",
-      a?.admin_area_2 ?? "",
-      a?.admin_area_1 ?? "",
-      a?.postal_code ?? "",
-      a?.country_code ?? "",
-    ].join("|");
-  }, [
-    customer?.first_name,
-    customer?.last_name,
-    customer?.email,
-    customer?.phone,
-    customer?.address?.address_line_1,
-    customer?.address?.address_line_2,
-    customer?.address?.admin_area_2,
-    customer?.address?.admin_area_1,
-    customer?.address?.postal_code,
-    customer?.address?.country_code,
-  ]);
+    mountedRef.current = true;
+    let fields: any;
 
-  const normalizedAmount = useMemo(() => {
-    if (!Number.isFinite(amount)) return NaN;
-    // Keep PayPal values stable and strictly 2-decimal compatible.
-    return Math.round(amount * 100) / 100;
-  }, [amount]);
+    try {
+      fields = window.paypal.CardFields({
+        createOrder: async () => {
+          try { return await createPayPalOrder(); }
+          catch (err: any) {
+            const msg = await getInvokeErrorMessage(err);
+            setFieldError(msg);
+            throw err;
+          }
+        },
+        onApprove: async (data: { orderID: string }) => {
+          if (inFlightRef.current) return;
+          inFlightRef.current = true;
+          setSubmitting(true);
+          setFieldError(null);
+          try {
+            const { captureId, payerAddress } = await capturePayPalOrder(data.orderID);
+            toast.success("Paiement réussi !");
+            if (paymentNumber) notifyNivraCorePaid({ paymentNumber, paypalOrderId: data.orderID, paypalCaptureId: captureId });
+            onSuccess?.(captureId, payerAddress);
+          } catch (err: any) {
+            const msg = await getInvokeErrorMessage(err);
+            setFieldError(msg);
+            onError?.(msg);
+          } finally {
+            inFlightRef.current = false;
+            setSubmitting(false);
+          }
+        },
+        onError: async (err: any) => {
+          const msg = await getInvokeErrorMessage(err).catch(() => "Erreur de paiement");
+          setFieldError(msg);
+          onError?.(msg);
+        },
+        style: {
+          input: {
+            "font-size": "15px",
+            "font-family": "Inter, system-ui, sans-serif",
+            color: "#ffffff",
+            padding: "0 12px",
+          },
+          ".invalid": { color: "#f87171" },
+          ":focus": { color: "#ffffff" },
+        },
+      });
 
-  const renderKey = useMemo(() => {
-    return [normalizedAmount, invoiceId ?? "", orderId ?? "", description ?? "", customerSignature].join("::");
-  }, [normalizedAmount, invoiceId, orderId, description, customerSignature]);
+      if (fields.isEligible()) {
+        cardFieldsRef.current = fields;
+        fields.NumberField({ placeholder: "1234 5678 9012 3456" }).render(`#${numberId}`);
+        fields.ExpiryField({ placeholder: "MM/AA" }).render(`#${expiryId}`);
+        fields.CVVField({ placeholder: "123" }).render(`#${cvvId}`);
+        setFieldsReady(true);
+      } else {
+        setFieldError("Paiement par carte non disponible dans votre région.");
+      }
+    } catch (err) {
+      console.error("[PayPalCardFields] init error:", err);
+    }
 
+    return () => { /* PayPal fields don't have a destroy method */ };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inFlightRef.current || submitting || !cardFieldsRef.current) return;
+    if (!cardholderName.trim()) { setFieldError("Entrez le nom sur la carte"); return; }
+    if (normalizedAmount <= 0) { setFieldError("Montant invalide"); return; }
+    setFieldError(null);
+    setSubmitting(true);
+    inFlightRef.current = true;
+    try {
+      await cardFieldsRef.current.submit({ cardholderName: cardholderName.trim() });
+    } catch (err: any) {
+      const msg = await getInvokeErrorMessage(err).catch(() => "Paiement refusé. Vérifiez vos informations.");
+      setFieldError(msg);
+      onError?.(msg);
+      setSubmitting(false);
+      inFlightRef.current = false;
+    }
+  };
+
+  const fieldStyle: React.CSSProperties = {
+    height: 44,
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 8,
+    background: 'rgba(255,255,255,0.06)',
+    padding: 0,
+    width: '100%',
+    boxSizing: 'border-box' as const,
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Amount display */}
+      <div className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ background: 'rgba(124,58,237,0.08)', borderColor: 'rgba(124,58,237,0.25)' }}>
+        <div className="flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium">Montant à payer aujourd'hui</span>
+        </div>
+        <span className="text-lg font-bold text-primary">
+          {normalizedAmount > 0 ? `${normalizedAmount.toFixed(2)} $` : "Calcul en cours…"}
+        </span>
+      </div>
+
+      {/* Card fields */}
+      <div className="space-y-3">
+        {/* Cardholder name */}
+        <div>
+          <Label className="text-xs font-medium mb-1.5 block">Nom sur la carte</Label>
+          <Input
+            value={cardholderName}
+            onChange={e => setCardholderName(e.target.value)}
+            placeholder="Jean Tremblay"
+            disabled={submitting}
+            className="h-11"
+          />
+        </div>
+
+        {/* Card number */}
+        <div>
+          <Label className="text-xs font-medium mb-1.5 block">Numéro de carte</Label>
+          <div id={numberId} style={fieldStyle} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {/* Expiry */}
+          <div>
+            <Label className="text-xs font-medium mb-1.5 block">Date d'expiration</Label>
+            <div id={expiryId} style={fieldStyle} />
+          </div>
+          {/* CVV */}
+          <div>
+            <Label className="text-xs font-medium mb-1.5 block">CVV</Label>
+            <div id={cvvId} style={fieldStyle} />
+          </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {fieldError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {fieldError}
+          <button type="button" onClick={() => setFieldError(null)} className="ml-2 underline text-xs">Fermer</button>
+        </div>
+      )}
+
+      {!fieldsReady && !fieldError && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Chargement du formulaire de paiement sécurisé…
+        </div>
+      )}
+
+      {/* Submit */}
+      <Button
+        type="submit"
+        className="w-full h-12 text-base font-bold"
+        disabled={disabled || submitting || !fieldsReady || normalizedAmount <= 0}
+      >
+        {submitting
+          ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Traitement en cours…</>
+          : <><Lock className="w-4 h-4 mr-2" />Payer {normalizedAmount > 0 ? `${normalizedAmount.toFixed(2)} $` : ""} maintenant</>
+        }
+      </Button>
+
+      <p className="text-center text-xs text-muted-foreground">
+        🔒 Paiement sécurisé par PayPal · Vos données bancaires ne sont jamais partagées
+      </p>
+    </form>
+  );
+};
+
+// ── Main PayPalButton component ──
+export const PayPalButton = ({
+  amount, invoiceId, orderId, description, customer, paymentNumber,
+  onSuccess, onError, onCancel, disabled = false, className = "",
+}: PayPalButtonProps) => {
+  const [sdkReady, setSdkReady] = useState(false);
+  const [hasCardFields, setHasCardFields] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const containerId = `paypal-button-container-${invoiceId || orderId || "main"}`;
+  const callbacksRef = useRef({ onSuccess, onError, onCancel });
+  useEffect(() => { callbacksRef.current = { onSuccess, onError, onCancel }; }, [onSuccess, onError, onCancel]);
+
+  const normalizedAmount = useMemo(() => Math.round(amount * 100) / 100, [amount]);
+  const renderKey = useMemo(() => [normalizedAmount, invoiceId ?? "", orderId ?? "", description ?? ""].join("::"), [normalizedAmount, invoiceId, orderId, description]);
   const lastRenderedKeyRef = useRef<string | null>(null);
-  // Guard against double-click: track in-flight createOrder/capture calls.
-  // PayPal SDK has its own protection but a fast double-tap can still trigger
-  // two createOrder calls before our isLoading state propagates.
   const inFlightRef = useRef<{ create: boolean; capture: boolean }>({ create: false, capture: false });
-  // Cache the PayPal order id from the first createOrder call so a second call
-  // within the same session returns the same order rather than creating a new one.
   const lastOrderIdRef = useRef<string | null>(null);
 
-  // Load PayPal SDK
+  // Load PayPal SDK with card-fields support
   useEffect(() => {
-    const loadPayPalSdk = async () => {
-      // Check if SDK is already loaded
-      if (window.paypal) {
-        setSdkReady(true);
-        return;
-      }
-
-      // Get client ID from edge function (more secure)
-      const script = document.createElement("script");
-      // Enable card funding source explicitly so the standalone card button is rendered.
-      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card&components=buttons,funding-eligibility`;
-      script.async = true;
-      script.onload = () => setSdkReady(true);
-      script.onerror = () => {
-        console.error("Failed to load PayPal SDK");
-        toast.error("Erreur de chargement PayPal");
-      };
-      document.body.appendChild(script);
-    };
-
-    loadPayPalSdk();
+    if (window.paypal) { setSdkReady(true); setHasCardFields(!!window.paypal.CardFields); return; }
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card&components=buttons,card-fields,funding-eligibility`;
+    script.async = true;
+    script.onload = () => { setSdkReady(true); setHasCardFields(!!window.paypal?.CardFields); };
+    script.onerror = () => { toast.error("Erreur de chargement PayPal"); };
+    document.body.appendChild(script);
   }, []);
 
-  // Render PayPal buttons when SDK is ready
+  // Render PayPal Buttons (fallback for PayPal account payment)
   useEffect(() => {
-    if (!sdkReady || !window.paypal || disabled) return;
-
+    if (!sdkReady || !window.paypal?.Buttons || disabled) return;
     const container = document.getElementById(containerId);
     if (!container) return;
-
-    // Prevent tearing down & re-creating PayPal buttons on unrelated re-renders.
     if (lastRenderedKeyRef.current === renderKey) return;
     lastRenderedKeyRef.current = renderKey;
-
-    // Clear any existing buttons
     container.innerHTML = "";
 
     window.paypal.Buttons({
-      style: {
-        layout: "horizontal",
-        color: "blue",
-        shape: "rect",
-        label: "pay",
-        height: 45,
-      },
+      style: { layout: "horizontal", color: "blue", shape: "rect", label: "pay", height: 45 },
       createOrder: async () => {
-        // Double-click protection: if a createOrder is already in flight, reuse the
-        // previously returned PayPal order id. This prevents creating two parallel
-        // orders for the same checkout if the user double-taps the button.
-        if (inFlightRef.current.create) {
-          if (lastOrderIdRef.current) return lastOrderIdRef.current;
-          // Wait briefly for the in-flight request to settle.
-          await new Promise((r) => setTimeout(r, 250));
-          if (lastOrderIdRef.current) return lastOrderIdRef.current;
-        }
-        inFlightRef.current.create = true;
-        setIsLoading(true);
+        if (inFlightRef.current.create) { if (lastOrderIdRef.current) return lastOrderIdRef.current; await new Promise(r => setTimeout(r, 250)); if (lastOrderIdRef.current) return lastOrderIdRef.current; }
+        inFlightRef.current.create = true; setIsLoading(true);
         try {
-          if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-            const msg = "Montant PayPal invalide. Vérifiez le total à payer.";
-            toast.error(msg);
-            callbacksRef.current.onError?.(msg);
-            throw new Error(msg);
-          }
-
+          if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) throw new Error("Montant PayPal invalide.");
           const { data, error } = await supabase.functions.invoke("paypal-create-order", {
-            body: {
-              amount: normalizedAmount,
-              invoice_id: invoiceId,
-              order_id: orderId,
-              description: description || "Paiement Nivra Telecom",
-              customer: customer,
-            },
+            body: { amount: normalizedAmount, invoice_id: invoiceId, order_id: orderId, description: description || "Paiement Nivra Telecom", customer },
           });
-
           if (error) throw error;
           if (!data?.paypal_order_id) throw new Error("No order ID returned");
-
           lastOrderIdRef.current = data.paypal_order_id;
           return data.paypal_order_id;
         } catch (err) {
-          console.error("PayPal create order error:", err);
-          const errorMessage = await getInvokeErrorMessage(err);
-          toast.error(errorMessage);
-          callbacksRef.current.onError?.(errorMessage);
-          throw err;
-        } finally {
-          inFlightRef.current.create = false;
-          setIsLoading(false);
-        }
+          const msg = await getInvokeErrorMessage(err);
+          toast.error(msg); callbacksRef.current.onError?.(msg); throw err;
+        } finally { inFlightRef.current.create = false; setIsLoading(false); }
       },
-
       onApprove: async (data: { orderID: string }) => {
-        // Double-click / replay protection on capture as well.
-        if (inFlightRef.current.capture) {
-          console.warn("[PayPal] capture already in flight, ignoring duplicate onApprove");
-          return;
-        }
-        inFlightRef.current.capture = true;
-        setIsLoading(true);
+        if (inFlightRef.current.capture) return;
+        inFlightRef.current.capture = true; setIsLoading(true);
         try {
-          const { data: captureData, error } = await supabase.functions.invoke("paypal-capture-order", {
-            body: {
-              paypal_order_id: data.orderID,
-              invoice_id: invoiceId,
-              order_id: orderId,
-            },
+          const { data: cap, error } = await supabase.functions.invoke("paypal-capture-order", {
+            body: { paypal_order_id: data.orderID, invoice_id: invoiceId, order_id: orderId },
           });
-
           if (error) throw error;
-          if (!captureData?.capture_id) throw new Error("No capture ID returned");
-
-          toast.success("Paiement PayPal réussi!");
-
-          // Notify Nivra Core backend (fire-and-forget)
-          if (paymentNumber) {
-            notifyNivraCorePaid({
-              paymentNumber,
-              paypalOrderId: data.orderID,
-              paypalCaptureId: captureData.capture_id,
-            });
-          }
-
-          callbacksRef.current.onSuccess?.(captureData.capture_id, captureData.payer_address ?? null);
+          if (!cap?.capture_id) throw new Error("No capture ID");
+          toast.success("Paiement PayPal réussi !");
+          if (paymentNumber) notifyNivraCorePaid({ paymentNumber, paypalOrderId: data.orderID, paypalCaptureId: cap.capture_id });
+          callbacksRef.current.onSuccess?.(cap.capture_id, cap.payer_address ?? null);
         } catch (err) {
-          console.error("PayPal capture error:", err);
-          const errorMessage = await getInvokeErrorMessage(err);
-          toast.error(errorMessage);
-          callbacksRef.current.onError?.(errorMessage);
-        } finally {
-          inFlightRef.current.capture = false;
-          setIsLoading(false);
-        }
+          const msg = await getInvokeErrorMessage(err); toast.error(msg); callbacksRef.current.onError?.(msg);
+        } finally { inFlightRef.current.capture = false; setIsLoading(false); }
       },
-
-      onCancel: () => {
-        toast.info("Paiement PayPal annulé");
-        callbacksRef.current.onCancel?.();
-      },
-
-      onError: (err: Error) => {
-        console.error("PayPal error:", err);
-        toast.error("Erreur PayPal. Veuillez réessayer.");
-        callbacksRef.current.onError?.(err.message || "Unknown PayPal error");
-      },
+      onCancel: () => { toast.info("Paiement PayPal annulé"); callbacksRef.current.onCancel?.(); },
+      onError: (err: Error) => { toast.error("Erreur PayPal. Veuillez réessayer."); callbacksRef.current.onError?.(err.message || "Unknown PayPal error"); },
     }).render(`#${containerId}`);
   }, [sdkReady, containerId, disabled, renderKey, normalizedAmount, invoiceId, orderId, description, customer]);
 
   if (!import.meta.env.VITE_PAYPAL_CLIENT_ID) {
-    return (
-      <div className="text-sm text-destructive">
-        Configuration PayPal manquante
-      </div>
-    );
+    return <div className="text-sm text-destructive">Configuration PayPal manquante</div>;
   }
 
   return (
     <div className={className}>
-      {isLoading && (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          <span className="ml-2 text-sm text-muted-foreground">
-            Traitement en cours...
-          </span>
+      {/* Inline card form (shown first if CardFields API available) */}
+      {sdkReady && hasCardFields && (
+        <InlineCardForm
+          amount={amount} invoiceId={invoiceId} orderId={orderId}
+          description={description} customer={customer} paymentNumber={paymentNumber}
+          onSuccess={onSuccess} onError={onError} onCancel={onCancel} disabled={disabled}
+        />
+      )}
+
+      {/* Divider between card form and PayPal button */}
+      {sdkReady && hasCardFields && (
+        <div className="flex items-center gap-3 my-4">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-medium">ou payer avec</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
       )}
-      {/* Card-first button (Visa / Mastercard — no PayPal account) */}
-      <div
-        id={cardContainerId}
-        className={isLoading ? "opacity-50 pointer-events-none mb-2" : "mb-2"}
-      />
-      {/* PayPal account button (fallback) */}
-      <div
-        id={containerId}
-        className={isLoading ? "opacity-50 pointer-events-none" : ""}
-      />
-      {!sdkReady && !isLoading && (
+
+      {/* PayPal Buttons (account payment fallback) */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-3">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">Traitement…</span>
+        </div>
+      )}
+      <div id={containerId} className={isLoading ? "opacity-50 pointer-events-none" : ""} />
+      {!sdkReady && (
         <Button disabled className="w-full">
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          Chargement PayPal...
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />Chargement PayPal…
         </Button>
       )}
     </div>

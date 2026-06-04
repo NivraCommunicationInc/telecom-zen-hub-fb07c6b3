@@ -58,7 +58,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, ArrowRight, ArrowLeft, Check, Wifi, Tv, Smartphone, Shield,
   Package, MonitorPlay, User, MapPin, CreditCard, Calendar, Gift, Info,
-  AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2
+  AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2, Wrench
 } from "lucide-react";
 import Header from "@/components/Header";
 
@@ -197,6 +197,18 @@ const GuestCheckout = () => {
       }
     }
   }, [searchParams, services]);
+
+  // ── Pre-populate from TVConfigurator sessionStorage cart ──
+  const [installationFromCart, setInstallationFromCart] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("nivra_tv_cart");
+      if (!raw) return;
+      const cart = JSON.parse(raw);
+      if (cart?.installationChoice === "technician") { setInstallationChoice("technician"); setInstallationFromCart(true); }
+      else if (cart?.installationChoice === "auto") { setInstallationChoice("auto"); setInstallationFromCart(true); }
+    } catch {}
+  }, []);
 
   // ── Referral code capture: URL ?ref=CODE → localStorage (30-day expiry) ──
   useEffect(() => {
@@ -1313,15 +1325,41 @@ const GuestCheckout = () => {
               <div className="space-y-6">
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
-                  <InstallationSection
-                    installationChoice={installationChoice}
-                    onInstallationChoiceChange={c => setInstallationChoice(c)}
-                    selectedDate={selectedDate}
-                    selectedTime={selectedTime}
-                    onDateTimeChange={(d, t) => { setSelectedDate(d); setSelectedTime(t); }}
-                    appointmentConfirmed={appointmentConfirmed}
-                    onAppointmentConfirmedChange={setAppointmentConfirmed}
-                  />
+                  installationFromCart ? (
+                    /* Choix déjà fait dans le simulateur — afficher en lecture seule */
+                    <Card>
+                      <CardContent className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            {installationChoice === "technician"
+                              ? <Wrench className="w-5 h-5 text-primary" />
+                              : <Package className="w-5 h-5 text-primary" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">
+                              {installationChoice === "technician" ? "Technicien à domicile" : "Auto-installation (livraison)"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {installationChoice === "technician"
+                                ? `Installation professionnelle — ${fmt(installationFee)}`
+                                : `Livraison de l'équipement — ${fmt(deliveryFee)}`}
+                            </p>
+                          </div>
+                          <button onClick={() => { setInstallationFromCart(false); }} className="text-xs text-muted-foreground underline">Modifier</button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <InstallationSection
+                      installationChoice={installationChoice}
+                      onInstallationChoiceChange={c => setInstallationChoice(c)}
+                      selectedDate={selectedDate}
+                      selectedTime={selectedTime}
+                      onDateTimeChange={(d, t) => { setSelectedDate(d); setSelectedTime(t); }}
+                      appointmentConfirmed={appointmentConfirmed}
+                      onAppointmentConfirmedChange={setAppointmentConfirmed}
+                    />
+                  )
                 )}
 
                 {/* Equipment constraints */}
@@ -1565,7 +1603,7 @@ const GuestCheckout = () => {
                   <Button
                     className="flex-1"
                     disabled={
-                      (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)) ||
+                      (requiresInstallation && (!selectedDate || !selectedTime)) ||
                       !!validateShipping(shippingData) ||
                       !!validateActivation(activationData)
                     }
