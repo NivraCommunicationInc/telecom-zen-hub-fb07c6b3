@@ -339,7 +339,7 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Ligne de commande</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eqLabel(eq)}</option>))}
             </select>
           </div>
           <div>
@@ -408,7 +408,7 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
         <div>
           <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
           <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-            {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
+            {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eqLabel(eq)}</option>))}
           </select>
         </div>
         <DialogFooter className="gap-2">
