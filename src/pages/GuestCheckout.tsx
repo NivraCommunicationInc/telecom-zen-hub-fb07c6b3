@@ -89,12 +89,14 @@ const CHECKOUT_STEPS = [
 ];
 
 const CHECKOUT_DRAFT_KEY = "nivra_checkout_draft";
+const ABANDONMENT_EMAIL_KEY = "nivra_abandonment_email_id";
 
 const GuestCheckout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clientRequestIdRef = useRef(crypto.randomUUID());
   const submittingRef = useRef(false);
+  const abandonmentTrackedRef = useRef(false);
 
   // ── Step state ──
   const [step, setStep] = useState(1);
@@ -216,6 +218,44 @@ const GuestCheckout = () => {
   }, [step, selectedServices, addressStreet, addressApartment, addressCity, addressProvince,
       addressPostalCode, firstName, lastName, email, phone, dateOfBirth,
       installationChoice, selectedDate, selectedTime, notes, paypalCaptureId, paymentComplete]);
+
+  // ── Annuler l'email d'abandon quand la commande est complétée ──
+  const cancelAbandonmentEmail = () => {
+    const emailId = sessionStorage.getItem(ABANDONMENT_EMAIL_KEY);
+    if (!emailId) return;
+    sessionStorage.removeItem(ABANDONMENT_EMAIL_KEY);
+    supabase.functions.invoke("checkout-abandonment-track", {
+      body: { action: "cancel", email_id: emailId },
+    }).catch(() => {}); // fire and forget
+  };
+
+  // ── Abandon de panier — déclenche email de récupération après 60 min ──
+  useEffect(() => {
+    // Conditions : step 4+ (options), email connu, services sélectionnés, pas encore tracké
+    if (step < 4 || !email || selectedServices.length === 0 || abandonmentTrackedRef.current) return;
+    abandonmentTrackedRef.current = true;
+
+    const track = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("checkout-abandonment-track", {
+          body: {
+            action: "start",
+            email: email.trim().toLowerCase(),
+            first_name: firstName.trim() || "Client",
+            last_name: lastName.trim(),
+            services: selectedServices.map(s => ({ name: s.name, price: s.price })),
+            session_id: clientRequestIdRef.current,
+          },
+        });
+        if (data?.email_id) {
+          sessionStorage.setItem(ABANDONMENT_EMAIL_KEY, data.email_id);
+        }
+      } catch (e) {
+        console.warn("[GuestCheckout] abandonment track failed (non-fatal):", e);
+      }
+    };
+    track();
+  }, [step, email, selectedServices.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Data hooks ──
   const { data: services, isLoading: servicesLoading } = usePublicServices({ surface: "checkout" });
@@ -607,6 +647,7 @@ const GuestCheckout = () => {
           isNewAccount: false,
           paymentOnly: true,
         });
+        cancelAbandonmentEmail();
         setStep(6);
         sessionStorage.removeItem("nivra_pending_payment");
         toast.success("Paiement confirmé ! Notre équipe va compléter votre commande sous peu.");
@@ -1016,6 +1057,7 @@ const GuestCheckout = () => {
         }
       }
 
+      cancelAbandonmentEmail();
       setOrderResult({
         orderNumber: response.order_number,
         orderId: response.order_id,
