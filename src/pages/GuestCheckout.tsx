@@ -118,6 +118,13 @@ const GuestCheckout = () => {
   const [phone, setPhone] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
 
+  // ── Port-in (conservation du numéro) ──
+  const [wantsPortIn, setWantsPortIn] = useState(false);
+  const [portInNumber, setPortInNumber] = useState("");
+  const [portInCarrier, setPortInCarrier] = useState("Rogers");
+  const [portInAccountNumber, setPortInAccountNumber] = useState("");
+  const [portInPin, setPortInPin] = useState("");
+
   // ── Options ──
   const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>("auto");
   const [selectedDate, setSelectedDate] = useState("");
@@ -198,6 +205,10 @@ const GuestCheckout = () => {
       if (s.selectedDate)      setSelectedDate(s.selectedDate);
       if (s.selectedTime)      setSelectedTime(s.selectedTime);
       if (s.notes)             setNotes(s.notes);
+      if (s.wantsPortIn)        setWantsPortIn(s.wantsPortIn);
+      if (s.portInNumber)      setPortInNumber(s.portInNumber);
+      if (s.portInCarrier)     setPortInCarrier(s.portInCarrier);
+      if (s.portInAccountNumber) setPortInAccountNumber(s.portInAccountNumber);
       if (s.paypalCaptureId)   { setPaypalCaptureId(s.paypalCaptureId); setPaymentComplete(true); }
     } catch {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -212,12 +223,15 @@ const GuestCheckout = () => {
         addressStreet, addressApartment, addressCity, addressProvince, addressPostalCode,
         firstName, lastName, email, phone, dateOfBirth,
         installationChoice, selectedDate, selectedTime, notes,
+        wantsPortIn, portInNumber, portInCarrier, portInAccountNumber,
         paypalCaptureId, paymentComplete,
       }));
     } catch {}
   }, [step, selectedServices, addressStreet, addressApartment, addressCity, addressProvince,
       addressPostalCode, firstName, lastName, email, phone, dateOfBirth,
-      installationChoice, selectedDate, selectedTime, notes, paypalCaptureId, paymentComplete]);
+      installationChoice, selectedDate, selectedTime, notes,
+      wantsPortIn, portInNumber, portInCarrier, portInAccountNumber,
+      paypalCaptureId, paymentComplete]);
 
   // ── Annuler l'email d'abandon quand la commande est complétée ──
   const cancelAbandonmentEmail = () => {
@@ -792,6 +806,15 @@ const GuestCheckout = () => {
         account_id: accountId,
         // sim_type is passed as additional metadata for fulfillment routing (physical vs eSIM).
         ...(hasMobileService ? { sim_type: simType } as any : {}),
+        // Port-in: conservation du numéro existant
+        port_request: hasMobileService && wantsPortIn && portInNumber ? {
+          port_in: true,
+          phone_number: portInNumber.trim(),
+          carrier: portInCarrier || null,
+          account_number: portInAccountNumber.trim() || null,
+          service_account: portInPin.trim() || null,
+          imei: null,
+        } : null,
         referral: appliedReferral ? {
           code: appliedReferral.code,
           type: appliedReferral.type,
@@ -1448,6 +1471,92 @@ const GuestCheckout = () => {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* ── Port-in : conservation du numéro ── */}
+                {hasMobileService && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Phone className="w-5 h-5 text-primary" />
+                        Voulez-vous conserver votre numéro actuel ?
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setWantsPortIn(false)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${!wantsPortIn ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
+                        >
+                          <p className="font-semibold text-sm">Nouveau numéro</p>
+                          <p className="text-xs text-muted-foreground mt-1">Un numéro Nivra vous sera assigné</p>
+                          {!wantsPortIn && <p className="text-xs text-primary font-medium mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> Sélectionné</p>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWantsPortIn(true)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${wantsPortIn ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
+                        >
+                          <p className="font-semibold text-sm">Garder mon numéro</p>
+                          <p className="text-xs text-muted-foreground mt-1">Transférer depuis votre opérateur actuel</p>
+                          {wantsPortIn && <p className="text-xs text-primary font-medium mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> Sélectionné</p>}
+                        </button>
+                      </div>
+
+                      {wantsPortIn && (
+                        <div className="space-y-3 pt-1">
+                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            Ayez votre contrat ou votre facture de votre opérateur actuel sous la main — vous aurez besoin de votre numéro de compte.
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium mb-1.5 block">Numéro à transférer <span className="text-destructive">*</span></Label>
+                            <Input
+                              value={portInNumber}
+                              onChange={e => setPortInNumber(e.target.value)}
+                              placeholder="514 555-1234"
+                              className="h-11"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium mb-1.5 block">Opérateur actuel <span className="text-destructive">*</span></Label>
+                            <select
+                              value={portInCarrier}
+                              onChange={e => setPortInCarrier(e.target.value)}
+                              className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                              {["Rogers", "Bell", "Telus", "Fido", "Koodo", "Vidéotron", "Fizz", "Public Mobile", "Autre"].map(c => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium mb-1.5 block">Numéro de compte chez l'opérateur actuel <span className="text-destructive">*</span></Label>
+                            <Input
+                              value={portInAccountNumber}
+                              onChange={e => setPortInAccountNumber(e.target.value)}
+                              placeholder="Ex: 12345678"
+                              className="h-11"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium mb-1.5 block">NIP / PIN de transfert <span className="text-muted-foreground font-normal">(si requis par votre opérateur)</span></Label>
+                            <Input
+                              value={portInPin}
+                              onChange={e => setPortInPin(e.target.value)}
+                              placeholder="4 chiffres"
+                              maxLength={8}
+                              className="h-11"
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Le transfert de numéro prend généralement 1-3 jours ouvrables. Votre service actuel reste actif jusqu'à la complétion du transfert.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
                   <Card className="bg-emerald-500/10 border-emerald-500/30">
                     <CardContent className="py-4">
