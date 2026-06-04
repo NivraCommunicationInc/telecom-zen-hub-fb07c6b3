@@ -18,6 +18,9 @@ type DisplayPlan = {
   link: string;
   recommended: boolean;
   icon: typeof Wifi;
+  planType: "internet" | "tv_combo";
+  choices?: number;
+  totalChannels?: number;
 };
 
 const HOMEPAGE_PLAN_SPECS: Array<{
@@ -30,17 +33,16 @@ const HOMEPAGE_PLAN_SPECS: Array<{
   link: string;
   recommended: boolean;
   icon: typeof Wifi;
+  planType: "internet" | "tv_combo";
+  choices?: number;
+  totalChannels?: number;
 }> = [
   {
     matchName: "internet giga",
     tagline: "Internet pur",
-    speed: "1 010 Mbps",
-    features: [
-      "Téléchargement jusqu'à 1 010 Mbps",
-      "Données illimitées",
-      "Support VIP 7j/7",
-      "Ultra-faible latence",
-    ],
+    speed: "940",
+    planType: "internet",
+    features: [],
     equipmentLabel: "Borne Nivra WiFi",
     equipmentPrice: 60,
     link: "/internet",
@@ -50,14 +52,11 @@ const HOMEPAGE_PLAN_SPECS: Array<{
   {
     matchName: "internet giga + télé 15 choix",
     tagline: "Le plus populaire",
-    speed: "GIGA 940 Mbit/s + Télé",
-    features: [
-      "Internet GIGA 940 Mbit/s inclus",
-      "24 chaînes La Base",
-      "15 choix Populaires et Sportives",
-      "39 chaînes au total",
-      "Prix à vie garanti",
-    ],
+    speed: "GIGA 940 Mbit/s",
+    planType: "tv_combo",
+    choices: 15,
+    totalChannels: 39,
+    features: [],
     equipmentLabel: "Borne + Terminal TV",
     equipmentPrice: 110,
     link: "/tv",
@@ -67,14 +66,11 @@ const HOMEPAGE_PLAN_SPECS: Array<{
   {
     matchName: "internet giga + télé 25 choix",
     tagline: "Combo plus",
-    speed: "GIGA 940 Mbit/s + Télé+",
-    features: [
-      "Internet GIGA 940 Mbit/s inclus",
-      "24 chaînes La Base",
-      "25 choix Populaires et Sportives",
-      "49 chaînes au total",
-      "Prix à vie garanti",
-    ],
+    speed: "GIGA 940 Mbit/s",
+    planType: "tv_combo",
+    choices: 25,
+    totalChannels: 49,
+    features: [],
     equipmentLabel: "Borne + Terminal TV",
     equipmentPrice: 110,
     link: "/tv",
@@ -110,6 +106,9 @@ const HomePricing = () => {
         link: spec.link,
         recommended: spec.recommended,
         icon: spec.icon,
+        planType: spec.planType,
+        choices: spec.choices,
+        totalChannels: spec.totalChannels,
       } satisfies DisplayPlan;
     }).filter((p): p is DisplayPlan => p !== null);
   }, [services]);
@@ -158,7 +157,11 @@ const HomePricing = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch max-w-[1080px] mx-auto mb-10">
           {plans.map((plan) => {
             const isRec = plan.recommended;
-            const Icon = plan.icon;
+            const isTV = plan.planType === "tv_combo";
+            const baseExamples = isFr
+              ? ['TVA', 'ICI Radio-Canada', 'Noovo', 'Télé-Québec', 'CTV Montréal']
+              : ['TVA', 'ICI Radio-Canada', 'Noovo', 'Télé-Québec', 'CTV Montreal'];
+
             return (
               <Link
                 key={plan.id}
@@ -166,92 +169,166 @@ const HomePricing = () => {
                 className="group relative flex flex-col transition-all duration-300 hover:-translate-y-1.5"
                 style={{
                   background: isRec
-                    ? 'linear-gradient(180deg, #16111F 0%, #0A0A0F 100%)'
+                    ? 'linear-gradient(180deg, rgba(124,58,237,0.22) 0%, rgba(10,10,15,1) 100%)'
                     : 'rgba(255,255,255,0.04)',
-                  border: isRec ? '1px solid rgba(124,58,237,0.4)' : '1px solid rgba(255,255,255,0.09)',
+                  border: isRec ? '1px solid rgba(124,58,237,0.45)' : '1px solid rgba(255,255,255,0.09)',
                   borderRadius: 24,
                   boxShadow: isRec
                     ? '0 24px 60px -20px rgba(124,58,237,0.55), 0 4px 12px rgba(0,0,0,0.08)'
                     : '0 2px 16px rgba(0,0,0,0.3)',
                   color: '#FFFFFF',
                   overflow: 'hidden',
+                  textDecoration: 'none',
                 }}
               >
-                {/* Recommended ribbon */}
-                {isRec && (
-                  <>
-                    <div aria-hidden className="absolute pointer-events-none" style={{ top: -120, right: -80, width: 280, height: 280, background: 'radial-gradient(circle, rgba(124,58,237,0.45) 0%, transparent 65%)', filter: 'blur(8px)' }} />
-                    <div className="absolute top-5 right-5">
+                {/* PRIX À VIE banner */}
+                <div style={{ position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+                  <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{
+                    background: isRec
+                      ? 'linear-gradient(90deg, #7C3AED, #6D28D9)'
+                      : 'linear-gradient(90deg, rgba(124,58,237,0.55), rgba(109,40,217,0.55))',
+                    color: '#FFFFFF', padding: '9px 0', fontSize: 10, letterSpacing: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+                    {isFr ? 'PRIX À VIE GARANTI' : 'PRICE LOCKED FOR LIFE'}
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+                  </div>
+                  <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)', animation: 'n-beam-h 4s ease-in-out infinite' }} />
+                </div>
+
+                <div className="relative flex flex-col flex-1 p-5 sm:p-6">
+                  {/* Popular badge */}
+                  {isRec && (
+                    <div className="absolute top-4 right-4">
                       <span className="inline-flex items-center px-2.5 py-1 uppercase font-bold" style={{ background: '#7C3AED', color: '#fff', fontSize: 9.5, letterSpacing: 1.2, borderRadius: 999 }}>
                         ★ {isFr ? 'Populaire' : 'Popular'}
                       </span>
                     </div>
-                  </>
-                )}
+                  )}
 
-                <div className="relative flex flex-col h-full p-7 sm:p-7">
-                  {/* Icon */}
-                  <div className="mb-5 flex items-center justify-center" style={{
-                    width: 44, height: 44, borderRadius: 14,
-                    background: 'rgba(124,58,237,0.18)',
-                    border: '1px solid rgba(124,58,237,0.3)',
-                  }}>
-                    <Icon className="w-5 h-5" style={{ color: isRec ? '#C4A8FF' : '#7C3AED' }} strokeWidth={2.2} />
-                  </div>
-
-                  {/* Tagline */}
-                  <p className="uppercase font-bold mb-1.5" style={{ color: isRec ? '#C4A8FF' : '#7C3AED', fontSize: 10.5, letterSpacing: 1.4 }}>
+                  {/* Tagline + Name */}
+                  <p className="uppercase font-bold mb-1" style={{ color: isRec ? '#C4A8FF' : '#7C3AED', fontSize: 10, letterSpacing: 1.4, fontFamily: "'JetBrains Mono', monospace" }}>
                     {plan.tagline}
                   </p>
-
-                  {/* Name */}
-                  <h3 className="font-bold mb-1" style={{ fontSize: 22, letterSpacing: '-0.5px', lineHeight: 1.15 }}>
+                  <h3 className="font-bold mb-4" style={{ fontSize: 18, letterSpacing: '-0.4px', lineHeight: 1.2 }}>
                     {plan.name}
                   </h3>
-                  <p className="mb-6" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>
-                    {plan.speed}
-                  </p>
 
-                  {/* Price */}
-                  <div className="mb-6 flex items-baseline gap-0.5">
-                    <span style={{ fontSize: 22, fontWeight: 600, marginRight: 2, color: 'rgba(255,255,255,0.7)' }}>$</span>
-                    <span className="font-bold leading-none" style={{ fontSize: 56, letterSpacing: '-2.5px' }}>
-                      {plan.price.toFixed(0)}
-                    </span>
-                    <span className="ml-1.5" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, fontWeight: 500 }}>/mois</span>
+                  {/* ── TV section (combos only) ── */}
+                  {isTV && (
+                    <div style={{ background: 'rgba(124,58,237,0.09)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
+                      <div className="flex items-center gap-1.5" style={{ marginBottom: 8 }}>
+                        <Tv className="w-3 h-3 flex-shrink-0" style={{ color: '#A78BFA' }} />
+                        <span style={{ color: '#A78BFA', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+                          {isFr ? 'TÉLÉ' : 'TV'}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-1.5" style={{ marginBottom: 6 }}>
+                        <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1, color: '#fff' }}>{plan.totalChannels}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{isFr ? 'chaînes' : 'channels'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 8 }}>
+                        <span style={{ background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 999, padding: '2px 8px', fontSize: 11, color: '#C4B5FD', fontWeight: 600 }}>
+                          24 {isFr ? 'La Base' : 'Base'}
+                        </span>
+                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 700 }}>+</span>
+                        <span style={{ background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 999, padding: '2px 8px', fontSize: 11, color: '#6EE7B7', fontWeight: 600 }}>
+                          {plan.choices} {isFr ? 'au choix' : 'of your choice'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {baseExamples.map(ch => (
+                          <span key={ch} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 5, padding: '1px 6px', fontSize: 10, color: 'rgba(255,255,255,0.45)', fontFamily: "'JetBrains Mono', monospace" }}>{ch}</span>
+                        ))}
+                        <span style={{ fontSize: 10, color: 'rgba(110,231,183,0.6)', padding: '1px 4px', fontFamily: "'JetBrains Mono', monospace" }}>+{plan.choices} {isFr ? 'choix' : 'choice'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Internet / Vitesse section ── */}
+                  <div style={{ background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+                    <div className="flex items-center gap-1.5" style={{ marginBottom: 8 }}>
+                      <Wifi className="w-3 h-3 flex-shrink-0" style={{ color: '#67E8F9' }} />
+                      <span style={{ color: '#67E8F9', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+                        INTERNET
+                      </span>
+                    </div>
+                    {!isTV ? (
+                      <>
+                        <div className="flex items-baseline gap-1.5" style={{ marginBottom: 8 }}>
+                          <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: '-2.5px', lineHeight: 1, color: '#fff' }}>{plan.speed}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{isFr ? 'Mbit/s illimité' : 'Mbit/s unlimited'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          {[
+                            isFr ? `Vitesse de téléchargement jusqu'à ${plan.speed} Mbit/s` : `Download speed up to ${plan.speed} Mbit/s`,
+                            isFr ? 'Données incluses illimitées' : 'Unlimited data included',
+                            isFr ? 'Ultra-faible latence · CGNAT-Free' : 'Ultra-low latency · CGNAT-Free',
+                          ].map((line, i) => (
+                            <div key={i} className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                              <Check className="w-2.5 h-2.5 flex-shrink-0" strokeWidth={3} style={{ color: '#67E8F9' }} />
+                              {line}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: 16, color: '#fff', letterSpacing: '-0.3px' }}>GIGA 940 Mbit/s</p>
+                          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11.5, marginTop: 2 }}>{isFr ? 'Données illimitées incluses' : 'Unlimited data included'}</p>
+                        </div>
+                        <Zap className="w-4 h-4 flex-shrink-0" style={{ color: '#F59E0B' }} />
+                      </div>
+                    )}
                   </div>
 
-                  {/* Divider */}
-                  <div className="w-full mb-5" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                  {/* Price */}
+                  <div style={{ marginBottom: 4 }}>
+                    <div className="flex items-baseline gap-0.5">
+                      <span style={{ fontSize: 20, fontWeight: 600, marginRight: 1, color: 'rgba(255,255,255,0.7)' }}>$</span>
+                      <span className="font-bold leading-none" style={{ fontSize: 50, letterSpacing: '-2.5px' }}>
+                        {plan.price.toFixed(0)}
+                      </span>
+                      <span className="ml-1" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, fontWeight: 500 }}>/mois</span>
+                    </div>
+                    <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1, marginTop: 3 }}>
+                      {isFr ? 'TAXES INCLUSES · PRIX À VIE' : 'TAX INCLUDED · PRICE FOR LIFE'}
+                    </p>
+                  </div>
 
-                  {/* Features */}
-                  <ul className="space-y-2.5 mb-6 flex-1">
-                    {plan.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
-                        <div className="shrink-0 flex items-center justify-center mt-0.5" style={{
-                          width: 16, height: 16, borderRadius: 999,
-                          background: 'rgba(124,58,237,0.22)',
-                        }}>
-                          <Check className="w-2.5 h-2.5" strokeWidth={3.5} style={{ color: isRec ? '#C4A8FF' : '#7C3AED' }} />
+                  <div className="w-full" style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '14px 0' }} />
+
+                  {/* Key points */}
+                  <div className="flex flex-col gap-2 flex-1" style={{ marginBottom: 14 }}>
+                    {[
+                      isFr ? 'Aucun contrat — annulation libre' : 'No contract — cancel anytime',
+                      isFr ? 'Prix à vie garanti — peut seulement diminuer' : 'Price locked for life — can only go down',
+                      isFr ? 'Aucune vérification de crédit' : 'No credit check',
+                    ].map((pt, i) => (
+                      <div key={i} className="flex items-start gap-2" style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)' }}>
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: 15, height: 15, borderRadius: 999, background: 'rgba(124,58,237,0.22)', marginTop: 1 }}>
+                          <Check className="w-2 h-2" strokeWidth={3.5} style={{ color: isRec ? '#C4A8FF' : '#7C3AED' }} />
                         </div>
-                        <span style={{ color: 'rgba(255,255,255,0.82)' }}>{f}</span>
-                      </li>
+                        {pt}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
 
                   {/* Equipment line */}
-                  <div className="flex items-center justify-between mb-5 px-3.5 py-2.5" style={{
+                  <div className="flex items-center justify-between mb-4 px-3 py-2.5" style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 12,
+                    borderRadius: 10,
                   }}>
                     <div className="flex flex-col">
-                      <span style={{ fontSize: 11, color: isRec ? 'rgba(255,255,255,0.5)' : '#888892', fontWeight: 500 }}>
+                      <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
                         {isFr ? 'Équipement requis' : 'Required equipment'}
                       </span>
-                      <span style={{ fontSize: 12.5, fontWeight: 600 }}>{plan.equipmentLabel}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{plan.equipmentLabel}</span>
                     </div>
-                    <span className="font-bold" style={{ fontSize: 14, color: isRec ? '#C4A8FF' : '#7C3AED' }}>
+                    <span className="font-bold" style={{ fontSize: 13, color: isRec ? '#C4A8FF' : '#7C3AED' }}>
                       +{plan.equipmentPrice}$
                     </span>
                   </div>
