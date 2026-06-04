@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     const { data: overdueOrders, error: queryError } = await admin
       .from("work_orders")
-      .select("id, status, created_at, technician_id")
+      .select("id, status, created_at, assigned_technician_id")
       .in("status", ["pending", "assigned"])
       .lt("created_at", cutoff.toISOString());
 

@@ -11,9 +11,9 @@ Deno.serve(async (req) => {
   const supabase = makeClient();
 
   const { data: contacts } = await supabase
-    .from("crm_contacts")
-    .select("id, email, call_status, created_at, source, notes, last_contact_at")
-    .not("call_status", "in", '("sold","disqualified","unsubscribed")')
+    .from("contact_requests")
+    .select("id, email, status, created_at, source, notes, last_contact_at")
+    .not("status", "in", '("sold","disqualified","unsubscribed")')
     .limit(500);
 
   let scored = 0;
@@ -27,9 +27,9 @@ Deno.serve(async (req) => {
     else if (c.source === "cold_call") score += 5;
 
     // Engagement
-    if (c.call_status === "interested") score += 25;
-    else if (c.call_status === "callback_scheduled") score += 35;
-    else if (c.call_status === "called") score += 10;
+    if (c.status === "interested") score += 25;
+    else if (c.status === "callback_scheduled") score += 35;
+    else if (c.status === "called") score += 10;
 
     // Recency (recent = higher score)
     if (ageDays <= 7) score += 20;
