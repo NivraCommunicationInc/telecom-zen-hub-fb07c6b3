@@ -55,32 +55,35 @@ declare global {
 // ── Inline card form using PayPal CardFields API ──
 const InlineCardForm = ({
   amount, invoiceId, orderId, description, customer, paymentNumber,
-  onSuccess, onError, onCancel, disabled,
+  onSuccess, onError, disabled,
 }: PayPalButtonProps) => {
   const [cardholderName, setCardholderName] = useState(
     [customer?.first_name, customer?.last_name].filter(Boolean).join(" ")
   );
+  // Billing address — pre-filled from customer's service address
+  const [billingPostal, setBillingPostal] = useState(customer?.address?.postal_code || "");
+  const [billingAddress, setBillingAddress] = useState(customer?.address?.address_line_1 || "");
+  const [billingCity, setBillingCity]       = useState(customer?.address?.admin_area_2 || "");
+
   const [submitting, setSubmitting] = useState(false);
   const [fieldsReady, setFieldsReady] = useState(false);
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [fieldError, setFieldError]   = useState<string | null>(null);
   const cardFieldsRef = useRef<any>(null);
-  const numberId  = `cf-number-${orderId || invoiceId || "main"}`;
-  const expiryId  = `cf-expiry-${orderId || invoiceId || "main"}`;
-  const cvvId     = `cf-cvv-${orderId || invoiceId || "main"}`;
-  const mountedRef = useRef(false);
-  const inFlightRef = useRef(false);
+  const mountedRef    = useRef(false);
+  // Separate ref for capture — onApprove must NOT be gated by the submit flag
+  const capturedRef   = useRef(false);
+  const timeoutRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const uid = orderId || invoiceId || "main";
+  const numberId = `cf-number-${uid}`;
+  const expiryId = `cf-expiry-${uid}`;
+  const cvvId    = `cf-cvv-${uid}`;
 
   const normalizedAmount = useMemo(() => Math.round(amount * 100) / 100, [amount]);
 
   const createPayPalOrder = async () => {
     const { data, error } = await supabase.functions.invoke("paypal-create-order", {
-      body: {
-        amount: normalizedAmount,
-        invoice_id: invoiceId,
-        order_id: orderId,
-        description: description || "Paiement Nivra Telecom",
-        customer,
-      },
+      body: { amount: normalizedAmount, invoice_id: invoiceId, order_id: orderId, description: description || "Paiement Nivra Telecom", customer },
     });
     if (error) throw error;
     if (!data?.paypal_order_id) throw new Error("Aucun ID de commande PayPal retourné");
@@ -97,14 +100,11 @@ const InlineCardForm = ({
   };
 
   useEffect(() => {
-    if (mountedRef.current) return;
-    if (!window.paypal?.CardFields) return;
-
+    if (mountedRef.current || !window.paypal?.CardFields) return;
     mountedRef.current = true;
-    let fields: any;
 
     try {
-      fields = window.paypal.CardFields({
+      const fields = window.paypal.CardFields({
         createOrder: async () => {
           try { return await createPayPalOrder(); }
           catch (err: any) {
@@ -113,9 +113,11 @@ const InlineCardForm = ({
             throw err;
           }
         },
+        // onApprove fires AFTER PayPal processes the card — never gated by submit flag
         onApprove: async (data: { orderID: string }) => {
-          if (inFlightRef.current) return;
-          inFlightRef.current = true;
+          if (capturedRef.current) return;
+          capturedRef.current = true;
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
           setSubmitting(true);
           setFieldError(null);
           try {
@@ -127,76 +129,93 @@ const InlineCardForm = ({
             const msg = await getInvokeErrorMessage(err);
             setFieldError(msg);
             onError?.(msg);
-          } finally {
-            inFlightRef.current = false;
+            capturedRef.current = false;
             setSubmitting(false);
           }
         },
         onError: async (err: any) => {
-          const msg = await getInvokeErrorMessage(err).catch(() => "Erreur de paiement");
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          const msg = await getInvokeErrorMessage(err).catch(() => "Erreur de paiement PayPal");
           setFieldError(msg);
           onError?.(msg);
+          setSubmitting(false);
         },
         style: {
           input: {
             "font-size": "15px",
             "font-family": "Inter, system-ui, sans-serif",
-            color: "#ffffff",
+            color: "#111827",        // texte foncé — lisible sur fond blanc des iframes PayPal
+            "background-color": "transparent",
             padding: "0 12px",
           },
-          ".invalid": { color: "#f87171" },
-          ":focus": { color: "#ffffff" },
+          ".invalid": { color: "#dc2626" },
+          ":focus":   { color: "#111827" },
+          "::placeholder": { color: "#9ca3af" },
         },
       });
 
       if (fields.isEligible()) {
         cardFieldsRef.current = fields;
         fields.NumberField({ placeholder: "1234 5678 9012 3456" }).render(`#${numberId}`);
-        fields.ExpiryField({ placeholder: "MM/AA" }).render(`#${expiryId}`);
-        fields.CVVField({ placeholder: "123" }).render(`#${cvvId}`);
+        fields.ExpiryField({ placeholder: "MM/AA"              }).render(`#${expiryId}`);
+        fields.CVVField   ({ placeholder: "123"                }).render(`#${cvvId}`);
         setFieldsReady(true);
       } else {
-        setFieldError("Paiement par carte non disponible dans votre région.");
+        setFieldError("Paiement par carte non disponible. Utilisez le bouton PayPal ci-dessous.");
       }
     } catch (err) {
       console.error("[PayPalCardFields] init error:", err);
+      setFieldError("Impossible de charger le formulaire de carte.");
     }
-
-    return () => { /* PayPal fields don't have a destroy method */ };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inFlightRef.current || submitting || !cardFieldsRef.current) return;
+    if (submitting || !cardFieldsRef.current || capturedRef.current) return;
     if (!cardholderName.trim()) { setFieldError("Entrez le nom sur la carte"); return; }
-    if (normalizedAmount <= 0) { setFieldError("Montant invalide"); return; }
+    if (!billingPostal.trim())  { setFieldError("Entrez le code postal de facturation"); return; }
+    if (normalizedAmount <= 0)  { setFieldError("Montant invalide"); return; }
+
     setFieldError(null);
     setSubmitting(true);
-    inFlightRef.current = true;
+
+    // Timeout de sécurité — si PayPal ne répond pas en 90s
+    timeoutRef.current = setTimeout(() => {
+      setFieldError("Le paiement prend trop de temps. Veuillez réessayer.");
+      setSubmitting(false);
+    }, 90_000);
+
     try {
-      await cardFieldsRef.current.submit({ cardholderName: cardholderName.trim() });
+      await cardFieldsRef.current.submit({
+        cardholderName: cardholderName.trim(),
+        billingAddress: {
+          addressLine1: billingAddress.trim() || customer?.address?.address_line_1 || "",
+          adminArea2:   billingCity.trim()    || customer?.address?.admin_area_2   || "",
+          adminArea1:   customer?.address?.admin_area_1 || "QC",
+          postalCode:   billingPostal.replace(/\s/g, "").toUpperCase(),
+          countryCode:  "CA",
+        },
+      });
+      // submit() résolu = PayPal a déclenché onApprove ou onError
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (!capturedRef.current) setSubmitting(false); // onApprove n'a pas encore répondu
     } catch (err: any) {
-      const msg = await getInvokeErrorMessage(err).catch(() => "Paiement refusé. Vérifiez vos informations.");
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      const msg = await getInvokeErrorMessage(err).catch(() => "Carte refusée. Vérifiez vos informations.");
       setFieldError(msg);
       onError?.(msg);
       setSubmitting(false);
-      inFlightRef.current = false;
     }
   };
 
-  const fieldStyle: React.CSSProperties = {
-    height: 44,
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: 8,
-    background: 'rgba(255,255,255,0.06)',
-    padding: 0,
-    width: '100%',
-    boxSizing: 'border-box' as const,
+  const iframeStyle: React.CSSProperties = {
+    height: 44, border: '1px solid #d1d5db', borderRadius: 8,
+    background: '#ffffff', width: '100%', boxSizing: 'border-box' as const,
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Amount display */}
+      {/* Montant */}
       <div className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ background: 'rgba(124,58,237,0.08)', borderColor: 'rgba(124,58,237,0.25)' }}>
         <div className="flex items-center gap-2">
           <CreditCard className="w-4 h-4 text-primary" />
@@ -207,61 +226,69 @@ const InlineCardForm = ({
         </span>
       </div>
 
-      {/* Card fields */}
+      {/* Champs carte */}
       <div className="space-y-3">
-        {/* Cardholder name */}
         <div>
           <Label className="text-xs font-medium mb-1.5 block">Nom sur la carte</Label>
-          <Input
-            value={cardholderName}
-            onChange={e => setCardholderName(e.target.value)}
-            placeholder="Jean Tremblay"
-            disabled={submitting}
-            className="h-11"
-          />
+          <Input value={cardholderName} onChange={e => setCardholderName(e.target.value)}
+            placeholder="Jean Tremblay" disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
         </div>
-
-        {/* Card number */}
         <div>
           <Label className="text-xs font-medium mb-1.5 block">Numéro de carte</Label>
-          <div id={numberId} style={fieldStyle} />
+          <div id={numberId} style={iframeStyle} />
         </div>
-
         <div className="grid grid-cols-2 gap-3">
-          {/* Expiry */}
           <div>
             <Label className="text-xs font-medium mb-1.5 block">Date d'expiration</Label>
-            <div id={expiryId} style={fieldStyle} />
+            <div id={expiryId} style={iframeStyle} />
           </div>
-          {/* CVV */}
           <div>
             <Label className="text-xs font-medium mb-1.5 block">CVV</Label>
-            <div id={cvvId} style={fieldStyle} />
+            <div id={cvvId} style={iframeStyle} />
           </div>
         </div>
       </div>
 
-      {/* Error */}
+      {/* Adresse de facturation */}
+      <div className="space-y-3 pt-1">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Adresse de facturation</p>
+        <div>
+          <Label className="text-xs font-medium mb-1.5 block">Adresse</Label>
+          <Input value={billingAddress} onChange={e => setBillingAddress(e.target.value)}
+            placeholder="123 rue Principale" disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs font-medium mb-1.5 block">Ville</Label>
+            <Input value={billingCity} onChange={e => setBillingCity(e.target.value)}
+              placeholder="Montréal" disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1.5 block">Code postal <span className="text-red-500">*</span></Label>
+            <Input value={billingPostal} onChange={e => setBillingPostal(e.target.value.toUpperCase())}
+              placeholder="H1A 1A1" maxLength={7} disabled={submitting} className="h-11 bg-white text-gray-900 border-gray-300" />
+          </div>
+        </div>
+      </div>
+
+      {/* Erreur */}
       {fieldError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {fieldError}
-          <button type="button" onClick={() => setFieldError(null)} className="ml-2 underline text-xs">Fermer</button>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start justify-between gap-2">
+          <span>{fieldError}</span>
+          <button type="button" onClick={() => setFieldError(null)} className="underline text-xs shrink-0">Fermer</button>
         </div>
       )}
 
       {!fieldsReady && !fieldError && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Chargement du formulaire de paiement sécurisé…
+          Chargement du formulaire sécurisé…
         </div>
       )}
 
-      {/* Submit */}
-      <Button
-        type="submit"
-        className="w-full h-12 text-base font-bold"
-        disabled={disabled || submitting || !fieldsReady || normalizedAmount <= 0}
-      >
+      {/* Bouton soumettre */}
+      <Button type="submit" className="w-full h-12 text-base font-bold"
+        disabled={disabled || submitting || !fieldsReady || normalizedAmount <= 0}>
         {submitting
           ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Traitement en cours…</>
           : <><Lock className="w-4 h-4 mr-2" />Payer {normalizedAmount > 0 ? `${normalizedAmount.toFixed(2)} $` : ""} maintenant</>
@@ -269,7 +296,7 @@ const InlineCardForm = ({
       </Button>
 
       <p className="text-center text-xs text-muted-foreground">
-        🔒 Paiement sécurisé par PayPal · Vos données bancaires ne sont jamais partagées
+        Paiement sécurisé par PayPal · Vos données bancaires ne sont jamais stockées sur notre site
       </p>
     </form>
   );
