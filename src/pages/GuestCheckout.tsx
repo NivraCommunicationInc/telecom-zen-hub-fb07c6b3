@@ -176,8 +176,6 @@ const GuestCheckout = () => {
   // ── Restaurer le state depuis sessionStorage au montage ──
   useEffect(() => {
     try {
-      // Si URL a un plan param, laisser le useEffect URL-param gérer les services
-      if (searchParams.get("plan")) return;
       const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
       if (!raw) return;
       const s = JSON.parse(raw);
