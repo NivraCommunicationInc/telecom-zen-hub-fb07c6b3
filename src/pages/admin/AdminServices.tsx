@@ -100,12 +100,11 @@ const officialCatalogue = [
     name: "Internet Résidentiel 100 Mbps",
     category: "Internet",
     price: 55,
-    description: "Download up to 100 Mbps, Unlimited data, Nivra Born Wifi Router included, 7/7 tech support",
+    description: "Download up to 100 Mbps, Unlimited data, 7/7 tech support",
     billing_type: "monthly",
     plan_details: {
       speed: "100 Mbps download",
       data: "Unlimited",
-      router: "Nivra Born Wifi Router included",
       support: "7/7 technical support",
       features: ["Unlimited data", "No contract required", "Free installation (eligible areas)"]
     }
@@ -119,7 +118,6 @@ const officialCatalogue = [
     plan_details: {
       speed: "500 Mbps download",
       data: "Unlimited",
-      router: "Nivra Born Wifi Router included",
       support: "Priority support",
       features: ["4K streaming optimized", "Unlimited data", "No contract required", "Free installation (eligible areas)"]
     }
@@ -133,7 +131,6 @@ const officialCatalogue = [
     plan_details: {
       speed: "940 Mbps download (GIGA Speed)",
       data: "Unlimited",
-      router: "Nivra Born Wifi Router included",
       support: "VIP support",
       features: ["Ultra-low latency", "Unlimited data", "No contract required", "Free installation (eligible areas)", "Ideal for gaming & streaming"]
     }
@@ -149,7 +146,7 @@ const officialCatalogue = [
       internet: "100 Mbps download",
       channels: 26,
       channel_type: "General channels",
-      features: ["Unlimited data", "Nivra Born Wifi Router included", "7/7 support"]
+      features: ["Unlimited data", "7/7 support"]
     }
   },
   {
@@ -163,7 +160,7 @@ const officialCatalogue = [
       channels: 32,
       channel_type: "Popular channels",
       picker: "5 channels picker",
-      features: ["Unlimited data", "Nivra Born Wifi Router included", "Priority support"]
+      features: ["Unlimited data", "Priority support"]
     }
   },
   {
@@ -177,7 +174,7 @@ const officialCatalogue = [
       channels: 37,
       channel_type: "Popular + sports channels",
       picker: "10 channels picker",
-      features: ["Unlimited data", "Nivra Born Wifi Router included", "Priority support"]
+      features: ["Unlimited data", "Priority support"]
     }
   },
   {
@@ -191,7 +188,7 @@ const officialCatalogue = [
       channels: 42,
       channel_type: "Popular + sports channels",
       picker: "15 channels picker",
-      features: ["Unlimited data", "Nivra Born Wifi Router included", "Priority support"]
+      features: ["Unlimited data", "Priority support"]
     }
   },
   {
@@ -205,7 +202,7 @@ const officialCatalogue = [
       channels: 52,
       channel_type: "Popular + sports channels",
       picker: "25 channels picker",
-      features: ["Unlimited data", "Nivra Born Wifi Router included", "VIP support"]
+      features: ["Unlimited data", "VIP support"]
     }
   },
   // GIGA Bundles
@@ -219,7 +216,7 @@ const officialCatalogue = [
       internet: "940 Mbps download (GIGA Speed)",
       channels: 26,
       channel_type: "General channels",
-      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
     }
   },
   {
@@ -233,7 +230,7 @@ const officialCatalogue = [
       channels: 32,
       channel_type: "Popular channels",
       picker: "5 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
     }
   },
   {
@@ -247,7 +244,7 @@ const officialCatalogue = [
       channels: 37,
       channel_type: "Popular + sports channels",
       picker: "10 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
     }
   },
   {
@@ -261,7 +258,7 @@ const officialCatalogue = [
       channels: 42,
       channel_type: "Popular + sports channels",
       picker: "15 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
     }
   },
   {
@@ -275,7 +272,7 @@ const officialCatalogue = [
       channels: 52,
       channel_type: "Popular + sports channels",
       picker: "25 channels picker",
-      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+      features: ["Unlimited data", "Ultra-low latency", "VIP support"]
     }
   },
   // Mobile Plans

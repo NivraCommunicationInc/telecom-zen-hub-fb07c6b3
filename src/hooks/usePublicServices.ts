@@ -239,7 +239,6 @@ export function useInternetPlans(isFrench: boolean) {
     const fallbackFeatures = [
       isFrench ? `Téléchargement jusqu'à ${speed}` : `Download up to ${speed}`,
       isFrench ? "Données illimitées" : "Unlimited data",
-      isFrench ? "Routeur Nivra Born Wifi inclus" : "Nivra Born Wifi router included",
       isGiga
         ? isFrench
           ? "Support technique VIP"
