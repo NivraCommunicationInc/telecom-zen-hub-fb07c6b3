@@ -13,6 +13,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShoppingCart, RefreshCw, Package, Trash2, ArrowRightLeft, DollarSign, Link2, ToggleLeft } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 
+/** Equipment array is a mix of equipment_inventory rows and equipment_order_lines rows. */
+function eqLabel(eq: any): string {
+  const name = eq?.catalog_name || eq?.item_name || "Équipement";
+  const serial =
+    eq?.serial_number ||
+    eq?.imei ||
+    eq?.mac_address ||
+    (Array.isArray(eq?.serial_numbers) ? eq.serial_numbers[0] : null) ||
+    eq?.sku ||
+    eq?.item_sku ||
+    "S/N inconnu";
+  return `${name} — S/N: ${serial}`;
+}
+/** Detect whether an equipment row came from equipment_inventory (has catalog_name) vs equipment_order_lines. */
+function isInventoryRow(eq: any): boolean {
+  return !!eq && typeof eq.catalog_name !== "undefined" && !Array.isArray(eq.serial_numbers);
+}
+
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
@@ -321,7 +339,7 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Ligne de commande</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eqLabel(eq)}</option>))}
             </select>
           </div>
           <div>
@@ -365,15 +383,61 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
 
 function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: any[]; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(equipment[0]?.id || "");
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
+  const selected = equipment.find((e: any) => e.id === selectedId);
 
   const handleRemove = async () => {
-    if (!selectedId) return;
+    if (!selectedId || !selected) return;
+    if (!reason.trim()) { toast.error("Raison du retrait requise"); return; }
     setLoading(true);
     try {
-      const { error } = await supabase.from("equipment_order_lines").delete().eq("id", selectedId);
-      if (error) throw error;
-      toast.success("Équipement retiré");
+      if (isInventoryRow(selected)) {
+        // Authoritative inventory row → release back to stock so it can be reassigned.
+        const { error, data } = await supabase
+          .from("equipment_inventory")
+          .update({
+            status: "in_stock",
+            account_id: null,
+            order_id: null,
+            subscription_id: null,
+            assigned_at: null,
+            deployed_at: null,
+          } as any)
+          .eq("id", selectedId)
+          .select("id");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Aucune ligne d'inventaire mise à jour (vérifiez vos permissions).");
+      } else {
+        // Snapshot row from equipment_order_lines → delete the line.
+        const { error, data } = await supabase
+          .from("equipment_order_lines")
+          .delete()
+          .eq("id", selectedId)
+          .select("id");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Aucune ligne de commande supprimée (vérifiez vos permissions).");
+      }
+
+      const user = (await supabase.auth.getUser()).data.user;
+      await supabase.from("activity_logs").insert({
+        user_id: user?.id || "system",
+        entity_type: "equipment",
+        entity_id: selectedId,
+        action: "equipment_removed",
+        reason: reason.trim(),
+        details: {
+          source: "account_360",
+          equipment_label: eqLabel(selected),
+          released_to_stock: isInventoryRow(selected),
+        },
+      });
+
+      toast.success(
+        isInventoryRow(selected)
+          ? "Équipement retiré du compte et remis en stock"
+          : "Équipement retiré du compte",
+      );
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -387,15 +451,28 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader><DialogTitle className="text-sm font-bold flex items-center gap-2 text-red-500"><Trash2 className="h-4 w-4" /> Retirer un équipement</DialogTitle></DialogHeader>
-        <div>
-          <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
-          <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-            {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
-          </select>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
+            <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eqLabel(eq)}</option>))}
+            </select>
+            {selected && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {isInventoryRow(selected)
+                  ? "Cet équipement sera remis dans l'inventaire libre (statut « in_stock ») et pourra être réassigné à un autre compte."
+                  : "Cette ligne de commande sera supprimée du compte."}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Raison (obligatoire)</label>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} className="text-[11px]" placeholder="Ex: Retour client, annulation, échange…" />
+          </div>
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          <button onClick={handleRemove} disabled={loading} className="rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40">{loading ? "…" : "Retirer"}</button>
+          <button onClick={handleRemove} disabled={loading || !reason.trim()} className="rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40">{loading ? "…" : "Retirer"}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -448,7 +525,7 @@ function ReplaceEquipmentModal({ equipment, onClose, onRefresh }: { equipment: a
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div>
@@ -530,7 +607,7 @@ function ExchangeEquipmentModal({ equipment, onClose, onRefresh }: { equipment: 
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement actuel</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -605,7 +682,7 @@ function ChangeStatusModal({ equipment, onClose, onRefresh }: { equipment: any[]
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div>
@@ -674,7 +751,7 @@ function ChargeReplacementModal({ equipment, clientId, onClose, onRefresh }: { e
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{it.item_name} — {it.item_sku || "N/A"}</option>))}
+              {equipment.map((it: any) => (<option key={it.id} value={it.id}>{eqLabel(it)}</option>))}
             </select>
           </div>
           <div>
