@@ -227,22 +227,6 @@ const GuestCheckout = () => {
     const planId = searchParams.get("plan");
     if (!planId) return;
 
-    // Forfait test interne — URL privée, jamais visible aux clients
-    if (planId === "TEST-NIVRA-1") {
-      if (!selectedServices.some(s => s.id === "TEST-NIVRA-1")) {
-        setSelectedServices([{
-          id: "TEST-NIVRA-1", sku: "TEST-NIVRA-1",
-          name: "Forfait Test Interne — 1 $",
-          description: "Forfait de validation de paiement — usage interne uniquement",
-          price: 1,
-          category: "Streaming", // Streaming = aucun frais (borne, livraison, activation)
-          plan_code: "TEST-NIVRA-1",
-        }]);
-        setStep(2);
-      }
-      return;
-    }
-
     if (services?.length) {
       const svc = services.find(s => s.id === planId || s.sku === planId);
       if (svc && !selectedServices.some(s => s.id === svc.id)) {
@@ -368,7 +352,6 @@ const GuestCheckout = () => {
   const SIM_PRICE = simPrice ?? 25;
   const ESIM_PRICE = SIM_PRICE; // Per nivra-telecom.ca/frais-possibles — eSIM and physical SIM both $25
 
-  const isTestPlan = selectedServices.length > 0 && selectedServices.every(s => s.sku === "TEST-NIVRA-1");
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
   // Both physical SIM and eSIM are billed at SIM_PRICE ($25) per nivra-telecom.ca/frais-possibles.
@@ -382,8 +365,6 @@ const GuestCheckout = () => {
   // ── Live server pricing ──
   useEffect(() => {
     if (selectedServices.length === 0) { setLiveServerPricing(null); return; }
-    // Forfait test — utiliser uniquement le calcul client-side (pas de welcome discount serveur)
-    if (isTestPlan) { setLiveServerPricing(null); return; }
     if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
     // Reset immediately so client-side fallback shows while server call is in flight
     setLiveServerPricing(null);
@@ -483,7 +464,6 @@ const GuestCheckout = () => {
     if (appliedPromo) return;
     if (autoApplyAttempted) return;
     if (isStreamingOnlyOrder) return;
-    if (isTestPlan) return; // forfait test — pas de welcome discount
     if (selectedServices.length === 0) return;
     setAutoApplyAttempted(true);
 
