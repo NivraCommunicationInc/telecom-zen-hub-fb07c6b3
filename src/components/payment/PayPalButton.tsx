@@ -306,15 +306,36 @@ export const PayPalButton = ({
   const inFlightRef = useRef<{ create: boolean; capture: boolean }>({ create: false, capture: false });
   const lastOrderIdRef = useRef<string | null>(null);
 
-  // Load PayPal SDK with card-fields support
+  // Load PayPal SDK
+  // enable-funding active Apple Pay / Google Pay / carte comme sources de financement.
+  // applepay et googlepay NE sont PAS dans components — ils sont gérés automatiquement
+  // par window.paypal.Buttons() quand enable-funding les inclut.
   useEffect(() => {
-    if (window.paypal) { setSdkReady(true); setHasCardFields(!!window.paypal.CardFields); return; }
-    const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card,applepay,googlepay&components=buttons,card-fields,applepay,googlepay,funding-eligibility`;
-    script.async = true;
-    script.onload = () => { setSdkReady(true); setHasCardFields(!!window.paypal?.CardFields); };
-    script.onerror = () => { toast.error("Erreur de chargement PayPal"); };
-    document.body.appendChild(script);
+    const loadSdk = () => {
+      if (window.paypal) {
+        setSdkReady(true);
+        setHasCardFields(!!window.paypal.CardFields);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card,applepay,googlepay&components=buttons,card-fields,funding-eligibility`;
+      script.async = true;
+      script.onload = () => {
+        setSdkReady(true);
+        setHasCardFields(!!window.paypal?.CardFields);
+      };
+      script.onerror = () => {
+        // Si card-fields cause un problème, recharger sans
+        const fallback = document.createElement("script");
+        fallback.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card,applepay,googlepay&components=buttons,funding-eligibility`;
+        fallback.async = true;
+        fallback.onload = () => { setSdkReady(true); setHasCardFields(false); };
+        fallback.onerror = () => console.error("[PayPal] SDK failed to load");
+        document.body.appendChild(fallback);
+      };
+      document.body.appendChild(script);
+    };
+    loadSdk();
   }, []);
 
   // Render PayPal Buttons (fallback for PayPal account payment)
@@ -327,7 +348,7 @@ export const PayPalButton = ({
     container.innerHTML = "";
 
     window.paypal.Buttons({
-      style: { layout: "horizontal", color: "blue", shape: "rect", label: "pay", height: 45 },
+      style: { layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 },
       createOrder: async () => {
         if (inFlightRef.current.create) { if (lastOrderIdRef.current) return lastOrderIdRef.current; await new Promise(r => setTimeout(r, 250)); if (lastOrderIdRef.current) return lastOrderIdRef.current; }
         inFlightRef.current.create = true; setIsLoading(true);
