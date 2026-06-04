@@ -1568,7 +1568,7 @@ const GuestCheckout = () => {
                             setPaymentComplete(true);
                             toast.success("Paiement confirmé !");
                           }}
-                          onError={(err) => toast.error(`Erreur de paiement: ${err}`)}
+                          onError={(err) => console.error("[PayPal]", err)}
                           disabled={todayTotal <= 0}
                         />
                       )}

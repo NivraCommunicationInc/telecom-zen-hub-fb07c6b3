@@ -13,17 +13,23 @@ const PAYPAL_ERROR_MAP: Record<string, string> = {
 };
 
 function parsePayPalIssue(raw: string): string | null {
-  // Cherche le premier "issue" dans le JSON PayPal
+  if (!raw || typeof raw !== "string") return null;
   try {
-    // Le raw peut être "PayPal capture failed: {json}" ou directement le json
-    const jsonStart = raw.indexOf("{");
-    if (jsonStart === -1) return null;
-    const json = JSON.parse(raw.slice(jsonStart));
-    const issue = json?.details?.[0]?.issue as string | undefined;
-    if (issue && PAYPAL_ERROR_MAP[issue]) return PAYPAL_ERROR_MAP[issue];
-    if (issue) return `Erreur de paiement: ${issue}`;
-    const name = json?.name as string | undefined;
-    if (name && PAYPAL_ERROR_MAP[name]) return PAYPAL_ERROR_MAP[name];
+    // Cherche tous les blocs JSON dans la string (peut être imbriqué dans un message)
+    let startIdx = 0;
+    while (startIdx < raw.length) {
+      const jsonStart = raw.indexOf("{", startIdx);
+      if (jsonStart === -1) break;
+      try {
+        const json = JSON.parse(raw.slice(jsonStart));
+        const issue = json?.details?.[0]?.issue as string | undefined;
+        if (issue && PAYPAL_ERROR_MAP[issue]) return PAYPAL_ERROR_MAP[issue];
+        if (issue) return "Transaction refusée par PayPal. Contactez le support Nivra.";
+        const name = json?.name as string | undefined;
+        if (name && PAYPAL_ERROR_MAP[name]) return PAYPAL_ERROR_MAP[name];
+      } catch { /* pas un JSON valide à cet index */ }
+      startIdx = jsonStart + 1;
+    }
     return null;
   } catch {
     return null;
@@ -55,22 +61,31 @@ export async function getInvokeErrorMessage(error: any): Promise<string> {
     const status = res.status;
     const text = await res.clone().text();
 
-    // Check for PayPal error in response body
+    // 1. Cherche PayPal error dans le body brut (JSON imbriqué dans le texte)
     const bodyPaypalMsg = parsePayPalIssue(text);
     if (bodyPaypalMsg) return bodyPaypalMsg;
 
     try {
       const json = JSON.parse(text);
-      const msg = json?.error || json?.message || text;
-      // If msg looks like raw JSON, return a generic message
-      if (typeof msg === "string" && msg.trim().startsWith("{")) {
-        return `Erreur de paiement (${status}). Veuillez réessayer.`;
+      // Le message peut contenir le JSON PayPal en string (ex: "PayPal capture failed: {...}")
+      const rawMsg = json?.error || json?.message || "";
+      if (typeof rawMsg === "string" && rawMsg) {
+        // 2. Cherche PayPal error dans le message extrait
+        const nestedPaypalMsg = parsePayPalIssue(rawMsg);
+        if (nestedPaypalMsg) return nestedPaypalMsg;
+        // Si le message contient du JSON illisible, retourne générique
+        if (rawMsg.includes('"name"') || rawMsg.startsWith("{")) {
+          return `Erreur de paiement (${status}). Veuillez réessayer ou contacter le support.`;
+        }
+        return rawMsg;
       }
-      return typeof msg === "string" ? msg : `Erreur de paiement (${status}). Veuillez réessayer.`;
+      return `Erreur de paiement (${status}). Veuillez réessayer.`;
     } catch {
       const cleaned = (text || baseMessage).trim();
-      if (cleaned.startsWith("{")) return `Erreur de paiement (${status}). Veuillez réessayer.`;
-      return `${cleaned} (HTTP ${status})`;
+      if (cleaned.startsWith("{") || cleaned.includes('"name"')) {
+        return `Erreur de paiement (${status}). Veuillez réessayer.`;
+      }
+      return cleaned;
     }
   } catch {
     return baseMessage;

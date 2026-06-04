@@ -127,17 +127,15 @@ const InlineCardForm = ({
             onSuccess?.(captureId, payerAddress);
           } catch (err: any) {
             const msg = await getInvokeErrorMessage(err);
-            setFieldError(msg);
-            onError?.(msg);
+            setFieldError(msg); // affiché dans le form uniquement — pas de toast
             capturedRef.current = false;
             setSubmitting(false);
           }
         },
         onError: async (err: any) => {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          const msg = await getInvokeErrorMessage(err).catch(() => "Erreur de paiement PayPal");
-          setFieldError(msg);
-          onError?.(msg);
+          const msg = await getInvokeErrorMessage(err).catch(() => "Erreur de paiement. Veuillez réessayer.");
+          setFieldError(msg); // affiché dans le form uniquement — pas de toast
           setSubmitting(false);
         },
         style: {
@@ -202,8 +200,7 @@ const InlineCardForm = ({
     } catch (err: any) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       const msg = await getInvokeErrorMessage(err).catch(() => "Carte refusée. Vérifiez vos informations.");
-      setFieldError(msg);
-      onError?.(msg);
+      setFieldError(msg); // affiché dans le form — pas de toast
       setSubmitting(false);
     }
   };
