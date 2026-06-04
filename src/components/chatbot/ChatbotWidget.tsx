@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Bot, User, Sparkles, Loader2, LogIn, ShieldCheck } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Sparkles, Loader2, LogIn, ShieldCheck, Headphones, UserCheck, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,6 +14,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  isAgent?: boolean;
+  agentName?: string | null;
 }
 
 const ChatbotWidget = () => {
@@ -24,6 +26,10 @@ const ChatbotWidget = () => {
   const [sessionId] = useState(() => crypto.randomUUID());
   const [verifiedClientId, setVerifiedClientId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
+  const [isHumanActive, setIsHumanActive] = useState(false);
+  const agentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastAdminMsgIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { language } = useLanguage();
@@ -42,6 +48,99 @@ const ChatbotWidget = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // ── Demander un agent humain ──────────────────────────────────────────────
+  const requestHumanAgent = async () => {
+    if (isWaitingForAgent || isHumanActive) return;
+    setIsWaitingForAgent(true);
+
+    const waitMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: language === "fr"
+        ? "⏳ Un agent va vous rejoindre sous peu. Votre conversation est en cours de transfert…"
+        : "⏳ An agent will join you shortly. Your conversation is being transferred…",
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, waitMsg]);
+
+    try {
+      // Créer/mettre à jour la session dans live_chat_sessions
+      await supabase.from("live_chat_sessions" as any).upsert({
+        session_id: sessionId,
+        status: "waiting_for_agent",
+        language,
+        last_message_at: new Date().toISOString(),
+        unread_for_admin: 1,
+      }, { onConflict: "session_id" });
+
+      // Copier les 8 derniers messages dans live_chat_messages
+      const toSync = messages.filter(m => m.content && !m.content.includes("Je suis Nivra")).slice(-8);
+      for (const msg of toSync) {
+        await supabase.from("live_chat_messages" as any).insert({
+          session_id: sessionId,
+          role: msg.role === "user" ? "visitor" : "bot",
+          content: msg.content.slice(0, 2000),
+        }).then(() => {}).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[Chat] session creation failed:", e);
+    }
+
+    // Démarrer le polling pour les réponses de l'agent
+    startAgentPolling();
+  };
+
+  const startAgentPolling = () => {
+    if (agentPollRef.current) return;
+    agentPollRef.current = setInterval(async () => {
+      try {
+        const query = supabase
+          .from("live_chat_messages" as any)
+          .select("id, role, content, admin_name, created_at")
+          .eq("session_id", sessionId)
+          .eq("role", "admin")
+          .order("created_at", { ascending: true });
+
+        if (lastAdminMsgIdRef.current) {
+          query.gt("created_at", lastAdminMsgIdRef.current);
+        }
+
+        const { data: adminMsgs } = await query.limit(10);
+
+        if (adminMsgs?.length) {
+          // Vérifier si la session est maintenant en mode human_takeover
+          setIsHumanActive(true);
+          setIsWaitingForAgent(false);
+
+          for (const msg of adminMsgs as any[]) {
+            if (msg.id !== lastAdminMsgIdRef.current) {
+              lastAdminMsgIdRef.current = msg.created_at;
+              setMessages(prev => {
+                if (prev.some(m => m.id === msg.id)) return prev;
+                return [...prev, {
+                  id: msg.id,
+                  role: "assistant" as const,
+                  content: msg.content,
+                  timestamp: new Date(msg.created_at),
+                  isAgent: true,
+                  agentName: msg.admin_name,
+                }];
+              });
+            }
+          }
+        }
+      } catch (e) { /* non-fatal */ }
+    }, 4000);
+  };
+
+  // Arrêter le polling quand le chat se ferme
+  useEffect(() => {
+    if (!isOpen && agentPollRef.current) {
+      clearInterval(agentPollRef.current);
+      agentPollRef.current = null;
+    }
+  }, [isOpen]);
 
   const welcomeMessage = language === "fr"
     ? `Bonjour! Je suis Nivra, votre assistant virtuel. Je peux vous aider à:
@@ -119,6 +218,23 @@ How can I help you?`;
     setInput("");
     setIsLoading(true);
 
+    // Mode agent humain — on sauvegarde dans live_chat_messages, pas de bot
+    if (isHumanActive) {
+      try {
+        await supabase.from("live_chat_messages" as any).insert({
+          session_id: sessionId,
+          role: "visitor",
+          content: userMessage.content.slice(0, 2000),
+        });
+        await supabase.from("live_chat_sessions" as any).update({
+          last_message_at: new Date().toISOString(),
+          unread_for_admin: 1,
+        }).eq("session_id", sessionId);
+      } catch (e) { /* non-fatal */ }
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await supabase.functions.invoke("chatbot-jonathan", {
         body: {
@@ -132,16 +248,26 @@ How can I help you?`;
 
       if (response.error) throw response.error;
 
-      // Update verified client ID if returned
       if (response.data.verifiedClientId && !verifiedClientId) {
         setVerifiedClientId(response.data.verifiedClientId);
+      }
+
+      if (response.data.humanTakeover) {
+        setIsHumanActive(true);
+        setIsWaitingForAgent(false);
+        startAgentPolling();
+        supabase.from("live_chat_messages" as any).insert({
+          session_id: sessionId, role: "visitor", content: userMessage.content.slice(0, 2000),
+        }).then(() => {}).catch(() => {});
+        setIsLoading(false);
+        return;
       }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: response.data.response || (language === "fr" 
-          ? "Désolé, je n'ai pas pu traiter votre demande." 
+        content: response.data.response || (language === "fr"
+          ? "Désolé, je n'ai pas pu traiter votre demande."
           : "Sorry, I couldn't process your request."),
         timestamp: new Date(),
       };
@@ -265,11 +391,22 @@ How can I help you?`;
             </div>
             <div className="flex-1">
               <h3 className="font-semibold flex items-center gap-2">
-                Nivra
-                <Sparkles className="w-4 h-4 text-yellow-300" />
+                {isHumanActive ? (language === "fr" ? "Agent Nivra" : "Nivra Agent") : "Nivra"}
+                {!isHumanActive && <Sparkles className="w-4 h-4 text-yellow-300" />}
+                {isHumanActive && <UserCheck className="w-4 h-4 text-green-300" />}
               </h3>
               <p className="text-xs text-white/80 flex items-center gap-1">
-                {isAuthenticated ? (
+                {isHumanActive ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    {language === "fr" ? "Agent en ligne" : "Agent online"}
+                  </>
+                ) : isWaitingForAgent ? (
+                  <>
+                    <Clock className="w-3 h-3" />
+                    {language === "fr" ? "En attente d'un agent…" : "Waiting for an agent…"}
+                  </>
+                ) : isAuthenticated ? (
                   <>
                     <ShieldCheck className="w-3 h-3" />
                     {language === "fr" ? "Connecté" : "Logged in"}
@@ -321,22 +458,37 @@ How can I help you?`;
                   )}
                 >
                   {message.role === "assistant" && (
-                    <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Bot className="w-4 h-4 text-accent" />
+                    <div className={cn(
+                      "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1",
+                      message.isAgent ? "bg-green-100" : "bg-accent/10"
+                    )}>
+                      {message.isAgent
+                        ? <Headphones className="w-4 h-4 text-green-600" />
+                        : <Bot className="w-4 h-4 text-accent" />
+                      }
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
-                      message.role === "user"
-                        ? "bg-accent text-white rounded-br-md"
-                        : "bg-muted text-foreground rounded-bl-md"
+                  <div className="flex flex-col gap-0.5 max-w-[80%]">
+                    {message.isAgent && message.agentName && (
+                      <span className="text-[10px] text-green-600 font-medium pl-1">
+                        {message.agentName}
+                      </span>
                     )}
-                  >
-                    {message.role === "assistant" 
-                      ? renderMessageContent(message.content)
-                      : message.content
-                    }
+                    <div
+                      className={cn(
+                        "rounded-2xl px-4 py-2.5 text-sm",
+                        message.role === "user"
+                          ? "bg-accent text-white rounded-br-md"
+                          : message.isAgent
+                          ? "bg-green-50 border border-green-200 text-foreground rounded-bl-md"
+                          : "bg-muted text-foreground rounded-bl-md"
+                      )}
+                    >
+                      {message.role === "assistant"
+                        ? renderMessageContent(message.content)
+                        : message.content
+                      }
+                    </div>
                   </div>
                   {message.role === "user" && (
                     <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-1">
@@ -380,7 +532,17 @@ How can I help you?`;
           )}
 
           {/* Input */}
-          <div className="border-t p-4 bg-background/50 backdrop-blur-sm">
+          <div className="border-t p-4 bg-background/50 backdrop-blur-sm space-y-2">
+            {!isHumanActive && !isWaitingForAgent && (
+              <button
+                type="button"
+                onClick={requestHumanAgent}
+                className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-accent transition-colors py-1"
+              >
+                <Headphones className="w-3.5 h-3.5" />
+                {language === "fr" ? "Parler à un agent humain" : "Talk to a human agent"}
+              </button>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -394,14 +556,16 @@ How can I help you?`;
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  language === "fr" ? "Écrivez votre message..." : "Type your message..."
+                  isHumanActive
+                    ? (language === "fr" ? "Message à l'agent…" : "Message to agent…")
+                    : (language === "fr" ? "Écrivez votre message..." : "Type your message...")
                 }
                 disabled={isLoading}
                 className="flex-1 bg-muted/50 border-0 focus-visible:ring-accent"
               />
-              <Button 
-                type="submit" 
-                size="icon" 
+              <Button
+                type="submit"
+                size="icon"
                 disabled={isLoading || !input.trim()}
                 className="bg-accent hover:bg-accent/90"
               >
