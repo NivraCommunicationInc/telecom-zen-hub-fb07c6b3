@@ -317,7 +317,7 @@ const TVConfigurator = () => {
                 </div>
                 <span className="hidden sm:inline">{step.label}</span>
                 {i < STEPS.length - 1 && (
-                  <div className="hidden md:block w-8 lg:w-16 h-px bg-slate-200 ml-2" />
+                  <div className="hidden md:block w-8 lg:w-16 h-px bg-white/15 ml-2" />
                 )}
               </button>
             ))}
@@ -345,80 +345,107 @@ const TVConfigurator = () => {
                 {tvPlans.map((plan) => {
                   const isSelected = selectedPlanId === plan.id;
                   const meta = extractPlanMeta(plan);
+                  const baseChannels = meta.choix > 0 ? meta.channels - meta.choix : meta.channels;
+                  const isGiga = meta.speed === "GIGA";
 
                   return (
                     <div
                       key={plan.id}
                       onClick={() => { setSelectedPlanId(plan.id); setActiveStep(1); }}
                       className={cn(
-                        "relative rounded-2xl border-2 cursor-pointer transition-all duration-200 overflow-hidden",
+                        "relative rounded-2xl border-2 cursor-pointer transition-all duration-200 overflow-hidden flex flex-col",
                         isSelected
-                          ? "border-[#7C3AED] shadow-xl shadow-purple-900/8 scale-[1.01]"
+                          ? "border-[#7C3AED] shadow-xl shadow-purple-900/30 scale-[1.01]"
                           : "border-white/10 hover:border-white/20 hover:shadow-lg"
                       )}
+                      style={{ background: isSelected ? 'linear-gradient(160deg, rgba(124,58,237,0.18) 0%, rgba(10,10,15,1) 100%)' : 'rgba(255,255,255,0.04)' }}
                     >
-                      {/* Selected indicator ribbon */}
-                      {isSelected && (
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#7C3AED]" />
-                      )}
-
-                      {/* Premium badge for top-tier */}
-                      {meta.tier === "premium" && (
-                        <div className="absolute top-3 right-3">
-                          <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-bold gap-1">
-                            <Star className="w-3 h-3" /> VIP
-                          </Badge>
+                      {/* PRIX À VIE banner */}
+                      <div style={{ position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+                        <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{
+                          background: isSelected ? 'linear-gradient(90deg, #7C3AED, #6D28D9)' : 'linear-gradient(90deg, rgba(124,58,237,0.5), rgba(109,40,217,0.5))',
+                          color: '#fff', padding: '8px 0', fontSize: 9.5, letterSpacing: 2,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}>
+                          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+                          {isFr ? 'PRIX À VIE GARANTI' : 'PRICE LOCKED FOR LIFE'}
+                          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
                         </div>
-                      )}
+                        <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', animation: 'n-beam-h 4s ease-in-out infinite' }} />
+                      </div>
 
-                      <div className="bg-white/[0.04] p-5 md:p-6">
-                        {/* Price header */}
+                      <div className="p-4 md:p-5 flex flex-col flex-1">
+                        {/* Header: radio + name + price */}
                         <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                              isSelected ? "bg-[#7C3AED] border-[#7C3AED] scale-110" : "border-slate-300"
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-0.5",
+                              isSelected ? "bg-[#7C3AED] border-[#7C3AED] scale-110" : "border-white/30"
                             )}>
                               {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
-                            <div>
-                              <h3 className="text-sm md:text-base font-bold text-slate-900 leading-snug">{plan.name}</h3>
-                            </div>
+                            <h3 className="text-sm md:text-base font-bold text-white leading-snug">{plan.name}</h3>
                           </div>
-                          <div className="text-right">
-                            <div className="text-3xl font-extrabold text-[#7C3AED] tabular-nums">{plan.price.toFixed(0)}<span className="text-sm font-bold text-white/40">$</span></div>
+                          <div className="text-right shrink-0 ml-3">
+                            <div className="text-3xl font-extrabold text-[#A78BFA] tabular-nums">{plan.price.toFixed(0)}<span className="text-sm font-bold text-white/40">$</span></div>
                             <div className="text-[11px] text-white/40 font-medium -mt-0.5">/{isFr ? "mois" : "mo"}</div>
                           </div>
                         </div>
 
-                        {/* Speed + Channels badges */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {meta.speed && (
-                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold">
-                              <Signal className="w-3.5 h-3.5" />
-                              {meta.speed}
+                        {/* TÉLÉ section */}
+                        {meta.channels > 0 && (
+                          <div style={{ background: 'rgba(124,58,237,0.09)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Tv className="w-3 h-3 shrink-0" style={{ color: '#A78BFA' }} />
+                              <span style={{ color: '#A78BFA', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+                                {isFr ? 'TÉLÉ' : 'TV'}
+                              </span>
                             </div>
-                          )}
-                          {meta.channels > 0 && (
-                            <div className="flex items-center gap-1.5 bg-purple-50 text-purple-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold">
-                              <Layers className="w-3.5 h-3.5" />
-                              {meta.channels} {isFr ? "chaînes" : "channels"}
+                            <div className="flex items-baseline gap-1.5 mb-2">
+                              <span style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1, color: '#fff' }}>{meta.channels}</span>
+                              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{isFr ? 'chaînes' : 'channels'}</span>
                             </div>
-                          )}
-                          {meta.choix > 0 && (
-                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold">
-                              <Plus className="w-3.5 h-3.5" />
-                              {meta.choix} {isFr ? "au choix" : "picks"}
-                            </div>
-                          )}
-                        </div>
+                            {meta.choix > 0 ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span style={{ background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 999, padding: '2px 8px', fontSize: 10.5, color: '#C4B5FD', fontWeight: 600 }}>
+                                  {baseChannels} {isFr ? 'La Base' : 'Base'}
+                                </span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 700 }}>+</span>
+                                <span style={{ background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 999, padding: '2px 8px', fontSize: 10.5, color: '#6EE7B7', fontWeight: 600 }}>
+                                  {meta.choix} {isFr ? 'au choix' : 'of your choice'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>{isFr ? 'Chaînes La Base' : 'Base channels'}</span>
+                            )}
+                          </div>
+                        )}
 
-                        {/* Features */}
+                        {/* INTERNET section */}
+                        {meta.speed && (
+                          <div style={{ background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <Wifi className="w-3 h-3 shrink-0" style={{ color: '#67E8F9' }} />
+                              <span style={{ color: '#67E8F9', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>INTERNET</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p style={{ fontWeight: 700, fontSize: 15, color: '#fff', letterSpacing: '-0.3px' }}>
+                                  {isGiga ? 'GIGA 940 Mbit/s' : `${meta.speed} illimité`}
+                                </p>
+                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 1 }}>{isFr ? 'Données illimitées incluses' : 'Unlimited data included'}</p>
+                              </div>
+                              {isGiga && <Zap className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Key features */}
                         {meta.features.length > 0 && (
-                          <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
-                            {meta.features.slice(0, 3).map((f, i) => (
+                          <div className="space-y-1.5 pt-2 border-t border-white/[0.07]">
+                            {meta.features.slice(0, 2).map((f, i) => (
                               <div key={i} className="flex items-start gap-2 text-xs text-white/55">
-                                <Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                                <Check className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />
                                 <span>{f}</span>
                               </div>
                             ))}
@@ -443,7 +470,7 @@ const TVConfigurator = () => {
         {/* ── STEP 2: Streaming ── */}
         {streamingServices.length > 0 && (
           <div ref={el => { sectionRefs.current[2] = el; }} className="scroll-mt-20">
-            <div className="bg-white/[0.04] py-10 md:py-14 border-t border-slate-100">
+            <div className="bg-white/[0.04] py-10 md:py-14 border-t border-white/10">
               <div className="container mx-auto px-4 max-w-[1100px]">
                 <SimulatorSectionHeader
                   step={2}
@@ -484,7 +511,7 @@ const TVConfigurator = () => {
 
         {/* ── STEP 3: Equipment ── */}
         <div ref={el => { sectionRefs.current[3] = el; }} className="scroll-mt-20">
-          <div className="bg-white/[0.04]/[0.02] py-10 md:py-14 border-t border-slate-100">
+          <div className="bg-white/[0.04]/[0.02] py-10 md:py-14 border-t border-white/10">
             <div className="container mx-auto px-4 max-w-[1100px]">
               <SimulatorSectionHeader
                 step={3}
@@ -504,11 +531,11 @@ const TVConfigurator = () => {
                       <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
                     </div>
                     <div className="p-5">
-                      <h4 className="font-bold text-slate-900 mb-1">{terminalProduct.name}</h4>
+                      <h4 className="font-bold text-white mb-1">{terminalProduct.name}</h4>
                       <p className="text-xs text-white/40 mb-4">{terminalProduct.description}</p>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-2xl font-extrabold text-slate-900">{terminalProduct.price.toFixed(0)}</span>
+                          <span className="text-2xl font-extrabold text-white">{terminalProduct.price.toFixed(0)}</span>
                           <span className="text-sm text-white/40 ml-0.5">$ / {isFr ? "unité" : "unit"}</span>
                         </div>
                       </div>
@@ -520,7 +547,7 @@ const TVConfigurator = () => {
                             className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/[0.04]/[0.02] disabled:opacity-20 transition-all">
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="w-6 text-center font-bold text-slate-900 tabular-nums">{totalTerminals}</span>
+                          <span className="w-6 text-center font-bold text-white tabular-nums">{totalTerminals}</span>
                           <button onClick={() => setExtraTerminals(Math.min(3, extraTerminals + 1))}
                             className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/[0.04]/[0.02] transition-all">
                             <Plus className="w-3.5 h-3.5" />
@@ -549,10 +576,10 @@ const TVConfigurator = () => {
                       <Badge className="bg-[#7C3AED]/10 text-[#7C3AED] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
                     </div>
                     <div className="p-5">
-                      <h4 className="font-bold text-slate-900 mb-1">{routerProduct.name}</h4>
+                      <h4 className="font-bold text-white mb-1">{routerProduct.name}</h4>
                       <p className="text-xs text-white/40 mb-4">{routerProduct.description || (isFr ? "1 borne requise par adresse" : "1 router required per address")}</p>
                       <div>
-                        <span className="text-2xl font-extrabold text-slate-900">{routerProduct.price.toFixed(0)}</span>
+                        <span className="text-2xl font-extrabold text-white">{routerProduct.price.toFixed(0)}</span>
                         <span className="text-sm text-white/40 ml-0.5">$</span>
                       </div>
                       <p className="text-[10px] text-white/40 mt-3">{isFr ? "Exactement 1 borne par adresse · Inclus automatiquement" : "Exactly 1 per address · Automatically included"}</p>
@@ -566,7 +593,7 @@ const TVConfigurator = () => {
 
         {/* ── STEP 4: Installation ── */}
         <div ref={el => { sectionRefs.current[4] = el; }} className="scroll-mt-20">
-          <div className="bg-white/[0.04] py-10 md:py-14 border-t border-slate-100">
+          <div className="bg-white/[0.04] py-10 md:py-14 border-t border-white/10">
             <div className="container mx-auto px-4 max-w-[1100px]">
               <SimulatorSectionHeader
                 step={4}
@@ -591,7 +618,7 @@ const TVConfigurator = () => {
                   )}>
                     <Wrench className="w-7 h-7" />
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-1">{isFr ? "Technicien à domicile" : "Home technician"}</h4>
+                  <h4 className="font-bold text-white mb-2">{isFr ? "Technicien à domicile" : "Home technician"}</h4>
                   <p className="text-lg font-extrabold text-[#7C3AED] mb-3">{TECHNICIAN_INSTALL_FEE} $</p>
                   <ul className="text-left space-y-2 text-xs text-white/55">
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Installation complète sur place" : "Complete on-site installation"}</li>
@@ -616,9 +643,9 @@ const TVConfigurator = () => {
                   )}>
                     <Package className="w-7 h-7" />
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-1">{isFr ? "Auto-installation" : "Self-install"}</h4>
+                  <h4 className="font-bold text-white mb-2">{isFr ? "Auto-installation" : "Self-install"}</h4>
                   <div className="mb-3">
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">{isFr ? "Gratuit" : "Free"}</Badge>
+                    <Badge className="bg-emerald-900/40 text-emerald-300 border-emerald-600/40 text-xs font-bold">{isFr ? "Gratuit" : "Free"}</Badge>
                     <span className="text-xs text-white/40 ml-2">+ {STANDARD_DELIVERY_FEE} $ {isFr ? "livraison" : "shipping"}</span>
                   </div>
                   <ul className="text-left space-y-2 text-xs text-white/55">
@@ -644,7 +671,7 @@ const TVConfigurator = () => {
               {selectedPlan ? (
                 <div>
                   <p className="text-xs text-white/40 font-medium">{isFr ? "Forfait sélectionné" : "Selected plan"}</p>
-                  <p className="text-sm font-bold text-slate-900 truncate">{selectedPlan.name}</p>
+                  <p className="text-sm font-bold text-white truncate">{selectedPlan.name}</p>
                 </div>
               ) : (
                 <p className="text-sm text-white/40">{isFr ? "Aucun forfait sélectionné" : "No plan selected"}</p>
@@ -659,17 +686,17 @@ const TVConfigurator = () => {
               </div>
               {pricing.oneTimeSubtotal > 0 && (
                 <>
-                  <div className="w-px h-8 bg-slate-200" />
+                  <div className="w-px h-8 bg-white/15" />
                   <div className="text-right">
                     <p className="text-[10px] text-white/40 uppercase tracking-wider font-bold">{isFr ? "Unique" : "One-time"}</p>
                     <p className="text-lg md:text-xl font-extrabold text-white/80 tabular-nums">{pricing.oneTimeSubtotal.toFixed(2)} $</p>
                   </div>
                 </>
               )}
-              <div className="w-px h-8 bg-slate-200 hidden md:block" />
+              <div className="w-px h-8 bg-white/15 hidden md:block" />
               <div className="text-right hidden md:block">
                 <p className="text-[10px] text-white/40 uppercase tracking-wider font-bold">{isFr ? "Total est." : "Est. total"}</p>
-                <p className="text-lg font-extrabold text-slate-900 tabular-nums">~{fmt(pricing.grandTotal)}</p>
+                <p className="text-lg font-extrabold text-white tabular-nums">~{fmt(pricing.grandTotal)}</p>
               </div>
             </div>
 
@@ -699,7 +726,7 @@ function SimulatorSectionHeader({ step, title, subtitle, optional }: { step: num
         <span className="w-5 h-5 rounded-full bg-[#7C3AED] text-white flex items-center justify-center text-[10px] font-bold">{step}</span>
         {optional && <Badge variant="outline" className="text-[10px] border-slate-300 text-white/40">Optionnel</Badge>}
       </div>
-      <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-1">{title}</h2>
+      <h2 className="text-xl md:text-2xl font-extrabold text-white mb-1">{title}</h2>
       <p className="text-sm text-white/40 max-w-lg mx-auto">{subtitle}</p>
     </div>
   );
@@ -727,7 +754,7 @@ function StreamingTile({
       )}>
         <MonitorPlay className="w-5 h-5" />
       </div>
-      <p className="font-semibold text-sm text-slate-900 mb-0.5 truncate">{service.name}</p>
+      <p className="font-semibold text-sm text-white mb-0.5 truncate">{service.name}</p>
       <p className="text-xs text-white/40 font-medium">{service.monthly_price.toFixed(2)} $/{isFr ? "mois" : "mo"}</p>
       {selected && (
         <div className="mt-2">
