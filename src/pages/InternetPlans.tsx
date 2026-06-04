@@ -203,123 +203,177 @@ const InternetPlans = () => {
           {/* ── Plan cards ── */}
           {!isLoading && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="relative overflow-hidden"
-                  style={{
-                    background: plan.featured
-                      ? 'linear-gradient(160deg, rgba(124,58,237,0.2) 0%, rgba(124,58,237,0.06) 100%)'
-                      : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-                    border: plan.featured ? '1px solid rgba(124,58,237,0.55)' : '1px solid rgba(255,255,255,0.09)',
-                    borderRadius: 24,
-                    backdropFilter: 'blur(24px)',
-                    boxShadow: plan.featured
-                      ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
-                      : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                    transition: 'transform .25s, box-shadow .25s, border-color .25s',
-                    cursor: addressValidated ? 'pointer' : 'default',
-                    opacity: addressValidated ? 1 : 0.6,
-                  }}
-                  onMouseEnter={e => {
-                    if (!addressValidated) return;
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
-                    if (!plan.featured) {
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.4)';
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 30px 80px rgba(124,58,237,0.2), inset 0 1px 0 rgba(255,255,255,0.08)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                    (e.currentTarget as HTMLElement).style.borderColor = plan.featured ? 'rgba(124,58,237,0.55)' : 'rgba(255,255,255,0.09)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = plan.featured
-                      ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
-                      : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)';
-                  }}
-                  onClick={() => addressValidated && handleGetStarted(plan.id)}
-                >
-                  {plan.featured && plan.badge && (
-                    <div style={{ position: 'relative', overflow: 'hidden' }}>
-                      <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{ background: 'linear-gradient(90deg, #7C3AED, #6D28D9)', color: '#FFFFFF', padding: '10px 0', fontSize: 10, letterSpacing: 2, fontFamily: "'JetBrains Mono', monospace" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
-                        {plan.badge}
+              {plans.map((plan) => {
+                const speedNum = plan.speed.replace(/[^0-9]/g, '');
+                const isGiga = plan.speed.includes('940') || plan.name.toLowerCase().includes('giga');
+                const displayName = isGiga ? 'Internet GIGA' : `Internet ${speedNum}`;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className="relative overflow-hidden flex flex-col"
+                    style={{
+                      background: plan.featured
+                        ? 'linear-gradient(160deg, rgba(124,58,237,0.22) 0%, rgba(124,58,237,0.07) 100%)'
+                        : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                      border: plan.featured ? '1px solid rgba(124,58,237,0.55)' : '1px solid rgba(255,255,255,0.09)',
+                      borderRadius: 24,
+                      backdropFilter: 'blur(24px)',
+                      boxShadow: plan.featured
+                        ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+                        : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                      transition: 'transform .25s, box-shadow .25s, border-color .25s',
+                      cursor: addressValidated ? 'pointer' : 'default',
+                      opacity: addressValidated ? 1 : 0.6,
+                    }}
+                    onMouseEnter={e => {
+                      if (!addressValidated) return;
+                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                      if (!plan.featured) {
+                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.4)';
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 30px 80px rgba(124,58,237,0.2), inset 0 1px 0 rgba(255,255,255,0.08)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                      (e.currentTarget as HTMLElement).style.borderColor = plan.featured ? 'rgba(124,58,237,0.55)' : 'rgba(255,255,255,0.09)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = plan.featured
+                        ? '0 0 0 1px rgba(124,58,237,0.3), 0 20px 60px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+                        : '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)';
+                    }}
+                    onClick={() => addressValidated && handleGetStarted(plan.id)}
+                  >
+                    {/* PRIX À VIE banner — all cards */}
+                    <div style={{ position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+                      <div className="flex items-center justify-center gap-2 font-bold uppercase" style={{
+                        background: plan.featured
+                          ? 'linear-gradient(90deg, #7C3AED, #6D28D9)'
+                          : 'linear-gradient(90deg, rgba(124,58,237,0.55), rgba(109,40,217,0.55))',
+                        color: '#FFFFFF', padding: '9px 0', fontSize: 10, letterSpacing: 2,
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
+                        {isFrench ? 'PRIX À VIE GARANTI' : 'PRICE LOCKED FOR LIFE'}
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#FBBF24', display: 'inline-block' }} />
                       </div>
-                      <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', animation: 'n-beam-h 3s ease-in-out infinite' }} />
+                      <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)', animation: 'n-beam-h 4s ease-in-out infinite' }} />
                     </div>
-                  )}
 
-                  <div style={{ padding: '28px 28px 32px' }}>
-                    <p className="n-label" style={{ marginBottom: 8 }}>
-                      {isFrench ? 'Forfait Internet' : 'Internet Plan'}
-                    </p>
-                    <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', marginBottom: 24, color: '#fff' }}>
-                      {plan.speed}
-                    </h3>
-
-                    <div className="flex items-baseline gap-1" style={{ marginBottom: 4 }}>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 56, letterSpacing: '-2.5px', lineHeight: 1, color: '#FFFFFF' }}>
-                        ${plan.price}
-                      </span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>
-                        /{isFrench ? 'mois' : 'mo'}
-                      </span>
-                    </div>
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 24, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>
-                      {isFrench ? 'TAXES INCLUSES · PRIX FIXE' : 'TAX INCLUDED · FIXED PRICE'}
-                    </p>
-
-                    <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(124,58,237,0.3), rgba(6,182,212,0.2), transparent)', marginBottom: 22 }} />
-
-                    {plan.description && (
-                      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 1.55, marginBottom: 16 }}>
-                        {plan.description}
+                    <div style={{ padding: '22px 24px 26px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                      {/* Label + Name */}
+                      <p className="n-label" style={{ marginBottom: 6, fontSize: 10 }}>
+                        {isFrench ? 'FORFAIT INTERNET' : 'INTERNET PLAN'}
                       </p>
-                    )}
+                      <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', marginBottom: 18, color: '#fff' }}>
+                        {displayName}
+                      </h3>
 
-                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 11 }}>
-                      {plan.features.slice(0, 5).map((f, i) => (
-                        <li key={i} className="flex items-start gap-2.5" style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.78)' }}>
-                          <div className="shrink-0 flex items-center justify-center" style={{ width: 18, height: 18, borderRadius: 999, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.45)', marginTop: 1 }}>
-                            <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: '#A78BFA' }} />
+                      {/* ── VITESSE section ── */}
+                      <div style={{ background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.22)', borderRadius: 14, padding: '16px 18px', marginBottom: 18 }}>
+                        <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
+                          <Wifi className="w-3 h-3 flex-shrink-0" style={{ color: '#67E8F9' }} />
+                          <span style={{ color: '#67E8F9', fontSize: 9.5, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+                            {isFrench ? 'VITESSE' : 'SPEED'}
+                          </span>
+                        </div>
+
+                        {/* Big speed number */}
+                        <div className="flex items-baseline gap-1.5" style={{ marginBottom: 14 }}>
+                          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 52, letterSpacing: '-2.5px', lineHeight: 1, color: '#fff' }}>
+                            {speedNum}
+                          </span>
+                          <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, fontWeight: 500 }}>
+                            {isFrench ? 'Mbit/s illimité' : 'Mbit/s unlimited'}
+                          </span>
+                        </div>
+
+                        {/* Two explicit lines */}
+                        <div className="flex flex-col gap-2">
+                          {[
+                            isFrench ? `Vitesse de téléchargement jusqu'à ${speedNum} Mbit/s` : `Download speed up to ${speedNum} Mbit/s`,
+                            isFrench ? 'Données incluses illimitées' : 'Unlimited data included',
+                          ].map((line, i) => (
+                            <div key={i} className="flex items-center gap-2" style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)' }}>
+                              <Check className="w-3 h-3 flex-shrink-0" strokeWidth={3} style={{ color: '#67E8F9' }} />
+                              {line}
+                            </div>
+                          ))}
+                          {isGiga && (
+                            <div className="flex items-center gap-2" style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)' }}>
+                              <Check className="w-3 h-3 flex-shrink-0" strokeWidth={3} style={{ color: '#67E8F9' }} />
+                              {isFrench ? 'Ultra-faible latence · CGNAT-Free · IPv6' : 'Ultra-low latency · CGNAT-Free · IPv6'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div style={{ marginBottom: 4 }}>
+                        <div className="flex items-baseline gap-1">
+                          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 50, letterSpacing: '-2.5px', lineHeight: 1, color: '#FFFFFF' }}>
+                            ${plan.price}
+                          </span>
+                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15 }}>
+                            /{isFrench ? 'mois' : 'mo'}
+                          </span>
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1, marginTop: 3 }}>
+                          {isFrench ? 'TAXES INCLUSES · PRIX À VIE' : 'TAX INCLUDED · PRICE FOR LIFE'}
+                        </p>
+                      </div>
+
+                      <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(124,58,237,0.3), rgba(6,182,212,0.2), transparent)', margin: '16px 0' }} />
+
+                      {/* Key points */}
+                      <div className="flex flex-col gap-2" style={{ marginBottom: 16 }}>
+                        {[
+                          isFrench ? 'Aucun contrat — annulation libre' : 'No contract — cancel anytime',
+                          isFrench ? 'Prix à vie garanti — peut seulement diminuer' : 'Price locked for life — can only go down',
+                          isFrench ? 'Aucune vérification de crédit' : 'No credit check',
+                        ].map((pt, i) => (
+                          <div key={i} className="flex items-start gap-2" style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)' }}>
+                            <div className="shrink-0 flex items-center justify-center" style={{ width: 16, height: 16, borderRadius: 999, background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.4)', marginTop: 1 }}>
+                              <Check className="w-2 h-2" strokeWidth={3.5} style={{ color: '#A78BFA' }} />
+                            </div>
+                            {pt}
                           </div>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
+                        ))}
+                      </div>
 
-                    <EquipmentRequiredBox type="internet" />
+                      <EquipmentRequiredBox type="internet" />
 
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addressValidated && handleGetStarted(plan.id); }}
-                      disabled={!addressValidated}
-                      className="w-full flex items-center justify-center gap-2 font-bold"
-                      style={{
-                        height: 52, borderRadius: 12, border: 'none', cursor: addressValidated ? 'pointer' : 'not-allowed',
-                        fontSize: 14, fontFamily: "'Space Grotesk', sans-serif",
-                        background: plan.featured ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)',
-                        color: '#FFFFFF',
-                        boxShadow: plan.featured ? '0 8px 32px rgba(124,58,237,0.5)' : 'none',
-                        transition: 'box-shadow .2s, background .2s, transform .15s',
-                        marginTop: 4,
-                      }}
-                      onMouseEnter={e => {
-                        if (!addressValidated) return;
-                        const el = e.currentTarget as HTMLElement;
-                        el.style.background = plan.featured ? 'linear-gradient(135deg, #6D28D9 0%, #5B21B6 100%)' : 'rgba(255,255,255,0.14)';
-                        el.style.transform = 'translateY(-1px)';
-                      }}
-                      onMouseLeave={e => {
-                        const el = e.currentTarget as HTMLElement;
-                        el.style.background = plan.featured ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)';
-                        el.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      {isFrench ? 'Choisir ce forfait' : 'Choose this plan'}
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); addressValidated && handleGetStarted(plan.id); }}
+                        disabled={!addressValidated}
+                        className="w-full flex items-center justify-center gap-2 font-bold"
+                        style={{
+                          height: 52, borderRadius: 12, border: 'none', cursor: addressValidated ? 'pointer' : 'not-allowed',
+                          fontSize: 14, fontFamily: "'Space Grotesk', sans-serif",
+                          background: plan.featured ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)',
+                          color: '#FFFFFF',
+                          boxShadow: plan.featured ? '0 8px 32px rgba(124,58,237,0.5)' : 'none',
+                          transition: 'box-shadow .2s, background .2s, transform .15s',
+                          marginTop: 4,
+                        }}
+                        onMouseEnter={e => {
+                          if (!addressValidated) return;
+                          const el = e.currentTarget as HTMLElement;
+                          el.style.background = plan.featured ? 'linear-gradient(135deg, #6D28D9 0%, #5B21B6 100%)' : 'rgba(255,255,255,0.14)';
+                          el.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={e => {
+                          const el = e.currentTarget as HTMLElement;
+                          el.style.background = plan.featured ? 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' : 'rgba(255,255,255,0.08)';
+                          el.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        {isFrench ? 'Choisir ce forfait' : 'Choose this plan'}
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
