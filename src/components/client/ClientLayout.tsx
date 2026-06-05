@@ -231,31 +231,31 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   return (
     <ImpersonationProvider>
-    <div className="min-h-screen flex flex-col" style={{ background: "#F5F6FA", color: "#111827" }}>
+    <div className="portal-skin min-h-screen flex flex-col" style={{ background: "#0A0A0F", color: "#FFFFFF" }}>
       <PortalSystemStatusBanner userType="client" />
       <AccountBlockedBanner />
       {user?.id && <PrepaidUrgentBanner userId={user.id} />}
 
       {/* Top utility bar — desktop only */}
-      <div className="hidden lg:block border-b border-gray-200 bg-white">
-        <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs text-gray-500">
-          <Link to="/" className="hover:text-[#6b21e8] transition-colors">
+      <div className="hidden lg:block border-b" style={{ background: "#0D0D1F", borderColor: "rgba(124,58,237,0.15)" }}>
+        <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs" style={{ color: "#A0A0B8" }}>
+          <Link to="/" className="transition-colors hover:text-white">
             Retour au site Nivra
           </Link>
-          <span className="text-gray-300">|</span>
+          <span style={{ color: "#2A2A40" }}>|</span>
           <span className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5" />
             {user?.email}
           </span>
-          <button onClick={handleSignOut} className="hover:text-[#6b21e8] transition-colors flex items-center gap-1">
+          <button onClick={handleSignOut} className="transition-colors hover:text-white flex items-center gap-1">
             <LogOut className="w-3.5 h-3.5" />
             Déconnexion
           </button>
         </div>
       </div>
 
-      {/* Main nav — violet gradient like Rogers/Bell */}
-      <header className="sticky top-0 z-50 shadow-md" style={{ background: "linear-gradient(135deg, #4c1d95 0%, #6d28d9 60%, #4338ca 100%)" }}>
+      {/* Main nav — dark Nivra brand */}
+      <header className="sticky top-0 z-50" style={{ background: "#0D0D1F", borderBottom: "1px solid rgba(124,58,237,0.15)", boxShadow: "0 4px 24px rgba(124,58,237,0.12)" }}>
         <div className="max-w-[1200px] mx-auto px-4 lg:px-6">
 
           {/* Mobile */}
@@ -332,7 +332,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                     )}
 
                     {hasChildren && openDropdown === idx && (
-                      <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50">
+                      <div className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-2xl py-1.5 z-50 border" style={{ background: "#111122", borderColor: "rgba(124,58,237,0.25)", boxShadow: "0 8px 32px rgba(124,58,237,0.2)" }}>
                         {group.children.map((child) => (
                           <Link
                             key={child.path}
@@ -341,9 +341,15 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                             className={cn(
                               "flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors",
                               isActive(child.path)
-                                ? "bg-violet-50 text-[#6b21e8] font-semibold"
-                                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                ? "font-semibold"
+                                : ""
                             )}
+                            style={isActive(child.path)
+                              ? { background: "rgba(124,58,237,0.15)", color: "#a78bfa" }
+                              : { color: "#D0D0E8" }
+                            }
+                            onMouseEnter={e => { if (!isActive(child.path)) (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; }}
+                            onMouseLeave={e => { if (!isActive(child.path)) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                           >
                             <span>{child.label}</span>
                             {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
@@ -366,11 +372,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       </header>
 
       {/* Account bar — desktop */}
-      <div className="hidden lg:block bg-white border-b border-gray-200 sticky top-16 z-40">
+      <div className="hidden lg:block sticky top-16 z-40 border-b" style={{ background: "#0D0D1F", borderColor: "rgba(124,58,237,0.12)" }}>
         <div className="max-w-[1200px] mx-auto px-6 flex items-center h-11 text-sm gap-3">
-          <span className="font-semibold text-gray-800">MonNivra</span>
-          <span className="text-gray-300">·</span>
-          <span className="text-gray-500">
+          <span className="font-semibold" style={{ color: "#a78bfa" }}>MonNivra</span>
+          <span style={{ color: "rgba(124,58,237,0.4)" }}>·</span>
+          <span style={{ color: "#A0A0B8" }}>
             {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Client"}
           </span>
         </div>
@@ -379,23 +385,23 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       {/* Mobile drawer */}
       {mobileMenuOpen && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-gray-100">
-              <span className="font-bold text-gray-900 text-base">MonNivra</span>
-              <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-gray-500 hover:text-gray-900 rounded-lg">
+          <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
+          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] z-50 shadow-2xl lg:hidden overflow-y-auto" style={{ background: "#111122", borderRight: "1px solid rgba(124,58,237,0.2)" }}>
+            <div className="flex items-center justify-between px-4 h-14 border-b" style={{ borderColor: "rgba(124,58,237,0.15)" }}>
+              <span className="font-bold text-base" style={{ color: "#a78bfa" }}>MonNivra</span>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg transition-colors" style={{ color: "#A0A0B8" }}>
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="px-4 py-3 border-b border-gray-100 bg-violet-50">
+            <div className="px-4 py-3 border-b" style={{ borderColor: "rgba(124,58,237,0.15)", background: "rgba(124,58,237,0.08)" }}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
-                  <User className="w-5 h-5 text-[#6b21e8]" />
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(124,58,237,0.2)" }}>
+                  <User className="w-5 h-5" style={{ color: "#a78bfa" }} />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{user?.user_metadata?.full_name || "Client"}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  <p className="font-semibold text-sm truncate" style={{ color: "#FFFFFF" }}>{user?.user_metadata?.full_name || "Client"}</p>
+                  <p className="text-xs truncate" style={{ color: "#A0A0B8" }}>{user?.email}</p>
                 </div>
               </div>
             </div>
@@ -409,10 +415,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
                         "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium min-h-[44px] transition-colors",
-                        isActive(group.path)
-                          ? "bg-violet-600 text-white"
-                          : "text-gray-700 hover:bg-gray-50 active:bg-gray-100"
                       )}
+                      style={isActive(group.path)
+                        ? { background: "rgba(124,58,237,0.25)", color: "#FFFFFF" }
+                        : { color: "#D0D0E8" }
+                      }
                     >
                       <span>{group.label}</span>
                       {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
@@ -421,7 +428,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                     </Link>
                   ) : (
                     <>
-                      <p className="px-4 pt-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center justify-between">
+                      <p className="px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between" style={{ color: "#6B6B85" }}>
                         <span>{group.label}</span>
                         {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
                           <SectionBadge show variant={sectionBadges[group.badgeKey]?.urgent ? "dot-pulse" : "dot"} ariaLabel={`${group.label} nécessite votre attention`} />
@@ -434,10 +441,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
                             "flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm min-h-[44px] transition-colors",
-                            isActive(child.path)
-                              ? "bg-violet-50 text-[#6b21e8] font-semibold"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                           )}
+                          style={isActive(child.path)
+                            ? { background: "rgba(124,58,237,0.2)", color: "#a78bfa", fontWeight: 600 }
+                            : { color: "#B0B0CC" }
+                          }
                         >
                           <span>{child.label}</span>
                           {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
@@ -451,14 +459,15 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               ))}
             </nav>
 
-            <div className="border-t border-gray-100 p-3 space-y-0.5 mt-2">
-              <Link to="/" className="flex items-center px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 rounded-xl min-h-[44px] transition-colors">
+            <div className="border-t p-3 space-y-0.5 mt-2" style={{ borderColor: "rgba(124,58,237,0.15)" }}>
+              <Link to="/" className="flex items-center px-4 py-3 text-sm rounded-xl min-h-[44px] transition-colors" style={{ color: "#A0A0B8" }}>
                 Retour au site Nivra
               </Link>
               {hasStaffRole && (
                 <button
                   onClick={() => navigate('/nivra-secure-hub-2617-internal')}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-xl flex items-center gap-2 min-h-[44px] transition-colors"
+                  className="w-full text-left px-4 py-3 text-sm rounded-xl flex items-center gap-2 min-h-[44px] transition-colors"
+                  style={{ color: "#A0A0B8" }}
                 >
                   <LayoutGrid className="w-4 h-4" />
                   Changer de portail
@@ -466,7 +475,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               )}
               <button
                 onClick={handleSignOut}
-                className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2 min-h-[44px] transition-colors"
+                className="w-full text-left px-4 py-3 text-sm rounded-xl flex items-center gap-2 min-h-[44px] transition-colors"
+                style={{ color: "#f87171" }}
               >
                 <LogOut className="w-4 h-4" />
                 Déconnexion
@@ -477,24 +487,24 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       )}
 
       {/* Main content */}
-      <main className="flex-1">
+      <main className="flex-1" style={{ background: "#0A0A0F" }}>
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {children}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-5 mt-auto">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs text-gray-500 space-y-1">
+      <footer className="py-5 mt-auto border-t" style={{ background: "#0D0D1F", borderColor: "rgba(124,58,237,0.15)" }}>
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs space-y-1" style={{ color: "#6B6B85" }}>
           <p>© {new Date().getFullYear()} Nivra Télécom. Tous droits réservés.</p>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <Link to="/privacy-policy" className="hover:text-[#6b21e8] transition-colors">Confidentialité</Link>
-            <span className="text-gray-300">·</span>
-            <Link to="/conditions-de-service" className="hover:text-[#6b21e8] transition-colors">Conditions</Link>
-            <span className="text-gray-300">·</span>
-            <Link to="/contact" className="hover:text-[#6b21e8] transition-colors">Support</Link>
-            <span className="text-gray-300">·</span>
-            <Link to="/plainte" className="inline-flex items-center gap-1 hover:text-[#6b21e8] transition-colors">
+            <Link to="/privacy-policy" className="transition-colors hover:text-white">Confidentialité</Link>
+            <span style={{ color: "rgba(124,58,237,0.3)" }}>·</span>
+            <Link to="/conditions-de-service" className="transition-colors hover:text-white">Conditions</Link>
+            <span style={{ color: "rgba(124,58,237,0.3)" }}>·</span>
+            <Link to="/contact" className="transition-colors hover:text-white">Support</Link>
+            <span style={{ color: "rgba(124,58,237,0.3)" }}>·</span>
+            <Link to="/plainte" className="inline-flex items-center gap-1 transition-colors hover:text-white">
               <AlertCircle className="w-3.5 h-3.5" />
               Plainte
             </Link>

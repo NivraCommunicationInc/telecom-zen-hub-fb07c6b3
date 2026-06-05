@@ -1,0 +1,320 @@
+/**
+ * portal-client.css — Dark skin for the Nivra client portal
+ * Scoped under .portal-skin to avoid leaking into admin pages.
+ * Mirrors the Nivra main-site design tokens exactly.
+ */
+
+/* ─── Root & page background ────────────────────────────── */
+.portal-skin {
+  background: #0A0A0F !important;
+  color: #FFFFFF !important;
+  min-height: 100vh;
+}
+
+/* ─── Generic bg overrides ──────────────────────────────── */
+.portal-skin .bg-white,
+.portal-skin [class*="bg-white"] {
+  background-color: #111122 !important;
+}
+.portal-skin .bg-gray-50,
+.portal-skin .bg-slate-50 {
+  background-color: #0D0D1F !important;
+}
+.portal-skin .bg-gray-100,
+.portal-skin .bg-slate-100 {
+  background-color: #141428 !important;
+}
+.portal-skin .bg-gray-200,
+.portal-skin .bg-slate-200 {
+  background-color: #1A1A2E !important;
+}
+.portal-skin .bg-gray-800,
+.portal-skin .bg-slate-800 {
+  background-color: #0A0A0F !important;
+}
+.portal-skin .bg-gray-900,
+.portal-skin .bg-slate-900 {
+  background-color: #060610 !important;
+}
+
+/* Muted / card */
+.portal-skin .bg-muted {
+  background-color: #1A1A2E !important;
+}
+
+/* ─── Text overrides ─────────────────────────────────────── */
+.portal-skin .text-slate-900,
+.portal-skin .text-gray-900,
+.portal-skin .text-foreground {
+  color: #FFFFFF !important;
+}
+.portal-skin .text-slate-800,
+.portal-skin .text-gray-800 {
+  color: #F0F0FF !important;
+}
+.portal-skin .text-slate-700,
+.portal-skin .text-gray-700 {
+  color: #D0D0E8 !important;
+}
+.portal-skin .text-slate-600,
+.portal-skin .text-gray-600 {
+  color: #B0B0CC !important;
+}
+.portal-skin .text-slate-500,
+.portal-skin .text-gray-500,
+.portal-skin .text-muted-foreground {
+  color: #A0A0B8 !important;
+}
+.portal-skin .text-slate-400,
+.portal-skin .text-gray-400 {
+  color: #8080A0 !important;
+}
+.portal-skin .text-slate-300,
+.portal-skin .text-gray-300 {
+  color: #6B6B85 !important;
+}
+
+/* ─── Border overrides ───────────────────────────────────── */
+.portal-skin .border-slate-200,
+.portal-skin .border-gray-200,
+.portal-skin .border-border {
+  border-color: rgba(124, 58, 237, 0.2) !important;
+}
+.portal-skin .border-slate-100,
+.portal-skin .border-gray-100 {
+  border-color: rgba(124, 58, 237, 0.12) !important;
+}
+.portal-skin .border-t,
+.portal-skin .border-b,
+.portal-skin .border-l,
+.portal-skin .border-r {
+  border-color: rgba(124, 58, 237, 0.12);
+}
+
+/* Divide utilities */
+.portal-skin [class*="divide-slate"],
+.portal-skin [class*="divide-gray"] {
+  border-color: rgba(124, 58, 237, 0.1) !important;
+}
+
+/* ─── Card component ─────────────────────────────────────── */
+.portal-skin .bg-card {
+  background-color: #111122 !important;
+}
+.portal-skin [data-card],
+.portal-skin .rounded-lg.border,
+.portal-skin .rounded-xl.border,
+.portal-skin .rounded-2xl.border {
+  background-color: #111122;
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+/* Card shadow → violet glow */
+.portal-skin .shadow-sm {
+  box-shadow: 0 1px 8px rgba(124, 58, 237, 0.12) !important;
+}
+.portal-skin .shadow-md {
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.15) !important;
+}
+.portal-skin .shadow-lg {
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.2) !important;
+}
+.portal-skin .shadow-xl {
+  box-shadow: 0 16px 48px rgba(124, 58, 237, 0.25) !important;
+}
+
+/* ─── Form controls ──────────────────────────────────────── */
+.portal-skin input,
+.portal-skin select,
+.portal-skin textarea {
+  background-color: #1A1A2E !important;
+  color: #FFFFFF !important;
+  border-color: rgba(124, 58, 237, 0.25) !important;
+}
+.portal-skin input::placeholder,
+.portal-skin textarea::placeholder {
+  color: #6B6B85 !important;
+}
+.portal-skin input:focus,
+.portal-skin select:focus,
+.portal-skin textarea:focus {
+  border-color: rgba(124, 58, 237, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+  outline: none !important;
+}
+
+/* ─── Hover states for rows / items ─────────────────────── */
+.portal-skin .hover\:bg-gray-50:hover,
+.portal-skin .hover\:bg-slate-50:hover,
+.portal-skin .hover\:bg-muted\/30:hover {
+  background-color: rgba(124, 58, 237, 0.06) !important;
+}
+
+/* ─── Status badge overrides ─────────────────────────────── */
+
+/* Emerald / success */
+.portal-skin .bg-emerald-100,
+.portal-skin .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+.portal-skin .text-emerald-700,
+.portal-skin .text-emerald-600 {
+  color: #34d399 !important;
+}
+.portal-skin .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Amber / warning */
+.portal-skin .bg-amber-100,
+.portal-skin .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+.portal-skin .text-amber-700,
+.portal-skin .text-amber-600 {
+  color: #fbbf24 !important;
+}
+.portal-skin .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Red / error */
+.portal-skin .bg-red-100,
+.portal-skin .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+.portal-skin .text-red-700,
+.portal-skin .text-red-600 {
+  color: #f87171 !important;
+}
+.portal-skin .border-red-200,
+.portal-skin .border-red-100 {
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Violet / primary */
+.portal-skin .bg-violet-50 {
+  background-color: rgba(124, 58, 237, 0.12) !important;
+}
+.portal-skin .bg-violet-100 {
+  background-color: rgba(124, 58, 237, 0.2) !important;
+}
+.portal-skin .text-violet-700,
+.portal-skin .text-violet-600 {
+  color: #a78bfa !important;
+}
+.portal-skin .border-violet-200 {
+  border-color: rgba(124, 58, 237, 0.3) !important;
+}
+
+/* Blue / info */
+.portal-skin .bg-blue-100,
+.portal-skin .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+.portal-skin .text-blue-700,
+.portal-skin .text-blue-600 {
+  color: #60a5fa !important;
+}
+
+/* Orange */
+.portal-skin .bg-orange-100,
+.portal-skin .bg-orange-50 {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+}
+.portal-skin .text-orange-700,
+.portal-skin .text-orange-600 {
+  color: #fb923c !important;
+}
+
+/* Teal */
+.portal-skin .bg-teal-100,
+.portal-skin .bg-teal-50 {
+  background-color: rgba(20, 184, 166, 0.12) !important;
+}
+.portal-skin .text-teal-700,
+.portal-skin .text-teal-600 {
+  color: #2dd4bf !important;
+}
+
+/* Purple */
+.portal-skin .bg-purple-100,
+.portal-skin .bg-purple-50 {
+  background-color: rgba(124, 58, 237, 0.12) !important;
+}
+.portal-skin .text-purple-700,
+.portal-skin .text-purple-600 {
+  color: #a78bfa !important;
+}
+
+/* Yellow */
+.portal-skin .bg-yellow-100,
+.portal-skin .bg-yellow-50 {
+  background-color: rgba(234, 179, 8, 0.12) !important;
+}
+.portal-skin .text-yellow-700,
+.portal-skin .text-yellow-600,
+.portal-skin .text-yellow-900 {
+  color: #fde047 !important;
+}
+
+/* ─── Table ──────────────────────────────────────────────── */
+.portal-skin table {
+  color: #FFFFFF;
+}
+.portal-skin thead th {
+  color: #A0A0B8 !important;
+  border-color: rgba(124, 58, 237, 0.2) !important;
+}
+.portal-skin tbody tr {
+  border-color: rgba(124, 58, 237, 0.1) !important;
+}
+.portal-skin tbody tr:hover {
+  background-color: rgba(124, 58, 237, 0.06) !important;
+}
+
+/* ─── Tab list (Radix) ───────────────────────────────────── */
+.portal-skin [role="tablist"] {
+  background-color: #1A1A2E !important;
+  border-color: rgba(124, 58, 237, 0.2) !important;
+}
+.portal-skin [role="tab"] {
+  color: #A0A0B8 !important;
+}
+.portal-skin [role="tab"][data-state="active"] {
+  background-color: #7C3AED !important;
+  color: #FFFFFF !important;
+}
+
+/* ─── Button outline variant ─────────────────────────────── */
+.portal-skin .border.border-input,
+.portal-skin button.border {
+  border-color: rgba(124, 58, 237, 0.3) !important;
+  color: #D0D0E8 !important;
+  background-color: transparent !important;
+}
+.portal-skin button.border:hover {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+  border-color: rgba(124, 58, 237, 0.5) !important;
+}
+
+/* ─── Animate pulse skeleton ─────────────────────────────── */
+.portal-skin .animate-pulse {
+  background-color: #1A1A2E !important;
+}
+
+/* ─── Scrollbar (webkit) ─────────────────────────────────── */
+.portal-skin ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.portal-skin ::-webkit-scrollbar-track {
+  background: #0A0A0F;
+}
+.portal-skin ::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.4);
+  border-radius: 3px;
+}
+.portal-skin ::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.7);
+}

@@ -38,6 +38,29 @@ const DURATION_PRESETS: { label: string; days: number }[] = [
 
 const REASONS = ["Voyage", "Difficultés financières", "Déménagement", "Autre"];
 
+/* ─── Dark tokens ───────────────────────────────────────────── */
+const D = {
+  bg:        "#0A0A0F",
+  card:      "#111122",
+  border:    "rgba(124,58,237,0.2)",
+  borderLt:  "rgba(124,58,237,0.12)",
+  text:      "#FFFFFF",
+  textSec:   "#A0A0B8",
+  textMuted: "#6B6B85",
+  accent:    "#7C3AED",
+  accentLt:  "#a78bfa",
+  warning:   "rgba(245,158,11,0.12)",
+  warningTx: "#fbbf24",
+  warningBd: "rgba(245,158,11,0.3)",
+  success:   "rgba(16,185,129,0.12)",
+  successTx: "#34d399",
+  info:      "rgba(59,130,246,0.12)",
+  infoTx:    "#60a5fa",
+  infoBd:    "rgba(59,130,246,0.3)",
+  error:     "rgba(239,68,68,0.12)",
+  errorTx:   "#f87171",
+};
+
 const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: string; canonicalData: any; loading: boolean }) => {
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState<number>(7);
@@ -52,19 +75,14 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
   const accountId = canonicalData?.identifiers?.accountId || canonicalData?.account?.id || null;
   const accountNumber = canonicalData?.account?.account_number || null;
 
-  const resumeDate = customDate
-    ? new Date(customDate)
-    : addDays(new Date(), days);
+  const resumeDate = customDate ? new Date(customDate) : addDays(new Date(), days);
   const resumeLabel = format(resumeDate, "d MMMM yyyy", { locale: fr });
   const effectiveDays = customDate
     ? Math.max(1, Math.ceil((resumeDate.getTime() - Date.now()) / 86400000))
     : days;
 
   const handleConfirm = async () => {
-    if (!subscription || !accountId) {
-      toast.error("Compte introuvable");
-      return;
-    }
+    if (!subscription || !accountId) { toast.error("Compte introuvable"); return; }
     setSubmitting(true);
     try {
       const todayLabel = format(new Date(), "d MMMM yyyy", { locale: fr });
@@ -150,94 +168,88 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
   return (
     <>
       {status === "paused" && (
-        <Card className="border-orange-300 bg-orange-50">
-          <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <Pause className="w-5 h-5 text-orange-600 mt-0.5" />
-              <div>
-                <div className="font-semibold text-orange-900">
-                  ⏸ Service suspendu jusqu'au{" "}
-                  {subscription.pause_until
-                    ? format(new Date(subscription.pause_until), "d MMMM yyyy", { locale: fr })
-                    : "—"}
-                </div>
-                <div className="text-sm text-orange-800 mt-0.5">
-                  Votre service reprendra automatiquement. Aucune facturation pendant la suspension.
-                </div>
+        <div className="rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)" }}>
+          <div className="flex items-start gap-3">
+            <Pause className="w-5 h-5 mt-0.5" style={{ color: D.warningTx }} />
+            <div>
+              <div className="font-semibold" style={{ color: D.warningTx }}>
+                Service suspendu jusqu'au{" "}
+                {subscription.pause_until
+                  ? format(new Date(subscription.pause_until), "d MMMM yyyy", { locale: fr })
+                  : "—"}
+              </div>
+              <div className="text-sm mt-0.5" style={{ color: D.textSec }}>
+                Votre service reprendra automatiquement. Aucune facturation pendant la suspension.
               </div>
             </div>
-            <Button
-              onClick={handleResumeNow}
-              disabled={resuming}
-              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
-            >
-              {resuming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Reprendre maintenant
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+          <Button
+            onClick={handleResumeNow}
+            disabled={resuming}
+            className="flex items-center gap-2"
+            style={{ background: "rgba(245,158,11,0.2)", color: D.warningTx, border: "1px solid rgba(245,158,11,0.4)" }}
+          >
+            {resuming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Reprendre maintenant
+          </Button>
+        </div>
       )}
 
       {status === "pause_requested" && (
-        <Card className="border-yellow-300 bg-yellow-50">
-          <CardContent className="p-4 flex items-start gap-3">
-            <Info className="w-5 h-5 text-yellow-700 mt-0.5" />
-            <div>
-              <div className="font-semibold text-yellow-900">
-                En attente d'approbation
-              </div>
-              <div className="text-sm text-yellow-800 mt-0.5">
-                Votre demande de suspension est en cours de traitement par notre équipe (sous 24 h).
-              </div>
+        <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
+          <Info className="w-5 h-5 mt-0.5" style={{ color: D.warningTx }} />
+          <div>
+            <div className="font-semibold" style={{ color: D.warningTx }}>En attente d'approbation</div>
+            <div className="text-sm mt-0.5" style={{ color: D.textSec }}>
+              Votre demande de suspension est en cours de traitement par notre équipe (sous 24 h).
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {status === "active" && (
-        <Card>
-          <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <div className="font-semibold text-slate-900">Suspendre temporairement</div>
-              <div className="text-sm text-slate-600 mt-0.5">
-                Partez en voyage ou prenez une pause — votre service peut être suspendu sans frais.
-              </div>
+        <div className="rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3" style={{ background: D.card, border: `1px solid ${D.border}` }}>
+          <div>
+            <div className="font-semibold" style={{ color: D.text }}>Suspendre temporairement</div>
+            <div className="text-sm mt-0.5" style={{ color: D.textSec }}>
+              Partez en voyage ou prenez une pause — votre service peut être suspendu sans frais.
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Pause className="w-4 h-4" />
-              Suspendre temporairement
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-2"
+            style={{ borderColor: D.border, color: D.textSec, background: "transparent" }}
+          >
+            <Pause className="w-4 h-4" />
+            Suspendre temporairement
+          </Button>
+        </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" style={{ background: "#111122", border: "1px solid rgba(124,58,237,0.25)", color: "#FFFFFF" }}>
           <DialogHeader>
-            <DialogTitle>Suspendre votre service temporairement</DialogTitle>
-            <DialogDescription>
+            <DialogTitle style={{ color: "#FFFFFF" }}>Suspendre votre service temporairement</DialogTitle>
+            <DialogDescription style={{ color: "#A0A0B8" }}>
               Choisissez une durée. Votre service reprendra automatiquement à la date choisie.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <div className="text-sm font-medium mb-2">Durée</div>
+              <div className="text-sm font-medium mb-2" style={{ color: D.textSec }}>Durée</div>
               <div className="flex flex-wrap gap-2">
                 {DURATION_PRESETS.map((p) => (
                   <Button
                     key={p.days}
                     type="button"
                     size="sm"
-                    variant={!customDate && days === p.days ? "default" : "outline"}
-                    onClick={() => {
-                      setDays(p.days);
-                      setCustomDate("");
-                    }}
+                    onClick={() => { setDays(p.days); setCustomDate(""); }}
+                    style={!customDate && days === p.days
+                      ? { background: "#7C3AED", color: "#FFFFFF", border: "none" }
+                      : { background: "transparent", color: D.textSec, border: `1px solid ${D.border}` }
+                    }
                   >
                     {p.label}
                   </Button>
@@ -248,21 +260,24 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
                   min={format(addDays(new Date(), 1), "yyyy-MM-dd")}
                   value={customDate}
                   onChange={(e) => setCustomDate(e.target.value)}
-                  placeholder="Autre date"
+                  style={{ background: "#1A1A2E", color: "#FFFFFF", borderColor: D.border }}
                 />
               </div>
             </div>
 
             <div>
-              <div className="text-sm font-medium mb-2">Raison (optionnel)</div>
+              <div className="text-sm font-medium mb-2" style={{ color: D.textSec }}>Raison (optionnel)</div>
               <div className="flex flex-wrap gap-2">
                 {REASONS.map((r) => (
                   <Button
                     key={r}
                     type="button"
                     size="sm"
-                    variant={reason === r ? "default" : "outline"}
                     onClick={() => setReason(reason === r ? "" : r)}
+                    style={reason === r
+                      ? { background: "#7C3AED", color: "#FFFFFF", border: "none" }
+                      : { background: "transparent", color: D.textSec, border: `1px solid ${D.border}` }
+                    }
                   >
                     {r}
                   </Button>
@@ -271,24 +286,26 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
             </div>
 
             {subscription?.paypal_subscription_id && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-900">
-                ⚠️ Votre abonnement PayPal continuera d'être débité pendant la suspension.
+              <div className="p-3 rounded-md text-sm" style={{ background: D.error, border: "1px solid rgba(239,68,68,0.3)", color: D.errorTx }}>
+                Votre abonnement PayPal continuera d'être débité pendant la suspension.
                 Contactez-nous à support@nivra-telecom.ca pour suspendre votre paiement PayPal.
               </div>
             )}
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-900">
+            <div className="p-3 rounded-md text-sm" style={{ background: D.info, border: `1px solid ${D.infoBd}`, color: D.infoTx }}>
               Votre service sera suspendu après approbation. La facturation est mise en pause pendant la
               suspension. Votre service reprendra automatiquement le{" "}
-              <strong>{resumeLabel}</strong>.
+              <strong style={{ color: "#FFFFFF" }}>{resumeLabel}</strong>.
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}
+              style={{ borderColor: D.border, color: D.textSec, background: "transparent" }}>
               Annuler
             </Button>
-            <Button onClick={handleConfirm} disabled={submitting}>
+            <Button onClick={handleConfirm} disabled={submitting}
+              style={{ background: "#7C3AED", color: "#FFFFFF" }}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Suspendre le service
             </Button>
@@ -305,13 +322,17 @@ const ClientServices = () => {
 
   return (
     <ClientLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Utilisation et services</h1>
-            <p className="text-slate-500 mt-1">Gérez vos services, équipements et forfaits</p>
+      <div className="space-y-6" style={{ color: "#FFFFFF" }}>
+        {/* Page header */}
+        <div className="rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0A0A0F 0%,#1A0A2E 60%,#0D0D1F 100%)", border: "1px solid rgba(124,58,237,0.2)", padding: "24px 28px" }}>
+          <div className="absolute rounded-full pointer-events-none" style={{ width: 300, height: 300, top: -80, right: -60, background: "radial-gradient(circle, rgba(124,58,237,0.12), transparent)", filter: "blur(40px)" }} />
+          <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "#FFFFFF" }}>Utilisation et services</h1>
+              <p className="mt-1" style={{ color: "#A0A0B8" }}>Gérez vos services, équipements et forfaits</p>
+            </div>
+            <ClientOutageReportButton />
           </div>
-          <ClientOutageReportButton />
         </div>
 
         {user?.id && <ClientServicePauseCard userId={user.id} canonicalData={canonicalData} loading={isLoading} />}
