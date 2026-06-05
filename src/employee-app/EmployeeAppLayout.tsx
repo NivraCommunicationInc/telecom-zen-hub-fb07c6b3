@@ -21,22 +21,24 @@ export default function EmployeeAppLayout() {
   return (
     <InternalPortalGate>
       <Helmet><title>Nivra OneView CS — Portail service client</title></Helmet>
-      <StaffAssistanceBanner />
-      <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
-        <EmployeeSidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="h-12 flex items-center justify-between gap-3 px-6 border-b border-border bg-card shrink-0">
-            <EmployeeOmniSearch />
-            <div className="flex items-center gap-2 shrink-0">
-              <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
-              <EmployeeNotificationBell />
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto">
-            <div className="max-w-[1400px] mx-auto p-6">
-              <Outlet />
-            </div>
-          </main>
+      <div className="h-screen flex flex-col overflow-hidden">
+        <StaffAssistanceBanner />
+        <div className={cn("internal-ui flex-1 min-h-0 flex w-full bg-background text-foreground", themeClass)}>
+          <EmployeeSidebar />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <header className="h-12 flex items-center justify-between gap-3 px-6 border-b border-border bg-card shrink-0">
+              <EmployeeOmniSearch />
+              <div className="flex items-center gap-2 shrink-0">
+                <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
+                <EmployeeNotificationBell />
+              </div>
+            </header>
+            <main className="flex-1 overflow-auto">
+              <div className="max-w-[1400px] mx-auto p-6">
+                <Outlet />
+              </div>
+            </main>
+          </div>
         </div>
       </div>
     </InternalPortalGate>
