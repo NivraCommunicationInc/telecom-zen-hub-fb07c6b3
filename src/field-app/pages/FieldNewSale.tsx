@@ -317,6 +317,43 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
   const total = Math.round((subtotal + tps + tvq) * 100) / 100;
 
+  // ── Submit inline (paypal_inline): create quote + intent only, no PayPal API call ──
+  const handlePaypalInlineInit = async () => {
+    if (!user?.id || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitMessage("Préparation du paiement…");
+    try {
+      const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
+      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total });
+      const customerName = `${draft.customer.first_name} ${draft.customer.last_name}`.trim();
+      const { data: intentData, error: intentErr } = await supabase
+        .from("field_payment_intents" as any)
+        .insert({
+          quote_id: quote.id,
+          agent_id: user.id,
+          amount: total,
+          currency: "CAD",
+          status: "pending",
+          payment_method: "paypal_inline",
+          customer_email: draft.customer.email || null,
+          customer_name: customerName || null,
+        })
+        .select("id")
+        .single();
+      if (intentErr || !intentData) throw intentErr ?? new Error("Erreur création intent paiement");
+      setDraft((d) => ({
+        ...d,
+        payment: { ...d.payment, status: "pending", fieldOrderId: (intentData as any).id, paypalApprovalUrl: null },
+      }));
+      toast.success("Prêt — entrez les informations de carte ci-dessous.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de la préparation du paiement");
+    } finally {
+      setIsSubmitting(false);
+      setSubmitMessage("");
+    }
+  };
+
   // ── Submit (FIX 1: payment-first — NO order created until webhook confirms) ──
   const handleSubmit = async () => {
     if (!user?.id || isSubmitting) return;
@@ -780,6 +817,12 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               totalAmount={total}
               onChange={(payment) => setDraft((d) => ({ ...d, payment }))}
               onSubmit={handleSubmit}
+              onPaypalInlineInit={handlePaypalInlineInit}
+              onPaypalInlineSuccess={(captureId) => {
+                setDraft((d) => ({ ...d, payment: { ...d.payment, status: "completed" } }));
+                clearDraft();
+                toast.success(`Paiement confirmé (${captureId.slice(0, 8)}) — commande créée automatiquement.`);
+              }}
               onSubmitCard={handleCardSubmit}
               onBack={() => goBack("payment")}
               isSubmitting={isSubmitting}

@@ -36,6 +36,8 @@ interface PayPalButtonProps {
   amount: number;
   invoiceId?: string;
   orderId?: string;
+  /** Field app only: UUID of field_payment_intents — links the PayPal order to the intent record so paypal-capture-order can trigger the field bridge */
+  fieldIntentId?: string;
   description?: string;
   customer?: CustomerInfo;
   paymentNumber?: string;
@@ -52,12 +54,19 @@ declare global {
 
 const PAYPAL_SDK_ID = "nivra-paypal-sdk";
 
-async function createOrder(amount: number, invoiceId: string | undefined, orderId: string | undefined, description: string, customer: CustomerInfo | undefined) {
+async function createOrder(amount: number, invoiceId: string | undefined, orderId: string | undefined, description: string, customer: CustomerInfo | undefined, fieldIntentId?: string) {
   const { data, error } = await supabase.functions.invoke("paypal-create-order", {
     body: { amount, invoice_id: invoiceId, order_id: orderId, description, customer },
   });
   if (error) throw error;
   if (!data?.paypal_order_id) throw new Error("Aucun ID PayPal retourné");
+  // Field bridge: link the new PayPal order ID to the intent record so paypal-capture-order finds it
+  if (fieldIntentId) {
+    await supabase.from("field_payment_intents" as any)
+      .update({ paypal_order_id: data.paypal_order_id })
+      .eq("id", fieldIntentId)
+      .throwOnError();
+  }
   return data.paypal_order_id as string;
 }
 
@@ -71,7 +80,7 @@ async function captureOrder(paypalOrderId: string, invoiceId: string | undefined
 }
 
 // ── Inline card form (CardFields API) ──────────────────────────────────────
-const InlineCardForm = ({ amount, invoiceId, orderId, description, customer, paymentNumber, onSuccess, disabled }: PayPalButtonProps) => {
+const InlineCardForm = ({ amount, invoiceId, orderId, fieldIntentId, description, customer, paymentNumber, onSuccess, disabled }: PayPalButtonProps) => {
   const [name, setName]           = useState([customer?.first_name, customer?.last_name].filter(Boolean).join(" "));
   const [submitting, setSubmitting] = useState(false);
   const [ready, setReady]           = useState(false);
@@ -91,7 +100,7 @@ const InlineCardForm = ({ amount, invoiceId, orderId, description, customer, pay
     try {
       const cf = window.paypal.CardFields({
         createOrder: async () => {
-          try { return await createOrder(normalizedAmt, invoiceId, orderId, description || "Paiement Nivra", customer); }
+          try { return await createOrder(normalizedAmt, invoiceId, orderId, description || "Paiement Nivra", customer, fieldIntentId); }
           catch (e: any) { const m = await getInvokeErrorMessage(e); setError(m); throw e; }
         },
         onApprove: async (d: { orderID: string }) => {
@@ -203,7 +212,7 @@ const InlineCardForm = ({ amount, invoiceId, orderId, description, customer, pay
 };
 
 // ── Composant principal ─────────────────────────────────────────────────────
-export const PayPalButton = ({ amount, invoiceId, orderId, description, customer, paymentNumber, onSuccess, onError, onCancel, disabled = false, className = "" }: PayPalButtonProps) => {
+export const PayPalButton = ({ amount, invoiceId, orderId, fieldIntentId, description, customer, paymentNumber, onSuccess, onError, onCancel, disabled = false, className = "" }: PayPalButtonProps) => {
   const [sdkState, setSdkState] = useState<"loading" | "ready" | "error">("loading");
   const [hasCardFields, setHasCardFields] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -228,11 +237,11 @@ export const PayPalButton = ({ amount, invoiceId, orderId, description, customer
 
     const script = document.createElement("script");
     script.id = PAYPAL_SDK_ID;
-    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card&components=buttons,funding-eligibility`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card&components=buttons,funding-eligibility,card-fields`;
     script.async = true;
     script.onload = () => {
       setSdkState("ready");
-      setHasCardFields(false);
+      setHasCardFields(!!window.paypal?.CardFields);
     };
     script.onerror = () => setSdkState("error");
     document.body.appendChild(script);
@@ -251,7 +260,7 @@ export const PayPalButton = ({ amount, invoiceId, orderId, description, customer
       createOrder: async () => {
         setIsProcessing(true);
         try {
-          return await createOrder(normalizedAmt, invoiceId, orderId, description || "Paiement Nivra Telecom", customer);
+          return await createOrder(normalizedAmt, invoiceId, orderId, description || "Paiement Nivra Telecom", customer, fieldIntentId);
         } catch (e) {
           const m = await getInvokeErrorMessage(e);
           toast.error(m);
@@ -287,7 +296,7 @@ export const PayPalButton = ({ amount, invoiceId, orderId, description, customer
       {sdkState === "ready" && hasCardFields && (
         <>
           <InlineCardForm
-            amount={amount} invoiceId={invoiceId} orderId={orderId}
+            amount={amount} invoiceId={invoiceId} orderId={orderId} fieldIntentId={fieldIntentId}
             description={description} customer={customer} paymentNumber={paymentNumber}
             onSuccess={onSuccess} onError={onError} disabled={disabled}
           />

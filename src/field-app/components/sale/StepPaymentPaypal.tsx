@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldPaymentMethod, FieldSalePayment, FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
+import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface Props {
   payment: FieldSalePayment;
@@ -22,6 +23,8 @@ interface Props {
   totalAmount: number;
   onChange: (payment: FieldSalePayment) => void;
   onSubmit: () => Promise<void>;
+  onPaypalInlineInit?: () => Promise<void>;
+  onPaypalInlineSuccess?: (captureId: string) => void;
   onSubmitCard?: (card: { number: string; name: string; expiry: string; cvv: string }) => Promise<void>;
   onBack: () => void;
   isSubmitting: boolean;
@@ -47,7 +50,8 @@ const formatExpiry = (v: string) => {
 const TIMER_SECONDS = 5 * 60;
 
 export default function StepPaymentPaypal({
-  payment, customer, totalAmount, onChange, onSubmit, onSubmitCard, onBack, isSubmitting, submitMessage,
+  payment, customer, totalAmount, onChange, onSubmit, onPaypalInlineInit, onPaypalInlineSuccess,
+  onSubmitCard, onBack, isSubmitting, submitMessage,
   onResendEmail, onChangeMethod,
   onCancelTransaction, onHoldTransaction, onConvertToQuote,
 }: Props) {
@@ -70,6 +74,7 @@ export default function StepPaymentPaypal({
   const isLinkReady = !!payment.paypalApprovalUrl;
   const isSent = payment.method === "paypal_email" && payment.status === "sent";
   const isCardSent = (payment.method as string) === "card_manual" && payment.status === "sent";
+  const isInlineReady = (payment.method as string) === "paypal_inline" && !!payment.fieldOrderId;
 
   const stopAll = useCallback(() => {
     if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
@@ -202,31 +207,35 @@ export default function StepPaymentPaypal({
         </p>
       </div>
 
-      {!isLinkReady && !isCardSent && !isCompleted && (
+      {!isLinkReady && !isCardSent && !isCompleted && !isInlineReady && (
         <div className="grid gap-3">
           {[
-            { id: "paypal_onsite" as const, icon: CreditCard, title: "Payer sur place", desc: "Génère un lien + QR. Le client paie sur votre appareil." },
-            { id: "paypal_email" as const, icon: Mail, title: "Envoyer par courriel", desc: `Envoie un lien PayPal à ${customer.email || "—"}` },
-            { id: "card_manual" as any, icon: Lock, title: "Prise en charge manuelle — Carte de crédit", desc: "Saisie sécurisée. Traitement par un administrateur Nivra Core." },
+            { id: "paypal_inline" as const, icon: CreditCard, title: "💳 Carte / PayPal — saisie directe", desc: "Le client saisit sa carte sur votre appareil. Paiement immédiat.", badge: "IMMÉDIAT" },
+            { id: "paypal_onsite" as const, icon: QrCode, title: "QR PayPal — sur place", desc: "Génère un lien + QR. Le client paie sur son propre appareil.", badge: null },
+            { id: "paypal_email" as const, icon: Mail, title: "Envoyer par courriel", desc: `Envoie un lien PayPal à ${customer.email || "—"}`, badge: null },
+            { id: "card_manual" as any, icon: Lock, title: "Carte manuelle — 48h", desc: "Saisie sécurisée. Traitement par un administrateur dans 48h.", badge: null },
           ].map((m) => (
             <button key={m.id} type="button" onClick={() => setMethod(m.id as FieldPaymentMethod)} disabled={isSubmitting}
               className={cn("field-card-interactive text-left rounded-2xl p-4 border transition-all flex items-center gap-4",
                 payment.method === m.id ? "border-[hsl(var(--field-accent))] bg-[hsl(var(--field-accent)/0.12)] field-glow"
                   : "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))]",
                 isSubmitting && "opacity-60 cursor-not-allowed")}>
-              <div className="w-12 h-12 rounded-xl bg-[hsl(var(--field-accent)/0.15)] flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[hsl(var(--field-accent)/0.15)] flex items-center justify-center shrink-0">
                 <m.icon className="h-6 w-6 text-[hsl(var(--field-accent-glow))]" />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-white">{m.title}</h3>
-                <p className="text-xs text-[hsl(var(--field-text-muted))]">{m.desc}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-white text-sm">{m.title}</h3>
+                  {m.badge && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[hsl(var(--field-accent))] text-white shrink-0">{m.badge}</span>}
+                </div>
+                <p className="text-xs text-[hsl(var(--field-text-muted))] mt-0.5">{m.desc}</p>
               </div>
             </button>
           ))}
         </div>
       )}
 
-      {/* PAYPAL submit */}
+      {/* PAYPAL submit (onsite / email) */}
       {(payment.method === "paypal_onsite" || payment.method === "paypal_email") && !isLinkReady && !isCompleted && (
         <button type="button" onClick={onSubmit}
           disabled={isSubmitting || (payment.method === "paypal_email" && !customer.email)}
@@ -239,6 +248,58 @@ export default function StepPaymentPaypal({
             <>Envoyer le lien au client <Mail className="h-4 w-4" /></>
           )}
         </button>
+      )}
+
+      {/* PAYPAL INLINE — init button (before intent created) */}
+      {(payment.method as string) === "paypal_inline" && !payment.fieldOrderId && !isCompleted && (
+        <button type="button" onClick={onPaypalInlineInit}
+          disabled={isSubmitting}
+          className="w-full h-14 rounded-2xl field-gradient-accent text-white font-bold text-base field-glow hover:field-glow-strong transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          {isSubmitting ? (
+            <><Loader2 className="h-5 w-5 animate-spin" />{submitMessage || "Préparation…"}</>
+          ) : (
+            <><CreditCard className="h-5 w-5" />Préparer le paiement par carte</>
+          )}
+        </button>
+      )}
+
+      {/* PAYPAL INLINE — PayPal/card form (after intent created) */}
+      {isInlineReady && !isCompleted && (
+        <div className="rounded-2xl overflow-hidden border border-[hsl(var(--field-accent)/0.3)] bg-white p-4 space-y-3">
+          <div className="flex items-center gap-2 text-[hsl(var(--field-accent))]">
+            <CreditCard className="h-4 w-4" />
+            <span className="text-sm font-semibold text-gray-800">Paiement sécurisé — Carte / PayPal</span>
+            <Lock className="h-3 w-3 text-gray-400 ml-auto" />
+          </div>
+          <PayPalButton
+            amount={totalAmount}
+            orderId={payment.fieldOrderId!}
+            fieldIntentId={payment.fieldOrderId!}
+            description={`Vente terrain — Nivra Telecom`}
+            customer={{
+              email: customer.email || undefined,
+              first_name: customer.first_name || undefined,
+              last_name: customer.last_name || undefined,
+              address: customer.address ? {
+                address_line_1: customer.address,
+                admin_area_2: customer.city || "",
+                postal_code: customer.postal_code || "",
+                admin_area_1: customer.province || "QC",
+                country_code: "CA",
+              } : undefined,
+            }}
+            onSuccess={(captureId) => {
+              onChange({ ...payment, status: "completed" });
+              onPaypalInlineSuccess?.(captureId);
+            }}
+            onError={(e) => toast.error(`Paiement refusé: ${e}`)}
+            onCancel={() => {}}
+          />
+          <button type="button" onClick={onChangeMethod}
+            className="w-full text-xs text-[hsl(var(--field-text-dim))] hover:text-white pt-1 transition-colors">
+            Changer de méthode
+          </button>
+        </div>
       )}
 
       {/* CARD form (initial) */}
