@@ -68,7 +68,7 @@ const ChatbotWidget = () => {
       // Créer/mettre à jour la session dans live_chat_sessions
       await supabase.from("live_chat_sessions" as any).upsert({
         session_id: sessionId,
-        status: "waiting_for_agent",
+        status: "waiting",
         language,
         last_message_at: new Date().toISOString(),
         unread_for_admin: 1,
@@ -204,18 +204,19 @@ How can I help you?`;
       }));
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
+    if (!text || isLoading) return;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
-      content: input.trim(),
+      content: text,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    if (!overrideText) setInput("");
     setIsLoading(true);
 
     // Mode agent humain — on sauvegarde dans live_chat_messages, pas de bot
@@ -248,11 +249,13 @@ How can I help you?`;
 
       if (response.error) throw response.error;
 
-      if (response.data.verifiedClientId && !verifiedClientId) {
-        setVerifiedClientId(response.data.verifiedClientId);
+      const data = response.data ?? {};
+
+      if (data.verifiedClientId && !verifiedClientId) {
+        setVerifiedClientId(data.verifiedClientId);
       }
 
-      if (response.data.humanTakeover) {
+      if (data.humanTakeover) {
         setIsHumanActive(true);
         setIsWaitingForAgent(false);
         startAgentPolling();
@@ -266,7 +269,7 @@ How can I help you?`;
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: response.data.response || (language === "fr"
+        content: data.response || (language === "fr"
           ? "Désolé, je n'ai pas pu traiter votre demande."
           : "Sorry, I couldn't process your request."),
         timestamp: new Date(),
@@ -312,8 +315,7 @@ How can I help you?`;
       ];
 
   const handleQuickAction = (message: string) => {
-    setInput(message);
-    setTimeout(() => sendMessage(), 100);
+    sendMessage(message);
   };
 
   // Render message content with markdown and link support
