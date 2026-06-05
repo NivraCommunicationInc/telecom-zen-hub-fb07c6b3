@@ -83,6 +83,12 @@ const notificationConfig: Record<StaffNotificationType, {
     color: "text-amber-400",
     bgColor: "bg-amber-500/20"
   },
+  cancellation_requested: {
+    icon: XCircle,
+    label: "Résiliation demandée",
+    color: "text-red-400",
+    bgColor: "bg-red-500/20"
+  },
 };
 
 interface AdminNotificationsProps {

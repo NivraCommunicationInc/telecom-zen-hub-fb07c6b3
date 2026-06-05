@@ -10,7 +10,8 @@ export type StaffNotificationType =
   | 'service_cancelled'
   | 'order_failed'
   | 'order_on_hold'
-  | 'order_stalled';
+  | 'order_stalled'
+  | 'cancellation_requested';
 
 export interface StaffNotification {
   id: string;

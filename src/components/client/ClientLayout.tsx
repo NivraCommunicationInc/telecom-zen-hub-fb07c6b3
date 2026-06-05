@@ -83,6 +83,7 @@ const navGroups: Array<{
       { path: "/portal/appointments", label: "Rendez-vous" },
       { path: "/portal/contracts", label: "Contrats", badgeKey: "contracts" },
       { path: "/portal/replacement", label: "Demande de remplacement" },
+      { path: "/portal/cancellations", label: "Résiliation de service" },
     ],
   },
   {
