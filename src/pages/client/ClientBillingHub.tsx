@@ -48,10 +48,10 @@ import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  paid: "bg-emerald-100 text-emerald-700",
-  overdue: "bg-red-100 text-red-700",
-  partially_paid: "bg-orange-100 text-orange-700",
+  pending: "bg-amber-500/20 text-amber-400",
+  paid: "bg-emerald-500/20 text-emerald-400",
+  overdue: "bg-red-500/20 text-red-400",
+  partially_paid: "bg-orange-500/20 text-orange-400",
   void: "bg-muted text-muted-foreground",
   cancelled: "bg-muted text-muted-foreground",
 };
@@ -418,7 +418,7 @@ const ClientBillingHub = () => {
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                isPaid ? 'bg-emerald-100' : 'bg-amber-100'
+                                isPaid ? 'bg-emerald-500/15' : 'bg-amber-500/15'
                               }`}>
                                 {isPaid ? (
                                   <CheckCircle className="w-4 h-4 text-emerald-600" />

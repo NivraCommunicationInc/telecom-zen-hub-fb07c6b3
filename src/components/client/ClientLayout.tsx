@@ -231,23 +231,23 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   return (
     <ImpersonationProvider>
-    <div className="min-h-screen flex flex-col bg-white text-slate-900">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <PortalSystemStatusBanner userType="client" />
       <AccountBlockedBanner />
       {user?.id && <PrepaidUrgentBanner userId={user.id} />}
 
       {/* Top utility bar — desktop only */}
-      <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
-        <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs text-slate-600">
-          <Link to="/" className="hover:text-[#6b21e8] transition-colors">
+      <div className="bg-card border-b border-border hidden lg:block">
+        <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs text-muted-foreground">
+          <Link to="/" className="hover:text-primary transition-colors">
             Retour au site Nivra
           </Link>
-          <span className="text-slate-300">|</span>
+          <span className="text-border">|</span>
           <span className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5" />
             {user?.email}
           </span>
-          <button onClick={handleSignOut} className="hover:text-[#6b21e8] transition-colors flex items-center gap-1">
+          <button onClick={handleSignOut} className="hover:text-primary transition-colors flex items-center gap-1">
             <LogOut className="w-3.5 h-3.5" />
             Déconnexion
           </button>
@@ -348,7 +348,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                     )}
 
                     {hasChildren && openDropdown === idx && (
-                      <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-card rounded-xl shadow-xl border border-border py-2 z-50">
                         {group.children.map((child) => (
                           <Link
                             key={child.path}
@@ -357,10 +357,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                             className={cn(
                               "flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors",
                               isActive(child.path)
-                                ? "font-medium"
-                                : "text-slate-700 hover:text-[#6b21e8]"
+                                ? "bg-primary/15 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                             )}
-                            style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                           >
                             <span>{child.label}</span>
                             {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
@@ -387,11 +386,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       </header>
 
       {/* Secondary nav bar — desktop */}
-      <div className="bg-white border-b border-slate-200 hidden lg:block sticky top-16 z-40">
+      <div className="bg-card border-b border-border hidden lg:block sticky top-16 z-40">
         <div className="max-w-[1200px] mx-auto px-6 flex items-center h-12 text-sm">
-          <span className="font-semibold text-slate-900 mr-4">MonNivra</span>
-          <span className="text-slate-400 mr-4">|</span>
-          <span className="text-slate-600">
+          <span className="font-semibold text-foreground mr-4">MonNivra</span>
+          <span className="text-border mr-4">|</span>
+          <span className="text-muted-foreground">
             {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Client"}
           </span>
         </div>
@@ -400,25 +399,25 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       {/* Mobile menu — full-height LEFT drawer */}
       {mobileMenuOpen && (
         <>
-          <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between h-14">
-              <span className="font-semibold text-slate-900 text-base">MonNivra</span>
-              <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-slate-500 hover:text-slate-900 rounded-lg">
+          <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
+          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-card z-50 shadow-2xl lg:hidden overflow-y-auto border-r border-border">
+            <div className="p-4 border-b border-border flex items-center justify-between h-14">
+              <span className="font-semibold text-foreground text-base">MonNivra</span>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="p-4 border-b border-slate-100 bg-slate-50">
+
+            <div className="p-4 border-b border-border bg-secondary/30">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: PURPLE_LIGHT }}>
-                  <User className="w-5 h-5" style={{ color: PURPLE }} />
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-900 text-sm truncate">
+                  <p className="font-medium text-foreground text-sm truncate">
                     {user?.user_metadata?.full_name || "Client"}
                   </p>
-                  <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 </div>
               </div>
             </div>
@@ -431,10 +430,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       to={group.path}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
-                        isActive(group.path) ? "text-white" : "text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+                        "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium min-h-[44px] transition-colors",
+                        isActive(group.path)
+                          ? "bg-primary text-white"
+                          : "text-foreground hover:bg-secondary/60 active:bg-secondary"
                       )}
-                      style={isActive(group.path) ? { background: PURPLE, color: 'white' } : undefined}
                     >
                       <span>{group.label}</span>
                       {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
@@ -447,7 +447,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                     </Link>
                   ) : (
                     <>
-                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
                         <span>{group.label}</span>
                         {group.badgeKey && sectionBadges[group.badgeKey]?.show && (
                           <SectionBadge
@@ -463,10 +463,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                           to={child.path}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
-                            "flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm min-h-[44px]",
-                            isActive(child.path) ? "font-medium" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
+                            "flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm min-h-[44px] transition-colors",
+                            isActive(child.path)
+                              ? "bg-primary/15 text-primary font-medium"
+                              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground active:bg-secondary"
                           )}
-                          style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                         >
                           <span>{child.label}</span>
                           {child.badgeKey && sectionBadges[child.badgeKey]?.show && (
@@ -484,14 +485,14 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               ))}
             </nav>
 
-            <div className="p-4 border-t border-slate-200 mt-2 space-y-1">
-              <Link to="/" className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
+            <div className="p-4 border-t border-border mt-2 space-y-1">
+              <Link to="/" className="flex items-center px-4 py-3 text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground rounded-xl min-h-[44px] transition-colors">
                 Retour au site Nivra
               </Link>
               {hasStaffRole && (
                 <button
                   onClick={() => navigate('/nivra-secure-hub-2617-internal')}
-                  className="w-full text-left px-4 py-3 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl flex items-center gap-2 min-h-[44px] border-t border-slate-200 pt-3 mt-1"
+                  className="w-full text-left px-4 py-3 text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground rounded-xl flex items-center gap-2 min-h-[44px] border-t border-border pt-3 mt-1 transition-colors"
                 >
                   <LayoutGrid className="w-4 h-4" />
                   Changer de portail
@@ -499,7 +500,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               )}
               <button
                 onClick={handleSignOut}
-                className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2 min-h-[44px]"
+                className="w-full text-left px-4 py-3 text-sm text-destructive hover:bg-destructive/10 rounded-xl flex items-center gap-2 min-h-[44px] transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 Déconnexion
@@ -517,17 +518,17 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       </main>
 
       {/* Portal Footer */}
-      <footer className="bg-slate-100 border-t border-slate-200 py-5 mt-auto">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs text-slate-500 space-y-1">
+      <footer className="bg-card border-t border-border py-5 mt-auto">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs text-muted-foreground space-y-1">
           <p>© {new Date().getFullYear()} Nivra Télécom. Tous droits réservés.</p>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <Link to="/privacy-policy" className="hover:text-[#6b21e8] transition-colors">Confidentialité</Link>
-            <span className="text-slate-400">·</span>
-            <Link to="/conditions-de-service" className="hover:text-[#6b21e8] transition-colors">Conditions</Link>
-            <span className="text-slate-400">·</span>
-            <Link to="/contact" className="hover:text-[#6b21e8] transition-colors">Support</Link>
-            <span className="text-slate-400">·</span>
-            <Link to="/plainte" className="inline-flex items-center gap-1 hover:text-[#6b21e8] transition-colors">
+            <Link to="/privacy-policy" className="hover:text-primary transition-colors">Confidentialité</Link>
+            <span className="text-border">·</span>
+            <Link to="/conditions-de-service" className="hover:text-primary transition-colors">Conditions</Link>
+            <span className="text-border">·</span>
+            <Link to="/contact" className="hover:text-primary transition-colors">Support</Link>
+            <span className="text-border">·</span>
+            <Link to="/plainte" className="inline-flex items-center gap-1 hover:text-primary transition-colors">
               <AlertCircle className="w-3.5 h-3.5" />
               Soumettre une plainte
             </Link>
