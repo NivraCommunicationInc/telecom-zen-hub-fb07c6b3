@@ -398,7 +398,7 @@ serve(async (req) => {
             severity: "high",
             message: `account_adjustments non appliqués sur ${invoiceNumber}: ${adjErrMsg}`,
             details: { subscription_id: sub.id, customer_id: sub.customer_id, invoice_number: invoiceNumber, error: adjErrMsg },
-          }).catch(() => {});
+          });
         }
 
         // Advance subscription cycle so billing-lifecycle at 8h does not re-process
@@ -541,7 +541,6 @@ serve(async (req) => {
     }
     
     // ── CRON HEARTBEAT ──
-    // Record every successful run so we can detect cron failures externally.
     await supabase.from("billing_system_alerts").insert({
       alert_type: "cron_heartbeat",
       entity_type: "cron",
@@ -549,9 +548,8 @@ serve(async (req) => {
       severity: "info",
       message: `Cron OK — window ${windowStartStr}→${windowEndStr} — processed: ${results.processed}, errors: ${results.errors.length}`,
       details: { window: `${windowStartStr}→${windowEndStr}`, ...results },
-    }).catch(() => {});
+    });
 
-    // Alert if there were subscriptions to process but all failed silently
     if (results.errors.length > 0 && results.processed === 0) {
       await supabase.from("billing_system_alerts").insert({
         alert_type: "renewal_generation_all_failed",
@@ -560,7 +558,7 @@ serve(async (req) => {
         severity: "critical",
         message: `CRITIQUE: ${results.errors.length} abonnement(s) en erreur, 0 facture créée`,
         details: { window: `${windowStartStr}→${windowEndStr}`, errors: results.errors },
-      }).catch(() => {});
+      });
     }
 
     return new Response(
