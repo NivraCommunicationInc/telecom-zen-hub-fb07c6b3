@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export type StaffNotificationType = 
+export type StaffNotificationType =
   | 'new_order'
   | 'invoice_created'
   | 'payment_received'
   | 'service_suspended'
-  | 'service_cancelled';
+  | 'service_cancelled'
+  | 'order_failed'
+  | 'order_on_hold'
+  | 'order_stalled';
 
 export interface StaffNotification {
   id: string;

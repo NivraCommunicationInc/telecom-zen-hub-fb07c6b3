@@ -26,9 +26,12 @@ const AdminDashboard = () => {
       const today = new Date().toISOString();
       const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
 
+      const stalledCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
       const [
         ordersRes, clientsRes, billingRes, requestsRes, overdueRes,
         appointmentsRes, activityRes, analyticsRes, paymentsRes,
+        failedOrdersRes, stalledOrdersRes,
       ] = await Promise.all([
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -39,6 +42,10 @@ const AdminDashboard = () => {
         supabase.from("activity_logs").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
         supabase.from("telecom_analytics").select("activations_count, contract_savings"),
         supabase.from("billing_payments").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("orders").select("*", { count: "exact", head: true }).in("status", ["provisioning_failed", "hold"]),
+        supabase.from("orders").select("*", { count: "exact", head: true })
+          .in("status", ["pending", "pending_verification", "verification", "back_order", "backorder"])
+          .lt("updated_at", stalledCutoff),
       ]);
 
       const totalRevenue = billingRes.data?.reduce((sum, b) => sum + Number(b.total), 0) || 0;
@@ -56,6 +63,7 @@ const AdminDashboard = () => {
         activations: totalActivations,
         savings: totalSavings,
         pendingPayments: paymentsRes.count || 0,
+        failedOrders: (failedOrdersRes.count || 0) + (stalledOrdersRes.count || 0),
       };
     },
   });
@@ -152,6 +160,24 @@ const AdminDashboard = () => {
         </div>
 
         <PendingTVOrdersNotification />
+
+        {/* Commandes problématiques — alerte temps réel */}
+        {!isLoading && (stats?.failedOrders ?? 0) > 0 && (
+          <Link to="/admin/orders">
+            <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 hover:bg-red-500/15 transition-colors cursor-pointer">
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-400">
+                  {stats!.failedOrders} commande{stats!.failedOrders > 1 ? "s" : ""} nécessite{stats!.failedOrders > 1 ? "nt" : ""} votre attention
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Échec de provisionnement, suspendue (hold) ou bloquée depuis plus de 48h
+                </p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-red-400 flex-shrink-0" />
+            </div>
+          </Link>
+        )}
 
         {/* P0 GAP #8 — Comptes en souffrance (real-time) */}
         <OverdueAccountsCard />

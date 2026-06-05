@@ -59,11 +59,29 @@ const notificationConfig: Record<StaffNotificationType, {
     color: "text-orange-400",
     bgColor: "bg-orange-500/20"
   },
-  service_cancelled: { 
-    icon: XCircle, 
-    label: "Service annulé", 
+  service_cancelled: {
+    icon: XCircle,
+    label: "Service annulé",
     color: "text-red-400",
     bgColor: "bg-red-500/20"
+  },
+  order_failed: {
+    icon: XCircle,
+    label: "Échec provisionnement",
+    color: "text-red-400",
+    bgColor: "bg-red-500/20"
+  },
+  order_on_hold: {
+    icon: AlertTriangle,
+    label: "Commande suspendue",
+    color: "text-orange-400",
+    bgColor: "bg-orange-500/20"
+  },
+  order_stalled: {
+    icon: AlertTriangle,
+    label: "Commande bloquée",
+    color: "text-amber-400",
+    bgColor: "bg-amber-500/20"
   },
 };
 
