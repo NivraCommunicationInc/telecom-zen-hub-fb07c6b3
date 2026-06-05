@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Link, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
@@ -5,190 +6,164 @@ import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import AccountStateBanner from "@/components/client/AccountStateBanner";
+import EmailClaimBanner from "@/components/client/EmailClaimBanner";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import ServiceCountdown from "@/components/client/ServiceCountdown";
 import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
-import AccountStateBanner from "@/components/client/AccountStateBanner";
-import EmailClaimBanner from "@/components/client/EmailClaimBanner";
+import ReferralPopup from "@/components/client/ReferralPopup";
+import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 import {
-  Wifi, Smartphone, Tv, ChevronRight, Copy, FileText,
-  CreditCard, AlertCircle, Package, ArrowRight, CheckCircle2,
-  Clock, Settings, HelpCircle, Shield,
+  Wifi, Smartphone, Tv, Copy, FileText, CreditCard,
+  AlertCircle, Package, ArrowRight, ChevronRight,
+  CheckCircle2, Clock, Zap, Settings, LifeBuoy, Gift,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import ReferralPopup from "@/components/client/ReferralPopup";
-import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 
-/* ─── Dark design tokens ───────────────────────────────────── */
-const D = {
-  bg:          "#0A0A0F",
-  bgCard:      "#111122",
-  bgCardHover: "rgba(124,58,237,0.05)",
-  border:      "rgba(124,58,237,0.2)",
-  borderLight: "rgba(124,58,237,0.12)",
-  accent:      "#7C3AED",
-  accentLight: "#a78bfa",
-  textPrimary: "#FFFFFF",
-  textSec:     "#A0A0B8",
-  textMuted:   "#6B6B85",
-  success:     "#10B981",
-  successText: "#34d399",
-  warning:     "#F59E0B",
-  warningText: "#fbbf24",
-  error:       "#EF4444",
-  errorText:   "#f87171",
-};
+/* ─── Keyframe styles injected once ──────────────────────────── */
+const KEYFRAMES = `
+  @keyframes aurora-1 { 0%,100%{transform:translate(0,0) scale(1);opacity:.5;} 33%{transform:translate(60px,-40px) scale(1.15);opacity:.65;} 66%{transform:translate(-40px,30px) scale(.95);opacity:.45;} }
+  @keyframes aurora-2 { 0%,100%{transform:translate(0,0) scale(1);opacity:.35;} 40%{transform:translate(-80px,50px) scale(1.2);opacity:.55;} 75%{transform:translate(50px,-60px) scale(.9);opacity:.3;} }
+  @keyframes aurora-3 { 0%,100%{transform:translate(0,0) scale(1);opacity:.25;} 50%{transform:translate(40px,70px) scale(1.1);opacity:.45;} }
+  @keyframes scanline  { 0%{transform:translateY(-100%);opacity:0;} 5%{opacity:.5;} 95%{opacity:.5;} 100%{transform:translateY(100vh);opacity:0;} }
+  @keyframes pulse-ring { 0%{transform:scale(.85);opacity:.9;} 70%{transform:scale(1.4);opacity:0;} 100%{transform:scale(1.4);opacity:0;} }
+  @keyframes shimmer { 0%{background-position:-200% center;} 100%{background-position:200% center;} }
+  @keyframes float-card { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+`;
 
-/* ─── Service config ────────────────────────────────────────── */
-const SVC: Record<string, { icon: React.ReactNode; gradient: string; tag: string; accent: string }> = {
-  internet: {
-    icon:     <Wifi className="w-6 h-6 text-white" />,
-    gradient: "linear-gradient(135deg,#059669,#10b981)",
-    tag:      "Internet",
-    accent:   "#10b981",
-  },
-  mobile: {
-    icon:     <Smartphone className="w-6 h-6 text-white" />,
-    gradient: "linear-gradient(135deg,#7c3aed,#a78bfa)",
-    tag:      "Mobile",
-    accent:   "#a78bfa",
-  },
-  tv: {
-    icon:     <Tv className="w-6 h-6 text-white" />,
-    gradient: "linear-gradient(135deg,#d97706,#fbbf24)",
-    tag:      "Télévision",
-    accent:   "#fbbf24",
-  },
-};
-const svcCfg = (t: string) =>
-  SVC[t] ?? { icon: <Package className="w-6 h-6 text-white" />, gradient: "linear-gradient(135deg,#475569,#94a3b8)", tag: t, accent: "#94a3b8" };
-
-/* ─── Status pill — dark mode ──────────────────────────────── */
-const Pill = ({ status }: { status: string }) => {
-  const map: Record<string, [string, string, string]> = {
-    active:    ["rgba(16,185,129,0.15)",  "#34d399",  "rgba(16,185,129,0.3)"],
-    pending:   ["rgba(245,158,11,0.15)",  "#fbbf24",  "rgba(245,158,11,0.3)"],
-    suspended: ["rgba(239,68,68,0.15)",   "#f87171",  "rgba(239,68,68,0.3)"],
-    paused:    ["rgba(124,58,237,0.15)",  "#a78bfa",  "rgba(124,58,237,0.3)"],
-  };
-  const [bg, color, border] = map[status] ?? ["rgba(107,107,133,0.2)", "#A0A0B8", "rgba(107,107,133,0.3)"];
-  const labels: Record<string,string> = { active:"Actif", pending:"En attente", suspended:"Suspendu", paused:"En pause" };
-  return (
-    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: bg, color, border: `1px solid ${border}` }}>
-      {labels[status] ?? status}
-    </span>
-  );
-};
-
-/* ─── KPI Tile ──────────────────────────────────────────────── */
-const Tile = ({ label, value, sub, gradient, icon }: {
-  label: string; value: React.ReactNode; sub?: string;
-  gradient: string; icon: React.ReactNode;
-}) => (
-  <div className="rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden cursor-default" style={{ background: gradient, minHeight: 120 }}>
-    <div className="absolute inset-0 opacity-10" style={{ background: "radial-gradient(circle at 80% 20%, white, transparent)" }} />
-    <div className="flex items-start justify-between relative z-10">
-      <p className="text-white/80 text-xs font-semibold uppercase tracking-wider">{label}</p>
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.2)" }}>{icon}</div>
-    </div>
-    <div className="relative z-10">
-      <p className="text-white text-2xl font-bold leading-tight mt-2">{value}</p>
-      {sub && <p className="text-white/70 text-xs mt-0.5">{sub}</p>}
-    </div>
-  </div>
-);
-
-/* ─── Quick action ──────────────────────────────────────────── */
-const QAction = ({ icon, label, to, onClick }: { icon: React.ReactNode; label: string; to?: string; onClick?: () => void }) => {
-  const inner = (
-    <>
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors" style={{ background: "rgba(124,58,237,0.15)" }}>
-        <span style={{ color: "#a78bfa" }}>{icon}</span>
-      </div>
-      <span className="text-xs font-semibold text-center leading-tight" style={{ color: "#D0D0E8" }}>{label}</span>
-    </>
-  );
-  const base: React.CSSProperties = {
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-    padding: 16, borderRadius: 16, border: `1px solid ${D.border}`,
-    background: D.bgCard, cursor: "pointer", transition: "all 0.15s ease",
-  };
-  if (to) return (
-    <Link to={to} style={base}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.5)"; (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = D.border; (e.currentTarget as HTMLElement).style.background = D.bgCard; }}
-    >{inner}</Link>
-  );
-  return (
-    <button style={base} onClick={onClick}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.5)"; (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = D.border; (e.currentTarget as HTMLElement).style.background = D.bgCard; }}
-    >{inner}</button>
-  );
-};
-
-/* ─── Section header ────────────────────────────────────────── */
-const SectionHead = ({ title, linkTo, linkLabel }: { title: string; linkTo?: string; linkLabel?: string }) => (
-  <div className="flex items-center justify-between mb-3">
-    <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: D.textMuted }}>{title}</h2>
-    {linkTo && (
-      <Link to={linkTo} className="flex items-center gap-1 text-sm font-semibold transition-colors hover:opacity-80" style={{ color: D.accentLight }}>
-        {linkLabel} <ChevronRight className="w-4 h-4" />
-      </Link>
-    )}
-  </div>
-);
-
-/* ─── Card wrapper ──────────────────────────────────────────── */
-const DCard = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-  <div style={{ background: D.bgCard, border: `1px solid ${D.border}`, borderRadius: 16, overflow: "hidden", ...style }}>
+/* ─── Glass card ──────────────────────────────────────────────── */
+const GCard = ({
+  children, style, className = "", hover = true,
+}: { children: React.ReactNode; style?: React.CSSProperties; className?: string; hover?: boolean }) => (
+  <div
+    className={className}
+    style={{
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(124,58,237,0.25)",
+      borderRadius: 20,
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      transition: hover ? "border-color .2s ease, box-shadow .2s ease" : undefined,
+      ...style,
+    }}
+    onMouseEnter={hover ? e => {
+      (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.5)";
+      (e.currentTarget as HTMLElement).style.boxShadow = "0 0 40px rgba(124,58,237,0.12)";
+    } : undefined}
+    onMouseLeave={hover ? e => {
+      (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.25)";
+      (e.currentTarget as HTMLElement).style.boxShadow = "none";
+    } : undefined}
+  >
     {children}
   </div>
 );
 
-/* ─── Main component ────────────────────────────────────────── */
+/* ─── Stat tile ───────────────────────────────────────────────── */
+const StatTile = ({ label, value, icon, accentColor, sub }: {
+  label: string; value: React.ReactNode; icon: React.ReactNode;
+  accentColor: string; sub?: string;
+}) => (
+  <GCard style={{ padding: 20 }}>
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: `${accentColor}18`, border: `1px solid ${accentColor}40`, display: "flex", alignItems: "center", justifyContent: "center", color: accentColor }}>{icon}</div>
+    </div>
+    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", lineHeight: 1, letterSpacing: "-1px" }}>{value}</div>
+    {sub && <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{sub}</div>}
+  </GCard>
+);
+
+/* ─── Quick action ────────────────────────────────────────────── */
+const QBtn = ({ icon, label, to, onClick, color = "#7C3AED" }: {
+  icon: React.ReactNode; label: string; to?: string; onClick?: () => void; color?: string;
+}) => {
+  const inner = (
+    <>
+      <div style={{ width: 44, height: 44, borderRadius: 14, background: `${color}18`, border: `1px solid ${color}35`, display: "flex", alignItems: "center", justifyContent: "center", color, marginBottom: 8 }}>{icon}</div>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.75)", textAlign: "center", lineHeight: 1.3 }}>{label}</span>
+    </>
+  );
+  const s: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "center", padding: "18px 12px", borderRadius: 18, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.2)", cursor: "pointer", transition: "all .18s ease" };
+  const over = (el: HTMLElement) => { el.style.borderColor = `${color}60`; el.style.background = `${color}0A`; el.style.transform = "translateY(-2px)"; };
+  const out  = (el: HTMLElement) => { el.style.borderColor = "rgba(124,58,237,0.2)"; el.style.background = "rgba(255,255,255,0.03)"; el.style.transform = "none"; };
+  if (to) return <Link to={to} style={s} onMouseEnter={e => over(e.currentTarget as HTMLElement)} onMouseLeave={e => out(e.currentTarget as HTMLElement)}>{inner}</Link>;
+  return <button style={s} onClick={onClick} onMouseEnter={e => over(e.currentTarget as HTMLElement)} onMouseLeave={e => out(e.currentTarget as HTMLElement)}>{inner}</button>;
+};
+
+/* ─── Status pill ─────────────────────────────────────────────── */
+const Pill = ({ status }: { status: string }) => {
+  const m: Record<string, [string, string]> = {
+    active:    ["rgba(16,185,129,0.15)",  "#34d399"],
+    pending:   ["rgba(245,158,11,0.15)",  "#fbbf24"],
+    suspended: ["rgba(239,68,68,0.15)",   "#f87171"],
+    paused:    ["rgba(124,58,237,0.15)",  "#a78bfa"],
+  };
+  const [bg, color] = m[status] ?? ["rgba(107,107,133,0.15)", "#A0A0B8"];
+  const lbl: Record<string, string> = { active: "Actif", pending: "En attente", suspended: "Suspendu", paused: "En pause" };
+  return (
+    <span style={{ background: bg, color, border: `1px solid ${color}50`, borderRadius: 999, fontSize: 11, fontWeight: 700, padding: "3px 10px" }}>
+      {lbl[status] ?? status}
+    </span>
+  );
+};
+
+/* ─── Service type config ─────────────────────────────────────── */
+const SVC: Record<string, { icon: React.ReactNode; color: string; label: string; grad: string }> = {
+  internet: { icon: <Wifi className="w-5 h-5" />, color: "#10b981", label: "Internet", grad: "linear-gradient(135deg,#059669,#10b981)" },
+  mobile:   { icon: <Smartphone className="w-5 h-5" />, color: "#a78bfa", label: "Mobile", grad: "linear-gradient(135deg,#7c3aed,#a78bfa)" },
+  tv:       { icon: <Tv className="w-5 h-5" />, color: "#fbbf24", label: "Télévision", grad: "linear-gradient(135deg,#d97706,#fbbf24)" },
+};
+const svc = (t: string) => SVC[t] ?? { icon: <Package className="w-5 h-5" />, color: "#94a3b8", label: t, grad: "linear-gradient(135deg,#475569,#94a3b8)" };
+
+/* ─── Fade-up animation variant ──────────────────────────────── */
+const up = {
+  hidden:  { opacity: 0, y: 20 },
+  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] as const } }),
+};
+
+/* ════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+════════════════════════════════════════════════════════════════ */
 const ClientDashboard = () => {
-  const { user } = useClientAuth();
-  const navigate  = useNavigate();
+  const { user }    = useClientAuth();
+  const navigate    = useNavigate();
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("nivra_welcomed"));
 
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
-  const { data: canonicalData }   = useCanonicalClientData(user?.id);
+  const { data: canon }           = useCanonicalClientData(user?.id);
 
-  const profile  = canonicalData?.profile;
-  const account  = canonicalData?.account;
-  const orders   = canonicalData?.orders?.slice(0, 4) || [];
+  const profile  = canon?.profile;
+  const account  = canon?.account;
+  const orders   = canon?.orders?.slice(0, 4) ?? [];
 
-  const subs = (canonicalData?.subscriptions || [])
-    .filter((s: any) => !["cancelled","expired"].includes(String(s?.status||"").toLowerCase()))
+  const subs = (canon?.subscriptions ?? [])
+    .filter((s: any) => !["cancelled", "expired"].includes(String(s?.status ?? "").toLowerCase()))
     .map((s: any) => ({
-      id:          s.id,
-      name:        s.plan_name,
-      price:       s.plan_price,
-      type:        s.service_category || (
-        s.plan_name?.toLowerCase().includes("internet") ? "internet" :
-        s.plan_name?.toLowerCase().includes("tv")       ? "tv"       : "mobile"
-      ),
-      status:      s.status,
-      cycle_start: s.cycle_start_date,
-      cycle_end:   s.cycle_end_date,
+      id:     s.id,
+      name:   s.plan_name,
+      price:  s.plan_price,
+      type:   s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
+      status: s.status,
+      cycle_start_date: s.cycle_start_date,
+      cycle_end_date:   s.cycle_end_date,
     }));
 
-  const firstName  = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Client";
-  const acctNum    = account?.account_number || accountIdentity?.accountNumber || "—";
+  const firstName   = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Client";
+  const acctNum     = account?.account_number || accountIdentity?.accountNumber || "—";
   const activeCount = subs.filter((s: any) => String(s.status).toLowerCase() === "active").length;
-
-  const copy = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copié"); };
 
   const nextBilling = (() => {
     const active = subs.find((s: any) => String(s.status).toLowerCase() === "active");
     if (!active) return null;
     const cycle = getCycleDisplay(active);
-    return cycle.isActive && cycle.nextRenewal ? format(new Date(cycle.nextRenewal), "d MMM", { locale: fr }) : null;
+    return cycle.isActive && cycle.nextRenewal ? format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr }) : null;
   })();
 
-  const orderStatus = (s: string): [string, string, string] => {
+  const copy = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copié"); };
+
+  const orderCls = (s: string) => {
     if (s === "completed") return ["rgba(16,185,129,0.15)", "#34d399", "Terminé"];
     if (s === "shipped")   return ["rgba(124,58,237,0.15)", "#a78bfa", "Expédié"];
     if (["cancelled","cancel"].includes(s)) return ["rgba(239,68,68,0.15)", "#f87171", "Annulé"];
@@ -197,286 +172,299 @@ const ClientDashboard = () => {
 
   return (
     <ClientLayout>
+      <style>{KEYFRAMES}</style>
       <ReferralPopup />
-      <div className="space-y-6" data-testid="portal-dashboard" style={{ color: D.textPrimary }}>
 
-        {/* ═══ HERO ════════════════════════════════════════════════ */}
-        <div className="rounded-3xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0A0A0F 0%,#1A0A2E 50%,#0D0D1F 100%)", border: `1px solid ${D.border}`, minHeight: 200 }}>
-          {/* Violet glow orbs */}
-          <div className="absolute rounded-full pointer-events-none" style={{ width: 400, height: 400, top: -100, right: -80, background: "radial-gradient(circle, rgba(124,58,237,0.15), transparent)", filter: "blur(40px)" }} />
-          <div className="absolute rounded-full pointer-events-none" style={{ width: 250, height: 250, bottom: -60, left: "30%", background: "radial-gradient(circle, rgba(124,58,237,0.08), transparent)", filter: "blur(30px)" }} />
+      {/* ════ PAGE WRAPPER — dark Nivra bg ══════════════════════════ */}
+      <div style={{ background: "#020209", minHeight: "100vh", position: "relative" }} data-testid="portal-dashboard">
 
-          <div className="relative z-10 px-6 sm:px-8 py-7 sm:py-9">
+        {/* ── Aurora blobs ──────────────────────────────────────────── */}
+        <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
+          <div style={{ position: "absolute", top: "-10%", right: "-15%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.28) 0%, transparent 65%)", animation: "aurora-1 16s ease-in-out infinite", willChange: "transform" }} />
+          <div style={{ position: "absolute", bottom: "-20%", left: "-10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.15) 0%, transparent 65%)", animation: "aurora-2 20s ease-in-out infinite", willChange: "transform" }} />
+          <div style={{ position: "absolute", top: "40%", left: "30%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(139,92,246,0.12) 0%, transparent 65%)", animation: "aurora-3 24s ease-in-out infinite", willChange: "transform" }} />
+        </div>
+
+        {/* ── Grid overlay ──────────────────────────────────────────── */}
+        <div aria-hidden style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)", backgroundSize: "80px 80px", pointerEvents: "none", zIndex: 0 }} />
+
+        {/* ── Scan line ─────────────────────────────────────────────── */}
+        <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(124,58,237,0.5) 20%, rgba(6,182,212,0.6) 50%, rgba(124,58,237,0.5) 80%, transparent)", animation: "scanline 10s linear infinite", boxShadow: "0 0 20px rgba(124,58,237,0.3)" }} />
+        </div>
+
+        {/* ── Content ───────────────────────────────────────────────── */}
+        <div style={{ position: "relative", zIndex: 2, padding: "32px 0 48px" }}>
+
+          {/* SYSTEM BANNERS */}
+          {canon?.identifiers?.usedFallbackLinks && (
+            <div style={{ marginBottom: 16, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 14, padding: "12px 16px", fontSize: 13, color: "#fbbf24", display: "flex", gap: 10 }}>
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>Certaines données ont été reliées via votre courriel. Contactez le support si une commande semble manquante.</span>
+            </div>
+          )}
+          {account?.id && <div style={{ marginBottom: 16 }}><AccountStateBanner accountId={account.id} /></div>}
+          <div style={{ marginBottom: 16 }}><EmailClaimBanner /></div>
+
+          {/* ════ HERO SECTION ═══════════════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" custom={0} variants={up} style={{ marginBottom: 32 }}>
             {welcome ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                <div>
-                  <p className="text-sm font-medium mb-1" style={{ color: D.textMuted }}>Bienvenue chez Nivra Télécom</p>
-                  <h1 className="font-bold text-2xl sm:text-3xl tracking-tight" style={{ color: D.textPrimary }}>
-                    Bonjour, {firstName}&nbsp;!
-                  </h1>
-                  <p className="text-sm mt-2 max-w-sm leading-relaxed" style={{ color: D.textSec }}>
-                    Votre service sera activé sous 24h. Consultez votre courriel de confirmation.
-                  </p>
+              /* ── First visit ── */
+              <GCard hover={false} style={{ padding: "36px 32px", background: "rgba(124,58,237,0.06)", borderColor: "rgba(124,58,237,0.3)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                  <span style={{ position: "relative", width: 8, height: 8, display: "inline-flex" }}>
+                    <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#06B6D4", animation: "pulse-ring 2s ease-out infinite" }} />
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#06B6D4", display: "block" }} />
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#67E8F9", fontFamily: "'JetBrains Mono', monospace" }}>Bienvenue chez Nivra Télécom</span>
                 </div>
+                <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: "#fff", letterSpacing: "-1.5px", marginBottom: 12, lineHeight: 1.1 }}>
+                  Bonjour, {firstName}&nbsp;!
+                </h1>
+                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, lineHeight: 1.7, maxWidth: 480, marginBottom: 24 }}>
+                  Votre service sera activé sous 24h. Un courriel de confirmation vous a été envoyé.
+                </p>
                 <button
-                  onClick={() => { setWelcome(false); localStorage.setItem("nivra_welcomed","1"); }}
-                  className="self-start sm:self-auto flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: "rgba(124,58,237,0.2)", color: "#FFFFFF", border: "1px solid rgba(124,58,237,0.4)" }}
+                  onClick={() => { setWelcome(false); localStorage.setItem("nivra_welcomed", "1"); }}
+                  style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 12, padding: "10px 20px", color: "#a78bfa", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                 >
-                  Compris ✓
+                  Accéder à mon espace →
                 </button>
-              </div>
+              </GCard>
             ) : (
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+              /* ── Regular dashboard header ── */
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Greeting */}
                 <div>
-                  <p className="text-sm font-medium mb-1" style={{ color: D.textMuted }}>Portail client · MonNivra</p>
-                  <h1 className="font-bold text-2xl sm:text-3xl tracking-tight" style={{ color: D.textPrimary }}>
-                    Bonjour, {firstName}
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.25)", borderRadius: 999, padding: "6px 14px", marginBottom: 16 }}>
+                    <span style={{ position: "relative", display: "inline-flex", width: 7, height: 7 }}>
+                      <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#06B6D4", animation: "pulse-ring 2s ease-out infinite" }} />
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#06B6D4", display: "block" }} />
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#67E8F9", fontFamily: "'JetBrains Mono', monospace" }}>
+                      Portail client · MonNivra
+                    </span>
+                  </div>
+                  <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(32px,5vw,56px)", fontWeight: 800, color: "#fff", letterSpacing: "-2px", lineHeight: 1.0, marginBottom: 16 }}>
+                    Bonjour,{" "}
+                    <span style={{ background: "linear-gradient(90deg,#fff 0%,#A78BFA 40%,#06B6D4 70%,#A78BFA 100%)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", animation: "shimmer 4s linear infinite" }}>
+                      {firstName}
+                    </span>
                   </h1>
-                  <div className="flex flex-wrap items-center gap-3 mt-3">
-                    <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5" style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.2)" }}>
-                      <span className="text-xs" style={{ color: D.textMuted }}>Compte</span>
-                      <span className="text-xs font-bold font-mono tracking-wide" style={{ color: D.textPrimary }}>{acctNum}</span>
-                      <button onClick={() => copy(acctNum)} className="ml-0.5 transition-colors" style={{ color: D.textMuted }}>
-                        <Copy className="w-3 h-3" />
+                  {/* Account pill row */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "8px 14px" }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1 }}>COMPTE</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2 }}>{acctNum}</span>
+                      <button onClick={() => copy(acctNum)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: 0, display: "flex" }}>
+                        <Copy size={12} />
                       </button>
                     </div>
                     {activeCount > 0 && (
-                      <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5" style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)" }}>
-                        <CheckCircle2 className="w-3.5 h-3.5" style={{ color: D.successText }} />
-                        <span className="text-xs font-semibold" style={{ color: D.successText }}>
-                          {activeCount} service{activeCount > 1 ? "s" : ""} actif{activeCount > 1 ? "s" : ""}
-                        </span>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 12, padding: "8px 14px" }}>
+                        <CheckCircle2 size={13} style={{ color: "#34d399" }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#34d399" }}>{activeCount} service{activeCount > 1 ? "s" : ""} actif{activeCount > 1 ? "s" : ""}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* CTA buttons */}
-                <div className="flex flex-wrap gap-2.5 shrink-0">
+                {/* CTA row */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   <button
                     onClick={() => navigate("/portal/billing")}
-                    className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all"
-                    style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(124,58,237,0.4)" }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "linear-gradient(135deg,#7c3aed,#6d28d9)", border: "1px solid rgba(124,58,237,0.6)", borderRadius: 14, padding: "12px 22px", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 0 30px rgba(124,58,237,0.3)", transition: "all .18s ease" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 40px rgba(124,58,237,0.5)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 30px rgba(124,58,237,0.3)"; }}
                   >
-                    <CreditCard className="w-4 h-4" />
-                    Faire un paiement
+                    <CreditCard size={16} /> Faire un paiement
                   </button>
-                  <Link to="/portal/invoices"
-                    className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all"
-                    style={{ background: "rgba(124,58,237,0.12)", color: "#FFFFFF", border: "1px solid rgba(124,58,237,0.3)" }}
+                  <Link to="/portal/invoices" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "12px 22px", color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .18s ease" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.4)"; (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.12)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
                   >
-                    <FileText className="w-4 h-4" />
-                    Mes factures
+                    <FileText size={16} /> Mes factures
+                  </Link>
+                  <Link to="/portal/services" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "12px 22px", color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .18s ease" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(16,185,129,0.4)"; (e.currentTarget as HTMLElement).style.background = "rgba(16,185,129,0.06)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.12)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+                  >
+                    <Settings size={16} /> Mes services
                   </Link>
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
 
-        {/* ═══ SYSTEM BANNERS ══════════════════════════════════════ */}
-        {canonicalData?.identifiers?.usedFallbackLinks && (
-          <div className="rounded-xl px-4 py-3 text-sm flex items-start gap-2" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", color: D.warningText }}>
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: D.warningText }} />
-            <span>Certaines données ont été reliées via votre courriel. Contactez le support si une commande semble manquante.</span>
-          </div>
-        )}
-        {account?.id && <AccountStateBanner accountId={account.id} />}
-        <EmailClaimBanner />
+          {/* ════ STAT TILES ═════════════════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.07 } } }} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 32 }}>
+            {[
+              { label: "Solde", value: <ClientBalanceSummary userId={user?.id ?? ""} compact />, icon: <CreditCard size={16} />, color: "#7C3AED", sub: "Compte courant" },
+              { label: "Services actifs", value: activeCount, icon: <CheckCircle2 size={16} />, color: "#10B981", sub: `${subs.length} abonnement${subs.length > 1 ? "s" : ""}` },
+              { label: "Prochaine facture", value: nextBilling ?? "—", icon: <Clock size={16} />, color: "#06B6D4", sub: nextBilling ? "Date de renouvellement" : "Aucun service actif" },
+              { label: "Performance réseau", value: "99.9%", icon: <Zap size={16} />, color: "#F59E0B", sub: "Disponibilité garantie" },
+            ].map((t, i) => (
+              <motion.div key={i} custom={i} variants={up}>
+                <StatTile {...t} accentColor={t.color} />
+              </motion.div>
+            ))}
+          </motion.div>
 
-        {/* ═══ KPI TILES ═══════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Tile
-            label="Solde"
-            value={<ClientBalanceSummary userId={user?.id || ""} compact />}
-            gradient="linear-gradient(135deg,#7c3aed,#a855f7)"
-            icon={<CreditCard className="w-4 h-4 text-white" />}
-          />
-          <Tile
-            label="Services actifs"
-            value={activeCount}
-            sub={activeCount === 0 ? "Aucun service" : `Sur ${subs.length} abonnement${subs.length > 1 ? "s" : ""}`}
-            gradient="linear-gradient(135deg,#059669,#34d399)"
-            icon={<CheckCircle2 className="w-4 h-4 text-white" />}
-          />
-          <Tile
-            label="Prochaine facture"
-            value={nextBilling ?? "—"}
-            sub={nextBilling ? "Date de renouvellement" : "Aucun service actif"}
-            gradient="linear-gradient(135deg,#0369a1,#38bdf8)"
-            icon={<Clock className="w-4 h-4 text-white" />}
-          />
-          <Tile
-            label="Mode de paiement"
-            value="Manuel"
-            sub="Paiement par facture"
-            gradient="linear-gradient(135deg,#b45309,#f59e0b)"
-            icon={<Shield className="w-4 h-4 text-white" />}
-          />
-        </div>
-
-        {/* ═══ QUICK ACTIONS ═══════════════════════════════════════ */}
-        <div>
-          <SectionHead title="Actions rapides" />
-          <div className="grid grid-cols-4 gap-3">
-            <QAction icon={<CreditCard className="w-5 h-5" />}   label="Payer"     onClick={() => navigate("/portal/billing")} />
-            <QAction icon={<FileText className="w-5 h-5" />}     label="Factures"  to="/portal/invoices" />
-            <QAction icon={<Settings className="w-5 h-5" />}     label="Services"  to="/portal/services" />
-            <QAction icon={<HelpCircle className="w-5 h-5" />}   label="Support"   to="/portal/tickets" />
-          </div>
-        </div>
-
-        {/* ═══ MES ABONNEMENTS ═════════════════════════════════════ */}
-        <div>
-          <SectionHead title="Mes abonnements" linkTo="/portal/services" linkLabel="Gérer" />
-
-          {subs.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subs.map((sub: any) => {
-                const cfg   = svcCfg(sub.type);
-                const cycle = getCycleDisplay({ ...sub, cycle_start_date: sub.cycle_start, cycle_end_date: sub.cycle_end });
-                return (
-                  <div
-                    key={sub.id}
-                    onClick={() => navigate("/portal/services")}
-                    className="rounded-2xl overflow-hidden cursor-pointer transition-all group"
-                    style={{ background: D.bgCard, border: `1px solid ${D.border}` }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.45)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(124,58,237,0.15)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = D.border; (e.currentTarget as HTMLElement).style.boxShadow = "none"; (e.currentTarget as HTMLElement).style.transform = "none"; }}
-                  >
-                    {/* Colored top strip */}
-                    <div className="h-1.5 w-full" style={{ background: cfg.gradient }} />
-                    <div className="p-5">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: cfg.gradient }}>
-                          {cfg.icon}
-                        </div>
-                        <Pill status={sub.status} />
-                      </div>
-                      <p className="font-bold text-sm leading-snug" style={{ color: D.textPrimary }}>{sub.name}</p>
-                      <p className="text-xs mt-1 font-medium" style={{ color: cfg.accent }}>{cfg.tag}</p>
-                      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: `1px solid ${D.borderLight}` }}>
-                        <span className="font-bold text-sm" style={{ color: D.textPrimary }}>
-                          {Number(sub.price).toLocaleString("fr-CA",{ style:"currency", currency:"CAD" })}
-                          <span className="font-normal text-xs ml-0.5" style={{ color: D.textMuted }}>/mois</span>
-                        </span>
-                        {cycle.isActive && cycle.nextRenewal ? (
-                          <span className="text-xs" style={{ color: D.textMuted }}>
-                            Renouvelle le {format(new Date(cycle.nextRenewal),"d MMM",{locale:fr})}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium" style={{ color: D.warningText }}>En attente d'activation</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="px-5 pb-4">
-                      <div className="flex items-center gap-1 text-xs font-semibold transition-all" style={{ color: D.accentLight }}>
-                        Gérer ce service <ArrowRight className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* ════ QUICK ACTIONS ══════════════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" custom={2} variants={up} style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Actions rapides</span>
             </div>
-          ) : (
-            <DCard>
-              <div className="py-12 px-6 text-center">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(124,58,237,0.1)" }}>
-                  <Package className="w-7 h-7" style={{ color: D.accentLight }} />
-                </div>
-                <p className="font-bold mb-1" style={{ color: D.textPrimary }}>Aucun service actif</p>
-                <p className="text-sm mb-6" style={{ color: D.textSec }}>Explorez nos forfaits et commencez dès aujourd'hui.</p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <button
-                    onClick={() => navigate("/portal/new-order")}
-                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all"
-                    style={{ background: "linear-gradient(135deg,#7c3aed,#4338ca)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}
-                  >
-                    Voir nos forfaits <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <Link to="/telephones"
-                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-colors"
-                    style={{ background: "transparent", border: `1px solid ${D.border}`, color: D.textSec }}
-                  >
-                    Commander un téléphone
-                  </Link>
-                </div>
-              </div>
-            </DCard>
-          )}
-        </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 12 }}>
+              <QBtn icon={<CreditCard size={20} />}   label="Payer"           onClick={() => navigate("/portal/billing")} color="#7C3AED" />
+              <QBtn icon={<FileText size={20} />}     label="Factures"        to="/portal/invoices" color="#06B6D4" />
+              <QBtn icon={<Settings size={20} />}     label="Mes services"    to="/portal/services" color="#10B981" />
+              <QBtn icon={<LifeBuoy size={20} />}     label="Support"         to="/portal/tickets" color="#F59E0B" />
+              <QBtn icon={<Gift size={20} />}         label="Parrainage"      to="/portal/referrals" color="#A78BFA" />
+              <QBtn icon={<Package size={20} />}      label="Commandes"       to="/portal/orders" color="#34D399" />
+            </div>
+          </motion.div>
 
-        {/* ═══ MODE DE PAIEMENT ════════════════════════════════════ */}
-        <DCard>
-          <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${D.borderLight}` }}>
-            <h2 className="text-sm font-bold" style={{ color: D.textPrimary }}>Mode de paiement</h2>
-          </div>
-          <div className="p-6">
-            <ClientPaymentMethodCard />
-          </div>
-        </DCard>
-
-        {/* ═══ COUNTDOWN ═══════════════════════════════════════════ */}
-        {user?.id && <ServiceCountdown userId={user.id} />}
-
-        {/* ═══ COMMANDES RÉCENTES ══════════════════════════════════ */}
-        {orders.length > 0 && (
-          <DCard>
-            <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${D.borderLight}` }}>
-              <h2 className="text-sm font-bold" style={{ color: D.textPrimary }}>Commandes récentes</h2>
-              <Link to="/portal/orders" className="flex items-center gap-1 text-sm font-semibold transition-colors hover:opacity-80" style={{ color: D.accentLight }}>
-                Voir tout <ChevronRight className="w-4 h-4" />
+          {/* ════ MES SERVICES ═══════════════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" custom={3} variants={up} style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Mes abonnements</span>
+              <Link to="/portal/services" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: "#a78bfa", textDecoration: "none" }}>
+                Gérer <ChevronRight size={14} />
               </Link>
             </div>
-            <div>
-              {orders.map((order: any, i: number) => {
-                const [bg, color, label] = orderStatus(order.status);
-                return (
-                  <div key={order.id}
-                    className="px-6 py-4 flex items-center justify-between transition-colors"
-                    style={{ borderTop: i > 0 ? `1px solid ${D.borderLight}` : undefined }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.05)"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(124,58,237,0.12)" }}>
-                        <Package className="w-4 h-4" style={{ color: D.accentLight }} />
+
+            {subs.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+                {subs.map((sub: any, i: number) => {
+                  const cfg   = svc(sub.type);
+                  const cycle = getCycleDisplay(sub);
+                  return (
+                    <motion.div key={sub.id} custom={i} variants={up} initial="hidden" animate="visible">
+                      <GCard
+                        style={{ cursor: "pointer", overflow: "hidden" }}
+                        className=""
+                      >
+                        {/* Color strip top */}
+                        <div style={{ height: 3, background: cfg.grad }} />
+                        <div style={{ padding: "18px 20px 20px" }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 14, background: cfg.grad, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                              {cfg.icon}
+                            </div>
+                            <Pill status={sub.status} />
+                          </div>
+                          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 16, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{sub.name}</p>
+                          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 14, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1, textTransform: "uppercase" }}>{cfg.label}</p>
+                          <div style={{ borderTop: "1px solid rgba(124,58,237,0.15)", paddingTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: "-0.5px" }}>
+                              {Number(sub.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.4)" }}>/mois</span>
+                            </span>
+                            {cycle.isActive && cycle.nextRenewal ? (
+                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>
+                                {format(new Date(cycle.nextRenewal), "d MMM", { locale: fr })}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11, color: "#fbbf24" }}>En attente</span>
+                            )}
+                          </div>
+                          <Link to="/portal/services" style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: cfg.color, textDecoration: "none" }}>
+                            Gérer ce service <ArrowRight size={12} />
+                          </Link>
+                        </div>
+                      </GCard>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <GCard style={{ textAlign: "center", padding: "48px 24px" }}>
+                <div style={{ width: 56, height: 56, borderRadius: 18, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: "#7c3aed" }}>
+                  <Package size={24} />
+                </div>
+                <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 18, color: "#fff", marginBottom: 8 }}>Aucun service actif</p>
+                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, marginBottom: 24 }}>Explorez nos forfaits et commencez dès aujourd'hui.</p>
+                <button
+                  onClick={() => navigate("/portal/new-order")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "linear-gradient(135deg,#7c3aed,#6d28d9)", border: "1px solid rgba(124,58,237,0.5)", borderRadius: 14, padding: "12px 24px", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 0 20px rgba(124,58,237,0.25)" }}
+                >
+                  Voir nos forfaits <ArrowRight size={16} />
+                </button>
+              </GCard>
+            )}
+          </motion.div>
+
+          {/* ════ PAIEMENT + COUNTDOWN ═══════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" custom={4} variants={up} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginBottom: 32 }}>
+            <GCard hover={false}>
+              <div style={{ padding: "18px 20px 8px", borderBottom: "1px solid rgba(124,58,237,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Mode de paiement</span>
+              </div>
+              <div style={{ padding: 20 }}><ClientPaymentMethodCard /></div>
+            </GCard>
+            {user?.id && (
+              <GCard hover={false}>
+                <div style={{ padding: "18px 20px 8px", borderBottom: "1px solid rgba(124,58,237,0.15)" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Activation</span>
+                </div>
+                <div style={{ padding: 20 }}><ServiceCountdown userId={user.id} /></div>
+              </GCard>
+            )}
+          </motion.div>
+
+          {/* ════ COMMANDES ══════════════════════════════════════════ */}
+          {orders.length > 0 && (
+            <motion.div initial="hidden" animate="visible" custom={5} variants={up} style={{ marginBottom: 32 }}>
+              <GCard hover={false}>
+                <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(124,58,237,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Commandes récentes</span>
+                  <Link to="/portal/orders" style={{ fontSize: 13, fontWeight: 600, color: "#a78bfa", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>Voir tout <ChevronRight size={14} /></Link>
+                </div>
+                {orders.map((order: any, i: number) => {
+                  const [bg, color, label] = orderCls(order.status);
+                  return (
+                    <div key={order.id} style={{ padding: "14px 24px", borderTop: i > 0 ? "1px solid rgba(124,58,237,0.08)" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa" }}>
+                          <Package size={15} />
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 2 }}>{order.service_type}</p>
+                          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {order.order_number || `#${order.id.slice(0, 8)}`} · {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold" style={{ color: D.textPrimary }}>{order.service_type}</p>
-                        <p className="text-xs mt-0.5" style={{ color: D.textMuted }}>
-                          {order.order_number || `#${order.id.slice(0,8)}`} · {format(new Date(order.created_at),"d MMM yyyy",{locale:fr})}
-                        </p>
-                      </div>
+                      <span style={{ background: bg, color, border: `1px solid ${color}50`, borderRadius: 999, fontSize: 11, fontWeight: 700, padding: "4px 12px" }}>{label}</span>
                     </div>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: bg, color }}>{label}</span>
+                  );
+                })}
+              </GCard>
+            </motion.div>
+          )}
+
+          {/* ════ PLAINTE ════════════════════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" custom={6} variants={up}>
+            <GCard hover={false} style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.04)" }}>
+              <div style={{ padding: "18px 24px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "#f87171", flexShrink: 0 }}>
+                    <AlertCircle size={18} />
                   </div>
-                );
-              })}
-            </div>
-          </DCard>
-        )}
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 3 }}>Une insatisfaction à signaler ?</p>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Soumettez une plainte officielle — SLA 48h garanti.</p>
+                  </div>
+                </div>
+                <Link to="/plainte" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12, padding: "10px 18px", color: "#f87171", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                  Soumettre une plainte <ArrowRight size={14} />
+                </Link>
+              </div>
+            </GCard>
+          </motion.div>
 
-        {/* ═══ PLAINTE ═════════════════════════════════════════════ */}
-        <div className="rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(239,68,68,0.15)" }}>
-              <AlertCircle className="w-5 h-5" style={{ color: D.errorText }} />
-            </div>
-            <div>
-              <p className="font-bold text-sm" style={{ color: D.textPrimary }}>Une insatisfaction à signaler ?</p>
-              <p className="text-xs mt-0.5" style={{ color: D.textSec }}>Soumettez une plainte officielle — SLA de traitement garanti 48h.</p>
-            </div>
-          </div>
-          <Link to="/plainte"
-            className="shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
-            style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: D.errorText }}
-          >
-            Soumettre une plainte
-          </Link>
         </div>
-
       </div>
     </ClientLayout>
   );
