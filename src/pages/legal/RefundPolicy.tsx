@@ -20,7 +20,7 @@ const RefundPolicy = () => {
           </h1>
           
           <p className="text-muted-foreground mb-8">
-            {isFrench ? 'Dernière mise à jour : 2025-01-07' : 'Last updated: 2025-01-07'}
+            {isFrench ? 'Dernière mise à jour : 2026-06-05' : 'Last updated: 2026-06-05'}
           </p>
           
           <div className="prose prose-lg max-w-none text-muted-foreground space-y-8">
@@ -112,7 +112,25 @@ const RefundPolicy = () => {
                 </section>
 
                 <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.8 Comment demander un remboursement</h2>
+                  <h2 className="text-2xl font-display font-bold text-foreground">1.8 Changements de forfait (prorata)</h2>
+                  <p>
+                    Depuis le <strong>5 juin 2026</strong>, tout changement de forfait approuvé et appliqué immédiatement en cours de cycle déclenche un calcul au prorata automatique :
+                  </p>
+                  <ul className="list-disc pl-6 space-y-2">
+                    <li>
+                      <strong>Upgrade :</strong> une ligne prorata est ajoutée à la facture de renouvellement en cours pour la différence de prix (TPS et TVQ recalculées sur le nouveau sous-total). Le montant total de la facture est mis à jour automatiquement.
+                    </li>
+                    <li>
+                      <strong>Downgrade :</strong> un crédit prorata apparaît comme ligne de rabais sur la facture de renouvellement en cours (ou la prochaine si non encore générée), réduisant directement le montant dû. Aucun remboursement en espèces n'est effectué.
+                    </li>
+                    <li>
+                      <strong>Le cycle en cours n'est pas remboursable</strong> si l'annulation du service se fait en cours de cycle, sauf obligation légale ou erreur de facturation confirmée.
+                    </li>
+                  </ul>
+                </section>
+
+                <section className="space-y-4">
+                  <h2 className="text-2xl font-display font-bold text-foreground">1.9 Comment demander un remboursement</h2>
                   <p>
                     Envoie : nom complet, numéro de commande/facture, service concerné, motif, preuve (au besoin).
                   </p>
@@ -212,7 +230,25 @@ const RefundPolicy = () => {
                 </section>
 
                 <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.8 How to Request a Refund</h2>
+                  <h2 className="text-2xl font-display font-bold text-foreground">1.8 Plan Changes (Prorated Billing)</h2>
+                  <p>
+                    Effective <strong>June 5, 2026</strong>, any approved plan change applied immediately mid-cycle triggers an automatic prorated calculation:
+                  </p>
+                  <ul className="list-disc pl-6 space-y-2">
+                    <li>
+                      <strong>Upgrade:</strong> a prorated line is added to the current renewal invoice for the price difference (TPS and TVQ recalculated on the new subtotal). The invoice total is updated automatically.
+                    </li>
+                    <li>
+                      <strong>Downgrade:</strong> a prorated credit appears as a discount line on the current renewal invoice (or the next one if not yet generated), directly reducing the amount due. No cash refund is issued.
+                    </li>
+                    <li>
+                      <strong>The current cycle is not refundable</strong> if service is cancelled mid-cycle, except as required by law or confirmed billing error.
+                    </li>
+                  </ul>
+                </section>
+
+                <section className="space-y-4">
+                  <h2 className="text-2xl font-display font-bold text-foreground">1.9 How to Request a Refund</h2>
                   <p>
                     Send: full name, order/invoice number, service concerned, reason, proof (if needed).
                   </p>

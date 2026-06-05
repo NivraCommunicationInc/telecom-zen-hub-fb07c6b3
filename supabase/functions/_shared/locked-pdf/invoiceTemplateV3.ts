@@ -53,11 +53,13 @@ const fmtStatus = (status: string): string => {
 };
 
 const typeLabel = (cat: string): string => {
-  const map: Record<string, string> = {
-    Internet: "Service", Mobile: "Service", TV: "Service", Security: "Service",
-    Equipment: "Equipement", Fees: "Frais",
-  };
-  return map[cat] || cat;
+  const key = (cat || "").toLowerCase();
+  if (["internet", "mobile", "tv", "security", "service", "recurring"].includes(key)) return "Service";
+  if (["equipment", "phone"].includes(key)) return "Équipement";
+  if (["fee", "fees", "frais"].includes(key)) return "Frais";
+  if (["discount", "rabais", "credit", "promo"].includes(key)) return "Rabais";
+  // capitalise first letter for any unmapped type
+  return cat.charAt(0).toUpperCase() + cat.slice(1);
 };
 
 // ============================================================================
@@ -202,27 +204,40 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
 
+    // Description column fits from x=17 to x=128 (111mm).
+    // splitTextToSize wraps long descriptions so they never overflow into the Type column.
+    const DESC_MAX_W = 108;
+    const LINE_H = 5; // mm per wrapped line
+
+    function drawRow(
+      doc: jsPDF,
+      description: string,
+      typeCol: string,
+      amountStr: string,
+      yStart: number,
+      colorRgb: [number, number, number],
+    ): number {
+      const lines: string[] = doc.splitTextToSize(description, DESC_MAX_W);
+      const rowH = Math.max(7, lines.length * LINE_H + 3);
+      const textY = yStart + LINE_H;
+      doc.setTextColor(...colorRgb);
+      doc.text(lines, 17, textY);
+      doc.text(typeCol, 130, textY);
+      doc.text(amountStr, 180, textY, { align: "right" });
+      doc.setDrawColor(230, 230, 230);
+      doc.line(15, yStart + rowH, 185, yStart + rowH);
+      return yStart + rowH;
+    }
+
     // Render items
     for (const item of data.items) {
-      doc.setTextColor(0, 0, 0);
-      doc.text(item.description, 17, y + 4);
-      doc.text(typeLabel(item.category), 130, y + 4);
-      doc.text(fmt(item.amount), 180, y + 4, { align: "right" });
-      doc.setDrawColor(230, 230, 230);
-      doc.line(15, y + 6, 185, y + 6);
-      y += 7;
+      y = drawRow(doc, item.description, typeLabel(item.category), fmt(item.amount), y, [0, 0, 0]);
     }
 
     // Discounts
     if (data.discounts && data.discounts.length > 0) {
       for (const d of data.discounts) {
-        doc.setTextColor(0, 128, 0);
-        doc.text(d.label, 17, y + 4);
-        doc.text("Rabais", 130, y + 4);
-        doc.text(fmt(-d.amount), 180, y + 4, { align: "right" });
-        doc.setDrawColor(230, 230, 230);
-        doc.line(15, y + 6, 185, y + 6);
-        y += 7;
+        y = drawRow(doc, d.label, "Rabais", fmt(-d.amount), y, [0, 128, 0]);
       }
     }
 

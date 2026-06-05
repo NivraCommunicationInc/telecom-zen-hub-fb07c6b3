@@ -550,7 +550,19 @@ async function processLegacyRenewals(
         .eq("cycle_start_date", newCycleStart)
         .maybeSingle();
 
-      if (existing) continue;
+      if (existing) {
+        // Invoice already created (billing-generate-renewals midnight run).
+        // Still advance the cycle so this subscription isn't re-processed tomorrow.
+        const nextRenewalAt = addDays(newCycleEnd, -3);
+        await supabase.from("billing_subscriptions").update({
+          cycle_start_date: newCycleStart,
+          cycle_end_date: newCycleEnd,
+          next_renewal_at: nextRenewalAt,
+          last_invoice_id: existing.id,
+          updated_at: new Date().toISOString(),
+        }).eq("id", sub.id).catch(() => {});
+        continue;
+      }
 
       const { data: invoiceNumberData } = await supabase.rpc("generate_billing_invoice_number");
       const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;

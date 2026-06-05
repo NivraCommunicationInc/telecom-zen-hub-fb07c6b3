@@ -7946,6 +7946,33 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "billing_policy_update_2026_06": {
+      return {
+        subject: "Mise à jour importante de votre facturation Nivra",
+        html: shell({
+          preheader: "Nouvelle politique de prorata sur changements de forfait — en vigueur dès le 5 juin 2026.",
+          badge: "MISE À JOUR FACTURATION",
+          heroTitle: "Améliorations à votre facturation",
+          icon: "info",
+          greeting,
+          bodyText: `Nous avons apporté des améliorations importantes à notre système de facturation afin de le rendre plus équitable et transparent. Ces changements sont en vigueur depuis le <strong>5 juin 2026</strong>.`,
+          cardTitle: "Ce qui change",
+          cardRows: [
+            ["Prorata upgrade", "Lors d'un changement vers un forfait supérieur, une facture pour la différence de prix (au prorata des jours restants dans le cycle) est émise immédiatement."],
+            ["Crédit prorata downgrade", "Lors d'un changement vers un forfait inférieur, un crédit prorata est appliqué automatiquement sur votre prochaine facture de renouvellement."],
+            ["Crédits admin automatiques", "Les crédits ou rabais accordés par notre équipe sont maintenant appliqués automatiquement à chaque facture de renouvellement sans action de votre part."],
+            ["Correction facturation", "Le système de génération de factures a été amélioré pour s'assurer qu'aucune facture ne soit manquée, même en cas d'interruption du service nocturne."],
+          ],
+          afterCardText: `Ces changements ne modifient pas votre forfait, votre prix mensuel, ni votre date de facturation. Vous n'avez rien à faire.`,
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Voir mon compte",
+          ctaSecondaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaSecondaryLabel: "Nous contacter",
+          extraBodyHtml: `<p style="margin:0 0 8px 0;font-size:13px;color:#a3a3a3">Politiques à jour : <a href="https://nivra-telecom.ca/politique-remboursement" style="color:#a78bfa">Politique de remboursement</a> · <a href="https://nivra-telecom.ca/modalites-paiement" style="color:#a78bfa">Modalités de paiement</a></p>`,
+        }),
+      };
+    }
+
     default:
       return null;
     }

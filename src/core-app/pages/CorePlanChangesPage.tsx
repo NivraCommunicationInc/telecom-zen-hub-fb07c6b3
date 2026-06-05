@@ -62,6 +62,8 @@ type SubMeta = {
   next_renewal_at: string | null;
   paypal_subscription_id: string | null;
   plan_price: number | null;
+  cycle_end_date: string | null;
+  customer_id: string | null;
 };
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -189,7 +191,7 @@ export default function CorePlanChangesPage() {
     queryFn: async (): Promise<Record<string, SubMeta>> => {
       const { data } = await supabase
         .from("billing_subscriptions")
-        .select("id, next_renewal_at, paypal_subscription_id, plan_price")
+        .select("id, next_renewal_at, paypal_subscription_id, plan_price, cycle_end_date, customer_id")
         .in("id", subIds);
       const map: Record<string, SubMeta> = {};
       (data || []).forEach((s: any) => {
@@ -197,6 +199,8 @@ export default function CorePlanChangesPage() {
           next_renewal_at: s.next_renewal_at,
           paypal_subscription_id: s.paypal_subscription_id,
           plan_price: s.plan_price,
+          cycle_end_date: s.cycle_end_date ?? null,
+          customer_id: s.customer_id ?? null,
         };
       });
       return map;
@@ -284,22 +288,88 @@ export default function CorePlanChangesPage() {
         if (error) throw error;
       }
 
-      // Prorata credit on forced downgrade
-      if (force && currentPrice !== null && newPrice !== null && newPrice < currentPrice && effDate) {
-        const daysInCycle = 30;
-        const msRemaining = effDate.getTime() - now.getTime();
-        const daysRemaining = Math.max(0, Math.min(daysInCycle, Math.floor(msRemaining / 86400000)));
-        const proratedCredit = Number((((currentPrice - newPrice) / daysInCycle) * daysRemaining).toFixed(2));
-        if (proratedCredit > 0) {
-          await supabase.from("account_adjustments").insert({
-            account_id: r.account_id,
-            type: "credit",
-            amount: proratedCredit,
-            description: `Crédit prorata — changement ${r.current_plan_name || "—"} → ${r.requested_plan_name}`,
-            months_total: 1,
-            months_remaining: 1,
-            status: "active",
-          });
+      // ── PRORATION ON IMMEDIATE PLAN CHANGE ──
+      // Everything on ONE invoice — add a line to the existing pending renewal invoice,
+      // recompute subtotal + TPS + TVQ so the PDF totals always add up.
+      // If no pending invoice exists yet, fall back to account_adjustments for next renewal.
+      const cycleEndDate = meta?.cycle_end_date ? new Date(meta.cycle_end_date) : null;
+      const daysInCycle = 30;
+      const msInDay = 86400000;
+      const daysRemainingInCycle = cycleEndDate
+        ? Math.max(0, Math.min(daysInCycle, Math.floor((cycleEndDate.getTime() - now.getTime()) / msInDay)))
+        : 0;
+
+      if (force && currentPrice !== null && newPrice !== null && currentPrice !== newPrice && r.subscription_id && daysRemainingInCycle > 0) {
+        const isUpgrade = newPrice > currentPrice;
+        const prorataPreTax = Number((Math.abs(newPrice - currentPrice) / daysInCycle * daysRemainingInCycle).toFixed(2));
+
+        if (prorataPreTax > 0) {
+          // Find the pending renewal invoice for this subscription
+          const { data: pendingInv } = await supabase
+            .from("billing_invoices")
+            .select("id, subtotal, tps_amount, tvq_amount, total, balance_due, notes")
+            .eq("subscription_id", r.subscription_id)
+            .eq("type", "renewal")
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (pendingInv) {
+            // Add proration line to the existing invoice
+            const lineDesc = isUpgrade
+              ? `Prorata upgrade — ${r.current_plan_name || "—"} → ${r.requested_plan_name} (${daysRemainingInCycle}j × ${((newPrice - currentPrice) / daysInCycle).toFixed(4)}$/j)`
+              : `Crédit prorata — ${r.current_plan_name || "—"} → ${r.requested_plan_name} (${daysRemainingInCycle}j)`;
+            const unitPrice = isUpgrade ? prorataPreTax : -prorataPreTax;
+
+            await supabase.from("billing_invoice_lines").insert({
+              invoice_id: pendingInv.id,
+              description: lineDesc,
+              unit_price: unitPrice,
+              quantity: 1,
+              line_total: unitPrice,
+              line_type: isUpgrade ? "service" : "discount",
+            });
+
+            // Recompute totals: new_subtotal drives recalculated taxes so PDF numbers add up
+            const TPS = 0.05;
+            const TVQ = 0.09975;
+            const newSubtotal = Math.max(0, Math.round((Number(pendingInv.subtotal || 0) + unitPrice) * 100) / 100);
+            const newTps = Math.round(newSubtotal * TPS * 100) / 100;
+            const newTvq = Math.round(newSubtotal * TVQ * 100) / 100;
+            const newTotal = Math.round((newSubtotal + newTps + newTvq) * 100) / 100;
+            const noteAppend = `Prorata ${isUpgrade ? "upgrade" : "downgrade"} ${r.current_plan_name || "—"} → ${r.requested_plan_name} appliqué le ${now.toISOString().split("T")[0]}`;
+            const newNotes = [pendingInv.notes, noteAppend].filter(Boolean).join(" | ");
+
+            await supabase.from("billing_invoices").update({
+              subtotal: newSubtotal,
+              tps_amount: newTps,
+              tvq_amount: newTvq,
+              total: newTotal,
+              balance_due: newTotal,
+              notes: newNotes,
+            }).eq("id", pendingInv.id);
+
+            // Keep pending payment in sync with the updated total
+            await supabase.from("billing_payments")
+              .update({ amount: newTotal })
+              .eq("invoice_id", pendingInv.id)
+              .eq("status", "pending");
+
+          } else {
+            // No pending invoice yet — store for next renewal via account_adjustments
+            await supabase.from("account_adjustments").insert({
+              account_id: r.account_id,
+              type: isUpgrade ? "fee" : "credit",
+              amount: prorataPreTax,
+              description: isUpgrade
+                ? `Prorata upgrade — ${r.current_plan_name || "—"} → ${r.requested_plan_name} (${daysRemainingInCycle}j)`
+                : `Crédit prorata — ${r.current_plan_name || "—"} → ${r.requested_plan_name} (${daysRemainingInCycle}j)`,
+              months_total: 1,
+              months_remaining: 1,
+              status: "active",
+            });
+          }
         }
       }
 
@@ -682,19 +752,23 @@ export default function CorePlanChangesPage() {
                     </div>
                   )}
 
-                  {action === "approve" && (
-                    <label className="flex items-start gap-2 text-xs">
-                      <Checkbox
-                        checked={applyNow}
-                        onCheckedChange={(v) => setApplyNow(!!v)}
-                        className="mt-0.5"
-                      />
-                      <span>
-                        Appliquer immédiatement
-                        {isDowngrade && <> (un crédit prorata sera émis)</>}
-                      </span>
-                    </label>
-                  )}
+                  {action === "approve" && (() => {
+                    const isUpgrade = currentPrice !== null && newPrice !== null && newPrice > currentPrice;
+                    return (
+                      <label className="flex items-start gap-2 text-xs">
+                        <Checkbox
+                          checked={applyNow}
+                          onCheckedChange={(v) => setApplyNow(!!v)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          Appliquer immédiatement
+                          {isDowngrade && <> — un crédit prorata sera ajouté à la prochaine facture</>}
+                          {isUpgrade && <> — une ligne prorata sera ajoutée à la facture en cours</>}
+                        </span>
+                      </label>
+                    );
+                  })()}
 
                   {action === "reject" && (
                     <div className="space-y-1">

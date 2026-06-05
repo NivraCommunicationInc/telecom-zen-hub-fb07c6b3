@@ -62,13 +62,14 @@ async function fetchLedgerBalance(
   // CANONICAL INVARIANT: paid/void/cancelled invoices contribute ZERO to balance
   const CLOSED_STATUSES = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
   for (const inv of invoices || []) {
+    if (CLOSED_STATUSES.includes(String(inv.status || "").toLowerCase())) continue;
     totalDebits += Number(inv.total ?? inv.amount ?? inv.total_amount) || 0;
-    if (!CLOSED_STATUSES.includes(inv.status) && (Number(inv.balance_due) || 0) > 0) {
+    if ((Number(inv.balance_due) || 0) > 0) {
       unpaidInvoiceCount++;
     }
   }
 
-  // ── Credits: sum confirmed payments ──
+  // ── Credits: sum confirmed payments (informational) ──
   for (const pay of payments || []) {
     if (!["confirmed", "completed", "paid", "succeeded"].includes(String(pay?.status || "").toLowerCase())) continue;
     totalCredits += Number(pay.amount) || 0;
@@ -87,8 +88,14 @@ async function fetchLedgerBalance(
     }
   }
 
-  // ── Final balance ──
-  const balance = Math.round((totalDebits - totalCredits) * 100) / 100;
+  // ── Final balance — authoritative: sum balance_due of open invoices only ──
+  // balance_due is the DB-level net amount (post-payments, post-adjustments).
+  // Using totalDebits - totalCredits would double-count credits applied to now-closed invoices.
+  const balance = Math.round(
+    (invoices || [])
+      .filter(inv => !CLOSED_STATUSES.includes(String(inv.status || "").toLowerCase()))
+      .reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0)
+    * 100) / 100;
   const isCredit = balance < 0;
 
   return {

@@ -10,6 +10,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function fmtMoney(n: number): string {
+  const num = isFinite(n) ? n : 0;
+  return num.toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " $";
+}
+
 /**
  * CRON: Daily renewal invoice generation
  * Runs at 00:00 daily
@@ -28,15 +33,41 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
-    // Calculate J-3 date
     const today = new Date();
-    const targetDate = new Date();
-    targetDate.setDate(today.getDate() + 3);
-    const targetDateStr = targetDate.toISOString().split('T')[0];
-    
-    console.log(`[billing-generate-renewals] Looking for subscriptions ending on ${targetDateStr}`);
-    
-    // Find active subscriptions ending in 3 days
+    // Window J+1 → J+3: catches today's normal run (J+3) AND up to 2 missed cron days.
+    // Idempotency is guaranteed by the existingInvoice check below.
+    const windowStart = new Date(today);
+    windowStart.setDate(today.getDate() + 1);
+    const windowEnd = new Date(today);
+    windowEnd.setDate(today.getDate() + 3);
+    const windowStartStr = windowStart.toISOString().split('T')[0];
+    const windowEndStr = windowEnd.toISOString().split('T')[0];
+
+    console.log(`[billing-generate-renewals] Looking for subscriptions ending ${windowStartStr} → ${windowEndStr}`);
+
+    // ── Detect active subscriptions with NULL cycle_end_date ──
+    // These will never be billed by the normal query. Alert and skip.
+    const { data: nullCycleSubs } = await supabase
+      .from("billing_subscriptions")
+      .select("id, customer_id, plan_name, created_at")
+      .eq("status", "active")
+      .is("cycle_end_date", null);
+
+    if (nullCycleSubs?.length) {
+      console.error(`[billing-generate-renewals] CRITICAL: ${nullCycleSubs.length} active subscription(s) with NULL cycle_end_date`);
+      for (const orphan of nullCycleSubs) {
+        await supabase.from("billing_system_alerts").insert({
+          alert_type: "null_cycle_end_date",
+          entity_type: "billing_subscription",
+          entity_id: orphan.id,
+          severity: "critical",
+          message: `Abonnement actif sans cycle_end_date — ne sera jamais facturé`,
+          details: { customer_id: orphan.customer_id, plan_name: orphan.plan_name, created_at: orphan.created_at },
+        }).catch(() => {});
+      }
+    }
+
+    // Find active subscriptions ending within the catch-up window
     const { data: subscriptions, error: subError } = await supabase
       .from("billing_subscriptions")
       .select(`
@@ -44,7 +75,8 @@ serve(async (req) => {
         customer:billing_customers(id, email, first_name, last_name)
       `)
       .eq("status", "active")
-      .eq("cycle_end_date", targetDateStr);
+      .gte("cycle_end_date", windowStartStr)
+      .lte("cycle_end_date", windowEndStr);
     
     if (subError) throw subError;
     
@@ -166,10 +198,14 @@ serve(async (req) => {
 
         // Calculate amounts via canonical tax module
         const subtotal = Math.max(0, sub.plan_price - promoDiscount - autopayDiscount);
-        const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
+        const { tps: tpsAmount, tvq: tvqAmount, total: baseTotal } = computeTaxes(subtotal);
+        let finalTotal = baseTotal; // updated after account_adjustments
         
         // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
         const dueDate = sub.cycle_end_date;
+        const daysRemaining = Math.max(1, Math.ceil(
+          (new Date(sub.cycle_end_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        ));
         
         // Determine payment method based on subscription/autopay
         const hasPayPalSubscription = !!sub.paypal_subscription_id;
@@ -186,7 +222,7 @@ serve(async (req) => {
             subtotal,
             tps_amount: tpsAmount,
             tvq_amount: tvqAmount,
-            total,
+            total: baseTotal,
             currency: 'CAD',
             payment_method: paymentMethod,
             status: 'pending',
@@ -239,7 +275,133 @@ serve(async (req) => {
         await supabase
           .from("billing_invoice_lines")
           .insert(invoiceLines);
-        
+
+        // ═══ APPLY ACCOUNT ADJUSTMENTS ═══
+        // billing-lifecycle at 8h finds RENEWAL_ALREADY_EXISTS and skips, so
+        // adjustments MUST be applied here (midnight) when the invoice is created.
+        try {
+          const { data: bc } = await supabase
+            .from("billing_customers").select("user_id").eq("id", sub.customer_id).maybeSingle();
+          const userId = bc?.user_id;
+          if (userId) {
+            const { data: acct } = await supabase
+              .from("accounts").select("id").eq("client_id", userId).maybeSingle();
+            const accountId = acct?.id;
+            if (accountId) {
+              const { data: adjustments } = await supabase
+                .from("account_adjustments")
+                .select("*")
+                .eq("account_id", accountId)
+                .eq("status", "active")
+                .or("is_permanent.eq.true,months_remaining.gt.0");
+
+              if (adjustments?.length) {
+                let adjDelta = 0;
+                const adjLines: any[] = [];
+                const planPrice = Number(sub.plan_price || 0);
+
+                const { data: prof } = await supabase
+                  .from("profiles").select("email, full_name, first_name, last_name")
+                  .eq("user_id", userId).maybeSingle();
+                const toEmail = prof?.email || null;
+                const fullName = prof?.full_name || [prof?.first_name, prof?.last_name].filter(Boolean).join(" ") || "Client";
+
+                for (const adj of adjustments as any[]) {
+                  const amt = Number(adj.amount || 0);
+                  const isPermanent = adj.is_permanent === true;
+                  const type = String(adj.type || "credit");
+                  const appliesTo = adj.applies_to ? String(adj.applies_to) : null;
+                  const conditions = adj.conditions ? String(adj.conditions) : null;
+
+                  if (conditions === "plans_80_plus" && planPrice < 80) continue;
+                  if (conditions === "plans_90_plus" && planPrice < 90) continue;
+
+                  const prevRemaining = Number(adj.months_remaining || 0);
+                  const totalMonths = Number(adj.duration_months || adj.months_total || prevRemaining);
+
+                  if (type === "remove_fee" && appliesTo === "installation") {
+                    adjLines.push({ invoice_id: invoice.id, description: "Installation gratuite ✓", unit_price: 0, quantity: 1, line_total: 0, line_type: "discount" });
+                    await supabase.from("account_adjustments").update({ applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    continue;
+                  }
+                  if (type === "remove_fee" && appliesTo === "activation") {
+                    adjLines.push({ invoice_id: invoice.id, description: "Activation gratuite ✓", unit_price: 0, quantity: 1, line_total: 0, line_type: "discount" });
+                    await supabase.from("account_adjustments").update({ applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    continue;
+                  }
+                  if (type === "first_month_free") {
+                    adjDelta -= planPrice;
+                    adjLines.push({ invoice_id: invoice.id, description: `1er mois offert — ${fmtMoney(planPrice)}/mois`, unit_price: -planPrice, quantity: 1, line_total: -planPrice, line_type: "discount" });
+                    await supabase.from("account_adjustments").update({ months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    continue;
+                  }
+                  if (type === "one_time") {
+                    adjDelta -= amt;
+                    adjLines.push({ invoice_id: invoice.id, description: `Promotion unique — ${adj.description || fmtMoney(amt)}`, unit_price: -amt, quantity: 1, line_total: -amt, line_type: "discount" });
+                    await supabase.from("account_adjustments").update({ months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    continue;
+                  }
+
+                  const isCredit = type === "credit";
+                  const signedTotal = isCredit ? -amt : amt;
+                  adjDelta += signedTotal;
+
+                  const cleanDesc = String(adj.description || "").trim();
+                  const prefixRabais = (suffix: string) =>
+                    /^rabais\b/i.test(cleanDesc) ? `${cleanDesc}${suffix}` : `Rabais ${cleanDesc}${suffix}`;
+                  let lineDesc: string;
+                  if (isPermanent && isCredit) {
+                    lineDesc = cleanDesc ? prefixRabais(" — permanent") : `Rabais permanent — ${fmtMoney(amt)}/mois`;
+                  } else if (isCredit && totalMonths > 0) {
+                    const nextRem = Math.max(0, prevRemaining - 1);
+                    lineDesc = cleanDesc ? `${prefixRabais("")} — ${fmtMoney(amt)}/mois (${nextRem} mois restants)` : `Rabais — ${fmtMoney(amt)}/mois (${nextRem} mois restants)`;
+                  } else {
+                    lineDesc = cleanDesc || (isCredit ? "Crédit" : "Frais");
+                  }
+                  adjLines.push({ invoice_id: invoice.id, description: lineDesc, unit_price: signedTotal, quantity: 1, line_total: signedTotal, line_type: isCredit ? "discount" : "fee" });
+
+                  if (isPermanent) {
+                    await supabase.from("account_adjustments").update({ applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString() }).eq("id", adj.id);
+                  } else {
+                    const nextRemaining = Math.max(0, prevRemaining - 1);
+                    await supabase.from("account_adjustments").update({ months_remaining: nextRemaining, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemaining <= 0 ? "completed" : "active" }).eq("id", adj.id);
+                    if (isCredit && toEmail) {
+                      try {
+                        if (nextRemaining === 1) {
+                          await supabase.from("email_queue").insert({ to_email: toEmail, template_key: "discount_expiring_soon", event_key: `discount_expiring_soon:${adj.id}`, status: "queued", variables: { client_full_name: fullName, discount_label: adj.description || "Rabais promotionnel", discount_amount: amt, full_price: planPrice, end_date: newCycleEnd.toISOString().split('T')[0] } });
+                        }
+                        if (nextRemaining === 0) {
+                          await supabase.from("email_queue").insert({ to_email: toEmail, template_key: "discount_expired", event_key: `discount_expired:${adj.id}`, status: "queued", variables: { client_full_name: fullName, discount_label: adj.description || "Rabais promotionnel", discount_amount: amt, duration_months: totalMonths, new_amount: planPrice } });
+                        }
+                      } catch (_) { /* non-fatal */ }
+                    }
+                  }
+                }
+
+                if (adjLines.length > 0) {
+                  await supabase.from("billing_invoice_lines").insert(adjLines);
+                  finalTotal = Math.max(0, baseTotal + adjDelta);
+                  await supabase.from("billing_invoices").update({ total: finalTotal, balance_due: finalTotal }).eq("id", invoice.id);
+                  console.log(`[billing-generate-renewals] Applied ${adjLines.length} account_adjustments to ${invoiceNumber} (delta: ${adjDelta.toFixed(2)}, finalTotal: ${finalTotal.toFixed(2)})`);
+                }
+              }
+            }
+          }
+        } catch (adjErr) {
+          console.error(`[billing-generate-renewals] account_adjustments error for ${invoiceNumber}:`, adjErr);
+        }
+
+        // Advance subscription cycle so billing-lifecycle at 8h does not re-process
+        const nextRenewalDate = new Date(newCycleEnd);
+        nextRenewalDate.setDate(nextRenewalDate.getDate() - 3);
+        await supabase.from("billing_subscriptions").update({
+          cycle_start_date: newCycleStart.toISOString().split('T')[0],
+          cycle_end_date: newCycleEnd.toISOString().split('T')[0],
+          next_renewal_at: nextRenewalDate.toISOString(),
+          last_invoice_id: invoice.id,
+          updated_at: new Date().toISOString(),
+        }).eq("id", sub.id);
+
         // ═══ IDEMPOTENCY: never create a duplicate pending payment ═══
         // Check if a non-failed/cancelled payment already exists for this
         // invoice (which is itself unique per subscription+cycle thanks to
@@ -269,7 +431,7 @@ serve(async (req) => {
               customer_id: sub.customer_id,
               method: paymentMethod,
               provider: hasPayPalSubscription ? 'paypal' : 'interac',
-              amount: total,
+              amount: finalTotal,
               status: 'pending',
               payment_number: paymentNumber,
               source: 'live',
@@ -282,16 +444,35 @@ serve(async (req) => {
         // PayPal handles all autopay/recurring billing. Stripe was decommissioned 2026-05-18.
         if (hasPayPalSubscription) {
           console.log(`[billing-generate-renewals] Triggering PayPal auto-charge for ${sub.id}`);
-          try {
-            await supabase.functions.invoke("paypal-charge-subscription", {
-              body: {
-                subscription_id: sub.id,
-                invoice_id: invoice.id,
-                amount: total,
-              },
-            });
-          } catch (chargeErr) {
-            console.error(`[billing-generate-renewals] PayPal charge error:`, chargeErr);
+          const { data: chargeResult, error: chargeInvokeErr } = await supabase.functions.invoke(
+            "paypal-charge-subscription",
+            { body: { subscription_id: sub.id, invoice_id: invoice.id, amount: finalTotal } }
+          );
+
+          // success:true + no capture_id = PayPal handles billing on its own schedule → keep pending
+          // success:false OR invoke error = real failure → mark failed so billing-paypal-retry-failed picks it up
+          const chargeOk = !chargeInvokeErr && chargeResult?.success !== false;
+
+          if (!chargeOk) {
+            const reason = chargeInvokeErr?.message ?? chargeResult?.error ?? chargeResult?.message ?? "unknown";
+            console.error(`[billing-generate-renewals] PayPal charge failed for invoice ${invoice.id}: ${reason}`);
+
+            // Mark the pending payment as failed so the retry cron can act
+            await supabase
+              .from("billing_payments")
+              .update({ status: "failed", metadata: { failure_reason: reason, failed_at: new Date().toISOString() } })
+              .eq("invoice_id", invoice.id)
+              .eq("status", "pending")
+              .eq("provider", "paypal");
+
+            await supabase.from("billing_system_alerts").insert({
+              alert_type: "paypal_charge_failed_on_renewal",
+              entity_type: "billing_invoice",
+              entity_id: invoice.id,
+              severity: "high",
+              message: `PayPal auto-charge échoué pour ${invoiceNumber}: ${reason}`,
+              details: { subscription_id: sub.id, customer_id: sub.customer_id, amount: finalTotal, reason },
+            }).catch(() => {});
           }
         }
 
@@ -320,12 +501,12 @@ serve(async (req) => {
               client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
               invoice_number: invoiceNumber,
               plan_name: sub.plan_name,
-              total: total.toFixed(2),
-              amount: total.toFixed(2),
+              total: finalTotal.toFixed(2),
+              amount: finalTotal.toFixed(2),
               due_date: dueDate,
-              days_remaining: 3,
+              days_remaining: daysRemaining,
               // Autopay-specific vars (ignored by invoice_created template)
-              debit_amount: total.toFixed(2),
+              debit_amount: finalTotal.toFixed(2),
               debit_date: dueDate,
               payment_method_label: "PayPal (prélèvement pré-autorisé)",
               subtotal: sub.plan_price.toFixed(2),
@@ -340,8 +521,7 @@ serve(async (req) => {
         
         results.invoices_created.push(invoiceNumber);
         results.processed++;
-        
-        console.log(`[billing-generate-renewals] Created renewal invoice ${invoiceNumber} for subscription ${sub.id}`);
+        console.log(`[billing-generate-renewals] Created renewal invoice ${invoiceNumber} for subscription ${sub.id} (due ${dueDate}, ${daysRemaining}d remaining)`);
         
       } catch (err: unknown) {
         const errorMsg = `Failed to process subscription ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
@@ -353,7 +533,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        date: targetDateStr,
+        window: `${windowStartStr} → ${windowEndStr}`,
         ...results
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -138,6 +138,33 @@ const ModalitesPaiement = () => {
             </section>
 
             <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">8. Prorata sur changement de forfait</h2>
+              <p>
+                Depuis le <strong>5 juin 2026</strong>, Nivra applique automatiquement un calcul au prorata lorsqu'un changement de forfait est approuvé et appliqué en cours de cycle.
+              </p>
+              <Card className="bg-cyan-500/10 border-cyan-500/30">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-foreground mb-3">Règles de prorata</h3>
+                  <ul className="list-disc pl-6 space-y-2 text-sm">
+                    <li>
+                      <strong>Upgrade (passage à un forfait supérieur) :</strong> une ligne de facturation prorata est ajoutée à la facture de renouvellement en cours pour la différence de prix, calculée au prorata des jours restants dans le cycle. Le total de la facture est mis à jour en conséquence (TPS et TVQ incluses).
+                      <br />
+                      <em>Formule : (Nouveau prix − Ancien prix) ÷ 30 × Jours restants dans le cycle</em>
+                    </li>
+                    <li>
+                      <strong>Downgrade (passage à un forfait inférieur) :</strong> un crédit prorata est ajouté à la facture de renouvellement en cours (ou sur la prochaine facture si la facture courante n'est pas encore générée). Le crédit apparaît comme ligne de rabais et réduit le total dû.
+                      <br />
+                      <em>Formule : (Ancien prix − Nouveau prix) ÷ 30 × Jours restants dans le cycle</em>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+              <p className="text-sm text-muted-foreground/70">
+                Le changement de forfait effectif immédiatement s'applique uniquement si l'option "Appliquer immédiatement" est sélectionnée lors de l'approbation. Sinon, le changement prend effet au prochain renouvellement sans prorata.
+              </p>
+            </section>
+
+            <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">Contact</h2>
               <ul className="list-none space-y-2">
                 <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
