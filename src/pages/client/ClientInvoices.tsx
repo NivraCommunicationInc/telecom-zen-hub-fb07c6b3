@@ -11,13 +11,12 @@ import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { safePDFDownload } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
-import { generateCanonicalInvoicePDF, generateCanonicalOrderSummaryPDF, generateCanonicalReceiptPDF } from "@/lib/pdf";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useClientPDF } from "@/hooks/useClientPDF";
 
 /**
  * ClientInvoices — CANONICAL DOCUMENT ARCHITECTURE
@@ -110,11 +109,7 @@ const ClientInvoices = () => {
   const [filterTab, setFilterTab] = useState("all");
 
   // PDF state
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [pdfTitle, setPdfTitle] = useState("");
-  const [pdfFilename, setPdfFilename] = useState("");
-  const [pdfLoading, setPdfLoading] = useState(false);
+  // PDF viewer state — kept for legacy compat; server-side generation opens in new tab directly
 
   // Pay dialog state
   const [payDialogOpen, setPayDialogOpen] = useState(false);
@@ -180,115 +175,20 @@ const ClientInvoices = () => {
   }, [breakdowns, filterTab]);
 
   // ── CANONICAL PDF generation ──
-  const handleViewPDF = useCallback(async (bd: InvoiceBreakdown) => {
-    try {
-      setPdfLoading(true);
-      setPdfViewerOpen(true);
-      setPdfTitle(`Facture ${bd.invoice_number}`);
-      setPdfFilename(`Facture_${bd.invoice_number}.pdf`);
-      const result = await generateCanonicalInvoicePDF(portalSupabase, bd.invoice_id);
-      if (result.success && result.blob) {
-        setPdfBlob(result.blob);
-      } else {
-        throw new Error(result.error || "Document non disponible");
-      }
-    } catch (error: any) {
-      console.error("[ClientInvoices] PDF error:", error);
-      toast.error(error.message || "Erreur lors de la génération du PDF");
-      setPdfViewerOpen(false);
-    } finally {
-      setPdfLoading(false);
-    }
-  }, []);
+    const clientPDF = useClientPDF();
 
-  const handleDownloadPDF = useCallback(async (bd: InvoiceBreakdown) => {
-    try {
-      const result = await generateCanonicalInvoicePDF(portalSupabase, bd.invoice_id);
-      if (result.success && result.blob && result.filename) {
-        safePDFDownload(result.blob, result.filename);
-        toast.success("Facture téléchargée");
-      } else {
-        throw new Error(result.error || "Document non disponible");
-      }
-    } catch (error: any) {
-      console.error("[ClientInvoices] PDF download error:", error);
-      toast.error("Impossible de générer la facture");
-    }
-  }, []);
-
-  const handleViewReceiptPDF = useCallback(async (bd: InvoiceBreakdown) => {
-    try {
-      setPdfLoading(true);
-      setPdfViewerOpen(true);
-      setPdfTitle(`Reçu ${bd.invoice_number}`);
-      setPdfFilename(`Recu_${bd.invoice_number}.pdf`);
-      const result = await generateCanonicalReceiptPDF(portalSupabase, bd.invoice_id);
-      if (result.success && result.blob) {
-        setPdfBlob(result.blob);
-      } else {
-        throw new Error(result.error || "Reçu non disponible");
-      }
-    } catch (error: any) {
-      console.error("[ClientInvoices] Receipt PDF error:", error);
-      toast.error(error.message || "Erreur lors de la génération du reçu");
-      setPdfViewerOpen(false);
-    } finally {
-      setPdfLoading(false);
-    }
-  }, []);
-
-  const handleDownloadReceiptPDF = useCallback(async (bd: InvoiceBreakdown) => {
-    try {
-      const result = await generateCanonicalReceiptPDF(portalSupabase, bd.invoice_id);
-      if (result.success && result.blob) {
-        safePDFDownload(result.blob, result.filename || `Recu_${bd.invoice_number}.pdf`);
-        toast.success("Reçu téléchargé");
-      } else {
-        throw new Error(result.error || "Reçu non disponible");
-      }
-    } catch (error: any) {
-      console.error("[ClientInvoices] Receipt download error:", error);
-      toast.error("Impossible de générer le reçu");
-    }
-  }, []);
-
-  const handleViewOrderSummaryPDF = useCallback(async (bd: InvoiceBreakdown) => {
-    if (!bd.order_id) { toast.error("Sommaire non disponible pour cette facture"); return; }
-    try {
-      setPdfLoading(true);
-      setPdfViewerOpen(true);
-      setPdfTitle(`Sommaire ${bd.invoice_number}`);
-      setPdfFilename(`Sommaire_${bd.invoice_number}.pdf`);
-      const result = await generateCanonicalOrderSummaryPDF(portalSupabase, bd.order_id);
-      if (result.success && result.blob) {
-        setPdfBlob(result.blob);
-      } else {
-        throw new Error(result.error || "Sommaire non disponible");
-      }
-    } catch (error: any) {
-      console.error("[ClientInvoices] Order summary PDF error:", error);
-      toast.error(error.message || "Erreur lors de la génération du sommaire");
-      setPdfViewerOpen(false);
-    } finally {
-      setPdfLoading(false);
-    }
-  }, []);
-
-  const handleDownloadOrderSummaryPDF = useCallback(async (bd: InvoiceBreakdown) => {
-    if (!bd.order_id) { toast.error("Sommaire non disponible pour cette facture"); return; }
-    try {
-      const result = await generateCanonicalOrderSummaryPDF(portalSupabase, bd.order_id);
-      if (result.success && result.blob) {
-        safePDFDownload(result.blob, result.filename || `Sommaire_${bd.invoice_number}.pdf`);
-        toast.success("Sommaire téléchargé");
-      } else {
-        throw new Error(result.error || "Sommaire non disponible");
-      }
-    } catch (error: any) {
-      console.error("[ClientInvoices] Order summary download error:", error);
-      toast.error("Impossible de générer le sommaire");
-    }
-  }, []);
+  const handleViewPDF        = useCallback((bd: InvoiceBreakdown) => clientPDF.view("invoice", bd.invoice_id), [clientPDF]);
+  const handleDownloadPDF    = useCallback((bd: InvoiceBreakdown) => clientPDF.download("invoice", bd.invoice_id), [clientPDF]);
+  const handleViewReceiptPDF = useCallback((bd: InvoiceBreakdown) => clientPDF.view("receipt", bd.invoice_id), [clientPDF]);
+  const handleDownloadReceiptPDF = useCallback((bd: InvoiceBreakdown) => clientPDF.download("receipt", bd.invoice_id), [clientPDF]);
+  const handleViewOrderSummaryPDF = useCallback((bd: InvoiceBreakdown) => {
+    if (!bd.order_id) { toast.error("Sommaire non disponible — commande non liée"); return; }
+    clientPDF.view("summary", bd.order_id);
+  }, [clientPDF]);
+  const handleDownloadOrderSummaryPDF = useCallback((bd: InvoiceBreakdown) => {
+    if (!bd.order_id) { toast.error("Sommaire non disponible — commande non liée"); return; }
+    clientPDF.download("summary", bd.order_id);
+  }, [clientPDF]);
 
   // ── Pay ──
   const handlePayInvoice = (bd: InvoiceBreakdown) => {
@@ -639,15 +539,7 @@ const ClientInvoices = () => {
         </DCard>
       </div>
 
-      {/* PDF Viewer */}
-      <PDFViewerDialog
-        open={pdfViewerOpen}
-        onOpenChange={setPdfViewerOpen}
-        pdfBlob={pdfBlob}
-        title={pdfTitle}
-        filename={pdfFilename}
-        isLoading={pdfLoading}
-      />
+      {/* PDF Viewer — server-side generation now opens in new tab directly */}
 
       {/* Pay Invoice */}
       <PayInvoiceDialog

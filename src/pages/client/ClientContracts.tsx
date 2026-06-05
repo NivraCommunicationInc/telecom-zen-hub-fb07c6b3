@@ -17,15 +17,14 @@ import { portalClient as portalSupabase } from "@/integrations/backend/portalCli
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { safePDFDownload } from "@/lib/pdfUtils";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { TypedSignatureInput } from "@/components/client/TypedSignatureInput";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useClientPDF } from "@/hooks/useClientPDF";
 
 /**
  * ClientContracts — CANONICAL DOCUMENT ARCHITECTURE
@@ -112,69 +111,24 @@ const ClientContracts = () => {
     },
   });
 
-  // ── CANONICAL PDF GENERATION — uses the same engine as admin ──
-  const handleDownloadContract = async (contract: any) => {
-    try {
-      if (!contract) {
-        toast({ title: "Contrat non trouvé", variant: "destructive" });
-        return;
-      }
+  // ── SERVER-SIDE PDF GENERATION ──────────────────────────────
+  const clientPDF = useClientPDF();
 
-      // Use CANONICAL document service — identical to admin
-      const result = await generateCanonicalContractPDF(portalSupabase, contract.id);
-      if (!result.success || !result.blob) {
-        throw new Error(result.error || "Document non disponible");
-      }
-
-      const filename = `Contrat_Nivra_${contract.contract_number || contract.id.slice(0, 8)}.pdf`;
-      safePDFDownload(result.blob, filename);
-
-      await logActivity("Downloaded", "contract_pdf", contract.id, {
-        contractId: contract.id,
-        timestamp: new Date().toISOString(),
-      });
-
-      toast({ title: "Contrat téléchargé" });
-    } catch (error: any) {
-      console.error("[ClientContracts] Download error:", error);
-      toast({
-        title: "Erreur lors du téléchargement",
-        description: error.message || "Veuillez réessayer",
-        variant: "destructive",
-      });
+  const handleDownloadContract = useCallback(async (contract: any) => {
+    if (!contract) { toast({ title: "Contrat non trouvé", variant: "destructive" }); return; }
+    await clientPDF.download("contract", contract.id);
+    if (!clientPDF.error) {
+      await logActivity("Downloaded", "contract_pdf", contract.id, { contractId: contract.id });
     }
-  };
+  }, [clientPDF, logActivity, toast]);
 
-  const handleViewPDF = useCallback(
-    async (contract: any) => {
-      if (!contract) {
-        toast({ title: "Contrat non trouvé", variant: "destructive" });
-        return;
-      }
-
-      const filename = `Contrat_Nivra_${contract.contract_number || contract.id.slice(0, 8)}.pdf`;
-
-      await pdfViewer.openWithGenerator(
-        async () => {
-          // Use CANONICAL document service — identical to admin
-          const result = await generateCanonicalContractPDF(portalSupabase, contract.id);
-          if (!result.success || !result.blob) {
-            throw new Error(result.error || "Document non disponible");
-          }
-
-          await logActivity("Viewed", "contract_pdf", contract.id, {
-            contractId: contract.id,
-            timestamp: new Date().toISOString(),
-          });
-
-          return result.blob;
-        },
-        `Contrat - ${contract.contract_name || contract.contract_number || contract.id.slice(0, 8)}`,
-        filename
-      );
-    },
-    [pdfViewer, toast, logActivity]
-  );
+  const handleViewPDF = useCallback(async (contract: any) => {
+    if (!contract) { toast({ title: "Contrat non trouvé", variant: "destructive" }); return; }
+    await clientPDF.view("contract", contract.id);
+    if (!clientPDF.error) {
+      await logActivity("Viewed", "contract_pdf", contract.id, { contractId: contract.id });
+    }
+  }, [clientPDF, logActivity, toast]);
 
   const openSignDialog = (contract: any) => {
     setSelectedContract(contract);
