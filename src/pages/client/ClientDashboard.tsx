@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
@@ -14,30 +13,55 @@ import AccountStateBanner from "@/components/client/AccountStateBanner";
 import EmailClaimBanner from "@/components/client/EmailClaimBanner";
 import {
   Wifi, Smartphone, Tv, ChevronRight, Copy, FileText,
-  CreditCard, AlertCircle, Package, ArrowRight, CheckCircle2, Clock,
+  CreditCard, AlertCircle, Package, ArrowRight, Settings,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
 import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 
-const HERO_GRADIENT = "linear-gradient(135deg, #3b0764 0%, #4338ca 45%, #1e1b4b 100%)";
-const CARD_BG = "#13132a";
-const CARD_BORDER = "rgba(124, 58, 237, 0.22)";
-const CARD_HOVER = "rgba(124, 58, 237, 0.10)";
-
-const serviceIcon = (type: string) => {
-  if (type === "mobile") return <Smartphone className="w-5 h-5" style={{ color: "#a78bfa" }} />;
-  if (type === "tv")     return <Tv className="w-5 h-5" style={{ color: "#f59e0b" }} />;
-  return <Wifi className="w-5 h-5" style={{ color: "#34d399" }} />;
+/* ── Service helpers ─────────────────────────────────────────── */
+const SERVICE_CONFIG: Record<string, { icon: React.ReactNode; accent: string; bg: string; label: string }> = {
+  internet: {
+    icon: <Wifi className="w-5 h-5 text-emerald-600" />,
+    accent: "#059669",
+    bg: "#ecfdf5",
+    label: "Internet",
+  },
+  mobile: {
+    icon: <Smartphone className="w-5 h-5 text-violet-600" />,
+    accent: "#7c3aed",
+    bg: "#f5f3ff",
+    label: "Mobile",
+  },
+  tv: {
+    icon: <Tv className="w-5 h-5 text-amber-600" />,
+    accent: "#d97706",
+    bg: "#fffbeb",
+    label: "Télévision",
+  },
 };
 
-const serviceAccent = (type: string) => {
-  if (type === "mobile") return "#7c3aed";
-  if (type === "tv")     return "#d97706";
-  return "#059669";
+const getServiceCfg = (type: string) =>
+  SERVICE_CONFIG[type] || {
+    icon: <Package className="w-5 h-5 text-gray-500" />,
+    accent: "#6b7280",
+    bg: "#f9fafb",
+    label: type,
+  };
+
+const StatusPill = ({ status }: { status: string }) => {
+  const cfg: Record<string, { label: string; cls: string }> = {
+    active:    { label: "Actif",      cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" },
+    suspended: { label: "Suspendu",   cls: "bg-red-50 text-red-700 border border-red-200" },
+    pending:   { label: "En attente", cls: "bg-amber-50 text-amber-700 border border-amber-200" },
+    paused:    { label: "En pause",   cls: "bg-blue-50 text-blue-700 border border-blue-200" },
+  };
+  const c = cfg[status] || { label: status, cls: "bg-gray-50 text-gray-600 border border-gray-200" };
+  return <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ml-2 ${c.cls}`}>{c.label}</span>;
 };
 
+/* ── Component ───────────────────────────────────────────────── */
 const ClientDashboard = () => {
   const { user } = useClientAuth();
   const navigate = useNavigate();
@@ -48,13 +72,12 @@ const ClientDashboard = () => {
   const profile   = canonicalData?.profile;
   const account   = canonicalData?.account;
   const orders    = canonicalData?.orders?.slice(0, 3) || [];
-  const subscriptions = (canonicalData?.subscriptions || [])
+  const allSubs   = (canonicalData?.subscriptions || [])
     .filter((s: any) => !["cancelled", "expired"].includes(String(s?.status || "").toLowerCase()))
     .map((s: any) => ({
       id: s.id,
       plan_name: s.plan_name,
       amount: s.plan_price,
-      billing_cycle: "monthly",
       service_type: s.service_category || (
         s.plan_name?.toLowerCase().includes("internet") ? "internet" :
         s.plan_name?.toLowerCase().includes("tv")       ? "tv"       : "mobile"
@@ -66,131 +89,89 @@ const ClientDashboard = () => {
 
   const firstName     = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Client";
   const accountNumber = account?.account_number || accountIdentity?.accountNumber || "—";
+  const activeCount   = allSubs.filter((s: any) => String(s.status).toLowerCase() === "active").length;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copié");
   };
 
-  const mobileServices  = subscriptions.filter((s: any) => s.service_type === "mobile" || s.plan_name?.toLowerCase().includes("mobile"));
-  const internetServices = subscriptions.filter((s: any) => s.service_type === "internet" || s.plan_name?.toLowerCase().includes("internet"));
-  const tvServices      = subscriptions.filter((s: any) => s.service_type === "tv" || s.plan_name?.toLowerCase().includes("tv"));
-  const allServices     = [...internetServices, ...mobileServices, ...tvServices];
-  const activeCount     = subscriptions.filter((s: any) => String(s.status).toLowerCase() === "active").length;
-
-  const statusLabel = (status: string) => {
-    const cfg: Record<string, { label: string; bg: string; color: string }> = {
-      active:    { label: "Actif",      bg: "rgba(16,185,129,0.15)",  color: "#34d399" },
-      suspended: { label: "Suspendu",   bg: "rgba(239,68,68,0.15)",   color: "#f87171" },
-      pending:   { label: "En attente", bg: "rgba(245,158,11,0.15)",  color: "#fbbf24" },
-      paused:    { label: "En pause",   bg: "rgba(99,102,241,0.15)",  color: "#a5b4fc" },
-    };
-    const c = cfg[status] || { label: status, bg: "rgba(255,255,255,0.08)", color: "#c4c4e0" };
-    return (
-      <span
-        className="text-[11px] font-semibold px-2 py-0.5 rounded-full ml-2"
-        style={{ background: c.bg, color: c.color }}
-      >
-        {c.label}
-      </span>
-    );
+  const orderStatusCfg = (status: string) => {
+    if (status === "completed") return { label: "Terminé",  cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
+    if (status === "shipped")   return { label: "Expédié",  cls: "bg-violet-50 text-violet-700 border border-violet-200" };
+    if (["cancelled","cancel"].includes(status)) return { label: "Annulé", cls: "bg-red-50 text-red-700 border border-red-200" };
+    return { label: "En cours", cls: "bg-amber-50 text-amber-700 border border-amber-200" };
   };
 
-  const orderStatusConfig = (status: string) => {
-    if (status === "completed") return { label: "Terminé",    bg: "rgba(16,185,129,0.15)",  color: "#34d399" };
-    if (status === "shipped")   return { label: "Expédié",    bg: "rgba(124,58,237,0.15)",  color: "#a78bfa" };
-    if (status === "cancelled" || status === "cancel") return { label: "Annulé", bg: "rgba(239,68,68,0.15)", color: "#f87171" };
-    return { label: "En cours", bg: "rgba(245,158,11,0.15)", color: "#fbbf24" };
-  };
+  /* card style */
+  const card = "bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden";
+  const cardHeader = "px-6 py-4 border-b border-gray-100 flex items-center justify-between";
+  const sectionTitle = "text-base font-bold text-gray-900";
+  const viewAll = "text-sm font-medium text-[#6b21e8] hover:text-[#5b17d4] flex items-center gap-1 transition-colors";
 
   return (
     <ClientLayout>
       <ReferralPopup />
       <div className="space-y-5" data-testid="portal-dashboard">
 
-        {/* ── HERO GRADIENT BANNER ──────────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-2xl" style={{ background: HERO_GRADIENT }}>
-          {/* Decorative orbs */}
-          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, #a78bfa, transparent)" }} />
-          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full opacity-15"
-            style={{ background: "radial-gradient(circle, #6366f1, transparent)" }} />
+        {/* ── HERO BANNER ───────────────────────────────────────────── */}
+        <div className="rounded-2xl overflow-hidden shadow-sm"
+          style={{ background: "linear-gradient(135deg, #4c1d95 0%, #6d28d9 55%, #4338ca 100%)" }}>
+          <div className="relative px-6 py-7 sm:px-8 sm:py-8">
+            {/* Decorative circle */}
+            <div className="absolute right-0 top-0 w-64 h-64 rounded-full opacity-10 -translate-y-1/2 translate-x-1/3"
+              style={{ background: "radial-gradient(circle, #c4b5fd, transparent)" }} />
 
-          <div className="relative z-10 px-6 py-7 sm:px-8 sm:py-8">
-            {/* Welcome banner (first time) */}
             {showWelcome ? (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="text-white">
-                  <p className="text-white/70 text-sm font-medium mb-1">Bienvenue chez Nivra Télécom</p>
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                    Bonjour, {firstName} !
-                  </h1>
-                  <p className="text-white/75 text-sm mt-2">
-                    Votre service sera activé sous 24h. Gardez un œil sur votre courriel de confirmation.
+                  <p className="text-white/70 text-sm mb-0.5">Bienvenue chez Nivra Télécom</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold">Bonjour, {firstName} !</h1>
+                  <p className="text-white/75 text-sm mt-2 max-w-md">
+                    Votre service sera activé sous 24h. Un courriel de confirmation vous a été envoyé.
                   </p>
                 </div>
                 <button
-                  onClick={() => { setShowWelcome(false); localStorage.setItem("nivra_welcomed", "1"); }}
-                  className="shrink-0 text-sm text-white/90 hover:text-white px-4 py-2 rounded-xl border border-white/20 hover:border-white/40 transition-colors"
+                  onClick={() => { setShowWelcome(false); localStorage.setItem("nivra_welcomed","1"); }}
+                  className="shrink-0 px-4 py-2 rounded-xl text-sm text-white/90 hover:text-white border border-white/25 hover:border-white/50 transition-colors"
                 >
                   Compris ✓
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-5">
                 <div className="text-white">
-                  <p className="text-white/65 text-sm font-medium mb-0.5">MonNivra</p>
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                    Bonjour, {firstName}
-                  </h1>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-white/70 text-sm">Compte</span>
-                    <span className="text-white font-mono text-sm font-semibold">{accountNumber}</span>
-                    <button
-                      onClick={() => copyToClipboard(accountNumber)}
-                      className="p-1 text-white/50 hover:text-white/90 transition-colors"
-                      title="Copier"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                  <p className="text-white/65 text-sm mb-0.5">MonNivra · Portail client</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold">Bonjour, {firstName}</h1>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white/65 text-sm">Compte</span>
+                      <span className="text-white font-mono text-sm font-semibold tracking-wide">{accountNumber}</span>
+                      <button onClick={() => copyToClipboard(accountNumber)} className="p-0.5 text-white/50 hover:text-white transition-colors" title="Copier">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     {activeCount > 0 && (
-                      <span
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded-full ml-1"
-                        style={{ background: "rgba(52,211,153,0.2)", color: "#34d399" }}
-                      >
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white">
                         {activeCount} service{activeCount > 1 ? "s" : ""} actif{activeCount > 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
                 </div>
-
-                {/* CTA buttons */}
+                {/* Quick CTAs */}
                 <div className="flex flex-wrap gap-2 shrink-0">
                   <button
                     onClick={() => navigate("/portal/billing")}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.22)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.15)")}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white text-[#6d28d9] hover:bg-gray-50 transition-colors shadow-sm"
                   >
                     <CreditCard className="w-4 h-4" />
-                    Payer
+                    Faire un paiement
                   </button>
-                  <Link
-                    to="/portal/invoices"
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                    style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)" }}
+                  <Link to="/portal/services"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/15 hover:bg-white/25 text-white border border-white/25 transition-colors"
                   >
-                    <FileText className="w-4 h-4" />
-                    Factures
-                  </Link>
-                  <Link
-                    to="/portal/services"
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                    style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)" }}
-                  >
-                    <Package className="w-4 h-4" />
-                    Services
+                    <Settings className="w-4 h-4" />
+                    Mes services
                   </Link>
                 </div>
               </div>
@@ -200,48 +181,50 @@ const ClientDashboard = () => {
 
         {/* ── SYSTEM BANNERS ────────────────────────────────────────── */}
         {canonicalData?.identifiers?.usedFallbackLinks && (
-          <div className="rounded-xl border px-4 py-3 text-sm"
-            style={{ background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)", color: "#fbbf24" }}>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Certaines données ont été reliées via votre courriel. Si une commande semble manquante, contactez le support.
           </div>
         )}
         {account?.id && <AccountStateBanner accountId={account.id} />}
         <EmailClaimBanner />
 
-        {/* ── BALANCE + PAYMENT METHOD ──────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-2xl p-5 flex flex-col gap-3"
-            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold" style={{ color: "#e0e0f0" }}>Solde et facturation</h2>
-              <Link to="/portal/invoices"
-                className="text-xs font-medium flex items-center gap-1 transition-colors"
-                style={{ color: "#a78bfa" }}>
-                Voir tout <ChevronRight className="w-3.5 h-3.5" />
+        {/* ── SOLDE + PAIEMENT ──────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className={card}>
+            <div className={cardHeader}>
+              <h2 className={sectionTitle}>Solde et facturation</h2>
+              <Link to="/portal/invoices" className={viewAll}>
+                Voir les factures <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
-            {user?.id && <ClientBalanceSummary userId={user.id} />}
-            <div className="flex gap-2 pt-1">
-              <Button
-                className="flex-1 h-10 text-sm font-semibold rounded-xl text-white"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #4338ca)" }}
-                onClick={() => navigate("/portal/billing")}
-              >
-                <CreditCard className="w-4 h-4 mr-2" /> Faire un paiement
-              </Button>
-              <Link to="/portal/invoices" className="flex-1">
-                <Button variant="outline" className="w-full h-10 text-sm font-semibold rounded-xl"
-                  style={{ borderColor: CARD_BORDER, color: "#a78bfa", background: "transparent" }}>
-                  <FileText className="w-4 h-4 mr-2" /> Mes factures
+            <div className="px-6 py-5 space-y-4">
+              {user?.id && <ClientBalanceSummary userId={user.id} />}
+              <div className="flex gap-3 pt-1">
+                <Button
+                  className="flex-1 h-11 text-sm font-semibold rounded-xl text-white"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #4338ca)" }}
+                  onClick={() => navigate("/portal/billing")}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Faire un paiement
                 </Button>
-              </Link>
+                <Link to="/portal/invoices" className="flex-1">
+                  <Button variant="outline" className="w-full h-11 text-sm font-semibold rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Mes factures
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-2xl p-5"
-            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-            <h2 className="text-base font-semibold mb-3" style={{ color: "#e0e0f0" }}>Mode de paiement</h2>
-            <ClientPaymentMethodCard />
+          <div className={card}>
+            <div className={cardHeader}>
+              <h2 className={sectionTitle}>Mode de paiement</h2>
+            </div>
+            <div className="px-6 py-5">
+              <ClientPaymentMethodCard />
+            </div>
           </div>
         </div>
 
@@ -249,75 +232,68 @@ const ClientDashboard = () => {
         {user?.id && <ServiceCountdown userId={user.id} />}
 
         {/* ── MES SERVICES ──────────────────────────────────────────── */}
-        {allServices.length > 0 ? (
-          <div className="rounded-2xl overflow-hidden"
-            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-            <div className="px-6 py-4 flex items-center justify-between"
-              style={{ borderBottom: `1px solid ${CARD_BORDER}` }}>
-              <h2 className="text-base font-semibold" style={{ color: "#e0e0f0" }}>Mes services</h2>
-              <Link to="/portal/services"
-                className="text-xs font-medium flex items-center gap-1"
-                style={{ color: "#a78bfa" }}>
-                Gérer <ChevronRight className="w-3.5 h-3.5" />
+        {allSubs.length > 0 ? (
+          <div className={card}>
+            <div className={cardHeader}>
+              <h2 className={sectionTitle}>Mes services actifs</h2>
+              <Link to="/portal/services" className={viewAll}>
+                Gérer <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="divide-y" style={{ borderColor: CARD_BORDER }}>
-              {allServices.map((sub: any) => {
-                const cycle  = getCycleDisplay(sub);
-                const accent = serviceAccent(sub.service_type);
+            <div>
+              {allSubs.map((sub: any, i: number) => {
+                const cfg   = getServiceCfg(sub.service_type);
+                const cycle = getCycleDisplay(sub);
                 return (
-                  <div key={sub.id}
-                    className="px-6 py-4 flex items-center gap-4 transition-colors cursor-pointer"
-                    style={{ borderBottom: `1px solid ${CARD_BORDER}` }}
-                    onClick={() => navigate("/portal/services")}>
-                    {/* Colored left accent */}
-                    <div className="w-1 self-stretch rounded-full shrink-0"
-                      style={{ background: accent }} />
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: `${accent}22` }}>
-                      {serviceIcon(sub.service_type)}
+                  <div
+                    key={sub.id}
+                    className="px-6 py-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    style={{ borderTop: i === 0 ? undefined : "1px solid #f1f1f1" }}
+                    onClick={() => navigate("/portal/services")}
+                  >
+                    {/* Accent bar */}
+                    <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: cfg.accent, minHeight: 40 }} />
+                    {/* Icon */}
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: cfg.bg }}>
+                      {cfg.icon}
                     </div>
+                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center flex-wrap">
-                        <span className="font-semibold text-sm" style={{ color: "#f0f0ff" }}>
-                          {sub.plan_name}
-                        </span>
-                        {statusLabel(sub.status)}
+                        <span className="font-semibold text-gray-900 text-sm">{sub.plan_name}</span>
+                        <StatusPill status={sub.status} />
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: "#9090b0" }}>
+                      <p className="text-xs text-gray-500 mt-0.5">
                         {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                         {cycle.isActive && cycle.nextRenewal && (
-                          <span className="ml-2">
-                            · Renouvellement {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}
-                          </span>
+                          <> · Renouvellement le {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</>
                         )}
                         {!cycle.isActive && (
-                          <span className="ml-2" style={{ color: "#fbbf24" }}>· Démarre à l'activation</span>
+                          <span className="text-amber-600"> · Démarre à l'activation</span>
                         )}
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "#6060a0" }} />
+                    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
                   </div>
                 );
               })}
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl p-8 text-center"
-            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-            <Package className="w-10 h-10 mx-auto mb-3" style={{ color: "#7c3aed" }} />
-            <p className="font-semibold text-base mb-1" style={{ color: "#e0e0f0" }}>Aucun service actif</p>
-            <p className="text-sm mb-5" style={{ color: "#7070a0" }}>Vous n'avez aucun service actif pour le moment.</p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <div className={`${card} text-center py-12`}>
+            <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-semibold text-gray-800 text-base mb-1">Aucun service actif</p>
+            <p className="text-sm text-gray-500 mb-6">Vous n'avez aucun service actif pour le moment.</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 onClick={() => navigate("/portal/new-order")}
-                className="text-sm font-semibold text-white rounded-xl h-10"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #4338ca)" }}>
+                className="text-sm font-semibold text-white rounded-xl h-11 px-6"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #4338ca)" }}
+              >
                 Découvrir nos forfaits <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
               <Link to="/telephones">
-                <Button variant="outline" className="w-full h-10 text-sm font-semibold rounded-xl"
-                  style={{ borderColor: CARD_BORDER, color: "#a78bfa", background: "transparent" }}>
+                <Button variant="outline" className="h-11 px-6 text-sm font-semibold rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50">
                   Commander un téléphone
                 </Button>
               </Link>
@@ -327,36 +303,26 @@ const ClientDashboard = () => {
 
         {/* ── COMMANDES RÉCENTES ────────────────────────────────────── */}
         {orders.length > 0 && (
-          <div className="rounded-2xl overflow-hidden"
-            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-            <div className="px-6 py-4 flex items-center justify-between"
-              style={{ borderBottom: `1px solid ${CARD_BORDER}` }}>
-              <h2 className="text-base font-semibold" style={{ color: "#e0e0f0" }}>Commandes récentes</h2>
-              <Link to="/portal/orders"
-                className="text-xs font-medium flex items-center gap-1"
-                style={{ color: "#a78bfa" }}>
-                Voir tout <ChevronRight className="w-3.5 h-3.5" />
+          <div className={card}>
+            <div className={cardHeader}>
+              <h2 className={sectionTitle}>Commandes récentes</h2>
+              <Link to="/portal/orders" className={viewAll}>
+                Voir tout <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
             <div>
-              {orders.map((order: any) => {
-                const sc = orderStatusConfig(order.status);
+              {orders.map((order: any, i: number) => {
+                const sc = orderStatusCfg(order.status);
                 return (
-                  <div key={order.id}
-                    className="px-6 py-4 flex items-center justify-between"
-                    style={{ borderBottom: `1px solid rgba(124,58,237,0.08)` }}>
+                  <div key={order.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    style={{ borderTop: i === 0 ? undefined : "1px solid #f1f1f1" }}>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: "#e0e0f0" }}>
-                        {order.service_type}
-                      </p>
-                      <p className="text-xs mt-0.5" style={{ color: "#7070a0" }}>
+                      <p className="text-sm font-semibold text-gray-900">{order.service_type}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
                         {order.order_number || `#${order.id.slice(0, 8)}`} · {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
                       </p>
                     </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{ background: sc.bg, color: sc.color }}>
-                      {sc.label}
-                    </span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${sc.cls}`}>{sc.label}</span>
                   </div>
                 );
               })}
@@ -364,19 +330,17 @@ const ClientDashboard = () => {
           </div>
         )}
 
-        {/* ── SIGNALER UNE INSATISFACTION ───────────────────────────── */}
-        <div className="rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-          style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.20)" }}>
+        {/* ── PLAINTE ───────────────────────────────────────────────── */}
+        <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#f87171" }} />
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold" style={{ color: "#fca5a5" }}>Une insatisfaction à signaler ?</p>
-              <p className="text-xs mt-0.5" style={{ color: "#9090b0" }}>Soumettez une plainte officielle. SLA de traitement garanti.</p>
+              <p className="text-sm font-semibold text-red-900">Une insatisfaction à signaler ?</p>
+              <p className="text-xs text-red-600 mt-0.5">Soumettez une plainte officielle. SLA de traitement garanti.</p>
             </div>
           </div>
           <Link to="/plainte" className="shrink-0">
-            <Button variant="outline" className="h-9 text-sm rounded-xl font-medium"
-              style={{ borderColor: "rgba(239,68,68,0.35)", color: "#f87171", background: "transparent" }}>
+            <Button variant="outline" className="h-9 text-sm font-medium rounded-xl border-red-300 text-red-700 hover:bg-red-100 bg-transparent">
               Soumettre une plainte
             </Button>
           </Link>
