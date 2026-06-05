@@ -51,7 +51,21 @@ export type AutoNoteEvent =
   | "email_sent"
   | "kyc_session_created"
   | "kyc_session_expired"
-  | "equipment_status_changed";
+  | "equipment_status_changed"
+  | "credit_added"
+  | "plan_changed"
+  | "fee_added"
+  | "call_logged"
+  | "ticket_created"
+  | "ticket_updated"
+  | "personal_info_updated"
+  | "invoice_created"
+  | "subscription_renewed"
+  | "promotion_added"
+  | "equipment_changed"
+  | "account_suspended"
+  | "account_reactivated"
+  | "followup_added";
 
 const EVENT_LABELS: Record<AutoNoteEvent, string> = {
   payment_confirmed: "Paiement confirmé",
@@ -89,6 +103,20 @@ const EVENT_LABELS: Record<AutoNoteEvent, string> = {
   kyc_session_created: "Session KYC créée",
   kyc_session_expired: "Session KYC expirée",
   equipment_status_changed: "Statut équipement modifié",
+  credit_added: "Crédit ajouté",
+  plan_changed: "Changement de forfait",
+  fee_added: "Frais ajouté",
+  call_logged: "Appel enregistré",
+  ticket_created: "Ticket créé",
+  ticket_updated: "Ticket mis à jour",
+  personal_info_updated: "Informations personnelles mises à jour",
+  invoice_created: "Facture créée",
+  subscription_renewed: "Abonnement renouvelé",
+  promotion_added: "Promotion appliquée",
+  equipment_changed: "Équipement modifié",
+  account_suspended: "Compte suspendu",
+  account_reactivated: "Compte réactivé",
+  followup_added: "Suivi ajouté",
 };
 
 export interface AutoNoteParams {

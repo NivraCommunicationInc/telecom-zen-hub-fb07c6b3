@@ -27,6 +27,31 @@ interface ClientInternalNote {
 }
 
 const LONG_NOTE_THRESHOLD = 280;
+const PAGE_SIZE = 15;
+
+const FILTER_TABS = [
+  { key: "all", label: "Tous" },
+  { key: "system", label: "Système" },
+  { key: "admin", label: "Admin" },
+  { key: "call", label: "Appel" },
+  { key: "ticket", label: "Ticket" },
+];
+
+const NOTE_BADGE: Record<string, string> = {
+  system: "bg-blue-500/10 text-blue-400 border border-blue-500/30",
+  system_auto: "bg-blue-500/10 text-blue-400 border border-blue-500/30",
+  admin: "bg-purple-500/10 text-purple-400 border border-purple-500/30",
+  call: "bg-teal-500/10 text-teal-400 border border-teal-500/30",
+  ticket: "bg-orange-500/10 text-orange-400 border border-orange-500/30",
+};
+
+const NOTE_LABEL: Record<string, string> = {
+  system: "Système",
+  system_auto: "Auto",
+  admin: "Admin",
+  call: "Appel",
+  ticket: "Ticket",
+};
 
 export function ClientNotesPanel({ clientId, compact = false, className, onMutationSuccess }: ClientNotesPanelProps) {
   const queryClient = useQueryClient();
@@ -35,7 +60,8 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
   const [composerOpen, setComposerOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  // NOTE: Notes are immutable audit records. Edit/Delete intentionally removed.
+  const [filterType, setFilterType] = useState("all");
+  const [notesPage, setNotesPage] = useState(1);
 
   const notesQueryKey = useMemo(() => ["client-internal-notes-shared", clientId], [clientId]);
 
@@ -56,6 +82,19 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
     },
     enabled: !!clientId,
   });
+
+  const filteredNotes = useMemo(() => {
+    if (filterType === "all") return notes;
+    return notes.filter(n => n.note_type === filterType || (filterType === "system" && n.note_type === "system_auto"));
+  }, [notes, filterType]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredNotes.length / PAGE_SIZE));
+  const pagedNotes = filteredNotes.slice((notesPage - 1) * PAGE_SIZE, notesPage * PAGE_SIZE);
+
+  const handleFilterChange = (key: string) => {
+    setFilterType(key);
+    setNotesPage(1);
+  };
 
   const refreshNotes = async () => {
     if (!clientId) return;
@@ -129,15 +168,6 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
     }
   };
 
-  const scrollNotes = (direction: "top" | "bottom") => {
-    const container = notesScrollRef.current;
-    if (!container) return;
-    container.scrollTo({
-      top: direction === "top" ? 0 : container.scrollHeight,
-      behavior: "smooth",
-    });
-  };
-
   return (
     <div className={cn("space-y-2", className)}>
       {!composerOpen ? (
@@ -183,54 +213,62 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
         </div>
       )}
 
+      {/* Filter tabs */}
+      {!isLoading && notes.length > 0 && (
+        <div className="flex gap-1 flex-wrap">
+          {FILTER_TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => handleFilterChange(tab.key)}
+              className={cn(
+                "h-6 px-2 rounded text-[10px] font-medium transition-colors border",
+                filterType === tab.key
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                  : "border-[hsl(220,15%,20%)] text-[hsl(220,10%,45%)] hover:text-white hover:border-emerald-500/20"
+              )}
+            >
+              {tab.label}
+              {tab.key !== "all" && (
+                <span className="ml-1 opacity-60">
+                  ({notes.filter(n => tab.key === "system" ? (n.note_type === "system" || n.note_type === "system_auto") : n.note_type === tab.key).length})
+                </span>
+              )}
+            </button>
+          ))}
+          {filteredNotes.length > 0 && (
+            <span className="ml-auto text-[10px] text-[hsl(220,10%,38%)] self-center">
+              {filteredNotes.length} note{filteredNotes.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-3">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
-      ) : notes.length > 0 ? (
+      ) : pagedNotes.length > 0 ? (
         <>
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => scrollNotes("top")}
-              className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-            >
-              <ChevronUp className="h-3 w-3" />
-              Haut
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => scrollNotes("bottom")}
-              className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-            >
-              <ChevronDown className="h-3 w-3" />
-              Bas
-            </Button>
-          </div>
-
           <div
             ref={notesScrollRef}
-            className={cn(
-              "space-y-2 overflow-y-auto pr-1",
-              compact ? "max-h-[320px]" : "max-h-[420px]",
-            )}
+            className="space-y-2 pr-1"
           >
-            {notes.map((note) => {
+            {pagedNotes.map((note) => {
               const isLong = note.body.length > LONG_NOTE_THRESHOLD || note.body.split("\n").length > 5;
               const isExpanded = expandedIds.has(note.id);
               const displayBody = isLong && !isExpanded ? `${note.body.slice(0, LONG_NOTE_THRESHOLD)}…` : note.body;
+              const badgeClass = NOTE_BADGE[note.note_type] || "bg-slate-500/10 text-slate-400 border border-slate-500/30";
+              const badgeLabel = NOTE_LABEL[note.note_type] || note.note_type;
 
               return (
                 <div key={note.id} className="rounded-md border border-border bg-card p-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded", badgeClass)}>
+                        {badgeLabel}
+                      </span>
                       <p className={cn("truncate font-medium text-foreground", compact ? "text-[10px]" : "text-[11px]")}>
                         {note.created_by_name || "Agent"}
-                        <span className="ml-1 text-muted-foreground">({note.created_by_role || "staff"})</span>
                       </p>
                     </div>
                     <span className={cn("shrink-0 text-muted-foreground", compact ? "text-[9px]" : "text-[10px]")}>
@@ -269,9 +307,34 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2 border-t border-[hsl(220,15%,14%)]">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setNotesPage(p)}
+                  className={cn(
+                    "h-6 min-w-[24px] px-2 rounded text-[10px] font-medium transition-colors",
+                    p === notesPage
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "border border-[hsl(220,15%,20%)] text-[hsl(220,10%,45%)] hover:text-white hover:border-emerald-500/20"
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+              <span className="text-[10px] text-[hsl(220,10%,38%)] ml-1">
+                Page {notesPage}/{totalPages}
+              </span>
+            </div>
+          )}
         </>
       ) : (
-        <p className={cn("text-center text-muted-foreground", compact ? "py-2 text-[10px]" : "py-3 text-xs")}>Aucune note</p>
+        <p className={cn("text-center text-muted-foreground", compact ? "py-2 text-[10px]" : "py-3 text-xs")}>
+          {filterType === "all" ? "Aucune note" : "Aucune note dans cette catégorie"}
+        </p>
       )}
     </div>
   );

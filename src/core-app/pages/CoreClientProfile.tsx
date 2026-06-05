@@ -49,12 +49,44 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
   </div>
 );
 
+const PAGE_SIZE = 5;
+
+const Paginator = ({ page, total, pageSize, onPage }: { page: number; total: number; pageSize: number; onPage: (p: number) => void }) => {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-1 mt-3 pt-2 border-t border-[hsl(220,15%,14%)]">
+      {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
+        <button
+          key={p}
+          onClick={() => onPage(p)}
+          className={`h-6 min-w-[24px] px-2 rounded text-[10px] font-medium transition-colors ${
+            p === page
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+              : "border border-[hsl(220,15%,20%)] text-[hsl(220,10%,45%)] hover:text-white hover:border-emerald-500/20"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [closeAccountOpen, setCloseAccountOpen] = useState(false);
+  const [mainTab, setMainTab] = useState("overview");
+  const [overviewTab, setOverviewTab] = useState("profil");
+  const [invPage, setInvPage] = useState(1);
+  const [pmtPage, setPmtPage] = useState(1);
+  const [eqPage, setEqPage] = useState(1);
+  const [ordPage, setOrdPage] = useState(1);
+  const [ctPage, setCtPage] = useState(1);
+  const [docPage, setDocPage] = useState(1);
   // Realtime invalidation across all client-related tables (FIX 3)
   useEffect(() => {
     if (!clientId) return;
@@ -385,9 +417,8 @@ const CoreClientProfile = () => {
           </button>
           <button
             onClick={() => {
-              requestAnimationFrame(() => {
-                document.getElementById("core-client-notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              });
+              setMainTab("overview");
+              setOverviewTab("notes");
             }}
             className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-slate-500/20 text-[10px] font-medium text-slate-400 hover:bg-slate-500/10 min-w-[80px]"
           >
@@ -500,378 +531,401 @@ const CoreClientProfile = () => {
       </div>
 
       {/* ═══ TABS ═══ */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
         <TabsList className="bg-[hsl(220,20%,11%)] border border-[hsl(220,15%,16%)] h-9">
           <TabsTrigger value="overview" className="text-[12px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Vue d'ensemble</TabsTrigger>
           <TabsTrigger value="history" className="text-[12px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Historique complet</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4 mt-4">
-      {/* ═══ MAIN GRID ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Identity */}
-        <Section title="Identité" icon={UserCircle}>
-          <InfoRow label="Nom complet" value={displayName} />
-          <InfoRow label="Prénom" value={profile.first_name} />
-          <InfoRow label="Nom" value={profile.last_name} />
-          <InfoRow label="Langue" value={profile.language || "fr"} />
-          <InfoRow label="Inscrit le" value={profile.created_at ? format(new Date(profile.created_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"} />
-        </Section>
+        <TabsContent value="overview" className="mt-4">
+          <Tabs value={overviewTab} onValueChange={setOverviewTab}>
+            <TabsList className="bg-[hsl(220,20%,10%)] border border-[hsl(220,15%,15%)] h-8 mb-4">
+              <TabsTrigger value="profil" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Profil</TabsTrigger>
+              <TabsTrigger value="facturation" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Facturation</TabsTrigger>
+              <TabsTrigger value="equipement" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Équipement</TabsTrigger>
+              <TabsTrigger value="notes" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Notes & Activité</TabsTrigger>
+            </TabsList>
 
-        {/* Contact */}
-        <Section title="Contact" icon={Mail}>
-          <InfoRow label="Courriel" value={profile.email} />
-          <InfoRow label="Téléphone" value={profile.phone} />
-          <InfoRow label="Adresse" value={profile.address} />
-          <InfoRow label="Ville" value={profile.city} />
-          <InfoRow label="Code postal" value={profile.postal_code} />
-          <InfoRow label="Province" value={profile.province} />
-        </Section>
+            {/* ── Profil ── */}
+            <TabsContent value="profil" className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Section title="Identité" icon={UserCircle}>
+                  <InfoRow label="Nom complet" value={displayName} />
+                  <InfoRow label="Prénom" value={profile.first_name} />
+                  <InfoRow label="Nom" value={profile.last_name} />
+                  <InfoRow label="Langue" value={profile.language || "fr"} />
+                  <InfoRow label="Inscrit le" value={profile.created_at ? format(new Date(profile.created_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"} />
+                </Section>
 
-        {/* Account */}
-        <Section title="Compte lié" icon={Hash}>
-          {account ? (
-            <>
-              <InfoRow label="N° compte" value={<span className="font-mono">{account.account_number}</span>} />
-              <InfoRow label="Statut" value={<StatusBadge label={account.status || "active"} variant={statusToVariant(account.status || "active")} size="sm" />} />
-              <InfoRow label="Adresse de service" value={account.primary_service_address} />
-              <InfoRow label="Classe crédit" value={account.credit_class || "standard"} />
-              <div className="mt-2">
-                <Link to={corePath(`/accounts/${account.id}`)}>
-                  <button className="w-full h-8 flex items-center justify-center gap-1.5 rounded-md border border-emerald-500/20 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors">
-                    <ExternalLink className="h-3.5 w-3.5" /> Console du compte
-                  </button>
-                </Link>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-6">
-              <AlertTriangle className="h-6 w-6 mx-auto mb-2 text-amber-400/40" />
-              <p className="text-[11px] text-[hsl(220,10%,40%)]">Aucun compte lié</p>
-            </div>
-          )}
-        </Section>
+                <Section title="Contact" icon={Mail}>
+                  <InfoRow label="Courriel" value={profile.email} />
+                  <InfoRow label="Téléphone" value={profile.phone} />
+                  <InfoRow label="Adresse" value={profile.address} />
+                  <InfoRow label="Ville" value={profile.city} />
+                  <InfoRow label="Code postal" value={profile.postal_code} />
+                  <InfoRow label="Province" value={profile.province} />
+                </Section>
 
-        {/* KYC */}
-        <Section title="Vérification KYC" icon={Shield}>
-          {kyc.length > 0 ? (
-            <div className="space-y-2">
-              {kyc.map((k: any) => (
-                <div key={k.id} className="flex items-center justify-between py-1.5 border-b border-[hsl(220,15%,14%)] last:border-0">
-                  <div className="flex items-center gap-2">
-                    {k.status === "verified" ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : k.status === "rejected" ? <XCircle className="h-3.5 w-3.5 text-red-400" /> : <Clock className="h-3.5 w-3.5 text-amber-400" />}
-                    <span className="text-[11px] text-white">{k.verification_type || "Document"}</span>
-                  </div>
-                  <span className="text-[10px] text-[hsl(220,10%,40%)]">{k.created_at ? format(new Date(k.created_at), "d MMM yyyy", { locale: fr }) : ""}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune vérification</p>
-          )}
-        </Section>
-      </div>
-
-      {/* ═══ SUBSCRIPTIONS ═══ */}
-      <Section title="Abonnements actifs" icon={Wifi}>
-        {subscriptions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead><tr className="border-b border-[hsl(220,15%,14%)]">
-                {["Forfait", "Catégorie", "Prix", "Cycle", "Statut", ""].map(h => (
-                  <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {subscriptions.map((s: any) => (
-                  <tr key={s.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
-                    <td className="px-2 py-2 text-white font-medium">{s.plan_name}</td>
-                    <td className="px-2 py-2 text-[#A1A1AA]">{s.service_category || "—"}</td>
-                    <td className="px-2 py-2 text-emerald-400 font-medium">{Number(s.plan_price).toFixed(2)} $/mois</td>
-                    <td className="px-2 py-2 text-[#A1A1AA]">{s.cycle_start_date ? format(new Date(s.cycle_start_date), "d MMM", { locale: fr }) : ""} → {s.cycle_end_date ? format(new Date(s.cycle_end_date), "d MMM", { locale: fr }) : ""}</td>
-                    <td className="px-2 py-2"><StatusBadge label={s.status || "active"} variant={statusToVariant(s.status || "active")} size="sm" /></td>
-                    <td className="px-2 py-2">
-                      <Link to={corePath(`/subscriptions/${s.id}`)}>
-                        <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40">Ouvrir</button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun abonnement actif</p>
-        )}
-      </Section>
-
-      {/* ═══ EQUIPMENT ═══ */}
-      <Section title="Équipements attribués" icon={Package} action={
-        <Link to={corePath("/equipment")}><button className="text-[10px] text-emerald-400 hover:underline">Gérer →</button></Link>
-      }>
-        {equipment.length > 0 ? (
-          <div className="space-y-2">
-            {equipment.map((e: any) => {
-              const assignedDate = e.assigned_at ? new Date(e.assigned_at) : null;
-              const warrantyEnd = assignedDate ? new Date(assignedDate.getTime() + 365 * 24 * 60 * 60 * 1000) : null;
-              const underWarranty = warrantyEnd ? warrantyEnd > new Date() : false;
-              return (
-                <div key={e.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
-                  <Package className="h-4 w-4 text-cyan-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-white truncate">{e.catalog_name}</p>
-                    <p className="text-[10px] text-[#A1A1AA]">
-                      S/N: {e.serial_number || "—"}
-                      {assignedDate && <> · Attribué le {format(assignedDate, "d MMM yyyy", { locale: fr })}</>}
-                    </p>
-                  </div>
-                  {underWarranty ? (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Sous garantie</Badge>
-                  ) : warrantyEnd ? (
-                    <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Garantie expirée</Badge>
-                  ) : null}
-                  <span className="text-[10px] text-emerald-400 font-medium">{Number(e.price_client).toFixed(2)} $</span>
-                  <StatusBadge label={e.status} variant={statusToVariant(e.status === "assigned" ? "active" : e.status)} size="sm" />
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun équipement attribué</p>
-        )}
-      </Section>
-
-      {/* ═══ CONTRACTS (FIX 2 — Section A) ═══ */}
-      <Section title="Contrats" icon={FileSignature}>
-        {contracts.length > 0 ? (
-          <div className="space-y-2">
-            {contracts.map((c: any) => {
-              const status = String(c.status || "").toLowerCase();
-              const expired = c.signature_token_expires_at && new Date(c.signature_token_expires_at) < new Date() && !c.client_signed_at;
-              const isFullySigned = status === "signed" || status === "completed" || !!c.client_signed_at;
-              const awaitingClient = status === "signed_by_admin" || (!!c.admin_signed_at && !c.client_signed_at && !expired);
-              const isDraft = status === "draft" || (!c.admin_signed_at && !c.client_signed_at && !expired);
-
-              let badge: JSX.Element;
-              if (isFullySigned) {
-                badge = <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">✓ Signé</Badge>;
-              } else if (expired) {
-                badge = <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[9px]">Expiré</Badge>;
-              } else if (awaitingClient) {
-                badge = <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[9px]">En attente de la signature client</Badge>;
-              } else if (isDraft) {
-                badge = <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Brouillon</Badge>;
-              } else {
-                badge = <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">{c.status || "—"}</Badge>;
-              }
-
-              return (
-                <div key={c.id} className="flex flex-wrap items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
-                  <FileSignature className="h-4 w-4 text-purple-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-white truncate font-mono">{c.contract_number || c.id.slice(0, 8)}</p>
-                    <p className="text-[10px] text-[#A1A1AA]">
-                      Créé le {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
-                      {" · "}Nivra: {c.admin_signed_at ? format(new Date(c.admin_signed_at), "d MMM yyyy", { locale: fr }) : "—"}
-                      {" · "}Client: {c.client_signed_at ? format(new Date(c.client_signed_at), "d MMM yyyy", { locale: fr }) : "En attente"}
-                    </p>
-                  </div>
-                  {badge}
-                  {awaitingClient && c.signature_token && (
-                    <a href={`/signer/${c.signature_token}`} target="_blank" rel="noreferrer">
-                      <button className="h-6 px-2 rounded border border-amber-500/30 text-[10px] text-amber-400 hover:bg-amber-500/10 flex items-center gap-1">
-                        Signer maintenant →
-                      </button>
-                    </a>
-                  )}
-                  {c.contract_pdf_url ? (
-                    <a href={c.contract_pdf_url} target="_blank" rel="noreferrer">
-                      <button className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1">
-                        <Download className="h-3 w-3" /> Télécharger
-                      </button>
-                    </a>
+                <Section title="Compte lié" icon={Hash}>
+                  {account ? (
+                    <>
+                      <InfoRow label="N° compte" value={<span className="font-mono">{account.account_number}</span>} />
+                      <InfoRow label="Statut" value={<StatusBadge label={account.status || "active"} variant={statusToVariant(account.status || "active")} size="sm" />} />
+                      <InfoRow label="Adresse de service" value={account.primary_service_address} />
+                      <InfoRow label="Classe crédit" value={account.credit_class || "standard"} />
+                      <div className="mt-2">
+                        <Link to={corePath(`/accounts/${account.id}`)}>
+                          <button className="w-full h-8 flex items-center justify-center gap-1.5 rounded-md border border-emerald-500/20 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                            <ExternalLink className="h-3.5 w-3.5" /> Console du compte
+                          </button>
+                        </Link>
+                      </div>
+                    </>
                   ) : (
-                    <span className="text-[10px] text-[hsl(220,10%,40%)] italic">PDF non disponible</span>
+                    <div className="text-center py-6">
+                      <AlertTriangle className="h-6 w-6 mx-auto mb-2 text-amber-400/40" />
+                      <p className="text-[11px] text-[hsl(220,10%,40%)]">Aucun compte lié</p>
+                    </div>
                   )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun contrat</p>
-        )}
-      </Section>
+                </Section>
 
-      {/* ═══ AUTO-DOCUMENTS (FIX 2 — Section A) ═══ */}
-      <Section title="Documents générés" icon={FileText}>
-        {autoDocs.length > 0 ? (
-          <div className="space-y-2">
-            {autoDocs.map((d: any) => (
-              <div key={d.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
-                <FileText className="h-4 w-4 text-blue-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-white truncate">
-                    <span className="font-mono">{d.doc_number || d.id.slice(0, 8)}</span>
-                    <span className="text-[#A1A1AA]"> · {d.doc_type}</span>
-                  </p>
-                  <p className="text-[10px] text-[#A1A1AA]">
-                    {d.event_type} · {d.created_at ? format(new Date(d.created_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
-                  </p>
-                </div>
-                {d.storage_path && (
-                  <button
-                    onClick={async () => {
-                      const { data, error } = await supabase.storage
-                        .from("client-documents")
-                        .createSignedUrl(d.storage_path, 60);
-                      if (error || !data?.signedUrl) {
-                        toast.error("Impossible d'ouvrir le document");
-                        return;
-                      }
-                      window.open(data.signedUrl, "_blank");
-                    }}
-                    className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
-                  >
-                    <Download className="h-3 w-3" /> Ouvrir
-                  </button>
+                <Section title="Vérification KYC" icon={Shield}>
+                  {kyc.length > 0 ? (
+                    <div className="space-y-2">
+                      {kyc.map((k: any) => (
+                        <div key={k.id} className="flex items-center justify-between py-1.5 border-b border-[hsl(220,15%,14%)] last:border-0">
+                          <div className="flex items-center gap-2">
+                            {k.status === "verified" ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : k.status === "rejected" ? <XCircle className="h-3.5 w-3.5 text-red-400" /> : <Clock className="h-3.5 w-3.5 text-amber-400" />}
+                            <span className="text-[11px] text-white">{k.verification_type || "Document"}</span>
+                          </div>
+                          <span className="text-[10px] text-[hsl(220,10%,40%)]">{k.created_at ? format(new Date(k.created_at), "d MMM yyyy", { locale: fr }) : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune vérification</p>
+                  )}
+                </Section>
+              </div>
+
+              <Section title="Abonnements actifs" icon={Wifi}>
+                {subscriptions.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead><tr className="border-b border-[hsl(220,15%,14%)]">
+                        {["Forfait", "Catégorie", "Prix", "Cycle", "Statut", ""].map(h => (
+                          <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {subscriptions.map((s: any) => (
+                          <tr key={s.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                            <td className="px-2 py-2 text-white font-medium">{s.plan_name}</td>
+                            <td className="px-2 py-2 text-[#A1A1AA]">{s.service_category || "—"}</td>
+                            <td className="px-2 py-2 text-emerald-400 font-medium">{Number(s.plan_price).toFixed(2)} $/mois</td>
+                            <td className="px-2 py-2 text-[#A1A1AA]">{s.cycle_start_date ? format(new Date(s.cycle_start_date), "d MMM", { locale: fr }) : ""} → {s.cycle_end_date ? format(new Date(s.cycle_end_date), "d MMM", { locale: fr }) : ""}</td>
+                            <td className="px-2 py-2"><StatusBadge label={s.status || "active"} variant={statusToVariant(s.status || "active")} size="sm" /></td>
+                            <td className="px-2 py-2">
+                              <Link to={corePath(`/subscriptions/${s.id}`)}>
+                                <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40">Ouvrir</button>
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun abonnement actif</p>
                 )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun document</p>
-        )}
-      </Section>
+              </Section>
+            </TabsContent>
 
-      {/* ═══ INVOICES ═══ */}
-      <Section title="Factures récentes" icon={FileText}>
-        {invoices.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead><tr className="border-b border-[hsl(220,15%,14%)]">
-                {["N° Facture", "Total", "Solde dû", "Statut", "Date", ""].map(h => (
-                  <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {invoices.map((inv: any) => (
-                  <tr key={inv.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
-                    <td className="px-2 py-2 font-mono text-white">{inv.invoice_number}</td>
-                    <td className="px-2 py-2 text-white">{Number(inv.total).toFixed(2)} $</td>
-                    <td className="px-2 py-2 text-amber-400">{Number(inv.balance_due || 0).toFixed(2)} $</td>
-                    <td className="px-2 py-2"><StatusBadge label={inv.status || "unpaid"} variant={statusToVariant(inv.status || "unpaid")} size="sm" /></td>
-                    <td className="px-2 py-2 text-[#A1A1AA]">{inv.created_at ? format(new Date(inv.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
-                    <td className="px-2 py-2">
-                      <Link to={corePath(`/invoices/${inv.id}`)}>
-                        <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white">Ouvrir</button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune facture</p>
-        )}
-      </Section>
+            {/* ── Facturation ── */}
+            <TabsContent value="facturation" className="space-y-4">
+              <Section title={`Factures${invoices.length > 0 ? ` (${invoices.length})` : ""}`} icon={FileText}>
+                {invoices.length > 0 ? (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead><tr className="border-b border-[hsl(220,15%,14%)]">
+                          {["N° Facture", "Total", "Solde dû", "Statut", "Date", ""].map(h => (
+                            <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {invoices.slice((invPage - 1) * PAGE_SIZE, invPage * PAGE_SIZE).map((inv: any) => (
+                            <tr key={inv.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                              <td className="px-2 py-2 font-mono text-white">{inv.invoice_number}</td>
+                              <td className="px-2 py-2 text-white">{Number(inv.total).toFixed(2)} $</td>
+                              <td className="px-2 py-2 text-amber-400">{Number(inv.balance_due || 0).toFixed(2)} $</td>
+                              <td className="px-2 py-2"><StatusBadge label={inv.status || "unpaid"} variant={statusToVariant(inv.status || "unpaid")} size="sm" /></td>
+                              <td className="px-2 py-2 text-[#A1A1AA]">{inv.created_at ? format(new Date(inv.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
+                              <td className="px-2 py-2">
+                                <Link to={corePath(`/invoices/${inv.id}`)}>
+                                  <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white">Ouvrir</button>
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Paginator page={invPage} total={invoices.length} pageSize={PAGE_SIZE} onPage={setInvPage} />
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune facture</p>
+                )}
+              </Section>
 
-      {/* ═══ PAYMENTS ═══ */}
-      <Section title="Paiements récents" icon={CreditCard}>
-        {payments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead><tr className="border-b border-[hsl(220,15%,14%)]">
-                {["N° Paiement", "Montant", "Méthode", "Réf.", "Statut", "Date"].map(h => (
-                  <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {payments.map((p: any) => (
-                  <tr key={p.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
-                    <td className="px-2 py-2 font-mono text-white">{p.payment_number}</td>
-                    <td className="px-2 py-2 text-emerald-400 font-medium">{Number(p.amount).toFixed(2)} $</td>
-                    <td className="px-2 py-2 text-[#A1A1AA] capitalize">{p.method}</td>
-                    <td className="px-2 py-2 text-[#A1A1AA] font-mono text-[10px]">{p.reference || "—"}</td>
-                    <td className="px-2 py-2"><StatusBadge label={p.status || "confirmed"} variant={statusToVariant(p.status || "confirmed")} size="sm" /></td>
-                    <td className="px-2 py-2 text-[#A1A1AA]">{p.created_at ? format(new Date(p.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun paiement</p>
-        )}
-      </Section>
+              <Section title={`Paiements${payments.length > 0 ? ` (${payments.length})` : ""}`} icon={CreditCard}>
+                {payments.length > 0 ? (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead><tr className="border-b border-[hsl(220,15%,14%)]">
+                          {["N° Paiement", "Montant", "Méthode", "Réf.", "Statut", "Date"].map(h => (
+                            <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {payments.slice((pmtPage - 1) * PAGE_SIZE, pmtPage * PAGE_SIZE).map((p: any) => (
+                            <tr key={p.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                              <td className="px-2 py-2 font-mono text-white">{p.payment_number}</td>
+                              <td className="px-2 py-2 text-emerald-400 font-medium">{Number(p.amount).toFixed(2)} $</td>
+                              <td className="px-2 py-2 text-[#A1A1AA] capitalize">{p.method}</td>
+                              <td className="px-2 py-2 text-[#A1A1AA] font-mono text-[10px]">{p.reference || "—"}</td>
+                              <td className="px-2 py-2"><StatusBadge label={p.status || "confirmed"} variant={statusToVariant(p.status || "confirmed")} size="sm" /></td>
+                              <td className="px-2 py-2 text-[#A1A1AA]">{p.created_at ? format(new Date(p.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Paginator page={pmtPage} total={payments.length} pageSize={PAGE_SIZE} onPage={setPmtPage} />
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun paiement</p>
+                )}
+              </Section>
+            </TabsContent>
 
-      {/* ═══ ORDERS ═══ */}
-      <Section title="Commandes" icon={ShoppingCart}>
-        {orders.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead><tr className="border-b border-[hsl(220,15%,14%)]">
-                {["N° commande", "Type", "Total", "Paiement", "Statut", "Date", ""].map(h => (
-                  <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {orders.map((o: any) => (
-                  <tr key={o.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
-                    <td className="px-2 py-2 font-mono text-white">{o.order_number}</td>
-                    <td className="px-2 py-2 text-[#A1A1AA]">{o.service_type || "—"}</td>
-                    <td className="px-2 py-2 text-white">{o.total_amount ? `${Number(o.total_amount).toFixed(2)} $` : "—"}</td>
-                    <td className="px-2 py-2"><StatusBadge label={o.payment_status || "pending"} variant={statusToVariant(o.payment_status || "pending")} size="sm" /></td>
-                    <td className="px-2 py-2"><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
-                    <td className="px-2 py-2 text-[#A1A1AA]">{o.created_at ? format(new Date(o.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
-                    <td className="px-2 py-2">
-                      <Link to={corePath(`/orders/${o.id}`)}>
-                        <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white">Ouvrir</button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune commande</p>
-        )}
-      </Section>
+            {/* ── Équipement ── */}
+            <TabsContent value="equipement" className="space-y-4">
+              <Section title={`Équipements${equipment.length > 0 ? ` (${equipment.length})` : ""}`} icon={Package} action={
+                <Link to={corePath("/equipment")}><button className="text-[10px] text-emerald-400 hover:underline">Gérer →</button></Link>
+              }>
+                {equipment.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
+                      {equipment.slice((eqPage - 1) * PAGE_SIZE, eqPage * PAGE_SIZE).map((e: any) => {
+                        const assignedDate = e.assigned_at ? new Date(e.assigned_at) : null;
+                        const warrantyEnd = assignedDate ? new Date(assignedDate.getTime() + 365 * 24 * 60 * 60 * 1000) : null;
+                        const underWarranty = warrantyEnd ? warrantyEnd > new Date() : false;
+                        return (
+                          <div key={e.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                            <Package className="h-4 w-4 text-cyan-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium text-white truncate">{e.catalog_name}</p>
+                              <p className="text-[10px] text-[#A1A1AA]">
+                                S/N: {e.serial_number || "—"}
+                                {assignedDate && <> · Attribué le {format(assignedDate, "d MMM yyyy", { locale: fr })}</>}
+                              </p>
+                            </div>
+                            {underWarranty ? (
+                              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">Sous garantie</Badge>
+                            ) : warrantyEnd ? (
+                              <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Garantie expirée</Badge>
+                            ) : null}
+                            <span className="text-[10px] text-emerald-400 font-medium">{Number(e.price_client).toFixed(2)} $</span>
+                            <StatusBadge label={e.status} variant={statusToVariant(e.status === "assigned" ? "active" : e.status)} size="sm" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <Paginator page={eqPage} total={equipment.length} pageSize={PAGE_SIZE} onPage={setEqPage} />
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun équipement attribué</p>
+                )}
+              </Section>
 
-      {/* ═══ NOTES ═══ */}
-      <div id="core-client-notes-section">
-        <Section title="Notes internes" icon={StickyNote}>
-          <ClientNotesPanel clientId={clientId} />
-        </Section>
-      </div>
+              <Section title={`Commandes${orders.length > 0 ? ` (${orders.length})` : ""}`} icon={ShoppingCart}>
+                {orders.length > 0 ? (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead><tr className="border-b border-[hsl(220,15%,14%)]">
+                          {["N° commande", "Type", "Total", "Paiement", "Statut", "Date", ""].map(h => (
+                            <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {orders.slice((ordPage - 1) * PAGE_SIZE, ordPage * PAGE_SIZE).map((o: any) => (
+                            <tr key={o.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                              <td className="px-2 py-2 font-mono text-white">{o.order_number}</td>
+                              <td className="px-2 py-2 text-[#A1A1AA]">{o.service_type || "—"}</td>
+                              <td className="px-2 py-2 text-white">{o.total_amount ? `${Number(o.total_amount).toFixed(2)} $` : "—"}</td>
+                              <td className="px-2 py-2"><StatusBadge label={o.payment_status || "pending"} variant={statusToVariant(o.payment_status || "pending")} size="sm" /></td>
+                              <td className="px-2 py-2"><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
+                              <td className="px-2 py-2 text-[#A1A1AA]">{o.created_at ? format(new Date(o.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
+                              <td className="px-2 py-2">
+                                <Link to={corePath(`/orders/${o.id}`)}>
+                                  <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white">Ouvrir</button>
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Paginator page={ordPage} total={orders.length} pageSize={PAGE_SIZE} onPage={setOrdPage} />
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune commande</p>
+                )}
+              </Section>
 
-      {/* ═══ ACTIVITY TIMELINE ═══ */}
-      <Section title="Chronologie d'activité" icon={Clock}>
-        {activityLogs.length > 0 ? (
-          <div className="space-y-1 max-h-[400px] overflow-y-auto">
-            {activityLogs.map((log: any) => (
-              <div key={log.id} className="flex items-start gap-2 py-1.5 border-b border-[hsl(220,15%,14%)] last:border-0">
-                <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400/50 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-white truncate">
-                    <span className="text-emerald-400">{log.action}</span>
-                    {log.entity_type && <span className="text-[hsl(220,10%,45%)]"> · {log.entity_type}</span>}
-                  </p>
-                  {log.changed_field && (
-                    <p className="text-[10px] text-[hsl(220,10%,35%)]">{log.changed_field}: {log.old_value} → {log.new_value}</p>
-                  )}
-                </div>
-                <span className="text-[10px] text-[hsl(220,10%,30%)] shrink-0">
-                  {log.created_at ? format(new Date(log.created_at), "d MMM HH:mm", { locale: fr }) : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune activité enregistrée</p>
-        )}
-      </Section>
+              <Section title={`Contrats${contracts.length > 0 ? ` (${contracts.length})` : ""}`} icon={FileSignature}>
+                {contracts.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
+                      {contracts.slice((ctPage - 1) * PAGE_SIZE, ctPage * PAGE_SIZE).map((c: any) => {
+                        const status = String(c.status || "").toLowerCase();
+                        const expired = c.signature_token_expires_at && new Date(c.signature_token_expires_at) < new Date() && !c.client_signed_at;
+                        const isFullySigned = status === "signed" || status === "completed" || !!c.client_signed_at;
+                        const awaitingClient = status === "signed_by_admin" || (!!c.admin_signed_at && !c.client_signed_at && !expired);
+                        const isDraft = status === "draft" || (!c.admin_signed_at && !c.client_signed_at && !expired);
+
+                        let badge: JSX.Element;
+                        if (isFullySigned) {
+                          badge = <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">✓ Signé</Badge>;
+                        } else if (expired) {
+                          badge = <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[9px]">Expiré</Badge>;
+                        } else if (awaitingClient) {
+                          badge = <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[9px]">En attente de la signature client</Badge>;
+                        } else if (isDraft) {
+                          badge = <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">Brouillon</Badge>;
+                        } else {
+                          badge = <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 text-[9px]">{c.status || "—"}</Badge>;
+                        }
+
+                        return (
+                          <div key={c.id} className="flex flex-wrap items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                            <FileSignature className="h-4 w-4 text-purple-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium text-white truncate font-mono">{c.contract_number || c.id.slice(0, 8)}</p>
+                              <p className="text-[10px] text-[#A1A1AA]">
+                                Créé le {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
+                                {" · "}Nivra: {c.admin_signed_at ? format(new Date(c.admin_signed_at), "d MMM yyyy", { locale: fr }) : "—"}
+                                {" · "}Client: {c.client_signed_at ? format(new Date(c.client_signed_at), "d MMM yyyy", { locale: fr }) : "En attente"}
+                              </p>
+                            </div>
+                            {badge}
+                            {awaitingClient && c.signature_token && (
+                              <a href={`/signer/${c.signature_token}`} target="_blank" rel="noreferrer">
+                                <button className="h-6 px-2 rounded border border-amber-500/30 text-[10px] text-amber-400 hover:bg-amber-500/10 flex items-center gap-1">
+                                  Signer maintenant →
+                                </button>
+                              </a>
+                            )}
+                            {c.contract_pdf_url ? (
+                              <a href={c.contract_pdf_url} target="_blank" rel="noreferrer">
+                                <button className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1">
+                                  <Download className="h-3 w-3" /> Télécharger
+                                </button>
+                              </a>
+                            ) : (
+                              <span className="text-[10px] text-[hsl(220,10%,40%)] italic">PDF non disponible</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <Paginator page={ctPage} total={contracts.length} pageSize={PAGE_SIZE} onPage={setCtPage} />
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun contrat</p>
+                )}
+              </Section>
+
+              <Section title={`Documents générés${autoDocs.length > 0 ? ` (${autoDocs.length})` : ""}`} icon={FileText}>
+                {autoDocs.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
+                      {autoDocs.slice((docPage - 1) * PAGE_SIZE, docPage * PAGE_SIZE).map((d: any) => (
+                        <div key={d.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                          <FileText className="h-4 w-4 text-blue-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-medium text-white truncate">
+                              <span className="font-mono">{d.doc_number || d.id.slice(0, 8)}</span>
+                              <span className="text-[#A1A1AA]"> · {d.doc_type}</span>
+                            </p>
+                            <p className="text-[10px] text-[#A1A1AA]">
+                              {d.event_type} · {d.created_at ? format(new Date(d.created_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
+                            </p>
+                          </div>
+                          {d.storage_path && (
+                            <button
+                              onClick={async () => {
+                                const { data, error } = await supabase.storage
+                                  .from("client-documents")
+                                  .createSignedUrl(d.storage_path, 60);
+                                if (error || !data?.signedUrl) {
+                                  toast.error("Impossible d'ouvrir le document");
+                                  return;
+                                }
+                                window.open(data.signedUrl, "_blank");
+                              }}
+                              className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+                            >
+                              <Download className="h-3 w-3" /> Ouvrir
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Paginator page={docPage} total={autoDocs.length} pageSize={PAGE_SIZE} onPage={setDocPage} />
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun document</p>
+                )}
+              </Section>
+            </TabsContent>
+
+            {/* ── Notes & Activité ── */}
+            <TabsContent value="notes" className="space-y-4">
+              <Section title="Notes internes" icon={StickyNote}>
+                <ClientNotesPanel clientId={clientId} />
+              </Section>
+
+              <Section title="Chronologie d'activité" icon={Clock}>
+                {activityLogs.length > 0 ? (
+                  <div className="space-y-1">
+                    {activityLogs.map((log: any) => (
+                      <div key={log.id} className="flex items-start gap-2 py-1.5 border-b border-[hsl(220,15%,14%)] last:border-0">
+                        <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400/50 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-white truncate">
+                            <span className="text-emerald-400">{log.action}</span>
+                            {log.entity_type && <span className="text-[hsl(220,10%,45%)]"> · {log.entity_type}</span>}
+                          </p>
+                          {log.changed_field && (
+                            <p className="text-[10px] text-[hsl(220,10%,35%)]">{log.changed_field}: {log.old_value} → {log.new_value}</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[hsl(220,10%,30%)] shrink-0">
+                          {log.created_at ? format(new Date(log.created_at), "d MMM HH:mm", { locale: fr }) : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune activité enregistrée</p>
+                )}
+              </Section>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
