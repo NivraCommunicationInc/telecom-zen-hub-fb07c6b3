@@ -17,6 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { DollarSign, Calendar, Plus, Minus } from "lucide-react";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 const inputCls =
   "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
@@ -27,6 +28,7 @@ const btnSecondary =
 
 interface Props {
   accountId: string | undefined;
+  clientId?: string;
   clientName: string;
   open: boolean;
   onClose: () => void;
@@ -36,7 +38,7 @@ interface Props {
 const MONTH_OPTIONS = [1, 3, 6, 12, 24];
 
 export function AccountAdjustmentDialog({
-  accountId, clientName, open, onClose, onRefresh,
+  accountId, clientId, clientName, open, onClose, onRefresh,
 }: Props) {
   const [type, setType] = useState<"credit" | "fee">("credit");
   const [amount, setAmount] = useState("");
@@ -74,6 +76,11 @@ export function AccountAdjustmentDialog({
       });
       if (error) throw error;
 
+      addClientAutoNote({
+        clientId,
+        event: type === "credit" ? "credit_added" : "fee_added",
+        detail: `${description.trim()} — ${parsed.toFixed(2)} $ × ${months} mois`,
+      });
       toast.success(
         `${type === "credit" ? "Crédit" : "Frais"} de ${parsed.toFixed(2)} $ appliqué sur ${months} facture(s)`,
       );

@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { PauseCircle, PlayCircle, XCircle, AlertTriangle, Plus, ArrowRightLeft } from "lucide-react";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
 const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
@@ -24,12 +25,13 @@ const actionDanger = `${actionBtn} text-red-400 hover:text-red-300 hover:border-
 interface Props {
   subscriptions: any[];
   customerId: string | undefined;
+  clientId?: string;
   onRefresh: () => void;
 }
 
 type ModalType = null | "suspend" | "resume" | "cancel" | "addService" | "changePlan";
 
-export function SubscriptionActionMenu({ subscriptions, customerId, onRefresh }: Props) {
+export function SubscriptionActionMenu({ subscriptions, customerId, clientId, onRefresh }: Props) {
   const [modal, setModal] = useState<ModalType>(null);
 
   const active = subscriptions.filter((s: any) => s.status === "active");
@@ -56,18 +58,18 @@ export function SubscriptionActionMenu({ subscriptions, customerId, onRefresh }:
         </button>
       </div>
 
-      {modal === "suspend" && <StatusModal action="suspend" subs={active} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
-      {modal === "resume" && <StatusModal action="resume" subs={suspended} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
-      {modal === "cancel" && <CancelModal subs={manageable} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "suspend" && <StatusModal action="suspend" subs={active} customerId={customerId} clientId={clientId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "resume" && <StatusModal action="resume" subs={suspended} customerId={customerId} clientId={clientId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "cancel" && <CancelModal subs={manageable} customerId={customerId} clientId={clientId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "addService" && <AddServiceModal customerId={customerId} subscriptions={subscriptions} onClose={() => setModal(null)} onRefresh={onRefresh} />}
-      {modal === "changePlan" && <ChangePlanModal subs={manageable} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "changePlan" && <ChangePlanModal subs={manageable} customerId={customerId} clientId={clientId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
     </>
   );
 }
 
 // ── StatusModal, CancelModal, AddServiceModal, ChangePlanModal remain the same ──
 
-function StatusModal({ action, subs, customerId, onClose, onRefresh }: { action: "suspend" | "resume"; subs: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
+function StatusModal({ action, subs, customerId, clientId, onClose, onRefresh }: { action: "suspend" | "resume"; subs: any[]; customerId?: string; clientId?: string; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(subs[0]?.id || "");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -87,6 +89,12 @@ function StatusModal({ action, subs, customerId, onClose, onRefresh }: { action:
           reason: reason || null, details: { source: "account_360" },
         });
       }
+      const planName = subs.find((s: any) => s.id === selectedId)?.plan_name;
+      addClientAutoNote({
+        clientId,
+        event: isSuspend ? "account_suspended" : "account_reactivated",
+        detail: [planName, reason].filter(Boolean).join(" — ") || undefined,
+      });
       toast.success(`Service ${isSuspend ? "suspendu" : "repris"}`);
       onRefresh(); onClose();
     } catch (e: any) { toast.error(e.message || "Erreur"); }
@@ -123,7 +131,7 @@ function StatusModal({ action, subs, customerId, onClose, onRefresh }: { action:
   );
 }
 
-function CancelModal({ subs, customerId, onClose, onRefresh }: { subs: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
+function CancelModal({ subs, customerId, clientId, onClose, onRefresh }: { subs: any[]; customerId?: string; clientId?: string; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(subs[0]?.id || "");
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
@@ -142,6 +150,12 @@ function CancelModal({ subs, customerId, onClose, onRefresh }: { subs: any[]; cu
           details: { source: "account_360" },
         });
       }
+      const planName = subs.find((s: any) => s.id === selectedId)?.plan_name;
+      addClientAutoNote({
+        clientId,
+        event: "status_changed",
+        detail: ["Abonnement annulé", planName, reason].filter(Boolean).join(" — "),
+      });
       toast.success("Abonnement annulé");
       onRefresh(); onClose();
     } catch (e: any) { toast.error(e.message || "Erreur"); }
@@ -270,7 +284,7 @@ function AddServiceModal({ customerId, subscriptions, onClose, onRefresh }: { cu
   );
 }
 
-function ChangePlanModal({ subs, customerId, onClose, onRefresh }: { subs: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
+function ChangePlanModal({ subs, customerId, clientId, onClose, onRefresh }: { subs: any[]; customerId?: string; clientId?: string; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(subs[0]?.id || "");
   const [catalog, setCatalog] = useState<any[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -321,6 +335,11 @@ function ChangePlanModal({ subs, customerId, onClose, onRefresh }: { subs: any[]
           details: { old_plan: sub?.plan_name, old_code: sub?.plan_code, old_price: sub?.plan_price, new_plan: newPlan.name, new_code: newPlan.plan_code, new_price: price, catalog_id: newPlan.id, source: "account_360" },
         });
       }
+      addClientAutoNote({
+        clientId,
+        event: "plan_changed",
+        detail: `${sub?.plan_name || "—"} → ${newPlan.name}${reason ? ` — ${reason}` : ""}`,
+      });
       toast.success(`Forfait changé vers "${newPlan.name}"`);
       onRefresh(); onClose();
     } catch (e: any) { toast.error(e.message || "Erreur"); }

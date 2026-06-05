@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, UserPen } from "lucide-react";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -216,6 +217,11 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
       });
       if (auditError) throw auditError;
 
+      addClientAutoNote({
+        clientId,
+        event: "personal_info_updated",
+        detail: `Champs modifiés: ${changedFields.join(", ")}`,
+      });
       toast.success("Profil client mis à jour");
       onOpenChange(false);
       onSaved();

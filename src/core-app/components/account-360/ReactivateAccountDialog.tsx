@@ -7,9 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PlayCircle } from "lucide-react";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 interface Props {
   accountId: string | undefined;
+  clientId?: string;
   customerId?: string;
   accountStatus: string | null;
   subscriptions?: any[];
@@ -18,7 +20,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-export function ReactivateAccountDialog({ accountId, customerId, accountStatus, subscriptions = [], open, onClose, onRefresh }: Props) {
+export function ReactivateAccountDialog({ accountId, clientId, customerId, accountStatus, subscriptions = [], open, onClose, onRefresh }: Props) {
   const suspendedSubs = useMemo(() => subscriptions.filter((s: any) => s?.status === "suspended"), [subscriptions]);
   const cancelledSubs = useMemo(() => subscriptions.filter((s: any) => s?.status === "cancelled"), [subscriptions]);
 
@@ -64,6 +66,11 @@ export function ReactivateAccountDialog({ accountId, customerId, accountStatus, 
         }
       }
 
+      addClientAutoNote({
+        clientId,
+        event: "account_reactivated",
+        detail: reason || undefined,
+      });
       toast.success(
         idsToActivate.length > 0
           ? `Compte réactivé + ${idsToActivate.length} service(s) réactivé(s)`

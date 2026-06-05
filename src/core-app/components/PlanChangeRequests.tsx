@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 interface PlanChangeRequestsProps {
   clientId: string;
@@ -182,6 +183,11 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
         });
       }
 
+      addClientAutoNote({
+        clientId,
+        event: "plan_changed",
+        detail: `${req.current_plan_name || "—"} → ${req.requested_plan_name}`,
+      });
       toast.success(
         meta?.paypal_subscription_id
           ? "Approuvé — n'oubliez pas de mettre à jour PayPal manuellement"

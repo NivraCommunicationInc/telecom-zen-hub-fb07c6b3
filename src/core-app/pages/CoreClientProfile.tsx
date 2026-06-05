@@ -29,6 +29,7 @@ import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 import { ClientSupplierAccountSection } from "@/core-app/components/supplier-accounts/ClientSupplierAccountSection";
 import { ClientAdminNotesSection } from "@/core-app/components/admin-notes/ClientAdminNotesSection";
 import { ClientFullHistory } from "@/core-app/components/client-history/ClientFullHistory";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -515,6 +516,11 @@ const CoreClientProfile = () => {
                   .update({ status: newStatus, updated_at: new Date().toISOString() })
                   .eq("id", account.id);
                 if (error) { toast.error(error.message); return; }
+                addClientAutoNote({
+                  clientId,
+                  event: isActive ? "account_suspended" : "account_reactivated",
+                  detail: reason || undefined,
+                });
                 toast.success(`Compte ${isActive ? "suspendu" : "réactivé"}`);
                 queryClient.invalidateQueries({ queryKey: ["core-client-profile"] });
               }}

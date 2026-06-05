@@ -38,6 +38,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 type FilterKey = "pending" | "approved" | "rejected" | "all";
 type ActionKind = "approve" | "reject" | "view" | null;
@@ -435,6 +436,11 @@ export default function CorePlanChangesPage() {
         });
       }
 
+      addClientAutoNote({
+        clientId: r.client_id,
+        event: "plan_changed",
+        detail: `${r.current_plan_name || "—"} → ${r.requested_plan_name}`,
+      });
       return meta?.paypal_subscription_id;
     },
     onSuccess: (paypalId) => {

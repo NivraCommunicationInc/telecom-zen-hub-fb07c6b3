@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Gift, DollarSign, Calendar } from "lucide-react";
+import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
@@ -18,6 +19,7 @@ const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] fo
 interface Props {
   accountId: string | undefined;
   customerId: string | undefined;
+  clientId?: string;
   clientName: string;
   open: boolean;
   onClose: () => void;
@@ -36,7 +38,7 @@ const DURATION_OPTIONS: { value: DurationPreset; label: string }[] = [
   { value: "permanent", label: "Permanent" },
 ];
 
-export function AddCreditWithDurationDialog({ accountId, customerId, clientName, open, onClose, onRefresh }: Props) {
+export function AddCreditWithDurationDialog({ accountId, customerId, clientId, clientName, open, onClose, onRefresh }: Props) {
   const [amount, setAmount] = useState("");
   const [label, setLabel] = useState("");
   const [promoCode, setPromoCode] = useState("");
@@ -114,6 +116,11 @@ export function AddCreditWithDurationDialog({ accountId, customerId, clientName,
         reason: `📋 Promotion ajoutée: ${label} — ${parsedAmount.toFixed(2)} $/mois${promoCode ? ` (code: ${promoCode})` : ""} × ${isPermanent ? "permanent" : `${durationMonths} mois`}. ${notes || ""}`.trim(),
       });
 
+      addClientAutoNote({
+        clientId,
+        event: promotionType === "promo" ? "promotion_added" : "credit_added",
+        detail: `${descriptionParts.join(" ")} — ${parsedAmount.toFixed(2)} $/mois × ${isPermanent ? "permanent" : `${durationMonths} mois`}`,
+      });
       toast.success(`Crédit de ${parsedAmount.toFixed(2)} $/mois appliqué pour ${isPermanent ? "permanent" : `${durationMonths} mois`}`);
       onRefresh();
       onClose();
