@@ -92,6 +92,12 @@ interface CreatedClientOnboarding {
   service_postal_code?: string;
 }
 
+const ECO_SESSION_KEY = "employee_create_order_session_v1";
+
+function clearEcoSession() {
+  try { sessionStorage.removeItem(ECO_SESSION_KEY); } catch { /* ignore */ }
+}
+
 export default function EmployeeCreateOrder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -115,6 +121,38 @@ export default function EmployeeCreateOrder() {
   });
   const [creatingClient, setCreatingClient] = useState(false);
   const [createdClientOnboarding, setCreatedClientOnboarding] = useState<CreatedClientOnboarding | null>(null);
+
+  // ── Restore wizard state from sessionStorage on mount (survives F5 + hard refresh) ──
+  useEffect(() => {
+    if (presetClientId) return; // URL param takes priority
+    try {
+      const raw = sessionStorage.getItem(ECO_SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (!s?.step || s.step === "submitted") { clearEcoSession(); return; }
+      if (s.step)             setStep(s.step);
+      if (s.selectedClient)   setSelectedClient(s.selectedClient);
+      if (s.selectedPlan)     setSelectedPlan(s.selectedPlan);
+      if (s.equipment)        setEquipment(s.equipment);
+      if (s.installType)      setInstallType(s.installType);
+      if (s.installDate)      setInstallDate(s.installDate);
+      if (s.installSlot)      setInstallSlot(s.installSlot);
+      if (s.address)          setAddress(s.address);
+      if (s.agentNotes != null) setAgentNotes(s.agentNotes);
+      if (s.selectedDiscount) setSelectedDiscount(s.selectedDiscount);
+    } catch { clearEcoSession(); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-save on every change ──
+  useEffect(() => {
+    if (step === "submitted") { clearEcoSession(); return; }
+    try {
+      sessionStorage.setItem(ECO_SESSION_KEY, JSON.stringify({
+        step, selectedClient, selectedPlan, equipment,
+        installType, installDate, installSlot, address, agentNotes, selectedDiscount,
+      }));
+    } catch { /* quota exceeded */ }
+  }, [step, selectedClient, selectedPlan, equipment, installType, installDate, installSlot, address, agentNotes, selectedDiscount]);
 
   // If preset client, load directly
   useEffect(() => {
@@ -484,7 +522,7 @@ export default function EmployeeCreateOrder() {
     <div className="max-w-3xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(employeePath("/orders"))} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+        <button onClick={() => { clearEcoSession(); navigate(employeePath("/orders")); }} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="h-4 w-4 text-muted-foreground" />
         </button>
         <div>
@@ -1019,7 +1057,7 @@ export default function EmployeeCreateOrder() {
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <button
-              onClick={() => navigate(employeePath("/orders"))}
+              onClick={() => { clearEcoSession(); navigate(employeePath("/orders")); }}
               className="px-4 py-2 rounded-lg border border-border text-xs text-foreground hover:bg-secondary transition-colors"
             >
               Voir les commandes

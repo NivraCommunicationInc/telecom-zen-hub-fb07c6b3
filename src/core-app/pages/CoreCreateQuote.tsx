@@ -18,6 +18,12 @@ import { ArrowLeft, ArrowRight, Check, Plus, Trash2, Search, User, ShoppingCart,
 
 type Step = 1 | 2 | 3 | 4;
 
+const CCQ_SESSION_KEY = "core_create_quote_session_v1";
+
+function clearCcqSession() {
+  try { sessionStorage.removeItem(CCQ_SESSION_KEY); } catch { /* ignore */ }
+}
+
 export default function CoreCreateQuote() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -52,6 +58,40 @@ export default function CoreCreateQuote() {
   const [discountLabel, setDiscountLabel] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
   const [adjustments, setAdjustments] = useState<Array<{ label: string; amount: number; type: "discount" | "credit" }>>([]);
+
+  // ── Restore wizard state from sessionStorage on mount (survives F5 + hard refresh) ──
+  useEffect(() => {
+    if (preselectedClientId) return; // URL param takes priority
+    try {
+      const raw = sessionStorage.getItem(CCQ_SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (!s?.step) { clearCcqSession(); return; }
+      if (s.step)             setStep(s.step);
+      if (s.selectedClient)   setSelectedClient(s.selectedClient);
+      if (s.isProspect != null) setIsProspect(s.isProspect);
+      if (s.prospectName != null) setProspectName(s.prospectName);
+      if (s.prospectEmail != null) setProspectEmail(s.prospectEmail);
+      if (s.prospectPhone != null) setProspectPhone(s.prospectPhone);
+      if (s.lines)            setLines(s.lines);
+      if (s.clientNote != null) setClientNote(s.clientNote);
+      if (s.internalNote != null) setInternalNote(s.internalNote);
+      if (s.validDays != null) setValidDays(s.validDays);
+      if (s.discountLabel != null) setDiscountLabel(s.discountLabel);
+      if (s.discountAmount != null) setDiscountAmount(s.discountAmount);
+      if (s.adjustments)      setAdjustments(s.adjustments);
+    } catch { clearCcqSession(); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-save on every change ──
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CCQ_SESSION_KEY, JSON.stringify({
+        step, selectedClient, isProspect, prospectName, prospectEmail, prospectPhone,
+        lines, clientNote, internalNote, validDays, discountLabel, discountAmount, adjustments,
+      }));
+    } catch { /* quota exceeded */ }
+  }, [step, selectedClient, isProspect, prospectName, prospectEmail, prospectPhone, lines, clientNote, internalNote, validDays, discountLabel, discountAmount, adjustments]);
 
   const { data: preselectedProfile } = useQuery({
     queryKey: ["quote-preselect-client", preselectedClientId],
@@ -192,6 +232,7 @@ export default function CoreCreateQuote() {
 
       queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
       toast.success(asDraft ? "Brouillon sauvegardé" : "Soumission créée et approuvée");
+      clearCcqSession();
       navigate(`/core/quotes/${quote.id}`);
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la création");
@@ -203,7 +244,7 @@ export default function CoreCreateQuote() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/core/quotes")}>
+        <Button variant="ghost" size="sm" onClick={() => { clearCcqSession(); navigate("/core/quotes"); }}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Retour
         </Button>
         <h1 className="text-xl font-bold text-foreground">Nouvelle soumission (Admin)</h1>
