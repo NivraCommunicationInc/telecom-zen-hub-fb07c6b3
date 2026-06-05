@@ -79,12 +79,11 @@ export interface FieldSaleDiscount {
 
 /**
  * Payment options for field sales.
- *  - paypal_onsite  : Generate a PayPal link/QR — client pays on agent's device.
- *  - paypal_email   : Send a PayPal payment link to the client by email.
- *  - paypal_inline  : Inline PayPal/card form — real-time capture directly in the app.
- *  - card_manual    : Agent collects card data manually for admin processing within 48h.
+ *  - paypal_onsite : Generate a PayPal link/QR — client pays on agent's device.
+ *  - paypal_email  : Send a PayPal payment link to the client by email.
+ *  - card_manual   : Agent collects card data manually for admin processing within 48h.
  */
-export type FieldPaymentMethod = "paypal_onsite" | "paypal_email" | "paypal_inline" | "card_manual";
+export type FieldPaymentMethod = "paypal_onsite" | "paypal_email" | "card_manual";
 
 export interface FieldSalePayment {
   method: FieldPaymentMethod;

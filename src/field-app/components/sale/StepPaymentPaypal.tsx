@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldPaymentMethod, FieldSalePayment, FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
-import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface Props {
   payment: FieldSalePayment;
@@ -32,7 +31,6 @@ interface Props {
   onCancelTransaction?: (reason: string) => Promise<void>;
   onHoldTransaction?: () => Promise<void>;
   onConvertToQuote?: () => Promise<void>;
-  onPaypalInlineSuccess?: (captureId: string) => void;
 }
 
 const formatCAD = (n: number) =>
@@ -52,7 +50,6 @@ export default function StepPaymentPaypal({
   payment, customer, totalAmount, onChange, onSubmit, onSubmitCard, onBack, isSubmitting, submitMessage,
   onResendEmail, onChangeMethod,
   onCancelTransaction, onHoldTransaction, onConvertToQuote,
-  onPaypalInlineSuccess,
 }: Props) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -210,8 +207,7 @@ export default function StepPaymentPaypal({
           {[
             { id: "paypal_onsite" as const, icon: CreditCard, title: "Payer sur place", desc: "Génère un lien + QR. Le client paie sur votre appareil." },
             { id: "paypal_email" as const, icon: Mail, title: "Envoyer par courriel", desc: `Envoie un lien PayPal à ${customer.email || "—"}` },
-            { id: "paypal_inline" as FieldPaymentMethod, icon: CreditCard, title: "Carte / PayPal — immédiat", desc: "Saisie directe sur l'appareil. Paiement traité en temps réel." },
-            { id: "card_manual" as any, icon: Lock, title: "Carte manuelle (48h)", desc: "Saisie sécurisée. Traitement par un administrateur Nivra Core." },
+            { id: "card_manual" as any, icon: Lock, title: "Prise en charge manuelle — Carte de crédit", desc: "Saisie sécurisée. Traitement par un administrateur Nivra Core." },
           ].map((m) => (
             <button key={m.id} type="button" onClick={() => setMethod(m.id as FieldPaymentMethod)} disabled={isSubmitting}
               className={cn("field-card-interactive text-left rounded-2xl p-4 border transition-all flex items-center gap-4",
@@ -247,37 +243,6 @@ export default function StepPaymentPaypal({
 
       {/* CARD form (initial) */}
       {(payment.method as string) === "card_manual" && !isCardSent && !isCompleted && renderCardFallback()}
-
-      {/* PAYPAL INLINE — real-time card / PayPal form */}
-      {(payment.method as string) === "paypal_inline" && !isCompleted && (
-        <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-5">
-          <div className="flex items-center gap-2 text-[hsl(var(--field-accent-glow))] text-sm mb-4">
-            <CreditCard className="h-4 w-4" /> Paiement sécurisé — traitement immédiat
-          </div>
-          <PayPalButton
-            amount={totalAmount}
-            description={`Commande Nivra — ${fullName}`}
-            customer={{
-              first_name: customer.first_name,
-              last_name: customer.last_name,
-              email: customer.email || undefined,
-              address: {
-                address_line_1: [customer.address, customer.apartment ? `App. ${customer.apartment}` : ""].filter(Boolean).join(", "),
-                admin_area_2: customer.city,
-                admin_area_1: customer.province || "QC",
-                postal_code: customer.postal_code,
-                country_code: "CA",
-              },
-            }}
-            onSuccess={(captureId) => {
-              stopAll();
-              onChange({ ...payment, status: "completed", paypalOrderId: captureId });
-              onPaypalInlineSuccess?.(captureId);
-            }}
-            onError={(e) => toast.error(`Paiement refusé: ${e}`)}
-          />
-        </div>
-      )}
 
       {/* PayPal on-site result (QR + link) */}
       {payment.method === "paypal_onsite" && isLinkReady && !expired && !showCardFallback && (
