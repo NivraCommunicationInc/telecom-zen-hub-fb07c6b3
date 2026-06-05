@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
-import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -13,24 +12,42 @@ import ServiceCountdown from "@/components/client/ServiceCountdown";
 import { ClientPaymentMethodCard } from "@/components/client/ClientPaymentMethodCard";
 import AccountStateBanner from "@/components/client/AccountStateBanner";
 import EmailClaimBanner from "@/components/client/EmailClaimBanner";
-import { AlertTriangle, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard, AlertCircle } from "lucide-react";
+import {
+  Wifi, Smartphone, Tv, ChevronRight, Copy, FileText,
+  CreditCard, AlertCircle, Package, ArrowRight, CheckCircle2, Clock,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
 import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 
+const HERO_GRADIENT = "linear-gradient(135deg, #3b0764 0%, #4338ca 45%, #1e1b4b 100%)";
+const CARD_BG = "#13132a";
+const CARD_BORDER = "rgba(124, 58, 237, 0.22)";
+const CARD_HOVER = "rgba(124, 58, 237, 0.10)";
+
+const serviceIcon = (type: string) => {
+  if (type === "mobile") return <Smartphone className="w-5 h-5" style={{ color: "#a78bfa" }} />;
+  if (type === "tv")     return <Tv className="w-5 h-5" style={{ color: "#f59e0b" }} />;
+  return <Wifi className="w-5 h-5" style={{ color: "#34d399" }} />;
+};
+
+const serviceAccent = (type: string) => {
+  if (type === "mobile") return "#7c3aed";
+  if (type === "tv")     return "#d97706";
+  return "#059669";
+};
+
 const ClientDashboard = () => {
   const { user } = useClientAuth();
   const navigate = useNavigate();
-  const [showWelcome, setShowWelcome] = useState(() => {
-    return !localStorage.getItem("nivra_welcomed");
-  });
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("nivra_welcomed"));
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
-
   const { data: canonicalData } = useCanonicalClientData(user?.id);
-  const profile = canonicalData?.profile;
-  const account = canonicalData?.account;
-  const orders = canonicalData?.orders?.slice(0, 3) || [];
+
+  const profile   = canonicalData?.profile;
+  const account   = canonicalData?.account;
+  const orders    = canonicalData?.orders?.slice(0, 3) || [];
   const subscriptions = (canonicalData?.subscriptions || [])
     .filter((s: any) => !["cancelled", "expired"].includes(String(s?.status || "").toLowerCase()))
     .map((s: any) => ({
@@ -38,381 +55,333 @@ const ClientDashboard = () => {
       plan_name: s.plan_name,
       amount: s.plan_price,
       billing_cycle: "monthly",
-      service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
+      service_type: s.service_category || (
+        s.plan_name?.toLowerCase().includes("internet") ? "internet" :
+        s.plan_name?.toLowerCase().includes("tv")       ? "tv"       : "mobile"
+      ),
       status: s.status,
       cycle_start_date: s.cycle_start_date,
-      cycle_end_date: s.cycle_end_date,
+      cycle_end_date:   s.cycle_end_date,
     }));
+
+  const firstName     = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Client";
+  const accountNumber = account?.account_number || accountIdentity?.accountNumber || "—";
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copié dans le presse-papiers");
+    toast.success("Copié");
   };
 
-  // Canonical priority: snapshot account (Nivra Core) → identity hook → fallback label
-  const accountNumber =
-    account?.account_number ||
-    accountIdentity?.accountNumber ||
-    "Non attribué";
+  const mobileServices  = subscriptions.filter((s: any) => s.service_type === "mobile" || s.plan_name?.toLowerCase().includes("mobile"));
+  const internetServices = subscriptions.filter((s: any) => s.service_type === "internet" || s.plan_name?.toLowerCase().includes("internet"));
+  const tvServices      = subscriptions.filter((s: any) => s.service_type === "tv" || s.plan_name?.toLowerCase().includes("tv"));
+  const allServices     = [...internetServices, ...mobileServices, ...tvServices];
+  const activeCount     = subscriptions.filter((s: any) => String(s.status).toLowerCase() === "active").length;
 
-  // Status badge helper
-  const statusBadge = (status: string) => {
-    const cfg: Record<string, { label: string; cls: string }> = {
-      active:    { label: "Actif",      cls: "bg-emerald-500/20 text-emerald-400" },
-      suspended: { label: "Suspendu",   cls: "bg-red-500/20 text-red-400" },
-      pending:   { label: "En attente", cls: "bg-amber-500/20 text-amber-400" },
+  const statusLabel = (status: string) => {
+    const cfg: Record<string, { label: string; bg: string; color: string }> = {
+      active:    { label: "Actif",      bg: "rgba(16,185,129,0.15)",  color: "#34d399" },
+      suspended: { label: "Suspendu",   bg: "rgba(239,68,68,0.15)",   color: "#f87171" },
+      pending:   { label: "En attente", bg: "rgba(245,158,11,0.15)",  color: "#fbbf24" },
+      paused:    { label: "En pause",   bg: "rgba(99,102,241,0.15)",  color: "#a5b4fc" },
     };
-    const c = cfg[status] || { label: status, cls: "bg-secondary text-muted-foreground" };
-    return <Badge className={`${c.cls} text-xs ml-2`}>{c.label}</Badge>;
+    const c = cfg[status] || { label: status, bg: "rgba(255,255,255,0.08)", color: "#c4c4e0" };
+    return (
+      <span
+        className="text-[11px] font-semibold px-2 py-0.5 rounded-full ml-2"
+        style={{ background: c.bg, color: c.color }}
+      >
+        {c.label}
+      </span>
+    );
   };
 
-  // Group subscriptions by type
-  const mobileServices = subscriptions?.filter((s: any) => 
-    s.plan_name?.toLowerCase().includes("mobile") || s.service_type === "mobile"
-  ) || [];
-  const internetServices = subscriptions?.filter((s: any) => 
-    s.plan_name?.toLowerCase().includes("internet") || s.service_type === "internet"
-  ) || [];
-  const tvServices = subscriptions?.filter((s: any) => 
-    s.plan_name?.toLowerCase().includes("tv") || s.service_type === "tv"
-  ) || [];
+  const orderStatusConfig = (status: string) => {
+    if (status === "completed") return { label: "Terminé",    bg: "rgba(16,185,129,0.15)",  color: "#34d399" };
+    if (status === "shipped")   return { label: "Expédié",    bg: "rgba(124,58,237,0.15)",  color: "#a78bfa" };
+    if (status === "cancelled" || status === "cancel") return { label: "Annulé", bg: "rgba(239,68,68,0.15)", color: "#f87171" };
+    return { label: "En cours", bg: "rgba(245,158,11,0.15)", color: "#fbbf24" };
+  };
 
   return (
     <ClientLayout>
       <ReferralPopup />
-      <div className="space-y-6" data-testid="portal-dashboard">
-        {/* Welcome banner for first-time users */}
-        {showWelcome && (
-          <div className="rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #1a3a5c 100%)' }}>
-            <div className="flex-1 text-white">
-              <h2 className="text-lg font-bold mb-1">
-                🎉 Bienvenue chez Nivra Telecom{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} !
-              </h2>
-              <p className="text-sm text-white/80 mb-3">Votre service sera activé sous 24h. Voici vos 3 premières étapes:</p>
-              <ul className="text-sm text-white/90 space-y-1">
-                <li>✓ Vérifiez votre courriel de confirmation</li>
-                <li>✓ Notez votre date d'activation</li>
-                <li>✓ Configurez votre modem à la réception</li>
-              </ul>
-            </div>
-            <button
-              onClick={() => { setShowWelcome(false); localStorage.setItem("nivra_welcomed", "1"); }}
-              className="text-sm text-white px-4 py-2 rounded-lg cursor-pointer shrink-0"
-              style={{ background: 'rgba(255,255,255,0.15)' }}
-            >
-              Compris ✓
-            </button>
+      <div className="space-y-5" data-testid="portal-dashboard">
+
+        {/* ── HERO GRADIENT BANNER ──────────────────────────────────── */}
+        <div className="relative overflow-hidden rounded-2xl" style={{ background: HERO_GRADIENT }}>
+          {/* Decorative orbs */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full opacity-20"
+            style={{ background: "radial-gradient(circle, #a78bfa, transparent)" }} />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full opacity-15"
+            style={{ background: "radial-gradient(circle, #6366f1, transparent)" }} />
+
+          <div className="relative z-10 px-6 py-7 sm:px-8 sm:py-8">
+            {/* Welcome banner (first time) */}
+            {showWelcome ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="text-white">
+                  <p className="text-white/70 text-sm font-medium mb-1">Bienvenue chez Nivra Télécom</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                    Bonjour, {firstName} !
+                  </h1>
+                  <p className="text-white/75 text-sm mt-2">
+                    Votre service sera activé sous 24h. Gardez un œil sur votre courriel de confirmation.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowWelcome(false); localStorage.setItem("nivra_welcomed", "1"); }}
+                  className="shrink-0 text-sm text-white/90 hover:text-white px-4 py-2 rounded-xl border border-white/20 hover:border-white/40 transition-colors"
+                >
+                  Compris ✓
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
+                <div className="text-white">
+                  <p className="text-white/65 text-sm font-medium mb-0.5">MonNivra</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                    Bonjour, {firstName}
+                  </h1>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-white/70 text-sm">Compte</span>
+                    <span className="text-white font-mono text-sm font-semibold">{accountNumber}</span>
+                    <button
+                      onClick={() => copyToClipboard(accountNumber)}
+                      className="p-1 text-white/50 hover:text-white/90 transition-colors"
+                      title="Copier"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    {activeCount > 0 && (
+                      <span
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-full ml-1"
+                        style={{ background: "rgba(52,211,153,0.2)", color: "#34d399" }}
+                      >
+                        {activeCount} service{activeCount > 1 ? "s" : ""} actif{activeCount > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* CTA buttons */}
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  <button
+                    onClick={() => navigate("/portal/billing")}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.22)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.15)")}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Payer
+                  </button>
+                  <Link
+                    to="/portal/invoices"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)" }}
+                  >
+                    <FileText className="w-4 h-4" />
+                    Factures
+                  </Link>
+                  <Link
+                    to="/portal/services"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)" }}
+                  >
+                    <Package className="w-4 h-4" />
+                    Services
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── SYSTEM BANNERS ────────────────────────────────────────── */}
+        {canonicalData?.identifiers?.usedFallbackLinks && (
+          <div className="rounded-xl border px-4 py-3 text-sm"
+            style={{ background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)", color: "#fbbf24" }}>
+            Certaines données ont été reliées via votre courriel. Si une commande semble manquante, contactez le support.
           </div>
         )}
-
-        {/* Canonical account state banner — only shown when something is off.
-            Reads from get_account_state() so we never tell the customer "active"
-            while their service is actually suspended somewhere else. */}
         {account?.id && <AccountStateBanner accountId={account.id} />}
         <EmailClaimBanner />
 
-        {/* Bug #15: surface fallback-link warning when history was reconciled via email match. */}
-        {canonicalData?.identifiers?.usedFallbackLinks && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-400">
-            ⚠️ Certaines données de votre historique ont été reliées via votre adresse courriel.
-            Si une commande ou facture semble manquante, contactez le support.
-          </div>
-        )}
-
-        {/* Page title - Rogers style */}
-        <h1 className="text-3xl lg:text-4xl font-bold text-foreground" data-testid="dashboard-greeting">
-          Bienvenue
-        </h1>
-
-        {/* Alert banners - Rogers style with left colored border */}
-        {/* Account Number + Balance Section - Rogers style */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          {/* Account header with left accent */}
-          <div className="border-l-4 border-primary px-6 py-4">
-            <h2 className="text-xl lg:text-2xl font-bold text-foreground flex items-center gap-2">
-              <span>Numéro de compte:</span>
-              <span>{accountNumber}</span>
-              <button 
-                onClick={() => copyToClipboard(accountNumber)}
-                className="p-1 text-muted-foreground hover:text-primary transition-colors"
-                title="Copier"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-            </h2>
-          </div>
-
-          {/* Balance + Actions */}
-          <div className="px-6 py-5 border-t border-border">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex-1">
-                {user?.id && <ClientBalanceSummary userId={user.id} />}
-              </div>
-              <div className="flex flex-col gap-3 lg:w-64">
-                <Link to="/portal/invoices">
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-11">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Afficher votre facture
-                    <ChevronRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  className="w-full border-primary text-primary hover:bg-primary/10 rounded-xl h-11"
-                  onClick={() => navigate("/portal/billing")}
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Faire un paiement
-                  <ChevronRight className="w-4 h-4 ml-auto" />
-                </Button>
-              </div>
+        {/* ── BALANCE + PAYMENT METHOD ──────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl p-5 flex flex-col gap-3"
+            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold" style={{ color: "#e0e0f0" }}>Solde et facturation</h2>
+              <Link to="/portal/invoices"
+                className="text-xs font-medium flex items-center gap-1 transition-colors"
+                style={{ color: "#a78bfa" }}>
+                Voir tout <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-
-            {/* Billing info row — only shown once a service is actually ACTIVE.
-                Cycle is anchored on the real activation date (set by the
-                fn_activate_sub_on_order_activation trigger). Until then we
-                explicitly tell the client the cycle starts at activation. */}
-            {(() => {
-              // Canonical billing cycle display — never fabricate dates for pending subs
-              const activeSub = subscriptions.find((s: any) => String(s.status).toLowerCase() === "active");
-              const cycle = getCycleDisplay(activeSub);
-              const hasPendingOnly = !activeSub && subscriptions.length > 0;
-
-              return (
-                <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-                  <span><strong>Mode de paiement :</strong> Paiements manuels</span>
-                  {cycle.isActive && cycle.cycleDayLabel && (
-                    <span><strong>Cycle :</strong> {cycle.cycleDayLabel}</span>
-                  )}
-                  {cycle.isActive && cycle.cycleEnd && (
-                    <span><strong>Prochaine facture :</strong> {format(new Date(cycle.cycleEnd), "d MMM yyyy", { locale: fr })}</span>
-                  )}
-                  {!cycle.isActive && hasPendingOnly && (
-                    <span className="text-amber-400">{cycle.pendingMessage}</span>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Quick links */}
-            <div className="mt-4 flex flex-wrap gap-4">
-              <Link to="/portal/payments" className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                Historique des paiements <ChevronRight className="w-3.5 h-3.5" />
+            {user?.id && <ClientBalanceSummary userId={user.id} />}
+            <div className="flex gap-2 pt-1">
+              <Button
+                className="flex-1 h-10 text-sm font-semibold rounded-xl text-white"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #4338ca)" }}
+                onClick={() => navigate("/portal/billing")}
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Faire un paiement
+              </Button>
+              <Link to="/portal/invoices" className="flex-1">
+                <Button variant="outline" className="w-full h-10 text-sm font-semibold rounded-xl"
+                  style={{ borderColor: CARD_BORDER, color: "#a78bfa", background: "transparent" }}>
+                  <FileText className="w-4 h-4 mr-2" /> Mes factures
+                </Button>
               </Link>
             </div>
           </div>
+
+          <div className="rounded-2xl p-5"
+            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+            <h2 className="text-base font-semibold mb-3" style={{ color: "#e0e0f0" }}>Mode de paiement</h2>
+            <ClientPaymentMethodCard />
+          </div>
         </div>
 
-        {/* Payment Method Card — Auto-pay activation / status */}
-        <ClientPaymentMethodCard />
-
-        {/* Service Countdown */}
+        {/* ── SERVICE COUNTDOWN ─────────────────────────────────────── */}
         {user?.id && <ServiceCountdown userId={user.id} />}
 
-        {/* Mobile Services - Rogers style section */}
-        {mobileServices.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="border-l-4 border-primary px-6 py-4">
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-primary" />
-                Compte sans-fil individuel
-              </h2>
+        {/* ── MES SERVICES ──────────────────────────────────────────── */}
+        {allServices.length > 0 ? (
+          <div className="rounded-2xl overflow-hidden"
+            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+            <div className="px-6 py-4 flex items-center justify-between"
+              style={{ borderBottom: `1px solid ${CARD_BORDER}` }}>
+              <h2 className="text-base font-semibold" style={{ color: "#e0e0f0" }}>Mes services</h2>
+              <Link to="/portal/services"
+                className="text-xs font-medium flex items-center gap-1"
+                style={{ color: "#a78bfa" }}>
+                Gérer <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <div className="divide-y divide-border">
-              {mobileServices.map((sub: any) => {
-                const cycle = getCycleDisplay(sub);
+            <div className="divide-y" style={{ borderColor: CARD_BORDER }}>
+              {allServices.map((sub: any) => {
+                const cycle  = getCycleDisplay(sub);
+                const accent = serviceAccent(sub.service_type);
                 return (
-                <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Smartphone className="w-5 h-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-foreground flex items-center">
-                        {profile?.full_name || user?.user_metadata?.full_name || "Client"}
-                        {statusBadge(sub.status)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {profile?.phone || "—"}
+                  <div key={sub.id}
+                    className="px-6 py-4 flex items-center gap-4 transition-colors cursor-pointer"
+                    style={{ borderBottom: `1px solid ${CARD_BORDER}` }}
+                    onClick={() => navigate("/portal/services")}>
+                    {/* Colored left accent */}
+                    <div className="w-1 self-stretch rounded-full shrink-0"
+                      style={{ background: accent }} />
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: `${accent}22` }}>
+                      {serviceIcon(sub.service_type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap">
+                        <span className="font-semibold text-sm" style={{ color: "#f0f0ff" }}>
+                          {sub.plan_name}
+                        </span>
+                        {statusLabel(sub.status)}
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: "#9090b0" }}>
+                        {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                         {cycle.isActive && cycle.nextRenewal && (
-                          <span className="ml-2">· Prochain renouvellement: {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</span>
+                          <span className="ml-2">
+                            · Renouvellement {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}
+                          </span>
                         )}
                         {!cycle.isActive && (
-                          <span className="ml-2 text-amber-400">· Cycle débutera à l'activation</span>
+                          <span className="ml-2" style={{ color: "#fbbf24" }}>· Démarre à l'activation</span>
                         )}
                       </p>
                     </div>
+                    <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "#6060a0" }} />
                   </div>
-                  <Link to="/portal/services">
-                    <span className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                      Gérer <ChevronRight className="w-4 h-4" />
-                    </span>
-                  </Link>
-                </div>
                 );
               })}
             </div>
           </div>
-        )}
-
-        {/* Internet Services - Rogers style */}
-        {internetServices.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="border-l-4 border-primary px-6 py-4">
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <Wifi className="w-5 h-5 text-primary" />
-                Services résidentiels
-              </h2>
-            </div>
-            <div className="divide-y divide-border">
-              {internetServices.map((sub: any) => {
-                const cycle = getCycleDisplay(sub);
-                return (
-                <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-foreground flex items-center">
-                      {sub.plan_name}
-                      {statusBadge(sub.status)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
-                      {cycle.isActive && cycle.nextRenewal && (
-                        <span className="ml-2">· Prochain renouvellement: {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</span>
-                      )}
-                      {!cycle.isActive && (
-                        <span className="ml-2 text-amber-400">· Cycle débutera à l'activation</span>
-                      )}
-                    </p>
-                  </div>
-                  <Link to="/portal/services">
-                    <span className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                      Gérer <ChevronRight className="w-4 h-4" />
-                    </span>
-                  </Link>
-                </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* TV Services - Rogers style */}
-        {tvServices.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="border-l-4 border-primary px-6 py-4">
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <Tv className="w-5 h-5 text-primary" />
-                Télé et Diffusion
-              </h2>
-            </div>
-            <div className="divide-y divide-border">
-              {tvServices.map((sub: any) => {
-                const cycle = getCycleDisplay(sub);
-                return (
-                <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-foreground flex items-center">
-                      {sub.plan_name}
-                      {statusBadge(sub.status)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
-                      {cycle.isActive && cycle.nextRenewal && (
-                        <span className="ml-2">· Prochain renouvellement: {format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr })}</span>
-                      )}
-                      {!cycle.isActive && (
-                        <span className="ml-2 text-amber-400">· Cycle débutera à l'activation</span>
-                      )}
-                    </p>
-                  </div>
-                  <Link to="/portal/services">
-                    <span className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                      Gérer <ChevronRight className="w-4 h-4" />
-                    </span>
-                  </Link>
-                </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* If no services at all */}
-        {(!subscriptions || subscriptions.length === 0) && (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="border-l-4 border-border px-6 py-4">
-              <h2 className="text-xl font-bold text-foreground">Aucun service actif</h2>
-            </div>
-            <div className="px-6 py-8 text-center">
-              <p className="text-muted-foreground mb-4">Vous n'avez aucun service actif pour le moment.</p>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <Link to="/portal/new-order">
-                  <Button className="bg-primary hover:bg-primary/90 text-white">
-                    Découvrir nos forfaits <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
-                <Link to="/telephones">
-                  <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                    Commander un téléphone <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Submit a complaint */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="border-l-4 border-red-500 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Une insatisfaction à signaler?</h2>
-                <p className="text-sm text-muted-foreground">Soumettez une plainte officielle. SLA de traitement garanti.</p>
-              </div>
-            </div>
-            <Link to="/plainte" className="shrink-0">
-              <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
-                <AlertCircle className="w-4 h-4 mr-2" />
-                Soumettre une plainte
+        ) : (
+          <div className="rounded-2xl p-8 text-center"
+            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+            <Package className="w-10 h-10 mx-auto mb-3" style={{ color: "#7c3aed" }} />
+            <p className="font-semibold text-base mb-1" style={{ color: "#e0e0f0" }}>Aucun service actif</p>
+            <p className="text-sm mb-5" style={{ color: "#7070a0" }}>Vous n'avez aucun service actif pour le moment.</p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button
+                onClick={() => navigate("/portal/new-order")}
+                className="text-sm font-semibold text-white rounded-xl h-10"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #4338ca)" }}>
+                Découvrir nos forfaits <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Recent Orders - Rogers style */}
-
-        {orders && orders.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="border-l-4 border-primary px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-foreground">Commandes récentes</h2>
-              <Link to="/portal/orders" className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                Voir tout <ChevronRight className="w-4 h-4" />
+              <Link to="/telephones">
+                <Button variant="outline" className="w-full h-10 text-sm font-semibold rounded-xl"
+                  style={{ borderColor: CARD_BORDER, color: "#a78bfa", background: "transparent" }}>
+                  Commander un téléphone
+                </Button>
               </Link>
             </div>
-            <div className="divide-y divide-border">
-              {orders.map((order: any) => (
-                <div key={order.id} className="px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-foreground">{order.service_type}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.order_number || `#${order.id.slice(0, 8)}`} · {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
-                    </p>
+          </div>
+        )}
+
+        {/* ── COMMANDES RÉCENTES ────────────────────────────────────── */}
+        {orders.length > 0 && (
+          <div className="rounded-2xl overflow-hidden"
+            style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+            <div className="px-6 py-4 flex items-center justify-between"
+              style={{ borderBottom: `1px solid ${CARD_BORDER}` }}>
+              <h2 className="text-base font-semibold" style={{ color: "#e0e0f0" }}>Commandes récentes</h2>
+              <Link to="/portal/orders"
+                className="text-xs font-medium flex items-center gap-1"
+                style={{ color: "#a78bfa" }}>
+                Voir tout <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div>
+              {orders.map((order: any) => {
+                const sc = orderStatusConfig(order.status);
+                return (
+                  <div key={order.id}
+                    className="px-6 py-4 flex items-center justify-between"
+                    style={{ borderBottom: `1px solid rgba(124,58,237,0.08)` }}>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: "#e0e0f0" }}>
+                        {order.service_type}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "#7070a0" }}>
+                        {order.order_number || `#${order.id.slice(0, 8)}`} · {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: sc.bg, color: sc.color }}>
+                      {sc.label}
+                    </span>
                   </div>
-                  <Badge className={
-                    order.status === "completed" ? "bg-emerald-500/20 text-emerald-400" :
-                    order.status === "shipped" ? "bg-primary/20 text-primary" :
-                    order.status === "cancelled" || order.status === "cancel" ? "bg-red-500/20 text-red-400" :
-                    "bg-amber-500/20 text-amber-400"
-                  }>
-                    {order.status === "completed" ? "Terminé" :
-                     order.status === "shipped" ? "Expédié" :
-                     order.status === "cancelled" || order.status === "cancel" ? "Annulé" :
-                     "En cours"}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
+
+        {/* ── SIGNALER UNE INSATISFACTION ───────────────────────────── */}
+        <div className="rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+          style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.20)" }}>
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#f87171" }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#fca5a5" }}>Une insatisfaction à signaler ?</p>
+              <p className="text-xs mt-0.5" style={{ color: "#9090b0" }}>Soumettez une plainte officielle. SLA de traitement garanti.</p>
+            </div>
+          </div>
+          <Link to="/plainte" className="shrink-0">
+            <Button variant="outline" className="h-9 text-sm rounded-xl font-medium"
+              style={{ borderColor: "rgba(239,68,68,0.35)", color: "#f87171", background: "transparent" }}>
+              Soumettre une plainte
+            </Button>
+          </Link>
+        </div>
+
       </div>
     </ClientLayout>
   );
