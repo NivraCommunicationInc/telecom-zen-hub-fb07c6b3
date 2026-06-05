@@ -18,6 +18,7 @@ import { Loader2, ExternalLink, QrCode, CreditCard, CheckCircle2, Copy } from "l
 import QRCode from "qrcode";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface Invoice {
   id: string;
@@ -37,7 +38,7 @@ interface Props {
   onSuccess?: () => void;
 }
 
-type Mode = "choose" | "paypal" | "manual";
+type Mode = "choose" | "paypal" | "manual" | "direct";
 
 export function EmployeePayPalPaymentDialog({
   open, onOpenChange, invoice, clientEmail, clientName, onSuccess,
@@ -170,6 +171,64 @@ export function EmployeePayPalPaymentDialog({
     );
   }
 
+  if (mode === "direct") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-primary" /> Carte / PayPal — immédiat
+            </DialogTitle>
+            <DialogDescription>
+              Facture {invoice.invoice_number ?? invoice.id.slice(0, 8)} —{" "}
+              <span className="font-semibold text-foreground">{balanceDue.toFixed(2)} $</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          {paid ? (
+            <div className="py-8 text-center space-y-3">
+              <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
+              <p className="text-sm font-medium">Paiement confirmé</p>
+              <p className="text-xs text-muted-foreground">Reçu envoyé à {clientEmail ?? "le client"}.</p>
+              <Button onClick={() => onOpenChange(false)} className="mt-2">Fermer</Button>
+            </div>
+          ) : (
+            <div className="py-2">
+              <PayPalButton
+                amount={balanceDue}
+                invoiceId={invoice.id}
+                description={`Facture ${invoice.invoice_number ?? invoice.id.slice(0, 8)} — Nivra Telecom`}
+                customer={clientEmail ? { email: clientEmail } : undefined}
+                onSuccess={async (captureId) => {
+                  await sendReceiptEmail();
+                  await logInternalAudit({
+                    action: "paypal_direct_payment_completed",
+                    category: "operations",
+                    portal: "employee",
+                    targetType: "invoice",
+                    targetId: invoice.id,
+                    details: { capture_id: captureId, amount: balanceDue },
+                  });
+                  toast.success("Paiement confirmé — reçu envoyé au client");
+                  setPaid(true);
+                  onSuccess?.();
+                }}
+                onError={(e) => toast.error(`Paiement échoué: ${e}`)}
+              />
+            </div>
+          )}
+
+          {!paid && (
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setMode("choose")}>← Méthode</Button>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="ml-auto">Annuler</Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -195,11 +254,18 @@ export function EmployeePayPalPaymentDialog({
         ) : mode === "choose" ? (
           <div className="space-y-2 py-2">
             <Button
-              onClick={() => { setMode("paypal"); createOrderMutation.mutate(); }}
+              onClick={() => setMode("direct")}
               className="w-full justify-start gap-2"
               variant="default"
             >
-              <CreditCard className="h-4 w-4" /> PayPal — QR + lien (recommandé)
+              <CreditCard className="h-4 w-4" /> Carte / PayPal — saisie directe (immédiat)
+            </Button>
+            <Button
+              onClick={() => { setMode("paypal"); createOrderMutation.mutate(); }}
+              className="w-full justify-start gap-2"
+              variant="outline"
+            >
+              <QrCode className="h-4 w-4" /> PayPal — QR + lien (client sur place)
             </Button>
             <Button
               onClick={() => setMode("manual")}

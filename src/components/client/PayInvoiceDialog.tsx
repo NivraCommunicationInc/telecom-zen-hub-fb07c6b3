@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Info } from "lucide-react";
+import { Wallet, Info, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { format } from "date-fns";
@@ -98,17 +98,25 @@ const PayInvoiceDialog = ({
             amount={amount}
             invoiceId={invoice.id}
             description={`Facture ${invoiceNumber} - Nivra Telecom`}
-            customer={{ email: profile?.email || undefined }}
+            customer={{
+              email: profile?.email || undefined,
+              first_name: profile?.first_name || undefined,
+              last_name: profile?.last_name || undefined,
+            }}
             onSuccess={() => handlePaymentSuccess()}
             onError={handlePaymentError}
           />
 
-          <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
-            <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <Lock className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground">
-              Nivra n'accepte que PayPal (incluant les cartes de crédit via PayPal).
-              Aucun virement Interac, comptant ou chèque.
+              Aucun compte PayPal requis. Payez avec votre carte de crédit, débit Visa, débit Mastercard ou carte prépayée.
             </p>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Lock className="w-3 h-3" />
+            <span>Paiement sécurisé. Vos informations bancaires ne sont jamais stockées.</span>
           </div>
         </div>
       </DialogContent>

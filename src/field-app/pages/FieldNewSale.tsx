@@ -619,6 +619,114 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     }
   };
 
+  // ── PayPal inline: payment already captured → create order immediately ──
+  const handlePaypalInlineSuccess = async (captureId: string) => {
+    if (!user?.id || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitMessage("Création de la commande…");
+    try {
+      const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
+      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total });
+
+      const commissionAmount = Math.max(0, Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)));
+      try {
+        await supabase.from("field_commissions").insert({
+          agent_id: user.id, order_id: null, amount: commissionAmount, status: "pending",
+          commission_type: "forfait",
+          description: `PayPal en ligne — capture ${captureId.slice(0, 8)} — Commission: ${commissionAmount.toFixed(2)}$`,
+        } as any);
+      } catch { /* non-blocking */ }
+
+      let coreOrderNumber = "";
+      try {
+        const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+        const { data: fsRow, error: fsErr } = await supabase
+          .from("field_sales_orders" as any)
+          .insert({
+            agent_id: user.id,
+            quote_id: quote.id,
+            salesperson_id: user.id,
+            customer_name: customerName,
+            customer_email: draft.customer.email || null,
+            customer_phone: draft.customer.phone || "",
+            customer_address: (draft.customer.address || "") + (draft.customer.apartment ? `, App. ${draft.customer.apartment}` : ""),
+            customer_city: draft.customer.city || null,
+            customer_postal_code: draft.customer.postal_code || null,
+            customer_date_of_birth: draft.customer.date_of_birth || null,
+            services: [
+              ...draft.services.map((s) => ({ ...s, quantity: 1, price_monthly: s.monthlyPrice, monthly_price: s.monthlyPrice, price_setup: 0 })),
+              ...draft.equipment.map((e) => ({ ...e, price_monthly: 0, monthly_price: 0, price_setup: e.price })),
+            ] as any,
+            total_amount: total,
+            payment_method: "paypal",
+            payment_reference: captureId,
+            payment_status: "paid",
+            sync_status: "pending",
+            discount_data: draft.discount ? {
+              name: (draft.discount as any).name || "Rabais",
+              type: (draft.discount as any).type || null,
+              amount: Number((draft.discount as any).value ?? monthlyDiscountAmount ?? 0),
+              applies_to: (draft.discount as any).applies_to || null,
+              duration_months: Number((draft.discount as any).duration_months ?? 0),
+              min_plan_price: (draft.discount as any).min_plan_price ?? null,
+              source_discount_id: (draft.discount as any).id || null,
+              monthly_amount: Number(monthlyDiscountAmount || 0),
+              monthly_price: Number(monthlyBeforeDiscount || 0),
+            } : null,
+            internal_notes: `PayPal en ligne — captureId ${captureId}\nCommission: ${commissionAmount.toFixed(2)}$`,
+          } as any)
+          .select("id")
+          .single();
+        if (!fsErr && (fsRow as any)?.id) {
+          const { data: syncData } = await supabase.functions.invoke("field-sales-sync", {
+            body: { action: "sync_single", sale_id: (fsRow as any).id },
+          });
+          if (syncData?.order_number) coreOrderNumber = syncData.order_number;
+        }
+      } catch (e: any) {
+        console.warn("[paypal-inline] order creation failed", e);
+      }
+
+      if (draft.customer.email) {
+        const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+        const discountAmt = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
+        await supabase.from("email_queue").insert({
+          event_key: `paypal_inline_${captureId}`,
+          to_email: draft.customer.email,
+          template_key: "order_confirmation",
+          template_vars: {
+            client_name: fullName,
+            first_name: draft.customer.first_name || "Client",
+            client_email: draft.customer.email,
+            order_number: coreOrderNumber || `NVR-${captureId.slice(0, 8).toUpperCase()}`,
+            services: buildServicesList(draft),
+            equipment: buildEquipmentList(draft),
+            discount: discountAmt.toFixed(2),
+            discount_label: buildDiscountLabel(draft),
+            subtotal: subtotal.toFixed(2),
+            tps: tps.toFixed(2),
+            tvq: tvq.toFixed(2),
+            total: total.toFixed(2),
+            payment_status: "Payé — PayPal",
+            agent_name: agentName,
+            agent_number: agentNumber || "N/A",
+          },
+          status: "queued",
+        } as any);
+      }
+
+      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
+      clearDraft();
+      toast.success(`Paiement confirmé${coreOrderNumber ? ` — ${coreOrderNumber}` : ""}`);
+    } catch (err: any) {
+      console.error("[paypal-inline]", err);
+      toast.error(err?.message || "Erreur lors de la création de la commande");
+    } finally {
+      setIsSubmitting(false);
+      setSubmitMessage("");
+    }
+  };
+
   // ── Realtime: invoice paid → mark payment completed ──────
   useEffect(() => {
     if (!draft.payment.invoiceId) return;
@@ -879,6 +987,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
                   toast.error(e?.message || "Échec de la mise en attente");
                 }
               }}
+              onPaypalInlineSuccess={handlePaypalInlineSuccess}
               onConvertToQuote={async () => {
                 if (!draft.customer.email) { toast.error("Email client requis pour soumission."); return; }
                 const intentId = draft.payment.fieldOrderId;

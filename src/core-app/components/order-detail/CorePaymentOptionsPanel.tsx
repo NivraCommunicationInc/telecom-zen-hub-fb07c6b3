@@ -12,9 +12,10 @@
  *   - Webhook `paypal-webhook` finalise automatiquement sur capture
  */
 import { useState } from "react";
-import { Loader2, Mail, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, ExternalLink, CheckCircle2, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface Props {
   orderId: string;
@@ -36,6 +37,7 @@ export function CorePaymentOptionsPanel({
   onChanged,
 }: Props) {
   const [busy, setBusy] = useState<null | "email" | "direct" | "manual">(null);
+  const [showInline, setShowInline] = useState(false);
 
   // Hide once already paid
   if (paymentStatus === "paid" || orderStatus === "cancelled") {
@@ -126,7 +128,7 @@ export function CorePaymentOptionsPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <button
           onClick={sendByEmail}
           disabled={busy !== null || !clientEmail}
@@ -151,6 +153,16 @@ export function CorePaymentOptionsPanel({
         </button>
 
         <button
+          onClick={() => setShowInline(!showInline)}
+          disabled={busy !== null}
+          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#6a1b9a] hover:bg-[#7b1fa2] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
+        >
+          <CreditCard className="h-4 w-4" />
+          💳 Payer en ligne — Carte / PayPal
+          {showInline ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
+        </button>
+
+        <button
           onClick={confirmManually}
           disabled={busy !== null}
           className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#2e7d32] hover:bg-[#388e3c] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
@@ -162,9 +174,29 @@ export function CorePaymentOptionsPanel({
         </button>
       </div>
 
+      {showInline && totalAmount != null && totalAmount > 0 && (
+        <div className="mt-3 rounded-lg border border-[#3a2060] bg-[#130f20] p-4">
+          <p className="text-[11px] text-[#b39ddb] mb-3 font-medium">
+            Paiement en ligne — le client entre sa carte directement ou paie via PayPal.
+          </p>
+          <PayPalButton
+            amount={totalAmount}
+            orderId={orderId}
+            description={`Commande ${orderNumber} — Nivra Telecom`}
+            customer={clientEmail ? { email: clientEmail } : undefined}
+            onSuccess={() => {
+              toast.success(`Paiement confirmé pour ${orderNumber}`);
+              setShowInline(false);
+              onChanged?.();
+            }}
+            onError={(e) => toast.error(`Paiement échoué: ${e}`)}
+          />
+        </div>
+      )}
+
       <p className="text-[10px] text-[#6b7a90] mt-2">
-        Les options 1 et 2 génèrent un lien PayPal sécurisé (valide 48 h). Le paiement est automatiquement
-        confirmé à la réception via webhook.
+        Options 1 et 2 : lien PayPal sécurisé (valide 48 h), confirmé automatiquement via webhook.
+        Option 3 : paiement immédiat par carte ou compte PayPal.
       </p>
     </div>
   );
