@@ -62,6 +62,7 @@ type SubMeta = {
   next_renewal_at: string | null;
   paypal_subscription_id: string | null;
   plan_price: number | null;
+  cycle_start_date: string | null;
   cycle_end_date: string | null;
   customer_id: string | null;
 };
@@ -191,7 +192,7 @@ export default function CorePlanChangesPage() {
     queryFn: async (): Promise<Record<string, SubMeta>> => {
       const { data } = await supabase
         .from("billing_subscriptions")
-        .select("id, next_renewal_at, paypal_subscription_id, plan_price, cycle_end_date, customer_id")
+        .select("id, next_renewal_at, paypal_subscription_id, plan_price, cycle_start_date, cycle_end_date, customer_id")
         .in("id", subIds);
       const map: Record<string, SubMeta> = {};
       (data || []).forEach((s: any) => {
@@ -199,6 +200,7 @@ export default function CorePlanChangesPage() {
           next_renewal_at: s.next_renewal_at,
           paypal_subscription_id: s.paypal_subscription_id,
           plan_price: s.plan_price,
+          cycle_start_date: s.cycle_start_date ?? null,
           cycle_end_date: s.cycle_end_date ?? null,
           customer_id: s.customer_id ?? null,
         };
@@ -292,12 +294,18 @@ export default function CorePlanChangesPage() {
       // Everything on ONE invoice — add a line to the existing pending renewal invoice,
       // recompute subtotal + TPS + TVQ so the PDF totals always add up.
       // If no pending invoice exists yet, fall back to account_adjustments for next renewal.
+      const cycleStartDate = meta?.cycle_start_date ? new Date(meta.cycle_start_date) : null;
       const cycleEndDate = meta?.cycle_end_date ? new Date(meta.cycle_end_date) : null;
-      const daysInCycle = 30;
       const msInDay = 86400000;
+      // Use actual cycle length from DB dates; fall back to 30 if dates unavailable
+      const daysInCycle = (cycleStartDate && cycleEndDate)
+        ? Math.max(1, Math.round((cycleEndDate.getTime() - cycleStartDate.getTime()) / msInDay))
+        : 30;
       const daysRemainingInCycle = cycleEndDate
         ? Math.max(0, Math.min(daysInCycle, Math.floor((cycleEndDate.getTime() - now.getTime()) / msInDay)))
         : 0;
+
+      const hasPayPalAutopay = !!(meta?.paypal_subscription_id);
 
       if (force && currentPrice !== null && newPrice !== null && currentPrice !== newPrice && r.subscription_id && daysRemainingInCycle > 0) {
         const isUpgrade = newPrice > currentPrice;
@@ -350,11 +358,31 @@ export default function CorePlanChangesPage() {
               notes: newNotes,
             }).eq("id", pendingInv.id);
 
-            // Keep pending payment in sync with the updated total
-            await supabase.from("billing_payments")
-              .update({ amount: newTotal })
-              .eq("invoice_id", pendingInv.id)
-              .eq("status", "pending");
+            // For non-PayPal: update pending payment amount to match updated invoice
+            // For PayPal autopay upgrades: charge proration delta NOW via separate invocation;
+            // the renewal will be charged at the new plan price by PayPal at cycle end
+            if (hasPayPalAutopay && isUpgrade) {
+              const prorataWithTax = Math.round((prorataPreTax * (1 + TPS + TVQ)) * 100) / 100;
+              const { error: ppErr } = await supabase.functions.invoke("paypal-charge-subscription", {
+                body: { subscription_id: r.subscription_id, invoice_id: pendingInv.id, amount: prorataWithTax },
+              });
+              if (ppErr) {
+                console.error("[CorePlanChanges] PayPal proration charge failed:", ppErr);
+                await supabase.from("billing_system_alerts").insert({
+                  alert_type: "paypal_proration_charge_failed",
+                  entity_type: "billing_invoice",
+                  entity_id: pendingInv.id,
+                  severity: "high",
+                  message: `Proration PayPal non chargée — ${r.current_plan_name} → ${r.requested_plan_name}, delta: ${prorataWithTax}$`,
+                  details: { subscription_id: r.subscription_id, proration_pretax: prorataPreTax, proration_with_tax: prorataWithTax },
+                });
+              }
+            } else {
+              await supabase.from("billing_payments")
+                .update({ amount: newTotal })
+                .eq("invoice_id", pendingInv.id)
+                .eq("status", "pending");
+            }
 
           } else {
             // No pending invoice yet — store for next renewal via account_adjustments

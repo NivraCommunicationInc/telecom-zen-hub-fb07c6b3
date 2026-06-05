@@ -387,8 +387,18 @@ serve(async (req) => {
               }
             }
           }
-        } catch (adjErr) {
-          console.error(`[billing-generate-renewals] account_adjustments error for ${invoiceNumber}:`, adjErr);
+        } catch (adjErr: unknown) {
+          const adjErrMsg = adjErr instanceof Error ? adjErr.message : String(adjErr);
+          console.error(`[billing-generate-renewals] account_adjustments error for ${invoiceNumber}:`, adjErrMsg);
+          await reportEdgeError(adjErr, { function: "billing-generate-renewals", invoice_id: invoice.id, subscription_id: sub.id, invoice_number: invoiceNumber }).catch(() => {});
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "account_adjustments_failed",
+            entity_type: "billing_invoice",
+            entity_id: invoice.id,
+            severity: "high",
+            message: `account_adjustments non appliqués sur ${invoiceNumber}: ${adjErrMsg}`,
+            details: { subscription_id: sub.id, customer_id: sub.customer_id, invoice_number: invoiceNumber, error: adjErrMsg },
+          }).catch(() => {});
         }
 
         // Advance subscription cycle so billing-lifecycle at 8h does not re-process
@@ -530,6 +540,29 @@ serve(async (req) => {
       }
     }
     
+    // ── CRON HEARTBEAT ──
+    // Record every successful run so we can detect cron failures externally.
+    await supabase.from("billing_system_alerts").insert({
+      alert_type: "cron_heartbeat",
+      entity_type: "cron",
+      entity_id: "billing-generate-renewals",
+      severity: "info",
+      message: `Cron OK — window ${windowStartStr}→${windowEndStr} — processed: ${results.processed}, errors: ${results.errors.length}`,
+      details: { window: `${windowStartStr}→${windowEndStr}`, ...results },
+    }).catch(() => {});
+
+    // Alert if there were subscriptions to process but all failed silently
+    if (results.errors.length > 0 && results.processed === 0) {
+      await supabase.from("billing_system_alerts").insert({
+        alert_type: "renewal_generation_all_failed",
+        entity_type: "cron",
+        entity_id: "billing-generate-renewals",
+        severity: "critical",
+        message: `CRITIQUE: ${results.errors.length} abonnement(s) en erreur, 0 facture créée`,
+        details: { window: `${windowStartStr}→${windowEndStr}`, errors: results.errors },
+      }).catch(() => {});
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
