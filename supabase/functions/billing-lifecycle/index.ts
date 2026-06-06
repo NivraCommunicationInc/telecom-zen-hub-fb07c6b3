@@ -686,7 +686,7 @@ async function advanceReferralCycles(
     // Find client_referrals that are not yet qualified (qualifying_cycles_paid < required_cycles)
     const { data: pendingReferrals, error } = await supabase
       .from("client_referrals")
-      .select("id, referred_user_id, referred_billing_customer_id, qualifying_cycles_paid, required_cycles, reward_status, status")
+      .select("id, referrer_user_id, referred_user_id, referred_billing_customer_id, qualifying_cycles_paid, required_cycles, reward_status, reward_amount, reward_type, status")
       .in("reward_status", ["not_eligible", "pending"])
       .lt("qualifying_cycles_paid", 3);
 
@@ -714,7 +714,7 @@ async function advanceReferralCycles(
           updated_at: new Date().toISOString(),
         };
         if (isQualified) {
-          updatePayload.reward_status = "qualified";
+          updatePayload.reward_status = "reward_pending";
           updatePayload.qualified_at = new Date().toISOString();
           updatePayload.status = "qualified";
         }
@@ -724,7 +724,43 @@ async function advanceReferralCycles(
           .update(updatePayload)
           .eq("id", ref.id);
 
-        console.log(`[lifecycle] Referral ${ref.id}: cycles ${ref.qualifying_cycles_paid} → ${actualCycles}${isQualified ? " (QUALIFIED)" : ""}`);
+        console.log(`[lifecycle] Referral ${ref.id}: cycles ${ref.qualifying_cycles_paid} → ${actualCycles}${isQualified ? " (QUALIFIED — reward_pending)" : ""}`);
+
+        // Auto-qualify email: notify referrer that their referral is now qualified
+        if (isQualified && ref.referrer_user_id) {
+          try {
+            const eventKey = `referral_auto_qualified_${ref.id}`;
+            const { data: alreadySent } = await supabase
+              .from("email_queue").select("id").eq("event_key", eventKey).limit(1).maybeSingle();
+            if (!alreadySent) {
+              const [{ data: referrerProfile }, { data: referredProfile }] = await Promise.all([
+                supabase.from("profiles").select("email, first_name").eq("user_id", ref.referrer_user_id).maybeSingle(),
+                supabase.from("profiles").select("first_name, last_name").eq("user_id", ref.referred_user_id).maybeSingle(),
+              ]);
+              if (referrerProfile?.email) {
+                const rewardAmt = Number(ref.reward_amount ?? 25);
+                const referredName = [referredProfile?.first_name, referredProfile?.last_name].filter(Boolean).join(" ") || "votre filleul";
+                await supabase.from("email_queue").insert({
+                  event_key: eventKey,
+                  to_email: referrerProfile.email,
+                  template_key: "client_referral_qualified",
+                  template_vars: {
+                    first_name: referrerProfile.first_name || "Client",
+                    to_email: referrerProfile.email,
+                    referred_name: referredName,
+                    reward_amount: new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(rewardAmt),
+                  },
+                  status: "queued",
+                  attempts: 0,
+                  max_attempts: 3,
+                });
+                console.log(`[lifecycle] Referral ${ref.id}: qualified email queued for ${referrerProfile.email}`);
+              }
+            }
+          } catch (emailErr: unknown) {
+            console.error(`[lifecycle] Referral ${ref.id}: email error:`, emailErr instanceof Error ? emailErr.message : emailErr);
+          }
+        }
       } catch (refErr: unknown) {
         const msg = `Referral cycle error ${ref.id}: ${refErr instanceof Error ? refErr.message : String(refErr)}`;
         stats.errors.push(msg);
