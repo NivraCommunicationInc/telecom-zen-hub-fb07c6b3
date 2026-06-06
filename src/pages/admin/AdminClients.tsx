@@ -2425,6 +2425,9 @@ const AdminClients = () => {
                         <SelectItem value="pending">En attente</SelectItem>
                         <SelectItem value="processing">En traitement</SelectItem>
                         <SelectItem value="shipped">Expédié</SelectItem>
+                        <SelectItem value="delivered">Livré</SelectItem>
+                        <SelectItem value="activated">Activé</SelectItem>
+                        <SelectItem value="installation_completed">Installation complétée</SelectItem>
                         <SelectItem value="completed">Complété</SelectItem>
                         <SelectItem value="cancelled">Annulé</SelectItem>
                       </SelectContent>
