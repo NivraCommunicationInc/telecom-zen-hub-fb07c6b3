@@ -14,11 +14,12 @@
  * Requires env var: NUMVERIFY_API_KEY
  * Falls back to format-only validation if key is missing.
  */
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 // Supported Nivra area codes (Quebec + some Ontario)
@@ -102,9 +103,16 @@ serve(async (req) => {
       );
     }
 
-    // Call Numverify (free tier uses HTTP)
-    const url = `http://apilayer.net/api/validate?access_key=${apiKey}&number=${encodeURIComponent(e164)}&country_code=CA&format=1`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    // Call Numverify — use HTTPS (works on free tier too)
+    const url = `https://apilayer.net/api/validate?access_key=${apiKey}&number=${encodeURIComponent(e164)}&country_code=CA&format=1`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    let resp: Response;
+    try {
+      resp = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!resp.ok) {
       throw new Error(`Numverify HTTP ${resp.status}`);
