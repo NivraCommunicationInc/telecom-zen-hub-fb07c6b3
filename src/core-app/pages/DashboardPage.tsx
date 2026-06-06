@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, AlertTriangle, ShieldCheck, Zap, DollarSign, UserPlus,
-  ArrowRight, CheckCircle2, Clock, Activity, Mail, TrendingUp, ServerCrash,
+  ArrowRight, CheckCircle2, Clock, Activity, Mail, TrendingUp,
   Users, TrendingDown, Ticket,
 } from "lucide-react";
 import { formatDistanceToNow, subMonths, startOfMonth, endOfMonth, format as dateFmt } from "date-fns";
