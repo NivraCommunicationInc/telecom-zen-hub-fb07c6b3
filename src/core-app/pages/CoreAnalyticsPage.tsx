@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, ComposedChart, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { DollarSign, Users, TrendingDown, Smile, Download, Target, Wallet, Activity, Coins } from "lucide-react";
 
@@ -23,12 +23,13 @@ export default function CoreAnalyticsPage() {
   const [cac, setCac] = useState<any>(null);
   const [ltv, setLtv] = useState<any>(null);
   const [profit, setProfit] = useState<any>(null);
+  const [revenueByMonth, setRevenueByMonth] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [m, c, g, n, ca, lt, pr] = await Promise.all([
+      const [m, c, g, n, ca, lt, pr, rev] = await Promise.all([
         backendClient.from("mrr_metrics" as any).select("*").maybeSingle(),
         backendClient.from("churn_metrics" as any).select("*").limit(12),
         backendClient.from("growth_metrics" as any).select("*").limit(12),
@@ -36,9 +37,23 @@ export default function CoreAnalyticsPage() {
         backendClient.from("cac_metric" as any).select("*").maybeSingle(),
         backendClient.from("ltv_metric" as any).select("*").maybeSingle(),
         backendClient.from("profit_per_client" as any).select("*").maybeSingle(),
+        backendClient.from("billing_invoices").select("total, paid_at").eq("status", "paid").not("paid_at", "is", null).order("paid_at", { ascending: true }),
       ]);
       setMrr(m.data); setChurn((c.data as any[]) || []); setGrowth((g.data as any[]) || []); setNps(n.data);
       setCac(ca.data); setLtv(lt.data); setProfit(pr.data);
+
+      // Build cumulative revenue per month from paid invoices
+      const buckets: Record<string, number> = {};
+      for (const inv of (rev.data || [])) {
+        const key = new Date(inv.paid_at).toLocaleDateString("fr-CA", { month: "short", year: "numeric" });
+        buckets[key] = (buckets[key] || 0) + Number(inv.total);
+      }
+      let running = 0;
+      setRevenueByMonth(Object.entries(buckets).map(([month, revenue]) => {
+        running += revenue;
+        return { month, revenue, cumulative: running };
+      }));
+
       setLoading(false);
     })();
   }, []);
@@ -125,8 +140,33 @@ export default function CoreAnalyticsPage() {
         );
       })()}
 
+      {revenueByMonth.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="w-5 h-5" />Revenu cumulatif — Encaissements réels</CardTitle></CardHeader>
+          <CardContent className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={revenueByMonth}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k$`} />
+                <Tooltip formatter={(v: number) => fmtCAD(v)} />
+                <Legend />
+                <Bar dataKey="revenue" fill="#06b6d4" name="Mois ($)" />
+                <Area type="monotone" dataKey="cumulative" stroke="#7c3aed" fill="url(#revGrad)" strokeWidth={2} name="Cumulatif ($)" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="w-5 h-5" />MRR — Revenu mensuel récurrent (par mois ajouté)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="w-5 h-5" />MRR — Nouveau revenu par mois (abonnements)</CardTitle></CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={growthChart}>
