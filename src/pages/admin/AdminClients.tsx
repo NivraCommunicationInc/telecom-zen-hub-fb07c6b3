@@ -651,6 +651,8 @@ const AdminClients = () => {
 
   const updateOrderMutation = useMutation({
     mutationFn: async (order: any) => {
+      const TERMINAL_STATUSES = ["activated", "delivered", "completed", "installation_completed"];
+      const isTerminal = TERMINAL_STATUSES.includes(order.status);
       const { error } = await supabase
         .from("orders")
         .update({
@@ -664,6 +666,11 @@ const AdminClients = () => {
           sim_number: order.sim_number,
           internal_notes: order.internal_notes,
           payment_status: order.payment_status,
+          // Set service_activated_at when transitioning to a terminal status so
+          // fn_activate_sub_on_order_activation has a business date to anchor the billing cycle.
+          ...(isTerminal && !order.service_activated_at
+            ? { service_activated_at: new Date().toISOString(), service_activation_source: "core_admin" }
+            : {}),
         })
         .eq("id", order.id);
       if (error) throw error;
