@@ -1,15 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SEOHead from "@/components/SEOHead";
 import { FAQSchema, BreadcrumbSchema } from "@/components/seo";
@@ -137,6 +131,10 @@ const FAQ = () => {
   const BG = '#020209';
   const PURPLE = '#7C3AED';
 
+  // Custom accordion state: "catIdx-qIdx"
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const toggle = (key: string) => setOpenKey(k => k === key ? null : key);
+
   return (
     <div style={{ background: BG, minHeight: '100vh' }}>
       <SEOHead
@@ -175,31 +173,45 @@ const FAQ = () => {
       <section style={{ padding: '72px 0', background: BG }}>
         <div className="max-w-[760px] mx-auto px-5 sm:px-10">
           {categories.map((category, ci) => (
-            <div key={category.title} style={{ marginBottom: 56 }}>
-              <div className="flex items-center gap-3" style={{ marginBottom: 22 }}>
+            <motion.div key={category.title} initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.5, delay:ci*0.04 }} style={{ marginBottom: 56 }}>
+              <div className="flex items-center gap-3" style={{ marginBottom: 20 }}>
                 <div style={{ width: 3, height: 22, background: 'linear-gradient(180deg, #7C3AED, #06B6D4)', borderRadius: 99 }} />
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, color: '#fff', letterSpacing: '-0.3px' }}>
                   {category.title}
                 </h2>
               </div>
-              <Accordion type="single" collapsible className="space-y-2">
-                {category.questions.map((item, index) => (
-                  <AccordionItem
-                    key={index}
-                    value={`${ci}-${index}`}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '0 20px', backdropFilter: 'blur(12px)', transition: 'border-color .2s' }}
-                    className="border-0"
-                  >
-                    <AccordionTrigger className="text-left font-semibold py-5 hover:no-underline" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>
-                      {item.q}
-                    </AccordionTrigger>
-                    <AccordionContent style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.75, paddingBottom: 18 }}>
-                      {item.a}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
+              <div className="space-y-2">
+                {category.questions.map((item, index) => {
+                  const key = `${ci}-${index}`;
+                  const isOpen = openKey === key;
+                  return (
+                    <div key={index}
+                      style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${isOpen ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 14, backdropFilter: 'blur(12px)', overflow: 'hidden', transition: 'border-color .2s' }}
+                    >
+                      <button
+                        onClick={() => toggle(key)}
+                        className="w-full text-left flex items-center justify-between gap-4"
+                        style={{ padding: '18px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, lineHeight: 1.5 }}>{item.q}</span>
+                        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} style={{ flexShrink: 0 }}>
+                          <ChevronDown className="w-4 h-4" style={{ color: isOpen ? '#A78BFA' : 'rgba(255,255,255,0.35)' }} />
+                        </motion.div>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} style={{ overflow: 'hidden' }}>
+                            <div style={{ padding: '0 20px 18px 20px', color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.75 }}>
+                              {item.a}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
           ))}
         </div>
       </section>

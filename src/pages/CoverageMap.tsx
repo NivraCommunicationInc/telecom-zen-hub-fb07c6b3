@@ -8,8 +8,6 @@ import "leaflet/dist/leaflet.css";
 import { Link, useSearchParams } from "react-router-dom";
 import { backendClient } from "@/integrations/backend/client";
 import { quebecCities } from "@/data/quebecCities";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { MapPin, Wifi, Tv, Smartphone, CheckCircle2, ArrowRight, Mail, Loader2, AlertTriangle } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -285,10 +283,13 @@ export default function CoverageMap() {
                   className="h-12 border-0 shadow-none focus-visible:ring-0 text-base bg-transparent text-white placeholder:text-white/40"
                 />
               </div>
-              <Button onClick={() => handleSearch()} className="h-12 px-6 font-bold shrink-0" style={{ background: "#7C3AED", borderRadius: 50 }}>
+              <button onClick={() => handleSearch()} className="inline-flex items-center gap-1.5 font-bold shrink-0" style={{ height: 48, padding: "0 24px", background: "#7C3AED", borderRadius: 50, border: "none", color: "#fff", fontSize: 14, fontFamily: "'Space Grotesk', sans-serif", cursor: "pointer", boxShadow: "0 4px 20px rgba(124,58,237,0.4)", transition: "box-shadow .15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 6px 28px rgba(124,58,237,0.6)")}
+                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 4px 20px rgba(124,58,237,0.4)")}
+              >
                 {isFr ? "Vérifier" : "Check"}
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
 
             {/* ── Result: available ── */}
@@ -438,7 +439,7 @@ export default function CoverageMap() {
         {/* ── Map ── */}
         <section className="px-5 sm:px-10 pb-12 pt-8" style={{ background: "#020209" }}>
           <div className="max-w-[1100px] mx-auto">
-            <Card className="p-4 sm:p-5" style={{ borderRadius: 20, border: "1px solid rgba(124,58,237,0.2)", background: "rgba(255,255,255,0.02)", boxShadow: "0 0 60px -20px rgba(124,58,237,0.15)" }}>
+            <div style={{ padding: "16px 20px", borderRadius: 20, border: "1px solid rgba(124,58,237,0.2)", background: "rgba(255,255,255,0.02)", boxShadow: "0 0 60px -20px rgba(124,58,237,0.15)" }}>
               <div className="flex flex-wrap gap-3 mb-4 px-1 items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 8px rgba(52,211,153,0.8)", animation: "n-aurora-2 2s ease-in-out infinite" }} />
@@ -521,7 +522,7 @@ export default function CoverageMap() {
                   Zones de service Nivra Telecom — survolez une zone pour les détails
                 </span>
               </div>
-            </Card>
+            </div>
           </div>
         </section>
 
