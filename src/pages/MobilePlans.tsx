@@ -12,6 +12,7 @@ import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useMobilePlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import { ProductSchema, BreadcrumbSchema, type ProductSchemaItem } from "@/components/seo";
+import CriticalInfoSummary from "@/components/CriticalInfoSummary";
 
 const BG = '#020209';
 const PURPLE = '#7C3AED';
@@ -269,6 +270,32 @@ const MobilePlans = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── Critical Information Summaries (CRTC Wireless Code) ── */}
+          {!isLoading && plans.length > 0 && (
+            <div style={{ marginBottom: 56, maxWidth: 840, marginLeft: 'auto', marginRight: 'auto' }}>
+              <p style={{ color: "#475569", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14, fontFamily: "'JetBrains Mono', monospace" }}>
+                {isFrench ? "Résumés d'information essentielle — Code sans-fil CRTC" : "Critical Information Summaries — CRTC Wireless Code"}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {plans.map((plan, i) => {
+                  const dataGb = plan.dataAutoTopUp ? parseInt(plan.dataAutoTopUp.replace(/[^0-9]/g, '')) || null : null;
+                  return (
+                    <CriticalInfoSummary
+                      key={i}
+                      serviceType="mobile"
+                      planName={plan.name}
+                      monthlyPrice={plan.price}
+                      dataCapGb={dataGb}
+                      contractMonths={0}
+                      activationFee={simPrice}
+                      language={isFrench ? "fr" : "en"}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
 

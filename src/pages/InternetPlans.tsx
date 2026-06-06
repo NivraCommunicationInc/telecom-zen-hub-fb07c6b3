@@ -14,6 +14,7 @@ import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { ItemListSchema } from "@/components/seo";
 import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
+import CriticalInfoSummary from "@/components/CriticalInfoSummary";
 
 const BG = '#020209';
 const PURPLE = '#7C3AED';
@@ -377,6 +378,34 @@ const InternetPlans = () => {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── Critical Information Summaries (CRTC Internet Code) ── */}
+          {!isLoading && plans.length > 0 && (
+            <div style={{ marginBottom: 56 }}>
+              <p style={{ color: "#475569", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14, fontFamily: "'JetBrains Mono', monospace" }}>
+                {isFrench ? "Résumés d'information essentielle — Code Internet CRTC" : "Critical Information Summaries — CRTC Internet Code"}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {plans.map((plan) => {
+                  const speedNum = plan.speed.replace(/[^0-9]/g, '');
+                  return (
+                    <CriticalInfoSummary
+                      key={plan.id}
+                      serviceType="internet"
+                      planName={plan.name}
+                      monthlyPrice={plan.price}
+                      downloadSpeed={speedNum ? `${speedNum} Mbit/s` : undefined}
+                      dataCapGb={null}
+                      contractMonths={0}
+                      activationFee={10}
+                      equipmentFee={routerPrice}
+                      language={isFrench ? "fr" : "en"}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
 

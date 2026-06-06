@@ -13,6 +13,7 @@ import { TVInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useTVPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
+import CriticalInfoSummary from "@/components/CriticalInfoSummary";
 
 const BG = '#020209';
 const PURPLE = '#7C3AED';
@@ -417,6 +418,55 @@ const TVPlans = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
                   {gigaPlans.map((plan, i) => <PlanCard key={i} plan={plan} isGiga />)}
                 </div>
+              </div>
+
+              {/* ── Critical Information Summaries (CRTC) ── */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 40, marginTop: 20, marginBottom: 48 }}>
+                <p style={{ color: "#475569", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {isFrench ? "Résumés d'information essentielle — CRTC" : "Critical Information Summaries — CRTC"}
+                </p>
+                <div style={{ marginBottom: 24 }}>
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.72rem", marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {isFrench ? "Forfaits TV + Internet" : "TV + Internet Plans"}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {standardPlans.map((plan, i) => (
+                      <CriticalInfoSummary
+                        key={i}
+                        serviceType="tv"
+                        planName={plan.name}
+                        monthlyPrice={plan.price}
+                        downloadSpeed={plan.internetSpeed}
+                        contractMonths={0}
+                        activationFee={0}
+                        equipmentFee={terminalPrice}
+                        language={isFrench ? "fr" : "en"}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {gigaPlans.length > 0 && (
+                  <div>
+                    <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.72rem", marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                      {isFrench ? "Forfaits GIGA" : "GIGA Plans"}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {gigaPlans.map((plan, i) => (
+                        <CriticalInfoSummary
+                          key={i}
+                          serviceType="tv"
+                          planName={plan.name}
+                          monthlyPrice={plan.price}
+                          downloadSpeed={plan.internetSpeed}
+                          contractMonths={0}
+                          activationFee={0}
+                          equipmentFee={terminalPrice}
+                          language={isFrench ? "fr" : "en"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
