@@ -24,7 +24,7 @@ export const BUSINESS_INFO = {
 
 export const CONTRACT_TERMS = {
   version: "v2.0-PREP-QC-2026",
-  lastUpdated: "2026-01-02",
+  lastUpdated: "2026-06-05",
   agreementType: "Prepaid Telecommunications Service Agreement",
   
   // Status flow (Admin-editable)
