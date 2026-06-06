@@ -158,7 +158,16 @@ const ClientDashboard = () => {
     const active = subs.find((s: any) => String(s.status).toLowerCase() === "active");
     if (!active) return null;
     const cycle = getCycleDisplay(active);
-    return cycle.isActive && cycle.nextRenewal ? format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr }) : null;
+    if (cycle.isActive && cycle.nextRenewal) {
+      return format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr });
+    }
+    // Fallback: use account.next_invoice_date from the portal snapshot
+    const accountNextInvoice = (account as any)?.next_invoice_date;
+    if (accountNextInvoice) {
+      try { return format(new Date(accountNextInvoice), "d MMM yyyy", { locale: fr }); } catch { /* invalid date */ }
+    }
+    // Active sub exists but no date available yet
+    return "En cours";
   })();
 
   const copy = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copié"); };
@@ -301,7 +310,7 @@ const ClientDashboard = () => {
             {[
               { label: "Solde", value: <ClientBalanceSummary userId={user?.id ?? ""} compact />, icon: <CreditCard size={16} />, color: "#7C3AED", sub: "Compte courant" },
               { label: "Services actifs", value: activeCount, icon: <CheckCircle2 size={16} />, color: "#10B981", sub: `${subs.length} abonnement${subs.length > 1 ? "s" : ""}` },
-              { label: "Prochaine facture", value: nextBilling ?? "—", icon: <Clock size={16} />, color: "#06B6D4", sub: nextBilling ? "Date de renouvellement" : "Aucun service actif" },
+              { label: "Prochaine facture", value: nextBilling ?? "—", icon: <Clock size={16} />, color: "#06B6D4", sub: nextBilling && nextBilling !== "En cours" ? "Date de renouvellement" : activeCount > 0 ? "Date à confirmer" : "Aucun service actif" },
               { label: "Performance réseau", value: "99.9%", icon: <Zap size={16} />, color: "#F59E0B", sub: "Disponibilité garantie" },
             ].map((t, i) => (
               <motion.div key={i} custom={i} variants={up}>
