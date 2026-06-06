@@ -1,12 +1,39 @@
-﻿import Header from "@/components/Header";
+import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { PhotoBg } from "@/components/PhotoBg";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT } from "@/config/company";
+import { Link } from "react-router-dom";
 
-const RefundPolicy = () => {
+const infoBox = {
+  background: "rgba(6,182,212,0.07)",
+  border: "1px solid rgba(6,182,212,0.22)",
+  borderRadius: 10,
+  padding: "24px 28px",
+} as const;
+
+const warnBox = {
+  background: "rgba(245,158,11,0.07)",
+  border: "1px solid rgba(245,158,11,0.22)",
+  borderRadius: 10,
+  padding: "24px 28px",
+} as const;
+
+const dangerBox = {
+  background: "rgba(239,68,68,0.07)",
+  border: "1px solid rgba(239,68,68,0.22)",
+  borderRadius: 10,
+  padding: "24px 28px",
+} as const;
+
+const section = { marginBottom: "2rem" } as const;
+const h2s = { color: "#e2e8f0", fontSize: "1.2rem", fontWeight: 700, marginBottom: "0.65rem" } as const;
+const ps = { color: "#94a3b8", lineHeight: 1.8, marginBottom: "0.65rem" } as const;
+const lis = { color: "#94a3b8", lineHeight: 1.8, marginBottom: "0.3rem" } as const;
+
+export default function RefundPolicy() {
   const { language } = useLanguage();
-  const isFrench = language === 'fr';
+  const isFrench = language === "fr";
 
   return (
     <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
@@ -15,265 +42,279 @@ const RefundPolicy = () => {
         opacity={0.12}
         filter="saturate(0.6) brightness(0.65)"
       />
-      <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
-      <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <Header />
 
-      <main className="pt-24 pb-16" style={{ position: 'relative', zIndex: 1 }}>
+      <main className="pt-24 pb-16" style={{ position: "relative", zIndex: 1 }}>
         <div className="container mx-auto px-4 max-w-4xl">
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
-            {isFrench ? 'Politique de remboursement' : 'Refund Policy'}
+          <div style={{ marginBottom: "0.5rem" }}>
+            <span style={{ color: "#06b6d4", fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              {isFrench ? "Remboursements · PAD · Prorata" : "Refunds · PAD · Prorated Billing"}
+            </span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 tracking-tight text-foreground">
+            {isFrench ? "Politique de remboursement" : "Refund Policy"}
           </h1>
-          
-          <p className="text-muted-foreground mb-8">
-            {isFrench ? 'Dernière mise à jour : 2026-06-05' : 'Last updated: 2026-06-05'}
+          <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: "2rem" }}>
+            {isFrench ? "Entrée en vigueur : 7 janvier 2025 · Dernière mise à jour : juin 2026" : "Effective: January 7, 2025 · Last updated: June 2026"}
           </p>
-          
-          <div className="prose prose-lg max-w-none text-muted-foreground space-y-8">
+
+          <div style={{ ...infoBox, marginBottom: "2rem" }}>
+            <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.35rem" }}>
+              {isFrench ? "Contact — Demandes de remboursement" : "Contact — Refund Requests"}
+            </p>
+            <p style={ps}>
+              <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} style={{ color: "#22d3ee" }}>{COMPANY_CONTACT.supportEmailDisplay}</a>
+              {" — "}{COMPANY_CONTACT.fullAddress}
+            </p>
+          </div>
+
+          <section style={{ ...section, fontSize: "0.93rem", lineHeight: 1.8 }}>
+
             {isFrench ? (
               <>
-                <section className="space-y-4">
-                  <p className="text-lg font-medium text-foreground">
-                    <strong>Date d'entrée en vigueur :</strong> 2025-01-07
-                  </p>
-                  <p>
-                    <strong>Contact :</strong>{" "}
-                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
-                      {COMPANY_CONTACT.supportEmailDisplay}
-                    </a>{" "}
-                    | {COMPANY_CONTACT.fullAddress}
-                  </p>
-                </section>
-
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.1 Portée</h2>
-                  <p>
-                    Cette politique s'applique aux achats effectués sur le site {COMPANY_CONTACT.companyName} ou via nos canaux de paiement autorisés, incluant :
-                  </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>Forfaits et combos (mobile, internet, télévision, sécurité connectée)</li>
-                    <li>Frais de mise en service/activation</li>
-                    <li>Cartes SIM, équipements et accessoires</li>
-                    <li>Frais de livraison/pickup, installation et rendez-vous (le cas échéant)</li>
+                <div style={section}>
+                  <h2 style={h2s}>1. Portée</h2>
+                  <p style={ps}>Cette politique s'applique aux achats effectués sur {COMPANY_CONTACT.companyName} ou via nos canaux autorisés :</p>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>Forfaits et combos (mobile, internet, télévision)</li>
+                    <li style={lis}>Frais de mise en service et d'activation</li>
+                    <li style={lis}>Cartes SIM, eSIM, équipements et accessoires</li>
+                    <li style={lis}>Frais d'installation et de rendez-vous (le cas échéant)</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.2 Principe général (services télécom)</h2>
-                  <p>
-                    Les services télécom prépayés ou déjà activés sont généralement non remboursables, sauf si :
-                  </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>l'activation a échoué et le service n'a pas été fourni,</li>
-                    <li>une erreur de facturation est démontrée (double paiement, montant incorrect),</li>
-                    <li>la loi exige un remboursement ou un crédit.</li>
+                <div style={section}>
+                  <h2 style={h2s}>2. Principe général — services télécom prépayés</h2>
+                  <p style={ps}>Les services télécom prépayés ou déjà activés sont généralement <strong style={{ color: "#e2e8f0" }}>non remboursables</strong>, sauf si :</p>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>L'activation a échoué et le service n'a pas été fourni</li>
+                    <li style={lis}>Une erreur de facturation est démontrée (double paiement, montant incorrect)</li>
+                    <li style={lis}>La loi exige un remboursement ou un crédit</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.3 Abonnements mensuels</h2>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>Tu peux annuler à tout moment via ton compte ou en contactant le support.</li>
-                    <li>L'annulation prend effet à la fin de la période de facturation en cours, sauf mention contraire dans ton offre.</li>
-                    <li>Aucun remboursement partiel n'est généralement accordé pour une période déjà commencée, sauf exceptions prévues à la section 1.2.</li>
+                <div style={section}>
+                  <h2 style={h2s}>3. Abonnements mensuels</h2>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>Vous pouvez annuler à tout moment via votre compte ou en contactant le support.</li>
+                    <li style={lis}>L'annulation prend effet à la fin de la période de facturation en cours, sauf mention contraire dans votre offre.</li>
+                    <li style={lis}>Aucun remboursement partiel n'est accordé pour une période déjà commencée, sauf exceptions prévues à la section 2.</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.4 Frais d'activation, mise en service et installation</h2>
-                  <p>
-                    Les frais d'activation/mise en service et certains frais d'installation/rendez-vous sont non remboursables une fois le travail engagé (ex. réservation de technicien, configuration, activation, portabilité initiée), sauf si Nivra n'a pas pu fournir le service pour une raison imputable à Nivra.
+                <div style={section}>
+                  <h2 style={h2s}>4. Frais d'activation, mise en service et installation</h2>
+                  <p style={ps}>
+                    Ces frais sont <strong style={{ color: "#e2e8f0" }}>non remboursables</strong> une fois le travail engagé (réservation de technicien, configuration, activation, portabilité initiée), sauf si Nivra n'a pas pu fournir le service pour une raison imputable à Nivra.
                   </p>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.5 SIM, équipements et accessoires</h2>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li><strong>Retour (changement d'avis) :</strong> accepté dans les 15 jours suivant la réception, si l'article est neuf, non utilisé, complet, dans son emballage d'origine.</li>
-                    <li><strong>Défectueux à l'arrivée (DOA) :</strong> échange/remplacement possible selon les conditions du fabricant et notre processus de vérification.</li>
-                    <li>Les frais de livraison initiaux ne sont pas remboursables, sauf erreur de notre part.</li>
+                <div style={section}>
+                  <h2 style={h2s}>5. SIM, équipements et accessoires</h2>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}><strong style={{ color: "#e2e8f0" }}>Retour (changement d'avis) :</strong> accepté dans les 15 jours suivant la réception, si l'article est neuf, non utilisé, complet, dans son emballage d'origine.</li>
+                    <li style={lis}><strong style={{ color: "#e2e8f0" }}>Défectueux à l'arrivée (DOA) :</strong> échange ou remplacement possible selon les conditions du fabricant et notre processus de vérification.</li>
+                    <li style={lis}>Les frais de livraison initiaux ne sont pas remboursables, sauf erreur de notre part.</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.6 Paiements en attente / vérification (ex. e-Transfer)</h2>
-                  <p>Si un paiement nécessite une vérification (ex. e-Transfer) :</p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>la commande demeure en statut "En attente / Vérification" jusqu'à confirmation;</li>
-                    <li>si le paiement n'est pas reçu ou confirmé dans un délai raisonnable, la commande peut être annulée sans activation.</li>
+                <div style={section}>
+                  <h2 style={h2s}>6. Paiements en attente / vérification (e-Transfer)</h2>
+                  <p style={ps}>Si un paiement nécessite une vérification :</p>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>La commande demeure en statut « En attente / Vérification » jusqu'à confirmation.</li>
+                    <li style={lis}>Si le paiement n'est pas reçu ou confirmé dans un délai raisonnable, la commande peut être annulée sans activation.</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.7 Contestations (chargebacks)</h2>
-                  <p>
-                    Avant toute contestation auprès de la banque, contacte-nous :{" "}
-                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
-                      {COMPANY_CONTACT.supportEmailDisplay}
-                    </a>.
-                  </p>
-                  <p>
-                    En cas de contestation abusive ou de fraude présumée, Nivra peut suspendre temporairement le service, dans la mesure permise.
-                  </p>
-                </section>
+                <div style={section}>
+                  <h2 style={h2s}>7. Débit préautorisé (PAD) — Payments Canada Règle H1</h2>
+                  <div style={infoBox}>
+                    <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Fenêtre de remboursement PAD : 90 jours</p>
+                    <p style={ps}>
+                      Pour tout débit préautorisé non autorisé ou erroné effectué via PayPal Billing Agreements,
+                      vous disposez d'une fenêtre de <strong style={{ color: "#e2e8f0" }}>90 jours</strong> à compter de la date du débit pour demander le remboursement complet du montant.
+                    </p>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
+                      Conformément à la Règle H1 de Payments Canada.{" "}
+                      <Link to="/accord-preautorise-debit" style={{ color: "#22d3ee" }}>Voir l'accord PAD complet →</Link>
+                    </p>
+                  </div>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.8 Changements de forfait (prorata)</h2>
-                  <p>
-                    Depuis le <strong>5 juin 2026</strong>, tout changement de forfait approuvé et appliqué immédiatement en cours de cycle déclenche un calcul au prorata automatique :
-                  </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>
-                      <strong>Upgrade :</strong> une ligne prorata est ajoutée à la facture de renouvellement en cours pour la différence de prix (TPS et TVQ recalculées sur le nouveau sous-total). Le montant total de la facture est mis à jour automatiquement.
-                    </li>
-                    <li>
-                      <strong>Downgrade :</strong> un crédit prorata apparaît comme ligne de rabais sur la facture de renouvellement en cours (ou la prochaine si non encore générée), réduisant directement le montant dû. Aucun remboursement en espèces n'est effectué.
-                    </li>
-                    <li>
-                      <strong>Le cycle en cours n'est pas remboursable</strong> si l'annulation du service se fait en cours de cycle, sauf obligation légale ou erreur de facturation confirmée.
-                    </li>
-                  </ul>
-                </section>
+                <div style={section}>
+                  <h2 style={h2s}>8. Changements de forfait — prorata</h2>
+                  <p style={ps}>Depuis le <strong style={{ color: "#e2e8f0" }}>5 juin 2026</strong>, tout changement de forfait approuvé et appliqué immédiatement en cours de cycle déclenche un calcul au prorata automatique :</p>
+                  <div style={infoBox}>
+                    <ul style={{ paddingLeft: "1.5rem" }}>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> une ligne prorata est ajoutée à la facture de renouvellement en cours pour la différence de prix (TPS + TVQ recalculées). Le total de la facture est mis à jour automatiquement.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> un crédit prorata apparaît comme rabais sur la facture courante ou la prochaine, réduisant directement le montant dû. <strong style={{ color: "#e2e8f0" }}>Aucun remboursement en espèces</strong> n'est effectué pour un downgrade.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Le cycle en cours n'est pas remboursable</strong> si l'annulation du service se fait en cours de cycle, sauf obligation légale ou erreur de facturation.</li>
+                    </ul>
+                  </div>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.9 Comment demander un remboursement</h2>
-                  <p>
-                    Envoie : nom complet, numéro de commande/facture, service concerné, motif, preuve (au besoin).
-                  </p>
-                  <p>
-                    <strong>Délais :</strong> nous visons un traitement sous 5 à 10 jours ouvrables après réception des informations complètes.
-                  </p>
-                  <p>
-                    Les remboursements sont effectués via le même moyen de paiement (quand possible).
-                  </p>
-                </section>
+                <div style={section}>
+                  <h2 style={h2s}>9. Contestations (chargebacks)</h2>
+                  <div style={dangerBox}>
+                    <p style={{ color: "#f87171", fontWeight: 600, marginBottom: "0.5rem" }}>Contactez-nous AVANT de contacter votre banque</p>
+                    <p style={{ color: "#94a3b8", margin: 0 }}>
+                      Avant toute contestation auprès de votre institution financière, contactez-nous à{" "}
+                      <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} style={{ color: "#22d3ee" }}>{COMPANY_CONTACT.supportEmailDisplay}</a>.
+                      En cas de contestation abusive ou de fraude présumée, Nivra peut suspendre temporairement le service.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={section}>
+                  <h2 style={h2s}>10. Comment demander un remboursement</h2>
+                  <div style={infoBox}>
+                    <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Informations requises</p>
+                    <ul style={{ paddingLeft: "1.5rem" }}>
+                      <li style={lis}>Nom complet et numéro de compte</li>
+                      <li style={lis}>Numéro de commande ou de facture</li>
+                      <li style={lis}>Service concerné et motif de la demande</li>
+                      <li style={lis}>Preuve à l'appui (si applicable)</li>
+                    </ul>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.75rem" }}>
+                      <strong style={{ color: "#e2e8f0" }}>Délai de traitement :</strong> 5 à 10 jours ouvrables après réception des informations complètes.
+                      Les remboursements sont effectués via le même moyen de paiement (quand possible).
+                    </p>
+                  </div>
+                </div>
               </>
             ) : (
               <>
-                <section className="space-y-4">
-                  <p className="text-lg font-medium text-foreground">
-                    <strong>Effective Date:</strong> 2025-01-07
-                  </p>
-                  <p>
-                    <strong>Contact:</strong>{" "}
-                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
-                      {COMPANY_CONTACT.supportEmailDisplay}
-                    </a>{" "}
-                    | {COMPANY_CONTACT.fullAddress}
-                  </p>
-                </section>
-
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.1 Scope</h2>
-                  <p>
-                    This policy applies to purchases made on the {COMPANY_CONTACT.companyName} website or through our authorized payment channels, including:
-                  </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>Plans and bundles (mobile, internet, television, connected security)</li>
-                    <li>Setup/activation fees</li>
-                    <li>SIM cards, equipment and accessories</li>
-                    <li>Delivery/pickup, installation and appointment fees (where applicable)</li>
+                <div style={section}>
+                  <h2 style={h2s}>1. Scope</h2>
+                  <p style={ps}>This policy applies to purchases made on {COMPANY_CONTACT.companyName} or through our authorized channels:</p>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>Plans and bundles (mobile, internet, television)</li>
+                    <li style={lis}>Setup and activation fees</li>
+                    <li style={lis}>SIM cards, eSIM, equipment and accessories</li>
+                    <li style={lis}>Installation and appointment fees (where applicable)</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.2 General Principle (Telecom Services)</h2>
-                  <p>
-                    Prepaid or already activated telecom services are generally non-refundable, unless:
-                  </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>activation failed and the service was not provided,</li>
-                    <li>a billing error is demonstrated (double payment, incorrect amount),</li>
-                    <li>the law requires a refund or credit.</li>
+                <div style={section}>
+                  <h2 style={h2s}>2. General Principle — Prepaid Telecom Services</h2>
+                  <p style={ps}>Prepaid or already activated telecom services are generally <strong style={{ color: "#e2e8f0" }}>non-refundable</strong>, unless:</p>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>Activation failed and the service was not provided</li>
+                    <li style={lis}>A billing error is demonstrated (double payment, incorrect amount)</li>
+                    <li style={lis}>The law requires a refund or credit</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.3 Monthly Subscriptions</h2>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>You can cancel at any time through your account or by contacting support.</li>
-                    <li>Cancellation takes effect at the end of the current billing period, unless otherwise stated in your offer.</li>
-                    <li>No partial refund is generally granted for a period already started, except as provided in section 1.2.</li>
+                <div style={section}>
+                  <h2 style={h2s}>3. Monthly Subscriptions</h2>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>You can cancel at any time through your account or by contacting support.</li>
+                    <li style={lis}>Cancellation takes effect at the end of the current billing period, unless otherwise stated in your offer.</li>
+                    <li style={lis}>No partial refund is granted for a period already started, except as provided in section 2.</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.4 Activation, Setup and Installation Fees</h2>
-                  <p>
-                    Activation/setup fees and certain installation/appointment fees are non-refundable once work has begun (e.g., technician booking, configuration, activation, porting initiated), unless Nivra was unable to provide the service for a reason attributable to Nivra.
+                <div style={section}>
+                  <h2 style={h2s}>4. Activation, Setup and Installation Fees</h2>
+                  <p style={ps}>
+                    These fees are <strong style={{ color: "#e2e8f0" }}>non-refundable</strong> once work has begun (technician booking, configuration, activation, porting initiated), unless Nivra was unable to provide the service for a reason attributable to Nivra.
                   </p>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.5 SIM, Equipment and Accessories</h2>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li><strong>Return (change of mind):</strong> accepted within 15 days of receipt, if the item is new, unused, complete, in its original packaging.</li>
-                    <li><strong>Dead on Arrival (DOA):</strong> exchange/replacement possible according to manufacturer conditions and our verification process.</li>
-                    <li>Initial delivery fees are non-refundable, except for our error.</li>
+                <div style={section}>
+                  <h2 style={h2s}>5. SIM, Equipment and Accessories</h2>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}><strong style={{ color: "#e2e8f0" }}>Return (change of mind):</strong> accepted within 15 days of receipt, if the item is new, unused, complete, in its original packaging.</li>
+                    <li style={lis}><strong style={{ color: "#e2e8f0" }}>Dead on Arrival (DOA):</strong> exchange or replacement possible according to manufacturer conditions and our verification process.</li>
+                    <li style={lis}>Initial delivery fees are non-refundable, except for our error.</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.6 Pending Payments / Verification (e.g., e-Transfer)</h2>
-                  <p>If a payment requires verification (e.g., e-Transfer):</p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>the order remains in "Pending / Verification" status until confirmed;</li>
-                    <li>if payment is not received or confirmed within a reasonable time, the order may be cancelled without activation.</li>
+                <div style={section}>
+                  <h2 style={h2s}>6. Pending Payments / Verification (e-Transfer)</h2>
+                  <p style={ps}>If a payment requires verification:</p>
+                  <ul style={{ paddingLeft: "1.5rem" }}>
+                    <li style={lis}>The order remains in "Pending / Verification" status until confirmed.</li>
+                    <li style={lis}>If payment is not received or confirmed within a reasonable time, the order may be cancelled without activation.</li>
                   </ul>
-                </section>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.7 Disputes (Chargebacks)</h2>
-                  <p>
-                    Before any dispute with your bank, contact us:{" "}
-                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
-                      {COMPANY_CONTACT.supportEmailDisplay}
-                    </a>.
-                  </p>
-                  <p>
-                    In case of abusive dispute or suspected fraud, Nivra may temporarily suspend service, to the extent permitted.
-                  </p>
-                </section>
+                <div style={section}>
+                  <h2 style={h2s}>7. Pre-Authorized Debit (PAD) — Payments Canada Rule H1</h2>
+                  <div style={infoBox}>
+                    <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>PAD Reimbursement Window: 90 Days</p>
+                    <p style={ps}>
+                      For any unauthorized or erroneous pre-authorized debit made via PayPal Billing Agreements,
+                      you have <strong style={{ color: "#e2e8f0" }}>90 days</strong> from the date of the debit to request a full reimbursement.
+                    </p>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
+                      Per Payments Canada Rule H1.{" "}
+                      <Link to="/accord-preautorise-debit" style={{ color: "#22d3ee" }}>View full PAD agreement →</Link>
+                    </p>
+                  </div>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.8 Plan Changes (Prorated Billing)</h2>
-                  <p>
-                    Effective <strong>June 5, 2026</strong>, any approved plan change applied immediately mid-cycle triggers an automatic prorated calculation:
-                  </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>
-                      <strong>Upgrade:</strong> a prorated line is added to the current renewal invoice for the price difference (TPS and TVQ recalculated on the new subtotal). The invoice total is updated automatically.
-                    </li>
-                    <li>
-                      <strong>Downgrade:</strong> a prorated credit appears as a discount line on the current renewal invoice (or the next one if not yet generated), directly reducing the amount due. No cash refund is issued.
-                    </li>
-                    <li>
-                      <strong>The current cycle is not refundable</strong> if service is cancelled mid-cycle, except as required by law or confirmed billing error.
-                    </li>
-                  </ul>
-                </section>
+                <div style={section}>
+                  <h2 style={h2s}>8. Plan Changes — Prorated Billing</h2>
+                  <p style={ps}>Effective <strong style={{ color: "#e2e8f0" }}>June 5, 2026</strong>, any approved plan change applied immediately mid-cycle triggers an automatic prorated calculation:</p>
+                  <div style={infoBox}>
+                    <ul style={{ paddingLeft: "1.5rem" }}>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade:</strong> a prorated line is added to the current renewal invoice for the price difference (GST + QST recalculated). The invoice total is updated automatically.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade:</strong> a prorated credit appears as a discount line on the current or next renewal invoice, directly reducing the amount due. <strong style={{ color: "#e2e8f0" }}>No cash refund</strong> is issued for a downgrade.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>The current cycle is not refundable</strong> if service is cancelled mid-cycle, except as required by law or confirmed billing error.</li>
+                    </ul>
+                  </div>
+                </div>
 
-                <section className="space-y-4">
-                  <h2 className="text-2xl font-display font-bold text-foreground">1.9 How to Request a Refund</h2>
-                  <p>
-                    Send: full name, order/invoice number, service concerned, reason, proof (if needed).
-                  </p>
-                  <p>
-                    <strong>Timeline:</strong> we aim to process within 5 to 10 business days after receiving complete information.
-                  </p>
-                  <p>
-                    Refunds are made via the same payment method (when possible).
-                  </p>
-                </section>
+                <div style={section}>
+                  <h2 style={h2s}>9. Disputes (Chargebacks)</h2>
+                  <div style={dangerBox}>
+                    <p style={{ color: "#f87171", fontWeight: 600, marginBottom: "0.5rem" }}>Contact us BEFORE contacting your bank</p>
+                    <p style={{ color: "#94a3b8", margin: 0 }}>
+                      Before any dispute with your financial institution, contact us at{" "}
+                      <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} style={{ color: "#22d3ee" }}>{COMPANY_CONTACT.supportEmailDisplay}</a>.
+                      In case of abusive dispute or suspected fraud, Nivra may temporarily suspend service.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={section}>
+                  <h2 style={h2s}>10. How to Request a Refund</h2>
+                  <div style={infoBox}>
+                    <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Required Information</p>
+                    <ul style={{ paddingLeft: "1.5rem" }}>
+                      <li style={lis}>Full name and account number</li>
+                      <li style={lis}>Order or invoice number</li>
+                      <li style={lis}>Service concerned and reason for request</li>
+                      <li style={lis}>Supporting proof (if applicable)</li>
+                    </ul>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.75rem" }}>
+                      <strong style={{ color: "#e2e8f0" }}>Processing time:</strong> 5–10 business days after receiving complete information.
+                      Refunds are made via the same payment method (when possible).
+                    </p>
+                  </div>
+                </div>
               </>
             )}
-          </div>
+
+            <div style={section}>
+              <p style={{ color: "#475569", fontSize: "0.85rem" }}>
+                <Link to="/modalites-paiement" style={{ color: "#22d3ee" }}>← Modalités de paiement</Link>
+                {" · "}
+                <Link to="/accord-preautorise-debit" style={{ color: "#22d3ee" }}>Accord PAD</Link>
+                {" · "}
+                <Link to="/support-et-plaintes" style={{ color: "#22d3ee" }}>Support & plaintes</Link>
+              </p>
+            </div>
+
+          </section>
         </div>
       </main>
 
       <Footer />
     </div>
   );
-};
-
-export default RefundPolicy;
+}

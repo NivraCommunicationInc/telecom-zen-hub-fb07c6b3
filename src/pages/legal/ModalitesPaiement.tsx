@@ -19,7 +19,12 @@ const warnBox = {
   padding: "24px 28px",
 } as const;
 
-const ModalitesPaiement = () => {
+const section = { marginBottom: "2rem" } as const;
+const h2s = { color: "#e2e8f0", fontSize: "1.2rem", fontWeight: 700, marginBottom: "0.65rem" } as const;
+const ps = { color: "#94a3b8", lineHeight: 1.8, marginBottom: "0.65rem" } as const;
+const lis = { color: "#94a3b8", lineHeight: 1.8, marginBottom: "0.3rem" } as const;
+
+export default function ModalitesPaiement() {
   return (
     <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
       <PhotoBg
@@ -27,177 +32,198 @@ const ModalitesPaiement = () => {
         opacity={0.13}
         filter="saturate(0.7) brightness(0.65)"
       />
-      <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
-      <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <Header />
 
-      <main className="pt-24 pb-16" style={{ position: 'relative', zIndex: 1 }}>
+      <main className="pt-24 pb-16" style={{ position: "relative", zIndex: 1 }}>
         <div className="container mx-auto px-4 max-w-4xl">
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-8">
+          <div style={{ marginBottom: "0.5rem" }}>
+            <span style={{ color: "#06b6d4", fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>Paiements · Facturation · PAD</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 tracking-tight text-foreground">
             Modalités de paiement
           </h1>
+          <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: "2rem" }}>
+            Dernière mise à jour : {CONTRACT_TERMS.lastUpdated}
+          </p>
 
-          <div className="prose prose-lg max-w-none text-muted-foreground space-y-8">
-            <p className="text-lg">
-              Dernière mise à jour : {CONTRACT_TERMS.lastUpdated}
-            </p>
+          <section style={{ ...section, fontSize: "0.93rem", lineHeight: 1.8 }}>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">1. Services prépayés</h2>
-              <p>
+            <div style={section}>
+              <h2 style={h2s}>1. Services prépayés</h2>
+              <p style={ps}>
                 Tous les services Nivra sont facturés à l'avance par cycle de service.
                 Le renouvellement s'effectue uniquement si le paiement est reçu et confirmé.
               </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Vous pouvez annuler à tout moment — le service reste actif jusqu'à la fin de la période payée.</li>
-                <li>Le cycle en cours n'est pas remboursable, sauf obligation légale ou erreur de facturation confirmée.</li>
+              <ul style={{ paddingLeft: "1.5rem", marginBottom: "0.5rem" }}>
+                <li style={lis}>Vous pouvez annuler à tout moment — le service reste actif jusqu'à la fin de la période payée.</li>
+                <li style={lis}>Le cycle en cours n'est pas remboursable, sauf obligation légale ou erreur de facturation confirmée.</li>
               </ul>
-            </section>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">2. Moyens de paiement acceptés</h2>
-              <ul className="list-disc pl-6 space-y-2">
+            <div style={section}>
+              <h2 style={h2s}>2. Moyens de paiement acceptés</h2>
+              <ul style={{ paddingLeft: "1.5rem", marginBottom: "0.5rem" }}>
                 {CONTRACT_TERMS.paymentTerms.acceptedMethods.map((method, index) => (
-                  <li key={index}>{method}</li>
+                  <li key={index} style={lis}>{method}</li>
                 ))}
               </ul>
-            </section>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">3. Paiement par Virement Interac (e-Transfer)</h2>
+            <div style={section}>
+              <h2 style={h2s}>3. Paiement par Virement Interac (e-Transfer)</h2>
               <div style={infoBox}>
-                <h3 className="font-semibold text-foreground mb-4">Instructions e-Transfer</h3>
-                <ul className="list-none space-y-2">
-                  <li><strong>Courriel de destination :</strong> {ETRANSFER_CONFIG.emailDisplay}</li>
-                  <li><strong>Question de sécurité :</strong> {ETRANSFER_CONFIG.securityQuestion}</li>
-                  <li><strong>Réponse :</strong> {ETRANSFER_CONFIG.securityAnswer}</li>
-                </ul>
-                <p className="mt-4 text-sm">
-                  <strong>Important :</strong> Incluez votre numéro de commande ou numéro de compte dans le message du virement.
+                <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.75rem" }}>Instructions e-Transfer</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  {[
+                    ["Courriel de destination", ETRANSFER_CONFIG.emailDisplay],
+                    ["Question de sécurité", ETRANSFER_CONFIG.securityQuestion],
+                    ["Réponse", ETRANSFER_CONFIG.securityAnswer],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: "12px", borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: "0.4rem" }}>
+                      <span style={{ color: "#64748b", flexShrink: 0 }}>{label}</span>
+                      <span style={{ color: "#e2e8f0", textAlign: "right" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.75rem" }}>
+                  Incluez votre numéro de commande ou de compte dans le message du virement.
                 </p>
               </div>
 
-              <h3 className="text-xl font-display font-bold text-foreground mt-6">Statuts de paiement e-Transfer</h3>
-              <p>Après l'envoi de votre virement, votre paiement passera par les statuts suivants :</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Pending (En attente) :</strong> Virement envoyé, en attente de réception</li>
-                <li><strong>In verification (En vérification) :</strong> Virement reçu, en cours de validation</li>
-                <li><strong>Complete (Complété) :</strong> Paiement confirmé, service activé/renouvelé</li>
-                <li><strong>Declined (Refusé) :</strong> Virement refusé ou annulé</li>
-                <li><strong>Fraud (Fraude) :</strong> Activité suspecte détectée — compte suspendu</li>
-              </ul>
-              <p className="text-sm text-muted-foreground/70">
-                L'activation du service s'effectue après réception et vérification du virement.
-              </p>
-            </section>
+              <div style={{ marginTop: "1.25rem" }}>
+                <p style={{ ...ps, marginBottom: "0.5rem" }}>Statuts de paiement e-Transfer :</p>
+                <ul style={{ paddingLeft: "1.5rem" }}>
+                  {[
+                    ["Pending (En attente)", "Virement envoyé, en attente de réception"],
+                    ["In verification (En vérification)", "Virement reçu, en cours de validation"],
+                    ["Complete (Complété)", "Paiement confirmé, service activé/renouvelé"],
+                    ["Declined (Refusé)", "Virement refusé ou annulé"],
+                    ["Fraud (Fraude)", "Activité suspecte détectée — compte suspendu"],
+                  ].map(([status, desc]) => (
+                    <li key={status} style={lis}><strong style={{ color: "#e2e8f0" }}>{status} :</strong> {desc}</li>
+                  ))}
+                </ul>
+                <p style={{ color: "#475569", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+                  L'activation du service s'effectue après réception et vérification du virement.
+                </p>
+              </div>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">4. Cycle de facturation (Bill Cycle)</h2>
-              <p>
-                Chaque compte a un <strong>Bill Cycle Day</strong> (jour du mois) défini par défaut à la date de création du compte.
+            <div style={section}>
+              <h2 style={h2s}>4. Débit préautorisé (PAD) — PayPal</h2>
+              <div style={infoBox}>
+                <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Accord de prélèvement automatique (Payments Canada Règle H1)</p>
+                <p style={ps}>
+                  Pour les renouvellements automatiques via PayPal Billing Agreements, les règles suivantes s'appliquent :
+                </p>
+                <ul style={{ paddingLeft: "1.5rem" }}>
+                  <li style={lis}>Avis de <strong style={{ color: "#e2e8f0" }}>10 jours</strong> avant le premier débit ou tout changement de montant</li>
+                  <li style={lis}>Révocation possible en tout temps avec un préavis de <strong style={{ color: "#e2e8f0" }}>30 jours</strong></li>
+                  <li style={lis}>Remboursement disponible dans les <strong style={{ color: "#e2e8f0" }}>90 jours</strong> pour tout débit non autorisé</li>
+                  <li style={lis}>Processeur : <strong style={{ color: "#e2e8f0" }}>PayPal Billing Agreements</strong></li>
+                </ul>
+                <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.75rem" }}>
+                  <Link to="/accord-preautorise-debit" style={{ color: "#22d3ee" }}>Voir l'accord complet de prélèvement préautorisé →</Link>
+                </p>
+              </div>
+            </div>
+
+            <div style={section}>
+              <h2 style={h2s}>5. Cycle de facturation (Bill Cycle)</h2>
+              <p style={ps}>
+                Chaque compte a un <strong style={{ color: "#e2e8f0" }}>Bill Cycle Day</strong> défini par défaut à la date de création du compte.
               </p>
               <div style={infoBox}>
-                <h3 className="font-semibold text-foreground mb-3">Fonctionnement du cycle prépayé</h3>
-                <ul className="list-disc pl-6 space-y-2 text-sm">
-                  <li><strong>Facture émise :</strong> {CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle (J-5)</li>
-                  <li><strong>Paiement requis :</strong> AVANT la date du Bill Cycle (J0) pour renouveler le service</li>
-                  <li><strong>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au J0, le service devient Expiré</li>
-                  <li><strong>Jours 29-31 :</strong> Si le mois ne contient pas ce jour, la facturation se fait le dernier jour du mois</li>
+                <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Fonctionnement du cycle prépayé</p>
+                <ul style={{ paddingLeft: "1.5rem" }}>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Facture émise :</strong> {CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle (J-5)</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Paiement requis :</strong> AVANT la date du Bill Cycle (J0) pour renouveler le service</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au J0, le service devient Expiré</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Jours 29-31 :</strong> Si le mois ne contient pas ce jour, la facturation se fait le dernier jour du mois</li>
                 </ul>
               </div>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Devise : {CONTRACT_TERMS.paymentTerms.currency}</li>
-              </ul>
-            </section>
+              <p style={{ ...ps, marginTop: "0.5rem" }}>Devise : {CONTRACT_TERMS.paymentTerms.currency}</p>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">5. Non-renouvellement et frais</h2>
+            <div style={section}>
+              <h2 style={h2s}>6. Non-renouvellement et frais</h2>
               <div style={warnBox}>
-                <div className="flex items-start gap-3">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgb(245,158,11)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-2">Politique de non-renouvellement (prépayé)</h3>
-                    <ul className="list-disc pl-6 space-y-2 text-sm">
-                      <li><strong>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au Bill Cycle (J0), le service devient Expiré</li>
-                      <li><strong>E-Transfer en vérification au J0 :</strong> Fenêtre de grâce de <strong>{CONTRACT_TERMS.billingCycle.etransferGraceHours} heures</strong> maximum</li>
-                      <li><strong>Aucun intérêt/frais</strong> pour un non-renouvellement prépayé normal</li>
-                      <li><strong>Après 90 jours sans renouvellement :</strong> Le numéro peut devenir irrécupérable (nouveau numéro requis)</li>
-                      <li><strong>Contestation bancaire/Chargeback :</strong> Intérêt de <strong>{CONTRACT_TERMS.disputeChargeback.interestRate}%</strong> par mois + frais de réactivation de <strong>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong> (UNIQUEMENT pour disputes/chargebacks)</li>
-                    </ul>
-                  </div>
-                </div>
+                <p style={{ color: "#fbbf24", fontWeight: 600, marginBottom: "0.5rem" }}>
+                  <span style={{ marginRight: "0.5rem" }}>⚠</span> Politique de non-renouvellement (prépayé)
+                </p>
+                <ul style={{ paddingLeft: "1.5rem" }}>
+                  <li style={lis}>Si le paiement n'est pas confirmé au J0, le service devient <strong style={{ color: "#e2e8f0" }}>Expiré</strong></li>
+                  <li style={lis}>E-Transfer en vérification au J0 : fenêtre de grâce de <strong style={{ color: "#e2e8f0" }}>{CONTRACT_TERMS.billingCycle.etransferGraceHours}h</strong> maximum</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Aucun intérêt ni frais</strong> pour un non-renouvellement prépayé normal</li>
+                  <li style={lis}>Après 90 jours sans renouvellement : le numéro peut devenir irrécupérable</li>
+                  <li style={lis}>Contestation bancaire / Chargeback : intérêt de <strong style={{ color: "#e2e8f0" }}>{CONTRACT_TERMS.disputeChargeback.interestRate}%</strong>/mois + frais de réactivation de <strong style={{ color: "#e2e8f0" }}>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong></li>
+                </ul>
               </div>
-            </section>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">6. Contestation de facturation</h2>
-              <p>
-                Toute contestation de facturation doit être soumise dans les <strong>10 jours</strong> suivant
+            <div style={section}>
+              <h2 style={h2s}>7. Contestation de facturation</h2>
+              <p style={ps}>
+                Toute contestation de facturation doit être soumise dans les <strong style={{ color: "#e2e8f0" }}>10 jours</strong> suivant
                 la réception de la facture via le portail client ou par courriel.
               </p>
-            </section>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">7. Rétrofacturation et fraude</h2>
-              <p>
-                Les rétrofacturations (chargebacks) non justifiées ou frauduleuses peuvent entraîner :
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>La suspension immédiate du compte</li>
-                <li>Des frais de traitement</li>
-                <li>La transmission du dossier aux autorités compétentes</li>
+            <div style={section}>
+              <h2 style={h2s}>8. Rétrofacturation et fraude</h2>
+              <p style={ps}>Les rétrofacturations (chargebacks) non justifiées ou frauduleuses peuvent entraîner :</p>
+              <ul style={{ paddingLeft: "1.5rem" }}>
+                <li style={lis}>La suspension immédiate du compte</li>
+                <li style={lis}>Des frais de traitement</li>
+                <li style={lis}>La transmission du dossier aux autorités compétentes</li>
               </ul>
-            </section>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">8. Prorata sur changement de forfait</h2>
-              <p>
-                Depuis le <strong>5 juin 2026</strong>, Nivra applique automatiquement un calcul au prorata lorsqu'un changement de forfait est approuvé et appliqué en cours de cycle.
+            <div style={section}>
+              <h2 style={h2s}>9. Prorata sur changement de forfait</h2>
+              <p style={ps}>
+                Depuis le <strong style={{ color: "#e2e8f0" }}>5 juin 2026</strong>, Nivra applique automatiquement un calcul au prorata lorsqu'un changement de forfait est approuvé et appliqué en cours de cycle.
               </p>
               <div style={infoBox}>
-                <h3 className="font-semibold text-foreground mb-3">Règles de prorata</h3>
-                <ul className="list-disc pl-6 space-y-2 text-sm">
-                  <li>
-                    <strong>Upgrade (passage à un forfait supérieur) :</strong> une ligne de facturation prorata est ajoutée à la facture de renouvellement en cours pour la différence de prix, calculée au prorata des jours restants dans le cycle. Le total de la facture est mis à jour en conséquence (TPS et TVQ incluses).
-                    <br />
-                    <em>Formule : (Nouveau prix − Ancien prix) ÷ 30 × Jours restants dans le cycle</em>
+                <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Règles de prorata</p>
+                <ul style={{ paddingLeft: "1.5rem" }}>
+                  <li style={lis}>
+                    <strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> ligne prorata ajoutée à la facture de renouvellement pour la différence (TPS + TVQ recalculées).
+                    <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Nouveau prix − Ancien prix) ÷ 30 × Jours restants</span>
                   </li>
-                  <li>
-                    <strong>Downgrade (passage à un forfait inférieur) :</strong> un crédit prorata est ajouté à la facture de renouvellement en cours (ou sur la prochaine facture si la facture courante n'est pas encore générée). Le crédit apparaît comme ligne de rabais et réduit le total dû.
-                    <br />
-                    <em>Formule : (Ancien prix − Nouveau prix) ÷ 30 × Jours restants dans le cycle</em>
+                  <li style={lis}>
+                    <strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> crédit prorata ajouté comme rabais sur la facture courante ou la prochaine. Aucun remboursement en espèces.
+                    <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Ancien prix − Nouveau prix) ÷ 30 × Jours restants</span>
                   </li>
                 </ul>
               </div>
-              <p className="text-sm text-muted-foreground/70">
-                Le changement de forfait effectif immédiatement s'applique uniquement si l'option "Appliquer immédiatement" est sélectionnée lors de l'approbation. Sinon, le changement prend effet au prochain renouvellement sans prorata.
+              <p style={{ color: "#475569", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+                Le changement immédiat s'applique uniquement si « Appliquer immédiatement » est sélectionné lors de l'approbation. Sinon, le changement prend effet au prochain renouvellement sans prorata.
               </p>
-            </section>
+            </div>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">Contact</h2>
-              <ul className="list-none space-y-2">
-                <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
-                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
+            <div style={section}>
+              <h2 style={h2s}>Contact</h2>
+              <ul style={{ paddingLeft: "1.5rem" }}>
+                <li style={lis}><strong style={{ color: "#e2e8f0" }}>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
+                <li style={lis}><strong style={{ color: "#e2e8f0" }}>Adresse :</strong> {COMPANY_CONTACT.fullAddress}</li>
               </ul>
-            </section>
-
-            <section className="space-y-4">
-              <p className="text-sm">
-                <Link to="/conditions-de-service" className="text-primary hover:underline">← Retour aux Conditions de service</Link>
+              <p style={{ ...ps, marginTop: "1rem" }}>
+                <Link to="/conditions-de-service" style={{ color: "#22d3ee" }}>← Retour aux Conditions de service</Link>
+                {" · "}
+                <Link to="/accord-preautorise-debit" style={{ color: "#22d3ee" }}>Accord PAD →</Link>
+                {" · "}
+                <Link to="/refund-policy" style={{ color: "#22d3ee" }}>Politique de remboursement →</Link>
               </p>
-            </section>
-          </div>
+            </div>
+
+          </section>
         </div>
       </main>
 
       <Footer />
     </div>
   );
-};
-
-export default ModalitesPaiement;
+}
