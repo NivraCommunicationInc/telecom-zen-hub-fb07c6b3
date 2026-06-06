@@ -15,7 +15,11 @@ export const BUSINESS_INFO = {
   website: COMPANY_CONTACT.website,
   serviceTerritory: COMPANY_CONTACT.serviceTerritory,
   fulfillmentCentre: "Grand Montréal, Québec",
-  neq: "À compléter", // Numéro d'entreprise du Québec
+  neq: COMPANY_CONTACT.neq,
+  tpsNumber: COMPANY_CONTACT.tpsNumber,
+  tvqNumber: COMPANY_CONTACT.tvqNumber,
+  privacyOfficer: COMPANY_CONTACT.privacyOfficer,
+  privacyOfficerEmail: COMPANY_CONTACT.privacyOfficerEmail,
 };
 
 export const CONTRACT_TERMS = {
@@ -142,14 +146,56 @@ export const CONTRACT_TERMS = {
   regulatory: {
     ccts: {
       name: "Commission for Complaints for Telecom-television Services",
+      nameFr: "Commission des plaintes relatives aux services de télécom-télévision",
       website: "https://www.ccts-cprst.ca",
       description: "Free, independent complaint resolution for telecom/TV",
+      memberNumber: COMPANY_CONTACT.cctsNumber,
     },
     crtc: {
       name: "Canadian Radio-television and Telecommunications Commission",
       website: "https://crtc.gc.ca",
       codes: ["Wireless Code", "Internet Code", "Television Service Provider Code"],
     },
+    internetCode: {
+      noticeDays: 30,
+      bandwidthAlertThresholds: [75, 90, 100], // % of monthly cap
+      dataCapPage: "/frais-possibles",
+    },
+    wirelessCode: {
+      portDeadlineHours: 2.5 * 24, // 2.5 business days
+      unlockFee: 0, // Must be $0 per CRTC Wireless Code
+      contractMaxMonths: 0, // Prepaid: no term contract
+    },
+    itmp: {
+      page: "/pratiques-reseau",
+      description: "Internet Traffic Management Practices — disclosed per CRTC requirement",
+    },
+  },
+
+  // Pre-Authorized Debit (Payments Canada Rule H1)
+  pad: {
+    agreementPage: "/accord-preautorise-debit",
+    noticeDaysBeforeFirstDebit: 10,
+    noticeDaysForChange: 10,
+    revocationNoticeDays: 30,
+    reimbursementWindow: 90,
+    processorName: "PayPal Billing Agreements",
+    rule: "Payments Canada Rule H1",
+  },
+
+  // Service Level Agreement
+  sla: {
+    page: "/niveaux-de-service",
+    uptimeTargetPercent: 99.5,
+    plannedMaintenanceWindowFr: "Dimanche 2h–6h (heure de l'Est)",
+    plannedMaintenanceWindowEn: "Sunday 2AM–6AM (Eastern Time)",
+    incidentResponseMinutes: {
+      critical: 60,
+      high: 240,
+      medium: 1440, // 24h
+    },
+    creditEligibilityPercent: 99.0, // Uptime below this triggers credit
+    maxCreditPercent: 50, // Max 50% of monthly fee
   },
   
   confidentiality: `

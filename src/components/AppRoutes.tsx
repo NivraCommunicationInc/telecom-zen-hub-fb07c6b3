@@ -338,6 +338,11 @@ const SecuriteAntiFraude = lazy(() => import("@/pages/legal/SecuriteAntiFraude")
 const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
 const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
 const ConformiteCRTC = lazy(() => import("@/pages/legal/ConformiteCRTC"));
+const PratiquesReseau = lazy(() => import("@/pages/legal/PratiquesReseau"));
+const PolitiqueUtilisationAcceptable = lazy(() => import("@/pages/legal/PolitiqueUtilisationAcceptable"));
+const PortabiliteNumero = lazy(() => import("@/pages/legal/PortabiliteNumero"));
+const AccordPreautorisationDebit = lazy(() => import("@/pages/legal/AccordPreautorisationDebit"));
+const NiveauxDeService = lazy(() => import("@/pages/legal/NiveauxDeService"));
 
 // Design preview routes — sandbox versions of redesigned components.
 // Accessible at /preview/* on any environment for stakeholder review,
@@ -645,6 +650,11 @@ const AppRoutes = () => {
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
       <Route path="/conformite-crtc" element={<MaintenanceGuard><PublicLayout><ConformiteCRTC /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/pratiques-reseau" element={<MaintenanceGuard><PublicLayout><PratiquesReseau /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/politique-utilisation-acceptable" element={<MaintenanceGuard><PublicLayout><PolitiqueUtilisationAcceptable /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/portabilite-numero" element={<MaintenanceGuard><PublicLayout><PortabiliteNumero /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/accord-preautorise-debit" element={<MaintenanceGuard><PublicLayout><AccordPreautorisationDebit /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/niveaux-de-service" element={<MaintenanceGuard><PublicLayout><NiveauxDeService /></PublicLayout></MaintenanceGuard>} />
       <Route path="/a-propos" element={<MaintenanceGuard><PublicLayout><APropos /></PublicLayout></MaintenanceGuard>} />
       <Route path="/aide" element={<MaintenanceGuard><PublicLayout><Aide /></PublicLayout></MaintenanceGuard>} />
       <Route path="/support" element={<MaintenanceGuard><PublicLayout><Support /></PublicLayout></MaintenanceGuard>} />

@@ -9,38 +9,50 @@ export const COMPANY_CONTACT = {
   supportEmailDisplay: "Support@nivra-telecom.ca",
   // Phone removed - all support via chat/tickets
   supportPhoneDisplay: "", // Deprecated - use chat/tickets
-  supportPhoneTel: "", // Deprecated - use chat/tickets  
+  supportPhoneTel: "", // Deprecated - use chat/tickets
   supportPhoneFormatted: "", // Deprecated - use chat/tickets
-  
-  
+
   // E-Transfer payment info (if different from support email)
   paymentEmail: "support@nivra-telecom.ca",
   paymentEmailDisplay: "Support@nivra-telecom.ca",
-  
+
   // Company info
   companyName: "Nivra Telecom",
   legalName: "Nivra Communications Inc.",
-  
-  // Address — physical address removed from public-facing site (kept blank intentionally)
-  address: "",
-  fullAddress: "",
-  city: "",
+
+  // Registered address — synced from src/lib/pdf/companyInfo.ts
+  address: "1799 Av. Pierre-Péladeau",
+  fullAddress: "1799 Av. Pierre-Péladeau, Laval (Québec)  H7T 2Y5",
+  city: "Laval",
   province: "QC",
+  postalCode: "H7T 2Y5",
   country: "Canada",
-  
+
+  // Tax registration numbers — synced from src/lib/pdf/companyInfo.ts
+  tpsNumber: "732287291 RT0001",
+  tvqNumber: "1229249786 TQ0001",
+  neq: "2291249786",
+
+  // Privacy & compliance
+  privacyOfficer: "Responsable de la protection des renseignements personnels",
+  privacyOfficerEmail: "confidentialite@nivra-telecom.ca",
+
+  // Regulatory
+  cctsNumber: "À compléter",   // CCTS member number (obtain from ccts-cprst.ca)
+
   // Website
   website: "www.nivra-telecom.ca",
   portalUrl: "https://nivra-telecom.ca",
-  
+
   // Service hours
   supportHours: "Lun–Ven : 9AM – 10PM | Sam–Dim : 9AM – 8PM",
   supportHoursEn: "Mon–Fri: 9AM – 10PM | Sat–Sun: 9AM – 8PM",
   supportHoursWeekday: "Lun–Ven : 9AM – 10PM",
   supportHoursWeekend: "Sam–Dim : 9AM – 8PM",
-  
+
   // Service territory
   serviceTerritory: "Province of Québec only",
-  
+
   // From email for transactional emails
   fromEmail: "Nivra Telecom <support@nivra-telecom.ca>",
   replyToEmail: "support@nivra-telecom.ca",

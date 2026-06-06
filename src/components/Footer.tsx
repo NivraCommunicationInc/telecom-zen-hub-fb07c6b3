@@ -59,6 +59,13 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Garantie 30 jours" : "30-day Guarantee",          to: "/garantie" },
     { label: "Loi 25",                                                   to: "/confidentialite-loi25" },
     { label: isFr ? "Frais possibles" : "Possible Fees",                to: "/frais-possibles" },
+    { label: isFr ? "Conformité CRTC" : "CRTC Compliance",             to: "/conformite-crtc" },
+    { label: isFr ? "Pratiques réseau" : "Network Practices",           to: "/pratiques-reseau" },
+    { label: isFr ? "Utilisation acceptable" : "Acceptable Use",        to: "/politique-utilisation-acceptable" },
+    { label: isFr ? "Portabilité" : "Number Portability",              to: "/portabilite-numero" },
+    { label: isFr ? "Débit préautorisé" : "Pre-Auth Debit",            to: "/accord-preautorise-debit" },
+    { label: isFr ? "Niveaux de service" : "Service Levels",            to: "/niveaux-de-service" },
+    { label: isFr ? "Remboursement" : "Refund Policy",                  to: "/refund-policy" },
   ];
 
   const footerStats = [
