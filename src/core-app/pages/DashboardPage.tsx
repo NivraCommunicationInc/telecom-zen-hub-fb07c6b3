@@ -237,12 +237,19 @@ function useBusinessKpis() {
           .not("status", "in", "(resolved,closed)"),
       ]);
 
+      const portinRes = await supabase
+        .from("activity_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("action", "portin_initiated")
+        .gte("created_at", month);
+
       const mrr = (subsActive.data ?? []).reduce((s: number, r: any) => s + (Number(r.monthly_price) || 0), 0);
       const activeCount = (subsActive.data ?? []).length;
       const churnThisMonth = subsCancelled.count ?? 0;
       const openTickets = complaintsOpen.count ?? 0;
+      const portinThisMonth = portinRes.count ?? 0;
 
-      return { mrr, activeCount, churnThisMonth, openTickets };
+      return { mrr, activeCount, churnThisMonth, openTickets, portinThisMonth };
     },
   });
 }
@@ -262,20 +269,25 @@ function useRevenueTrend() {
         });
       }
 
-      const results = await Promise.all(
-        months.map(({ start, end }) =>
-          supabase
-            .from("billing_invoices")
-            .select("total")
-            .eq("status", "paid")
-            .gte("created_at", start)
-            .lte("created_at", end)
-        )
-      );
+      const [revenueResults, activationResults] = await Promise.all([
+        Promise.all(
+          months.map(({ start, end }) =>
+            supabase.from("billing_invoices").select("total").eq("status", "paid")
+              .gte("created_at", start).lte("created_at", end)
+          )
+        ),
+        Promise.all(
+          months.map(({ start, end }) =>
+            supabase.from("orders").select("id", { count: "exact", head: true })
+              .not("activated_at", "is", null).gte("activated_at", start).lte("activated_at", end)
+          )
+        ),
+      ]);
 
       return months.map((m, i) => ({
         label: m.label,
-        revenue: (results[i].data ?? []).reduce((s: number, r: any) => s + (Number(r.total) || 0), 0),
+        revenue: (revenueResults[i].data ?? []).reduce((s: number, r: any) => s + (Number(r.total) || 0), 0),
+        activations: activationResults[i].count ?? 0,
       }));
     },
   });
@@ -456,71 +468,43 @@ export default function DashboardPage() {
       {/* SECTION 0 — BUSINESS KPIs */}
       <div>
         <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">Métriques business</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <MetricCard
-            label="MRR (abonnements actifs)"
-            value={kpis ? fmtCAD(kpis.mrr) : "—"}
-            icon={TrendingUp}
-            accent="green"
-            href={corePath("/invoices")}
-          />
-          <MetricCard
-            label="Abonnements actifs"
-            value={kpis?.activeCount ?? "—"}
-            icon={Users}
-            accent="blue"
-            href={corePath("/customers")}
-          />
-          <MetricCard
-            label="Résiliations ce mois"
-            value={kpis?.churnThisMonth ?? "—"}
-            icon={TrendingDown}
-            accent={kpis && kpis.churnThisMonth > 0 ? "red" : "green"}
-          />
-          <MetricCard
-            label="Tickets ouverts"
-            value={kpis?.openTickets ?? "—"}
-            icon={Ticket}
-            accent={kpis && kpis.openTickets > 5 ? "amber" : "green"}
-            href={corePath("/complaints")}
-          />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+          <MetricCard label="MRR (abonnements actifs)" value={kpis ? fmtCAD(kpis.mrr) : "—"} icon={TrendingUp} accent="green" href={corePath("/invoices")} />
+          <MetricCard label="Abonnements actifs" value={kpis?.activeCount ?? "—"} icon={Users} accent="blue" href={corePath("/customers")} />
+          <MetricCard label="Résiliations ce mois" value={kpis?.churnThisMonth ?? "—"} icon={TrendingDown} accent={kpis && kpis.churnThisMonth > 0 ? "red" : "green"} />
+          <MetricCard label="Tickets ouverts" value={kpis?.openTickets ?? "—"} icon={Ticket} accent={kpis && kpis.openTickets > 5 ? "amber" : "green"} href={corePath("/complaints")} />
+          <MetricCard label="Port-ins ce mois" value={kpis?.portinThisMonth ?? "—"} icon={ArrowRight} accent="blue" />
         </div>
 
-        {/* Revenue trend — last 6 months */}
+        {/* Trend charts — 2 columns */}
         {revenueTrend.length > 0 && (
-          <div className="rounded-lg border border-slate-800 bg-[#0d1421] p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">Revenus encaissés — 6 derniers mois</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={revenueTrend} barCategoryGap="30%">
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: "#94a3b8", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#94a3b8", fontSize: 9 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${v === 0 ? "0" : `${(v / 1000).toFixed(0)}k`}`}
-                  width={32}
-                />
-                <Tooltip
-                  contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 6, fontSize: 11 }}
-                  labelStyle={{ color: "#cbd5e1" }}
-                  formatter={(v: number) => [fmtCAD(v), "Revenus"]}
-                  cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                />
-                <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
-                  {revenueTrend.map((entry, idx) => (
-                    <Cell
-                      key={idx}
-                      fill={idx === revenueTrend.length - 1 ? "#34d399" : "#3b82f6"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="rounded-lg border border-slate-800 bg-[#0d1421] p-4">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">Revenus encaissés — 6 mois</p>
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={revenueTrend} barCategoryGap="30%">
+                  <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? "0" : `${(v / 1000).toFixed(0)}k`} width={32} />
+                  <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 6, fontSize: 11 }} labelStyle={{ color: "#cbd5e1" }} formatter={(v: number) => [fmtCAD(v), "Revenus"]} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                  <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
+                    {revenueTrend.map((_, idx) => <Cell key={idx} fill={idx === revenueTrend.length - 1 ? "#34d399" : "#3b82f6"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-[#0d1421] p-4">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">Activations — 6 mois</p>
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={revenueTrend} barCategoryGap="30%">
+                  <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} width={24} />
+                  <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 6, fontSize: 11 }} labelStyle={{ color: "#cbd5e1" }} formatter={(v: number) => [v, "Activations"]} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                  <Bar dataKey="activations" radius={[3, 3, 0, 0]}>
+                    {revenueTrend.map((_, idx) => <Cell key={idx} fill={idx === revenueTrend.length - 1 ? "#a78bfa" : "#6366f1"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
       </div>
