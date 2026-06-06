@@ -531,8 +531,8 @@ const Index = () => {
 
         {/* ══ POURQUOI NIVRA ══ */}
         <section style={{ background:"#06040F", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          {/* Smiling person with phone — prepaid telecom value props */}
-          <PhotoBg url="https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=1600&q=80" opacity={0.12} filter="saturate(0.4) brightness(0.55)" />
+          {/* Two people collaborating on laptop — Nivra value props */}
+          <PhotoBg url="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1600&q=80" opacity={0.12} filter="saturate(0.4) brightness(0.5)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.3)", borderRadius:100 }}>
