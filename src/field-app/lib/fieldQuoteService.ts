@@ -18,6 +18,7 @@ export interface SaveQuotePayload {
   tps: number;
   tvq: number;
   total: number;
+  agentGps?: { lat: number; lng: number; accuracy: number } | null;
 }
 
 export interface SavedQuote {
@@ -37,6 +38,7 @@ export async function saveQuoteAndEmail({
   tps,
   tvq,
   total,
+  agentGps,
 }: SaveQuotePayload): Promise<SavedQuote> {
   const { data: userData } = await supabase.auth.getUser();
   const agentId = userData?.user?.id;
@@ -58,6 +60,7 @@ export async function saveQuoteAndEmail({
       tvq,
       total,
       status: "draft",
+      agent_gps_coords: agentGps ?? null,
     } as any)
     .select("id, valid_until")
     .single();

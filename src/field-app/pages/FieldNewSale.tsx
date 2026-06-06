@@ -52,6 +52,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
+  const [agentGps, setAgentGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   const [draft, setDraft] = useState<FieldSaleDraft>({
     ...EMPTY_DRAFT,
@@ -148,6 +149,16 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     setPendingRestore(null);
     setRestoreDialogOpen(false);
   };
+
+  // ── Capture agent GPS on mount (fraud prevention / audit) ──
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setAgentGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) }),
+      () => { /* GPS denied or unavailable — non-blocking */ },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+  }, []);
 
   // ── Fetch agent full name + agent number (for emails / documents) ──
   const [agentFullName, setAgentFullName] = useState<string>("");
@@ -324,7 +335,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     setSubmitMessage("Préparation du paiement…");
     try {
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
-      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total });
+      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total, agentGps });
       const customerName = `${draft.customer.first_name} ${draft.customer.last_name}`.trim();
       const { data: intentData, error: intentErr } = await supabase
         .from("field_payment_intents" as any)
@@ -370,7 +381,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({
         draft, agentName, activationFee,
-        subtotal, tps, tvq, total,
+        subtotal, tps, tvq, total, agentGps,
       });
 
       // 2) Ask backend to generate a PayPal link tied to a payment intent
@@ -480,7 +491,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({
         draft, agentName, activationFee,
-        subtotal, tps, tvq, total,
+        subtotal, tps, tvq, total, agentGps,
       });
 
       const { data, error } = await supabase.functions.invoke("field-card-intent", {

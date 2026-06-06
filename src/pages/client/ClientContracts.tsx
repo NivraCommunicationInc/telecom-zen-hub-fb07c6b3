@@ -22,6 +22,7 @@ import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { TypedSignatureInput } from "@/components/client/TypedSignatureInput";
+import CanvasSignaturePad from "@/components/client/CanvasSignaturePad";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { useClientPDF } from "@/hooks/useClientPDF";
@@ -46,7 +47,9 @@ const ClientContracts = () => {
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [signatureMode, setSignatureMode] = useState<"typed" | "canvas">("typed");
   const [typedSignature, setTypedSignature] = useState("");
+  const [canvasSignature, setCanvasSignature] = useState<string | null>(null);
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const pdfViewer = usePDFViewer();
   const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
@@ -57,7 +60,7 @@ const ClientContracts = () => {
 
   // Sign contract mutation
   const signContractMutation = useMutation({
-    mutationFn: async ({ contractId, signature }: { contractId: string; signature: string }) => {
+    mutationFn: async ({ contractId, signature, signatureType }: { contractId: string; signature: string; signatureType: "text" | "canvas" }) => {
       const signedAt = new Date().toISOString();
       const { error } = await portalSupabase
         .from("contracts")
@@ -65,13 +68,13 @@ const ClientContracts = () => {
           is_signed: true,
           signed_at: signedAt,
           client_signature: signature,
-          client_signature_type: "text",
+          client_signature_type: signatureType,
         } as any)
         .eq("id", contractId)
         .eq("user_id", user?.id);
 
       if (error) throw error;
-      return { contractId, signedAt, signature };
+      return { contractId, signedAt, signature, signatureType };
     },
     onSuccess: async (data) => {
       await logActivity(
@@ -81,7 +84,7 @@ const ClientContracts = () => {
         {
           signedAt: data.signedAt,
           signatureActor: "Client",
-          signatureType: "typed",
+          signatureType: data.signatureType,
           clientName: profile?.full_name || user?.email,
           clientEmail: profile?.email || user?.email,
           contractName: selectedContract?.contract_name,
@@ -102,7 +105,9 @@ const ClientContracts = () => {
       setSignDialogOpen(false);
       setSelectedContract(null);
       setIsAgreed(false);
+      setSignatureMode("typed");
       setTypedSignature("");
+      setCanvasSignature(null);
       setSignatureError(null);
     },
     onError: (error) => {
@@ -133,7 +138,9 @@ const ClientContracts = () => {
   const openSignDialog = (contract: any) => {
     setSelectedContract(contract);
     setIsAgreed(false);
+    setSignatureMode("typed");
     setTypedSignature(profile?.full_name || user?.email || "");
+    setCanvasSignature(null);
     setSignatureError(null);
     setSignDialogOpen(true);
   };
@@ -168,20 +175,33 @@ const ClientContracts = () => {
   }, [contracts, openSignDialog, searchParams, setSearchParams, toast]);
 
   const handleSign = () => {
-    if (!typedSignature.trim()) {
-      setSignatureError("Veuillez taper votre nom pour signer");
-      return;
+    if (signatureMode === "typed") {
+      if (!typedSignature.trim()) {
+        setSignatureError("Veuillez taper votre nom pour signer");
+        return;
+      }
+      if (typedSignature.trim().length < 3) {
+        setSignatureError("Le nom doit contenir au moins 3 caractères");
+        return;
+      }
+      setSignatureError(null);
+      signContractMutation.mutate({
+        contractId: selectedContract.id,
+        signature: typedSignature.trim(),
+        signatureType: "text",
+      });
+    } else {
+      if (!canvasSignature) {
+        setSignatureError("Veuillez dessiner votre signature");
+        return;
+      }
+      setSignatureError(null);
+      signContractMutation.mutate({
+        contractId: selectedContract.id,
+        signature: canvasSignature,
+        signatureType: "canvas",
+      });
     }
-    if (typedSignature.trim().length < 3) {
-      setSignatureError("Le nom doit contenir au moins 3 caractères");
-      return;
-    }
-
-    setSignatureError(null);
-    signContractMutation.mutate({
-      contractId: selectedContract.id,
-      signature: typedSignature.trim(),
-    });
   };
 
   return (
@@ -368,20 +388,47 @@ const ClientContracts = () => {
                   </Alert>
                 </div>
 
-                {/* Typed Signature Section */}
+                {/* Signature Section */}
                 <div className="border-t pt-6">
                   <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                     <Pen className="w-5 h-5 text-primary" />
                     Votre signature
                   </h3>
-                  <TypedSignatureInput
-                    value={typedSignature}
-                    onChange={setTypedSignature}
-                    placeholder="Tapez votre nom complet"
-                    label="Signez en tapant votre nom"
-                    required
-                    error={signatureError || undefined}
-                  />
+                  {/* Mode toggle */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => { setSignatureMode("typed"); setSignatureError(null); }}
+                      className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${signatureMode === "typed" ? "border-cyan-400 bg-cyan-400/10 text-cyan-400" : "border-border text-muted-foreground"}`}
+                    >
+                      Taper mon nom
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSignatureMode("canvas"); setCanvasSignature(null); setSignatureError(null); }}
+                      className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${signatureMode === "canvas" ? "border-cyan-400 bg-cyan-400/10 text-cyan-400" : "border-border text-muted-foreground"}`}
+                    >
+                      Dessiner ma signature
+                    </button>
+                  </div>
+                  {signatureMode === "typed" ? (
+                    <TypedSignatureInput
+                      value={typedSignature}
+                      onChange={setTypedSignature}
+                      placeholder="Tapez votre nom complet"
+                      label="Signez en tapant votre nom"
+                      required
+                      error={signatureError || undefined}
+                    />
+                  ) : (
+                    <CanvasSignaturePad
+                      onConfirm={(b64) => { setCanvasSignature(b64); setSignatureError(null); }}
+                    />
+                  )}
+                  {signatureMode === "canvas" && canvasSignature && (
+                    <p className="text-xs text-emerald-500 mt-2">✓ Signature enregistrée — vous pouvez procéder.</p>
+                  )}
+                  {signatureError && <p className="text-xs text-destructive mt-2">{signatureError}</p>}
                 </div>
 
                 {/* Agreement Checkbox */}
@@ -406,7 +453,7 @@ const ClientContracts = () => {
                   <Button
                     variant="hero"
                     onClick={handleSign}
-                    disabled={!isAgreed || !typedSignature.trim() || signContractMutation.isPending}
+                    disabled={!isAgreed || (signatureMode === "typed" ? !typedSignature.trim() : !canvasSignature) || signContractMutation.isPending}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     {signContractMutation.isPending ? "Signature en cours..." : "Signer le contrat"}

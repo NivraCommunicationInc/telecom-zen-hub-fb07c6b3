@@ -22,6 +22,66 @@ import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
+// Sends an SMS fallback via OpenPhone when transactional email hits DLQ.
+async function trySmsAndFallback(
+  supabase: ReturnType<typeof createClient>,
+  rowId: string,
+  toEmail: string,
+  messageType: string | null,
+): Promise<void> {
+  // Only for transactional emails, not marketing blasts
+  if (messageType !== "transactional" && messageType !== null) return;
+
+  const OPENPHONE_API_KEY = Deno.env.get("OPENPHONE_API_KEY");
+  const OPENPHONE_PHONE_ID = Deno.env.get("OPENPHONE_DEFAULT_PHONE_ID");
+  if (!OPENPHONE_API_KEY || !OPENPHONE_PHONE_ID) return;
+
+  // Look up phone from billing_customers or profiles
+  let phone: string | null = null;
+  const { data: cust } = await supabase
+    .from("billing_customers")
+    .select("phone")
+    .eq("email", toEmail)
+    .maybeSingle();
+  if (cust?.phone) phone = cust.phone;
+
+  if (!phone) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("email", toEmail)
+      .maybeSingle();
+    if (profile?.phone) phone = profile.phone;
+  }
+
+  if (!phone) return;
+
+  // Normalize to E.164
+  const digits = String(phone).replace(/\D/g, "");
+  if (digits.length < 10) return;
+  const e164 = digits.length === 10 ? `+1${digits}` : digits.startsWith("1") && digits.length === 11 ? `+${digits}` : `+${digits}`;
+
+  const portalUrl = Deno.env.get("PORTAL_URL") || "https://client.nivra-telecom.ca";
+  const text = `Nivra Telecom: Un message important n'a pas pu être livré à votre courriel. Connectez-vous à votre portail: ${portalUrl}`;
+
+  try {
+    const res = await fetch("https://api.openphone.com/v1/messages", {
+      method: "POST",
+      headers: { "Authorization": OPENPHONE_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text, from: OPENPHONE_PHONE_ID, to: [e164] }),
+    });
+    if (res.ok) {
+      await supabase
+        .from("email_queue")
+        .update({ sms_fallback_sent: true, sms_fallback_at: new Date().toISOString() })
+        .eq("id", rowId);
+      console.log(`[email-queue-drain] SMS fallback sent to ${e164} for queue row ${rowId}`);
+    }
+  } catch (smsErr) {
+    console.warn("[email-queue-drain] SMS fallback failed (non-blocking):", smsErr);
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -208,6 +268,9 @@ Deno.serve(async (req) => {
             last_error: (enqRes.error || "enqueue failed").slice(0, 500),
           })
           .eq("id", row.id);
+        if (!willRetry) {
+          trySmsAndFallback(supabase, row.id, row.to_email, row.message_type).catch(() => {});
+        }
         results.push({ id: row.id, status: willRetry ? "failed" : "dlq", reason: enqRes.error });
         continue;
       }
@@ -235,6 +298,9 @@ Deno.serve(async (req) => {
           last_error: errorMsg.slice(0, 500),
         })
         .eq("id", row.id);
+      if (!willRetry) {
+        trySmsAndFallback(supabase, row.id, row.to_email, row.message_type).catch(() => {});
+      }
       results.push({ id: row.id, status: willRetry ? "failed" : "dlq", reason: errorMsg });
     }
   }
