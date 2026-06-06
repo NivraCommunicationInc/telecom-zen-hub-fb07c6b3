@@ -3,6 +3,7 @@ import { ArrowRight, Check, Shield, Zap, Wifi, Activity, Signal } from "lucide-r
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { PhotoBg } from "@/components/PhotoBg";
 
 function useCountUp(target: number, duration = 1800, started = false) {
   const [count, setCount] = useState(0);
@@ -57,8 +58,7 @@ const Hero = () => {
       className="relative overflow-hidden"
       style={{ background: "#020209", minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
-      {/* ── Photo background — aerial city at night ── */}
-      <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')", backgroundSize:"cover", backgroundPosition:"center top", opacity:0.14, zIndex:0, pointerEvents:"none", filter:"saturate(0.6) brightness(0.7)" }} />
+      <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80" opacity={0.14} filter="saturate(0.6) brightness(0.7)" position="center top" />
       <style>{`
         @keyframes aurora-1 {
           0%,100% { transform: translate(0,0) scale(1); opacity:.55; }

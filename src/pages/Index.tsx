@@ -1,5 +1,6 @@
 import { motion, type Variants, useInView, useMotionValue, animate } from "framer-motion";
 import { useEffect, useRef } from "react";
+import { PhotoBg } from "@/components/PhotoBg";
 import { Link } from "react-router-dom";
 import {
   ArrowRight, Wifi, Zap, Shield, Headphones,
@@ -201,7 +202,7 @@ const Index = () => {
 
         {/* ══ STATS METRICS ══ */}
         <section style={{ background:"#020209", paddingTop:64, paddingBottom:64, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80')", backgroundSize:"cover", backgroundPosition:"center", opacity:0.1, zIndex:0, pointerEvents:"none", filter:"saturate(0.5) brightness(0.7)" }} />
+          <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.7)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -383,7 +384,7 @@ const Index = () => {
 
         {/* ══ TECHNOLOGIE ══ */}
         <section style={{ background:"#020209", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(6,182,212,0.1)", position:"relative", overflow:"hidden" }}>
-          <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1600&q=80')", backgroundSize:"cover", backgroundPosition:"center", opacity:0.09, zIndex:0, pointerEvents:"none", filter:"saturate(0.4) brightness(0.6) hue-rotate(200deg)" }} />
+          <PhotoBg url="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1600&q=80" opacity={0.09} filter="saturate(0.4) brightness(0.6) hue-rotate(200deg)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
@@ -529,7 +530,7 @@ const Index = () => {
 
         {/* ══ POURQUOI NIVRA ══ */}
         <section style={{ background:"#06040F", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&q=80')", backgroundSize:"cover", backgroundPosition:"center", opacity:0.08, zIndex:0, pointerEvents:"none", filter:"saturate(0.3) brightness(0.5)" }} />
+          <PhotoBg url="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&q=80" opacity={0.08} filter="saturate(0.3) brightness(0.5)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.3)", borderRadius:100 }}>
@@ -574,7 +575,7 @@ const Index = () => {
 
         {/* ══ COUVERTURE ══ */}
         <section style={{ background:"#020209", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80')", backgroundSize:"cover", backgroundPosition:"center", opacity:0.13, zIndex:0, pointerEvents:"none", filter:"saturate(0.5) brightness(0.6)" }} />
+          <PhotoBg url="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80" opacity={0.13} filter="saturate(0.5) brightness(0.6)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:100 }}>
