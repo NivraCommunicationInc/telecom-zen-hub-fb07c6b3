@@ -249,11 +249,16 @@ export default function VerifierNumero() {
             {/* Details */}
             <div className="px-6 py-5 space-y-3">
               {result.carrier && (
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm text-white/60">
-                    <Building2 className="w-4 h-4" /> Transporteur actuel
-                  </span>
-                  <span className="text-sm font-semibold text-white">{result.carrier}</span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-sm text-white/60">
+                      <Building2 className="w-4 h-4" /> Transporteur d'origine
+                    </span>
+                    <span className="text-sm font-semibold text-white">{result.carrier}</span>
+                  </div>
+                  <p className="text-xs text-white/35 pl-6">
+                    Indique le transporteur initial — peut différer de votre transporteur actuel si le numéro a été transféré.
+                  </p>
                 </div>
               )}
 

@@ -290,12 +290,8 @@ const GuestCheckout = () => {
           body: { phone_number: digits },
         });
         if (data?.carrier_normalized) {
-          const normalized: string = data.carrier_normalized;
-          setPortInCarrierDetected(normalized);
-          const validOptions = ["Rogers", "Bell", "Telus", "Fido", "Koodo", "Vidéotron", "Fizz", "Public Mobile"];
-          if (validOptions.includes(normalized)) {
-            setPortInCarrier(normalized);
-          }
+          // Show as hint only — Numverify shows original carrier, not post-port carrier
+          setPortInCarrierDetected(data.carrier_normalized);
         } else {
           setPortInCarrierDetected(null);
         }
@@ -1566,18 +1562,13 @@ const GuestCheckout = () => {
                               )}
                             </div>
                             {portInCarrierDetected && !portInCarrierLoading && (
-                              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Transporteur détecté : {portInCarrierDetected}
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" /> Transporteur d'origine probable : {portInCarrierDetected} — sélectionnez votre transporteur actuel ci-dessous
                               </p>
                             )}
                           </div>
                           <div>
-                            <Label className="text-xs font-medium mb-1.5 block">
-                              Opérateur actuel <span className="text-destructive">*</span>
-                              {portInCarrierDetected && !portInCarrierLoading && (
-                                <span className="ml-2 font-normal text-emerald-600 dark:text-emerald-400">(auto-rempli)</span>
-                              )}
-                            </Label>
+                            <Label className="text-xs font-medium mb-1.5 block">Opérateur actuel <span className="text-destructive">*</span></Label>
                             <select
                               value={portInCarrier}
                               onChange={e => setPortInCarrier(e.target.value)}
