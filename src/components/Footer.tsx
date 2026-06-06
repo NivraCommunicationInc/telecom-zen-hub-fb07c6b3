@@ -81,8 +81,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         }
       `}</style>
 
+      {/* Photo bg — city lights from above */}
+      <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')", backgroundSize:"cover", backgroundPosition:"center bottom", opacity:0.07, zIndex:0, pointerEvents:"none", filter:"saturate(0.4) brightness(0.6)" }} />
+
       {/* Top accent glow line */}
-      <div aria-hidden style={{ position:"absolute", top:0, left:"10%", right:"10%", height:1, background:"linear-gradient(90deg, transparent, rgba(124,58,237,0.7), rgba(6,182,212,0.5), rgba(124,58,237,0.7), transparent)", pointerEvents:"none" }} />
+      <div aria-hidden style={{ position:"absolute", top:0, left:"10%", right:"10%", height:1, background:"linear-gradient(90deg, transparent, rgba(124,58,237,0.7), rgba(6,182,212,0.5), rgba(124,58,237,0.7), transparent)", pointerEvents:"none", zIndex:1 }} />
       <div aria-hidden style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:600, height:300, background:"radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 70%)", pointerEvents:"none" }} />
 
       {/* Pre-footer stats strip */}

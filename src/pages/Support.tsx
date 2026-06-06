@@ -110,6 +110,8 @@ const Support = () => {
 
       {/* ── Hero ── */}
       <section style={{ paddingTop:120, paddingBottom:80, position:"relative", overflow:"hidden" }}>
+        {/* Photo bg — data center / fiber */}
+        <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=80')", backgroundSize:"cover", backgroundPosition:"center", opacity:0.11, zIndex:0, pointerEvents:"none", filter:"saturate(0.5) brightness(0.65)" }} />
         <div aria-hidden style={{ position:"absolute", top:"-20%", left:"-10%", width:550, height:550, borderRadius:"50%", background:"radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)", animation:"n-aurora-1 18s ease-in-out infinite", pointerEvents:"none" }} />
         <div aria-hidden style={{ position:"absolute", bottom:"-20%", right:"-10%", width:450, height:450, borderRadius:"50%", background:"radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)", animation:"n-aurora-2 14s ease-in-out infinite", pointerEvents:"none" }} />
         <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)", backgroundSize:"80px 80px", pointerEvents:"none" }} />

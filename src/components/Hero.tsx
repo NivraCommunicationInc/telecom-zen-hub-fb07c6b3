@@ -57,6 +57,8 @@ const Hero = () => {
       className="relative overflow-hidden"
       style={{ background: "#020209", minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
+      {/* ── Photo background — aerial city at night ── */}
+      <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')", backgroundSize:"cover", backgroundPosition:"center top", opacity:0.14, zIndex:0, pointerEvents:"none", filter:"saturate(0.6) brightness(0.7)" }} />
       <style>{`
         @keyframes aurora-1 {
           0%,100% { transform: translate(0,0) scale(1); opacity:.55; }
