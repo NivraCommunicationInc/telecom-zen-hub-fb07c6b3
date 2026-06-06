@@ -259,6 +259,9 @@ const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
 const EquipmentInventoryPage = lazy(() => import("@/core-app/pages/EquipmentInventoryPage"));
 const CorePhoneOrdersPage = lazy(() => import("@/core-app/pages/CorePhoneOrdersPage"));
 const CorePhoneInventoryPage = lazy(() => import("@/core-app/pages/CorePhoneInventoryPage"));
+const CoreDIDPage = lazy(() => import("@/core-app/pages/CoreDIDPage"));
+const CoreProvisioningPage = lazy(() => import("@/core-app/pages/CoreProvisioningPage"));
+const CoreNetworkPage = lazy(() => import("@/core-app/pages/CoreNetworkPage"));
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
@@ -1079,6 +1082,9 @@ const AppRoutes = () => {
           <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
           <Route path="phones" element={<Suspense fallback={null}><CorePhoneOrdersPage /></Suspense>} />
           <Route path="phones/inventory" element={<Suspense fallback={null}><CorePhoneInventoryPage /></Suspense>} />
+          <Route path="did" element={<Suspense fallback={null}><CoreDIDPage /></Suspense>} />
+          <Route path="provisioning" element={<Suspense fallback={null}><CoreProvisioningPage /></Suspense>} />
+          <Route path="network" element={<Suspense fallback={null}><CoreNetworkPage /></Suspense>} />
           {/* Returns (RMA) & Cancellations */}
           <Route path="returns" element={<Suspense fallback={null}><CoreReturnsPage /></Suspense>} />
           <Route path="rma" element={<Suspense fallback={null}><CoreRmaPage /></Suspense>} />

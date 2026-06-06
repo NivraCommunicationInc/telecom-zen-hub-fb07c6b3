@@ -125,6 +125,16 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "network",
+    label: "Réseau & Provisionnement",
+    icon: Globe,
+    items: [
+      { icon: Activity, label: "Monitoring réseau", href: "/network" },
+      { icon: PhoneCall, label: "Inventaire DID", href: "/did" },
+      { icon: Cpu, label: "Provisionnement carrier", href: "/provisioning" },
+    ],
+  },
+  {
     id: "customers",
     label: "Customers",
     icon: Users,
