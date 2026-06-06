@@ -262,7 +262,12 @@ serve(async (req) => {
 
         if (orderCount !== null && orderCount > 0) {
           return new Response(
-            JSON.stringify({ valid: false, error: "Ce code est réservé aux nouveaux clients", is_new_client: false }),
+            JSON.stringify({
+              valid: false,
+              is_new_client: false,
+              is_existing_customer_error: true,
+              error: "Ce code est réservé aux nouveaux clients. Votre compte Nivra a déjà une commande active. Contactez-nous à support@nivra-telecom.ca pour connaître les promotions disponibles pour les clients existants.",
+            }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -337,9 +342,10 @@ serve(async (req) => {
             JSON.stringify({
               valid: false,
               is_new_client: false,
+              is_existing_customer_error: true,
               error: auto_apply
                 ? "Client existant détecté"
-                : "Ce compte existe déjà dans notre système. Le code premier mois gratuit est réservé aux nouveaux clients.",
+                : "Ce code promo est réservé aux nouveaux clients. Notre système a détecté qu'un compte avec des informations similaires existe déjà. Contactez-nous à support@nivra-telecom.ca pour les offres réservées aux clients existants.",
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );

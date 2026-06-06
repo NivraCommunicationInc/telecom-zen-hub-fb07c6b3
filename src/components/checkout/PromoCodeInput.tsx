@@ -62,6 +62,7 @@ export const PromoCodeInput = ({
   const [code, setCode] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExistingCustomerError, setIsExistingCustomerError] = useState(false);
 
   const handleApplyPromo = async () => {
     if (!code.trim()) {
@@ -107,9 +108,11 @@ export const PromoCodeInput = ({
       if (invokeError) throw invokeError;
 
       if (!data.valid) {
+        setIsExistingCustomerError(!!data.is_existing_customer_error);
         setError(data.error || "Code promo invalide");
         return;
       }
+      setIsExistingCustomerError(false);
 
       // Check if this is actually a referral code (should go in the referral field)
       if (data.is_client_referral || data.is_referral_code) {
@@ -226,6 +229,7 @@ export const PromoCodeInput = ({
                   // Show uppercase in field but full normalization on submit
                   setCode(e.target.value.toUpperCase().replace(/[.,;:!?]+$/, ''));
                   setError(null);
+                  setIsExistingCustomerError(false);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -250,10 +254,29 @@ export const PromoCodeInput = ({
             </Button>
           </div>
 
-          {error && (
+          {error && !isExistingCustomerError && (
             <div className="flex items-center gap-2 text-sm text-destructive">
-              <AlertCircle className="w-4 h-4" />
+              <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
+            </div>
+          )}
+          {error && isExistingCustomerError && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 space-y-1">
+              <div className="flex items-start gap-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                Code réservé aux nouveaux clients
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-400 pl-6 leading-relaxed">
+                Ce code promo ne s'applique pas à votre compte car vous êtes déjà client Nivra.
+                Écrivez-nous à{" "}
+                <a
+                  href="mailto:support@nivra-telecom.ca"
+                  className="underline underline-offset-2 font-medium"
+                >
+                  support@nivra-telecom.ca
+                </a>{" "}
+                pour les offres réservées aux clients existants.
+              </p>
             </div>
           )}
         </div>
