@@ -202,7 +202,8 @@ const Index = () => {
 
         {/* ══ STATS METRICS ══ */}
         <section style={{ background:"#020209", paddingTop:64, paddingBottom:64, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.7)" />
+          {/* Fiber optic macro — speed stats section */}
+          <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" opacity={0.11} filter="saturate(0.6) brightness(0.65)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -530,7 +531,8 @@ const Index = () => {
 
         {/* ══ POURQUOI NIVRA ══ */}
         <section style={{ background:"#06040F", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          <PhotoBg url="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&q=80" opacity={0.08} filter="saturate(0.3) brightness(0.5)" />
+          {/* Smiling person with phone — prepaid telecom value props */}
+          <PhotoBg url="https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=1600&q=80" opacity={0.12} filter="saturate(0.4) brightness(0.55)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.3)", borderRadius:100 }}>
@@ -575,7 +577,8 @@ const Index = () => {
 
         {/* ══ COUVERTURE ══ */}
         <section style={{ background:"#020209", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          <PhotoBg url="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80" opacity={0.13} filter="saturate(0.5) brightness(0.6)" />
+          {/* Aerial city at night — Quebec coverage section */}
+          <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1600&q=80" opacity={0.14} filter="saturate(0.5) brightness(0.6)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:100 }}>

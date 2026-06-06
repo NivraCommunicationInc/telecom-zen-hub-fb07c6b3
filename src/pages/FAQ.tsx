@@ -148,7 +148,8 @@ const FAQ = () => {
 
       {/* ── Hero ── */}
       <section style={{ paddingTop: 110, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
-        <PhotoBg url="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920&q=80" opacity={0.10} filter="saturate(0.4) brightness(0.6) hue-rotate(200deg)" />
+        {/* Person with laptop searching answers — FAQ help center */}
+        <PhotoBg url="https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=1920&q=80" opacity={0.12} filter="saturate(0.4) brightness(0.55)" />
         <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.25) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
         <div aria-hidden style={{ position: 'absolute', bottom: '-20%', left: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
         <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />

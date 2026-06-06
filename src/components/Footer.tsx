@@ -82,7 +82,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         }
       `}</style>
 
-      <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80" opacity={0.07} filter="saturate(0.4) brightness(0.6)" position="center bottom" />
+      {/* Montreal city aerial — local Quebec presence */}
+      <PhotoBg url="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1920&q=80" opacity={0.08} filter="saturate(0.4) brightness(0.55)" position="center center" />
 
       {/* Top accent glow line */}
       <div aria-hidden style={{ position:"absolute", top:0, left:"10%", right:"10%", height:1, background:"linear-gradient(90deg, transparent, rgba(124,58,237,0.7), rgba(6,182,212,0.5), rgba(124,58,237,0.7), transparent)", pointerEvents:"none", zIndex:1 }} />

@@ -52,7 +52,8 @@ const APropos = () => (
 
     {/* ── Hero ── */}
     <section style={{ paddingTop: 110, paddingBottom: 80, position: "relative", overflow: "hidden" }}>
-      <PhotoBg url="https://images.unsplash.com/photo-1617396900799-f4ec2b43c7d3?w=1920&q=80" opacity={0.13} filter="saturate(0.5) brightness(0.6)" position="center 40%" />
+      {/* Modern office interior — professional brand presence */}
+      <PhotoBg url="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80" opacity={0.13} filter="saturate(0.4) brightness(0.55)" position="center center" />
       <div aria-hidden style={{ position:"absolute", top:"-20%", right:"-10%", width:700, height:700, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(124,58,237,0.25) 0%, transparent 65%)", animation:"n-aurora-1 14s ease-in-out infinite", pointerEvents:"none" }} />
       <div aria-hidden style={{ position:"absolute", bottom:"-20%", left:"-10%", width:500, height:500, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(6,182,212,0.12) 0%, transparent 65%)", animation:"n-aurora-2 18s ease-in-out infinite", pointerEvents:"none" }} />
       <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage:"linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px)", backgroundSize:"80px 80px" }} />

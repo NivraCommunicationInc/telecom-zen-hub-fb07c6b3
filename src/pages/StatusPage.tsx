@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PhotoBg } from "@/components/PhotoBg";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   CheckCircle,
@@ -144,6 +145,8 @@ const StatusPage = () => {
 
   return (
     <div style={{ background: '#020209', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      {/* Fiber optic network — network status monitoring */}
+      <PhotoBg url="https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=1920&q=80" opacity={0.09} filter="saturate(0.5) brightness(0.6)" />
       <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />

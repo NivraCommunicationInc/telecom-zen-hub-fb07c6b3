@@ -58,7 +58,8 @@ const Hero = () => {
       className="relative overflow-hidden"
       style={{ background: "#020209", minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
-      <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80" opacity={0.14} filter="saturate(0.6) brightness(0.7)" position="center top" />
+      {/* Person holding phone — human first impression for prepaid telecom */}
+      <PhotoBg url="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=1920&q=80" opacity={0.15} filter="saturate(0.5) brightness(0.6)" position="center center" />
       <style>{`
         @keyframes aurora-1 {
           0%,100% { transform: translate(0,0) scale(1); opacity:.55; }

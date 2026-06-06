@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
+import { PhotoBg } from "@/components/PhotoBg";
 import { Wifi, Check, MapPin, Shield, ArrowRight, AlertTriangle, Router, Loader2 } from "lucide-react";
 import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 import { useNavigate } from "react-router-dom";
@@ -81,6 +82,8 @@ const InternetPlans = () => {
 
       {/* ── Hero ── */}
       <section style={{ paddingTop: 110, paddingBottom: 72, position: 'relative', overflow: 'hidden' }}>
+        {/* Fiber optic cables — ultra-fast internet */}
+        <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=80" opacity={0.13} filter="saturate(0.6) brightness(0.6)" />
         {/* Aurora blobs */}
         <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.28) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
         <div aria-hidden style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.14) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
