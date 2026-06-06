@@ -6064,6 +6064,70 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // Envoyé au client quand sa plainte n'est pas résolue après 30 jours.
+    // Informe de son droit d'escalader au CCTS.
+    case "complaint_ccts_escalation": {
+      const ticket = esc(v.ticket_number || "");
+      const portalUrl2 = String(v.tracking_url || `${APP_URL}/plainte/suivi`);
+      return {
+        subject: `Plainte non résolue — Vos droits d'escalade (${ticket})`,
+        html: shell({
+          preheader: `Votre plainte ${ticket} n'a pas encore été résolue. Voici vos options.`,
+          badge: "SUIVI IMPORTANT",
+          heroTitle: "Votre plainte est toujours ouverte",
+          heroSub: "30 jours se sont écoulés depuis votre soumission.",
+          icon: "alert",
+          greeting,
+          bodyText: `Votre plainte <strong>${ticket}</strong> soumise à Nivra Telecom est toujours en cours de traitement. Nous nous excusons pour le délai. Notre équipe travaille à résoudre votre situation dès que possible.`,
+          cardTitle: "Vos options d'escalade",
+          cardRows: [
+            ["Option 1 — Nous contacter", "support@nivra-telecom.ca ou 1 888 NIVRA-11"],
+            ["Option 2 — CCTS", "Commission des plaintes relatives aux services de télécom-télévision"],
+            ["Site CCTS", "ccts-cprst.ca / 1-888-221-1687"],
+            ["Numéro de ticket", ticket],
+          ],
+          ctaPrimaryUrl: "https://www.ccts-cprst.ca/plaintes/deposer-une-plainte/",
+          ctaPrimaryLabel: "Déposer une plainte au CCTS",
+          ctaSecondaryUrl: portalUrl2,
+          ctaSecondaryLabel: "Suivre ma plainte Nivra",
+          helpVariant: "warning",
+          helpHtml: `<strong>Droits CRTC :</strong> Si votre plainte n'est pas résolue dans un délai raisonnable, vous avez le droit de vous adresser au CCTS (Commission des plaintes relatives aux services de télécom-télévision), l'organisme indépendant de résolution des plaintes des clients télécoms au Canada. Le service est <strong>gratuit</strong>.`,
+        }),
+      };
+    }
+
+    // Alerte interne quand une plainte est auto-escaladée (30 jours sans résolution).
+    case "complaint_ccts_admin_alert": {
+      const ticket = esc(v.ticket_number || "");
+      const client = esc(v.client_name || v.submitted_by_name || "Client");
+      const emailC = esc(v.submitted_by_email || "");
+      const subject2 = esc(v.subject || "");
+      const coreUrl2 = String(v.core_complaint_url || `${APP_URL}/core/complaints`);
+      return {
+        subject: `[CCTS] Plainte auto-escaladée — ${ticket}`,
+        html: shell({
+          preheader: `Plainte ${ticket} non résolue après 30 jours — client informé du CCTS`,
+          badge: "ESCALADE CCTS",
+          heroTitle: "Plainte non résolue — Risque CCTS",
+          icon: "alert",
+          greeting: "Équipe Nivra,",
+          bodyText: `La plainte <strong>${ticket}</strong> n'a pas été résolue dans les 30 jours. Le client a été informé de son droit d'escalader au CCTS. Résolvez immédiatement pour éviter une escalade externe.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ["Ticket", ticket],
+            ["Client", client],
+            ["Courriel", emailC],
+            ["Sujet", subject2],
+            ["Délai écoulé", "30+ jours"],
+          ],
+          ctaPrimaryUrl: coreUrl2,
+          ctaPrimaryLabel: "Traiter immédiatement",
+          helpVariant: "warning",
+          helpHtml: `<strong>Attention :</strong> Si ce dossier est déposé au CCTS, Nivra devra répondre formellement. Résolvez dès maintenant.`,
+        }),
+      };
+    }
+
     // ===================================================================
     // AI AGENTS — site monitor + analytics digests
     // ===================================================================

@@ -508,6 +508,35 @@ export default function ComplaintPage() {
           <p className="text-center text-xs text-muted-foreground">
             Nous vous répondrons par courriel dans les plus brefs délais.
           </p>
+
+          {/* CCTS notice — CRTC regulatory requirement */}
+          <Card className="rounded-2xl border-border/50 bg-muted/40">
+            <CardContent className="p-5">
+              <h3 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-muted-foreground shrink-0" />
+                Droits d'escalade — CCTS
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Si votre plainte n'est pas résolue dans un délai raisonnable (généralement 30 jours),
+                vous avez le droit de la soumettre au{" "}
+                <strong className="text-foreground">CCTS</strong> — Commission des plaintes relatives
+                aux services de télécom-télévision, l'organisme indépendant et <strong className="text-foreground">gratuit</strong> de
+                résolution de plaintes pour les clients de services de télécommunications au Canada.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                <a
+                  href="https://www.ccts-cprst.ca/plaintes/deposer-une-plainte/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                >
+                  ccts-cprst.ca
+                </a>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">1-888-221-1687</span>
+              </div>
+            </CardContent>
+          </Card>
         </form>
       </div>
       <Footer />
