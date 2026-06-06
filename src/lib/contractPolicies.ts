@@ -84,7 +84,7 @@ export const CONTRACT_TERMS = {
   paymentTerms: {
     dueDays: 0, // Prepaid: payment due BEFORE Bill Cycle date
     currency: "CAD",
-    acceptedMethods: ["Credit Card (processed internally)", "Secure E-Transfer"],
+    acceptedMethods: ["PayPal (carte de crédit, débit, compte PayPal)", "Virement Interac (e-Transfer)"],
   },
   
   // E-Transfer details

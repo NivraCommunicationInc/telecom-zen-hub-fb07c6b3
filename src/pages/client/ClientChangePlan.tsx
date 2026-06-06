@@ -15,10 +15,13 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
-import { Loader2, ArrowUp, ArrowDown, Check, Zap } from "lucide-react";
+import { Loader2, ArrowUp, ArrowDown, Check, Zap, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+
+const TPS_RATE = 0.05;
+const TVQ_RATE = 0.09975;
 
 type Plan = {
   id: string;
@@ -88,6 +91,21 @@ const ClientChangePlan = () => {
     ? format(new Date(subscription.next_renewal_at), "d MMMM yyyy", { locale: fr })
     : "votre prochain renouvellement";
 
+  const prorationPreview = useMemo(() => {
+    if (!selected || selected.changeType !== "upgrade" || !subscription?.next_renewal_at) return null;
+    const priceDiff = selected.price - currentPrice;
+    if (priceDiff <= 0 || currentPrice <= 0) return null;
+    const today = new Date();
+    const cycleEnd = new Date(subscription.next_renewal_at);
+    const daysRemaining = Math.max(1, Math.ceil((cycleEnd.getTime() - today.getTime()) / 86_400_000));
+    const subtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
+    if (subtotal < 0.01) return null;
+    const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
+    const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
+    const total = Math.round((subtotal + tps + tvq) * 100) / 100;
+    return { subtotal, tps, tvq, total, daysRemaining };
+  }, [selected, subscription, currentPrice]);
+
   const handleConfirm = async () => {
     if (!selected || !user?.id || !account?.id) {
       toast.error("Compte introuvable");
@@ -95,60 +113,38 @@ const ClientChangePlan = () => {
     }
     setSubmitting(true);
     try {
-      const changeType = selected.diff > 0 ? "upgrade" : selected.diff < 0 ? "downgrade" : "change";
+      const changeType = selected.diff > 0 ? "upgrade" : "downgrade";
 
-      const { error: insertErr } = await portalSupabase
-        .from("service_change_requests")
-        .insert({
+      const { data, error: fnErr } = await portalSupabase.functions.invoke("client-plan-change", {
+        body: {
           account_id: account.id,
-          client_id: user.id,
           subscription_id: subscription?.id ?? null,
-          current_plan_name: currentName,
-          requested_plan_id: selected.id,
-          requested_plan_name: selected.name,
-          change_type: changeType,
-          status: "pending",
-          requested_by: user.id,
-          effective_date: subscription?.next_renewal_at ?? null,
-          notes: `Client self-serve request via portal. Effective: ${effectiveDate}.`,
-        });
-      if (insertErr) throw insertErr;
-
-      // Confirmation email to client (bilingual via trigger)
-      await portalSupabase.from("email_queue").insert({
-        to_email: user.email,
-        template_key: "plan_change_requested",
-        event_key: "plan_change_requested",
-        message_type: "transactional",
-        template_vars: {
-          client_name: user.user_metadata?.first_name || user.email,
-          current_plan_name: currentName,
-          requested_plan_name: selected.name,
-          effective_date: effectiveDate,
+          new_plan_id: selected.id,
+          new_plan_name: selected.name,
+          new_monthly_price: selected.price,
+          previous_plan_name: currentName,
+          previous_monthly_price: currentPrice,
           change_type: changeType,
         },
       });
+      if (fnErr) throw fnErr;
+      if (!data?.ok) throw new Error(data?.error || "Erreur inconnue");
 
-      // Internal alert (FR — admin language)
-      await portalSupabase.from("email_queue").insert({
-        to_email: "support@nivra-telecom.ca",
-        template_key: "plan_change_admin_alert",
-        event_key: "plan_change_admin_alert",
-        message_type: "transactional",
-        template_vars: {
-          client_name: user.user_metadata?.first_name || user.email,
-          current_plan_name: currentName,
-          requested_plan_name: selected.name,
-          account_number: account.account_number,
-        },
-      });
-
-      toast.success("Demande envoyée — vous serez notifié dès l'approbation.");
+      if (changeType === "upgrade") {
+        const totalFmt = data.proration_total
+          ? `${Number(data.proration_total).toFixed(2)} $`
+          : "";
+        toast.success(
+          `Forfait mis à niveau vers ${selected.name}${totalFmt ? ` — facture proratisée de ${totalFmt} générée` : ""}.`,
+        );
+      } else {
+        toast.success("Demande envoyée — changement effectif à votre prochain renouvellement.");
+      }
       setSelected(null);
       qc.invalidateQueries({ queryKey: ["canonical-client-data", user.id] });
     } catch (e: any) {
       console.error("[ClientChangePlan]", e);
-      toast.error(e?.message || "Erreur lors de l'envoi de la demande");
+      toast.error(e?.message || "Erreur lors du changement de forfait");
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +166,8 @@ const ClientChangePlan = () => {
         <header>
           <h1 className="text-2xl md:text-3xl font-bold">Changer de forfait</h1>
           <p className="text-muted-foreground mt-1">
-            Modifiez votre forfait en ligne. Le changement sera effectif à votre prochain renouvellement.
+            Les mises à niveau sont appliquées immédiatement avec une facture proratisée.
+            Les réductions sont effectives à votre prochain renouvellement.
           </p>
         </header>
 
@@ -285,14 +282,41 @@ const ClientChangePlan = () => {
                   {selected.diff.toFixed(2)} $
                 </span>
               </div>
-              {selected.diff < 0 && (
+              {selected.changeType === "upgrade" && prorationPreview && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-medium text-xs uppercase tracking-wide">
+                    <Receipt className="w-3.5 h-3.5" />
+                    Facture proratisée aujourd'hui
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sous-total ({prorationPreview.daysRemaining} jours restants)</span>
+                    <span>{prorationPreview.subtotal.toFixed(2)} $</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>TPS (5 %)</span>
+                    <span>{prorationPreview.tps.toFixed(2)} $</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>TVQ (9,975 %)</span>
+                    <span>{prorationPreview.tvq.toFixed(2)} $</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t border-border pt-1.5">
+                    <span>Total dû maintenant</span>
+                    <span className="text-destructive">{prorationPreview.total.toFixed(2)} $</span>
+                  </div>
+                </div>
+              )}
+              {selected.changeType === "downgrade" && (
                 <p className="text-xs text-muted-foreground">
-                  Un crédit prorata sera calculé sur votre prochaine facture.
+                  La réduction sera appliquée à votre prochain renouvellement ({effectiveDate}).
+                  Aucun frais supplémentaire.
                 </p>
               )}
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground">Effectif dès</span>
-                <span className="font-medium">{effectiveDate}</span>
+                <span className="font-medium">
+                  {selected.changeType === "upgrade" ? "Immédiatement" : effectiveDate}
+                </span>
               </div>
             </div>
           )}
@@ -302,7 +326,7 @@ const ClientChangePlan = () => {
             </Button>
             <Button onClick={handleConfirm} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Confirmer
+              {selected?.changeType === "upgrade" ? "Confirmer et payer" : "Confirmer"}
             </Button>
           </DialogFooter>
         </DialogContent>
