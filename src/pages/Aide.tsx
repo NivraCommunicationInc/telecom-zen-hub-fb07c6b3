@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { PhotoBg } from "@/components/PhotoBg";
 
 const Aide = () => {
   const { data: siteSettings } = useSiteSettings();
@@ -85,7 +86,10 @@ const Aide = () => {
   ];
 
   return (
-    <div style={{ background: "#020209", minHeight: "100vh" }}>
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <SEO
         title="Aide & Support | Nivra Telecom Internet & TV"
         description="Centre d'aide Nivra Telecom. Trouvez des réponses à vos questions sur nos forfaits Internet, TV et mobile au Québec."

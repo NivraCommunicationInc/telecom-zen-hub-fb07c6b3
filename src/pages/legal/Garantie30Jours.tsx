@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import SEOHead from "@/components/SEOHead";
 import { ArrowRight, Check, X, Mail, Package, RefreshCw, CreditCard, Gift, ShieldCheck, Truck, Plus } from "lucide-react";
 import { COMPANY_CONTACT } from "@/config/company";
+import { PhotoBg } from "@/components/PhotoBg";
 
 const Garantie30Jours = () => {
   const location = useLocation();
@@ -173,7 +174,10 @@ const Garantie30Jours = () => {
   const stepIcons = [Mail, Package, RefreshCw, CreditCard];
 
   return (
-    <div style={{ background: "#020209", minHeight: "100vh" }}>
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <SEOHead
         title={isFr ? "Garantie 30 jours satisfait ou remboursé | Nivra Telecom" : "30-day money-back guarantee | Nivra Telecom"}
         description={t.subtitle}

@@ -6,6 +6,7 @@ import SEOHead from "@/components/SEOHead";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CHANNELS, ALL_CATEGORIES, getCatColor } from "@/data/channels";
 import type { Channel } from "@/data/channels";
+import { PhotoBg } from "@/components/PhotoBg";
 
 export default function GrilleCanaux() {
   const { language } = useLanguage();
@@ -35,7 +36,10 @@ export default function GrilleCanaux() {
   }, []);
 
   return (
-    <div className="min-h-screen" style={{ background: "#020209" }}>
+    <div className="min-h-screen relative overflow-hidden" style={{ background: "#020209" }}>
+      <PhotoBg url="https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <SEOHead
         title={isFr ? "Grille des canaux TV | Nivra Telecom" : "TV Channel Guide | Nivra Telecom"}
         description={isFr

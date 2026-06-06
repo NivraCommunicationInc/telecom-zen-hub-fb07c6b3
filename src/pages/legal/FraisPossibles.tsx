@@ -6,6 +6,7 @@ import { Info, AlertTriangle } from "lucide-react";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
+import { PhotoBg } from "@/components/PhotoBg";
 
 const FraisPossibles = () => {
   const fees = useCanonicalFees();
@@ -85,6 +86,7 @@ const FraisPossibles = () => {
     <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
       <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
+      <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.6) brightness(0.65)" />
       <Header />
       
       <main className="pt-24 pb-16">

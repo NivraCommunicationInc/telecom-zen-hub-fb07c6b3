@@ -9,6 +9,9 @@ import {
   CheckCircle2, Loader2, Upload, X, FileText, Image as ImageIcon, Film,
   ShieldAlert,
 } from "lucide-react";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { PhotoBg } from "@/components/PhotoBg";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -214,7 +217,8 @@ export default function ComplaintPage() {
 
   if (success) {
     return (
-      <div style={{ background: '#020209' }} className="min-h-screen flex items-center justify-center px-4 py-12 text-foreground">
+      <div style={{ background: '#020209' }} className="relative min-h-screen flex items-center justify-center px-4 py-12 text-foreground overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
         <Helmet>
           <title>Plainte soumise — Nivra Telecom</title>
           <meta name="robots" content="noindex,nofollow" />
@@ -265,6 +269,7 @@ export default function ComplaintPage() {
 
   return (
     <div style={{ background: '#020209' }} className="relative min-h-screen text-foreground overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
       <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Helmet>
@@ -272,25 +277,17 @@ export default function ComplaintPage() {
         <meta name="description" content="Soumettez une plainte à Nivra Telecom. Délais de réponse garantis." />
         <meta name="robots" content="noindex,nofollow" />
       </Helmet>
+      <Header />
 
-      <div className="max-w-3xl mx-auto px-4 py-10 sm:py-14">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-primary text-primary-foreground">
-              N
-            </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">
-              Nivra Telecom
-            </span>
-          </div>
+      <div className="max-w-3xl mx-auto px-4 pt-8 pb-14">
+        <div className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-foreground">
             Soumettre une plainte
           </h1>
           <p className="max-w-xl mx-auto text-muted-foreground">
             Nous prenons chaque plainte au sérieux. Délai de réponse garanti.
           </p>
-        </header>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* SECTION 1 */}
@@ -513,6 +510,7 @@ export default function ComplaintPage() {
           </p>
         </form>
       </div>
+      <Footer />
     </div>
   );
 }

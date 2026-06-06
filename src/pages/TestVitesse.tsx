@@ -5,6 +5,7 @@ import { TicketCheck, Mail, Share2, RefreshCw, Server, Wifi, ArrowDown, ArrowUp 
 import SpeedTest from "@cloudflare/speedtest";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { PhotoBg } from "@/components/PhotoBg";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -204,7 +205,8 @@ export default function TestVitesse() {
       </Helmet>
       <Header />
 
-      <div style={{ minHeight: "100vh", background: "#020209", color: "#fff", paddingTop: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#020209", color: "#fff", paddingTop: 64 }} className="relative">
+        <PhotoBg url="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
         {/* Aurora bg */}
         <div aria-hidden style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none", backgroundImage: "linear-gradient(rgba(124,58,237,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.04) 1px,transparent 1px)", backgroundSize: "80px 80px", zIndex: 0 }} />
         <div aria-hidden style={{ position: "fixed", top: "20%", right: "-15%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle,rgba(124,58,237,0.07) 0%,transparent 70%)", animation: "n-aurora-1 20s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />

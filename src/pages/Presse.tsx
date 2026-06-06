@@ -6,6 +6,7 @@ import { Helmet } from "react-helmet-async";
 import { Download, Mail, Calendar, Building2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { PhotoBg } from "@/components/PhotoBg";
 
 const PRESS_EMAIL = "presse@nivra-telecom.ca";
 
@@ -40,7 +41,10 @@ export default function Presse() {
         <link rel="canonical" href="https://nivra-telecom.ca/presse" />
       </Helmet>
 
-      <div style={{ background: '#020209', minHeight: '100vh' }}>
+      <div style={{ background: '#020209', minHeight: '100vh' }} className="relative overflow-hidden">
+        <PhotoBg url="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+        <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
         <Header />
 
         {/* HERO */}

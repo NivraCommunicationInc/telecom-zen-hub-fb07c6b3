@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle2, AlertCircle, Mail, Loader2, ShieldCheck } from "lucide-react";
+import { PhotoBg } from "@/components/PhotoBg";
 import { Helmet } from "react-helmet-async";
 
 const TPS_RATE = 0.05;
@@ -322,6 +323,7 @@ export default function PayerCommande() {
 function Page({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.6) brightness(0.65)" />
       <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <header style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(2,2,9,0.85)', backdropFilter: 'blur(12px)', position: 'relative' }}>

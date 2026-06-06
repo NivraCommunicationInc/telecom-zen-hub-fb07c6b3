@@ -9,6 +9,7 @@ import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Gift, Users, CreditCard, CheckCircle, ArrowRight, ShieldCheck, Clock, HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { PhotoBg } from "@/components/PhotoBg";
 
 const steps = [
   {
@@ -70,7 +71,10 @@ const faq = [
 
 const Parrainage = () => {
   return (
-    <div style={{ background: "#020209", minHeight: "100vh" }}>
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <SEOHead
         title="Programme de parrainage | Nivra Telecom — 25$ pour vous, 50$ pour votre proche"
         description="Parrainez vos proches chez Nivra Telecom : 25$ pour vous après 2 mois, 5$/mois pendant 10 mois (50$) pour votre proche. Sans limite, transparent et simple."

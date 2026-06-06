@@ -15,8 +15,8 @@ import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck, Wifi, Lock, Phone }
 import { portalClient as portalFunctions } from "@/integrations/backend/portalClient";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { ClientSignupForm } from "@/components/client/ClientSignupForm";
-import ClientPortalBackground from "@/components/client/ClientPortalBackground";
 import { COMPANY_CONTACT } from "@/config/company";
+import { PhotoBg } from "@/components/PhotoBg";
 
 type AuthStep = "credentials" | "pin";
 
@@ -148,14 +148,16 @@ const ClientAuth = () => {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative bg-gradient-to-br from-slate-50 to-slate-100">
-        <ClientPortalBackground />
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "#020209" }}>
+        <PhotoBg url="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+        <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
         <div className="flex flex-col items-center gap-4 relative z-10">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-2xl shadow-teal-500/30 animate-pulse">
             <span className="font-display font-bold text-white text-3xl">N</span>
           </div>
-          <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
-          <p className="text-slate-600 text-sm">Chargement...</p>
+          <Loader2 className="w-6 h-6 animate-spin text-teal-400" />
+          <p className="text-white/60 text-sm">Chargement...</p>
         </div>
       </div>
     );
@@ -426,46 +428,48 @@ const ClientAuth = () => {
   // Password reset mode
   if (isResetMode) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-slate-50 to-slate-100">
-        <ClientPortalBackground />
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: "#020209" }}>
+        <PhotoBg url="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+        <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
         <div className="w-full max-w-md relative z-10">
-          <Link to="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Retour à l'accueil
           </Link>
           
-          <Card className="bg-white/95 backdrop-blur-2xl border-slate-200 shadow-2xl shadow-slate-900/10">
+          <Card className="backdrop-blur-2xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <CardHeader className="text-center">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/30">
                   <span className="font-display font-bold text-white text-2xl">N</span>
                 </div>
               </div>
-              <CardTitle className="text-2xl text-slate-900">Nouveau mot de passe</CardTitle>
-              <CardDescription className="text-slate-600">Entrez votre nouveau mot de passe</CardDescription>
+              <CardTitle className="text-2xl text-white">Nouveau mot de passe</CardTitle>
+              <CardDescription className="text-white/60">Entrez votre nouveau mot de passe</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
-                  <Label htmlFor="new-password" className="text-slate-700">Nouveau mot de passe</Label>
+                  <Label htmlFor="new-password" className="text-white/70">Nouveau mot de passe</Label>
                   <Input
                     id="new-password"
                     type="password"
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20"
+                    className="bg-white/10 border-white/15 text-white placeholder:text-white/40 focus:border-teal-400 focus:ring-teal-400/20"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirm-new-password" className="text-slate-700">Confirmer le mot de passe</Label>
+                  <Label htmlFor="confirm-new-password" className="text-white/70">Confirmer le mot de passe</Label>
                   <Input
                     id="confirm-new-password"
                     type="password"
                     placeholder="••••••••"
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20"
+                    className="bg-white/10 border-white/15 text-white placeholder:text-white/40 focus:border-teal-400 focus:ring-teal-400/20"
                   />
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-teal-500/25" disabled={isLoading}>
@@ -483,26 +487,28 @@ const ClientAuth = () => {
   // Forgot password view
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-slate-50 to-slate-100">
-        <ClientPortalBackground />
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: "#020209" }}>
+        <PhotoBg url="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+        <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
         <div className="w-full max-w-md relative z-10">
           <button 
             onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour à la connexion
           </button>
           
-          <Card className="bg-white/95 backdrop-blur-2xl border-slate-200 shadow-2xl shadow-slate-900/10">
+          <Card className="backdrop-blur-2xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <CardHeader className="text-center">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/30">
                   <span className="font-display font-bold text-white text-2xl">N</span>
                 </div>
               </div>
-              <CardTitle className="text-2xl text-slate-900">Mot de passe oublié</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-2xl text-white">Mot de passe oublié</CardTitle>
+              <CardDescription className="text-white/60">
                 {resetEmailSent 
                   ? "Un email vous a été envoyé" 
                   : "Entrez votre email pour réinitialiser votre mot de passe"}
@@ -515,14 +521,14 @@ const ClientAuth = () => {
                     <CheckCircle className="w-8 h-8 text-emerald-600" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-slate-900 font-medium">Email envoyé!</p>
-                    <p className="text-slate-600 text-sm">
+                    <p className="text-white font-medium">Email envoyé!</p>
+                    <p className="text-white/60 text-sm">
                       Vérifiez votre boîte de réception et cliquez sur le lien pour réinitialiser votre mot de passe.
                     </p>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="w-full mt-4 border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                    className="w-full mt-4 border-white/15 text-white/70 hover:text-white hover:bg-white/10"
                     onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
                   >
                     Retour à la connexion
@@ -531,14 +537,14 @@ const ClientAuth = () => {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div>
-                    <Label htmlFor="reset-email" className="text-slate-700">Email</Label>
+                    <Label htmlFor="reset-email" className="text-white/70">Email</Label>
                     <Input
                       id="reset-email"
                       type="email"
                       placeholder="votre@email.com"
                       value={forgotPasswordEmail}
                       onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20"
+                      className="bg-white/10 border-white/15 text-white placeholder:text-white/40 focus:border-teal-400 focus:ring-teal-400/20"
                     />
                   </div>
                   <Button type="submit" className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-teal-500/25" disabled={isLoading}>
@@ -557,34 +563,36 @@ const ClientAuth = () => {
   // PIN verification step
   if (authStep === "pin") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-slate-50 to-slate-100">
-        <ClientPortalBackground />
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: "#020209" }}>
+        <PhotoBg url="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+        <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
         <div className="w-full max-w-md relative z-10">
           <button 
             onClick={() => { setAuthStep("credentials"); setPin(""); }}
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour à la connexion
           </button>
           
-          <Card className="bg-white/95 backdrop-blur-2xl border-slate-200 shadow-2xl shadow-slate-900/10">
+          <Card className="backdrop-blur-2xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <CardHeader className="text-center">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-100 to-teal-50 border border-teal-200 mx-auto flex items-center justify-center mb-4">
-                <ShieldCheck className="w-10 h-10 text-teal-600" />
+              <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-4" style={{ background: "rgba(20,184,166,0.12)", border: "1px solid rgba(20,184,166,0.3)" }}>
+                <ShieldCheck className="w-10 h-10 text-teal-400" />
               </div>
-              <CardTitle className="text-2xl text-slate-900">Vérification en 2 étapes</CardTitle>
-              <CardDescription className="text-slate-600">Entrez le code à 6 chiffres envoyé par email</CardDescription>
+              <CardTitle className="text-2xl text-white">Vérification en 2 étapes</CardTitle>
+              <CardDescription className="text-white/60">Entrez le code à 6 chiffres envoyé par email</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-teal-50 rounded-xl border border-teal-100 text-center">
-                <p className="text-sm text-slate-700">
+              <div className="p-4 rounded-xl text-center" style={{ background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.22)" }}>
+                <p className="text-sm text-white/70">
                   Un code de vérification à 6 chiffres a été envoyé à votre adresse email. Veuillez le saisir pour continuer.
                 </p>
               </div>
               
               <div>
-                <Label htmlFor="pin-input" className="text-slate-700">Code de vérification</Label>
+                <Label htmlFor="pin-input" className="text-white/70">Code de vérification</Label>
                 <Input
                   id="pin-input"
                   type="text"
@@ -599,7 +607,7 @@ const ClientAuth = () => {
                     const text = e.clipboardData.getData("text");
                     setPin(sanitizePin(text));
                   }}
-                  className="text-center text-3xl tracking-[0.5em] font-mono bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 h-14"
+                  className="text-center text-3xl tracking-[0.5em] font-mono bg-white/10 border-white/15 text-white placeholder:text-white/40 focus:border-teal-400 focus:ring-teal-400/20 h-14"
                   aria-label="Code de vérification à 6 chiffres"
                 />
               </div>
@@ -613,13 +621,13 @@ const ClientAuth = () => {
                 Vérifier et continuer
               </Button>
               
-              <p className="text-sm text-slate-600 text-center">
+              <p className="text-sm text-white/60 text-center">
                 Vous n'avez pas reçu le code? Vérifiez votre dossier spam ou{" "}
                 <button 
                   type="button"
                   onClick={handleResendPin}
                   disabled={isSendingPin}
-                  className="text-teal-600 hover:text-teal-700 underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="text-teal-400 hover:text-teal-300 underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isSendingPin ? "Envoi en cours..." : "renvoyer le code"}
                 </button>
@@ -633,32 +641,34 @@ const ClientAuth = () => {
 
   // Main login/signup view
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
-      <ClientPortalBackground />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: "#020209" }}>
+      <PhotoBg url="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&w=1920&q=80" opacity={0.10} filter="saturate(0.5) brightness(0.6)" />
+      <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       
       <div className="w-full max-w-md relative z-10">
-        <Link to="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors">
+        <Link to="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Retour à l'accueil
         </Link>
         
-        <Card className="bg-white/95 backdrop-blur-2xl border-slate-200 shadow-2xl shadow-slate-900/10">
+        <Card className="backdrop-blur-2xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
           <CardHeader className="text-center pb-4">
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-xl shadow-teal-500/30">
                 <span className="font-display font-bold text-white text-2xl">N</span>
               </div>
               <div className="text-left">
-                <span className="font-display font-bold text-2xl text-slate-900 block">Nivra</span>
-                <span className="text-xs text-teal-600 font-medium tracking-wider uppercase">Telecom</span>
+                <span className="font-display font-bold text-2xl text-white block">Nivra</span>
+                <span className="text-xs text-teal-400 font-medium tracking-wider uppercase">Telecom</span>
               </div>
             </div>
-            <CardTitle className="text-2xl text-slate-900">Espace Client</CardTitle>
-            <CardDescription className="text-slate-600">Connectez-vous pour gérer vos services</CardDescription>
+            <CardTitle className="text-2xl text-white">Espace Client</CardTitle>
+            <CardDescription className="text-white/60">Connectez-vous pour gérer vos services</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-100 p-1 rounded-xl">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/10 p-1 rounded-xl">
                 <TabsTrigger 
                   value="login" 
                   className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-lg transition-all"
@@ -677,8 +687,8 @@ const ClientAuth = () => {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <HoneypotField value={honeypot} onChange={setHoneypot} />
                   <div>
-                    <Label htmlFor="login-email" className="text-slate-700 flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-teal-600" />
+                    <Label htmlFor="login-email" className="text-white/70 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-teal-400" />
                       Email
                     </Label>
                     <Input
@@ -687,12 +697,12 @@ const ClientAuth = () => {
                       placeholder="votre@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 h-11"
+                      className="bg-white/10 border-white/15 text-white placeholder:text-white/40 focus:border-teal-400 focus:ring-teal-400/20 h-11"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="login-password" className="text-slate-700 flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-teal-600" />
+                    <Label htmlFor="login-password" className="text-white/70 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-teal-400" />
                       Mot de passe
                     </Label>
                     <Input
@@ -701,14 +711,14 @@ const ClientAuth = () => {
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 h-11"
+                      className="bg-white/10 border-white/15 text-white placeholder:text-white/40 focus:border-teal-400 focus:ring-teal-400/20 h-11"
                     />
                   </div>
                   <div className="text-right">
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-teal-600 hover:text-teal-700 transition-colors"
+                      className="text-sm text-teal-400 hover:text-teal-300 transition-colors"
                     >
                       Mot de passe oublié?
                     </button>
@@ -733,13 +743,13 @@ const ClientAuth = () => {
         </Card>
         
         {/* Trust badges */}
-        <div className="mt-6 flex items-center justify-center gap-6 text-slate-600 text-xs">
+        <div className="mt-6 flex items-center justify-center gap-6 text-white/60 text-xs">
           <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-teal-600" /> 
+            <ShieldCheck className="w-4 h-4 text-teal-400" /> 
             <span>Connexion sécurisée</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <Lock className="w-4 h-4 text-teal-600" /> 
+            <Lock className="w-4 h-4 text-teal-400" /> 
             <span>Vérification 2FA</span>
           </span>
         </div>
