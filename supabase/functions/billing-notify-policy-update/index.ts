@@ -34,6 +34,20 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient(supabaseUrl, serviceKey);
 
+    // Status-check mode: body with { check_status: true }
+    let bodyJson: any = {};
+    try { bodyJson = await req.json(); } catch { /* empty body ok */ }
+    if (bodyJson?.check_status === true) {
+      const { data: rows } = await supabase
+        .from("email_queue")
+        .select("to_email, status, attempts, created_at, sent_at, error_message")
+        .like("event_key", `${EVENT_KEY}:%`)
+        .order("created_at");
+      return new Response(JSON.stringify({ emails: rows || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // How many already sent (idempotency check)
     const { count: alreadySent } = await supabase
       .from("email_queue")
