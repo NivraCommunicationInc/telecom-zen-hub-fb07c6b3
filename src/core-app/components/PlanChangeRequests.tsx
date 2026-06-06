@@ -42,6 +42,7 @@ type SubMeta = {
   next_renewal_at: string | null;
   paypal_subscription_id: string | null;
   plan_price: number | null;
+  cycle_end_date: string | null;
 };
 
 export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps) {
@@ -72,7 +73,7 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
     queryFn: async (): Promise<Record<string, SubMeta>> => {
       const { data, error } = await supabase
         .from("billing_subscriptions")
-        .select("id, next_renewal_at, paypal_subscription_id, plan_price")
+        .select("id, next_renewal_at, paypal_subscription_id, plan_price, cycle_end_date")
         .in("id", subIds);
       if (error) throw error;
       const map: Record<string, SubMeta> = {};
@@ -81,6 +82,7 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
           next_renewal_at: s.next_renewal_at,
           paypal_subscription_id: s.paypal_subscription_id,
           plan_price: s.plan_price,
+          cycle_end_date: s.cycle_end_date ?? null,
         };
       });
       return map;
@@ -163,6 +165,83 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
         .select("email, first_name")
         .eq("user_id", req.client_id)
         .maybeSingle();
+
+      // ─── Upgrade proration invoice ─────────────────────────────────────
+      // When an upgrade is applied immediately, charge the prorated difference
+      // for the remaining days of the current billing cycle.
+      if ((isDue || force) && req.subscription_id && newPrice !== null && currentPrice !== null && newPrice > currentPrice) {
+        try {
+          const priceDiff = newPrice - currentPrice;
+          const cycleEndDate = meta?.cycle_end_date ? new Date(meta.cycle_end_date) : null;
+          if (cycleEndDate && priceDiff > 0) {
+            const daysRemaining = Math.max(1, Math.ceil(
+              (cycleEndDate.getTime() - new Date().getTime()) / 86_400_000
+            ));
+            const subtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
+            if (subtotal >= 0.01) {
+              const tps = Math.round(subtotal * 0.05 * 100) / 100;
+              const tvq = Math.round(subtotal * 0.09975 * 100) / 100;
+              const total = Math.round((subtotal + tps + tvq) * 100) / 100;
+              const { data: invNum } = await supabase.rpc("generate_billing_invoice_number");
+              const invoiceNumber = (invNum as string | null) || `INV-PRO-${Date.now()}`;
+              const { data: bc } = await supabase
+                .from("billing_customers").select("id").eq("user_id", req.client_id).maybeSingle();
+              if (bc?.id) {
+                const today = new Date().toISOString().split("T")[0];
+                const { data: invoice } = await supabase
+                  .from("billing_invoices")
+                  .insert({
+                    subscription_id: req.subscription_id,
+                    customer_id: bc.id,
+                    invoice_number: invoiceNumber,
+                    type: "adjustment",
+                    subtotal,
+                    tps_amount: tps,
+                    tvq_amount: tvq,
+                    total,
+                    balance_due: total,
+                    currency: "CAD",
+                    payment_method: meta?.paypal_subscription_id ? "paypal" : "interac",
+                    status: "pending",
+                    cycle_start_date: today,
+                    cycle_end_date: meta?.cycle_end_date,
+                    due_date: today,
+                    notes: `Ajustement proratisé — ${req.current_plan_name || "—"} → ${req.requested_plan_name} (${daysRemaining} jours restants)`,
+                  })
+                  .select().single();
+                if (invoice?.id) {
+                  await supabase.from("billing_invoice_lines").insert({
+                    invoice_id: invoice.id,
+                    description: `Différence proratisée — ${req.current_plan_name || "ancien forfait"} → ${req.requested_plan_name} (${daysRemaining}/30 jours)`,
+                    unit_price: subtotal,
+                    quantity: 1,
+                    line_total: subtotal,
+                    line_type: "service",
+                  });
+                  if (client?.email) {
+                    await supabase.from("email_queue").insert({
+                      to_email: client.email,
+                      template_key: "invoice_created",
+                      event_key: `proration_invoice_${invoice.id}`,
+                      template_vars: {
+                        client_name: client.first_name || client.email,
+                        invoice_number: invoiceNumber,
+                        plan_name: req.requested_plan_name,
+                        total: total.toFixed(2),
+                        amount: total.toFixed(2),
+                        due_date: today,
+                      },
+                    });
+                  }
+                  console.log(`[PlanChangeRequests] Proration invoice ${invoiceNumber} created: ${subtotal.toFixed(2)}$ (${daysRemaining} days, delta ${priceDiff}$)`);
+                }
+              }
+            }
+          }
+        } catch (proErr) {
+          console.error("[PlanChangeRequests] proration invoice error:", proErr);
+        }
+      }
 
       const effectiveDateLabel = effDate
         ? format(effDate, "d MMMM yyyy", { locale: fr })
