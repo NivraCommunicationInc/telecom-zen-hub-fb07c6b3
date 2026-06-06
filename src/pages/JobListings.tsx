@@ -22,6 +22,7 @@ import { Briefcase, MapPin, Loader2, Upload, CheckCircle2, Send } from "lucide-r
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { PhotoBg } from "@/components/PhotoBg";
 
 const TYPE_LABEL: Record<string, string> = {
   "full-time": "Temps plein",
@@ -184,7 +185,10 @@ export default function JobListings() {
   return (
     <>
       <Header />
-      <main className="min-h-screen" style={{ background: '#020209', paddingTop: 64 }}>
+      <main className="min-h-screen relative overflow-hidden" style={{ background: '#020209', paddingTop: 64 }}>
+        <PhotoBg url="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1920&q=80" opacity={0.08} filter="saturate(0.5) brightness(0.6)" />
+        <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 65%)', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.05) 0%, transparent 65%)', pointerEvents: 'none' }} />
       <section className="relative overflow-hidden" style={{ paddingTop: 80, paddingBottom: 64 }}>
         <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', animation: 'n-aurora-1 18s ease-in-out infinite', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', animation: 'n-aurora-2 14s ease-in-out infinite', pointerEvents: 'none' }} />

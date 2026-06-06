@@ -41,7 +41,10 @@ const SERVICES = [
 const CITIES = ["Montréal", "Laval", "Longueuil", "Rive-Sud", "Rive-Nord", "Québec", "Sherbrooke", "Gatineau"];
 
 const APropos = () => (
-  <div style={{ background: "#020209", minHeight: "100vh" }}>
+  <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+    <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80" opacity={0.08} filter="saturate(0.7) brightness(0.65)" />
+    <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 65%)', pointerEvents: 'none' }} />
+    <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.05) 0%, transparent 65%)', pointerEvents: 'none' }} />
     <SEO
       title="À propos de Nivra Telecom | Fournisseur Internet Québec"
       description="Nivra Telecom est un fournisseur Internet et TV québécois qui offre des services prépayés sans contrat. Notre mission: rendre Internet accessible à tous."

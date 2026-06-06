@@ -34,6 +34,7 @@ import {
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
 import { ConfirmationSuccess } from "@/components/checkout/ConfirmationSuccess";
 
+import { PhotoBg } from "@/components/PhotoBg";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { AutoPayPalOption } from "@/components/checkout/AutoPayPalOption";
 import { Button } from "@/components/ui/button";
@@ -1103,6 +1104,7 @@ const GuestCheckout = () => {
 
   return (
     <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80" opacity={0.08} filter="saturate(0.6) brightness(0.65)" />
       <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />

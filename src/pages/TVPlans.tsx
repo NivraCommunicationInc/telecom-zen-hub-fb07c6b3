@@ -261,7 +261,10 @@ const TVPlans = () => {
   };
 
   return (
-    <div style={{ background: BG, minHeight: '100vh' }} data-testid="tv-plans-page">
+    <div style={{ background: BG, minHeight: '100vh' }} className="relative overflow-hidden" data-testid="tv-plans-page">
+      <PhotoBg url="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920&q=80" opacity={0.08} filter="saturate(0.6) brightness(0.6)" />
+      <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 65%)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.05) 0%, transparent 65%)', pointerEvents: 'none' }} />
       <SEOHead {...SEO_DATA.tv} />
       <Header />
 

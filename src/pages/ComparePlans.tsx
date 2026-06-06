@@ -91,7 +91,10 @@ const ComparePlans = () => {
   const ROW_EVEN = { background: "rgba(255,255,255,0.045)" };
 
   return (
-    <div style={{ background: "#020209", minHeight: "100vh" }}>
+    <div style={{ background: "#020209", minHeight: "100vh" }} className="relative overflow-hidden">
+      <PhotoBg url="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80" opacity={0.08} filter="saturate(0.6) brightness(0.65)" />
+      <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-8%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 65%)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-6%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.05) 0%, transparent 65%)', pointerEvents: 'none' }} />
       <SEOHead
         title={isFrench ? "Comparer les forfaits | Nivra Telecom" : "Compare Plans | Nivra Telecom"}
         description={isFrench ? "Comparez nos forfaits Internet, TV et Mobile côte-à-côte." : "Compare our Internet, TV, and Mobile plans side-by-side."}
