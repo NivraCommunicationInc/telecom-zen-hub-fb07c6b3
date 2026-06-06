@@ -671,8 +671,10 @@ export default function DashboardPage() {
                 const sevColor = sev === "critical" ? "bg-red-500/15 text-red-300 border-red-500/30"
                   : sev === "warning" ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
                   : "bg-blue-500/15 text-blue-300 border-blue-500/30";
-                const rawMsg = (a.details && typeof a.details === "object" && ((a.details as any).message || (a.details as any).description))
-                  || null;
+                const rawMsg = (a.details && typeof a.details === "object" && (
+                  (a.details as any).message || (a.details as any).description ||
+                  (a.details as any).error || (a.details as any).reason
+                )) || null;
                 const ref = a.entity_reference;
                 const isOrderRef = a.entity_type === "order" && ref;
                 const detailMsg = rawMsg
