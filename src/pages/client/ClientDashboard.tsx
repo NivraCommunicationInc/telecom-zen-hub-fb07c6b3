@@ -146,28 +146,56 @@ const ClientDashboard = () => {
       price:  s.plan_price,
       type:   s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
       status: s.status,
-      cycle_start_date: s.cycle_start_date,
-      cycle_end_date:   s.cycle_end_date,
+      cycle_start_date:     s.cycle_start_date,
+      cycle_end_date:       s.cycle_end_date,
+      next_renewal_at:      s.next_renewal_at,
+      billing_cycle_anchor: s.billing_cycle_anchor,
     }));
 
   const firstName   = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Client";
   const acctNum     = account?.account_number || accountIdentity?.accountNumber || "—";
-  const activeCount = subs.filter((s: any) => String(s.status).toLowerCase() === "active").length;
+  const activeCount  = subs.filter((s: any) => String(s.status).toLowerCase() === "active").length;
+  const hasAnyService = subs.length > 0 || !!(account as any)?.billing_cycle_day || !!(account as any)?.next_invoice_date;
 
   const nextBilling = (() => {
+    const fmt = (d: string | null | undefined) => {
+      if (!d) return null;
+      try {
+        // DATE strings (YYYY-MM-DD) need UTC parsing to avoid off-by-one in local TZ
+        const parsed = /^\d{4}-\d{2}-\d{2}$/.test(d)
+          ? new Date(d + "T12:00:00Z")
+          : new Date(d);
+        if (isNaN(parsed.getTime())) return null;
+        return format(parsed, "d MMM yyyy", { locale: fr });
+      } catch { return null; }
+    };
+
+    // 1. account.next_invoice_date — set by trigger on activation, most reliable
+    const fromAccount = fmt((account as any)?.next_invoice_date);
+    if (fromAccount) return fromAccount;
+
+    // 2. active subscription dates
     const active = subs.find((s: any) => String(s.status).toLowerCase() === "active");
+    if (active) {
+      const fromRenewal = fmt(active.next_renewal_at);
+      if (fromRenewal) return fromRenewal;
+      const fromCycleEnd = fmt(active.cycle_end_date);
+      if (fromCycleEnd) return fromCycleEnd;
+    }
+
+    // 3. account.billing_cycle_day → calculate next occurrence
+    const cycleDay = (account as any)?.billing_cycle_day;
+    if (cycleDay && Number.isFinite(Number(cycleDay))) {
+      const day = Number(cycleDay);
+      const now = new Date();
+      const candidate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), day));
+      if (candidate <= now) candidate.setUTCMonth(candidate.getUTCMonth() + 1);
+      const fromCycleDay = fmt(candidate.toISOString().slice(0, 10));
+      if (fromCycleDay) return fromCycleDay;
+    }
+
     if (!active) return null;
-    const cycle = getCycleDisplay(active);
-    if (cycle.isActive && cycle.nextRenewal) {
-      return format(new Date(cycle.nextRenewal), "d MMM yyyy", { locale: fr });
-    }
-    // Fallback: use account.next_invoice_date from the portal snapshot
-    const accountNextInvoice = (account as any)?.next_invoice_date;
-    if (accountNextInvoice) {
-      try { return format(new Date(accountNextInvoice), "d MMM yyyy", { locale: fr }); } catch { /* invalid date */ }
-    }
-    // Active sub exists but no date available yet
-    return "En cours";
+    return null; // active sub but no date yet — shows "Date à confirmer" in sub-label
   })();
 
   const copy = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copié"); };
@@ -313,7 +341,7 @@ const ClientDashboard = () => {
             {[
               { label: "Solde", value: <ClientBalanceSummary userId={user?.id ?? ""} compact />, icon: <CreditCard size={16} />, color: "#7C3AED", sub: "Compte courant" },
               { label: "Services actifs", value: activeCount, icon: <CheckCircle2 size={16} />, color: "#10B981", sub: `${subs.length} abonnement${subs.length > 1 ? "s" : ""}` },
-              { label: "Prochaine facture", value: nextBilling ?? "—", icon: <Clock size={16} />, color: "#06B6D4", sub: nextBilling && nextBilling !== "En cours" ? "Date de renouvellement" : activeCount > 0 ? "Date à confirmer" : "Aucun service actif" },
+              { label: "Prochaine facture", value: nextBilling ?? "—", icon: <Clock size={16} />, color: "#06B6D4", sub: nextBilling ? "Date de renouvellement" : hasAnyService ? "Date à confirmer" : "Aucun service actif" },
               { label: "Performance réseau", value: "99.9%", icon: <Zap size={16} />, color: "#F59E0B", sub: "Disponibilité garantie" },
             ].map((t, i) => (
               <motion.div key={i} custom={i} variants={up}>
