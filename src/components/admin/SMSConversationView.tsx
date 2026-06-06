@@ -65,7 +65,6 @@ const SMSConversationView = ({ selectedPhone, onBack }: SMSConversationViewProps
       return data as Message[];
     },
     enabled: !!selectedPhone,
-    refetchInterval: 5000, // Poll every 5 seconds
   });
 
   // Subscribe to realtime updates

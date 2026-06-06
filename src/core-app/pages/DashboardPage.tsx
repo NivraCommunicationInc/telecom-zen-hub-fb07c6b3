@@ -2,13 +2,14 @@
  * DashboardPage — Nivra Core operational morning dashboard.
  *
  * Layout:
- *  1) 6 live metric cards
- *  2) Urgent orders table (60%) + Activity feed (40%)
- *  3) Status breakdown / Weekly performance / System alerts
+ *  1) 6 live metric cards (operations)
+ *  2) 4 business KPI cards (MRR, subs, churn, tickets) + revenue trend bar chart
+ *  3) Urgent orders table (60%) + Activity feed (40%)
+ *  4) Status breakdown / Weekly performance / System alerts
  *
- * All numbers come from live Supabase queries. Auto-refresh every 30s.
+ * All numbers come from live Supabase queries. Auto-refresh every 30s + Realtime.
  */
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,10 +17,12 @@ import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, AlertTriangle, ShieldCheck, Zap, DollarSign, UserPlus,
   ArrowRight, CheckCircle2, Clock, Activity, Mail, TrendingUp, ServerCrash,
+  Users, TrendingDown, Ticket,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, subMonths, startOfMonth, endOfMonth, format as dateFmt } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 const REFRESH_MS = 30_000;
 const ACTIVE_EXCLUDED = ["completed", "cancelled"];
@@ -211,6 +214,73 @@ function useSystemAlerts() {
   });
 }
 
+function useBusinessKpis() {
+  return useQuery({
+    queryKey: ["dash-business-kpis"],
+    refetchInterval: REFRESH_MS,
+    queryFn: async () => {
+      const month = startOfMonthISO();
+
+      const [subsActive, subsCancelled, complaintsOpen] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("monthly_price")
+          .eq("status", "active"),
+        supabase
+          .from("subscriptions")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["cancelled", "suspended"])
+          .gte("updated_at", month),
+        supabase
+          .from("complaints" as any)
+          .select("id", { count: "exact", head: true })
+          .not("status", "in", "(resolved,closed)"),
+      ]);
+
+      const mrr = (subsActive.data ?? []).reduce((s: number, r: any) => s + (Number(r.monthly_price) || 0), 0);
+      const activeCount = (subsActive.data ?? []).length;
+      const churnThisMonth = subsCancelled.count ?? 0;
+      const openTickets = complaintsOpen.count ?? 0;
+
+      return { mrr, activeCount, churnThisMonth, openTickets };
+    },
+  });
+}
+
+function useRevenueTrend() {
+  return useQuery({
+    queryKey: ["dash-revenue-trend"],
+    refetchInterval: 5 * 60_000, // 5 min is enough for historical
+    queryFn: async () => {
+      const months: { label: string; start: string; end: string }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = subMonths(new Date(), i);
+        months.push({
+          label: dateFmt(d, "MMM", { locale: fr }),
+          start: startOfMonth(d).toISOString(),
+          end: endOfMonth(d).toISOString(),
+        });
+      }
+
+      const results = await Promise.all(
+        months.map(({ start, end }) =>
+          supabase
+            .from("billing_invoices")
+            .select("total")
+            .eq("status", "paid")
+            .gte("created_at", start)
+            .lte("created_at", end)
+        )
+      );
+
+      return months.map((m, i) => ({
+        label: m.label,
+        revenue: (results[i].data ?? []).reduce((s: number, r: any) => s + (Number(r.total) || 0), 0),
+      }));
+    },
+  });
+}
+
 /* ─────────── UI BITS ─────────── */
 function MetricCard({ label, value, icon: Icon, accent, href }: {
   label: string; value: string | number; icon: any; accent: "red" | "amber" | "green" | "blue"; href?: string;
@@ -307,6 +377,36 @@ export default function DashboardPage() {
   const { data: statusCounts = {} } = useStatusBreakdown();
   const { data: perf } = useWeeklyPerformance();
   const { data: alerts = [] } = useSystemAlerts();
+  const { data: kpis } = useBusinessKpis();
+  const { data: revenueTrend = [] } = useRevenueTrend();
+
+  // Realtime subscriptions — invalidate relevant queries on DB changes
+  useEffect(() => {
+    const ch = supabase
+      .channel("dash-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash-top-stats"] });
+        qc.invalidateQueries({ queryKey: ["dash-urgent-orders"] });
+        qc.invalidateQueries({ queryKey: ["dash-status-breakdown"] });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_logs" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash-activity-feed"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash-top-stats"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_system_alerts" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash-system-alerts"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash-business-kpis"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "complaints" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash-business-kpis"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
 
   const resolveAlert = useMutation({
     mutationFn: async (id: string) => {
@@ -349,8 +449,80 @@ export default function DashboardPage() {
           <p className="text-[12px] text-slate-400 mt-0.5">Vue opérationnelle en temps réel</p>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-          <Activity className="h-3 w-3 text-emerald-400 animate-pulse" /> Live · refresh 30s
+          <Activity className="h-3 w-3 text-emerald-400 animate-pulse" /> Live · Realtime + refresh 30s
         </div>
+      </div>
+
+      {/* SECTION 0 — BUSINESS KPIs */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">Métriques business</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <MetricCard
+            label="MRR (abonnements actifs)"
+            value={kpis ? fmtCAD(kpis.mrr) : "—"}
+            icon={TrendingUp}
+            accent="green"
+            href={corePath("/invoices")}
+          />
+          <MetricCard
+            label="Abonnements actifs"
+            value={kpis?.activeCount ?? "—"}
+            icon={Users}
+            accent="blue"
+            href={corePath("/customers")}
+          />
+          <MetricCard
+            label="Résiliations ce mois"
+            value={kpis?.churnThisMonth ?? "—"}
+            icon={TrendingDown}
+            accent={kpis && kpis.churnThisMonth > 0 ? "red" : "green"}
+          />
+          <MetricCard
+            label="Tickets ouverts"
+            value={kpis?.openTickets ?? "—"}
+            icon={Ticket}
+            accent={kpis && kpis.openTickets > 5 ? "amber" : "green"}
+            href={corePath("/complaints")}
+          />
+        </div>
+
+        {/* Revenue trend — last 6 months */}
+        {revenueTrend.length > 0 && (
+          <div className="rounded-lg border border-slate-800 bg-[#0d1421] p-4">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">Revenus encaissés — 6 derniers mois</p>
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={revenueTrend} barCategoryGap="30%">
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "#94a3b8", fontSize: 9 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v === 0 ? "0" : `${(v / 1000).toFixed(0)}k`}`}
+                  width={32}
+                />
+                <Tooltip
+                  contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 6, fontSize: 11 }}
+                  labelStyle={{ color: "#cbd5e1" }}
+                  formatter={(v: number) => [fmtCAD(v), "Revenus"]}
+                  cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                />
+                <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
+                  {revenueTrend.map((entry, idx) => (
+                    <Cell
+                      key={idx}
+                      fill={idx === revenueTrend.length - 1 ? "#34d399" : "#3b82f6"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {/* SECTION 1 — TOP STATS */}

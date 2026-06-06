@@ -90,7 +90,6 @@ const SMSThreadsList = ({
         (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
       );
     },
-    refetchInterval: 10000, // Poll every 10 seconds
   });
 
   // Subscribe to realtime updates for new messages
