@@ -33,7 +33,7 @@ export default function SubscriptionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { subscription, customer, address, invoices, audit, accountNumber, isLoading } =
+  const { subscription, customer, address, account, invoices, audit, accountNumber, isLoading } =
     useAdminSubscriptionDetail(id);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -137,8 +137,8 @@ export default function SubscriptionDetailPage() {
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI label="Prix mensuel" value={fmtCAD(subscription.plan_price)} accent />
-        <KPI label="Début cycle" value={fmtDate(subscription.cycle_start_date)} />
-        <KPI label="Fin cycle" value={fmtDate(subscription.cycle_end_date)} />
+        <KPI label="Jour de facturation" value={account?.billing_cycle_day ? `Jour ${account.billing_cycle_day}` : fmtDate(subscription.cycle_start_date)} />
+        <KPI label="Prochaine facture" value={account?.next_invoice_date ? fmtDate(account.next_invoice_date) : fmtDate(subscription.cycle_end_date)} />
         <KPI
           label="Auto-facturation"
           value={subscription.auto_billing_enabled ? "Activée" : "Désactivée"}
@@ -165,6 +165,13 @@ export default function SubscriptionDetailPage() {
               <Row label="Province" value={address.province || "QC"} />
               <Row label="Code postal" value={address.postal_code || "—"} />
             </>
+          ) : account?.primary_service_address ? (
+            <>
+              <Row label="Adresse" value={account.primary_service_address} />
+              <Row label="Ville" value={account.primary_service_city || "—"} />
+              <Row label="Province" value={account.primary_service_province || "QC"} />
+              <Row label="Code postal" value={account.primary_service_postal_code || "—"} />
+            </>
           ) : (
             <p className="text-[hsl(220,10%,35%)] text-xs">Aucune adresse liée</p>
           )}
@@ -177,7 +184,8 @@ export default function SubscriptionDetailPage() {
         <Row label="Plan" value={subscription.plan_name || "—"} />
         <Row label="Date d'activation" value={fmtDate(subscription.created_at)} />
         <Row label="Cycle de facturation" value={`${fmtDate(subscription.cycle_start_date)} → ${fmtDate(subscription.cycle_end_date)}`} />
-        <Row label="Prochaine facturation" value={fmtDate(subscription.cycle_end_date)} />
+        <Row label="Jour de facturation" value={account?.billing_cycle_day ? `Jour ${account.billing_cycle_day} du mois` : "—"} />
+        <Row label="Prochaine facturation" value={account?.next_invoice_date ? fmtDate(account.next_invoice_date) : fmtDate(subscription.cycle_end_date)} />
         <Row label="Statut" value={status || "—"} />
       </Section>
 

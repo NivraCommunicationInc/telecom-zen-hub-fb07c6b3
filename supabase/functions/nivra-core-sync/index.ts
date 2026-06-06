@@ -369,6 +369,10 @@ Deno.serve(async (req) => {
           // The DB trigger trg_ensure_subscription_on_invoice_paid is the final safety net,
           // but we create proactively to avoid relying on trigger chain.
           const subId = crypto.randomUUID();
+          const cycleStart = payload.order.created_at?.split("T")[0] || new Date().toISOString().split("T")[0];
+          const cycleEndDate = new Date(cycleStart);
+          cycleEndDate.setMonth(cycleEndDate.getMonth() + 1);
+          const cycleEnd = cycleEndDate.toISOString().split("T")[0];
           const { error: subErr } = await admin.from("billing_subscriptions").insert({
             id: subId,
             customer_id: customerId,
@@ -377,8 +381,8 @@ Deno.serve(async (req) => {
             plan_name: payload.order.service_type || "Service",
             plan_price: payload.order.total_amount || 0,
             status: "pending",
-            cycle_start_date: payload.order.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
-            cycle_end_date: payload.order.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+            cycle_start_date: cycleStart,
+            cycle_end_date: cycleEnd,
             service_category: null,
             auto_billing_enabled: false,
             environment: payload.order.environment || "live",

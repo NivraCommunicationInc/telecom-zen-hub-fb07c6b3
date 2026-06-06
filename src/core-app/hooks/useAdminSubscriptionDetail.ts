@@ -91,7 +91,9 @@ export function useAdminSubscriptionDetail(subscriptionId: string | undefined) {
     enabled: !!subscriptionId,
   });
 
+  const orderId = subscription.data?.order_id;
   const userId = customer.data?.user_id;
+
   const accountIdentity = useQuery({
     queryKey: ["admin-subscription-account", subscriptionId, userId, customerId],
     queryFn: async () => {
@@ -106,10 +108,45 @@ export function useAdminSubscriptionDetail(subscriptionId: string | undefined) {
     enabled: !!subscriptionId,
   });
 
+  const account = useQuery({
+    queryKey: ["admin-subscription-account-detail", orderId, userId],
+    queryFn: async () => {
+      // Try via order first (most reliable)
+      if (orderId) {
+        const { data: order } = await supabase
+          .from("orders")
+          .select("account_id")
+          .eq("id", orderId)
+          .maybeSingle();
+        if (order?.account_id) {
+          const { data: acct } = await supabase
+            .from("accounts")
+            .select("billing_cycle_day, next_invoice_date, primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code, status")
+            .eq("id", order.account_id)
+            .maybeSingle();
+          if (acct) return acct;
+        }
+      }
+      // Fallback: via client_id
+      if (userId) {
+        const { data: acct } = await supabase
+          .from("accounts")
+          .select("billing_cycle_day, next_invoice_date, primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code, status")
+          .eq("client_id", userId)
+          .eq("status", "active")
+          .maybeSingle();
+        return acct ?? null;
+      }
+      return null;
+    },
+    enabled: !!(orderId || userId),
+  });
+
   return {
     subscription: subscription.data,
     customer: customer.data,
     address: address.data,
+    account: account.data ?? null,
     invoices: invoices.data || [],
     audit: audit.data || [],
     accountNumber: accountIdentity.data ?? null,
