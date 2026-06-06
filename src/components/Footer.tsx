@@ -24,26 +24,28 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const isFr = language === "fr";
 
   const services = [
-    { label: isFr ? "Internet haute vitesse" : "High-speed Internet", to: "/internet" },
-    { label: isFr ? "Télévision" : "Television",                       to: "/tv" },
-    { label: "Mobile",                                                  to: "/mobile" },
-    { label: "Streaming",                                               to: "/streaming" },
-    { label: isFr ? "Comparer les forfaits" : "Compare Plans",         to: "/compare" },
-    { label: isFr ? "Grille des canaux" : "Channel Guide",             to: "/grille-canaux" },
-    { label: isFr ? "Carte de couverture" : "Coverage Map",            to: "/couverture" },
-    { label: isFr ? "Programme de parrainage" : "Refer a Friend",      to: "/parrainage" },
-    { label: isFr ? "Vérifier mon numéro" : "Check My Number",         to: "/verifier-mon-numero" },
-    { label: isFr ? "Commander" : "Order Now",                         to: "/commander" },
+    { label: isFr ? "Internet haute vitesse" : "High-speed Internet",  to: "/internet" },
+    { label: isFr ? "Télévision" : "Television",                        to: "/tv" },
+    { label: "Mobile",                                                   to: "/mobile" },
+    { label: "Streaming",                                                to: "/streaming" },
+    { label: isFr ? "Catalogue de téléphones" : "Phone Catalog",        to: "/telephones" },
+    { label: isFr ? "Comparer les forfaits" : "Compare Plans",          to: "/compare" },
+    { label: isFr ? "Grille des canaux" : "Channel Guide",              to: "/grille-canaux" },
+    { label: isFr ? "Carte de couverture" : "Coverage Map",             to: "/couverture" },
+    { label: isFr ? "Programme de parrainage" : "Refer a Friend",       to: "/parrainage" },
+    { label: isFr ? "Vérifier mon numéro" : "Check My Number",          to: "/verifier-mon-numero" },
+    { label: isFr ? "Commander" : "Order Now",                          to: "/commander" },
   ];
 
   const support = [
-    { label: isFr ? "Centre d'aide" : "Help Center",           to: "/aide" },
-    { label: isFr ? "État des services" : "Service Status",    to: "/status" },
-    { label: "FAQ",                                             to: "/faq" },
-    { label: isFr ? "Test de vitesse" : "Speed Test",          to: "/test-vitesse" },
-    { label: isFr ? "Suivre ma commande" : "Track Order",      to: "/track-order" },
-    { label: isFr ? "Nous contacter" : "Contact Us",           to: "/contact" },
-    { label: isFr ? "Soumettre une plainte" : "Submit Complaint", to: "/plainte" },
+    { label: isFr ? "Centre d'aide" : "Help Center",              to: "/aide" },
+    { label: isFr ? "État des services" : "Service Status",        to: "/status" },
+    { label: "FAQ",                                                 to: "/faq" },
+    { label: isFr ? "Test de vitesse" : "Speed Test",              to: "/test-vitesse" },
+    { label: isFr ? "Suivre ma commande" : "Track Order",          to: "/track-order" },
+    { label: isFr ? "Nous contacter" : "Contact Us",               to: "/contact" },
+    { label: isFr ? "Soumettre une plainte" : "Submit Complaint",  to: "/plainte" },
+    { label: isFr ? "Sécurité anti-fraude" : "Security & Fraud",  to: "/securite-anti-fraude" },
   ];
 
   const company = [
@@ -66,6 +68,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Débit préautorisé" : "Pre-Auth Debit",            to: "/accord-preautorise-debit" },
     { label: isFr ? "Niveaux de service" : "Service Levels",            to: "/niveaux-de-service" },
     { label: isFr ? "Remboursement" : "Refund Policy",                  to: "/refund-policy" },
+    { label: isFr ? "Modalités de paiement" : "Payment Terms",         to: "/modalites-paiement" },
+    { label: isFr ? "Accessibilité" : "Accessibility",                 to: "/accessibilite" },
   ];
 
   const footerStats = [
