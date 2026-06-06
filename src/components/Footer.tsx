@@ -32,6 +32,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Grille des canaux" : "Channel Guide",             to: "/grille-canaux" },
     { label: isFr ? "Carte de couverture" : "Coverage Map",            to: "/couverture" },
     { label: isFr ? "Programme de parrainage" : "Refer a Friend",      to: "/parrainage" },
+    { label: isFr ? "Vérifier mon numéro" : "Check My Number",         to: "/verifier-mon-numero" },
     { label: isFr ? "Commander" : "Order Now",                         to: "/commander" },
   ];
 
@@ -46,11 +47,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   ];
 
   const company = [
-    { label: isFr ? "À propos" : "About Us",           to: "/a-propos" },
-    { label: isFr ? "Carrières" : "Careers",           to: "/emplois" },
-    { label: "Presse",                                  to: "/presse" },
-    { label: isFr ? "Portail client" : "Client Portal", to: "/portal" },
-    { label: isFr ? "Mon compte" : "My Account",       to: "/portal" },
+    { label: isFr ? "À propos" : "About Us",     to: "/a-propos" },
+    { label: isFr ? "Carrières" : "Careers",     to: "/emplois" },
+    { label: "Presse",                            to: "/presse" },
+    { label: isFr ? "Mon compte" : "My Account", to: "/portal" },
   ];
 
   const legal = [
