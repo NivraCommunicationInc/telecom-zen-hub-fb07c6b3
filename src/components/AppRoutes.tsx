@@ -479,6 +479,8 @@ const ClientDocumentUpload = lazy(() => import("@/pages/client/ClientDocumentUpl
 const ClientDocuments = lazy(() => import("@/pages/client/ClientDocuments"));
 const ClientGuides = lazy(() => import("@/pages/client/ClientGuides"));
 const ClientIdentityVerification = lazy(() => import("@/pages/client/ClientIdentityVerification"));
+const ClientPortIn = lazy(() => import("@/pages/client/ClientPortIn"));
+const VerifierNumero = lazy(() => import("@/pages/VerifierNumero"));
 const KycVerificationPage = lazy(() => import("@/pages/KycVerificationPage"));
 const ClientResetPassword = lazy(() => import("@/pages/client/ClientResetPassword"));
 const ClientServiceAddresses = lazy(() => import("@/pages/client/ClientServiceAddresses"));
@@ -603,6 +605,7 @@ const AppRoutes = () => {
       <Route path="/nps/:token" element={<MaintenanceGuard><PublicLayout><NPSSurvey /></PublicLayout></MaintenanceGuard>} />
       <Route path="/avis/:token" element={<ClientReviewPage />} />
       <Route path="/plainte" element={<Suspense fallback={null}><ComplaintPage /></Suspense>} />
+      <Route path="/verifier-mon-numero" element={<Suspense fallback={null}><VerifierNumero /></Suspense>} />
       <Route path="/plainte/suivi/:token" element={<Suspense fallback={null}><ComplaintTrackingPage /></Suspense>} />
       <Route path="/entrevue/:token" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><InterviewPage /></Suspense></MaintenanceGuard>} />
       <Route path="/presse" element={<MaintenanceGuard><PublicLayout><Presse /></PublicLayout></MaintenanceGuard>} />
@@ -778,6 +781,7 @@ const AppRoutes = () => {
       <Route path="/portal/activation" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientActivation /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portail/activation" element={<Navigate to="/portal/activation" replace />} />
       <Route path="/portal/tickets" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/port-in" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPortIn /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/channels" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/internet" element={<Navigate to="/portal/new-order" replace />} />
       <Route path="/portal/tv-order" element={<Navigate to="/portal/new-order" replace />} />

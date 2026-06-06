@@ -7,7 +7,7 @@
  * 2. Client account auto-created via auto-create-client-account edge function
  * 3. Password reset email sent to client
  */
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +125,9 @@ const GuestCheckout = () => {
   const [portInCarrier, setPortInCarrier] = useState("Rogers");
   const [portInAccountNumber, setPortInAccountNumber] = useState("");
   const [portInPin, setPortInPin] = useState("");
+  const [portInCarrierDetected, setPortInCarrierDetected] = useState<string | null>(null);
+  const [portInCarrierLoading, setPortInCarrierLoading] = useState(false);
+  const portInLookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Options ──
   const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>("auto");
@@ -271,6 +274,41 @@ const GuestCheckout = () => {
     };
     track();
   }, [step, email, selectedServices.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Port-in carrier auto-detection (debounced, 900ms) ──
+  useEffect(() => {
+    if (portInLookupTimer.current) clearTimeout(portInLookupTimer.current);
+    const digits = portInNumber.replace(/\D/g, "");
+    if (!wantsPortIn || digits.length < 10) {
+      setPortInCarrierDetected(null);
+      return;
+    }
+    setPortInCarrierLoading(true);
+    portInLookupTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await supabase.functions.invoke("lookup-phone-carrier", {
+          body: { phone_number: digits },
+        });
+        if (data?.carrier_normalized) {
+          const normalized: string = data.carrier_normalized;
+          setPortInCarrierDetected(normalized);
+          const validOptions = ["Rogers", "Bell", "Telus", "Fido", "Koodo", "Vidéotron", "Fizz", "Public Mobile"];
+          if (validOptions.includes(normalized)) {
+            setPortInCarrier(normalized);
+          }
+        } else {
+          setPortInCarrierDetected(null);
+        }
+      } catch {
+        setPortInCarrierDetected(null);
+      } finally {
+        setPortInCarrierLoading(false);
+      }
+    }, 900);
+    return () => {
+      if (portInLookupTimer.current) clearTimeout(portInLookupTimer.current);
+    };
+  }, [portInNumber, wantsPortIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Data hooks ──
   const { data: services, isLoading: servicesLoading } = usePublicServices({ surface: "checkout" });
@@ -1512,15 +1550,34 @@ const GuestCheckout = () => {
                           </div>
                           <div>
                             <Label className="text-xs font-medium mb-1.5 block">Numéro à transférer <span className="text-destructive">*</span></Label>
-                            <Input
-                              value={portInNumber}
-                              onChange={e => setPortInNumber(e.target.value)}
-                              placeholder="514 555-1234"
-                              className="h-11"
-                            />
+                            <div className="relative">
+                              <Input
+                                value={portInNumber}
+                                onChange={e => {
+                                  setPortInNumber(e.target.value);
+                                  setPortInCarrierDetected(null);
+                                }}
+                                placeholder="514 555-1234"
+                                className="h-11 pr-10"
+                                inputMode="numeric"
+                              />
+                              {portInCarrierLoading && (
+                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
+                            {portInCarrierDetected && !portInCarrierLoading && (
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> Transporteur détecté : {portInCarrierDetected}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className="text-xs font-medium mb-1.5 block">Opérateur actuel <span className="text-destructive">*</span></Label>
+                            <Label className="text-xs font-medium mb-1.5 block">
+                              Opérateur actuel <span className="text-destructive">*</span>
+                              {portInCarrierDetected && !portInCarrierLoading && (
+                                <span className="ml-2 font-normal text-emerald-600 dark:text-emerald-400">(auto-rempli)</span>
+                              )}
+                            </Label>
                             <select
                               value={portInCarrier}
                               onChange={e => setPortInCarrier(e.target.value)}

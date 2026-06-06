@@ -8070,6 +8070,77 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // PORT-IN REQUESTS
+    // ===================================================================
+
+    // Confirmation envoyée au client après soumission d'une demande de transfert
+    case "port_in_request_received": {
+      const numberToPort = esc(v.number_to_port || "");
+      const carrier = esc(v.current_carrier || "");
+      const requestId = esc(v.request_id || "");
+      const portalPortIn = `${APP_URL}/portal/port-in`;
+      return {
+        subject: `Demande de transfert reçue — ${numberToPort}`,
+        html: shell({
+          preheader: `Votre demande de transfert pour ${numberToPort} a bien été reçue.`,
+          badge: "TRANSFERT DE NUMÉRO",
+          heroTitle: "Demande de transfert en cours",
+          heroSub: `Numéro : ${numberToPort}`,
+          icon: "check",
+          greeting,
+          bodyText: `Nous avons bien reçu votre demande de transfert de numéro depuis ${carrier}. Notre équipe va traiter votre demande dans les prochains 1-3 jours ouvrables. Votre service actuel reste actif jusqu'à la complétion du transfert.`,
+          cardTitle: "Détails de votre demande",
+          cardRows: [
+            ["Numéro à transférer", numberToPort],
+            ["Transporteur actuel", carrier],
+            ["Référence", requestId || "—"],
+            ["Délai estimé", "1-3 jours ouvrables"],
+          ],
+          ctaPrimaryUrl: portalPortIn,
+          ctaPrimaryLabel: "Suivre ma demande",
+          helpHtml: `Des questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a> en indiquant votre numéro de référence.`,
+        }),
+      };
+    }
+
+    // Alerte interne à l'équipe quand un client soumet un port-in
+    case "port_in_admin_alert": {
+      const numberToPort2 = esc(v.number_to_port || "");
+      const carrier2 = esc(v.current_carrier || "");
+      const accountNum = esc(v.account_number_at_carrier || "");
+      const pin2 = esc(v.pin_at_carrier || "N/A");
+      const clientName2 = esc(v.client_name || "Client");
+      const clientEmail2 = esc(v.client_email || "");
+      const requestId2 = esc(v.request_id || "");
+      const coreUrl3 = String(v.core_url || `${APP_URL}/core/accounts`);
+      return {
+        subject: `[Port-in] Nouvelle demande — ${numberToPort2} (${carrier2})`,
+        html: shell({
+          preheader: `Nouveau transfert de numéro à traiter pour ${clientName2}`,
+          badge: "PORT-IN REQUIS",
+          heroTitle: "Nouvelle demande de transfert",
+          icon: "info",
+          greeting: "Équipe Nivra,",
+          bodyText: `Le client ${clientName2} a soumis une demande de transfert de numéro. Soumettez cette demande auprès du transporteur grossiste.`,
+          cardTitle: "Informations de transfert",
+          cardRows: [
+            ["Client", clientName2],
+            ["Courriel client", clientEmail2],
+            ["Numéro à transférer", numberToPort2],
+            ["Transporteur actuel", carrier2],
+            ["Numéro de compte", accountNum],
+            ["PIN de transfert", pin2],
+            ["Référence demande", requestId2 || "—"],
+          ],
+          ctaPrimaryUrl: coreUrl3,
+          ctaPrimaryLabel: "Ouvrir le compte",
+          helpVariant: "warning",
+          helpHtml: `<strong>Action requise :</strong> Soumettez cette demande auprès du grossiste et mettez à jour le statut dans Core dès que le transfert est confirmé.`,
+        }),
+      };
+    }
+
     default:
       return null;
     }

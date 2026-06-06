@@ -16,7 +16,7 @@ import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 import {
   Wifi, Smartphone, Tv, Copy, FileText, CreditCard,
   AlertCircle, Package, ArrowRight, ChevronRight,
-  CheckCircle2, Clock, Zap, Settings, LifeBuoy, Gift,
+  CheckCircle2, Clock, Zap, Settings, LifeBuoy, Gift, PhoneForwarded,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -322,6 +322,7 @@ const ClientDashboard = () => {
               <QBtn icon={<LifeBuoy size={20} />}     label="Support"         to="/portal/tickets" color="#F59E0B" />
               <QBtn icon={<Gift size={20} />}         label="Parrainage"      to="/portal/referrals" color="#A78BFA" />
               <QBtn icon={<Package size={20} />}      label="Commandes"       to="/portal/orders" color="#34D399" />
+              <QBtn icon={<PhoneForwarded size={20} />} label="Transférer #"  to="/portal/port-in" color="#06B6D4" />
             </div>
           </motion.div>
 
