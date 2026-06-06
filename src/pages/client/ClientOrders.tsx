@@ -47,10 +47,14 @@ const statusStyle: Record<string, { bg: string; color: string }> = {
   backorder:       { bg: "rgba(249,115,22,0.12)",   color: "#fb923c" },
   cancel:          { bg: "rgba(239,68,68,0.12)",    color: "#f87171" },
   cancelled:       { bg: "rgba(239,68,68,0.12)",    color: "#f87171" },
-  shipped:         { bg: "rgba(20,184,166,0.12)",   color: "#2dd4bf" },
-  completed:       { bg: "rgba(16,185,129,0.12)",   color: "#34d399" },
-  paid:            { bg: "rgba(59,130,246,0.12)",   color: "#60a5fa" },
-  ready_to_ship:   { bg: "rgba(20,184,166,0.12)",   color: "#2dd4bf" },
+  shipped:                { bg: "rgba(20,184,166,0.12)",   color: "#2dd4bf" },
+  delivered:              { bg: "rgba(20,184,166,0.12)",   color: "#2dd4bf" },
+  completed:              { bg: "rgba(16,185,129,0.12)",   color: "#34d399" },
+  activated:              { bg: "rgba(16,185,129,0.12)",   color: "#34d399" },
+  installation_completed: { bg: "rgba(16,185,129,0.12)",   color: "#34d399" },
+  processing:             { bg: "rgba(59,130,246,0.12)",   color: "#60a5fa" },
+  paid:                   { bg: "rgba(59,130,246,0.12)",   color: "#60a5fa" },
+  ready_to_ship:          { bg: "rgba(20,184,166,0.12)",   color: "#2dd4bf" },
 };
 
 const statusLabels: Record<string, string> = {
@@ -62,7 +66,11 @@ const statusLabels: Record<string, string> = {
   cancel: "Annulé",
   cancelled: "Annulé",
   shipped: "Expédié",
+  delivered: "Livré",
   completed: "Terminé",
+  activated: "Activé",
+  installation_completed: "Installé",
+  processing: "En traitement",
   paid: "Payé",
   ready_to_ship: "Prêt à expédier",
 };
@@ -76,7 +84,11 @@ const statusIcons: Record<string, any> = {
   cancel: XCircle,
   cancelled: XCircle,
   shipped: Truck,
+  delivered: Truck,
   completed: CheckCircle,
+  activated: CheckCircle,
+  installation_completed: CheckCircle,
+  processing: Clock,
   paid: CheckCircle,
   ready_to_ship: Package,
 };
@@ -92,7 +104,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 /* ─── Left accent color per order ──────────────────────────── */
 const leftAccent = (order: any, needsPay: boolean) =>
-  needsPay ? "#fbbf24" : order.status === "completed" ? "#34d399" : "#7C3AED";
+  needsPay ? "#fbbf24" : ["completed","activated","installation_completed"].includes(order.status) ? "#34d399" : "#7C3AED";
 
 const ClientOrders = () => {
   const { user } = useClientAuth();

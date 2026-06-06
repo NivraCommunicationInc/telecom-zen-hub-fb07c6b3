@@ -173,9 +173,12 @@ const ClientDashboard = () => {
   const copy = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copié"); };
 
   const orderCls = (s: string) => {
-    if (s === "completed") return ["rgba(16,185,129,0.15)", "#34d399", "Terminé"];
+    if (["completed", "activated", "installation_completed"].includes(s))
+      return ["rgba(16,185,129,0.15)", "#34d399", s === "activated" ? "Activé" : s === "installation_completed" ? "Installé" : "Terminé"];
+    if (s === "delivered") return ["rgba(20,184,166,0.15)", "#2dd4bf", "Livré"];
     if (s === "shipped")   return ["rgba(124,58,237,0.15)", "#a78bfa", "Expédié"];
     if (["cancelled","cancel"].includes(s)) return ["rgba(239,68,68,0.15)", "#f87171", "Annulé"];
+    if (s === "processing") return ["rgba(59,130,246,0.15)", "#60a5fa", "En traitement"];
     return ["rgba(245,158,11,0.15)", "#fbbf24", "En cours"];
   };
 
