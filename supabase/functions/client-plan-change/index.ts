@@ -100,6 +100,7 @@ serve(async (req) => {
       current_plan_name: previous_plan_name ?? null,
       requested_plan_id: new_plan_id ?? null,
       requested_plan_name: new_plan_name,
+      requested_plan_price: Number(new_monthly_price),
       change_type: changeType,
       status: changeType === "upgrade" ? "approved" : "pending",
       requested_by: user.id,
@@ -122,13 +123,19 @@ serve(async (req) => {
     const newPrice = Number(new_monthly_price);
     const priceDiff = newPrice - prevPrice;
 
-    // Update subscription record immediately
+    // Update subscription record immediately (both tables)
     if (subscription_id) {
       await admin
         .from("subscriptions")
         .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
         .eq("id", subscription_id);
     }
+    // billing_subscriptions drives renewal invoices — must stay in sync
+    await admin
+      .from("billing_subscriptions")
+      .update({ plan_name: new_plan_name, plan_price: newPrice })
+      .eq("customer_id", bc.id)
+      .eq("status", "active");
 
     // Prorated charge (only if price actually increased)
     if (priceDiff > 0 && prevPrice > 0) {
