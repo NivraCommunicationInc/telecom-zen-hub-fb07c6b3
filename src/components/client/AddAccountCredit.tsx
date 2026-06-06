@@ -297,6 +297,7 @@ export const AddAccountCredit = ({
             </p>
             <PayPalButton
               amount={amount}
+              creditTopup={true}
               description="Crédit au compte — Nivra Telecom"
               onSuccess={(captureId) => handlePayPalSuccess(captureId)}
               onError={(msg) => toast.error(msg)}

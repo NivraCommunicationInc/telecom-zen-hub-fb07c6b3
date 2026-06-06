@@ -720,6 +720,7 @@ const ClientNewOrder = () => {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
+  const paypalCartRef = useRef<string>("co_" + crypto.randomUUID());
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -6514,6 +6515,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </p>
                       <PayPalButton
                         amount={uiTodayTotal}
+                        orderId={paypalCartRef.current}
                         paymentNumber={authoritativePricing?.paymentNumber}
                         description="Commande Nivra Telecom"
                         disabled={!authoritativePricing || uiTodayTotal <= 0}

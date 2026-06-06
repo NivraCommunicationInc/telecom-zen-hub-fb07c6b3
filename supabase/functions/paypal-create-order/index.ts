@@ -41,6 +41,8 @@ interface CreatePayPalOrderRequest {
   order_id?: string;
   // Customer info for pre-filling PayPal
   customer?: CustomerInfo;
+  // Credit top-ups: no invoice/order exists — reconciliation handled by portal-add-credit
+  credit_topup?: boolean;
 }
 
 async function getPayPalAccessToken(): Promise<string> {
@@ -98,7 +100,7 @@ serve(async (req) => {
     // An "amount-only" payload causes paypal-capture-order to be unable to
     // reconcile the capture to a database record — silently dropping the order.
     // ===================================================================
-    if (!body.invoice_id && !body.order_id && !body.subscription_id) {
+    if (!body.invoice_id && !body.order_id && !body.subscription_id && !body.credit_topup) {
       console.error("[PayPal] ✗ Rejected: missing invoice_id, order_id, and subscription_id");
       await supabase.from("billing_system_alerts").insert({
         alert_type: "paypal_create_order_missing_reference",

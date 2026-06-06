@@ -651,9 +651,16 @@ serve(async (req) => {
         new Date().getDate();
 
       if (accountId) {
+        // Compute next_invoice_date: next occurrence of billing_cycle_day after today
+        const today = new Date();
+        let nextInvoice = new Date(today.getFullYear(), today.getMonth(), finalBillingCycleDay);
+        if (nextInvoice <= today) {
+          nextInvoice = new Date(today.getFullYear(), today.getMonth() + 1, finalBillingCycleDay);
+        }
+        const nextInvoiceDateStr = nextInvoice.toISOString().split("T")[0];
         await admin
           .from("accounts")
-          .update({ billing_cycle_day: finalBillingCycleDay })
+          .update({ billing_cycle_day: finalBillingCycleDay, next_invoice_date: nextInvoiceDateStr })
           .eq("id", accountId);
       }
 
