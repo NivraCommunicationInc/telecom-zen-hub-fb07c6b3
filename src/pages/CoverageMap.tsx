@@ -529,8 +529,8 @@ export default function CoverageMap() {
 
         {/* ── Coverage Regions ── */}
         <section className="px-5 sm:px-10 py-16" style={{ background: "#020209", borderTop: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
-          {/* Aerial city at night — Quebec coverage regions */}
-          <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80" opacity={0.11} filter="saturate(0.45) brightness(0.6)" />
+          {/* Aerial city at night — Quebec coverage regions, warm city lights */}
+          <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80" opacity={0.15} filter="saturate(0.7) brightness(0.65)" />
           <div aria-hidden style={{ position: "absolute", bottom: "-20%", right: "-5%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
           <div className="max-w-[1100px] mx-auto" style={{ position: "relative" }}>
             <div className="mb-10 text-center">

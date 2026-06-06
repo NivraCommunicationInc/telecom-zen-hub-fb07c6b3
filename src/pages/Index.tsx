@@ -202,8 +202,8 @@ const Index = () => {
 
         {/* ══ STATS METRICS ══ */}
         <section style={{ background:"#020209", paddingTop:64, paddingBottom:64, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          {/* Fiber optic macro — speed stats section */}
-          <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" opacity={0.11} filter="saturate(0.6) brightness(0.65)" />
+          {/* Fiber optic rainbow — speed stats, colorful light trails on black */}
+          <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" opacity={0.15} filter="saturate(0.8) brightness(0.6)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -385,7 +385,8 @@ const Index = () => {
 
         {/* ══ TECHNOLOGIE ══ */}
         <section style={{ background:"#020209", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(6,182,212,0.1)", position:"relative", overflow:"hidden" }}>
-          <PhotoBg url="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1600&q=80" opacity={0.09} filter="saturate(0.4) brightness(0.6) hue-rotate(200deg)" />
+          {/* Server room blue LED glow — tech infrastructure, premium sci-fi feel */}
+          <PhotoBg url="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1600&q=80" opacity={0.14} filter="saturate(0.7) brightness(0.6)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
@@ -531,8 +532,8 @@ const Index = () => {
 
         {/* ══ POURQUOI NIVRA ══ */}
         <section style={{ background:"#06040F", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          {/* Two people collaborating on laptop — Nivra value props */}
-          <PhotoBg url="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1600&q=80" opacity={0.12} filter="saturate(0.4) brightness(0.5)" />
+          {/* Earth from space, city lights visible — global connectivity scale */}
+          <PhotoBg url="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80" opacity={0.16} filter="saturate(0.6) brightness(0.65)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.3)", borderRadius:100 }}>
@@ -577,8 +578,8 @@ const Index = () => {
 
         {/* ══ COUVERTURE ══ */}
         <section style={{ background:"#020209", paddingTop:80, paddingBottom:80, borderTop:"1px solid rgba(124,58,237,0.08)", position:"relative", overflow:"hidden" }}>
-          {/* Aerial city at night — Quebec coverage section */}
-          <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1600&q=80" opacity={0.14} filter="saturate(0.5) brightness(0.6)" />
+          {/* Aerial city at night — Quebec coverage, warm city lights on black */}
+          <PhotoBg url="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1600&q=80" opacity={0.17} filter="saturate(0.7) brightness(0.65)" />
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]" style={{ position:"relative", zIndex:1 }}>
             <motion.div initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.55 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-5" style={{ background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:100 }}>
