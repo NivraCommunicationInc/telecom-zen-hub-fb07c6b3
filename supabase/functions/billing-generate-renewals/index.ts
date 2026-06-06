@@ -299,6 +299,10 @@ serve(async (req) => {
                 let adjDelta = 0;
                 const adjLines: any[] = [];
                 const planPrice = Number(sub.plan_price || 0);
+                // Accumulateurs pour les frais (fee) — nécessaires pour mettre à jour tps_amount/tvq_amount
+                let feeSubtotalDelta = 0;
+                let feeTpsDelta = 0;
+                let feeTvqDelta = 0;
 
                 const { data: prof } = await supabase
                   .from("profiles").select("email, full_name, first_name, last_name")
@@ -342,6 +346,20 @@ serve(async (req) => {
                     continue;
                   }
 
+                  // ── fee: proration charge or one-time extra (pré-taxes; recalcule TPS+TVQ) ──
+                  if (type === "fee") {
+                    const { tps: feeTps, tvq: feeTvq, total: feeTotal } = computeTaxes(amt);
+                    adjDelta += feeTotal;
+                    feeSubtotalDelta += amt;
+                    feeTpsDelta += feeTps;
+                    feeTvqDelta += feeTvq;
+                    const feeDesc = String(adj.description || "").trim() || "Frais supplémentaires";
+                    adjLines.push({ invoice_id: invoice.id, description: feeDesc, unit_price: amt, quantity: 1, line_total: amt, line_type: "fee" });
+                    const nextRemFee = Math.max(0, prevRemaining - 1);
+                    await supabase.from("account_adjustments").update({ months_remaining: nextRemFee, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemFee <= 0 ? "completed" : "active" }).eq("id", adj.id);
+                    continue;
+                  }
+
                   const isCredit = type === "credit";
                   const signedTotal = isCredit ? -amt : amt;
                   adjDelta += signedTotal;
@@ -381,7 +399,13 @@ serve(async (req) => {
                 if (adjLines.length > 0) {
                   await supabase.from("billing_invoice_lines").insert(adjLines);
                   finalTotal = Math.max(0, baseTotal + adjDelta);
-                  await supabase.from("billing_invoices").update({ total: finalTotal, balance_due: finalTotal }).eq("id", invoice.id);
+                  const invoiceFieldUpdate: Record<string, number> = { total: finalTotal, balance_due: finalTotal };
+                  if (feeSubtotalDelta > 0) {
+                    invoiceFieldUpdate.subtotal    = Number(invoice.subtotal)    + feeSubtotalDelta;
+                    invoiceFieldUpdate.tps_amount  = Number(invoice.tps_amount)  + feeTpsDelta;
+                    invoiceFieldUpdate.tvq_amount  = Number(invoice.tvq_amount)  + feeTvqDelta;
+                  }
+                  await supabase.from("billing_invoices").update(invoiceFieldUpdate).eq("id", invoice.id);
                   console.log(`[billing-generate-renewals] Applied ${adjLines.length} account_adjustments to ${invoiceNumber} (delta: ${adjDelta.toFixed(2)}, finalTotal: ${finalTotal.toFixed(2)})`);
                 }
               }

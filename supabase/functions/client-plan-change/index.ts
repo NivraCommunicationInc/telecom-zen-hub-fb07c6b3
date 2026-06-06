@@ -1,8 +1,12 @@
 /**
  * client-plan-change
- * Client self-serve plan change with immediate proration on upgrades.
+ * Client self-serve plan change with prorated charge on the monthly invoice.
  *
- * Upgrades:  applied immediately, prorated difference invoice generated.
+ * Upgrades:  applied immediately.
+ *   - If a pending/issued invoice exists → proration line added directly on it.
+ *   - Otherwise → account_adjustments fee applied on NEXT renewal invoice.
+ *   No separate adjustment invoice is ever created.
+ *
  * Downgrades: inserted as service_change_requests (pending, effective next renewal).
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -51,7 +55,6 @@ serve(async (req) => {
     previous_plan_name?: string;
     previous_monthly_price?: number;
     change_type?: "upgrade" | "downgrade";
-    next_renewal_at?: string;
   };
   try { body = await req.json(); }
   catch { return json(400, { error: "Corps JSON invalide" }); }
@@ -68,7 +71,7 @@ serve(async (req) => {
   const changeType = change_type || "upgrade";
   const effectiveDate = new Date().toISOString().slice(0, 10);
 
-  // Get billing customer — also serves as ownership proof for this user
+  // Get billing customer — ownership proof
   const { data: bc } = await admin
     .from("billing_customers")
     .select("id")
@@ -102,18 +105,18 @@ serve(async (req) => {
       requested_by: user.id,
       effective_date: changeType === "upgrade" ? effectiveDate : null,
       notes: changeType === "upgrade"
-        ? `Changement immédiat avec facture proratisée. Effectif: ${effectiveDate}.`
+        ? `Changement immédiat. Prorata ajouté à la facture mensuelle.`
         : `Demande client — effectif au prochain renouvellement.`,
     })
     .select("id")
     .single();
   if (scrErr) return json(500, { error: scrErr.message });
 
-  let invoiceId: string | null = null;
+  let targetInvoiceId: string | null = null;
   let prorationTotal: number | null = null;
-  let invoiceNumber: string | null = null;
+  let prorationAddedTo: "current_invoice" | "next_renewal" | null = null;
 
-  // ── Upgrade: apply immediately + generate prorated invoice ───────────────
+  // ── Upgrade: apply immediately + add proration to monthly invoice ──────────
   if (changeType === "upgrade") {
     const prevPrice = Number(previous_monthly_price ?? 0);
     const newPrice = Number(new_monthly_price);
@@ -127,7 +130,7 @@ serve(async (req) => {
         .eq("id", subscription_id);
     }
 
-    // Prorated invoice (only if price actually increased)
+    // Prorated charge (only if price actually increased)
     if (priceDiff > 0 && prevPrice > 0) {
       try {
         const { data: bSub } = await admin
@@ -145,61 +148,53 @@ serve(async (req) => {
           const daysRemaining = Math.max(1, Math.ceil(
             (cycleEndDate.getTime() - todayDate.getTime()) / 86_400_000
           ));
-          const subtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
+          const prorationSubtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
 
-          if (subtotal >= 0.01) {
-            const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
-            const { data: invNum } = await admin.rpc("generate_billing_invoice_number");
-            const invNo = (invNum as string | null) || `INV-PRO-${Date.now()}`;
-            const paymentMethod = bSub.paypal_subscription_id
-              ? "paypal"
-              : (bSub.payment_method || "interac");
+          if (prorationSubtotal >= 0.01) {
+            const { tps: proTps, tvq: proTvq, total: proTotalWithTax } = computeTaxes(prorationSubtotal);
+            const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`;
 
-            const { data: invoice, error: invErr } = await admin
+            // Try to find a current pending or issued invoice for this billing subscription
+            const { data: currentInvoice } = await admin
               .from("billing_invoices")
-              .insert({
-                subscription_id: bSub.id,
-                customer_id: bc.id,
-                invoice_number: invNo,
-                type: "adjustment",
-                subtotal,
-                tps_amount: tpsAmount,
-                tvq_amount: tvqAmount,
-                total,
-                balance_due: total,
-                currency: "CAD",
-                payment_method: paymentMethod,
-                status: "pending",
-                cycle_start_date: effectiveDate,
-                cycle_end_date: bSub.cycle_end_date,
-                due_date: effectiveDate,
-                notes: `Ajustement proratisé — ${previous_plan_name ?? ""} → ${new_plan_name} (${daysRemaining} jours)`,
-              })
-              .select()
-              .single();
+              .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, balance_due")
+              .eq("subscription_id", bSub.id)
+              .in("status", ["pending", "issued"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
-            if (!invErr && invoice) {
+            if (currentInvoice) {
+              // ── Case A: Add proration line directly to the current invoice ─
               await admin.from("billing_invoice_lines").insert({
-                invoice_id: invoice.id,
-                description: `Différence proratisée — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`,
-                unit_price: subtotal,
+                invoice_id: currentInvoice.id,
+                description: lineDesc,
+                unit_price: prorationSubtotal,
                 quantity: 1,
-                line_total: subtotal,
+                line_total: prorationSubtotal,
                 line_type: "service",
               });
 
-              invoiceId = invoice.id;
-              invoiceNumber = invNo;
-              prorationTotal = total;
+              await admin.from("billing_invoices").update({
+                subtotal:    Number(currentInvoice.subtotal)    + prorationSubtotal,
+                tps_amount:  Number(currentInvoice.tps_amount)  + proTps,
+                tvq_amount:  Number(currentInvoice.tvq_amount)  + proTvq,
+                total:       Number(currentInvoice.total)       + proTotalWithTax,
+                balance_due: Number(currentInvoice.balance_due) + proTotalWithTax,
+              }).eq("id", currentInvoice.id);
 
+              targetInvoiceId = currentInvoice.id;
+              prorationTotal = proTotalWithTax;
+              prorationAddedTo = "current_invoice";
+
+              // Charge PayPal if subscription uses it
               if (bSub.paypal_subscription_id) {
                 admin.functions.invoke("paypal-charge-subscription", {
-                  body: { subscription_id: bSub.id, invoice_id: invoice.id, amount: total },
-                }).catch((e: unknown) => {
-                  console.error("[client-plan-change] PayPal charge failed:", e);
-                });
+                  body: { subscription_id: bSub.id, invoice_id: currentInvoice.id, amount: proTotalWithTax },
+                }).catch((e: unknown) => console.error("[client-plan-change] PayPal charge failed:", e));
               }
 
+              // Notify client that invoice was updated
               if (clientEmail) {
                 await admin.from("email_queue").insert({
                   to_email: clientEmail,
@@ -207,16 +202,39 @@ serve(async (req) => {
                   template_vars: {
                     first_name: firstName,
                     to_email: clientEmail,
-                    invoice_number: invNo,
-                    total: total.toFixed(2),
-                    amount: total.toFixed(2),
-                    due_date: effectiveDate,
+                    invoice_number: currentInvoice.invoice_number,
+                    total: (Number(currentInvoice.total) + proTotalWithTax).toFixed(2),
+                    amount: proTotalWithTax.toFixed(2),
+                    due_date: bSub.cycle_end_date,
                     cycle_start: effectiveDate,
                     cycle_end: bSub.cycle_end_date,
                   },
                   status: "queued",
                   priority: 0,
                 }).catch(() => {});
+              }
+            } else {
+              // ── Case B: No current invoice — defer to next renewal invoice ─
+              // Store total WITH taxes; billing-generate-renewals does adjDelta += amount
+              const { data: acct } = await admin
+                .from("accounts")
+                .select("id")
+                .eq("client_id", user.id)
+                .maybeSingle();
+
+              if (acct?.id) {
+                await admin.from("account_adjustments").insert({
+                  account_id: acct.id,
+                  type: "fee",
+                  amount: prorationSubtotal, // pré-taxes; billing-generate-renewals recalcule TPS+TVQ
+                  description: lineDesc,
+                  months_total: 1,
+                  months_remaining: 1,
+                  status: "active",
+                  created_by: user.id,
+                });
+                prorationTotal = proTotalWithTax;
+                prorationAddedTo = "next_renewal";
               }
             }
           }
@@ -229,7 +247,7 @@ serve(async (req) => {
 
   // Plan change notification email to client
   if (clientEmail) {
-    const effDisplay = changeType === "upgrade" ? effectiveDate : "votre prochain renouvellement";
+    const effDisplay = changeType === "upgrade" ? "immédiatement" : "votre prochain renouvellement";
     await admin.from("email_queue").insert({
       to_email: clientEmail,
       template_key: "plan_change_requested",
@@ -265,8 +283,8 @@ serve(async (req) => {
   return json(200, {
     ok: true,
     service_change_request_id: scr.id,
-    invoice_id: invoiceId,
-    invoice_number: invoiceNumber,
+    invoice_id: targetInvoiceId,
     proration_total: prorationTotal,
+    proration_added_to: prorationAddedTo,
   });
 });

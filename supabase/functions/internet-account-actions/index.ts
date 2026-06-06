@@ -265,7 +265,7 @@ serve(async (req) => {
           change_type,
         });
 
-        // ── Prorated invoice for upgrades ─────────────────────────
+        // ── Prorated charge on monthly invoice (never a separate invoice) ────
         const prevPrice = Number(body.previous_monthly_price ?? 0);
         const priceDiff = new_monthly_price - prevPrice;
         if (change_type === "upgrade" && priceDiff > 0 && prevPrice > 0) {
@@ -277,7 +277,7 @@ serve(async (req) => {
               .maybeSingle();
 
             if (bc?.id) {
-              const { data: sub } = await admin
+              const { data: bSub } = await admin
                 .from("billing_subscriptions")
                 .select("id, customer_id, cycle_end_date, paypal_subscription_id, payment_method")
                 .eq("customer_id", bc.id)
@@ -286,69 +286,82 @@ serve(async (req) => {
                 .limit(1)
                 .maybeSingle();
 
-              if (sub?.cycle_end_date) {
+              if (bSub?.cycle_end_date) {
                 const todayDate = new Date(effective_date);
-                const cycleEndDate = new Date(sub.cycle_end_date);
+                const cycleEndDate = new Date(bSub.cycle_end_date);
                 const daysRemaining = Math.max(1, Math.ceil(
                   (cycleEndDate.getTime() - todayDate.getTime()) / 86_400_000
                 ));
-                const subtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
+                const prorationSubtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
 
-                if (subtotal >= 0.01) {
-                  const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
-                  const { data: invNum } = await admin.rpc("generate_billing_invoice_number");
-                  const invoiceNumber = (invNum as string | null) || `INV-PRO-${Date.now()}`;
-                  const paymentMethod = sub.paypal_subscription_id ? "paypal" : (sub.payment_method || "interac");
+                if (prorationSubtotal >= 0.01) {
+                  const { tps: proTps, tvq: proTvq, total: proTotalWithTax } = computeTaxes(prorationSubtotal);
+                  const lineDesc = `Ajustement proratisé — ${body.previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`;
 
-                  const { data: invoice, error: invErr } = await admin
+                  // Try to find a current pending/issued invoice for this subscription
+                  const { data: currentInvoice } = await admin
                     .from("billing_invoices")
-                    .insert({
-                      subscription_id: sub.id,
-                      customer_id: bc.id,
-                      invoice_number: invoiceNumber,
-                      type: "adjustment",
-                      subtotal,
-                      tps_amount: tpsAmount,
-                      tvq_amount: tvqAmount,
-                      total,
-                      balance_due: total,
-                      currency: "CAD",
-                      payment_method: paymentMethod,
-                      status: "pending",
-                      cycle_start_date: effective_date,
-                      cycle_end_date: sub.cycle_end_date,
-                      due_date: effective_date,
-                      notes: `Ajustement proratisé — ${body.previous_plan_name ?? ""} → ${new_plan_name} (${daysRemaining} jours)`,
-                    })
-                    .select()
-                    .single();
+                    .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, balance_due")
+                    .eq("subscription_id", bSub.id)
+                    .in("status", ["pending", "issued"])
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-                  if (!invErr && invoice) {
+                  if (currentInvoice) {
+                    // ── Case A: add line to existing invoice ─────────────
                     await admin.from("billing_invoice_lines").insert({
-                      invoice_id: invoice.id,
-                      description: `Différence proratisée — ${body.previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`,
-                      unit_price: subtotal,
+                      invoice_id: currentInvoice.id,
+                      description: lineDesc,
+                      unit_price: prorationSubtotal,
                       quantity: 1,
-                      line_total: subtotal,
+                      line_total: prorationSubtotal,
                       line_type: "service",
                     });
+                    await admin.from("billing_invoices").update({
+                      subtotal:    Number(currentInvoice.subtotal)    + prorationSubtotal,
+                      tps_amount:  Number(currentInvoice.tps_amount)  + proTps,
+                      tvq_amount:  Number(currentInvoice.tvq_amount)  + proTvq,
+                      total:       Number(currentInvoice.total)       + proTotalWithTax,
+                      balance_due: Number(currentInvoice.balance_due) + proTotalWithTax,
+                    }).eq("id", currentInvoice.id);
 
-                    if (sub.paypal_subscription_id) {
+                    if (bSub.paypal_subscription_id) {
                       admin.functions.invoke("paypal-charge-subscription", {
-                        body: { subscription_id: sub.id, invoice_id: invoice.id, amount: total },
+                        body: { subscription_id: bSub.id, invoice_id: currentInvoice.id, amount: proTotalWithTax },
                       }).catch((e: unknown) => {
                         console.error("[internet-account-actions] prorated PayPal charge failed:", e);
                       });
                     }
 
                     await enqueueEmail("invoice_created", {
-                      invoice_number: invoiceNumber,
-                      total: total.toFixed(2),
-                      amount: total.toFixed(2),
-                      due_date: effective_date,
+                      invoice_number: currentInvoice.invoice_number,
+                      total: (Number(currentInvoice.total) + proTotalWithTax).toFixed(2),
+                      amount: proTotalWithTax.toFixed(2),
+                      due_date: bSub.cycle_end_date,
                       cycle_start: effective_date,
-                      cycle_end: sub.cycle_end_date,
+                      cycle_end: bSub.cycle_end_date,
                     });
+                  } else {
+                    // ── Case B: defer to next renewal via account_adjustments ─
+                    const { data: acct } = await admin
+                      .from("accounts")
+                      .select("id")
+                      .eq("client_id", client_user_id)
+                      .maybeSingle();
+
+                    if (acct?.id) {
+                      await admin.from("account_adjustments").insert({
+                        account_id: acct.id,
+                        type: "fee",
+                        amount: prorationSubtotal, // pré-taxes; billing-generate-renewals recalcule TPS+TVQ
+                        description: lineDesc,
+                        months_total: 1,
+                        months_remaining: 1,
+                        status: "active",
+                        created_by: user.id,
+                      });
+                    }
                   }
                 }
               }
