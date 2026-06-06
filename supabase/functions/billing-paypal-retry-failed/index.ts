@@ -59,6 +59,35 @@ serve(async (req) => {
       const retryCount = Number(meta.retry_count || 0);
 
       if (retryCount >= 3) {
+        // Retries exhausted — send Interac fallback email (idempotent via event_key)
+        const inv = pmt.invoice as any;
+        if (inv && !["paid", "void"].includes(inv.status) && inv.customer?.email) {
+          const escalationKey = `paypal_escalated_${pmt.invoice_id}`;
+          const { data: alreadySent } = await supabase
+            .from("email_queue")
+            .select("id")
+            .eq("event_key", escalationKey)
+            .limit(1)
+            .maybeSingle();
+          if (!alreadySent) {
+            await supabase.from("email_queue").insert({
+              event_key: escalationKey,
+              to_email: inv.customer.email,
+              template_key: "paypal_payment_exhausted",
+              template_vars: {
+                client_name: `${inv.customer.first_name} ${inv.customer.last_name}`.trim() || inv.customer.email,
+                plan_name: (inv as any).plan_name || "",
+                amount: inv.total,
+                invoice_number: inv.invoice_number || "",
+                interac_email: "support@nivra-telecom.ca",
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 3,
+            });
+            console.log(`[paypal-retry] Escalation email queued for invoice ${pmt.invoice_id} (retries exhausted)`);
+          }
+        }
         skipped++;
         continue;
       }

@@ -721,6 +721,39 @@ export function renderQueueTemplate(
       };
     }
 
+    // Envoyé quand les 3 tentatives PayPal sont épuisées — propose Interac comme alternative.
+    case "paypal_payment_exhausted": {
+      const amount = money(v.amount ?? v.total ?? v.amount_due);
+      const planName = esc(v.plan_name || "votre service Nivra");
+      const invoiceNum = esc(v.invoice_number || "");
+      const interacEmail = esc(v.interac_email || "support@nivra-telecom.ca");
+      const portalBilling = `${portalUrl}/billing`;
+      return {
+        subject: `Action urgente — Votre service PayPal ne peut être débité`,
+        html: shell({
+          preheader: `3 tentatives PayPal ont échoué. Passez à Interac pour maintenir votre service.`,
+          badge: "ACTION URGENTE",
+          heroTitle: "Impossible de traiter votre paiement PayPal",
+          heroSub: "Après 3 tentatives sans succès, nous vous proposons une alternative.",
+          icon: "alert",
+          greeting,
+          bodyText: `Après <strong>3 tentatives infructueuses</strong>, votre paiement mensuel pour <strong>${planName}</strong>${amount ? ` (${amount})` : ""} n'a pas pu être traité via PayPal. Pour maintenir votre service actif, vous pouvez régler par <strong>virement Interac e-Transfer</strong>.`,
+          cardTitle: "Payer par Interac maintenant",
+          cardRows: [
+            ["Envoyez à", interacEmail],
+            invoiceNum ? ["Réf. / message", `Facture ${invoiceNum}`] : ["Réf. / message", "Votre numéro de compte Nivra"],
+            ["Montant", amount || "Le montant de votre forfait"],
+          ] as [string, string][],
+          ctaPrimaryUrl: `mailto:${interacEmail}?subject=Paiement%20Interac%20${invoiceNum ? `—%20Facture%20${invoiceNum}` : planName}`,
+          ctaPrimaryLabel: "Envoyer le virement Interac",
+          ctaSecondaryUrl: portalBilling,
+          ctaSecondaryLabel: "Voir ma facture",
+          helpVariant: "warning",
+          helpHtml: `<strong>Important :</strong> Sans paiement dans les 48h, votre service sera suspendu. Une fois le virement envoyé, écrivez-nous à <a href="mailto:support@nivra-telecom.ca" style="color:#7c3aed;">support@nivra-telecom.ca</a> pour confirmer.`,
+        }),
+      };
+    }
+
     case "invoice_voided": {
       const invoiceNum = esc(v.invoice_number || "En cours");
       return {
