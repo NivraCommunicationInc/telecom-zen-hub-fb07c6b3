@@ -9,14 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Search, Users, FileText, RefreshCcw, DollarSign } from "lucide-react";
+import { CreditCard, Search, Users, FileText, RefreshCcw, DollarSign, Send, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
+import { toast } from "sonner";
 
 export default function CoreBillingPage() {
   const [search, setSearch] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ queued: number; skipped: number; total: number } | null>(null);
 
   const { data: customers = [] } = useQuery({
     queryKey: ["core-billing-customers"],
@@ -46,6 +49,21 @@ export default function CoreBillingPage() {
     !search || [c.first_name, c.last_name, c.email, c.phone].join(" ").toLowerCase().includes(search.toLowerCase())
   );
 
+  const sendPolicyNotification = async () => {
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("billing-notify-policy-update");
+      if (error) throw error;
+      const res = data as any;
+      setSendResult({ queued: res.queued ?? 0, skipped: res.skipped ?? 0, total: res.total_active_clients ?? 0 });
+      toast.success(`${res.queued} courriel(s) mis en file. ${res.skipped} déjà envoyé(s).`);
+    } catch (e) {
+      toast.error((e as Error).message || "Erreur lors de l'envoi");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -74,6 +92,7 @@ export default function CoreBillingPage() {
           <TabsTrigger value="customers" className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400">Clients factu.</TabsTrigger>
           <TabsTrigger value="subscriptions" className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400">Abonnements</TabsTrigger>
           <TabsTrigger value="invoices" className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400">Factures</TabsTrigger>
+          <TabsTrigger value="notifications" className="data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-400">Notifications</TabsTrigger>
         </TabsList>
 
         <div className="relative max-w-sm">
@@ -124,6 +143,39 @@ export default function CoreBillingPage() {
               </div>
             </Link>
           ))}
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-4">
+          <div className="p-5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] space-y-4">
+            <div className="flex items-start gap-3">
+              <Send className="w-5 h-5 text-violet-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-[hsl(var(--core-text-primary))]">Mise à jour politique de facturation — Juin 2026</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))] mt-1 leading-relaxed">
+                  Informe tous les clients actifs des améliorations : prorata upgrade/downgrade, crédits admin automatiques, fiabilité renouvellement.
+                  Idempotent — un client déjà notifié ne recevra pas de doublon.
+                </p>
+              </div>
+            </div>
+
+            {sendResult ? (
+              <div className="flex items-center gap-2 p-3 rounded-md bg-emerald-600/10 border border-emerald-600/20">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <p className="text-xs text-emerald-400">
+                  {sendResult.queued} courriel(s) mis en file · {sendResult.skipped} déjà envoyé(s) · {sendResult.total} clients actifs au total
+                </p>
+              </div>
+            ) : null}
+
+            <Button
+              size="sm"
+              disabled={sending}
+              onClick={sendPolicyNotification}
+              className="bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-600/30"
+            >
+              {sending ? "Envoi en cours…" : "Envoyer à tous les clients actifs"}
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

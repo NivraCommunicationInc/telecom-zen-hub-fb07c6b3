@@ -15,6 +15,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { computeTaxes } from "../_shared/tax-constants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -263,6 +264,99 @@ serve(async (req) => {
           effective_date,
           change_type,
         });
+
+        // ── Prorated invoice for upgrades ─────────────────────────
+        const prevPrice = Number(body.previous_monthly_price ?? 0);
+        const priceDiff = new_monthly_price - prevPrice;
+        if (change_type === "upgrade" && priceDiff > 0 && prevPrice > 0) {
+          try {
+            const { data: bc } = await admin
+              .from("billing_customers")
+              .select("id")
+              .eq("user_id", client_user_id)
+              .maybeSingle();
+
+            if (bc?.id) {
+              const { data: sub } = await admin
+                .from("billing_subscriptions")
+                .select("id, customer_id, cycle_end_date, paypal_subscription_id, payment_method")
+                .eq("customer_id", bc.id)
+                .eq("status", "active")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (sub?.cycle_end_date) {
+                const todayDate = new Date(effective_date);
+                const cycleEndDate = new Date(sub.cycle_end_date);
+                const daysRemaining = Math.max(1, Math.ceil(
+                  (cycleEndDate.getTime() - todayDate.getTime()) / 86_400_000
+                ));
+                const subtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
+
+                if (subtotal >= 0.01) {
+                  const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
+                  const { data: invNum } = await admin.rpc("generate_billing_invoice_number");
+                  const invoiceNumber = (invNum as string | null) || `INV-PRO-${Date.now()}`;
+                  const paymentMethod = sub.paypal_subscription_id ? "paypal" : (sub.payment_method || "interac");
+
+                  const { data: invoice, error: invErr } = await admin
+                    .from("billing_invoices")
+                    .insert({
+                      subscription_id: sub.id,
+                      customer_id: bc.id,
+                      invoice_number: invoiceNumber,
+                      type: "adjustment",
+                      subtotal,
+                      tps_amount: tpsAmount,
+                      tvq_amount: tvqAmount,
+                      total,
+                      balance_due: total,
+                      currency: "CAD",
+                      payment_method: paymentMethod,
+                      status: "pending",
+                      cycle_start_date: effective_date,
+                      cycle_end_date: sub.cycle_end_date,
+                      due_date: effective_date,
+                      notes: `Ajustement proratisé — ${body.previous_plan_name ?? ""} → ${new_plan_name} (${daysRemaining} jours)`,
+                    })
+                    .select()
+                    .single();
+
+                  if (!invErr && invoice) {
+                    await admin.from("billing_invoice_lines").insert({
+                      invoice_id: invoice.id,
+                      description: `Différence proratisée — ${body.previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`,
+                      unit_price: subtotal,
+                      quantity: 1,
+                      line_total: subtotal,
+                      line_type: "service",
+                    });
+
+                    if (sub.paypal_subscription_id) {
+                      admin.functions.invoke("paypal-charge-subscription", {
+                        body: { subscription_id: sub.id, invoice_id: invoice.id, amount: total },
+                      }).catch((e: unknown) => {
+                        console.error("[internet-account-actions] prorated PayPal charge failed:", e);
+                      });
+                    }
+
+                    await enqueueEmail("invoice_created", {
+                      invoice_number: invoiceNumber,
+                      total: total.toFixed(2),
+                      amount: total.toFixed(2),
+                      due_date: effective_date,
+                      cycle_start: effective_date,
+                      cycle_end: sub.cycle_end_date,
+                    });
+                  }
+                }
+              }
+            }
+          } catch (proErr) {
+            console.error("[internet-account-actions] proration error:", proErr);
+          }
+        }
 
         return json(200, { ok: true, plan_change_id: data.id });
       }
