@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Settings, Building, CreditCard, Shield, AlertTriangle, Bell, Users, Save, Loader2 } from "lucide-react";
+import { Settings, Building, CreditCard, Shield, AlertTriangle, Bell, Users, Save, Loader2, RefreshCw, FileText, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const TABS = [
@@ -22,6 +22,8 @@ type TabId = typeof TABS[number]["id"];
 export default function CoreSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const queryClient = useQueryClient();
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [regenResult, setRegenResult] = useState<{ total: number; succeeded: number; failed: number; log: any[] } | null>(null);
 
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ["core-site-settings"],
@@ -170,23 +172,90 @@ export default function CoreSettingsPage() {
             </SettingRow>
           </SettingsSection>
         ) : (
-          <SettingsSection title="Drapeaux système">
-            {(() => {
-              const m = (getSetting("maintenance_mode")?.value_json as any) || {};
-              const l = (getSetting("total_lockdown")?.value_json as any) || {};
-              return (<>
-                <SettingRow label="Mode maintenance" description="Affiche une page de maintenance aux visiteurs">
-                  <Toggle enabled={!!m.enabled} onToggle={() => updateMutation.mutate({ key: "maintenance_mode", value: { ...m, enabled: !m.enabled } })} />
-                </SettingRow>
-                <SettingRow label="Verrouillage total" description="Bloque toutes les opérations client">
-                  <Toggle enabled={!!l.enabled} onToggle={() => updateMutation.mutate({ key: "total_lockdown", value: { ...l, enabled: !l.enabled } })} />
-                </SettingRow>
-                <SettingRow label="Inscriptions désactivées" description="Bloque les nouvelles inscriptions">
-                  <Toggle enabled={!!(getSetting("disable_signups")?.value_json as any)?.enabled} onToggle={() => updateMutation.mutate({ key: "disable_signups", value: { enabled: !(getSetting("disable_signups")?.value_json as any)?.enabled } })} />
-                </SettingRow>
-              </>);
-            })()}
-          </SettingsSection>
+          <div className="space-y-6">
+            <SettingsSection title="Drapeaux système">
+              {(() => {
+                const m = (getSetting("maintenance_mode")?.value_json as any) || {};
+                const l = (getSetting("total_lockdown")?.value_json as any) || {};
+                return (<>
+                  <SettingRow label="Mode maintenance" description="Affiche une page de maintenance aux visiteurs">
+                    <Toggle enabled={!!m.enabled} onToggle={() => updateMutation.mutate({ key: "maintenance_mode", value: { ...m, enabled: !m.enabled } })} />
+                  </SettingRow>
+                  <SettingRow label="Verrouillage total" description="Bloque toutes les opérations client">
+                    <Toggle enabled={!!l.enabled} onToggle={() => updateMutation.mutate({ key: "total_lockdown", value: { ...l, enabled: !l.enabled } })} />
+                  </SettingRow>
+                  <SettingRow label="Inscriptions désactivées" description="Bloque les nouvelles inscriptions">
+                    <Toggle enabled={!!(getSetting("disable_signups")?.value_json as any)?.enabled} onToggle={() => updateMutation.mutate({ key: "disable_signups", value: { enabled: !(getSetting("disable_signups")?.value_json as any)?.enabled } })} />
+                  </SettingRow>
+                </>);
+              })()}
+            </SettingsSection>
+
+            {/* ── Régénération des PDFs ── */}
+            <SettingsSection title="Maintenance PDF">
+              <div className="py-2 space-y-3">
+                <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                  Régénère tous les PDFs auto-documents existants (lettres de bienvenue, confirmations, avis, etc.)
+                  en utilisant les nouvelles règles corrigées. Les fichiers en storage sont remplacés (overwrite).
+                  Les factures/reçus/contrats sont générés à la demande — aucune action requise.
+                </p>
+                <button
+                  disabled={regenLoading}
+                  onClick={async () => {
+                    if (!confirm(`Régénérer TOUS les PDFs auto-documents ? Les anciens fichiers seront remplacés.`)) return;
+                    setRegenLoading(true);
+                    setRegenResult(null);
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const token = session?.access_token;
+                      if (!token) throw new Error("Session expirée");
+                      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-regenerate-pdfs`;
+                      const res = await fetch(url, {
+                        method: "POST",
+                        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                      });
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+                      setRegenResult(json);
+                    } catch (e: any) {
+                      alert("Erreur : " + e.message);
+                    } finally {
+                      setRegenLoading(false);
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors bg-[hsl(220,15%,18%)] hover:bg-[hsl(220,15%,22%)] text-[#F8FAFC] border border-[hsl(220,15%,24%)] disabled:opacity-50"
+                >
+                  {regenLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Régénération en cours…</>
+                    : <><RefreshCw className="w-4 h-4" />Régénérer tous les PDFs</>}
+                </button>
+
+                {regenResult && (
+                  <div className="mt-3 rounded-lg border border-[hsl(220,15%,20%)] overflow-hidden">
+                    <div className="px-4 py-3 bg-[hsl(220,15%,14%)] flex items-center gap-4 text-[12px]">
+                      <span className="text-[#94A3B8]">Total : <strong className="text-[#F8FAFC]">{regenResult.total}</strong></span>
+                      <span className="text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" />{regenResult.succeeded} OK</span>
+                      {regenResult.failed > 0 && <span className="text-red-400 flex items-center gap-1"><XCircle className="w-3.5 h-3.5" />{regenResult.failed} erreurs</span>}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-[hsl(220,15%,14%)]">
+                      {regenResult.log.map((entry: any, i: number) => (
+                        <div key={i} className="px-4 py-2 flex items-start gap-3 text-[11px]">
+                          {entry.status === "ok"
+                            ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            : <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />}
+                          <div className="flex-1 min-w-0">
+                            <span className="font-mono text-[#CBD5E1]">{entry.doc_type}</span>
+                            {entry.new_size_bytes && <span className="text-[#64748B] ml-2">{(entry.new_size_bytes / 1024).toFixed(1)} Ko</span>}
+                            {entry.error && <p className="text-red-400 truncate mt-0.5">{entry.error}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SettingsSection>
+          </div>
         )}
       </div>
     </div>
