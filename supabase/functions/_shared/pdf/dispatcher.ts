@@ -104,11 +104,16 @@ async function enrichFromDb(
       if (cust) {
         out.client_email = out.client_email || cust.email;
         out.client_phone = out.client_phone || cust.phone;
-        out.first_name = out.first_name || cust.first_name;
-        out.last_name = out.last_name || cust.last_name;
+        // billing_customers names can be null — profiles is the source of truth
         if (cust.user_id) {
+          const { data: prof } = await admin.from("profiles").select("first_name, last_name").eq("user_id", cust.user_id).maybeSingle();
+          out.first_name = out.first_name || prof?.first_name || cust.first_name;
+          out.last_name = out.last_name || prof?.last_name || cust.last_name;
           const { data: acc } = await admin.from("accounts").select("*").eq("client_id", cust.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle();
           account = acc;
+        } else {
+          out.first_name = out.first_name || cust.first_name;
+          out.last_name = out.last_name || cust.last_name;
         }
       }
     }
@@ -126,6 +131,14 @@ async function enrichFromDb(
       out.service_province = out.service_province || account.primary_service_province || account.billing_province || "QC";
       out.service_postal = out.service_postal || account.primary_service_postal_code || account.billing_postal_code || "";
       out.account_status = out.account_status || account.status || "active";
+      // Resolve real name from profiles when billing_customers names are missing
+      if (account.client_id && (!out.first_name || !out.last_name)) {
+        const { data: prof } = await admin.from("profiles").select("first_name, last_name").eq("user_id", account.client_id).maybeSingle();
+        if (prof) {
+          out.first_name = out.first_name || prof.first_name;
+          out.last_name = out.last_name || prof.last_name;
+        }
+      }
     }
 
     // Fetch most recent active subscription for service info
