@@ -158,6 +158,7 @@ const ClientMyServices = () => {
   const billingSubscriptions = canonicalData?.subscriptions || [];
   const serviceInstances = canonicalData?.serviceInstances || [];
   const orders = (canonicalData?.orders || []).filter((order: any) => order?.status !== "cancelled");
+  const account = canonicalData?.account;
   const loadingSubs = canonicalLoading;
 
 
@@ -669,6 +670,29 @@ const ClientMyServices = () => {
               )}
             </div>
           </div>
+
+          {/* Billing cycle info */}
+          {(account?.next_invoice_date || account?.billing_cycle_day) && (
+            <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-4 text-sm">
+              {account.billing_cycle_day && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Cycle de facturation</p>
+                  <p className="font-medium text-foreground">Le {account.billing_cycle_day} de chaque mois</p>
+                </div>
+              )}
+              {account.next_invoice_date && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Prochaine facture</p>
+                  <p className="font-medium text-foreground">
+                    {(() => {
+                      try { return new Date(account.next_invoice_date).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" }); }
+                      catch { return account.next_invoice_date; }
+                    })()}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Last Payment Reference */}
           {lastPayment && (
