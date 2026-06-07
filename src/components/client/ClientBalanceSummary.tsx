@@ -73,11 +73,12 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
     }))
     .sort((a, b) => new Date(a.due_date || 8640000000000000).getTime() - new Date(b.due_date || 8640000000000000).getTime());
   const confirmedPayments = payments.filter((pay: any) => ["confirmed", "completed"].includes(String(pay.status || "")));
-  const totalDebits = invoices
-    .filter((inv: any) => !["void", "cancelled", "refunded"].includes(String(inv.status || "")))
-    .reduce((sum: number, inv: any) => sum + Number(inv.total || 0), 0);
-  const totalCredits = confirmedPayments.reduce((sum: number, pay: any) => sum + Number(pay.amount || 0), 0);
-  const balance = Math.round((totalDebits - totalCredits) * 100) / 100;
+  const OPEN = ["void", "cancelled", "refunded", "paid", "paid_by_promo"];
+  const balance = Math.round(
+    invoices
+      .filter((inv: any) => !OPEN.includes(String(inv.status || "")))
+      .reduce((sum: number, inv: any) => sum + Number(inv.balance_due || 0), 0)
+    * 100) / 100;
   const lastPayment = [...confirmedPayments].sort(
     (a: any, b: any) => new Date(b.received_at || b.captured_at || b.created_at || 0).getTime() - new Date(a.received_at || a.captured_at || a.created_at || 0).getTime(),
   )[0];

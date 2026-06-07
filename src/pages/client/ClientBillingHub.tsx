@@ -37,7 +37,10 @@ import {
   AlertCircle,
   Wallet,
   ShieldCheck,
+  Eye,
+  Download,
 } from "lucide-react";
+import { useClientPDF } from "@/hooks/useClientPDF";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
 import { AddAccountCredit } from "@/components/client/AddAccountCredit";
@@ -69,6 +72,7 @@ const ClientBillingHub = () => {
   const { user } = useClientAuth();
   const queryClient = useQueryClient();
   const writeGuard = useWriteGuard();
+  const clientPDF = useClientPDF();
   const { data: canonicalData } = useCanonicalClientData(user?.id);
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "pay-invoice";
@@ -352,13 +356,21 @@ const ClientBillingHub = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
+                            <div className="flex items-center gap-2 sm:gap-4">
+                              <div className="text-right hidden sm:block">
                                 <p className="text-xs text-muted-foreground">Solde dû</p>
                                 <p className="text-xl font-bold text-foreground">
                                   {balanceDue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                                 </p>
                               </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => clientPDF.view("invoice", invoice.id)}
+                                title="Voir la facture PDF"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
                               <Button
                                 onClick={() => handlePayInvoice(invoice)}
                                 className="whitespace-nowrap"
@@ -438,20 +450,31 @@ const ClientBillingHub = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-semibold text-foreground">
-                                {Number(inv.total).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                              </p>
-                              {!isPaid && Number(inv.balance_due) > 0 && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="mt-1 text-xs h-7"
-                                  onClick={() => handlePayInvoice(inv)}
-                                >
-                                  Payer
-                                </Button>
-                              )}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => clientPDF.view("invoice", inv.id)}
+                                title="Voir PDF"
+                              >
+                                <Eye className="w-4 h-4 text-muted-foreground" />
+                              </Button>
+                              <div className="text-right">
+                                <p className="font-semibold text-foreground">
+                                  {Number(inv.total).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                </p>
+                                {!isPaid && Number(inv.balance_due) > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="mt-1 text-xs h-7"
+                                    onClick={() => handlePayInvoice(inv)}
+                                  >
+                                    Payer
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </CardContent>

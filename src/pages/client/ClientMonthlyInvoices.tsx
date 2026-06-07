@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Receipt, Calendar, Download, CreditCard, CheckCircle, Clock, AlertTriangle, Loader2, Info, Banknote, X } from "lucide-react";
+import { Receipt, Calendar, Download, Eye, CreditCard, CheckCircle, Clock, AlertTriangle, Loader2, Info, Banknote, X } from "lucide-react";
+import { useClientPDF } from "@/hooks/useClientPDF";
 import { useToast } from "@/hooks/use-toast";
 import { formatBillingCycleDescription, BILLING_CONSTANTS } from "@/lib/billingCycleUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,6 +41,7 @@ const ClientMonthlyInvoices = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const clientPDF = useClientPDF();
   const { data: canonicalData } = useCanonicalClientData(user?.id);
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -250,7 +252,11 @@ const ClientMonthlyInvoices = () => {
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => clientPDF.view("invoice", invoice.id)}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            Voir
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => clientPDF.download("invoice", invoice.id)}>
                             <Download className="w-4 h-4 mr-1" />
                             PDF
                           </Button>

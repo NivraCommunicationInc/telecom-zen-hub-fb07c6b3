@@ -29,11 +29,12 @@ export const ClientPayBalanceCard = () => {
       const invoices = canonicalData?.invoices || [];
       const payments = canonicalData?.payments || [];
 
-      const debits = (invoices || []).reduce((s, i: any) => s + (Number(i.total) || 0), 0);
-      const credits = (payments || [])
-        .filter((p: any) => String(p.status || "").toLowerCase() === "confirmed")
-        .reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
-      const total = Math.round((debits - credits) * 100) / 100;
+      const CLOSED = ["void", "cancelled", "refunded", "paid", "paid_by_promo"];
+      const total = Math.round(
+        (invoices || [])
+          .filter((i: any) => !CLOSED.includes(String(i.status || "")))
+          .reduce((s: number, i: any) => s + (Number(i.balance_due) || 0), 0)
+        * 100) / 100;
 
       const CLOSED = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
       const unpaidCount = (invoices || []).filter(
