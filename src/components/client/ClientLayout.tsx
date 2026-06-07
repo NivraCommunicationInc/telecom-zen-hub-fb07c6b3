@@ -16,6 +16,7 @@ import {
   Search,
   LayoutGrid,
   AlertCircle,
+  Globe,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { ImpersonationProvider } from "@/components/client/ImpersonationBanner";
 import { invalidateClientRealtimeQueries } from "@/lib/queryInvalidation";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useLanguage, languages } from "@/contexts/LanguageContext";
 
 const PURPLE = "#6b21e8";
 const PURPLE_LIGHT = "#ede9fe";
@@ -42,81 +44,65 @@ interface ClientLayoutProps {
   children: ReactNode;
 }
 
-// Navigation structure (with optional badgeKey mapping to usePortalSectionBadges)
-const navGroups: Array<{
+type NavGroup = {
   label: string;
   path: string | null;
   badgeKey?: PortalSectionKey;
   children: Array<{ path: string; label: string; badgeKey?: PortalSectionKey }>;
-}> = [
-  {
-    label: "Survol",
-    path: "/portal",
-    children: [],
-  },
-  {
-    label: "Facturation et paiement",
-    path: null,
-    badgeKey: "billing",
-    children: [
-      { path: "/portal/billing", label: "Faire un paiement", badgeKey: "billing" },
-      { path: "/portal/billing?tab=add-credit", label: "Ajouter un crédit" },
-      { path: "/portal/invoices", label: "Mes factures", badgeKey: "billing" },
-      { path: "/portal/paiement", label: "Mode de paiement" },
-      { path: "/portal/payments", label: "Moyens de paiement" },
-      { path: "/portal/monthly-invoices", label: "Historique des paiements" },
-    ],
-  },
-  {
-    label: "Utilisation et services",
-    path: null,
-    badgeKey: "services",
-    children: [
-      { path: "/portal/services", label: "Mes services", badgeKey: "services" },
-      { path: "/portal/change-plan", label: "Changer de forfait" },
-      { path: "/portal/equipment", label: "Mon équipement" },
-      { path: "/portal/activation", label: "📶 Activation WiFi" },
-      { path: "/portal/service-addresses", label: "Mes adresses" },
-      { path: "/portal/orders", label: "Mes commandes", badgeKey: "orders" },
-      { path: "/portal/identity-verification", label: "Vérification d'identité", badgeKey: "identity" },
-      { path: "/portal/channels", label: "Chaînes TV" },
-      { path: "/portal/appointments", label: "Rendez-vous" },
-      { path: "/portal/contracts", label: "Contrats", badgeKey: "contracts" },
-      { path: "/portal/replacement", label: "Demande de remplacement" },
-      { path: "/portal/cancellations", label: "Résiliation de service" },
-    ],
-  },
-  {
-    label: "Mes offres",
-    path: null,
-    children: [
-      { path: "/portal/new-order", label: "Forfaits & services" },
-      { path: "/telephones", label: "📱 Téléphones" },
-    ],
-  },
-  {
-    label: "Parrainage",
-    path: "/portal/referrals",
-    children: [],
-  },
-  {
-    label: "Mes points",
-    path: "/portal/loyalty",
-    children: [],
-  },
-  {
-    label: "Paramètres",
-    path: null,
-    badgeKey: "support",
-    children: [
-      { path: "/portal/profile", label: "Mon profil" },
-      { path: "/portal/tickets", label: "Support", badgeKey: "support" },
-      { path: "/portal/web-forms", label: "Formulaires" },
-      { path: "/portal/documents", label: "Documents", badgeKey: "support" },
-      { path: "/portal/guides", label: "📥 Guides & Documents" },
-    ],
-  },
-];
+};
+
+function buildNavGroups(t: (k: string) => string): NavGroup[] {
+  return [
+    { label: t('portal.nav.overview'), path: "/portal", children: [] },
+    {
+      label: t('portal.nav.billing_group'), path: null, badgeKey: "billing",
+      children: [
+        { path: "/portal/billing", label: t('portal.nav.make_payment'), badgeKey: "billing" },
+        { path: "/portal/billing?tab=add-credit", label: t('portal.nav.add_credit') },
+        { path: "/portal/invoices", label: t('portal.nav.my_invoices'), badgeKey: "billing" },
+        { path: "/portal/paiement", label: t('portal.nav.payment_method') },
+        { path: "/portal/payments", label: t('portal.nav.payment_means') },
+        { path: "/portal/monthly-invoices", label: t('portal.nav.payment_history') },
+      ],
+    },
+    {
+      label: t('portal.nav.services_group'), path: null, badgeKey: "services",
+      children: [
+        { path: "/portal/services", label: t('portal.nav.my_services'), badgeKey: "services" },
+        { path: "/portal/change-plan", label: t('portal.nav.change_plan') },
+        { path: "/portal/equipment", label: t('portal.nav.equipment') },
+        { path: "/portal/activation", label: t('portal.nav.wifi_activation') },
+        { path: "/portal/service-addresses", label: t('portal.nav.my_addresses') },
+        { path: "/portal/orders", label: t('portal.nav.my_orders'), badgeKey: "orders" },
+        { path: "/portal/identity-verification", label: t('portal.nav.identity'), badgeKey: "identity" },
+        { path: "/portal/channels", label: t('portal.nav.tv_channels') },
+        { path: "/portal/appointments", label: t('portal.nav.appointments') },
+        { path: "/portal/contracts", label: t('portal.nav.contracts'), badgeKey: "contracts" },
+        { path: "/portal/replacement", label: t('portal.nav.replacement') },
+        { path: "/portal/cancellations", label: t('portal.nav.cancellations') },
+      ],
+    },
+    {
+      label: t('portal.nav.offers_group'), path: null,
+      children: [
+        { path: "/portal/new-order", label: t('portal.nav.plans_services') },
+        { path: "/telephones", label: t('portal.nav.phones') },
+      ],
+    },
+    { label: t('portal.nav.referrals'), path: "/portal/referrals", children: [] },
+    { label: t('portal.nav.loyalty'), path: "/portal/loyalty", children: [] },
+    {
+      label: t('portal.nav.settings_group'), path: null, badgeKey: "support",
+      children: [
+        { path: "/portal/profile", label: t('portal.nav.my_profile') },
+        { path: "/portal/tickets", label: t('portal.nav.support_ticket'), badgeKey: "support" },
+        { path: "/portal/web-forms", label: t('portal.nav.forms') },
+        { path: "/portal/documents", label: t('portal.nav.documents'), badgeKey: "support" },
+        { path: "/portal/guides", label: t('portal.nav.guides') },
+      ],
+    },
+  ];
+}
 
 const ClientLayout = ({ children }: ClientLayoutProps) => {
   useLiveActivityTracker();
@@ -124,8 +110,12 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const navigate = useNavigate();
   const { user, signOut } = useClientAuth();
   const queryClient = useQueryClient();
+  const { t, language, setLanguage } = useLanguage();
+  const navGroups = buildNavGroups(t);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { badges: sectionBadges } = usePortalSectionBadges();
@@ -162,6 +152,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpenDropdown(null);
       }
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setLangMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -173,7 +166,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     sessionStorage.removeItem("client_pin_pending_user_id");
     sessionStorage.removeItem("client_last_auth_check");
     await signOut();
-    toast.info("Vous avez été déconnecté après 1 heure d'inactivité", { duration: 5000 });
+    toast.info(t('portal.idle_logout'), { duration: 5000 });
     navigate("/portal/auth");
   }, [signOut, navigate]);
 
@@ -240,16 +233,42 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       <div className="hidden lg:block border-b" style={{ background: "#0D0D1F", borderColor: "rgba(124,58,237,0.15)" }}>
         <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs" style={{ color: "#A0A0B8" }}>
           <Link to="/" className="transition-colors hover:text-white">
-            Retour au site Nivra
+            {t('portal.nav.back_to_site')}
           </Link>
           <span style={{ color: "#2A2A40" }}>|</span>
           <span className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5" />
             {user?.email}
           </span>
+          {/* Language picker */}
+          <div className="relative" ref={langMenuRef}>
+            <button
+              onClick={() => setLangMenuOpen(v => !v)}
+              className="flex items-center gap-1 transition-colors hover:text-white"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span className="uppercase">{language}</span>
+              <ChevronDown className={cn("w-3 h-3 transition-transform", langMenuOpen && "rotate-180")} />
+            </button>
+            {langMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border py-1 z-50 shadow-xl" style={{ background: "#111122", borderColor: "rgba(124,58,237,0.25)" }}>
+                {languages.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLanguage(l.code); setLangMenuOpen(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-white/10 flex items-center justify-between"
+                    style={{ color: language === l.code ? "#a78bfa" : "#D0D0E8" }}
+                  >
+                    <span>{l.nativeName}</span>
+                    {language === l.code && <span className="text-[10px] opacity-60">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={handleSignOut} className="transition-colors hover:text-white flex items-center gap-1">
             <LogOut className="w-3.5 h-3.5" />
-            Déconnexion
+            {t('portal.nav.logout')}
           </button>
         </div>
       </div>
@@ -374,7 +393,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       {/* Account bar — desktop */}
       <div className="hidden lg:block sticky top-16 z-40 border-b" style={{ background: "#0D0D1F", borderColor: "rgba(124,58,237,0.12)" }}>
         <div className="max-w-[1200px] mx-auto px-6 flex items-center h-11 text-sm gap-3">
-          <span className="font-semibold" style={{ color: "#a78bfa" }}>MonNivra</span>
+          <span className="font-semibold" style={{ color: "#a78bfa" }}>{t('portal.account_bar')}</span>
           <span style={{ color: "rgba(124,58,237,0.4)" }}>·</span>
           <span style={{ color: "#A0A0B8" }}>
             {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Client"}
@@ -388,7 +407,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
           <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
           <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] z-50 shadow-2xl lg:hidden overflow-y-auto" style={{ background: "#111122", borderRight: "1px solid rgba(124,58,237,0.2)" }}>
             <div className="flex items-center justify-between px-4 h-14 border-b" style={{ borderColor: "rgba(124,58,237,0.15)" }}>
-              <span className="font-bold text-base" style={{ color: "#a78bfa" }}>MonNivra</span>
+              <span className="font-bold text-base" style={{ color: "#a78bfa" }}>{t('portal.account_bar')}</span>
               <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg transition-colors" style={{ color: "#A0A0B8" }}>
                 <X className="w-5 h-5" />
               </button>
@@ -461,8 +480,26 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
             <div className="border-t p-3 space-y-0.5 mt-2" style={{ borderColor: "rgba(124,58,237,0.15)" }}>
               <Link to="/" className="flex items-center px-4 py-3 text-sm rounded-xl min-h-[44px] transition-colors" style={{ color: "#A0A0B8" }}>
-                Retour au site Nivra
+                {t('portal.nav.back_to_site')}
               </Link>
+              {/* Mobile language picker */}
+              <div className="px-4 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: "#6B6B85" }}><Globe className="w-3 h-3 inline mr-1" />{language.toUpperCase()}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {languages.map(l => (
+                    <button
+                      key={l.code}
+                      onClick={() => { setLanguage(l.code); setMobileMenuOpen(false); }}
+                      className="px-2 py-1 rounded text-xs transition-colors"
+                      style={language === l.code
+                        ? { background: "rgba(124,58,237,0.3)", color: "#a78bfa", fontWeight: 600 }
+                        : { background: "rgba(255,255,255,0.05)", color: "#B0B0CC" }}
+                    >
+                      {l.nativeName}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {hasStaffRole && (
                 <button
                   onClick={() => navigate('/nivra-secure-hub-2617-internal')}
@@ -470,7 +507,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                   style={{ color: "#A0A0B8" }}
                 >
                   <LayoutGrid className="w-4 h-4" />
-                  Changer de portail
+                  {t('portal.nav.switch_portal')}
                 </button>
               )}
               <button
@@ -479,7 +516,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                 style={{ color: "#f87171" }}
               >
                 <LogOut className="w-4 h-4" />
-                Déconnexion
+                {t('portal.nav.logout')}
               </button>
             </div>
           </div>
@@ -496,17 +533,17 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       {/* Footer */}
       <footer className="py-5 mt-auto border-t" style={{ background: "#0D0D1F", borderColor: "rgba(124,58,237,0.15)" }}>
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs space-y-1" style={{ color: "#6B6B85" }}>
-          <p>© {new Date().getFullYear()} Nivra Télécom. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} Nivra Télécom. {t('portal.footer.rights')}</p>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <Link to="/privacy-policy" className="transition-colors hover:text-white">Confidentialité</Link>
+            <Link to="/privacy-policy" className="transition-colors hover:text-white">{t('portal.footer.privacy')}</Link>
             <span style={{ color: "rgba(124,58,237,0.3)" }}>·</span>
-            <Link to="/conditions-de-service" className="transition-colors hover:text-white">Conditions</Link>
+            <Link to="/conditions-de-service" className="transition-colors hover:text-white">{t('portal.footer.terms')}</Link>
             <span style={{ color: "rgba(124,58,237,0.3)" }}>·</span>
-            <Link to="/contact" className="transition-colors hover:text-white">Support</Link>
+            <Link to="/contact" className="transition-colors hover:text-white">{t('portal.footer.support')}</Link>
             <span style={{ color: "rgba(124,58,237,0.3)" }}>·</span>
             <Link to="/plainte" className="inline-flex items-center gap-1 transition-colors hover:text-white">
               <AlertCircle className="w-3.5 h-3.5" />
-              Plainte
+              {t('portal.footer.complaint')}
             </Link>
           </div>
         </div>
