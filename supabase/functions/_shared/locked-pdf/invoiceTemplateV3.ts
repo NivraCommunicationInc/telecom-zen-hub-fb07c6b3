@@ -111,15 +111,15 @@ function drawClientBlock(doc: jsPDF, data: {
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   doc.text("Client", 15, y);
-  doc.text("Adresse de service", 110, y);
+  if (data.address) doc.text("Adresse de service", 110, y);
   y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(data.name, 15, y);
+  doc.text(data.name || "—", 15, y);
   if (data.address) doc.text(data.address, 110, y);
   y += 5;
-  doc.text(data.email, 15, y);
+  if (data.email) doc.text(data.email, 15, y);
   if (data.city) {
     doc.text(`${data.city}, ${data.province || "QC"} ${data.postal || ""}`, 110, y);
   }
@@ -141,7 +141,6 @@ function drawClientBlock(doc: jsPDF, data: {
 export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
   try {
     if (!data.invoice_number) return { success: false, error: "Numero de facture manquant" };
-    if (!data.customer?.full_name || !data.customer?.email) return { success: false, error: "Informations client incompletes" };
     if (!data.items || data.items.length === 0) return { success: false, error: "Aucun item a facturer" };
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -151,8 +150,8 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
     // Client block
     let y = drawClientBlock(doc, {
-      name: data.customer.full_name,
-      email: data.customer.email,
+      name: data.customer?.full_name || "—",
+      email: data.customer?.email || "",
       phone: data.customer.phone,
       address: data.customer.address_line1,
       city: data.customer.city,

@@ -107,15 +107,15 @@ function drawClientBlock(doc: jsPDF, data: {
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   doc.text("Client", 15, y);
-  doc.text("Adresse de service", 110, y);
+  if (data.address) doc.text("Adresse de service", 110, y);
   y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(data.name, 15, y);
+  doc.text(data.name || "—", 15, y);
   if (data.address) doc.text(data.address, 110, y);
   y += 5;
-  doc.text(data.email, 15, y);
+  if (data.email) doc.text(data.email, 15, y);
   if (data.city) {
     doc.text(`${data.city}, ${data.province || "QC"} ${data.postal || ""}`, 110, y);
   }
@@ -137,7 +137,6 @@ function drawClientBlock(doc: jsPDF, data: {
 export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
   try {
     if (!data.invoice_number) return { success: false, error: "Numero de facture manquant" };
-    if (!data.customer?.full_name || !data.customer?.email) return { success: false, error: "Informations client incompletes" };
     if (!data.items || data.items.length === 0) return { success: false, error: "Aucun item a facturer" };
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -147,8 +146,8 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
     // Client block
     let y = drawClientBlock(doc, {
-      name: data.customer.full_name,
-      email: data.customer.email,
+      name: data.customer?.full_name || "—",
+      email: data.customer?.email || "",
       phone: data.customer.phone,
       address: data.customer.address_line1,
       city: data.customer.city,
@@ -183,27 +182,35 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
 
+    // Description wraps to prevent overflow into Type/Amount columns
+    const DESC_MAX_W = 108;
+    const LINE_H = 5;
+
     // Render items
     for (const item of data.items) {
       doc.setTextColor(0, 0, 0);
-      doc.text(item.description, 17, y + 4);
-      doc.text(typeLabel(item.category), 130, y + 4);
-      doc.text(fmt(item.amount), 180, y + 4, { align: "right" });
+      const ilines = doc.splitTextToSize(item.description || "—", DESC_MAX_W);
+      const rowH = Math.max(7, ilines.length * LINE_H + 3);
+      doc.text(ilines, 17, y + LINE_H);
+      doc.text(typeLabel(item.category), 130, y + LINE_H);
+      doc.text(fmt(item.amount), 180, y + LINE_H, { align: "right" });
       doc.setDrawColor(230, 230, 230);
-      doc.line(15, y + 6, 185, y + 6);
-      y += 7;
+      doc.line(15, y + rowH, 185, y + rowH);
+      y += rowH;
     }
 
     // Discounts
     if (data.discounts && data.discounts.length > 0) {
       for (const d of data.discounts) {
         doc.setTextColor(0, 128, 0);
-        doc.text(d.label, 17, y + 4);
-        doc.text("Rabais", 130, y + 4);
-        doc.text(fmt(-d.amount), 180, y + 4, { align: "right" });
+        const dlines = doc.splitTextToSize(d.label || "Rabais", DESC_MAX_W);
+        const drowH = Math.max(7, dlines.length * LINE_H + 3);
+        doc.text(dlines, 17, y + LINE_H);
+        doc.text("Rabais", 130, y + LINE_H);
+        doc.text(fmt(-d.amount), 180, y + LINE_H, { align: "right" });
         doc.setDrawColor(230, 230, 230);
-        doc.line(15, y + 6, 185, y + 6);
-        y += 7;
+        doc.line(15, y + drowH, 185, y + drowH);
+        y += drowH;
       }
     }
 

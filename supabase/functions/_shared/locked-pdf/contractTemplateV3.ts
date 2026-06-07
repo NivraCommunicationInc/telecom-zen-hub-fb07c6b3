@@ -220,12 +220,12 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     labelStyle(); doc.text("Nom complet", col1, y);
     labelStyle(); doc.text("No de compte", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_name, col1, y);
+    valueStyle(); doc.text(data.client_name || "—", col1, y);
     valueStyle(); doc.text(data.account_number, col2, y); y += 6;
 
     labelStyle(); doc.text("Courriel", col1, y);
     labelStyle(); doc.text("No de commande", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_email, col1, y);
+    valueStyle(); doc.text(data.client_email || "—", col1, y);
     valueStyle(); doc.text(data.order_number, col2, y); y += 6;
 
     labelStyle(); doc.text("Telephone", col1, y);
@@ -532,7 +532,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
-    doc.text(data.client_name, 15, y);
+    doc.text(data.client_name || "—", 15, y);
     doc.text(data.admin_signature_name || "Representant autorise", 110, y);
     y += 5;
 

@@ -157,11 +157,11 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text("Client", 15, y);
-    doc.text("Adresse de service", 110, y);
+    if (data.client_address) doc.text("Adresse de service", 110, y);
     y += 6;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(data.client_name, 15, y);
+    doc.text(data.client_name || "—", 15, y);
     if (data.client_address) {
       // Parse address if it contains comma-separated parts
       const parts = data.client_address.split(",").map(s => s.trim());
@@ -171,7 +171,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       }
     }
     y += 5;
-    doc.text(data.client_email, 15, y);
+    if (data.client_email) doc.text(data.client_email, 15, y);
     y += 5;
     if (data.client_phone) { doc.text(data.client_phone, 15, y); y += 5; }
 

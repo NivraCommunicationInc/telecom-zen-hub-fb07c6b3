@@ -320,7 +320,12 @@ export async function buildInvoicePdfAttachment(
     const orderId: string | null = (invoice as any).order_id || order?.id || null;
     const orderNumber: string | undefined = order?.order_number || undefined;
     const orderClientFullAddress: string = (order as any).client_full_address || "";
-    const clientName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client";
+    let clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ");
+    if (!clientName && customer.user_id) {
+      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", customer.user_id).maybeSingle();
+      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
+    }
+    clientName = clientName || "Client";
 
     let accountNumber = (invoice as any).billing_snapshot_account_number || "";
     if (!accountNumber && customer.user_id) {
@@ -514,7 +519,12 @@ export async function buildReceiptPdfAttachment(
     const customer = (invoice as any).customer || {};
     const order = (invoice as any).order || {};
     const lines: any[] = (invoice as any).lines || [];
-    const clientName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client";
+    let clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ");
+    if (!clientName && customer.user_id) {
+      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", customer.user_id).maybeSingle();
+      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
+    }
+    clientName = clientName || "Client";
 
     let accountNumber = (invoice as any).billing_snapshot_account_number || "";
     if (!accountNumber && customer.user_id) {
@@ -638,7 +648,12 @@ export async function buildContractPdfAttachment(
     }
 
     const o = order as any;
-    const clientName = `${o.client_first_name || ""} ${o.client_last_name || ""}`.trim() || "Client";
+    let clientName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ");
+    if (!clientName && o.user_id) {
+      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", o.user_id).maybeSingle();
+      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
+    }
+    clientName = clientName || "Client";
 
     // Account number
     let accountNumber = "";
