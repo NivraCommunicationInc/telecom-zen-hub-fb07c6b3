@@ -47,7 +47,7 @@ export function useAdminPayments(environment: EnvironmentFilter = "all") {
           provider_payment_id, source, received_at, created_at, confirmed_by,
           legacy_note, created_by_name, invoice_id, customer_id, environment,
           invoice:billing_invoices(invoice_number, order_id, customer_id),
-          customer:billing_customers(id, first_name, last_name, email)
+          customer:billing_customers(id, first_name, last_name, email, user_id)
         `)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -60,6 +60,10 @@ export function useAdminPayments(environment: EnvironmentFilter = "all") {
         orderIds: data.map((p: any) => p.invoice?.order_id),
         customerIds: data.map((p: any) => p.invoice?.customer_id ?? p.customer?.id ?? p.customer_id),
       });
+
+      const _uids = [...new Set(data.map((p: any) => p.customer?.user_id).filter(Boolean))];
+      const { data: _profs } = _uids.length > 0 ? await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", _uids) : { data: [] };
+      const _profileMap = new Map((_profs || []).map((p: any) => [p.user_id, p]));
 
       return data.map((p: any): AdminPayment => {
         if (!p.payment_number) {
@@ -99,7 +103,7 @@ export function useAdminPayments(environment: EnvironmentFilter = "all") {
           invoice_id: p.invoice_id,
           invoice_number: p.invoice?.invoice_number ?? null,
           customer_id: p.customer?.id ?? p.customer_id,
-          customer_name: p.customer ? [p.customer.first_name, p.customer.last_name].filter(Boolean).join(" ") || null : null,
+          customer_name: (() => { const prof = p.customer?.user_id ? _profileMap.get(p.customer.user_id) : null; return [prof?.first_name ?? p.customer?.first_name, prof?.last_name ?? p.customer?.last_name].filter(Boolean).join(" ") || null; })(),
           customer_email: p.customer?.email ?? null,
           account_number: accountNumber,
           environment: p.environment,

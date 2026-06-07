@@ -77,8 +77,8 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
           amount_paid, balance_due, status, payment_method, due_date,
           cycle_start_date, cycle_end_date, created_at, paid_at, notes,
           fees, activation_fee, order_id, customer_id,
-          customer:billing_customers(id, first_name, last_name, email, phone),
-          order:orders(order_number, account_id, user_id)
+          customer:billing_customers(id, first_name, last_name, email, phone, user_id),
+          order:orders(order_number, account_id, user_id, client_first_name, client_last_name)
         `)
         .eq("id", invoiceId)
         .single();
@@ -150,6 +150,11 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
       const c = customerRel as any;
       const o = orderRel as any;
 
+      const _custUid = c?.user_id || o?.user_id;
+      const { data: _custProf } = _custUid
+        ? await supabase.from("profiles").select("first_name, last_name").eq("user_id", _custUid).maybeSingle()
+        : { data: null };
+
       return {
         id: inv.id,
         invoice_number: inv.invoice_number,
@@ -174,7 +179,7 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         order_id: inv.order_id,
         order_number: o?.order_number ?? null,
         customer_id: c?.id ?? inv.customer_id,
-        customer_name: c ? [c.first_name, c.last_name].filter(Boolean).join(" ") || null : null,
+        customer_name: [(_custProf as any)?.first_name ?? o?.client_first_name ?? c?.first_name, (_custProf as any)?.last_name ?? o?.client_last_name ?? c?.last_name].filter(Boolean).join(" ") || null,
         customer_email: c?.email ?? null,
         customer_phone: c?.phone ?? null,
         lines: (lines ?? []).map((l: any) => ({

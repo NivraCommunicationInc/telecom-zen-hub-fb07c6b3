@@ -49,8 +49,8 @@ export function useAdminInvoices(environment: EnvironmentFilter = "all") {
           amount_paid, balance_due, status, payment_method, due_date,
           cycle_start_date, cycle_end_date, created_at, paid_at, notes,
           order_id, customer_id, environment,
-          customer:billing_customers(id, first_name, last_name, email),
-          order:orders(order_number, account_id, user_id)
+          customer:billing_customers(id, first_name, last_name, email, user_id),
+          order:orders(order_number, account_id, user_id, client_first_name, client_last_name)
         `)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -63,6 +63,10 @@ export function useAdminInvoices(environment: EnvironmentFilter = "all") {
         orderIds: data.map((inv: any) => inv.order_id),
         customerIds: data.map((inv: any) => inv.customer?.id ?? inv.customer_id),
       });
+
+      const _uids = [...new Set(data.flatMap((inv: any) => [inv.customer?.user_id, inv.order?.user_id]).filter(Boolean))];
+      const { data: _profs } = _uids.length > 0 ? await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", _uids) : { data: [] };
+      const _profileMap = new Map((_profs || []).map((p: any) => [p.user_id, p]));
 
       return data.map((inv: any): AdminInvoice => {
         if (!inv.invoice_number) {
@@ -109,7 +113,7 @@ export function useAdminInvoices(environment: EnvironmentFilter = "all") {
           order_id: inv.order_id,
           order_number: inv.order?.order_number ?? null,
           customer_id: inv.customer?.id ?? inv.customer_id,
-          customer_name: inv.customer ? [inv.customer.first_name, inv.customer.last_name].filter(Boolean).join(" ") || null : null,
+          customer_name: (() => { const uid = inv.customer?.user_id || inv.order?.user_id; const prof = uid ? _profileMap.get(uid) : null; return [prof?.first_name ?? inv.order?.client_first_name ?? inv.customer?.first_name, prof?.last_name ?? inv.order?.client_last_name ?? inv.customer?.last_name].filter(Boolean).join(" ") || null; })(),
           customer_email: inv.customer?.email ?? null,
           account_number: accountNumber,
           environment: inv.environment,

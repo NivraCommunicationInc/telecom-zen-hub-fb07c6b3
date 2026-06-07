@@ -170,16 +170,21 @@ export function useTransactionVisibility() {
       const customerIds = [...new Set((allPayments || []).map(p => p.customer_id))];
       const { data: customers } = await supabase
         .from("billing_customers")
-        .select("id, first_name, last_name, email")
+        .select("id, first_name, last_name, email, user_id")
         .in("id", customerIds.length > 0 ? customerIds : ["__none__"]);
 
       const customerMap = new Map((customers || []).map(c => [c.id, c]));
       const invoiceMap = new Map((allInvoices || []).map(i => [i.id, i]));
 
+      const _custUids = [...new Set((customers || []).map((c: any) => c.user_id).filter(Boolean))];
+      const { data: _custProfs } = _custUids.length > 0 ? await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", _custUids) : { data: [] };
+      const _custProfMap = new Map((_custProfs || []).map((p: any) => [p.user_id, p]));
+
       for (const p of (allPayments || [])) {
-        const cust = customerMap.get(p.customer_id);
+        const cust = customerMap.get(p.customer_id) as any;
         const inv = invoiceMap.get(p.invoice_id);
-        const customerName = cust ? [cust.first_name, cust.last_name].filter(Boolean).join(" ") || null : null;
+        const _cp = cust?.user_id ? _custProfMap.get(cust.user_id) : null;
+        const customerName = cust ? [(_cp as any)?.first_name ?? cust.first_name, (_cp as any)?.last_name ?? cust.last_name].filter(Boolean).join(" ") || null : null;
 
         if (p.status === "pending") {
           rows.push({

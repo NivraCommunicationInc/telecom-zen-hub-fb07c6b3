@@ -46,10 +46,18 @@ export default function CoreDIDPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("did_numbers")
-        .select("*, billing_customers(id, first_name, last_name, email)")
+        .select("*, billing_customers(id, first_name, last_name, email, user_id)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      if (!data?.length) return [];
+      const _uids = [...new Set((data as any[]).map(n => n.billing_customers?.user_id).filter(Boolean))];
+      const { data: _profs } = _uids.length > 0 ? await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", _uids) : { data: [] };
+      const _pm = new Map((_profs || []).map((p: any) => [p.user_id, p]));
+      return (data as any[]).map(n => {
+        const bc = n.billing_customers;
+        const prof: any = bc?.user_id ? _pm.get(bc.user_id) : null;
+        return { ...n, _display_name: bc ? [prof?.first_name ?? bc.first_name, prof?.last_name ?? bc.last_name].filter(Boolean).join(" ") || null : null };
+      });
     },
   });
 
@@ -194,7 +202,7 @@ export default function CoreDIDPage() {
                   <Badge className={`text-xs border ${STATUS_STYLE[n.status] || ""}`}>{STATUS_FR[n.status] || n.status}</Badge>
                 </td>
                 <td className="px-3 py-2 text-[hsl(var(--core-text-secondary))]">
-                  {n.billing_customers ? ([n.billing_customers.first_name, n.billing_customers.last_name].filter(Boolean).join(" ") || "—") : "—"}
+                  {(n as any)._display_name || (n.billing_customers?.email ? n.billing_customers.email.split("@")[0] : "—")}
                 </td>
                 <td className="px-3 py-2 text-[hsl(var(--core-text-secondary))] text-xs">
                   {n.assigned_at ? format(new Date(n.assigned_at), "d MMM yyyy", { locale: fr }) : "—"}
