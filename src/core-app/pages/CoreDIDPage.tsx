@@ -194,7 +194,7 @@ export default function CoreDIDPage() {
                   <Badge className={`text-xs border ${STATUS_STYLE[n.status] || ""}`}>{STATUS_FR[n.status] || n.status}</Badge>
                 </td>
                 <td className="px-3 py-2 text-[hsl(var(--core-text-secondary))]">
-                  {n.billing_customers ? `${n.billing_customers.first_name} ${n.billing_customers.last_name}` : "—"}
+                  {n.billing_customers ? ([n.billing_customers.first_name, n.billing_customers.last_name].filter(Boolean).join(" ") || "—") : "—"}
                 </td>
                 <td className="px-3 py-2 text-[hsl(var(--core-text-secondary))] text-xs">
                   {n.assigned_at ? format(new Date(n.assigned_at), "d MMM yyyy", { locale: fr }) : "—"}

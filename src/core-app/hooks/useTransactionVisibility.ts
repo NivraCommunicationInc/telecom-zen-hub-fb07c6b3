@@ -179,7 +179,7 @@ export function useTransactionVisibility() {
       for (const p of (allPayments || [])) {
         const cust = customerMap.get(p.customer_id);
         const inv = invoiceMap.get(p.invoice_id);
-        const customerName = cust ? `${cust.first_name} ${cust.last_name}`.trim() : null;
+        const customerName = cust ? [cust.first_name, cust.last_name].filter(Boolean).join(" ") || null : null;
 
         if (p.status === "pending") {
           rows.push({

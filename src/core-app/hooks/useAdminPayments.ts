@@ -106,7 +106,7 @@ export function useAdminPayments(environment: EnvironmentFilter = "all") {
           invoice_id: p.invoice_id,
           invoice_number: p.invoice?.invoice_number ?? null,
           customer_id: p.customer?.id ?? p.customer_id,
-          customer_name: p.customer ? `${p.customer.first_name} ${p.customer.last_name}`.trim() : null,
+          customer_name: p.customer ? [p.customer.first_name, p.customer.last_name].filter(Boolean).join(" ") || null : null,
           customer_email: p.customer?.email ?? null,
           account_number: accountNumber,
           environment: p.environment,

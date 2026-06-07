@@ -109,7 +109,7 @@ export function useAdminInvoices(environment: EnvironmentFilter = "all") {
           order_id: inv.order_id,
           order_number: inv.order?.order_number ?? null,
           customer_id: inv.customer?.id ?? inv.customer_id,
-          customer_name: inv.customer ? `${inv.customer.first_name} ${inv.customer.last_name}`.trim() : null,
+          customer_name: inv.customer ? [inv.customer.first_name, inv.customer.last_name].filter(Boolean).join(" ") || null : null,
           customer_email: inv.customer?.email ?? null,
           account_number: accountNumber,
           environment: inv.environment,

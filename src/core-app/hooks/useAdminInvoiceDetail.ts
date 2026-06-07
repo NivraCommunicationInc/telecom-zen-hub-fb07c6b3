@@ -174,7 +174,7 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         order_id: inv.order_id,
         order_number: o?.order_number ?? null,
         customer_id: c?.id ?? inv.customer_id,
-        customer_name: c ? `${c.first_name} ${c.last_name}`.trim() : null,
+        customer_name: c ? [c.first_name, c.last_name].filter(Boolean).join(" ") || null : null,
         customer_email: c?.email ?? null,
         customer_phone: c?.phone ?? null,
         lines: (lines ?? []).map((l: any) => ({
