@@ -129,11 +129,11 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text("Client", 15, y);
-    doc.text("Adresse de service", 110, y);
+    if (d.service_address) doc.text("Adresse de service", 110, y);
     y += 6;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(d.client_name || "", 15, y);
+    doc.text(d.client_name || "—", 15, y);
     // Parse service address
     const addrParts = (d.service_address || "").split(",").map((s: string) => s.trim());
     doc.text(addrParts[0] || "", 110, y);
