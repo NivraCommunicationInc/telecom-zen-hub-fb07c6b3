@@ -914,8 +914,12 @@ export async function buildSummaryPdfAttachment(
       return null;
     }
 
-    const clientName =
-      [(o as any).client_first_name, (o as any).client_last_name].filter(Boolean).join(" ").trim() || "Client";
+    let clientName = [(o as any).client_first_name, (o as any).client_last_name].filter(Boolean).join(" ");
+    if (!clientName && (o as any).user_id) {
+      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", (o as any).user_id).maybeSingle();
+      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
+    }
+    clientName = clientName || "Client";
 
     const addr = await resolveClientAddress(supabase, { userId: (o as any).user_id, orderId });
     const clientAddr = joinAddress(addr.service)

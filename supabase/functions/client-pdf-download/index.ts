@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     if (type === "invoice" || type === "receipt") {
       const { data: inv } = await admin
         .from("billing_invoices")
-        .select("id, invoice_number, order_id, customer:billing_customers(user_id)")
+        .select("id, invoice_number, order_id, customer:billing_customers(id, user_id)")
         .eq("id", id)
         .maybeSingle();
 
@@ -88,6 +88,20 @@ Deno.serve(async (req) => {
       orderId     = (inv as any)?.order_id ?? null;
       const num   = (inv as any)?.invoice_number ?? id.slice(0, 8);
       filename    = type === "receipt" ? `Recu_Nivra_${num}.pdf` : `Facture_Nivra_${num}.pdf`;
+
+      // Fallback: billing_customers.user_id is sometimes null — look up via the order
+      if (!ownerUserId && orderId) {
+        const { data: ord } = await admin.from("orders").select("user_id").eq("id", orderId).maybeSingle();
+        ownerUserId = (ord as any)?.user_id ?? null;
+      }
+      // Last resort: look up via accounts linked to billing_customer
+      if (!ownerUserId) {
+        const custId = (inv as any)?.customer?.id;
+        if (custId) {
+          const { data: acct } = await admin.from("accounts").select("client_id").eq("billing_customer_id", custId).maybeSingle();
+          ownerUserId = (acct as any)?.client_id ?? null;
+        }
+      }
 
     } else if (type === "contract") {
       // id can be a contract id OR an order id

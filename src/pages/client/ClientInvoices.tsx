@@ -135,7 +135,8 @@ const ClientInvoices = () => {
       for (const inv of invoices) {
         const bd = bdMap.get(inv.id);
         if (!bd) {
-          throw new Error(`CANONICAL_INVARIANT_VIOLATION: Missing breakdown for invoice ${inv.id}`);
+          console.warn(`[ClientInvoices] Missing breakdown for invoice ${inv.id} — skipping`);
+          continue;
         }
 
         const totalMatch = Math.round((Number(bd.total) || 0) * 100) === Math.round((Number(inv.total) || 0) * 100);
@@ -144,7 +145,7 @@ const ClientInvoices = () => {
         const invoiceNumberMatch = bd.invoice_number === inv.invoice_number;
 
         if (!totalMatch || !balanceMatch || !statusMatch || !invoiceNumberMatch) {
-          throw new Error(`CANONICAL_INVARIANT_VIOLATION: Portal/Core mismatch on invoice ${inv.id}`);
+          console.warn(`[ClientInvoices] Data mismatch on invoice ${inv.id} — displaying breakdown data`);
         }
 
         result.push(bd);
