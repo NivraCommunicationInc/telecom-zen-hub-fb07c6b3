@@ -36,9 +36,8 @@ export const ClientPayBalanceCard = () => {
           .reduce((s: number, i: any) => s + (Number(i.balance_due) || 0), 0)
         * 100) / 100;
 
-      const CLOSED = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
       const unpaidCount = (invoices || []).filter(
-        (i: any) => !CLOSED.includes(i.status) && (Number(i.balance_due) || 0) > 0
+        (i: any) => !CLOSED.includes(String(i.status || "")) && (Number(i.balance_due) || 0) > 0
       ).length;
 
       return { totalBalance: total, invoiceCount: unpaidCount };

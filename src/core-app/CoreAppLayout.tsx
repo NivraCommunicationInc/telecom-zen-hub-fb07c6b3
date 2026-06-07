@@ -63,6 +63,7 @@ interface NavGroup {
 }
 
 const NAV_GROUPS: NavGroup[] = [
+  // ── 1. TABLEAU DE BORD ─────────────────────────────────────────
   {
     id: "dashboard",
     label: "Tableau de bord",
@@ -71,12 +72,23 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Brain, label: "🧠 NOVA — Digital Brain", href: "/brain", adminOnly: true },
       { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
       { icon: Brain, label: "Nivra AI Console", href: "/ai-console" },
-      { icon: Radio, label: "Live Activity", href: "/live-activity" },
-      { icon: Activity, label: "Activité", href: "/activity" },
       { icon: Activity, label: "Analytics", href: "/analytics" },
       { icon: DollarSign, label: "Finance", href: "/finance" },
     ],
   },
+  // ── 2. ACTIVITÉ & MONITORING ────────────────────────────────────
+  {
+    id: "monitoring",
+    label: "Activité & Monitoring",
+    icon: Radio,
+    items: [
+      { icon: Radio, label: "Live Activity", href: "/live-activity" },
+      { icon: Activity, label: "Activité", href: "/activity" },
+      { icon: HardDrive, label: "Statut système", href: "/system-status" },
+      { icon: Activity, label: "Support Metrics", href: "/support-metrics" },
+    ],
+  },
+  // ── 3. OPÉRATIONS ───────────────────────────────────────────────
   {
     id: "operations",
     label: "Opérations",
@@ -93,14 +105,15 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: RefreshCcw, label: "Changements forfait", href: "/plan-changes" },
       { icon: Lock, label: "Suspensions", href: "/pause-requests" },
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
+      { icon: RefreshCcw, label: "RMA", href: "/rma" },
       { icon: Wrench, label: "Techniciens", href: "/technician" },
       { icon: MapPin, label: "Carte techniciens", href: "/technicians/map" },
-      { icon: RefreshCcw, label: "RMA", href: "/rma" },
       { icon: Star, label: "Avis clients", href: "/reviews", adminOnly: true },
       { icon: RotateCcw, label: "Retours (legacy)", href: "/returns", adminOnly: true },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
   },
+  // ── 4. CLIENTS & COMPTES ────────────────────────────────────────
   {
     id: "clients",
     label: "Clients & Comptes",
@@ -111,12 +124,13 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Upload, label: "Documents", href: "/documents" },
     ],
   },
+  // ── 5. FACTURATION ──────────────────────────────────────────────
   {
     id: "billing",
     label: "Facturation",
     icon: CreditCard,
     items: [
-      { icon: CreditCard, label: "Vue d’ensemble", href: "/billing" },
+      { icon: CreditCard, label: "Vue d'ensemble", href: "/billing" },
       { icon: FileText, label: "Factures", href: "/invoices" },
       { icon: DollarSign, label: "Paiements", href: "/payments" },
       { icon: Activity, label: "Transactions", href: "/transactions" },
@@ -126,6 +140,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Gavel, label: "Litiges", href: "/contested-payments" },
     ],
   },
+  // ── 6. VENTES & CRM ─────────────────────────────────────────────
   {
     id: "sales",
     label: "Ventes & CRM",
@@ -136,9 +151,10 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Tag, label: "Rabais agents", href: "/agent-discounts" },
       { icon: Users, label: "Agents terrain", href: "/field-agents" },
       { icon: Send, label: "Soumissions terrain", href: "/field-submissions" },
-      { icon: DollarSign, label: "Grille commissions", href: "/commissions/grille" },
+      { icon: DollarSign, label: "Grille de commission", href: "/commissions/grille" },
     ],
   },
+  // ── 7. CATALOGUE & INVENTAIRE ───────────────────────────────────
   {
     id: "catalog",
     label: "Catalogue & Inventaire",
@@ -148,7 +164,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Boxes, label: "Catalogue", href: "/catalog" },
       { icon: FileText, label: "Contrats", href: "/contracts" },
       { icon: Package, label: "Équipements", href: "/equipment" },
-      { icon: Boxes, label: "Stock", href: "/stock" },
+      { icon: Boxes, label: "Inventaire", href: "/stock" },
       { icon: Smartphone, label: "Commandes téléphones", href: "/phones" },
       { icon: HardDrive, label: "Inventaire téléphones", href: "/phones/inventory" },
       { icon: MonitorPlay, label: "TV sur mesure", href: "/tv-sur-mesure" },
@@ -157,6 +173,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Film, label: "Streaming+", href: "/streaming" },
     ],
   },
+  // ── 8. RÉSEAU & PROVISIONNEMENT ─────────────────────────────────
   {
     id: "network",
     label: "Réseau & Provisionnement",
@@ -168,6 +185,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: MapPin, label: "Couverture réseau", href: "/coverage" },
     ],
   },
+  // ── 9. SUPPORT ──────────────────────────────────────────────────
   {
     id: "support",
     label: "Support",
@@ -181,6 +199,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Headphones, label: "Téléphonie", href: "/telephony" },
     ],
   },
+  // ── 10. MARKETING ───────────────────────────────────────────────
   {
     id: "marketing",
     label: "Marketing",
@@ -192,19 +211,20 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Send, label: "Campagnes SMS", href: "/marketing/sms-campaigns" },
       { icon: Mail, label: "Campagnes Email", href: "/marketing/email-campaigns" },
       { icon: Settings, label: "Paramètres Marketing", href: "/marketing/settings" },
+      { icon: Megaphone, label: "Email Marketing", href: "/email-marketing" },
+      { icon: Send, label: "Email Comm.", href: "/communication-email" },
+      { icon: MessageSquare, label: "SMS Comm.", href: "/communication-sms" },
       { icon: Tag, label: "Promotions", href: "/promotions" },
       { icon: Trophy, label: "Concours", href: "/contests" },
-      { icon: Megaphone, label: "Email Marketing", href: "/email-marketing" },
-      { icon: Send, label: "Comm. Email", href: "/communication-email" },
-      { icon: MessageSquare, label: "Comm. SMS", href: "/communication-sms" },
     ],
   },
+  // ── 11. RH & PAIE ───────────────────────────────────────────────
   {
     id: "hr",
     label: "RH & Paie",
     icon: Briefcase,
     items: [
-      { icon: LayoutDashboard, label: "Tableau de bord RH", href: "/hr" },
+      { icon: LayoutDashboard, label: "Tableau de bord HR", href: "/hr" },
       { icon: Users, label: "Employés", href: "/hr/employees" },
       { icon: UserPlus, label: "Onboarding", href: "/hr/onboarding" },
       { icon: DollarSign, label: "Paie & Salaires", href: "/hr/payroll-runs" },
@@ -212,25 +232,24 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Tag, label: "Commissions", href: "/hr/commissions" },
       { icon: Activity, label: "Temps & Punch", href: "/hr/time" },
       { icon: Calendar, label: "Horaires", href: "/hr/schedules" },
-      { icon: FileText, label: "Documents RH", href: "/hr/documents" },
+      { icon: FileText, label: "Documents HR", href: "/hr/documents" },
       { icon: FileText, label: "Docs fiscaux", href: "/hr/tax-documents" },
-      { icon: MessageSquare, label: "Demandes RH", href: "/hr/requests" },
-      { icon: Briefcase, label: "Recrutement", href: "/hr/careers", badgeKey: "careers" },
-      { icon: UserPlus, label: "Candidatures", href: "/hr/applications", badgeKey: "careers" },
+      { icon: MessageSquare, label: "Demandes HR", href: "/hr/requests" },
+      { icon: Briefcase, label: "Recrutement (postes)", href: "/hr/careers", badgeKey: "careers" },
+      { icon: UserPlus, label: "Applications / Candidatures", href: "/hr/applications", badgeKey: "careers" },
       { icon: Brain, label: "Entrevues IA", href: "/hr/interviews" },
       { icon: Mail, label: "Templates emails", href: "/hr/email-templates" },
-      { icon: History, label: "Audit RH", href: "/hr/audit" },
+      { icon: History, label: "Audit HR", href: "/hr/audit" },
       { icon: GraduationCap, label: "Nivra Academy", href: "/academy" },
     ],
   },
+  // ── 12. SYSTÈME & ADMIN ─────────────────────────────────────────
   {
     id: "system",
     label: "Système & Admin",
     icon: Settings,
     items: [
-      { icon: HardDrive, label: "Statut système", href: "/system-status" },
       { icon: FileText, label: "SOPs", href: "/sops" },
-      { icon: Activity, label: "Support Metrics", href: "/support-metrics" },
       { icon: Shield, label: "Surveillance IA", href: "/monitor", adminOnly: true },
       { icon: BarChart3, label: "Analytics IA", href: "/analytics-ai", adminOnly: true },
       { icon: Heart, label: "Rétention IA", href: "/retention", adminOnly: true },
@@ -246,12 +265,13 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Wrench, label: "Maintenance", href: "/maintenance" },
       { icon: Shield, label: "Sécurité", href: "/security-events" },
       { icon: Shield, label: "Guardian", href: "/security-guardian" },
-      { icon: History, label: "Journal d’audit", href: "/audit-log" },
+      { icon: History, label: "Journal d'audit", href: "/audit-log" },
       { icon: Activity, label: "Audit système", href: "/system-audit" },
       { icon: Mail, label: "Activité email", href: "/email-activity" },
       { icon: UserCircle, label: "Mon compte", href: "/my-account" },
     ],
   },
+  // ── 13. NIVRA SOURCE ────────────────────────────────────────────
   {
     id: "hub",
     label: "Nivra Source",
