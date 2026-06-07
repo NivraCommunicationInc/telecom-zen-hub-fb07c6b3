@@ -11,6 +11,13 @@ import {
 } from "@/lib/canonicalAccountResolver";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
+export interface ServiceAddress {
+  address_line: string | null;
+  city: string | null;
+  province: string | null;
+  postal_code: string | null;
+}
+
 export interface AdminSubscription {
   id: string;
   plan_name: string;
@@ -23,11 +30,17 @@ export interface AdminSubscription {
   auto_billing_enabled: boolean | null;
   order_id: string | null;
   customer_id: string;
+  address_id: string | null;
   created_at: string | null;
   environment?: string;
   client_name: string | null;
   client_email: string | null;
   account_number: string | null;
+  // Billing cycle from accounts table
+  billing_cycle_day: number | null;
+  next_invoice_date: string | null;
+  // Service address from service_addresses table
+  service_address: ServiceAddress | null;
 }
 
 export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
@@ -36,7 +49,7 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
     queryFn: async () => {
       let query = supabase
         .from("billing_subscriptions")
-        .select("id, plan_name, plan_code, plan_price, status, service_category, cycle_start_date, cycle_end_date, auto_billing_enabled, order_id, customer_id, created_at, environment")
+        .select("id, plan_name, plan_code, plan_price, status, service_category, cycle_start_date, cycle_end_date, auto_billing_enabled, order_id, customer_id, address_id, created_at, environment")
         .order("created_at", { ascending: false })
         .limit(500);
       if (environment !== "all") query = query.eq("environment", environment);
@@ -45,19 +58,42 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
       if (!subs?.length) return [];
 
       const customerIds = [...new Set(subs.map((s) => s.customer_id))];
-      const { data: customers } = await supabase
-        .from("billing_customers")
-        .select("id, first_name, last_name, email, user_id")
-        .in("id", customerIds);
+      const addressIds = [...new Set(subs.map((s) => (s as any).address_id).filter(Boolean))];
 
-      const customerMap = new Map((customers || []).map((c) => [c.id, c]));
+      const [customersRes, addressesRes] = await Promise.all([
+        supabase
+          .from("billing_customers")
+          .select("id, first_name, last_name, email, user_id")
+          .in("id", customerIds),
+        addressIds.length > 0
+          ? supabase
+              .from("service_addresses")
+              .select("id, address_line, city, province, postal_code")
+              .in("id", addressIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const customerMap = new Map((customersRes.data || []).map((c) => [c.id, c]));
+      const addressMap = new Map((addressesRes.data || []).map((a: any) => [a.id, a]));
 
       // Fetch profile names (source of truth) to override stale billing_customer names
-      const userIds = [...new Set((customers || []).map((c) => c.user_id).filter(Boolean))];
-      const { data: profiles } = userIds.length > 0
-        ? await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", userIds)
-        : { data: [] };
-      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      const userIds = [...new Set((customersRes.data || []).map((c) => c.user_id).filter(Boolean))];
+
+      const [profilesRes, accountsRes] = await Promise.all([
+        userIds.length > 0
+          ? supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", userIds)
+          : Promise.resolve({ data: [] }),
+        userIds.length > 0
+          ? supabase
+              .from("accounts")
+              .select("client_id, billing_cycle_day, next_invoice_date")
+              .in("client_id", userIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.user_id, p]));
+      // accounts.client_id === auth.users.id === billing_customers.user_id
+      const accountMap = new Map((accountsRes.data || []).map((a: any) => [a.client_id, a]));
 
       const maps = await buildCanonicalAccountMaps(supabase, {
         customerIds,
@@ -78,6 +114,9 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
           accountNumber,
         );
 
+        const account = cust?.user_id ? accountMap.get(cust.user_id) : null;
+        const addr = (s as any).address_id ? addressMap.get((s as any).address_id) : null;
+
         return {
           id: s.id,
           plan_name: s.plan_name,
@@ -90,6 +129,7 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
           auto_billing_enabled: s.auto_billing_enabled,
           order_id: s.order_id,
           customer_id: s.customer_id,
+          address_id: (s as any).address_id ?? null,
           created_at: s.created_at,
           environment: (s as any).environment,
           client_name: (() => {
@@ -99,6 +139,16 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
           })(),
           client_email: cust?.email ?? null,
           account_number: accountNumber,
+          billing_cycle_day: account?.billing_cycle_day ?? null,
+          next_invoice_date: account?.next_invoice_date ?? null,
+          service_address: addr
+            ? {
+                address_line: addr.address_line ?? null,
+                city: addr.city ?? null,
+                province: addr.province ?? null,
+                postal_code: addr.postal_code ?? null,
+              }
+            : null,
         };
       });
     },

@@ -6,7 +6,7 @@ import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { SUB_STATUSES, SUB_CATEGORIES, fmtCAD } from "./SubscriptionConstants";
 import { TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
-import { ArrowRight, Repeat, Zap } from "lucide-react";
+import { ArrowRight, Repeat, Zap, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { AdminSubscription } from "@/core-app/hooks/useAdminSubscriptions";
@@ -17,12 +17,12 @@ interface Props {
   onSelect: (sub: AdminSubscription) => void;
 }
 
-const fmtDate = (d: string | null) => {
+const fmtDate = (d: string | null | undefined) => {
   if (!d) return "—";
   try { return format(new Date(d), "d MMM yyyy", { locale: fr }); } catch { return "—"; }
 };
 
-const COLS = ["Compte", "Client", "Service", "Catégorie", "Prix/mois", "Statut", "Activation", "Renouvellement", "Auto-billing", "Commande", ""];
+const COLS = ["Compte", "Client", "Service", "Catégorie", "Prix/mois", "Statut", "Activation", "Prochaine facture", "Cycle", "Adresse", "Auto-billing", "Commande", ""];
 
 export function SubscriptionTable({ subs, isLoading, onSelect }: Props) {
   return (
@@ -60,6 +60,14 @@ export function SubscriptionTable({ subs, isLoading, onSelect }: Props) {
               subs.map(s => {
                 const statusLabel = SUB_STATUSES[s.status ?? ""] || s.status || "—";
                 const catLabel = SUB_CATEGORIES[s.service_category ?? ""] || s.service_category || "—";
+                // next_invoice_date from account is the true next billing date; fallback to cycle_end_date
+                const nextBilling = s.next_invoice_date || s.cycle_end_date;
+                // Billing cycle day label
+                const cycleLabel = s.billing_cycle_day ? `Jour ${s.billing_cycle_day}/mois` : "Mensuel";
+                // Address: city for residential, otherwise "—"
+                const addrCity = s.service_address?.city
+                  ? `${s.service_address.city}${s.service_address.province ? `, ${s.service_address.province}` : ""}`
+                  : null;
 
                 return (
                   <tr
@@ -109,9 +117,28 @@ export function SubscriptionTable({ subs, isLoading, onSelect }: Props) {
                       <span className="text-[#CBD5E1]">{fmtDate(s.cycle_start_date)}</span>
                     </td>
 
-                    {/* Renewal */}
+                    {/* Prochaine facture */}
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="text-[#CBD5E1]">{fmtDate(s.cycle_end_date)}</span>
+                      <span className={`font-medium ${nextBilling && new Date(nextBilling) < new Date() ? "text-amber-400" : "text-emerald-400"}`}>
+                        {fmtDate(nextBilling)}
+                      </span>
+                    </td>
+
+                    {/* Cycle */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="text-[#CBD5E1] text-[11px]">{cycleLabel}</span>
+                    </td>
+
+                    {/* Address */}
+                    <td className="px-3 py-2.5">
+                      {addrCity ? (
+                        <div className="flex items-center gap-1 text-[#94A3B8] text-[11px]">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate max-w-[120px]">{addrCity}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[#475569] text-[11px]">—</span>
+                      )}
                     </td>
 
                     {/* Auto-billing */}

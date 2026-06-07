@@ -15,7 +15,7 @@ import { fr } from "date-fns/locale";
 import {
   X, User, Repeat, Calendar, ShoppingCart, FileText,
   CheckCircle2, PauseCircle, PlayCircle, XCircle,
-  Package, Wrench, MessageSquare, ExternalLink, Copy, Zap, Loader2,
+  Package, Wrench, MessageSquare, ExternalLink, Copy, Zap, Loader2, MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -213,18 +213,47 @@ export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
             </div>
           </div>
 
-          {/* ═══ Billing Cycle ═══ */}
+          {/* ═══ Cycle de facturation ═══ */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
               <Calendar className="h-3.5 w-3.5 text-[#94A3B8]" />
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Cycle de facturation</h3>
             </div>
             <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
-              <Field label="Début de cycle" value={fmtDate(s.cycle_start_date)} />
-              <Field label="Fin de cycle" value={fmtDate(s.cycle_end_date)} />
+              <Field label="Fréquence" value="Mensuel (30 jours)" />
+              {s.billing_cycle_day && (
+                <Field label="Jour de facturation" value={`Le ${s.billing_cycle_day} de chaque mois`} />
+              )}
+              <Field label="Prochaine facture" value={fmtDate(s.next_invoice_date || s.cycle_end_date)} />
+              <Field label="Début de cycle actuel" value={fmtDate(s.cycle_start_date)} />
+              <Field label="Fin de cycle actuel" value={fmtDate(s.cycle_end_date)} />
               <Field label="Créé le" value={fmtDate(s.created_at)} />
             </div>
           </div>
+
+          {/* ═══ Adresse de service ═══ */}
+          {s.service_address && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <MapPin className="h-3.5 w-3.5 text-[#94A3B8]" />
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Adresse de service</h3>
+              </div>
+              <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
+                {s.service_address.address_line && (
+                  <Field label="Adresse" value={s.service_address.address_line} />
+                )}
+                {s.service_address.city && (
+                  <Field label="Ville" value={s.service_address.city} />
+                )}
+                {s.service_address.province && (
+                  <Field label="Province" value={s.service_address.province} />
+                )}
+                {s.service_address.postal_code && (
+                  <Field label="Code postal" value={s.service_address.postal_code} mono copyable />
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ═══ Linked Documents ═══ */}
           <div>
