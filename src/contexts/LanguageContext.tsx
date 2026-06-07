@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export type Language = 'fr' | 'en' | 'ht' | 'es' | 'ar' | 'pt';
 
@@ -2471,10 +2472,41 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('nivra-language', lang);
-    // Set document direction for RTL languages
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
+    // Persist to DB if user is authenticated
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) {
+        supabase
+          .from('profiles')
+          .update({ preferred_language: lang })
+          .eq('user_id', data.user.id)
+          .then(() => {});
+      }
+    });
   };
+
+  // On mount: if user is authenticated and has a DB preference, use it
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data?.user?.id) return;
+      supabase
+        .from('profiles')
+        .select('preferred_language')
+        .eq('user_id', data.user.id)
+        .maybeSingle()
+        .then(({ data: prof }) => {
+          const dbLang = (prof as any)?.preferred_language as Language | null;
+          if (dbLang && dbLang !== language) {
+            setLanguageState(dbLang);
+            localStorage.setItem('nivra-language', dbLang);
+            document.documentElement.dir = dbLang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = dbLang;
+          }
+        });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';

@@ -574,27 +574,31 @@ export function renderQueueTemplate(
 
     case "invoice_created":
     case "billing_renewal": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours", "In progress", lang));
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
       const dueDate = fmtDate(v.due_date || v.DUE_DATE);
       return {
-        subject: `Nouvelle facture — ${invoiceNum}`,
+        subject: t(`Nouvelle facture — ${invoiceNum}`, `New invoice — ${invoiceNum}`, lang),
         html: shell({
-          preheader: `Facture ${invoiceNum} de ${total}.`,
-          badge: "NOUVELLE FACTURE",
-          heroTitle: "Nouvelle facture disponible",
+          preheader: t(`Facture ${invoiceNum} de ${total}.`, `Invoice ${invoiceNum} for ${total}.`, lang),
+          badge: t("NOUVELLE FACTURE", "NEW INVOICE", lang),
+          heroTitle: t("Nouvelle facture disponible", "New invoice available", lang),
           icon: "doc",
           greeting,
-          bodyText: "Votre nouvelle facture est disponible dans votre espace client.",
-          cardTitle: "Détails de la facture",
+          bodyText: t(
+            "Votre nouvelle facture est disponible dans votre espace client.",
+            "Your new invoice is available in your client portal.",
+            lang,
+          ),
+          cardTitle: t("Détails de la facture", "Invoice details", lang),
           cardRows: [
-            ["Numéro de facture", String(invoiceNum)],
-            ["Date d'échéance", dueDate],
-            ["Cycle", `${fmtDate(v.cycle_start)} → ${fmtDate(v.cycle_end)}`],
-            ["Montant", total],
+            [t("Numéro de facture", "Invoice number", lang), String(invoiceNum)],
+            [t("Date d'échéance", "Due date", lang), dueDate],
+            [t("Cycle", "Cycle", lang), `${fmtDate(v.cycle_start)} → ${fmtDate(v.cycle_end)}`],
+            [t("Montant", "Amount", lang), total],
           ],
           ctaPrimaryUrl: `${portalUrl}/facturation`,
-          ctaPrimaryLabel: "Payer maintenant",
+          ctaPrimaryLabel: t("Payer maintenant", "Pay now", lang),
         }),
       };
     }
@@ -604,64 +608,90 @@ export function renderQueueTemplate(
     case "payment_reminder_3days":
     case "payment_reminder_1day":
     case "payment_due_today": {
-      const invoiceNum = esc(v.invoice_number || "En cours");
+      const invoiceNum = esc(v.invoice_number || t("En cours", "In progress", lang));
       const total = money(v.total ?? v.amount);
       const dueDate = fmtDate(v.due_date);
-      const labels: Record<string, string> = {
+      const labelsFr: Record<string, string> = {
         payment_reminder_7days: "Rappel — 7 jours",
         payment_reminder_3days: "Rappel — 3 jours",
         payment_reminder_1day: "Rappel — Demain",
         payment_due_today: "Échéance aujourd'hui",
       };
-      const badge = (labels[templateKey] || "RAPPEL DE PAIEMENT").toUpperCase();
+      const labelsEn: Record<string, string> = {
+        payment_reminder_7days: "Reminder — 7 days",
+        payment_reminder_3days: "Reminder — 3 days",
+        payment_reminder_1day: "Reminder — Tomorrow",
+        payment_due_today: "Due today",
+      };
+      const badge = lang === "en"
+        ? (labelsEn[templateKey] || "PAYMENT REMINDER").toUpperCase()
+        : (labelsFr[templateKey] || "RAPPEL DE PAIEMENT").toUpperCase();
       return {
-        subject: `Rappel — Facture ${invoiceNum}`,
+        subject: t(`Rappel — Facture ${invoiceNum}`, `Reminder — Invoice ${invoiceNum}`, lang),
         html: shell({
-          preheader: `Votre facture ${invoiceNum} arrive à échéance.`,
+          preheader: t(`Votre facture ${invoiceNum} arrive à échéance.`, `Your invoice ${invoiceNum} is due soon.`, lang),
           badge,
-          heroTitle: "Rappel de paiement",
-          heroSub: "Votre facture arrive à échéance prochainement.",
+          heroTitle: t("Rappel de paiement", "Payment reminder", lang),
+          heroSub: t(
+            "Votre facture arrive à échéance prochainement.",
+            "Your invoice is coming due soon.",
+            lang,
+          ),
           icon: "alert",
           greeting,
-          bodyText: "Pour éviter toute interruption de service, veuillez régler votre facture.",
-          cardTitle: "Facture à payer",
+          bodyText: t(
+            "Pour éviter toute interruption de service, veuillez régler votre facture.",
+            "To avoid any service interruption, please pay your invoice.",
+            lang,
+          ),
+          cardTitle: t("Facture à payer", "Invoice to pay", lang),
           cardRows: [
-            ["Numéro de facture", String(invoiceNum)],
-            ["Date d'échéance", dueDate],
-            ["Montant dû", total],
+            [t("Numéro de facture", "Invoice number", lang), String(invoiceNum)],
+            [t("Date d'échéance", "Due date", lang), dueDate],
+            [t("Montant dû", "Amount due", lang), total],
           ],
           ctaPrimaryUrl: `${portalUrl}/facturation`,
-          ctaPrimaryLabel: "Payer maintenant",
+          ctaPrimaryLabel: t("Payer maintenant", "Pay now", lang),
         }),
       };
     }
 
     case "payment_overdue":
     case "invoice_overdue": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || "En cours");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours", "In progress", lang));
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
       const days = esc(v.days_overdue || v.DAYS_OVERDUE || "0");
       return {
-        subject: `Facture en retard — ${invoiceNum}`,
+        subject: t(`Facture en retard — ${invoiceNum}`, `Overdue invoice — ${invoiceNum}`, lang),
         html: shell({
-          preheader: `Votre facture ${invoiceNum} est en retard.`,
-          badge: "FACTURE EN RETARD",
-          heroTitle: "Votre facture est en retard",
-          heroSub: "Une action est requise pour éviter la suspension du service.",
+          preheader: t(`Votre facture ${invoiceNum} est en retard.`, `Your invoice ${invoiceNum} is overdue.`, lang),
+          badge: t("FACTURE EN RETARD", "OVERDUE INVOICE", lang),
+          heroTitle: t("Votre facture est en retard", "Your invoice is overdue", lang),
+          heroSub: t(
+            "Une action est requise pour éviter la suspension du service.",
+            "Action is required to avoid service suspension.",
+            lang,
+          ),
           icon: "alert",
           greeting,
-          bodyText: "Votre facture est en retard. Veuillez la régler rapidement.",
-          cardTitle: "Détails de la facture",
+          bodyText: t(
+            "Votre facture est en retard. Veuillez la régler rapidement.",
+            "Your invoice is overdue. Please pay it as soon as possible.",
+            lang,
+          ),
+          cardTitle: t("Détails de la facture", "Invoice details", lang),
           cardRows: [
-            ["Facture", String(invoiceNum)],
-            ["Jours de retard", String(days)],
-            ["Date d'échéance", fmtDate(v.due_date || v.DUE_DATE)],
-            ["Montant dû", total],
+            [t("Facture", "Invoice", lang), String(invoiceNum)],
+            [t("Jours de retard", "Days overdue", lang), String(days)],
+            [t("Date d'échéance", "Due date", lang), fmtDate(v.due_date || v.DUE_DATE)],
+            [t("Montant dû", "Amount due", lang), total],
           ],
           ctaPrimaryUrl: `${portalUrl}/facturation`,
-          ctaPrimaryLabel: "Payer maintenant",
+          ctaPrimaryLabel: t("Payer maintenant", "Pay now", lang),
           helpVariant: "warning",
-          helpHtml: `<strong style="color:#1a1a2e;">Attention :</strong> Sans paiement rapide, votre service pourrait être suspendu.`,
+          helpHtml: lang === "en"
+            ? `<strong style="color:#1a1a2e;">Warning:</strong> Without prompt payment, your service may be suspended.`
+            : `<strong style="color:#1a1a2e;">Attention :</strong> Sans paiement rapide, votre service pourrait être suspendu.`,
         }),
       };
     }
@@ -671,23 +701,29 @@ export function renderQueueTemplate(
       const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
       const paymentUrl = String(v.payment_url || `${portalUrl}/billing`);
       return {
-        subject: `Action requise — Paiement non traité`,
+        subject: t("Action requise — Paiement non traité", "Action required — Payment not processed", lang),
         html: shell({
-          preheader: `Votre paiement n'a pas été traité.`,
-          badge: "ACTION REQUISE",
-          heroTitle: "Votre paiement n'a pas été traité",
+          preheader: t("Votre paiement n'a pas été traité.", "Your payment could not be processed.", lang),
+          badge: t("ACTION REQUISE", "ACTION REQUIRED", lang),
+          heroTitle: t("Votre paiement n'a pas été traité", "Your payment was not processed", lang),
           icon: "alert",
           greeting,
-          bodyText: "Le traitement de votre paiement a échoué. Mettez à jour votre méthode de paiement pour éviter toute interruption.",
-          cardTitle: "Détails",
+          bodyText: t(
+            "Le traitement de votre paiement a échoué. Mettez à jour votre méthode de paiement pour éviter toute interruption.",
+            "Your payment could not be processed. Please update your payment method to avoid any service interruption.",
+            lang,
+          ),
+          cardTitle: t("Détails", "Details", lang),
           cardRows: [
-            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Montant dû", amount],
+            [t("Commande", "Order", lang), `#${String(orderNum).replace(/^#/, "")}`],
+            [t("Montant dû", "Amount due", lang), amount],
           ],
           ctaPrimaryUrl: paymentUrl,
-          ctaPrimaryLabel: "Mettre à jour mon paiement",
+          ctaPrimaryLabel: t("Mettre à jour mon paiement", "Update my payment", lang),
           helpVariant: "warning",
-          helpHtml: `<strong style="color:#1a1a2e;">Important :</strong> Sans mise à jour, votre service pourrait être suspendu.`,
+          helpHtml: lang === "en"
+            ? `<strong style="color:#1a1a2e;">Important:</strong> Without an update, your service may be suspended.`
+            : `<strong style="color:#1a1a2e;">Important :</strong> Sans mise à jour, votre service pourrait être suspendu.`,
         }),
       };
     }

@@ -536,6 +536,7 @@ export async function queueRenderedEmail(params: {
   templateVars: Record<string, any>;
   fromEmail?: string;
   attachments?: Array<{ filename: string; content: string; contentType?: string }>;
+  lang?: string;
 }): Promise<EnqueueResult> {
   const rendered = renderTemplate(params.templateKey, params.templateVars);
 
@@ -553,5 +554,6 @@ export async function queueRenderedEmail(params: {
     eventKey: params.eventKey,
     templateVars: params.templateVars,
     attachments: params.attachments,
+    lang: params.lang,
   });
 }

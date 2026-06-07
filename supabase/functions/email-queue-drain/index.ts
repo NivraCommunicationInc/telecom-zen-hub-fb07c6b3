@@ -198,7 +198,17 @@ Deno.serve(async (req) => {
       // Fallback: if custom_html had no inline html, OR for any other template_key,
       // try the inlined template renderer.
       if (!resolved || !resolved.html) {
-        const lang = (row.language === "en" ? "en" : "fr") as "fr" | "en";
+        // Resolve language: use stored value, or look up client's preferred_language
+        let rowLang = row.language;
+        if (!rowLang) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("preferred_language")
+            .eq("email", row.to_email)
+            .maybeSingle();
+          rowLang = (prof as any)?.preferred_language || null;
+        }
+        const lang = (rowLang === "en" ? "en" : "fr") as "fr" | "en";
         const tmpl = renderQueueTemplate(row.template_key, row.template_vars || {}, lang);
         if (tmpl) {
           resolved = { html: tmpl.html, subject: tmpl.subject, from: row.from_email || undefined };

@@ -52,6 +52,8 @@ export interface EnqueueEmailParams {
   replyTo?: string;
   attachments?: Array<{ filename: string; content: string; contentType?: string }>;
   maxAttempts?: number;
+  /** ISO 639-1 language code for email template rendering. "fr" | "en" */
+  lang?: string;
 }
 
 export interface EnqueueResult {
@@ -324,6 +326,7 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       from_email: params.fromEmail,
       subject,
       attachments: params.attachments ?? null,
+      language: params.lang || null,
       status: "sent", // Mark as sent since it's now in pgmq
       attempts: 1,
       max_attempts: params.maxAttempts || 5,
