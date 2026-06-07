@@ -99,7 +99,7 @@ export function drawClientBlock(
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(client.name, 15, y);
+  doc.text(client.name || "—", 15, y);
   if (client.address) doc.text(client.address, 110, y);
   y += 5;
 

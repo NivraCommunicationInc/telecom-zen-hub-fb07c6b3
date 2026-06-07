@@ -141,6 +141,43 @@ async function enrichFromDb(
       }
     }
 
+    // For address_change: enrich old_address from service_addresses if not in payload
+    if (docType === "address_change" && !out.old_address && account?.id) {
+      const { data: addrs } = await admin
+        .from("service_addresses")
+        .select("address_line, city, province, postal_code")
+        .eq("account_id", account.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (addrs?.address_line) {
+        out.old_address = addrs.address_line;
+        out.old_city = out.old_city || addrs.city || "";
+        out.old_province = out.old_province || addrs.province || "QC";
+        out.old_postal = out.old_postal || addrs.postal_code || "";
+      }
+    }
+
+    // For payment_method_change: enrich old_method from most recent confirmed payment
+    if (docType === "payment_method_change" && !out.old_method) {
+      let custId = out.customer_id;
+      if (!custId && (out.client_email || out.email)) {
+        const { data: bc } = await admin.from("billing_customers").select("id").eq("email", out.client_email || out.email).maybeSingle();
+        custId = bc?.id;
+      }
+      if (custId) {
+        const { data: lastPay } = await admin
+          .from("billing_payments")
+          .select("method")
+          .eq("customer_id", custId)
+          .eq("status", "paid")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastPay?.method) out.old_method = lastPay.method;
+      }
+    }
+
     // Fetch most recent active subscription for service info
     const needsSub = ["service_certificate", "activation_confirmation", "welcome_letter", "suspension_notice", "cancellation_confirmation", "contract_amendment"].includes(docType);
     if (needsSub && (out.client_id || out.client_email || out.email)) {
@@ -220,12 +257,16 @@ function normalizePayload(
     client_name: clientName,
     client_email: p.client_email || p.email || "",
     client_phone: p.client_phone || p.phone || "",
-    client_address: p.client_address || addr.street,
-    client_city: p.client_city || addr.city,
-    client_province: p.client_province || addr.province,
-    client_postal: p.client_postal || addr.postal_code,
+    client_address: p.client_address || addr.street || "",
+    client_city: p.client_city || addr.city || "",
+    client_province: p.client_province || addr.province || "QC",
+    client_postal: p.client_postal || addr.postal_code || "",
     account_number: p.account_number || "—",
     issue_date: p.issue_date || nowIso(),
+    // Service fields — always have a value
+    service_name: p.service_name || p.plan_name || "Service Nivra Telecom",
+    monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? p.plan_price ?? 0),
+    activation_date: p.activation_date || p.active_since || p.created_at || nowIso(),
   };
 
   switch (docType) {

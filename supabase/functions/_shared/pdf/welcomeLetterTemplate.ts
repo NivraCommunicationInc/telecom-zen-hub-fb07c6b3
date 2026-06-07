@@ -25,7 +25,7 @@ export interface WelcomeLetterData {
 
 export function generateWelcomeLetterPDF(data: WelcomeLetterData): PDFGenerationResult {
   try {
-    if (!data.client_name) return { success: false, error: "Nom client manquant" };
+    if (!data.client_name) data = { ...data, client_name: "—" };
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
     drawHeader(doc, "LETTRE DE BIENVENUE", data.letter_number);
