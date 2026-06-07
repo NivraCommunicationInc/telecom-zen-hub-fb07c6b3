@@ -24,6 +24,8 @@ export default function CoreSettingsPage() {
   const queryClient = useQueryClient();
   const [regenLoading, setRegenLoading] = useState(false);
   const [regenResult, setRegenResult] = useState<{ total: number; succeeded: number; failed: number; log: any[] } | null>(null);
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{ to: string; order_number: string; results: any[] } | null>(null);
 
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ["core-site-settings"],
@@ -229,6 +231,65 @@ export default function CoreSettingsPage() {
                     ? <><Loader2 className="w-4 h-4 animate-spin" />Régénération en cours…</>
                     : <><RefreshCw className="w-4 h-4" />Régénérer tous les PDFs</>}
                 </button>
+
+                {/* ── Test email ── */}
+                <div className="border-t border-[hsl(220,15%,18%)] pt-3 mt-1">
+                  <p className="text-[11px] text-[#94A3B8] mb-2">
+                    Envoie les 4 PDFs de la dernière commande (facture, reçu, contrat, sommaire) à une adresse pour valider la mise en page.
+                  </p>
+                  <button
+                    disabled={testEmailLoading}
+                    onClick={async () => {
+                      const dest = prompt("Envoyer à :", "support@nivra-telecom.ca");
+                      if (!dest) return;
+                      setTestEmailLoading(true);
+                      setTestEmailResult(null);
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        const token = session?.access_token;
+                        if (!token) throw new Error("Session expirée");
+                        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-test-pdf-email`;
+                        const res = await fetch(url, {
+                          method: "POST",
+                          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                          body: JSON.stringify({ to: dest }),
+                        });
+                        const json = await res.json();
+                        if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+                        setTestEmailResult(json);
+                      } catch (e: any) {
+                        alert("Erreur : " + e.message);
+                      } finally {
+                        setTestEmailLoading(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors bg-[hsl(220,15%,18%)] hover:bg-[hsl(220,15%,22%)] text-[#F8FAFC] border border-[hsl(220,15%,24%)] disabled:opacity-50"
+                  >
+                    {testEmailLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />Envoi en cours…</>
+                      : <><FileText className="w-4 h-4" />Tester par email (dernière commande)</>}
+                  </button>
+                  {testEmailResult && (
+                    <div className="mt-3 rounded-lg border border-[hsl(220,15%,20%)] overflow-hidden">
+                      <div className="px-4 py-2 bg-[hsl(220,15%,14%)] text-[11px] text-[#94A3B8]">
+                        Envoyé à <strong className="text-[#F8FAFC]">{testEmailResult.to}</strong> — commande <strong className="text-[#F8FAFC]">{testEmailResult.order_number}</strong>
+                      </div>
+                      <div className="divide-y divide-[hsl(220,15%,14%)]">
+                        {testEmailResult.results.map((r: any, i: number) => (
+                          <div key={i} className="px-4 py-2 flex items-center gap-3 text-[11px]">
+                            {r.status === "ok"
+                              ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              : r.status === "skipped"
+                              ? <span className="w-3.5 h-3.5 text-[#64748B] shrink-0 text-center">—</span>
+                              : <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />}
+                            <span className="font-mono text-[#CBD5E1] capitalize">{r.type}</span>
+                            {r.detail && <span className="text-[#64748B] truncate">{r.detail}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {regenResult && (
                   <div className="mt-3 rounded-lg border border-[hsl(220,15%,20%)] overflow-hidden">
