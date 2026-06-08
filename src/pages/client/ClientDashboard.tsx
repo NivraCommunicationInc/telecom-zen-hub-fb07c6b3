@@ -339,7 +339,7 @@ const ClientDashboard = () => {
           {/* ════ STAT TILES ═════════════════════════════════════════ */}
           <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.07 } } }} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 32 }}>
             {[
-              { label: "Solde", value: <ClientBalanceSummary userId={user?.id ?? ""} compact />, icon: <CreditCard size={16} />, color: "#7C3AED", sub: "Compte courant" },
+              { label: "Solde", value: <ClientBalanceSummary userId={user?.id ?? ""} />, icon: <CreditCard size={16} />, color: "#7C3AED", sub: "Compte courant" },
               { label: "Services actifs", value: activeCount, icon: <CheckCircle2 size={16} />, color: "#10B981", sub: `${subs.length} abonnement${subs.length > 1 ? "s" : ""}` },
               { label: "Prochaine facture", value: nextBilling ?? "—", icon: <Clock size={16} />, color: "#06B6D4", sub: nextBilling ? "Date de renouvellement" : hasAnyService ? "Date à confirmer" : "Aucun service actif" },
               { label: "Performance réseau", value: "99.9%", icon: <Zap size={16} />, color: "#F59E0B", sub: "Disponibilité garantie" },
