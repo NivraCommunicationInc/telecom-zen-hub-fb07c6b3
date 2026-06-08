@@ -1119,7 +1119,7 @@ const GuestCheckout = () => {
       setOrderResult({
         orderNumber: response.order_number,
         orderId: response.order_id,
-        isNewAccount: accountResult.is_new_account,
+        isNewAccount: false,
       });
       setStep(6);
       toast.success("Commande confirmée !");
