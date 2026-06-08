@@ -261,7 +261,7 @@ How can I help you?`;
         startAgentPolling();
         supabase.from("live_chat_messages" as any).insert({
           session_id: sessionId, role: "visitor", content: userMessage.content.slice(0, 2000),
-        }).then(() => {}).catch(() => {});
+        }).then(() => {}, () => {});
         setIsLoading(false);
         return;
       }
