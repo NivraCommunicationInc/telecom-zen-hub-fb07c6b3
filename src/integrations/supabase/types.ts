@@ -5862,18 +5862,21 @@ export type Database = {
         Row: {
           allow_impersonation_actions: boolean
           id: string
+          kyc_auto_approve: boolean
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           allow_impersonation_actions?: boolean
           id?: string
+          kyc_auto_approve?: boolean
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           allow_impersonation_actions?: boolean
           id?: string
+          kyc_auto_approve?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -28440,6 +28443,7 @@ export type Database = {
       }
       is_influencer: { Args: { _user_id: string }; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_kyc_auto_approve_enabled: { Args: never; Returns: boolean }
       is_marketing_staff: { Args: { _uid: string }; Returns: boolean }
       is_new_customer: {
         Args: { p_current_order_id: string; p_user_id: string }
