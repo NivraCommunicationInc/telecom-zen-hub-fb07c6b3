@@ -44,7 +44,8 @@ function stripDigits(v: string) {
 export default function ClientPortIn() {
   const navigate = useNavigate();
   const { user } = useClientAuth();
-  const { account, subscriptions, profile } = useCanonicalClientData();
+  const canonicalQuery = useCanonicalClientData(user?.id);
+  const { account, subscriptions, profile } = canonicalQuery.data ?? { account: null, subscriptions: [], profile: null };
 
   const [numberToPort, setNumberToPort] = useState("");
   const [carrier, setCarrier] = useState("");
