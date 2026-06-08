@@ -81,7 +81,7 @@ const ChatbotWidget = () => {
           session_id: sessionId,
           role: msg.role === "user" ? "visitor" : "bot",
           content: msg.content.slice(0, 2000),
-        }).then(() => {}).catch(() => {});
+        }).then(() => {}, () => {});
       }
     } catch (e) {
       console.warn("[Chat] session creation failed:", e);
