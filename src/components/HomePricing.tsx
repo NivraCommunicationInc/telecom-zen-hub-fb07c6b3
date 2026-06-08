@@ -109,7 +109,7 @@ const HomePricing = () => {
         planType: spec.planType,
         choices: spec.choices,
         totalChannels: spec.totalChannels,
-      } satisfies DisplayPlan;
+      } as DisplayPlan;
     }).filter((p): p is DisplayPlan => p !== null);
   }, [services]);
 
