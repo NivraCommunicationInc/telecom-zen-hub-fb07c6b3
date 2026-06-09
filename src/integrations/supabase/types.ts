@@ -10128,6 +10128,7 @@ export type Database = {
       field_quotes: {
         Row: {
           activation_fee: number
+          agent_gps_coords: Json | null
           agent_id: string
           agent_name: string | null
           client_info: Json
@@ -10148,6 +10149,7 @@ export type Database = {
         }
         Insert: {
           activation_fee?: number
+          agent_gps_coords?: Json | null
           agent_id: string
           agent_name?: string | null
           client_info?: Json
@@ -10168,6 +10170,7 @@ export type Database = {
         }
         Update: {
           activation_fee?: number
+          agent_gps_coords?: Json | null
           agent_id?: string
           agent_name?: string | null
           client_info?: Json
