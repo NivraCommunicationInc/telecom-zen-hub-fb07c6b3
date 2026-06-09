@@ -1224,6 +1224,11 @@ Deno.serve(async (req) => {
 
       const result = await syncSaleToOrders(sale);
       await supabaseAdmin.from('field_quotes').update({ status: 'converted', converted_order_id: result.orderId ?? null }).eq('id', quote.id);
+      await supabaseAdmin.from('field_payment_intents').update({
+        converted_field_order_id: sale.id,
+        converted_order_id: result.orderId ?? null,
+        converted_invoice_id: result.invoice_id ?? null,
+      }).eq('quote_id', quote.id).is('converted_order_id', null);
       return new Response(JSON.stringify({ ...result, field_order_id: sale.id, order_id: result.orderId }), { status: result.success ? 200 : 500, headers: buildCorsHeaders(req) });
     }
 

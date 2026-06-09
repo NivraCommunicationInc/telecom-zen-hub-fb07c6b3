@@ -104,7 +104,7 @@ const OrdersPage = () => {
     if (!orders) return [];
     let list = orders;
     if (statusFilter === "__source_field_sales") {
-      list = list.filter((o) => o.source === "field_sales");
+      list = list.filter((o) => o.source === "field_sales" || o.source === "field_payment_intent");
     } else if (statusFilter) {
       list = list.filter((o) => o.status === statusFilter);
     }
@@ -331,13 +331,13 @@ const OrdersPage = () => {
                   </div>
                   <div style={{ color: "#666", fontSize: "11px", marginTop: "2px" }}>
                     {productSummary} · {amountLabel}
-                    {o.source === "field_sales" && o.agent_full_name && (
+                    {(o.source === "field_sales" || o.source === "field_payment_intent") && o.agent_full_name && (
                       <> · <span style={{ color: "#A78BFA" }}>Agent: {o.agent_full_name}</span></>
                     )}
                   </div>
                 </div>
 
-                {o.source === "field_sales" && (
+                {(o.source === "field_sales" || o.source === "field_payment_intent") && (
                   <span
                     className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-[#7C3AED]/15 text-[#A78BFA] border-[#7C3AED]/40"
                     title="Vente terrain — Porte-à-porte"
