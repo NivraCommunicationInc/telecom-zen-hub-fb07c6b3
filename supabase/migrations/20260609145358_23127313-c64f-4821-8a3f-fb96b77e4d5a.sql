@@ -1,0 +1,1 @@
+ALTER TABLE public.field_quotes ADD COLUMN IF NOT EXISTS agent_gps_coords JSONB;
