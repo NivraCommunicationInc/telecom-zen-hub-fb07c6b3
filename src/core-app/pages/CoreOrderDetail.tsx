@@ -149,7 +149,7 @@ function PendingFieldPaymentConsole({ intentId }: { intentId: string }) {
         .maybeSingle();
       if (error) throw error;
       if (!intent) throw new Error("Commande terrain introuvable");
-      if ((intent as any).converted_order_id) return { intent, convertedOrderId: (intent as any).converted_order_id as string, agent: null };
+      if ((intent as any).converted_order_id) return { intent, quote: null, convertedOrderId: (intent as any).converted_order_id as string, agent: null };
 
       const { data: quote } = (intent as any).quote_id
         ? await supabase
