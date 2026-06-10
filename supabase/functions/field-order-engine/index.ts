@@ -596,7 +596,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
           apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
         },
-        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id }),
+        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id, internal: true }),
       });
       const syncData = await syncResp.json().catch(() => null);
 
