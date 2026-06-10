@@ -67,10 +67,12 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
         ...((fieldIntents || []) as any[]).map((i: any) => i.agent_id).filter(Boolean),
       ] as string[])];
       const allProfileIds = [...new Set([...userIds, ...agentIds])];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, email")
-        .in("user_id", allProfileIds);
+      const { data: profiles } = allProfileIds.length
+        ? await supabase
+            .from("profiles")
+            .select("user_id, full_name, email")
+            .in("user_id", allProfileIds)
+        : { data: [] as any[] };
 
       const orderIds = orderRows.map((o) => o.id);
       const { data: invoices } = orderIds.length
