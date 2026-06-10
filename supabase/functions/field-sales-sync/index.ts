@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
 import { computeTaxes } from "../_shared/tax-constants.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 /**
  * Field Sales Sync Edge Function
@@ -1379,6 +1380,7 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('[field-sales-sync] Error:', error);
+    reportEdgeError(error, { function: 'field-sales-sync' }).catch(() => {});
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: buildCorsHeaders(req) }

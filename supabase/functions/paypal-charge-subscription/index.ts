@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -248,6 +249,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error("[PayPal Charge] Error:", error);
+    reportEdgeError(error, { function: "paypal-charge-subscription" }).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

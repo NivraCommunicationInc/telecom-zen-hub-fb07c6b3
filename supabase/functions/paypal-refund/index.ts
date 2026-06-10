@@ -22,6 +22,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -303,6 +304,7 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err) {
     console.error("[PayPalRefund] Error:", err);
+    reportEdgeError(err, { function: "paypal-refund" }).catch(() => {});
     return new Response(
       JSON.stringify({ error: "Internal error", details: String(err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

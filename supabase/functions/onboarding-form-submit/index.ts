@@ -1,6 +1,7 @@
 // Public submission of employee onboarding form.
 // Anonymous endpoint guarded by the secret token in the request body.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,6 +167,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("onboarding-form-submit error", e);
+    reportEdgeError(e, { function: "onboarding-form-submit" }).catch(() => {});
     return new Response(JSON.stringify({ error: String((e as Error).message || e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
