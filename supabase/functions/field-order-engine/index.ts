@@ -15,7 +15,12 @@ Deno.serve(async (req) => {
 
   try {
     checkBodySize(req);
-    const { userId } = await requireAuth(req);
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRoleCall = !!serviceRoleKey && token === serviceRoleKey;
+    const { userId } = isServiceRoleCall
+      ? { userId: "00000000-0000-0000-0000-000000000000" }
+      : await requireAuth(req);
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -459,6 +464,80 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // Finalize a paid field_payment_intent into a real Core order/invoice.
+    // Called by internal payment processors after PayPal/card capture.
+    if (action === "finalize_paid_intent") {
+      if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
+      const intentId = body.field_payment_intent_id;
+      if (!intentId) return new Response(JSON.stringify({ error: "field_payment_intent_id requis" }), { status: 400, headers });
+
+      const { data: intent } = await admin
+        .from("field_payment_intents")
+        .select("id, quote_id, agent_id, amount, status, customer_email, customer_name, converted_field_order_id, converted_order_id")
+        .eq("id", intentId)
+        .maybeSingle();
+      if (!intent) return new Response(JSON.stringify({ error: "Intent terrain introuvable" }), { status: 404, headers });
+      if (intent.converted_order_id) {
+        return new Response(JSON.stringify({ success: true, order_id: intent.converted_order_id, field_order_id: intent.converted_field_order_id }), { headers });
+      }
+
+      const { data: quote } = await admin.from("field_quotes").select("*").eq("id", intent.quote_id).maybeSingle();
+      if (!quote) return new Response(JSON.stringify({ error: "Soumission terrain introuvable" }), { status: 404, headers });
+
+      const ci: any = quote.client_info || {};
+      const customerName = [ci.first_name, ci.last_name].filter(Boolean).join(" ").trim() || intent.customer_name || "Client";
+      const fieldServices = [
+        ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
+        ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+      ];
+      const { data: fieldOrder, error: fieldOrderError } = await admin
+        .from("field_sales_orders")
+        .insert({
+          salesperson_id: intent.agent_id,
+          customer_name: customerName,
+          customer_email: ci.email || intent.customer_email || null,
+          customer_phone: ci.phone || null,
+          customer_address: ci.address || null,
+          customer_city: ci.city || null,
+          customer_postal_code: ci.postal_code || ci.postalCode || null,
+          customer_date_of_birth: ci.date_of_birth || ci.dob || null,
+          services: fieldServices,
+          total_amount: Number(intent.amount || quote.total || 0),
+          payment_method: body.payment_method || "card_manual",
+          payment_reference: body.paypal_order_id || null,
+          payment_status: "confirmed",
+          sync_status: "pending",
+          discount_data: quote.discount || null,
+          source_quote_id: quote.id,
+          source_field_payment_intent_id: intent.id,
+          internal_notes: `Intent Field ${intent.id} finalisé automatiquement`,
+        } as any)
+        .select("id")
+        .single();
+      if (fieldOrderError || !fieldOrder) throw fieldOrderError ?? new Error("Création vente Field échouée");
+
+      const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id, internal: true }),
+      });
+      const syncData = await syncResp.json().catch(() => null);
+      if (!syncResp.ok || !syncData?.success || !syncData?.orderId) {
+        throw new Error(syncData?.error || "Création commande Core échouée");
+      }
+
+      await admin.from("field_quotes").update({ status: "converted", converted_order_id: syncData.orderId }).eq("id", quote.id);
+      await admin.from("field_payment_intents").update({
+        status: "completed",
+        paid_at: new Date().toISOString(),
+        converted_field_order_id: fieldOrder.id,
+        converted_order_id: syncData.orderId,
+        converted_invoice_id: syncData.invoice_id ?? null,
+      }).eq("id", intent.id);
+
+      return new Response(JSON.stringify({ success: true, field_order_id: fieldOrder.id, order_id: syncData.orderId, invoice_id: syncData.invoice_id ?? null }), { headers });
+    }
 
     // ───────────────────────────────────────────────────────────
     // FIX 1 — materialize_from_quote: called by paypal-webhook
