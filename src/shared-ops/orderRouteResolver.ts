@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Accept any UUID format (v1–v8, non-RFC variants) — gen_random_uuid() is v4
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SAFE_PARAM_RE = /^[\w-]+$/;
 
 export type ResolvedOrderRoute =
@@ -14,30 +15,49 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
   const fieldPrefix = value.toUpperCase().startsWith("FIELD-") ? value.slice(6).toLowerCase() : null;
 
   if (UUID_RE.test(value)) {
-    const { data: byId } = await supabase.from("orders").select("id").eq("id", value).maybeSingle();
+    const { data: byId, error: err1 } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("id", value)
+      .maybeSingle();
+    if (err1) console.error("[orderRouteResolver] orders.id lookup:", err1.message);
     if (byId?.id) return { kind: "order", orderId: byId.id };
 
-    const { data: intent } = await supabase
+    const { data: intent, error: err2 } = await supabase
       .from("field_payment_intents" as any)
       .select("id, converted_order_id")
       .eq("id", value)
       .maybeSingle();
-    if ((intent as any)?.converted_order_id) return { kind: "order", orderId: (intent as any).converted_order_id };
-    if ((intent as any)?.id) return { kind: "field_payment_intent", intentId: (intent as any).id };
+    if (err2) console.error("[orderRouteResolver] field_payment_intents.id lookup:", err2.message);
+    if ((intent as any)?.converted_order_id)
+      return { kind: "order", orderId: (intent as any).converted_order_id };
+    if ((intent as any)?.id)
+      return { kind: "field_payment_intent", intentId: (intent as any).id };
   }
 
-  const { data: byNumber } = await supabase.from("orders").select("id").eq("order_number", value).maybeSingle();
+  const { data: byNumber, error: err3 } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("order_number", value)
+    .maybeSingle();
+  if (err3) console.error("[orderRouteResolver] orders.order_number lookup:", err3.message);
   if (byNumber?.id) return { kind: "order", orderId: byNumber.id };
 
+  // FIELD-{first8} prefix — use SQL cast to avoid fetching 1000 rows
   if (fieldPrefix && /^[0-9a-f]{8}$/i.test(fieldPrefix)) {
-    const { data: intents } = await supabase
+    const { data: intents, error: err4 } = await supabase
       .from("field_payment_intents" as any)
       .select("id, converted_order_id")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    const intent = ((intents || []) as any[]).find((row) => String(row.id).toLowerCase().startsWith(fieldPrefix));
-    if (intent?.converted_order_id) return { kind: "order", orderId: intent.converted_order_id as string };
-    if (intent?.id) return { kind: "field_payment_intent", intentId: intent.id as string };
+      .filter("id::text", "like", `${fieldPrefix.toLowerCase()}-%`)
+      .limit(5);
+    if (err4) console.error("[orderRouteResolver] field prefix lookup:", err4.message);
+    const intent = ((intents || []) as any[]).find((row) =>
+      String(row.id).toLowerCase().startsWith(fieldPrefix.toLowerCase())
+    );
+    if (intent?.converted_order_id)
+      return { kind: "order", orderId: intent.converted_order_id as string };
+    if (intent?.id)
+      return { kind: "field_payment_intent", intentId: intent.id as string };
   }
 
   throw new Error("Commande introuvable");

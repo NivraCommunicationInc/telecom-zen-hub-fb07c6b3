@@ -23,6 +23,7 @@ const CoreSystemStatusPage = lazy(() => import("./pages/CoreSystemStatusPage"));
 const WorkQueuePage = lazy(() => import("./pages/WorkQueuePage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 const CoreOrderDetail = lazy(() => import("./pages/CoreOrderDetail"));
+const CoreFieldIntentDetail = lazy(() => import("./pages/CoreFieldIntentDetail"));
 const CorePOSPage = lazy(() => import("./pages/CorePOSPage"));
 const CoreKYCPage = lazy(() => import("./pages/CoreKYCPage"));
 const AppointmentsPage = lazy(() => import("./pages/AppointmentsPage"));
@@ -163,6 +164,7 @@ const CoreApp = () => {
                 {/* Operations */}
                 <Route path="work-queue" element={<S><WorkQueuePage /></S>} />
                 <Route path="orders" element={<S><OrdersPage /></S>} />
+                <Route path="orders/field/:intentId" element={<S><CoreFieldIntentDetail /></S>} />
                 <Route path="orders/:orderId" element={<S><CoreOrderDetail /></S>} />
                 <Route path="pos" element={<S><CorePOSPage /></S>} />
                 <Route path="kyc" element={<S><CoreKYCPage /></S>} />
