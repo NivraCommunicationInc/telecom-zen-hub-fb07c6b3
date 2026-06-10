@@ -25,7 +25,7 @@ jobs:
           PGSSLMODE: require
         run: |
           pg_dump \
-            --host=db.lacxnbjvcyvhrttprkxr.supabase.co \
+            --host=db.xtgngmtxggascbxnswvb.supabase.co \
             --port=5432 \
             --username=postgres \
             --dbname=postgres \
@@ -40,7 +40,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sf \
-            "https://lacxnbjvcyvhrttprkxr.supabase.co/auth/v1/admin/users?per_page=1000" \
+            "https://xtgngmtxggascbxnswvb.supabase.co/auth/v1/admin/users?per_page=1000" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -o /tmp/auth-users-${{ steps.vars.outputs.DATE }}.json
@@ -84,7 +84,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sf -X POST \
-            "https://lacxnbjvcyvhrttprkxr.supabase.co/rest/v1/billing_system_alerts" \
+            "https://xtgngmtxggascbxnswvb.supabase.co/rest/v1/billing_system_alerts" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
