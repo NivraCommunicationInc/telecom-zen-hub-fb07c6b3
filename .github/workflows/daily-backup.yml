@@ -2,48 +2,73 @@ name: Daily Database Backup → Cloudflare R2
 
 on:
   schedule:
-    - cron: '30 2 * * *'   # 02:30 UTC — after Supabase pg_cron backup at 02:00
+    - cron: '30 2 * * *'   # 02:30 UTC daily
   workflow_dispatch:         # manual trigger from GitHub UI
+
+env:
+  SUPABASE_URL: https://lacxnbjvcyvhrttprkxr.supabase.co
+  R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+  R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
 
 jobs:
   backup:
-    name: pg_dump + auth export → R2
+    name: REST export + auth → R2
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: Install postgresql-client
-        run: sudo apt-get install -y --no-install-recommends postgresql-client
-
       - name: Set date variable
         id: vars
         run: echo "DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
-      - name: Dump public schema
+      - name: Export tables via REST API
         env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          PGSSLMODE: require
+          SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          pg_dump \
-            --host=db.lacxnbjvcyvhrttprkxr.supabase.co \
-            --port=5432 \
-            --username=postgres \
-            --dbname=postgres \
-            --schema=public \
-            --format=custom \
-            --compress=9 \
-            --no-password \
-            --file=/tmp/nivra-${{ steps.vars.outputs.DATE }}.dump
+          mkdir -p /tmp/backup
+          TABLES=(
+            orders
+            billing_customers
+            billing_subscriptions
+            billing_invoices
+            billing_payments
+            billing_invoices
+            field_payment_intents
+            profiles
+            user_roles
+            field_quotes
+            site_settings
+            admin_notification_settings
+            billing_system_alerts
+            email_queue
+            account_adjustments
+            products
+          )
+          for TABLE in "${TABLES[@]}"; do
+            echo "Exporting $TABLE..."
+            curl -sf \
+              "${{ env.SUPABASE_URL }}/rest/v1/$TABLE?select=*&limit=100000" \
+              -H "Authorization: Bearer $SVCKEY" \
+              -H "apikey: $SVCKEY" \
+              -H "Prefer: count=exact" \
+              -o "/tmp/backup/${TABLE}.json" || echo "WARNING: $TABLE failed"
+          done
 
-      - name: Export Auth users via Supabase API
+      - name: Export Auth users
         env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sf \
-            "https://lacxnbjvcyvhrttprkxr.supabase.co/auth/v1/admin/users?per_page=1000" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -o /tmp/auth-users-${{ steps.vars.outputs.DATE }}.json
+            "${{ env.SUPABASE_URL }}/auth/v1/admin/users?per_page=1000" \
+            -H "Authorization: Bearer $SVCKEY" \
+            -H "apikey: $SVCKEY" \
+            -o "/tmp/backup/auth_users.json"
+
+      - name: Bundle into archive
+        run: |
+          DATE="${{ steps.vars.outputs.DATE }}"
+          tar -czf /tmp/nivra-backup-${DATE}.tar.gz -C /tmp/backup .
+          echo "Archive size: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
 
       - name: Configure AWS CLI for Cloudflare R2
         run: |
@@ -51,41 +76,36 @@ jobs:
           aws configure set aws_secret_access_key "${{ secrets.CF_R2_SECRET_ACCESS_KEY }}"
           aws configure set default.region        auto
 
-      - name: Upload dump to R2
+      - name: Upload archive to R2
         run: |
-          aws s3 cp /tmp/nivra-${{ steps.vars.outputs.DATE }}.dump \
-            "s3://${{ secrets.CF_R2_BUCKET }}/db/nivra-${{ steps.vars.outputs.DATE }}.dump" \
-            --endpoint-url "https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-
-      - name: Upload auth export to R2
-        run: |
-          aws s3 cp /tmp/auth-users-${{ steps.vars.outputs.DATE }}.json \
-            "s3://${{ secrets.CF_R2_BUCKET }}/auth/auth-users-${{ steps.vars.outputs.DATE }}.json" \
-            --endpoint-url "https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          DATE="${{ steps.vars.outputs.DATE }}"
+          aws s3 cp /tmp/nivra-backup-${DATE}.tar.gz \
+            "s3://${{ env.R2_BUCKET }}/nivra-backup-${DATE}.tar.gz" \
+            --endpoint-url "${{ env.R2_ENDPOINT }}"
+          echo "Uploaded: nivra-backup-${DATE}.tar.gz"
 
       - name: Prune backups older than 90 days
         run: |
-          R2_URL="https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
           CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%d)
-          for PREFIX in db auth; do
-            aws s3 ls "s3://${{ secrets.CF_R2_BUCKET }}/$PREFIX/" \
-              --endpoint-url "$R2_URL" 2>/dev/null | awk '{print $4}' | \
-            while IFS= read -r FILE; do
-              FILE_DATE=$(echo "$FILE" | grep -oP '\d{4}-\d{2}-\d{2}' || true)
-              if [[ -n "$FILE_DATE" && "$FILE_DATE" < "$CUTOFF" ]]; then
-                aws s3 rm "s3://${{ secrets.CF_R2_BUCKET }}/$PREFIX/$FILE" --endpoint-url "$R2_URL"
-              fi
-            done
+          aws s3 ls "s3://${{ env.R2_BUCKET }}/" \
+            --endpoint-url "${{ env.R2_ENDPOINT }}" 2>/dev/null | awk '{print $4}' | \
+          while IFS= read -r FILE; do
+            FILE_DATE=$(echo "$FILE" | grep -oP '\d{4}-\d{2}-\d{2}' || true)
+            if [[ -n "$FILE_DATE" && "$FILE_DATE" < "$CUTOFF" ]]; then
+              echo "Pruning old backup: $FILE"
+              aws s3 rm "s3://${{ env.R2_BUCKET }}/$FILE" \
+                --endpoint-url "${{ env.R2_ENDPOINT }}"
+            fi
           done
 
       - name: Alert on failure
         if: failure()
         env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sf -X POST \
-            "https://lacxnbjvcyvhrttprkxr.supabase.co/rest/v1/billing_system_alerts" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            "${{ env.SUPABASE_URL }}/rest/v1/billing_system_alerts" \
+            -H "Authorization: Bearer $SVCKEY" \
+            -H "apikey: $SVCKEY" \
             -H "Content-Type: application/json" \
             -d "{\"alert_type\":\"backup_failed\",\"entity_type\":\"github_actions_r2\",\"severity\":\"critical\",\"details\":{\"date\":\"${{ steps.vars.outputs.DATE }}\",\"run_id\":\"${{ github.run_id }}\"},\"resolved\":false}"
