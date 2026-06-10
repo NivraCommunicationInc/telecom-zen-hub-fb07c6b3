@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,10 +59,11 @@ function FieldIntentConsole({ intentId, onConvertedOrder }: { intentId: string; 
     refetchInterval: 15000,
   });
 
-  if (pending.data?.convertedOrderId) {
-    onConvertedOrder(pending.data.convertedOrderId);
-    return null;
-  }
+  useEffect(() => {
+    if (pending.data?.convertedOrderId) {
+      onConvertedOrder(pending.data.convertedOrderId);
+    }
+  }, [pending.data?.convertedOrderId]);
 
   if (pending.isLoading) {
     return (
