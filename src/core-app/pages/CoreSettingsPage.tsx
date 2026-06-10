@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Settings, Building, CreditCard, Shield, AlertTriangle, Bell, Users, Save, Loader2, RefreshCw, FileText, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import CoreMfaPanel from "@/core-app/components/CoreMfaPanel";
 
 const TABS = [
   { id: "general", label: "Général", icon: Building },
@@ -135,23 +136,26 @@ export default function CoreSettingsPage() {
             </>); })()}
           </SettingsSection>
         ) : activeTab === "security" ? (
-          <SettingsSection title="Paramètres de sécurité">
-            {(() => { const s = (getSetting("security_config")?.value_json as any) || {}; return (<>
-              <SettingRow label="Durée session admin" description="Expiration automatique des sessions"><Val>{s.session_ttl_minutes || 60} min</Val></SettingRow>
-              <SettingRow label="2FA obligatoire" description="Authentification à deux facteurs pour le personnel">
-                <Toggle enabled={!!s.require_2fa} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, require_2fa: !s.require_2fa } })} />
-              </SettingRow>
-              <SettingRow label="Journalisation d'accès" description="Enregistrement de toutes les actions administratives">
-                <Toggle enabled={s.access_logging !== false} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, access_logging: !s.access_logging } })} />
-              </SettingRow>
-              <SettingRow label="Verrouillage après tentatives" description="Blocage après 5 tentatives échouées">
-                <Toggle enabled={s.lockout_enabled !== false} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, lockout_enabled: !s.lockout_enabled } })} />
-              </SettingRow>
-              <SettingRow label="PIN requis pour employés" description="Accès POS avec code PIN">
-                <Toggle enabled={!!s.require_pin} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, require_pin: !s.require_pin } })} />
-              </SettingRow>
-            </>); })()}
-          </SettingsSection>
+          <>
+            <SettingsSection title="Paramètres de sécurité">
+              {(() => { const s = (getSetting("security_config")?.value_json as any) || {}; return (<>
+                <SettingRow label="Durée session admin" description="Expiration automatique des sessions"><Val>{s.session_ttl_minutes || 60} min</Val></SettingRow>
+                <SettingRow label="2FA obligatoire" description="Authentification à deux facteurs pour le personnel">
+                  <Toggle enabled={!!s.require_2fa} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, require_2fa: !s.require_2fa } })} />
+                </SettingRow>
+                <SettingRow label="Journalisation d'accès" description="Enregistrement de toutes les actions administratives">
+                  <Toggle enabled={s.access_logging !== false} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, access_logging: !s.access_logging } })} />
+                </SettingRow>
+                <SettingRow label="Verrouillage après tentatives" description="Blocage après 5 tentatives échouées">
+                  <Toggle enabled={s.lockout_enabled !== false} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, lockout_enabled: !s.lockout_enabled } })} />
+                </SettingRow>
+                <SettingRow label="PIN requis pour employés" description="Accès POS avec code PIN">
+                  <Toggle enabled={!!s.require_pin} onToggle={() => updateMutation.mutate({ key: "security_config", value: { ...s, require_pin: !s.require_pin } })} />
+                </SettingRow>
+              </>); })()}
+            </SettingsSection>
+            <CoreMfaPanel />
+          </>
         ) : activeTab === "notifications" ? (
           <SettingsSection title="Notifications administratives">
             {notifSettings.length === 0 ? (
