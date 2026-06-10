@@ -12,6 +12,8 @@ import {
 } from "@/lib/canonicalAccountResolver";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
+type ProfileLite = { user_id: string; full_name: string | null; email: string | null };
+
 export interface AdminOrder {
   id: string;
   order_number: string | null;
@@ -85,10 +87,10 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
       const maps = await buildCanonicalAccountMaps(supabase, {
         orderIds,
         userIds,
-        accountIds: orders.map((o: any) => o.account_id),
+        accountIds: orderRows.map((o: any) => o.account_id),
       });
 
-      const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) ?? []);
+      const profileMap = new Map<string, ProfileLite>((profiles as ProfileLite[] | null)?.map((p) => [p.user_id, p]) ?? []);
       const invoiceMap = new Map<string, { invoice_number: string; status: string | null; total: number }>();
       for (const inv of invoices || []) {
         if (!inv.order_id) continue;
