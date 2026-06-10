@@ -464,10 +464,11 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    const postAction = body.action || action;
 
     // Finalize a paid field_payment_intent into a real Core order/invoice.
     // Called by internal payment processors after PayPal/card capture.
-    if (action === "finalize_paid_intent") {
+    if (postAction === "finalize_paid_intent") {
       if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
       const intentId = body.field_payment_intent_id;
       if (!intentId) return new Response(JSON.stringify({ error: "field_payment_intent_id requis" }), { status: 400, headers });
@@ -544,7 +545,7 @@ Deno.serve(async (req) => {
     // after a field_payment_intent capture is confirmed. Reads the
     // stored field_quote and creates the real Core order/invoice.
     // ───────────────────────────────────────────────────────────
-    if (action === "materialize_from_quote") {
+    if (postAction === "materialize_from_quote") {
       const quoteId = body.quote_id;
       const agentIdParam = body.agent_id || userId;
       if (!quoteId) return new Response(JSON.stringify({ error: "quote_id requis" }), { status: 400, headers });
@@ -608,7 +609,7 @@ Deno.serve(async (req) => {
       }), { headers });
     }
 
-    if (action === "create-draft" || action === "submit-sale") {
+    if (postAction === "create-draft" || postAction === "submit-sale") {
       const customer = body.customer || {};
       const rawServices = Array.isArray(body.services) ? body.services : [];
       const rawEquipment = Array.isArray(body.equipment) ? body.equipment : [];
@@ -655,7 +656,7 @@ Deno.serve(async (req) => {
         payment_status: paymentStatus,
         selected_channels: [],
         internal_notes: customer.notes || null,
-        sync_status: action === "submit-sale" ? "pending" : "draft",
+        sync_status: postAction === "submit-sale" ? "pending" : "draft",
         created_at: now,
         updated_at: now,
       };
@@ -672,12 +673,12 @@ Deno.serve(async (req) => {
         field_order_id: fieldOrder.id,
         status_domain: "order",
         old_status: null,
-        new_status: action === "submit-sale" ? "submitted" : "draft",
+        new_status: postAction === "submit-sale" ? "submitted" : "draft",
         changed_by_user_id: userId,
-        change_reason: action === "submit-sale" ? "Création depuis le portail Field" : "Brouillon créé depuis le portail Field",
+        change_reason: postAction === "submit-sale" ? "Création depuis le portail Field" : "Brouillon créé depuis le portail Field",
       } as any);
 
-      if (action === "create-draft") {
+      if (postAction === "create-draft") {
         return new Response(JSON.stringify({ success: true, order_id: fieldOrder.id, sync_status: "draft" }), { headers });
       }
 
