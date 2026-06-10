@@ -208,20 +208,23 @@ Deno.serve(async (req) => {
     // The field-order-engine "finalize" route accepts the field_payment_intent_id
     // and creates the order in Core (payment_method = 'card_manual').
     let resultOrderId: string | null = null;
-    try {
-      const finRes = await admin.functions.invoke("field-order-engine", {
-        body: {
-          action: "finalize_paid_intent",
-          field_payment_intent_id: cpi.field_payment_intent_id,
-          paypal_order_id: paypalOrderId,
-          payment_method: "card_manual",
-          processed_by: adminId,
-        },
-      });
-      resultOrderId = (finRes.data as any)?.order_id || null;
-    } catch (e) {
-      console.warn("[core-process-card-payment] finalize call failed", e);
+    const finRes = await admin.functions.invoke("field-order-engine", {
+      body: {
+        action: "finalize_paid_intent",
+        field_payment_intent_id: cpi.field_payment_intent_id,
+        paypal_order_id: paypalOrderId,
+        payment_method: "card_manual",
+        processed_by: adminId,
+      },
+    });
+    if (finRes.error || !(finRes.data as any)?.order_id) {
+      console.error("[core-process-card-payment] finalize failed", finRes.error, finRes.data);
+      await admin.from("card_payment_intents")
+        .update({ status: "pending_processing" })
+        .eq("id", cardIntentId);
+      throw new Error((finRes.error as any)?.message || (finRes.data as any)?.error || "Paiement capturé, mais création de commande Core échouée");
     }
+    resultOrderId = (finRes.data as any).order_id;
 
     // SECURITY: delete the card intent row (plaintext-derivable data gone).
     await admin.from("card_payment_intents").delete().eq("id", cardIntentId);
