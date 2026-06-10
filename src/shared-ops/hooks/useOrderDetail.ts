@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveCanonicalOrderId } from "@/shared-ops/orderRouteResolver";
 
 export interface OrderDetailData {
   order: any;
@@ -21,21 +22,6 @@ export interface OrderDetailData {
   pricingSnapshot: Record<string, any> | null;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SAFE_PARAM_RE = /^[\w-]+$/;
-
-async function resolveOrderId(param: string): Promise<string> {
-  const normalized = decodeURIComponent(param).trim();
-  if (!normalized || !SAFE_PARAM_RE.test(normalized)) throw new Error("Identifiant de commande invalide");
-  if (UUID_RE.test(normalized)) {
-    const { data } = await supabase.from("orders").select("id").eq("id", normalized).maybeSingle();
-    if (data) return data.id;
-  }
-  const { data } = await supabase.from("orders").select("id").eq("order_number", normalized).maybeSingle();
-  if (data) return data.id;
-  throw new Error("Commande introuvable");
-}
-
 export function useOrderDetail(orderRouteParam: string | undefined) {
   return useQuery<OrderDetailData>({
     queryKey: ["shared-order-detail", orderRouteParam],
@@ -43,7 +29,7 @@ export function useOrderDetail(orderRouteParam: string | undefined) {
     staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       if (!orderRouteParam) throw new Error("Identifiant manquant");
-      const resolvedOrderId = await resolveOrderId(orderRouteParam);
+      const resolvedOrderId = await resolveCanonicalOrderId(orderRouteParam);
       const { data: order, error } = await supabase.from("orders").select("*").eq("id", resolvedOrderId).single();
       if (error) throw error;
 
