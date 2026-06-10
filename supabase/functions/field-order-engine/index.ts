@@ -720,7 +720,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate
-    if (action === "validate") {
+    if (postAction === "validate") {
       const issues: string[] = [];
       const warnings: string[] = [];
 
@@ -748,7 +748,7 @@ Deno.serve(async (req) => {
     }
 
     // Submit
-    if (action === "submit") {
+    if (postAction === "submit") {
       const orderId = body.order_id;
       if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
 
@@ -769,7 +769,7 @@ Deno.serve(async (req) => {
     }
 
     // Update payment
-    if (action === "update-payment") {
+    if (postAction === "update-payment") {
       const orderId = body.order_id;
       const newStatus = sanitizeString(body.payment_status || "", 50);
       const reference = body.payment_reference || null;
@@ -783,7 +783,7 @@ Deno.serve(async (req) => {
     }
 
     // Retry sync
-    if (action === "retry-sync") {
+    if (postAction === "retry-sync") {
       const orderId = body.order_id;
       if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
 
@@ -817,7 +817,7 @@ Deno.serve(async (req) => {
     }
 
     // Add note
-    if (action === "add-note") {
+    if (postAction === "add-note") {
       const orderId = body.order_id;
       const content = sanitizeString(body.content || "", 2000);
       if (!orderId || !content) return new Response(JSON.stringify({ error: "order_id et content requis" }), { status: 400, headers });
@@ -828,7 +828,7 @@ Deno.serve(async (req) => {
     }
 
     // Cancel order
-    if (action === "cancel") {
+    if (postAction === "cancel") {
       const orderId = body.order_id;
       if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
 
