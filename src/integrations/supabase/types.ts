@@ -10384,6 +10384,8 @@ export type Database = {
           selected_channels: Json | null
           services: Json
           signature_captured_at: string | null
+          source_field_payment_intent_id: string | null
+          source_quote_id: string | null
           sync_error: string | null
           sync_status: string | null
           synced_at: string | null
@@ -10423,6 +10425,8 @@ export type Database = {
           selected_channels?: Json | null
           services?: Json
           signature_captured_at?: string | null
+          source_field_payment_intent_id?: string | null
+          source_quote_id?: string | null
           sync_error?: string | null
           sync_status?: string | null
           synced_at?: string | null
@@ -10462,6 +10466,8 @@ export type Database = {
           selected_channels?: Json | null
           services?: Json
           signature_captured_at?: string | null
+          source_field_payment_intent_id?: string | null
+          source_quote_id?: string | null
           sync_error?: string | null
           sync_status?: string | null
           synced_at?: string | null
@@ -10496,6 +10502,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "employee_financial_summary"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "field_sales_orders_source_field_payment_intent_id_fkey"
+            columns: ["source_field_payment_intent_id"]
+            isOneToOne: false
+            referencedRelation: "field_payment_intents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_sales_orders_source_quote_id_fkey"
+            columns: ["source_quote_id"]
+            isOneToOne: false
+            referencedRelation: "field_quotes"
+            referencedColumns: ["id"]
           },
         ]
       }
