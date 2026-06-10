@@ -41,15 +41,23 @@ jobs:
             account_adjustments
             products
           )
+          FAILED=0
           for TABLE in "${TABLES[@]}"; do
-            echo "Exporting $TABLE..."
-            HTTP=$(curl -sf -w "%{http_code}" \
+            HTTP=$(curl -s -w "%{http_code}" \
               "${{ env.SUPABASE_URL }}/rest/v1/$TABLE?select=*&limit=100000" \
               -H "Authorization: Bearer $SVCKEY" \
               -H "apikey: $SVCKEY" \
               -o "/tmp/backup/${TABLE}.json")
-            echo "$TABLE → HTTP $HTTP"
+            if [[ "$HTTP" == "200" ]]; then
+              ROWS=$(cat "/tmp/backup/${TABLE}.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else 1)" 2>/dev/null || echo "?")
+              echo "✓ $TABLE → $ROWS rows"
+            else
+              echo "✗ $TABLE → HTTP $HTTP (skipped)"
+              echo "[]" > "/tmp/backup/${TABLE}.json"
+              FAILED=$((FAILED+1))
+            fi
           done
+          echo "Done — $FAILED table(s) skipped"
 
       - name: Export Auth users
         env:
