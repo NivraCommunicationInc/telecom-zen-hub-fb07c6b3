@@ -66,6 +66,9 @@ jobs:
           tar -czf /tmp/nivra-backup-${DATE}.tar.gz -C /tmp/backup .
           echo "Archive: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
 
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
       - name: Upload to R2 via rclone
         env:
           RCLONE_CONFIG_R2_TYPE: s3
