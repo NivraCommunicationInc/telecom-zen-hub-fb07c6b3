@@ -70,6 +70,13 @@ jobs:
           tar -czf /tmp/nivra-backup-${DATE}.tar.gz -C /tmp/backup .
           echo "Archive size: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
 
+      - name: Install AWS CLI v2
+        run: |
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp/awscli
+          sudo /tmp/awscli/aws/install --update
+          aws --version
+
       - name: Configure AWS CLI for Cloudflare R2
         run: |
           aws configure set aws_access_key_id     "${{ secrets.CF_R2_ACCESS_KEY_ID }}"
