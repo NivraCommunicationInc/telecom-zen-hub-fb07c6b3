@@ -175,7 +175,7 @@ const Index = () => {
         {/* ══ SERVICES NAV ══ */}
         <section style={{ background:"#06040F", paddingTop:32, paddingBottom:32, borderTop:"1px solid rgba(124,58,237,0.12)" }}>
           <div className="container mx-auto px-4 sm:px-10 max-w-[1200px]">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {SERVICES.map((s, i) => (
                 <motion.div key={s.label} initial={{ opacity:0, y:16 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.4, delay:i*0.08 }}>
                   <Link
@@ -437,11 +437,11 @@ const Index = () => {
               <motion.div initial={{ opacity:0, x:30 }} whileInView={{ opacity:1, x:0 }} viewport={{ once:true }} transition={{ duration:0.65, ease:[0.22,1,0.36,1] }}
                 className="flex items-center justify-center"
               >
-                <div className="relative" style={{ width:380, height:300 }}>
+                <div className="relative mx-auto" style={{ width:"min(380px, 100%)", aspectRatio:"380/300" }}>
                   {/* Glow */}
                   <div aria-hidden style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 60% at 50% 50%, rgba(6,182,212,0.12) 0%, transparent 70%)", pointerEvents:"none" }} />
 
-                  <svg viewBox="0 0 380 300" width="380" height="300" style={{ overflow:"visible" }}>
+                  <svg viewBox="0 0 380 300" style={{ width:"100%", height:"100%", overflow:"visible" }}>
                     <defs>
                       <linearGradient id="fiberGrad" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#7C3AED" />
