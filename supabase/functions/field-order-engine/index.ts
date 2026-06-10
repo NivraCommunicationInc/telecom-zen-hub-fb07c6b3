@@ -693,10 +693,10 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": authHeader,
-          "apikey": Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
         },
-        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id }),
+        body: JSON.stringify({ action: "sync_single", field_order_id: fieldOrder.id, internal: true }),
       });
 
       const syncData = await syncResponse.json().catch(() => null);
@@ -754,7 +754,17 @@ Deno.serve(async (req) => {
       await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "order", old_status: "draft", new_status: "submitted", changed_by_user_id: userId, change_reason: "Soumission par l'agent terrain" });
       await admin.from("field_order_sync_events").insert({ field_order_id: orderId, sync_target: "core", sync_action: "create_order", sync_status: "pending", attempt_count: 0 });
 
-      return new Response(JSON.stringify({ success: true, order_id: orderId, sync_status: "pending", message: "Commande soumise" }), { headers });
+      const syncResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceRoleKey}`, "apikey": serviceRoleKey },
+        body: JSON.stringify({ action: "sync_single", field_order_id: orderId, internal: true }),
+      });
+      const syncData = await syncResponse.json().catch(() => null);
+      if (!syncResponse.ok || !syncData?.success) {
+        throw new Error(syncData?.error || `La synchronisation de la vente a échoué (${syncResponse.status})`);
+      }
+
+      return new Response(JSON.stringify({ success: true, order_id: orderId, core_order_id: syncData.orderId || null, invoice_id: syncData.invoice_id || null, sync_status: "synced", message: "Commande soumise" }), { headers });
     }
 
     // Update payment
@@ -795,10 +805,10 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": authHeader,
-            "apikey": Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "apikey": serviceRoleKey,
           },
-          body: JSON.stringify({ action: "sync_single", field_order_id: orderId }),
+          body: JSON.stringify({ action: "sync_single", field_order_id: orderId, internal: true }),
         });
       } catch {}
 
