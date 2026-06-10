@@ -547,11 +547,11 @@ Deno.serve(async (req) => {
     // ───────────────────────────────────────────────────────────
     if (postAction === "materialize_from_quote") {
       const quoteId = body.quote_id;
-      const agentIdParam = body.agent_id || userId;
       if (!quoteId) return new Response(JSON.stringify({ error: "quote_id requis" }), { status: 400, headers });
 
       const { data: quote } = await admin.from("field_quotes").select("*").eq("id", quoteId).maybeSingle();
       if (!quote) return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
+      const agentIdParam = body.agent_id || quote.agent_id || userId;
 
       const c: any = quote.client_info || {};
       const services: any[] = (quote.services as any[]) || [];
