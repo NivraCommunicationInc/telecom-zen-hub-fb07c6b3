@@ -7,8 +7,6 @@ on:
 
 env:
   SUPABASE_URL: https://lacxnbjvcyvhrttprkxr.supabase.co
-  R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-  R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
 
 jobs:
   backup:
@@ -32,7 +30,6 @@ jobs:
             billing_subscriptions
             billing_invoices
             billing_payments
-            billing_invoices
             field_payment_intents
             profiles
             user_roles
@@ -50,8 +47,7 @@ jobs:
               "${{ env.SUPABASE_URL }}/rest/v1/$TABLE?select=*&limit=100000" \
               -H "Authorization: Bearer $SVCKEY" \
               -H "apikey: $SVCKEY" \
-              -H "Prefer: count=exact" \
-              -o "/tmp/backup/${TABLE}.json" || echo "WARNING: $TABLE failed"
+              -o "/tmp/backup/${TABLE}.json" || echo "WARNING: $TABLE skipped"
           done
 
       - name: Export Auth users
@@ -68,40 +64,37 @@ jobs:
         run: |
           DATE="${{ steps.vars.outputs.DATE }}"
           tar -czf /tmp/nivra-backup-${DATE}.tar.gz -C /tmp/backup .
-          echo "Archive size: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
+          echo "Archive: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
 
-      - name: Install AWS CLI v2
-        run: |
-          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-          unzip -q /tmp/awscliv2.zip -d /tmp/awscli
-          sudo /tmp/awscli/aws/install --update
-          aws --version
-
-      - name: Configure AWS CLI for Cloudflare R2
-        run: |
-          aws configure set aws_access_key_id     "${{ secrets.CF_R2_ACCESS_KEY_ID }}"
-          aws configure set aws_secret_access_key "${{ secrets.CF_R2_SECRET_ACCESS_KEY }}"
-          aws configure set default.region        auto
-
-      - name: Upload archive to R2
+      - name: Upload to R2 via rclone
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         run: |
           DATE="${{ steps.vars.outputs.DATE }}"
-          aws s3 cp /tmp/nivra-backup-${DATE}.tar.gz \
-            "s3://${{ env.R2_BUCKET }}/nivra-backup-${DATE}.tar.gz" \
-            --endpoint-url "${{ env.R2_ENDPOINT }}"
+          rclone copyto "/tmp/nivra-backup-${DATE}.tar.gz" \
+            "r2:${{ secrets.CF_R2_BUCKET }}/nivra-backup-${DATE}.tar.gz" \
+            --s3-no-check-bucket
           echo "Uploaded: nivra-backup-${DATE}.tar.gz"
 
       - name: Prune backups older than 90 days
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         run: |
           CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%d)
-          aws s3 ls "s3://${{ env.R2_BUCKET }}/" \
-            --endpoint-url "${{ env.R2_ENDPOINT }}" 2>/dev/null | awk '{print $4}' | \
+          rclone lsf "r2:${{ secrets.CF_R2_BUCKET }}/" --s3-no-check-bucket 2>/dev/null | \
           while IFS= read -r FILE; do
             FILE_DATE=$(echo "$FILE" | grep -oP '\d{4}-\d{2}-\d{2}' || true)
             if [[ -n "$FILE_DATE" && "$FILE_DATE" < "$CUTOFF" ]]; then
-              echo "Pruning old backup: $FILE"
-              aws s3 rm "s3://${{ env.R2_BUCKET }}/$FILE" \
-                --endpoint-url "${{ env.R2_ENDPOINT }}"
+              echo "Pruning: $FILE"
+              rclone deletefile "r2:${{ secrets.CF_R2_BUCKET }}/$FILE" --s3-no-check-bucket
             fi
           done
 
@@ -110,9 +103,10 @@ jobs:
         env:
           SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          curl -sf -X POST \
+          curl -f -X POST \
             "${{ env.SUPABASE_URL }}/rest/v1/billing_system_alerts" \
             -H "Authorization: Bearer $SVCKEY" \
             -H "apikey: $SVCKEY" \
             -H "Content-Type: application/json" \
-            -d "{\"alert_type\":\"backup_failed\",\"entity_type\":\"github_actions_r2\",\"severity\":\"critical\",\"details\":{\"date\":\"${{ steps.vars.outputs.DATE }}\",\"run_id\":\"${{ github.run_id }}\"},\"resolved\":false}"
+            -d "{\"alert_type\":\"backup_failed\",\"entity_type\":\"github_actions_r2\",\"severity\":\"critical\",\"details\":{\"date\":\"${{ steps.vars.outputs.DATE }}\",\"run_id\":\"${{ github.run_id }}\"},\"resolved\":false}" \
+            || true
