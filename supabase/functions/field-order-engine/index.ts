@@ -583,6 +583,7 @@ Deno.serve(async (req) => {
           payment_method: "paypal",
           payment_status: "confirmed",
           sync_status: "pending",
+          source_quote_id: quoteId,
           internal_notes: `Commande terrain — Agent: ${quote.agent_name || ""} (quote ${quoteId})`,
         } as any).select("id").single();
       if (foErr || !fieldOrder) throw foErr ?? new Error("Création field_sales_orders échouée");

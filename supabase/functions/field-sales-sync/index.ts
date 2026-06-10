@@ -1216,6 +1216,7 @@ Deno.serve(async (req) => {
           payment_status: 'confirmed',
           sync_status: 'pending',
           discount_data: quote.discount || null,
+          source_quote_id: quote.id,
           internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement PayPal`,
         })
         .select('*')

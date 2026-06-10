@@ -249,6 +249,8 @@ serve(async (req) => {
               payment_reference: captureId,
               payment_status: "confirmed",
               sync_status: "pending",
+              source_quote_id: quote.id,
+              source_field_payment_intent_id: fieldIntent.id,
               internal_notes: `Agent: ${quote.agent_name || "—"} · Field PayPal capture · intent=${fieldIntent.id}`,
             })
             .select("id")
