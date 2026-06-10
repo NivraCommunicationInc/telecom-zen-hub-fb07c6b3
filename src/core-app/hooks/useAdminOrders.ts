@@ -50,28 +50,35 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
       if (environment !== "all") query = query.eq("environment", environment);
       const { data: orders, error } = await query;
       if (error) throw error;
-      if (!orders || orders.length === 0) return [];
+      const orderRows = orders || [];
 
-      const userIds = [...new Set(orders.map((o) => o.user_id))];
-      const agentIds = [...new Set(orders.map((o: any) => o.created_by_agent_id).filter(Boolean) as string[])];
+      const { data: fieldIntents } = environment === "test"
+        ? { data: [] as any[] }
+        : await supabase
+            .from("field_payment_intents" as any)
+            .select("id, agent_id, payment_method, status, amount, customer_email, customer_name, created_at, converted_order_id")
+            .is("converted_order_id", null)
+            .order("created_at", { ascending: false })
+            .limit(100);
+
+      const userIds = [...new Set(orderRows.map((o) => o.user_id))];
+      const agentIds = [...new Set([
+        ...orderRows.map((o: any) => o.created_by_agent_id).filter(Boolean),
+        ...((fieldIntents || []) as any[]).map((i: any) => i.agent_id).filter(Boolean),
+      ] as string[])];
       const allProfileIds = [...new Set([...userIds, ...agentIds])];
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, email")
         .in("user_id", allProfileIds);
 
-      const orderIds = orders.map((o) => o.id);
-      const { data: invoices } = await supabase
-        .from("billing_invoices")
-        .select("order_id, invoice_number, status, total")
-        .in("order_id", orderIds);
-
-      const { data: fieldIntents } = await supabase
-        .from("field_payment_intents" as any)
-        .select("id, agent_id, payment_method, status, amount, customer_email, customer_name, created_at, converted_order_id")
-        .is("converted_order_id", null)
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const orderIds = orderRows.map((o) => o.id);
+      const { data: invoices } = orderIds.length
+        ? await supabase
+            .from("billing_invoices")
+            .select("order_id, invoice_number, status, total")
+            .in("order_id", orderIds)
+        : { data: [] as any[] };
 
       const maps = await buildCanonicalAccountMaps(supabase, {
         orderIds,
@@ -89,7 +96,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
         }
       }
 
-      const canonicalOrders = orders.map((o: any): AdminOrder => {
+      const canonicalOrders = orderRows.map((o: any): AdminOrder => {
         const profile = profileMap.get(o.user_id);
         const invoice = invoiceMap.get(o.id);
         const accountNumber = resolveCanonicalAccountNumber(maps, {
