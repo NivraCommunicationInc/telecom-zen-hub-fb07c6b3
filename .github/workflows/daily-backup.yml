@@ -1,18 +1,18 @@
-name: Daily Database Backup → Cloudflare R2
+name: Daily Database Backup → GitHub Artifacts
 
 on:
   schedule:
     - cron: '30 2 * * *'   # 02:30 UTC daily
-  workflow_dispatch:         # manual trigger from GitHub UI
+  workflow_dispatch:
 
 env:
   SUPABASE_URL: https://lacxnbjvcyvhrttprkxr.supabase.co
 
 jobs:
   backup:
-    name: REST export + auth → R2
+    name: Export Supabase → GitHub Artifact
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - name: Set date variable
@@ -43,67 +43,39 @@ jobs:
           )
           for TABLE in "${TABLES[@]}"; do
             echo "Exporting $TABLE..."
-            curl -sf \
+            HTTP=$(curl -sf -w "%{http_code}" \
               "${{ env.SUPABASE_URL }}/rest/v1/$TABLE?select=*&limit=100000" \
               -H "Authorization: Bearer $SVCKEY" \
               -H "apikey: $SVCKEY" \
-              -o "/tmp/backup/${TABLE}.json" || echo "WARNING: $TABLE skipped"
+              -o "/tmp/backup/${TABLE}.json")
+            echo "$TABLE → HTTP $HTTP"
           done
 
       - name: Export Auth users
         env:
           SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          curl -sf \
+          HTTP=$(curl -sf -w "%{http_code}" \
             "${{ env.SUPABASE_URL }}/auth/v1/admin/users?per_page=1000" \
             -H "Authorization: Bearer $SVCKEY" \
             -H "apikey: $SVCKEY" \
-            -o "/tmp/backup/auth_users.json"
+            -o "/tmp/backup/auth_users.json")
+          echo "auth_users → HTTP $HTTP"
 
-      - name: Bundle into archive
+      - name: Bundle archive
         run: |
           DATE="${{ steps.vars.outputs.DATE }}"
           tar -czf /tmp/nivra-backup-${DATE}.tar.gz -C /tmp/backup .
-          echo "Archive: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
+          echo "Size: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
+          echo "Tables: $(ls /tmp/backup | wc -l) files"
 
-      - name: Install rclone
-        run: curl -fsSL https://rclone.org/install.sh | sudo bash
-
-      - name: Upload to R2 via rclone
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_REGION: auto
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
-        run: |
-          DATE="${{ steps.vars.outputs.DATE }}"
-          rclone copyto "/tmp/nivra-backup-${DATE}.tar.gz" \
-            "r2:${{ secrets.CF_R2_BUCKET }}/nivra-backup-${DATE}.tar.gz" \
-            --s3-no-head
-          echo "Uploaded: nivra-backup-${DATE}.tar.gz"
-
-      - name: Prune backups older than 90 days
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_REGION: auto
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
-        run: |
-          CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%d)
-          rclone lsf "r2:${{ secrets.CF_R2_BUCKET }}/" --s3-no-check-bucket 2>/dev/null | \
-          while IFS= read -r FILE; do
-            FILE_DATE=$(echo "$FILE" | grep -oP '\d{4}-\d{2}-\d{2}' || true)
-            if [[ -n "$FILE_DATE" && "$FILE_DATE" < "$CUTOFF" ]]; then
-              echo "Pruning: $FILE"
-              rclone deletefile "r2:${{ secrets.CF_R2_BUCKET }}/$FILE" --s3-no-check-bucket
-            fi
-          done
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nivra-backup-${{ steps.vars.outputs.DATE }}
+          path: /tmp/nivra-backup-${{ steps.vars.outputs.DATE }}.tar.gz
+          retention-days: 90
+          if-no-files-found: error
 
       - name: Alert on failure
         if: failure()
@@ -115,5 +87,5 @@ jobs:
             -H "Authorization: Bearer $SVCKEY" \
             -H "apikey: $SVCKEY" \
             -H "Content-Type: application/json" \
-            -d "{\"alert_type\":\"backup_failed\",\"entity_type\":\"github_actions_r2\",\"severity\":\"critical\",\"details\":{\"date\":\"${{ steps.vars.outputs.DATE }}\",\"run_id\":\"${{ github.run_id }}\"},\"resolved\":false}" \
+            -d "{\"alert_type\":\"backup_failed\",\"entity_type\":\"github_actions\",\"severity\":\"critical\",\"details\":{\"date\":\"${{ steps.vars.outputs.DATE }}\",\"run_id\":\"${{ github.run_id }}\"},\"resolved\":false}" \
             || true
