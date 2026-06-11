@@ -46,7 +46,7 @@ serve(async (req) => {
     console.log(`[billing-generate-renewals] Looking for subscriptions ending ${windowStartStr} → ${windowEndStr}`);
 
     // ── Detect active subscriptions with NULL cycle_end_date ──
-    // These will never be billed by the normal query. Alert and skip.
+    // These will never be billed by the normal query. Halt the run so the operator is alerted.
     const { data: nullCycleSubs } = await supabase
       .from("billing_subscriptions")
       .select("id, customer_id, plan_name, created_at")
@@ -54,7 +54,7 @@ serve(async (req) => {
       .is("cycle_end_date", null);
 
     if (nullCycleSubs?.length) {
-      console.error(`[billing-generate-renewals] CRITICAL: ${nullCycleSubs.length} active subscription(s) with NULL cycle_end_date`);
+      console.error(`[billing-generate-renewals] CRITICAL: ${nullCycleSubs.length} active subscription(s) with NULL cycle_end_date — halting run`);
       for (const orphan of nullCycleSubs) {
         await supabase.from("billing_system_alerts").insert({
           alert_type: "null_cycle_end_date",
@@ -65,6 +65,16 @@ serve(async (req) => {
           details: { customer_id: orphan.customer_id, plan_name: orphan.plan_name, created_at: orphan.created_at },
         }).catch(() => {});
       }
+      return new Response(
+        JSON.stringify({
+          error: "HALTED",
+          reason: "null_cycle_end_date",
+          count: nullCycleSubs.length,
+          subscription_ids: nullCycleSubs.map((s: any) => s.id),
+          message: `${nullCycleSubs.length} abonnement(s) actifs sans cycle_end_date — corrigez ces enregistrements avant de relancer`,
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Find active subscriptions ending within the catch-up window

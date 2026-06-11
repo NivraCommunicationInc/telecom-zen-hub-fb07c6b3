@@ -236,6 +236,17 @@ serve(async (req) => {
     runId = runRow.id;
     recordStep("run_started", true, { run_id: runId, scope, reason });
 
+    // Pre-fetch billing customer IDs once — reused in STEP 1 and STEP 2 (C2.1 fix)
+    const { data: billingCustomers, error: custLookupErr } = await supabase
+      .from("billing_customers")
+      .select("id")
+      .eq("user_id", account.client_id);
+    if (custLookupErr) throw new Error(`billing_customers lookup failed: ${custLookupErr.message}`);
+    const billingCustomerIds: string[] = billingCustomers?.map((c: any) => c.id) ?? [];
+    if (billingCustomerIds.length === 0) {
+      recordStep("billing_customer_lookup", false, { warning: "No billing_customers record found — no subscriptions or invoices to process" });
+    }
+
     // ────────────────────────────────────────────────────────────────
     // STEP 1 — Cancel PayPal billing agreements for every active sub.
     // ────────────────────────────────────────────────────────────────
@@ -243,17 +254,13 @@ serve(async (req) => {
     let subscriptionsCancelled = 0;
     const cancellableStatuses = ["active", "pending", "suspended"];
 
-    const { data: subs } = await supabase
+    const subsQuery = supabase
       .from("billing_subscriptions")
       .select("id, status, paypal_subscription_id, customer_id, plan_name")
-      .in("status", cancellableStatuses)
-      .in("customer_id",
-        // sub.customer_id → billing_customers.id → user_id → account.client_id
-        (await supabase
-          .from("billing_customers")
-          .select("id")
-          .eq("user_id", account.client_id)).data?.map((c: any) => c.id) ?? ["00000000-0000-0000-0000-000000000000"],
-      );
+      .in("status", cancellableStatuses);
+    const { data: subs } = billingCustomerIds.length > 0
+      ? await subsQuery.in("customer_id", billingCustomerIds)
+      : { data: [] };
 
     for (const sub of subs ?? []) {
       // 1a. PayPal cancel (only if a binding exists)
@@ -337,16 +344,13 @@ serve(async (req) => {
     // ────────────────────────────────────────────────────────────────
     let invoicesVoided = 0;
     try {
-      const { data: pendingInvoices } = await supabase
+      const invoicesQuery = supabase
         .from("billing_invoices")
         .select("id, status, balance_due")
-        .in("customer_id",
-          (await supabase
-            .from("billing_customers")
-            .select("id")
-            .eq("user_id", account.client_id)).data?.map((c: any) => c.id) ?? [],
-        )
         .in("status", ["pending", "partially_paid", "overdue", "draft"]);
+      const { data: pendingInvoices } = billingCustomerIds.length > 0
+        ? await invoicesQuery.in("customer_id", billingCustomerIds)
+        : { data: [] };
 
       for (const inv of pendingInvoices ?? []) {
         const { error: voidErr } = await supabase

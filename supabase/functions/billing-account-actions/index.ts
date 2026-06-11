@@ -393,6 +393,19 @@ serve(async (req) => {
         if (!Number.isInteger(count) || count < 2 || count > 24) {
           return json(400, { error: "installment_count doit être entre 2 et 24" });
         }
+        if (!body.idempotency_key || body.idempotency_key.trim().length < 4) {
+          return json(400, { error: "idempotency_key requis pour les plans de paiement (UUID recommandé)" });
+        }
+        // Dedup: return existing plan if same idempotency_key for this user (E2.1 fix)
+        const { data: existingPlan } = await admin
+          .from("client_payment_plans")
+          .select("id")
+          .contains("metadata", { idempotency_key: body.idempotency_key })
+          .eq("user_id", client_user_id)
+          .maybeSingle();
+        if (existingPlan) {
+          return json(200, { ok: true, plan_id: existingPlan.id, idempotent: true });
+        }
         const frequency = body.frequency || "monthly";
         const first_due_date = body.first_due_date || new Date().toISOString().slice(0, 10);
         const installment_amount = Math.round((total / count) * 100) / 100;
