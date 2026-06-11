@@ -21,7 +21,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const ADMIN_ESCALATION_EMAIL = Deno.env.get("ADMIN_ESCALATION_EMAIL") || "nivratelecom@gmail.com";
+const ADMIN_ESCALATION_EMAIL = Deno.env.get("ADMIN_ESCALATION_EMAIL") || "support@nivra-telecom.ca";
 
 async function gatherClientContext(supabase: any, email: string) {
   const { data: profile } = await supabase

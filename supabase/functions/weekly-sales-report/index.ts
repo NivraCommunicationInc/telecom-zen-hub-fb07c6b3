@@ -10,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "nivratelecom@gmail.com";
+const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca";
 
 function fmtCAD(n: number): string {
   return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);

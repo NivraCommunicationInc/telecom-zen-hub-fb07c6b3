@@ -126,7 +126,7 @@ serve(async (req) => {
       },
       {
         event_key: `health_check_${Date.now()}_alt`,
-        to_email: "nivratelecom@gmail.com",
+        to_email: "support@nivra-telecom.ca",
         template_key: "custom_html",
         subject,
         template_vars: { subject, html },

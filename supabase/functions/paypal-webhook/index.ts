@@ -939,8 +939,8 @@ serve(async (req) => {
             });
 
             // P2 — CHARGEBACK ADMIN ALERT
-            // Send immediate alert to support@nivra-telecom.ca AND nivratelecom@gmail.com
-            const adminRecipients = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+            // Send immediate alert to support@nivra-telecom.ca AND support@nivra-telecom.ca
+            const adminRecipients = ["support@nivra-telecom.ca"];
             const clientFullName = `${customer.first_name} ${customer.last_name}`.trim();
             for (const adminEmail of adminRecipients) {
               await supabase.from("email_queue").insert({

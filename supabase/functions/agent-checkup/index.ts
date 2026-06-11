@@ -333,7 +333,7 @@ serve(async () => {
     },
     body: JSON.stringify({
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: ["nivratelecom@gmail.com"],
+      to: ["support@nivra-telecom.ca"],
       subject: `📊 Rapport hebdomadaire clients Nivra — ${today} (${accounts.length} clients actifs)`,
       html: `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">

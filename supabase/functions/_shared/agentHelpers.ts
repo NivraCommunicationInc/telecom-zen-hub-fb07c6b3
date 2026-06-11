@@ -16,7 +16,7 @@ export const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 export const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 
 export const SUPPORT_BCC = "support@nivra-telecom.ca";
-export const ADMIN_EMAIL = "nivratelecom@gmail.com";
+export const ADMIN_EMAIL = "support@nivra-telecom.ca";
 
 /**
  * Internal Nivra addresses that must NEVER receive an outbound marketing /

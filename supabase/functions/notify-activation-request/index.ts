@@ -1,6 +1,6 @@
 /**
  * notify-activation-request
- * Sends an email alert to support@nivra-telecom.ca AND nivratelecom@gmail.com
+ * Sends an email alert to support@nivra-telecom.ca AND support@nivra-telecom.ca
  * when a new activation request is submitted by a client.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ADMIN_RECIPIENTS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+const ADMIN_RECIPIENTS = ["support@nivra-telecom.ca"];
 const ADMIN_BASE_URL = Deno.env.get("ADMIN_BASE_URL") || "https://www.nivra-telecom.ca";
 
 interface RequestBody {

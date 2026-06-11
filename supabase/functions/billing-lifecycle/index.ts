@@ -317,7 +317,7 @@ async function processExpirations(
 // ADMIN ALERTS — P0 GAP #8
 // Sends alert emails to admin recipients (suspension, cancellation)
 // ========================================
-const ADMIN_ALERT_RECIPIENTS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+const ADMIN_ALERT_RECIPIENTS = ["support@nivra-telecom.ca"];
 
 async function queueAdminAlert(
   supabase: any,

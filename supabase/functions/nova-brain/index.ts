@@ -258,7 +258,7 @@ const TOOLS = [
   {
     name: "queue_internal_email",
     description:
-      "Queue an internal email to the ops team (nivratelecom@gmail.com). Use for recaps, alerts, " +
+      "Queue an internal email to the ops team (support@nivra-telecom.ca). Use for recaps, alerts, " +
       "'remind me about X'. NEVER use this to email a customer — that's queue_customer_email.",
     input_schema: {
       type: "object",
@@ -392,7 +392,7 @@ async function executeTool(
         if (!subject || !body) return { ok: false, error: "Missing subject or body" };
         const { error } = await supabase.from("email_queue").insert({
           event_key: `nova_internal_${Date.now()}`,
-          to_email: "nivratelecom@gmail.com",
+          to_email: "support@nivra-telecom.ca",
           template_key: "generic_internal_note",
           subject: `[NOVA] ${subject}`,
           template_vars: { body_text: body, sender: "NOVA Digital Brain" },

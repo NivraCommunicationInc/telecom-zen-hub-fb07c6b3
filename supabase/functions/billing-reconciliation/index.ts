@@ -34,7 +34,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ALERT_EMAIL = "nivratelecom@gmail.com";
+const ALERT_EMAIL = "support@nivra-telecom.ca";
 
 // Default tolerance: payments and invoices can be off by 1¢ due to rounding.
 // Tunable per-account in the future via a billing_config table.

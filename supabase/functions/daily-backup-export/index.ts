@@ -10,7 +10,7 @@ import * as XLSX from "npm:xlsx@0.18.5";
 
 const RECIPIENTS = [
   "support@nivra-telecom.ca",
-  "nivratelecom@gmail.com",
+  "support@nivra-telecom.ca",
 ];
 
 const TIMEZONE = "America/Toronto";

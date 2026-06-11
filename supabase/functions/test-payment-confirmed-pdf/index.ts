@@ -1,7 +1,7 @@
 /**
  * One-shot test: send a REAL payment_confirmed email through the canonical
  * Violet Bold template path (`queueRenderedEmail`) WITH the invoice PDF
- * attached. Recipient: nivratelecom@gmail.com.
+ * attached. Recipient: support@nivra-telecom.ca.
  *
  * Uses the most recent paid invoice from billing_invoices.
  */
@@ -56,7 +56,7 @@ serve(async (req) => {
     const sendRes = await queueRenderedEmail({
       eventKey,
       templateKey: "payment_confirmed",
-      toEmail: "nivratelecom@gmail.com",
+      toEmail: "support@nivra-telecom.ca",
       templateVars: {
         client_name: clientName,
         invoice_number: inv.invoice_number,
@@ -72,7 +72,7 @@ serve(async (req) => {
 
     result.success = sendRes.success;
     result.invoice_used = inv.invoice_number;
-    result.recipient = "nivratelecom@gmail.com";
+    result.recipient = "support@nivra-telecom.ca";
   } catch (e: any) {
     result.success = false;
     result.error = e.message;

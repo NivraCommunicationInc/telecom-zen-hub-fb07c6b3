@@ -96,7 +96,7 @@ serve(async (req) => {
       // Critical → also enqueue email to Oldo (even if nova_action insert failed)
       if (a.severity === "critical") {
         const { error: emailErr } = await admin.from("email_queue").insert({
-          to_email: "nivratelecom@gmail.com",
+          to_email: "support@nivra-telecom.ca",
           template_key: "nova_alert_critical",
           template_vars: { title: a.title, message: a.message, category: a.category },
           status: "queued",

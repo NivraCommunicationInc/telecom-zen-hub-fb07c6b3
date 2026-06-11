@@ -1,6 +1,6 @@
 // Send auto-installation shipment email with installation PDFs attached.
 // Uses the EXACT same premium template as send-order-confirmation.
-// BCC: support@nivra-telecom.ca + nivratelecom@gmail.com
+// BCC: support@nivra-telecom.ca + support@nivra-telecom.ca
 // Also sends a separate business notification email to the same two addresses.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -18,7 +18,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const BUSINESS_EMAILS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+const BUSINESS_EMAILS = ["support@nivra-telecom.ca"];
 const BUCKET = "installation-guides";
 const SUPPORT_EMAIL = "support@nivra-telecom.ca";
 const PORTAL_LINK = "https://nivra-telecom.ca/portail";

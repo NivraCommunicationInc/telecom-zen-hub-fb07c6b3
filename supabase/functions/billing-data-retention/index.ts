@@ -27,7 +27,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const ADMIN_RECIPIENTS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+const ADMIN_RECIPIENTS = ["support@nivra-telecom.ca"];
 
 const ANONYMIZED_FIELDS = [
   "first_name",

@@ -1,7 +1,7 @@
 /**
  * agent-analytics — collects business metrics, runs Gemini 2.5 Pro
  * analysis, stores report in analytics_reports, and (for weekly)
- * queues an email digest to nivratelecom@gmail.com.
+ * queues an email digest to support@nivra-telecom.ca.
  *
  * Body: { report_type: "daily" | "weekly" | "monthly" }
  */
@@ -15,7 +15,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const ALERT_EMAIL = "nivratelecom@gmail.com";
+const ALERT_EMAIL = "support@nivra-telecom.ca";
 
 type ReportType = "daily" | "weekly" | "monthly" | "custom";
 

@@ -2,7 +2,7 @@
  * agent-site-monitor — runs every 10 minutes via cron.
  * Performs ~8 health checks, uses Gemini 2.5 Pro to score & summarize,
  * stores findings in site_health_checks, logs to agent_audit_log,
- * and emails CRITICAL issues to nivratelecom@gmail.com.
+ * and emails CRITICAL issues to support@nivra-telecom.ca.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -14,7 +14,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const ALERT_EMAIL = "nivratelecom@gmail.com";
+const ALERT_EMAIL = "support@nivra-telecom.ca";
 
 type Finding = {
   check_type: string;

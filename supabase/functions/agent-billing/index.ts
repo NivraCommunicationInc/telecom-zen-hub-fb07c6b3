@@ -13,7 +13,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const ALERT_EMAIL = "nivratelecom@gmail.com";
+const ALERT_EMAIL = "support@nivra-telecom.ca";
 
 async function geminiDecide(input: Record<string, unknown>): Promise<"suspend" | "grace_period"> {
   try {

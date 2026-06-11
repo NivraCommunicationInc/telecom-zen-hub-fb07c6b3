@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     // Notify admin
     await supabase.from("email_queue").insert({
       event_key: `onboarding_submit_admin_${existing.id}_${Date.now()}`,
-      to_email: "nivratelecom@gmail.com",
+      to_email: "support@nivra-telecom.ca",
       template_key: "onboarding_form_submitted_admin",
       template_vars: {
         full_legal_name: payload.full_legal_name,
