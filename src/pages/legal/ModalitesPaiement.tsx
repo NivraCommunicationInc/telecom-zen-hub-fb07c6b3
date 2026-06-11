@@ -131,15 +131,16 @@ export default function ModalitesPaiement() {
             </div>
 
             <div style={section}>
-              <h2 style={h2s}>5. Cycle de facturation (Bill Cycle)</h2>
+              <h2 style={h2s}>5. Cycle de facturation — ancrage mensuel fixe</h2>
               <p style={ps}>
-                Chaque compte a un <strong style={{ color: "#e2e8f0" }}>Bill Cycle Day</strong> défini par défaut à la date de création du compte.
+                Chaque abonnement a une <strong style={{ color: "#e2e8f0" }}>date d'ancrage de facturation</strong> fixée au jour du mois de la première activation du service. Ce jour reste le même chaque mois pour toute la durée de l'abonnement.
               </p>
               <div style={infoBox}>
                 <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Fonctionnement du cycle prépayé</p>
                 <ul style={{ paddingLeft: "1.5rem" }}>
-                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Facture émise :</strong> {CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle (J-5)</li>
-                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Paiement requis :</strong> AVANT la date du Bill Cycle (J0) pour renouveler le service</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Renouvellement :</strong> le même jour chaque mois (ex. : activation le 15 → renouvellement le 15 de chaque mois)</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Facture émise :</strong> {CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant la date d'ancrage (J-5)</li>
+                  <li style={lis}><strong style={{ color: "#e2e8f0" }}>Paiement requis :</strong> AVANT la date d'ancrage (J0) pour renouveler le service</li>
                   <li style={lis}><strong style={{ color: "#e2e8f0" }}>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au J0, le service devient Expiré</li>
                   <li style={lis}><strong style={{ color: "#e2e8f0" }}>Jours 29-31 :</strong> Si le mois ne contient pas ce jour, la facturation se fait le dernier jour du mois</li>
                 </ul>
@@ -184,14 +185,14 @@ export default function ModalitesPaiement() {
             <div style={section}>
               <h2 style={h2s}>9. Prorata sur changement de forfait</h2>
               <p style={ps}>
-                Depuis le <strong style={{ color: "#e2e8f0" }}>5 juin 2026</strong>, Nivra applique automatiquement un calcul au prorata lorsqu'un changement de forfait est approuvé et appliqué en cours de cycle.
+                Depuis le <strong style={{ color: "#e2e8f0" }}>11 juin 2026</strong>, Nivra applique automatiquement un calcul au prorata lorsqu'un changement de forfait est approuvé et appliqué en cours de cycle.
               </p>
               <div style={infoBox}>
                 <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Règles de prorata</p>
                 <ul style={{ paddingLeft: "1.5rem" }}>
                   <li style={lis}>
-                    <strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> ligne prorata ajoutée à la facture de renouvellement pour la différence (TPS + TVQ recalculées).
-                    <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Nouveau prix − Ancien prix) ÷ 30 × Jours restants</span>
+                    <strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> une <strong style={{ color: "#e2e8f0" }}>facture d'ajustement séparée</strong> est générée immédiatement pour la différence proratisée (TPS + TVQ incluses).
+                    <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Nouveau prix − Ancien prix) ÷ jours réels du cycle (28–31) × jours restants</span>
                   </li>
                   <li style={lis}>
                     <strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> le nouveau tarif prend effet au prochain renouvellement. Aucun crédit prorata ni remboursement en espèces pour la période en cours.
