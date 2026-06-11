@@ -95,11 +95,28 @@ serve(async (req) => {
       }
     }
     
-    // Step 2: Create subscription
+    // Step 2: Create subscription (with dedup guard for double-click — E2 fix)
     const cycleStartDate = new Date();
     const cycleEndDate = new Date();
     cycleEndDate.setDate(cycleEndDate.getDate() + 30);
-    
+
+    const { data: recentSub } = await supabase
+      .from("billing_subscriptions")
+      .select("id")
+      .eq("customer_id", customerId)
+      .eq("plan_code", body.plan_code)
+      .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .maybeSingle();
+
+    if (recentSub) {
+      const { data: existingInv } = await supabase
+        .from("billing_invoices").select("id, invoice_number").eq("subscription_id", recentSub.id).maybeSingle();
+      return new Response(
+        JSON.stringify({ subscription_id: recentSub.id, invoice_id: existingInv?.id, invoice_number: existingInv?.invoice_number, idempotent: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: subscription, error: subError } = await supabase
       .from("billing_subscriptions")
       .insert({
@@ -115,7 +132,8 @@ serve(async (req) => {
       .single();
     
     if (subError) throw subError;
-    
+    const newSubscriptionId = subscription.id; // track for rollback if invoice fails
+
     // Step 3: Generate invoice number
     const { data: invoiceNumberData } = await supabase
       .rpc("generate_billing_invoice_number");
@@ -154,7 +172,11 @@ serve(async (req) => {
         }])
       });
     
-    if (invoiceError) throw invoiceError;
+    if (invoiceError) {
+      await supabase.from("billing_subscriptions").delete().eq("id", newSubscriptionId).catch(() => {});
+      console.error(`[billing-create-subscription] Rolled back subscription ${newSubscriptionId} after invoice failure`);
+      throw invoiceError;
+    }
 
     // Step 6: Create pending payment record
     await supabase

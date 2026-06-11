@@ -310,6 +310,9 @@ serve(async (req) => {
                 const toEmail = prof?.email || null;
                 const fullName = prof?.full_name || [prof?.first_name, prof?.last_name].filter(Boolean).join(" ") || "Client";
 
+                // Collect adj updates — applied AFTER adjLines are inserted (E5 atomicity fix)
+                const pendingAdjUpdates: Array<{ id: string; update: Record<string, unknown> }> = [];
+
                 for (const adj of adjustments as any[]) {
                   const amt = Number(adj.amount || 0);
                   const isPermanent = adj.is_permanent === true;
@@ -325,12 +328,12 @@ serve(async (req) => {
 
                   if (type === "remove_fee" && appliesTo === "installation") {
                     adjLines.push({ invoice_id: invoice.id, description: "Installation gratuite ✓", unit_price: 0, quantity: 1, line_total: 0, line_type: "discount" });
-                    await supabase.from("account_adjustments").update({ applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" } });
                     continue;
                   }
                   if (type === "remove_fee" && appliesTo === "activation") {
                     adjLines.push({ invoice_id: invoice.id, description: "Activation gratuite ✓", unit_price: 0, quantity: 1, line_total: 0, line_type: "discount" });
-                    await supabase.from("account_adjustments").update({ applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" } });
                     continue;
                   }
                   if (type === "first_month_free") {
@@ -340,7 +343,7 @@ serve(async (req) => {
                     netTpsDelta -= fmTps;
                     netTvqDelta -= fmTvq;
                     adjLines.push({ invoice_id: invoice.id, description: `1er mois offert — ${fmtMoney(planPrice)}/mois`, unit_price: -planPrice, quantity: 1, line_total: -planPrice, line_type: "discount" });
-                    await supabase.from("account_adjustments").update({ months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" } });
                     continue;
                   }
                   if (type === "one_time") {
@@ -350,7 +353,7 @@ serve(async (req) => {
                     netTpsDelta -= otTps;
                     netTvqDelta -= otTvq;
                     adjLines.push({ invoice_id: invoice.id, description: `Promotion unique — ${adj.description || fmtMoney(amt)}`, unit_price: -amt, quantity: 1, line_total: -amt, line_type: "discount" });
-                    await supabase.from("account_adjustments").update({ months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" } });
                     continue;
                   }
 
@@ -364,7 +367,7 @@ serve(async (req) => {
                     const feeDesc = String(adj.description || "").trim() || "Frais supplémentaires";
                     adjLines.push({ invoice_id: invoice.id, description: feeDesc, unit_price: amt, quantity: 1, line_total: amt, line_type: "fee" });
                     const nextRemFee = Math.max(0, prevRemaining - 1);
-                    await supabase.from("account_adjustments").update({ months_remaining: nextRemFee, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemFee <= 0 ? "completed" : "active" }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { months_remaining: nextRemFee, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemFee <= 0 ? "completed" : "active" } });
                     continue;
                   }
 
@@ -398,10 +401,10 @@ serve(async (req) => {
                   adjLines.push({ invoice_id: invoice.id, description: lineDesc, unit_price: signedTotal, quantity: 1, line_total: signedTotal, line_type: isCredit ? "discount" : "fee" });
 
                   if (isPermanent) {
-                    await supabase.from("account_adjustments").update({ applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString() }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString() } });
                   } else {
                     const nextRemaining = Math.max(0, prevRemaining - 1);
-                    await supabase.from("account_adjustments").update({ months_remaining: nextRemaining, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemaining <= 0 ? "completed" : "active" }).eq("id", adj.id);
+                    pendingAdjUpdates.push({ id: adj.id, update: { months_remaining: nextRemaining, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemaining <= 0 ? "completed" : "active" } });
                     if (isCredit && toEmail) {
                       try {
                         if (nextRemaining === 1) {
@@ -425,6 +428,12 @@ serve(async (req) => {
                     invoiceFieldUpdate.tvq_amount = Math.max(0, Number(invoice.tvq_amount) + netTvqDelta);
                   }
                   await supabase.from("billing_invoices").update(invoiceFieldUpdate).eq("id", invoice.id);
+                  // Apply adj DB updates AFTER invoice is updated (E5 fix: prevents consumed-not-applied on crash)
+                  for (const { id: adjId, update: adjUpdate } of pendingAdjUpdates) {
+                    await supabase.from("account_adjustments").update(adjUpdate).eq("id", adjId).catch((e: unknown) => {
+                      console.error(`[billing-generate-renewals] adj update failed for ${adjId}:`, e);
+                    });
+                  }
                   console.log(`[billing-generate-renewals] Applied ${adjLines.length} account_adjustments to ${invoiceNumber} (delta: ${adjDelta.toFixed(2)}, finalTotal: ${finalTotal.toFixed(2)})`);
                 }
               }
