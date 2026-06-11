@@ -194,8 +194,7 @@ export default function ModalitesPaiement() {
                     <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Nouveau prix − Ancien prix) ÷ 30 × Jours restants</span>
                   </li>
                   <li style={lis}>
-                    <strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> crédit prorata ajouté comme rabais sur la facture courante ou la prochaine. Aucun remboursement en espèces.
-                    <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Ancien prix − Nouveau prix) ÷ 30 × Jours restants</span>
+                    <strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> le nouveau tarif prend effet au prochain renouvellement. Aucun crédit prorata ni remboursement en espèces pour la période en cours.
                   </li>
                 </ul>
               </div>
