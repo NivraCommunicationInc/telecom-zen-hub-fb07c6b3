@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
+import { computeTaxes } from "../_shared/tax-constants.ts";
 
 /**
  * ============================================================================
@@ -180,10 +181,6 @@ serve(async (req) => {
       effectiveInvoiceStatus,
       effectivePaymentStatus,
     });
-    
-    // Tax rates Quebec
-    const TPS_RATE = 0.05;
-    const TVQ_RATE = 0.09975;
     
     // BILLING TOTALS V2.2 - Use checkout snapshot as source of truth when provided
     const hasBillingTotals = body.billing_totals && 
@@ -422,6 +419,7 @@ serve(async (req) => {
       // Create subscription with appropriate status (IDEMPOTENT — reuse if exists)
       const subscriptionStatus = isPayPalPaid ? 'active' : 'pending';
       let subscription: { id: string } | null = null;
+      let newlyCreatedSubId: string | null = null;
       
       // Check for existing subscription first (created by orchestrate_order RPC)
       if (body.order_id) {
@@ -515,6 +513,7 @@ serve(async (req) => {
                 .single();
               if (fallbackSubErr) throw fallbackSubErr;
               subscription = fallbackSub;
+              newlyCreatedSubId = subscription!.id;
               console.log(`[billing-create-order] Created fallback subscription (no address): ${subscription!.id}`);
             } else {
               subscription = broadSubs[0];
@@ -539,10 +538,12 @@ serve(async (req) => {
           }
         } else {
           subscription = newSub;
+          newlyCreatedSubId = subscription!.id;
           console.log(`[billing-create-order] Created new subscription: ${subscription!.id}`);
         }
       }
       
+      try {
       // Generate invoice number
       const { data: invoiceNumberData } = await supabase
         .rpc("generate_billing_invoice_number");
@@ -573,9 +574,10 @@ serve(async (req) => {
       } else {
         // FALLBACK: Calculate amounts (legacy behavior)
         subtotal = service.plan_price + invoiceActivationFee;
-        tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-        tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-        total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+        const { tps: fbTps, tvq: fbTvq, total: fbTotal } = computeTaxes(subtotal);
+        tpsAmount = fbTps;
+        tvqAmount = fbTvq;
+        total = fbTotal;
       }
       
       // Create invoice with SMART status + order linkage
@@ -715,6 +717,13 @@ serve(async (req) => {
       results.total_amount += total;
       
       console.log(`[billing-create-order] Created subscription ${subscription.id} (status: ${subscriptionStatus}) with invoice ${invoiceNumber} (status: ${effectiveInvoiceStatus})`);
+      } catch (invoiceErr) {
+        if (newlyCreatedSubId) {
+          await supabase.from("billing_subscriptions").delete().eq("id", newlyCreatedSubId).catch(() => {});
+          console.error(`[billing-create-order] Rolled back subscription ${newlyCreatedSubId} after invoice failure`);
+        }
+        throw invoiceErr;
+      }
     }
     
     // Step 3: Queue appropriate email based on payment status (with PDF, non-blocking)

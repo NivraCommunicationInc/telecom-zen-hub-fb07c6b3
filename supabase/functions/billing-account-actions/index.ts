@@ -519,6 +519,20 @@ serve(async (req) => {
           return json(400, { error: "refund_method invalide" });
         }
 
+        // Idempotency guard: require key + prevent duplicate refunds
+        if (!body.idempotency_key || body.idempotency_key.trim().length < 4) {
+          return json(400, { error: "idempotency_key requis pour les remboursements (UUID recommandé)" });
+        }
+        const { data: existingRef } = await admin
+          .from("client_direct_refunds")
+          .select("id")
+          .contains("metadata", { idempotency_key: body.idempotency_key })
+          .eq("user_id", client_user_id)
+          .maybeSingle();
+        if (existingRef) {
+          return json(200, { ok: true, refund_id: existingRef.id, idempotent: true });
+        }
+
         const { data, error } = await admin.from("client_direct_refunds")
           .insert({
             user_id: client_user_id,

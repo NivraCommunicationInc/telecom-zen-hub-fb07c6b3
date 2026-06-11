@@ -26,6 +26,35 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
+  // Concurrency guard — skip if a retry run is already in progress (E1 fix)
+  let lockId: string | null = null;
+  try {
+    const { data: existingRun } = await supabase
+      .from("billing_automation_runs")
+      .select("id, started_at")
+      .eq("run_type", "paypal_retry")
+      .eq("status", "running")
+      .gte("started_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .maybeSingle();
+
+    if (existingRun) {
+      console.log(`[paypal-retry] Skipping — run ${existingRun.id} still in progress`);
+      return new Response(
+        JSON.stringify({ skipped: true, reason: "concurrent_run", run_id: existingRun.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: lockRow } = await supabase
+      .from("billing_automation_runs")
+      .insert({ run_type: "paypal_retry", status: "running", started_at: new Date().toISOString() })
+      .select("id")
+      .maybeSingle();
+    lockId = lockRow?.id ?? null;
+  } catch (_lockErr) {
+    console.warn("[paypal-retry] Lock table unavailable, proceeding without concurrency guard");
+  }
+
   const now = new Date();
   const window24h = new Date(now);
   window24h.setHours(window24h.getHours() - 24);
@@ -160,6 +189,11 @@ serve(async (req) => {
       }
     }
 
+    if (lockId) {
+      await supabase.from("billing_automation_runs")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", lockId).catch(() => {});
+    }
     return new Response(
       JSON.stringify({ success: true, retried, skipped, errors }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -167,6 +201,11 @@ serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[paypal-retry] Fatal: ${msg}`);
+    if (lockId) {
+      await supabase.from("billing_automation_runs")
+        .update({ status: "failed", completed_at: new Date().toISOString() })
+        .eq("id", lockId).catch(() => {});
+    }
     return new Response(
       JSON.stringify({ error: msg, retried }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

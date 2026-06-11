@@ -151,6 +151,15 @@ Deno.serve(async (req: Request) => {
     const refundAmount = amount ? Math.round(amount * 100) / 100 : payment.amount;
     const isPartial = amount !== undefined && amount < payment.amount;
 
+    if (refundAmount > Number(payment.amount)) {
+      return new Response(
+        JSON.stringify({
+          error: `Montant de remboursement (${refundAmount.toFixed(2)} $ CAD) supérieur au paiement original (${Number(payment.amount).toFixed(2)} $ CAD)`,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ── Step 2: Call PayPal Refund API ──
     const accessToken = await getPayPalAccessToken();
     const PAYPAL_API = Deno.env.get("PAYPAL_API_URL") || "https://api-m.paypal.com";

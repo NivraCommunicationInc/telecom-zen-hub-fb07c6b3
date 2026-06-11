@@ -154,6 +154,21 @@ serve(async (req) => {
       const captureId = latestTransaction.id;
       const amount = parseFloat(latestTransaction.amount_with_breakdown?.gross_amount?.value || body.amount);
 
+      // Idempotency: skip if this capture was already recorded
+      const { data: existingPayment } = await supabase
+        .from("billing_payments")
+        .select("id, status")
+        .eq("provider_payment_id", captureId)
+        .maybeSingle();
+
+      if (existingPayment) {
+        console.log(`[PayPal Charge] Capture ${captureId} already recorded (id=${existingPayment.id}), skipping`);
+        return new Response(
+          JSON.stringify({ success: true, capture_id: captureId, amount, method: "paypal_auto", idempotent: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Record the payment
       const { error: paymentError } = await supabase
         .from("billing_payments")
