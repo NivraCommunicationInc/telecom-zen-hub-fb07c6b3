@@ -8083,25 +8083,25 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       return {
         subject: "Mise à jour importante de votre facturation Nivra",
         html: shell({
-          preheader: "Nouvelle politique de prorata sur changements de forfait — en vigueur dès le 5 juin 2026.",
+          preheader: "Amélioration du système de facturation — en vigueur dès le 5 juin 2026.",
           badge: "MISE À JOUR FACTURATION",
           heroTitle: "Améliorations à votre facturation",
-          icon: "info",
+          icon: "check",
           greeting,
           bodyText: `Nous avons apporté des améliorations importantes à notre système de facturation afin de le rendre plus équitable et transparent. Ces changements sont en vigueur depuis le <strong>5 juin 2026</strong>.`,
           cardTitle: "Ce qui change",
           cardRows: [
-            ["Prorata upgrade", "Lors d'un changement vers un forfait supérieur, une facture pour la différence de prix (au prorata des jours restants dans le cycle) est émise immédiatement."],
-            ["Crédit prorata downgrade", "Lors d'un changement vers un forfait inférieur, un crédit prorata est appliqué automatiquement sur votre prochaine facture de renouvellement."],
-            ["Crédits admin automatiques", "Les crédits ou rabais accordés par notre équipe sont maintenant appliqués automatiquement à chaque facture de renouvellement sans action de votre part."],
-            ["Correction facturation", "Le système de génération de factures a été amélioré pour s'assurer qu'aucune facture ne soit manquée, même en cas d'interruption du service nocturne."],
+            ["Prorata — Upgrade", "Lors d'un changement vers un forfait supérieur, la différence de prix au prorata des jours restants est ajoutée directement à votre facture en cours — TPS et TVQ incluses."],
+            ["Downgrade", "Le changement de forfait inférieur prend effet au prochain renouvellement au nouveau tarif. Aucun remboursement ni crédit pour la période en cours."],
+            ["Rabais automatiques", "Les crédits et rabais accordés par notre équipe sont appliqués automatiquement à chaque facture de renouvellement, sans action de votre part."],
+            ["Fiabilité améliorée", "Le système de génération de factures détecte maintenant les jours manqués et s'assure qu'aucune facture ne soit omise."],
           ],
-          afterCardText: `Ces changements ne modifient pas votre forfait, votre prix mensuel, ni votre date de facturation. Vous n'avez rien à faire.`,
+          afterCardText: `Ces changements ne modifient pas votre forfait, votre prix mensuel ni votre date de facturation. Vous n'avez rien à faire.`,
           ctaPrimaryUrl: PORTAL_URL,
           ctaPrimaryLabel: "Voir mon compte",
           ctaSecondaryUrl: `mailto:${SUPPORT_EMAIL}`,
           ctaSecondaryLabel: "Nous contacter",
-          extraBodyHtml: `<p style="margin:0 0 8px 0;font-size:13px;color:#a3a3a3">Politiques à jour : <a href="https://nivra-telecom.ca/politique-remboursement" style="color:#a78bfa">Politique de remboursement</a> · <a href="https://nivra-telecom.ca/modalites-paiement" style="color:#a78bfa">Modalités de paiement</a></p>`,
+          extraBodyHtml: `<p style="margin:0 0 8px 0;font-size:13px;color:#a3a3a3">Politiques à jour : <a href="https://nivra-telecom.ca/refund-policy" style="color:#a78bfa">Politique de remboursement</a> · <a href="https://nivra-telecom.ca/modalites-paiement" style="color:#a78bfa">Modalités de paiement</a></p>`,
         }),
       };
     }

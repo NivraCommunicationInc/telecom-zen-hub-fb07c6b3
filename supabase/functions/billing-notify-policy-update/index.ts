@@ -34,9 +34,11 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient(supabaseUrl, serviceKey);
 
-    // Status-check mode: body with { check_status: true }
+    // Parse body
     let bodyJson: any = {};
     try { bodyJson = await req.json(); } catch { /* empty body ok */ }
+
+    // Status-check mode: body with { check_status: true }
     if (bodyJson?.check_status === true) {
       const { data: rows } = await supabase
         .from("email_queue")
@@ -46,6 +48,30 @@ serve(async (req) => {
       return new Response(JSON.stringify({ emails: rows || [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Test mode: { test_email: "support@nivra-telecom.ca" }
+    // Sends ONE copy to the specified address without touching the client list.
+    if (bodyJson?.test_email) {
+      const testEmail = String(bodyJson.test_email);
+      const testKey = `${EVENT_KEY}:test:${testEmail}`;
+      // Remove any previous test entry so it can be re-sent
+      await supabase.from("email_queue").delete().eq("event_key", testKey);
+      const { error: testInsertErr } = await supabase.from("email_queue").insert({
+        event_key: testKey,
+        to_email: testEmail,
+        template_key: EVENT_KEY,
+        template_vars: { client_name: "Test", first_name: "Test" },
+        message_type: "transactional",
+        status: "queued",
+        attempts: 0,
+        max_attempts: 3,
+      });
+      if (testInsertErr) throw new Error(`Test email insert failed: ${testInsertErr.message}`);
+      return new Response(
+        JSON.stringify({ success: true, test_sent_to: testEmail }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // How many already sent (idempotency check)
