@@ -145,7 +145,7 @@ export default function HubLoginPage() {
 
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
-      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician, can_access_rh")
+      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician, can_access_rh, mfa_required")
       .eq("user_id", userId)
       .eq("status", "active")
       .in("role", INTERNAL_ROLES)
@@ -169,9 +169,10 @@ export default function HubLoginPage() {
     }
 
     const isAdminRole = roleData.role === "admin";
+    const mfaRequired = roleData.mfa_required !== false; // false = explicitement désactivé en DB
     const mfa = await checkMfaStatus();
 
-    if (isAdminRole) {
+    if (isAdminRole && mfaRequired) {
       if (!mfa.isEnrolled) {
         setStage("mfa_enroll");
         setCheckingSession(false);
