@@ -40,11 +40,11 @@
 /client/* /portal/:splat 301
 
 # Public KYC health endpoint proxy
-/api/kyc-health https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-health 200
+/api/kyc-health https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/kyc-health 200
 
 # Admin KYC throttle reset endpoint proxy
-/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
-/api/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
+/kyc-reset-throttle https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/kyc-reset-throttle 200
+/api/kyc-reset-throttle https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/kyc-reset-throttle 200
 
 # Explicit SPA rewrites for QR identity verification route
 /verify-id /index.html 200
