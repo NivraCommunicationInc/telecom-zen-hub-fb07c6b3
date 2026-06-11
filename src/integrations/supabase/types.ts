@@ -2948,6 +2948,7 @@ export type Database = {
         Row: {
           address_id: string | null
           auto_billing_enabled: boolean | null
+          billing_anchor_date: string | null
           billing_cycle_anchor: string | null
           created_at: string | null
           customer_id: string
@@ -2986,6 +2987,7 @@ export type Database = {
         Insert: {
           address_id?: string | null
           auto_billing_enabled?: boolean | null
+          billing_anchor_date?: string | null
           billing_cycle_anchor?: string | null
           created_at?: string | null
           customer_id: string
@@ -3024,6 +3026,7 @@ export type Database = {
         Update: {
           address_id?: string | null
           auto_billing_enabled?: boolean | null
+          billing_anchor_date?: string | null
           billing_cycle_anchor?: string | null
           created_at?: string | null
           customer_id?: string
@@ -27600,6 +27603,15 @@ export type Database = {
       }
       auto_resume_paused_services: { Args: never; Returns: number }
       backfill_field_sales_sync: { Args: never; Returns: undefined }
+      billing_reconciliation_check: {
+        Args: never
+        Returns: {
+          check_type: string
+          description: string
+          entity_id: string
+          severity: string
+        }[]
+      }
       book_slot: {
         Args: {
           p_installation_id: string
