@@ -8092,7 +8092,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           cardTitle: "Ce qui change",
           cardRows: [
             ["Date de renouvellement fixe", "Votre abonnement se renouvelle maintenant le même jour chaque mois — soit la date de votre première activation. Si ce jour n'existe pas dans un mois donné (ex. 31 en février), le renouvellement se fait le dernier jour du mois."],
-            ["Prorata — Upgrade", "Lors d'un changement vers un forfait supérieur en cours de cycle, une facture d'ajustement séparée est générée immédiatement pour la différence proratisée — TPS et TVQ incluses."],
+            ["Prorata — Upgrade", "Lors d'un changement vers un forfait supérieur en cours de cycle, le montant proratisé est automatiquement ajouté à votre prochaine facture de renouvellement mensuelle — TPS et TVQ incluses. Aucune facture séparée n'est émise."],
             ["Downgrade", "Le changement vers un forfait inférieur prend effet au prochain renouvellement. Aucun remboursement ni crédit pour la période en cours."],
             ["Rabais automatiques", "Les crédits accordés par notre équipe sont appliqués automatiquement à votre prochaine facture de renouvellement, sans action de votre part."],
           ],
