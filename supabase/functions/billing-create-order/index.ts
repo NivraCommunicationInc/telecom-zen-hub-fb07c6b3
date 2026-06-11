@@ -545,11 +545,12 @@ serve(async (req) => {
         }
       }
       
+      let invoice: any = null;
       try {
       // Generate invoice number
       const { data: invoiceNumberData } = await supabase
         .rpc("generate_billing_invoice_number");
-      
+
       const invoiceNumber = invoiceNumberData || `INV-${Date.now()}-${i}`;
       
       // V2.2: Use billing_totals from checkout when available (first invoice only)
@@ -619,13 +620,14 @@ serve(async (req) => {
         invoiceData.paid_at = new Date().toISOString();
       }
       
-      const { data: invoice, error: invoiceError } = await supabase
+      const { data: invoiceData2, error: invoiceError } = await supabase
         .from("billing_invoices")
         .insert(invoiceData)
         .select()
         .single();
-      
+
       if (invoiceError) throw invoiceError;
+      invoice = invoiceData2;
       
       // Create invoice lines — ALWAYS set line_type explicitly
       const lines: Array<Record<string, any>> = [
@@ -682,8 +684,9 @@ serve(async (req) => {
         console.log(`[billing-create-order] Added welcome discount line: -${serverWelcomeDiscount}`);
       }
       
-      await supabase.from("billing_invoice_lines").insert(lines);
-      
+      const { error: linesErr } = await supabase.from("billing_invoice_lines").insert(lines);
+      if (linesErr) throw new Error(`invoice_lines insert failed: ${linesErr.message}`);
+
       // Create payment record with SMART status
       const paymentData: Record<string, any> = {
         invoice_id: invoice.id,
@@ -701,8 +704,9 @@ serve(async (req) => {
         paymentData.received_at = new Date().toISOString();
       }
       
-      await supabase.from("billing_payments").insert(paymentData);
-      
+      const { error: paymentErr } = await supabase.from("billing_payments").insert(paymentData);
+      if (paymentErr) throw new Error(`billing_payments insert failed: ${paymentErr.message}`);
+
       // Update subscription with last_invoice_id
       await supabase
         .from("billing_subscriptions")
@@ -723,6 +727,12 @@ serve(async (req) => {
         if (newlyCreatedSubId) {
           await supabase.from("billing_subscriptions").delete().eq("id", newlyCreatedSubId).catch(() => {});
           console.error(`[billing-create-order] Rolled back subscription ${newlyCreatedSubId} after invoice failure`);
+        }
+        // Roll back the invoice itself if it was just created
+        if (invoice?.id) {
+          await supabase.from("billing_invoice_lines").delete().eq("invoice_id", invoice.id).catch(() => {});
+          await supabase.from("billing_invoices").delete().eq("id", invoice.id).catch(() => {});
+          console.error(`[billing-create-order] Rolled back invoice ${invoice.id} after line/payment failure`);
         }
         throw invoiceErr;
       }

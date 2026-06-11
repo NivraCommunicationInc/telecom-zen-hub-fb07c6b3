@@ -4,8 +4,13 @@
 // and order documents — with signed URLs for storage_path entries.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 interface Body {
   client_user_id: string;
@@ -49,10 +54,8 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     // Staff role check via has_staff_role helper
-      const { isStaff } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
-      return json({ error: "forbidden" }, 403);
-    }
+    const { isStaff } = await checkStaffAuth(admin, userData.user.id);
+    if (!isStaff) return json({ error: "Action réservée au personnel autorisé" }, 403);
 
     const body = (await req.json()) as Body;
     if (!body?.client_user_id) return json({ error: "client_user_id required" }, 400);

@@ -159,6 +159,8 @@ serve(async (req) => {
     // Idempotency: if a run is already in flight for this account, return it
     // instead of starting a parallel one. Prevents double-cancellations from
     // a double-click.
+    // Exception: if the "running" run is > 10 minutes old, treat it as stale
+    // (process died mid-way) and mark it failed so a fresh run can proceed.
     {
       const { data: inFlight } = await supabase
         .from("cancellation_runs")
@@ -169,15 +171,24 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (inFlight) {
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            already_running: true,
-            run_id: inFlight.id,
-            message: "A cancellation is already in progress for this account.",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        const ageMs = Date.now() - new Date(inFlight.started_at).getTime();
+        if (ageMs < 10 * 60 * 1000) {
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              already_running: true,
+              run_id: inFlight.id,
+              message: "A cancellation is already in progress for this account.",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        // Stale run — mark failed and proceed
+        await supabase
+          .from("cancellation_runs")
+          .update({ status: "failed", completed_at: new Date().toISOString(), errors: [{ fatal: "stale_run_detected" }] })
+          .eq("id", inFlight.id);
+        console.warn(`[cancel-account] Stale run ${inFlight.id} marked failed (age ${Math.round(ageMs / 60000)}m) — starting fresh run.`);
       }
     }
 
