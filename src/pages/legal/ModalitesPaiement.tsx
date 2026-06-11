@@ -191,7 +191,7 @@ export default function ModalitesPaiement() {
                 <p style={{ color: "#22d3ee", fontWeight: 600, marginBottom: "0.5rem" }}>Règles de prorata</p>
                 <ul style={{ paddingLeft: "1.5rem" }}>
                   <li style={lis}>
-                    <strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> le montant proratisé est automatiquement ajouté comme ligne à votre <strong style={{ color: "#e2e8f0" }}>prochaine facture de renouvellement mensuelle</strong> (TPS + TVQ incluses). Aucune facture séparée n'est émise.
+                    <strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> une <strong style={{ color: "#e2e8f0" }}>facture d'ajustement séparée</strong> est émise immédiatement pour le montant proratisé (TPS + TVQ incluses). Vous recevez un courriel avec lien de paiement vers votre portail client.
                     <br /><span style={{ color: "#475569", fontSize: "0.85rem" }}>Formule : (Nouveau prix − Ancien prix) × (jours restants dans le cycle ÷ jours réels du cycle, 28–31 jours)</span>
                   </li>
                   <li style={lis}>

@@ -149,7 +149,7 @@ export default function RefundPolicy() {
                   <p style={ps}>Depuis le <strong style={{ color: "#e2e8f0" }}>11 juin 2026</strong>, tout changement de forfait approuvé et appliqué immédiatement en cours de cycle déclenche un calcul au prorata automatique :</p>
                   <div style={infoBox}>
                     <ul style={{ paddingLeft: "1.5rem" }}>
-                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> le montant proratisé (différence de prix × jours restants ÷ jours réels du cycle, 28–31 jours) est automatiquement ajouté à la <strong style={{ color: "#e2e8f0" }}>prochaine facture de renouvellement mensuelle</strong>, avec TPS + TVQ incluses. Aucune facture séparée n'est émise.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> une <strong style={{ color: "#e2e8f0" }}>facture d'ajustement séparée</strong> est émise immédiatement pour le montant proratisé (différence de prix × jours restants ÷ jours réels du cycle, 28–31 jours), avec TPS + TVQ incluses. Un courriel de notification est envoyé avec lien de paiement vers le portail client.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> le nouveau tarif prend effet au prochain renouvellement. <strong style={{ color: "#e2e8f0" }}>Aucun crédit prorata ni remboursement en espèces</strong> n'est accordé pour la période en cours.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Le cycle en cours n'est pas remboursable</strong> si l'annulation du service se fait en cours de cycle, sauf obligation légale ou erreur de facturation.</li>
                     </ul>
@@ -262,7 +262,7 @@ export default function RefundPolicy() {
                   <p style={ps}>Effective <strong style={{ color: "#e2e8f0" }}>June 11, 2026</strong>, any approved plan change applied immediately mid-cycle triggers an automatic prorated calculation:</p>
                   <div style={infoBox}>
                     <ul style={{ paddingLeft: "1.5rem" }}>
-                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade:</strong> the prorated amount (price difference × days remaining ÷ actual cycle days, 28–31 days) is automatically added as a line to your <strong style={{ color: "#e2e8f0" }}>next monthly renewal invoice</strong>, with GST + QST included. No separate invoice is issued.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade:</strong> a <strong style={{ color: "#e2e8f0" }}>separate adjustment invoice</strong> is issued immediately for the prorated amount (price difference × days remaining ÷ actual cycle days, 28–31 days), with GST + QST included. A notification email is sent with a payment link to your client portal.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade:</strong> the new rate takes effect at the next renewal. <strong style={{ color: "#e2e8f0" }}>No prorated credit or cash refund</strong> is issued for the current billing period.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>The current cycle is not refundable</strong> if service is cancelled mid-cycle, except as required by law or confirmed billing error.</li>
                     </ul>
