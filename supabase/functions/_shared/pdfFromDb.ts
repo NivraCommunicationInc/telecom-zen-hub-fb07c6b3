@@ -338,6 +338,15 @@ export async function buildInvoicePdfAttachment(
     }
     if (!accountNumber) {
       console.warn(`[pdfFromDb] invoice ${invoiceId} has no account_number — skipping PDF`);
+      const supabaseAlert = getServiceClient();
+      await supabaseAlert.from("billing_system_alerts").insert({
+        alert_type: "pdf_missing_account_number",
+        entity_type: "billing_invoice",
+        entity_id: invoiceId,
+        severity: "high",
+        details: { invoice_number: (invoice as any).invoice_number, customer_id: customer.id },
+        resolved: false,
+      }).catch(() => {});
       return null;
     }
 
@@ -411,7 +420,7 @@ export async function buildInvoicePdfAttachment(
     const isPaid = ((invoice as any).status || "").toLowerCase() === "paid";
 
     const data: InvoiceDataV2 & { order_number?: string } = {
-      invoice_type: ((invoice as any).type || "MONTHLY").toUpperCase() === "ONETIME" ? "ONETIME" : "MONTHLY",
+      invoice_type: ((invoice as any).type || "").toUpperCase() === "ONETIME" ? "ONETIME" : "MONTHLY",
       invoice_number: (invoice as any).invoice_number || `INV-${invoiceId.slice(0, 8)}`,
       invoice_date: (invoice as any).created_at,
       due_date: (invoice as any).due_date,
@@ -537,6 +546,15 @@ export async function buildReceiptPdfAttachment(
     }
     if (!accountNumber) {
       console.warn(`[pdfFromDb] receipt ${invoiceId} has no account_number — skipping PDF`);
+      const supabaseAlert = getServiceClient();
+      await supabaseAlert.from("billing_system_alerts").insert({
+        alert_type: "pdf_missing_account_number",
+        entity_type: "billing_receipt",
+        entity_id: invoiceId,
+        severity: "high",
+        details: { invoice_number: (invoice as any).invoice_number, customer_id: customer.id },
+        resolved: false,
+      }).catch(() => {});
       return null;
     }
 

@@ -6,7 +6,7 @@
  * Also normalizes/enriches the raw event payload coming from DB triggers
  * so each template receives the exact shape it expects (defensive defaults).
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { generateWelcomeLetterPDF } from "./welcomeLetterTemplate.ts";
 import { generateAddressChangePDF } from "./addressChangeTemplate.ts";
 import { generatePaymentMethodChangePDF } from "./paymentMethodChangeTemplate.ts";

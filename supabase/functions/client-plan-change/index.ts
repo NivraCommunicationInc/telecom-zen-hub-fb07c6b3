@@ -166,6 +166,14 @@ serve(async (req) => {
             const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
             const { tps: proTps, tvq: proTvq, total: proTotal } = computeTaxes(prorationSubtotal);
 
+            // Snapshot account_number at invoice creation time (avoids extra DB lookup in pdfFromDb)
+            const { data: acctSnap } = await admin
+              .from("accounts")
+              .select("account_number")
+              .eq("client_id", user.id)
+              .maybeSingle();
+            const snapshotAccountNumber = acctSnap?.account_number || null;
+
             // Generate invoice number
             const { data: invoiceNumData } = await admin.rpc("generate_billing_invoice_number");
             const invoiceNumber = invoiceNumData || `ADJ-${Date.now()}`;
@@ -186,7 +194,10 @@ serve(async (req) => {
                 currency: "CAD",
                 status: "open",
                 due_date: todayDate.toISOString().slice(0, 10),
+                cycle_start_date: bSub.cycle_start_date,
+                cycle_end_date: bSub.cycle_end_date,
                 notes: lineDesc,
+                billing_snapshot_account_number: snapshotAccountNumber,
                 billing_snapshot_client: {
                   first_name: firstName,
                   email: clientEmail,
