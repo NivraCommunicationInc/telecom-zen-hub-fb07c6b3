@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import SEOHead from "@/components/SEOHead";
 
 const STORAGE_BASE =
-  "https://xtgngmtxggascbxnswvb.supabase.co/storage/v1/object/public/installation-guides";
+  `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/installation-guides`;
 const SUPPORT_EMAIL = "support@nivra-telecom.ca";
 
 const fadeUp = {

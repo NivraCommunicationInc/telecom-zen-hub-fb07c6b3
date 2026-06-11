@@ -632,7 +632,7 @@ export default function InterviewPage() {
     const transcribePromise: Promise<string> = ans.transcript
       ? Promise.resolve(ans.transcript)
       : fetch(
-          `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/interview-transcribe?token=${encodeURIComponent(token)}&lang=${lang}`,
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/interview-transcribe?token=${encodeURIComponent(token)}&lang=${lang}`,
           { method: "POST", headers: { "Content-Type": VIDEO_MIME }, body: ans.blob },
         )
           .then(async (res) => {

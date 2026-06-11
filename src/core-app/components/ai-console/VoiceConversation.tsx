@@ -57,7 +57,7 @@ export default function VoiceConversation({ client }: Props) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const url = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/elevenlabs-tts`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -98,7 +98,7 @@ export default function VoiceConversation({ client }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Session expirée");
 
-      const url = `https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/core-ai-converse`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/core-ai-converse`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
