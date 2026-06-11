@@ -138,6 +138,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: FileText, label: "Modèles PDF", href: "/pdf-templates" },
       { icon: AlertTriangle, label: "Collections", href: "/recouvrement" },
       { icon: Gavel, label: "Litiges", href: "/contested-payments" },
+      { icon: Shield, label: "Revenue Assurance", href: "/revenue-assurance" },
     ],
   },
   // ── 6. VENTES & CRM ─────────────────────────────────────────────

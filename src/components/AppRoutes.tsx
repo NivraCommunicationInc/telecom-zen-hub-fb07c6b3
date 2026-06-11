@@ -262,6 +262,7 @@ const CorePhoneInventoryPage = lazy(() => import("@/core-app/pages/CorePhoneInve
 const CoreDIDPage = lazy(() => import("@/core-app/pages/CoreDIDPage"));
 const CoreProvisioningPage = lazy(() => import("@/core-app/pages/CoreProvisioningPage"));
 const CoreProvisioningJobsPage = lazy(() => import("@/core-app/pages/CoreProvisioningJobsPage"));
+const CoreRevenueAssurancePage = lazy(() => import("@/core-app/pages/CoreRevenueAssurancePage"));
 const CoreNetworkPage = lazy(() => import("@/core-app/pages/CoreNetworkPage"));
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
@@ -1006,6 +1007,7 @@ const AppRoutes = () => {
           <Route path="subscriptions/:id" element={<Suspense fallback={null}><CoreSubscriptionDetail /></Suspense>} />
           <Route path="pdf-templates" element={<Suspense fallback={null}><CorePDFTemplatesPage /></Suspense>} />
           <Route path="recouvrement" element={<Suspense fallback={null}><CoreRecouvrementPage /></Suspense>} />
+          <Route path="revenue-assurance" element={<Suspense fallback={null}><CoreRevenueAssurancePage /></Suspense>} />
           <Route path="contested-payments" element={<Suspense fallback={null}><CoreContestedPaymentsPage /></Suspense>} />
           <Route path="contested-invoices" element={<Suspense fallback={null}><CoreContestedInvoicesPage /></Suspense>} />
           {/* Catalogue */}
