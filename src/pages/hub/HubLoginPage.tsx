@@ -235,6 +235,15 @@ export default function HubLoginPage() {
           },
         }).catch(() => { /* never block UX */ });
 
+        // Detect Supabase rate-limiting — show a specific message and don't
+        // count it against the FAIL_THRESHOLD (it's not a wrong password).
+        const errMsg = authError?.message?.toLowerCase() ?? "";
+        if (errMsg.includes("rate limit") || errMsg.includes("too many") || errMsg.includes("exceeded")) {
+          setError("Trop de requêtes. Veuillez patienter 60 secondes avant de réessayer.");
+          setLoading(false);
+          return;
+        }
+
         // Per-email failure counter. After FAIL_THRESHOLD failures, silently
         // trigger a password-reset email if the address matches an active
         // Nivra Core staff account.
@@ -247,7 +256,7 @@ export default function HubLoginPage() {
           }).catch(() => { /* silent */ });
           clearFailCount(emailKey);
           setError(
-            "Trop de tentatives. Si cette adresse correspond à un compte Nivra Core, un courriel de réinitialisation vient d'être envoyé.",
+            "Trop de tentatives. Si cette adresse correspond à un compte Nivra Core, un courriel de réinitialisation vient d'été envoyé.",
           );
         } else {
           setError(`Identifiants invalides. (${newCount}/${FAIL_THRESHOLD})`);

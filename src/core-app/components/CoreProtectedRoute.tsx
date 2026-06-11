@@ -42,11 +42,11 @@ export default function CoreProtectedRoute() {
     const verify = async () => {
       // CRITICAL: Must have entered through /hub AND session not expired
       if (!hasValidHubSession()) {
-        // Hub session expired (inactivity or absolute TTL)
-        // Sign out fully to prevent silent re-auth via refresh tokens
-        console.warn("[CoreGuard] Hub session invalid/expired — forcing sign-out");
+        // Hub session expired (inactivity or absolute TTL).
+        // Redirect to hub login WITHOUT signing out of Supabase so the hub
+        // login page can find the existing session and re-authenticate silently.
+        console.warn("[CoreGuard] Hub session invalid/expired — redirecting to hub login");
         clearHubSession();
-        await supabase.auth.signOut();
         if (mounted) setState("no_hub");
         return;
       }
@@ -91,16 +91,10 @@ export default function CoreProtectedRoute() {
       }
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        // SECURITY: Before accepting a token refresh, verify hub session
-        // is still valid (not expired by inactivity/TTL).
-        // This prevents silent auto-relogin after long idle periods.
-        if (!hasValidHubSession()) {
-          console.warn(`[CoreGuard] ${event} blocked — hub session expired. Forcing sign-out.`);
-          clearHubSession();
-          supabase.auth.signOut();
-          if (mounted) setState("no_hub");
-          return;
-        }
+        // Re-verify when auth state changes. If hub session has expired,
+        // redirect to hub login WITHOUT signing out of Supabase — the hub
+        // login page will find the valid Supabase session and re-authenticate
+        // transparently without requiring the user to re-enter credentials.
         if (mounted) verify();
       }
     });
@@ -113,9 +107,8 @@ export default function CoreProtectedRoute() {
     // Periodic inactivity check every 5 minutes
     const inactivityInterval = setInterval(() => {
       if (!hasValidHubSession()) {
-        console.warn("[CoreGuard] Periodic check: hub session expired — signing out");
+        console.warn("[CoreGuard] Periodic check: hub session expired — redirecting to hub login");
         clearHubSession();
-        supabase.auth.signOut();
         if (mounted) setState("no_hub");
       }
     }, 5 * 60 * 1000);

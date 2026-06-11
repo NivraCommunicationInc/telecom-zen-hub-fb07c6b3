@@ -8,6 +8,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { CoreGlobalSearch } from "./components/CoreGlobalSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath, isCorePathActive } from "@/core-app/lib/corePaths";
+import { touchHubSession } from "@/lib/security/hubSession";
 import {
   LayoutDashboard, ListTodo, ShoppingCart, Users, UserCircle,
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
@@ -320,6 +321,11 @@ const CoreAppLayout = () => {
     }
     return map;
   }, [badges]);
+
+  // Touch hub session on every page navigation to reset inactivity timer.
+  useEffect(() => {
+    touchHubSession();
+  }, [location.pathname]);
 
   // Mark related notifications as read when entering a section
   useEffect(() => {
