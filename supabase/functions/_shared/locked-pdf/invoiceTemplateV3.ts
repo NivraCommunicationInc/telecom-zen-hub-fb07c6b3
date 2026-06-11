@@ -57,6 +57,7 @@ const typeLabel = (cat: string): string => {
   if (["internet", "mobile", "tv", "security", "service", "recurring"].includes(key)) return "Service";
   if (["equipment", "phone"].includes(key)) return "Équipement";
   if (["fee", "fees", "frais"].includes(key)) return "Frais";
+  if (["adjustment", "ajustement", "proration", "prorata"].includes(key)) return "Ajustement";
   if (["discount", "rabais", "credit", "promo"].includes(key)) return "Rabais";
   // capitalise first letter for any unmapped type
   return cat.charAt(0).toUpperCase() + cat.slice(1);

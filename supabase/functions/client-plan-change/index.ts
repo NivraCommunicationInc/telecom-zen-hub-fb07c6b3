@@ -215,7 +215,7 @@ serve(async (req) => {
                 unit_price: prorationSubtotal,
                 quantity: 1,
                 line_total: prorationSubtotal,
-                line_type: "fee",
+                line_type: "adjustment",
               });
 
               targetInvoiceId = proInvoice.id;
