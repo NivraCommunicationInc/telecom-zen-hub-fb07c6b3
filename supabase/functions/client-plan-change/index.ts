@@ -4,9 +4,8 @@
  *
  * Upgrades:  applied immediately.
  *   - Subscription updated right away (billing_subscriptions + subscriptions).
- *   - Proration fee inserted into account_adjustments (type="fee", months_remaining=1).
- *   - billing-generate-renewals picks it up and adds it as a line on the NEXT renewal invoice.
- *   No separate adjustment invoice is ever created.
+ *   - Prorated difference invoice created immediately (type="adjustment", status="open").
+ *   - Client receives an invoice_created email with link to pay from portal.
  *
  * Downgrades: inserted as service_change_requests (pending, effective next renewal).
  */
@@ -165,41 +164,69 @@ serve(async (req) => {
 
           if (prorationSubtotal >= 0.01) {
             const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
+            const { tps: proTps, tvq: proTvq, total: proTotal } = computeTaxes(prorationSubtotal);
 
-            // Resolve account_id: use request body or look up from accounts table
-            let resolvedAccountId = account_id ?? null;
-            if (!resolvedAccountId) {
-              const { data: acct } = await admin
-                .from("accounts")
-                .select("id")
-                .eq("client_id", user.id)
-                .maybeSingle();
-              resolvedAccountId = acct?.id ?? null;
-            }
+            // Generate invoice number
+            const { data: invoiceNumData } = await admin.rpc("generate_billing_invoice_number");
+            const invoiceNumber = invoiceNumData || `ADJ-${Date.now()}`;
 
-            if (resolvedAccountId) {
-              const { error: adjInsertErr } = await admin
-                .from("account_adjustments")
-                .insert({
-                  account_id: resolvedAccountId,
-                  type: "fee",
-                  amount: prorationSubtotal,
-                  description: lineDesc,
-                  status: "active",
-                  is_permanent: false,
-                  months_remaining: 1,
-                  duration_months: 1,
-                });
+            const { data: proInvoice, error: proInvErr } = await admin
+              .from("billing_invoices")
+              .insert({
+                customer_id: bc.id,
+                subscription_id: bSub.id,
+                invoice_number: invoiceNumber,
+                type: "adjustment",
+                subtotal: prorationSubtotal,
+                tps_amount: proTps,
+                tvq_amount: proTvq,
+                total: proTotal,
+                balance_due: proTotal,
+                amount_paid: 0,
+                currency: "CAD",
+                status: "open",
+                due_date: todayDate.toISOString().slice(0, 10),
+                notes: lineDesc,
+                billing_snapshot_client: {
+                  first_name: firstName,
+                  email: clientEmail,
+                },
+              })
+              .select("id, invoice_number")
+              .single();
 
-              if (!adjInsertErr) {
-                const { total: proTotalWithTax } = computeTaxes(prorationSubtotal);
-                prorationTotal = proTotalWithTax;
-                prorationAddedTo = "next_renewal";
-              } else {
-                console.error("[client-plan-change] account_adjustments insert error:", adjInsertErr);
-              }
+            if (proInvErr) {
+              console.error("[client-plan-change] proration invoice insert error:", proInvErr);
             } else {
-              console.warn("[client-plan-change] No account_id resolved — proration not stored");
+              await admin.from("billing_invoice_lines").insert({
+                invoice_id: proInvoice.id,
+                description: lineDesc,
+                unit_price: prorationSubtotal,
+                quantity: 1,
+                line_total: prorationSubtotal,
+                line_type: "fee",
+              });
+
+              targetInvoiceId = proInvoice.id;
+              prorationTotal = proTotal;
+              prorationAddedTo = "adjustment_invoice";
+
+              if (clientEmail) {
+                await admin.from("email_queue").insert({
+                  to_email: clientEmail,
+                  template_key: "invoice_created",
+                  template_vars: {
+                    first_name: firstName,
+                    invoice_number: proInvoice.invoice_number,
+                    total: proTotal,
+                    due_date: todayDate.toISOString().slice(0, 10),
+                    cycle_start: cycleStartDate.toISOString().slice(0, 10),
+                    cycle_end: cycleEndDate.toISOString().slice(0, 10),
+                  },
+                  status: "queued",
+                  priority: 1,
+                }).catch(() => {});
+              }
             }
           }
         }
