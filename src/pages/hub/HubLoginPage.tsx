@@ -252,12 +252,11 @@ export default function HubLoginPage() {
         setFailCount(emailKey, newCount);
 
         if (newCount >= FAIL_THRESHOLD) {
-          supabase.functions.invoke("hub-password-reset-send", {
-            body: { email: emailKey, redirect_origin: window.location.origin },
-          }).catch(() => { /* silent */ });
+          const resetRedirect = `${window.location.origin}/nivra-secure-hub-2617-internal/reset-password`;
+          supabase.auth.resetPasswordForEmail(emailKey, { redirectTo: resetRedirect }).catch(() => { /* silent */ });
           clearFailCount(emailKey);
           setError(
-            "Trop de tentatives. Si cette adresse correspond à un compte Nivra Core, un courriel de réinitialisation vient d'été envoyé.",
+            "Trop de tentatives. Si cette adresse correspond à un compte Nivra Core, un courriel de réinitialisation vient d'être envoyé.",
           );
         } else {
           setError(`Identifiants invalides. (${newCount}/${FAIL_THRESHOLD})`);
