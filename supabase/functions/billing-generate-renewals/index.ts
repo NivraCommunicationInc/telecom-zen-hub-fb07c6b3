@@ -138,10 +138,83 @@ serve(async (req) => {
           continue;
         }
         
+        // ═══ APPLY PENDING DOWNGRADES ═══
+        // If the client requested a downgrade, it was deferred to next renewal.
+        // Apply it NOW before the invoice is created so the new price is used.
+        try {
+          const { data: bcUser } = await supabase
+            .from("billing_customers")
+            .select("user_id")
+            .eq("id", sub.customer_id)
+            .maybeSingle();
+
+          if (bcUser?.user_id) {
+            const { data: pendingDowngrade } = await supabase
+              .from("service_change_requests")
+              .select("id, requested_plan_name, requested_plan_price, requested_plan_id, current_plan_name, subscription_id")
+              .eq("client_id", bcUser.user_id)
+              .eq("status", "pending")
+              .eq("change_type", "downgrade")
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle();
+
+            if (pendingDowngrade) {
+              const newPlanName = String(pendingDowngrade.requested_plan_name || sub.plan_name);
+              const newPlanPrice = Number(pendingDowngrade.requested_plan_price || sub.plan_price);
+              const effectiveDateStr = newCycleStart.toISOString().split("T")[0];
+
+              // Update billing_subscriptions (drives renewal price)
+              await supabase.from("billing_subscriptions")
+                .update({ plan_name: newPlanName, plan_price: newPlanPrice, updated_at: new Date().toISOString() })
+                .eq("id", sub.id);
+
+              // Update legacy subscriptions table if linked
+              if (pendingDowngrade.subscription_id) {
+                await supabase.from("subscriptions")
+                  .update({ plan_name: newPlanName, monthly_price: newPlanPrice, amount: newPlanPrice })
+                  .eq("id", pendingDowngrade.subscription_id)
+                  .catch(() => {});
+              }
+
+              // Mark request as applied
+              await supabase.from("service_change_requests")
+                .update({ status: "applied", effective_date: effectiveDateStr })
+                .eq("id", pendingDowngrade.id);
+
+              // Mutate sub so the rest of this iteration uses the new price
+              sub.plan_name = newPlanName;
+              sub.plan_price = newPlanPrice;
+
+              console.log(`[billing-generate-renewals] Downgrade applied: ${pendingDowngrade.current_plan_name} → ${newPlanName} (${newPlanPrice}$) customer ${sub.customer_id}`);
+
+              // Notify client
+              if (sub.customer?.email) {
+                await supabase.from("email_queue").insert({
+                  to_email: sub.customer.email,
+                  template_key: "plan_change_approved",
+                  template_vars: {
+                    first_name: sub.customer.first_name || "Client",
+                    client_name: sub.customer.first_name || "Client",
+                    current_plan_name: pendingDowngrade.current_plan_name || "—",
+                    requested_plan_name: newPlanName,
+                    effective_date: effectiveDateStr,
+                    change_type: "downgrade",
+                  },
+                  status: "queued",
+                }).catch(() => {});
+              }
+            }
+          }
+        } catch (downgradeErr: unknown) {
+          console.error(`[billing-generate-renewals] downgrade error for subscription ${sub.id}:`, downgradeErr);
+          // Non-fatal — proceed with existing plan price
+        }
+
         // Generate invoice number
         const { data: invoiceNumberData } = await supabase
           .rpc("generate_billing_invoice_number");
-        
+
         const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
         
         // ═══ PROMO DURATION CHECK ═══
