@@ -3,8 +3,9 @@
  * Client self-serve plan change with prorated charge on the monthly invoice.
  *
  * Upgrades:  applied immediately.
- *   - If a pending/issued invoice exists → proration line added directly on it.
- *   - Otherwise → account_adjustments fee applied on NEXT renewal invoice.
+ *   - Subscription updated right away (billing_subscriptions + subscriptions).
+ *   - Proration fee inserted into account_adjustments (type="fee", months_remaining=1).
+ *   - billing-generate-renewals picks it up and adds it as a line on the NEXT renewal invoice.
  *   No separate adjustment invoice is ever created.
  *
  * Downgrades: inserted as service_change_requests (pending, effective next renewal).
@@ -106,7 +107,7 @@ serve(async (req) => {
       requested_by: user.id,
       effective_date: changeType === "upgrade" ? effectiveDate : null,
       notes: changeType === "upgrade"
-        ? `Changement immédiat. Prorata ajouté à la facture mensuelle.`
+        ? `Changement immédiat. Prorata ajouté à la prochaine facture mensuelle.`
         : `Demande client — effectif au prochain renouvellement.`,
     })
     .select("id")
@@ -117,7 +118,7 @@ serve(async (req) => {
   let prorationTotal: number | null = null;
   let prorationAddedTo: "adjustment_invoice" | "current_invoice" | "next_renewal" | null = null;
 
-  // ── Upgrade: apply immediately + add proration to monthly invoice ──────────
+  // ── Upgrade: apply immediately + queue proration on next renewal invoice ──────────
   if (changeType === "upgrade") {
     const prevPrice = Number(previous_monthly_price ?? 0);
     const newPrice = Number(new_monthly_price);
@@ -142,7 +143,7 @@ serve(async (req) => {
       try {
         const { data: bSub } = await admin
           .from("billing_subscriptions")
-          .select("id, customer_id, cycle_start_date, cycle_end_date, paypal_subscription_id, payment_method")
+          .select("id, customer_id, cycle_start_date, cycle_end_date")
           .eq("customer_id", bc.id)
           .eq("status", "active")
           .order("created_at", { ascending: false })
@@ -163,66 +164,42 @@ serve(async (req) => {
           const prorationSubtotal = Math.round(priceDiff * (daysRemaining / cycleTotalDays) * 100) / 100;
 
           if (prorationSubtotal >= 0.01) {
-            const { tps: proTps, tvq: proTvq, total: proTotalWithTax } = computeTaxes(prorationSubtotal);
             const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
 
-            const { data: adjInvNum } = await admin.rpc("generate_billing_invoice_number");
-            const adjInvoiceNumber = adjInvNum || `INV-ADJ-${Date.now()}`;
+            // Resolve account_id: use request body or look up from accounts table
+            let resolvedAccountId = account_id ?? null;
+            if (!resolvedAccountId) {
+              const { data: acct } = await admin
+                .from("accounts")
+                .select("id")
+                .eq("client_id", user.id)
+                .maybeSingle();
+              resolvedAccountId = acct?.id ?? null;
+            }
 
-            const { data: adjInvoiceId, error: adjErr } = await admin.rpc("create_invoice_with_lines", {
-              p_subscription_id: bSub.id,
-              p_customer_id: bSub.customer_id,
-              p_invoice_number: adjInvoiceNumber,
-              p_type: "adjustment",
-              p_subtotal: prorationSubtotal,
-              p_tps_amount: proTps,
-              p_tvq_amount: proTvq,
-              p_total: proTotalWithTax,
-              p_payment_method: bSub.payment_method || "interac",
-              p_cycle_start: effectiveDate,
-              p_cycle_end: bSub.cycle_end_date,
-              p_due_date: effectiveDate,
-              p_order_id: null,
-              p_lines: JSON.stringify([{
-                description: lineDesc,
-                unit_price: prorationSubtotal,
-                quantity: 1,
-                line_total: prorationSubtotal,
-                line_type: "service",
-              }]),
-            });
+            if (resolvedAccountId) {
+              const { error: adjInsertErr } = await admin
+                .from("account_adjustments")
+                .insert({
+                  account_id: resolvedAccountId,
+                  type: "fee",
+                  amount: prorationSubtotal,
+                  description: lineDesc,
+                  status: "active",
+                  is_permanent: false,
+                  months_remaining: 1,
+                  duration_months: 1,
+                });
 
-            if (!adjErr && adjInvoiceId) {
-              targetInvoiceId = adjInvoiceId;
-              prorationTotal = proTotalWithTax;
-              prorationAddedTo = "adjustment_invoice";
-
-              if (bSub.paypal_subscription_id) {
-                admin.functions.invoke("paypal-charge-subscription", {
-                  body: { subscription_id: bSub.id, invoice_id: adjInvoiceId, amount: proTotalWithTax },
-                }).catch((e: unknown) => console.error("[client-plan-change] PayPal charge failed:", e));
+              if (!adjInsertErr) {
+                const { total: proTotalWithTax } = computeTaxes(prorationSubtotal);
+                prorationTotal = proTotalWithTax;
+                prorationAddedTo = "next_renewal";
+              } else {
+                console.error("[client-plan-change] account_adjustments insert error:", adjInsertErr);
               }
-
-              if (clientEmail) {
-                await admin.from("email_queue").insert({
-                  to_email: clientEmail,
-                  template_key: "invoice_created",
-                  template_vars: {
-                    first_name: firstName,
-                    to_email: clientEmail,
-                    invoice_number: adjInvoiceNumber,
-                    total: proTotalWithTax.toFixed(2),
-                    amount: proTotalWithTax.toFixed(2),
-                    due_date: effectiveDate,
-                    cycle_start: effectiveDate,
-                    cycle_end: bSub.cycle_end_date,
-                  },
-                  status: "queued",
-                  priority: 0,
-                }).catch(() => {});
-              }
-            } else if (adjErr) {
-              console.error("[client-plan-change] adjustment invoice error:", adjErr);
+            } else {
+              console.warn("[client-plan-change] No account_id resolved — proration not stored");
             }
           }
         }
