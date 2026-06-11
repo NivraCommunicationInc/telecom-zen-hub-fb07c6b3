@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
+import { nextAnchoredDate } from "../_shared/billing-utils.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 // STRIPE DISABLED — import removed: createNivraPaymentIntent
@@ -118,8 +119,11 @@ serve(async (req) => {
 
         // Check if renewal invoice already exists for this cycle
         const newCycleStart = new Date(sub.cycle_end_date);
-        const newCycleEnd = new Date(sub.cycle_end_date);
-        newCycleEnd.setDate(newCycleEnd.getDate() + 30);
+        // Anchor day = day of month locked at activation. Fallback to cycle_start_date day.
+        const anchorDay = sub.billing_anchor_date
+          ? new Date(sub.billing_anchor_date).getDate()
+          : new Date(sub.cycle_start_date).getDate();
+        const newCycleEnd = nextAnchoredDate(anchorDay, newCycleStart);
         
         const { data: existingInvoice } = await supabase
           .from("billing_invoices")

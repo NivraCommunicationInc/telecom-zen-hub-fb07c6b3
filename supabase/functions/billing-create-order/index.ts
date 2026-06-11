@@ -401,8 +401,9 @@ serve(async (req) => {
     
     // Step 2: Create subscription + invoice for each service
     const cycleStartDate = new Date();
-    const cycleEndDate = new Date();
-    cycleEndDate.setDate(cycleEndDate.getDate() + 30);
+    const anchorDay = cycleStartDate.getDate(); // billing anchor = activation day of month
+    const { nextAnchoredDate } = await import("../_shared/billing-utils.ts");
+    const cycleEndDate = nextAnchoredDate(anchorDay, cycleStartDate);
     
     const cycleStartStr = cycleStartDate.toISOString().split('T')[0];
     const cycleEndStr = cycleEndDate.toISOString().split('T')[0];
@@ -446,6 +447,7 @@ serve(async (req) => {
           service_category: service.category,
           cycle_start_date: cycleStartStr,
           cycle_end_date: cycleEndStr,
+          billing_anchor_date: cycleStartStr,
           status: subscriptionStatus,
           auto_billing_enabled: isPayPalPaid,
           order_id: body.order_id || null,

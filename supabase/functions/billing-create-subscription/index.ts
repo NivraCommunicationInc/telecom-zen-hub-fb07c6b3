@@ -97,8 +97,9 @@ serve(async (req) => {
     
     // Step 2: Create subscription (with dedup guard for double-click — E2 fix)
     const cycleStartDate = new Date();
-    const cycleEndDate = new Date();
-    cycleEndDate.setDate(cycleEndDate.getDate() + 30);
+    const anchorDay = cycleStartDate.getDate();
+    const { nextAnchoredDate } = await import("../_shared/billing-utils.ts");
+    const cycleEndDate = nextAnchoredDate(anchorDay, cycleStartDate);
 
     const { data: recentSub } = await supabase
       .from("billing_subscriptions")
@@ -126,6 +127,7 @@ serve(async (req) => {
         plan_price: body.plan_price,
         cycle_start_date: cycleStartDate.toISOString().split('T')[0],
         cycle_end_date: cycleEndDate.toISOString().split('T')[0],
+        billing_anchor_date: cycleStartDate.toISOString().split('T')[0],
         status: 'pending'
       })
       .select()
