@@ -1,11 +1,12 @@
 name: Deploy Supabase Edge Functions
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'supabase/functions/**'
-  workflow_dispatch:        # bouton "Run workflow" manuel dans GitHub Actions
+  workflow_dispatch:        # Manuel seulement — déclencher après upgrade Pro Supabase
+  # push sur main réactivé après upgrade Pro (2026-06-14)
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'supabase/functions/**'
 
 jobs:
   deploy:
@@ -25,7 +26,7 @@ jobs:
       - name: Deploy all edge functions
         run: |
           supabase functions deploy \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF || 'lacxnbjvcyvhrttprkxr' }} \
+            --project-ref lacxnbjvcyvhrttprkxr \
             --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
