@@ -261,6 +261,7 @@ const CorePhoneOrdersPage = lazy(() => import("@/core-app/pages/CorePhoneOrdersP
 const CorePhoneInventoryPage = lazy(() => import("@/core-app/pages/CorePhoneInventoryPage"));
 const CoreDIDPage = lazy(() => import("@/core-app/pages/CoreDIDPage"));
 const CoreProvisioningPage = lazy(() => import("@/core-app/pages/CoreProvisioningPage"));
+const CoreProvisioningJobsPage = lazy(() => import("@/core-app/pages/CoreProvisioningJobsPage"));
 const CoreNetworkPage = lazy(() => import("@/core-app/pages/CoreNetworkPage"));
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
@@ -1084,6 +1085,7 @@ const AppRoutes = () => {
           <Route path="phones/inventory" element={<Suspense fallback={null}><CorePhoneInventoryPage /></Suspense>} />
           <Route path="did" element={<Suspense fallback={null}><CoreDIDPage /></Suspense>} />
           <Route path="provisioning" element={<Suspense fallback={null}><CoreProvisioningPage /></Suspense>} />
+          <Route path="provisioning-jobs" element={<Suspense fallback={null}><CoreProvisioningJobsPage /></Suspense>} />
           <Route path="network" element={<Suspense fallback={null}><CoreNetworkPage /></Suspense>} />
           {/* Returns (RMA) & Cancellations */}
           <Route path="returns" element={<Suspense fallback={null}><CoreReturnsPage /></Suspense>} />

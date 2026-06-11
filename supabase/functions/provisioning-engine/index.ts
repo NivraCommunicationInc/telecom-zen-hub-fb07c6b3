@@ -80,6 +80,7 @@ interface ProvisioningResult {
   adapter: AdapterType;
   status: "success" | "queued_manual" | "failed" | "skipped";
   log_id?: string;
+  job_id?: string;
   message: string;
   details?: Record<string, unknown>;
 }
@@ -263,8 +264,52 @@ async function executeProvisioning(
   }
 
   const success = adapterResult.status === "success";
+  const completedAt = new Date().toISOString();
+  const jobStatus = success ? "success" : adapterResult.status === "queued_manual" ? "success" : "failed";
 
-  // ── Log to provisioning_log ─────────────────────────────────────
+  const logDetails = {
+    ...req.parameters,
+    plan_name: req.plan_name,
+    ip_address: req.ip_address,
+    mac_address: req.mac_address,
+    ont_serial: req.ont_serial,
+    vlan_id: req.vlan_id,
+    pppoe_username: req.pppoe_username,
+    adapter_message: adapterResult.message,
+  };
+
+  // ── Write to provisioning_jobs (job queue / UI control) ─────────
+  // If job_id was passed, update existing; otherwise create a new record.
+  let jobId = req.parameters?.job_id as string | undefined;
+  if (jobId) {
+    await supabase.from("provisioning_jobs").update({
+      status: jobStatus,
+      adapter,
+      started_at: startedAt,
+      completed_at: completedAt,
+      result: { adapter_message: adapterResult.message, adapter_status: adapterResult.status },
+      error_message: jobStatus === "failed" ? adapterResult.message : null,
+    }).eq("id", jobId).catch(() => {});
+  } else {
+    const { data: newJob } = await supabase.from("provisioning_jobs").insert({
+      subscription_id: req.subscription_id,
+      customer_id: req.customer_id,
+      action: req.action,
+      adapter,
+      trigger: req.trigger || "api",
+      parameters: logDetails,
+      status: jobStatus,
+      attempt_count: 1,
+      started_at: startedAt,
+      completed_at: completedAt,
+      result: { adapter_message: adapterResult.message, adapter_status: adapterResult.status },
+      error_message: jobStatus === "failed" ? adapterResult.message : null,
+      created_by: req.trigger || "system",
+    }).select("id").single().catch(() => ({ data: null }));
+    jobId = newJob?.id;
+  }
+
+  // ── Log to provisioning_log (immutable audit trail) ─────────────
   const { data: logRow } = await supabase.from("provisioning_log").insert({
     subscription_id: req.subscription_id,
     customer_id: req.customer_id,
@@ -272,18 +317,9 @@ async function executeProvisioning(
     adapter,
     trigger: req.trigger || "api",
     status: adapterResult.status,
-    details: {
-      ...req.parameters,
-      plan_name: req.plan_name,
-      ip_address: req.ip_address,
-      mac_address: req.mac_address,
-      ont_serial: req.ont_serial,
-      vlan_id: req.vlan_id,
-      pppoe_username: req.pppoe_username,
-      adapter_message: adapterResult.message,
-    },
+    details: logDetails,
     started_at: startedAt,
-    completed_at: new Date().toISOString(),
+    completed_at: completedAt,
   }).select("id").single().catch(() => ({ data: null }));
 
   return {
@@ -292,6 +328,7 @@ async function executeProvisioning(
     adapter,
     status: adapterResult.status as ProvisioningResult["status"],
     log_id: logRow?.id,
+    job_id: jobId,
     message: adapterResult.message,
   };
 }

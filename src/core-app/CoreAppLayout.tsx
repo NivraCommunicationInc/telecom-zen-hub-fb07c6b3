@@ -180,6 +180,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Globe,
     items: [
       { icon: Activity, label: "Monitoring réseau", href: "/network" },
+      { icon: Zap, label: "Jobs provisioning OSS", href: "/provisioning-jobs" },
       { icon: PhoneCall, label: "Inventaire DID", href: "/did" },
       { icon: Cpu, label: "Provisionnement carrier", href: "/provisioning" },
       { icon: MapPin, label: "Couverture réseau", href: "/coverage" },
