@@ -182,7 +182,7 @@ Deno.serve(async (req: Request) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "PayPal-Request-Id": `refund-${payment_id}-${Date.now()}`, // idempotency
+          "PayPal-Request-Id": `refund-${payment_id}-${isPartial ? Math.round((amount ?? 0) * 100) : "full"}`,
         },
         body: JSON.stringify(refundBody),
       }
@@ -278,7 +278,7 @@ Deno.serve(async (req: Request) => {
               .single()
           : { data: null };
 
-        const refundEventKey = `paypal_refund_${payment.id}_${Date.now()}`;
+        const refundEventKey = `paypal_refund_${payment.id}`;
         await supabase.from("email_queue").insert({
           event_key: refundEventKey,
           idempotency_key: refundEventKey,
