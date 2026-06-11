@@ -1,4 +1,4 @@
-// sms-account-actions — Phase 14
+﻿// sms-account-actions — Phase 14
 // Staff-only SMS communication with a client account.
 // Actions:
 //   - list_recent: returns recent SMS exchanges from telephony_logs for the client
@@ -7,7 +7,11 @@
 // Every send is logged in admin_audit_log under account_ops.sms_send.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { sendSmsNotification, toE164 } from "../_shared/smsHelper.ts";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 

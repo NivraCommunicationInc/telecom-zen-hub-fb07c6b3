@@ -1,4 +1,4 @@
-// calls-account-actions — Phase 15
+﻿// calls-account-actions — Phase 15
 // Staff-only telephony actions for a client account.
 // Actions:
 //   - resolve_phone: returns canonical phone (E.164) from profiles
@@ -8,7 +8,11 @@
 // All actions audited under account_ops.call_* in admin_audit_log.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {

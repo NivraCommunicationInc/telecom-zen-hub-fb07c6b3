@@ -1,4 +1,4 @@
-// security-account-actions — Phase 12
+﻿// security-account-actions — Phase 12
 // Staff-only security operations for a client account.
 // Actions:
 //   - list_overview: aggregates login attempts, active access sessions,
@@ -9,7 +9,11 @@
 //   - force_signout_all: invalidates the auth user's refresh tokens
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {

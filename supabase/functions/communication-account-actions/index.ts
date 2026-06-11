@@ -1,9 +1,13 @@
-// communication-account-actions — Phase 13
+﻿// communication-account-actions — Phase 13
 // Staff-only: send a custom or template-based email to a client account.
 // Logged in admin_audit_log under account_ops.communication_*.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";

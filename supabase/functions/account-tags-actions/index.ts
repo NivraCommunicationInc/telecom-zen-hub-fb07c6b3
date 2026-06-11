@@ -1,9 +1,13 @@
-// account-tags-actions — Phase 17
+﻿// account-tags-actions — Phase 17
 // Staff-only: manage account tags / alerts (VIP, à risque, fraude, etc.)
 // Actions: list, add, remove. All audited under account_ops.tag_*.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {

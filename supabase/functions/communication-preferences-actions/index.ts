@@ -1,10 +1,14 @@
-// communication-preferences-actions — Phase 16
+﻿// communication-preferences-actions — Phase 16
 // Staff-only: read/update client communication preferences
 // (email categories, SMS categories, preferred contact method, language).
 // Audited under account_ops.preferences_*.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 type BoolKey =

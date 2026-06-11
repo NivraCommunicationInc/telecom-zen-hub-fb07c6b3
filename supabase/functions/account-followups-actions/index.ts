@@ -1,9 +1,13 @@
-// account-followups-actions — Phase 18
+﻿// account-followups-actions — Phase 18
 // Staff-only: manage internal follow-up tasks tied to a client account.
 // Actions: list, create, update_status, assign, delete. All audited.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 interface Body {
