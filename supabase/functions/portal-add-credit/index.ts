@@ -94,7 +94,7 @@ serve(async (req) => {
 
       const applyAmount = Math.min(remainingAmount, balanceDue);
 
-      const { error: rpcError } = await db.rpc("apply_payment_to_invoice", {
+      const { data: rpcResult, error: rpcError } = await db.rpc("apply_payment_to_invoice", {
         p_invoice_id: inv.id,
         p_amount: applyAmount,
         p_method: "paypal",
@@ -118,6 +118,12 @@ serve(async (req) => {
       });
 
       remainingAmount = Math.round((remainingAmount - applyAmount) * 100) / 100;
+
+      // Auto-reactivate if this invoice fully paid a suspended subscription
+      if (rpcResult?.is_fully_paid && rpcResult?.subscription_id) {
+        const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
+        await reactivateIfSuspended(db, rpcResult.subscription_id, inv.id, "portal_credit");
+      }
     }
 
     // 3. If there's remaining amount, record as credit payment

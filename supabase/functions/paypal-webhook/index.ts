@@ -594,7 +594,7 @@ serve(async (req) => {
             const newCycleStart = new Date(sub.cycle_end_date);
             const newCycleEnd = new Date(sub.cycle_end_date);
             newCycleEnd.setDate(newCycleEnd.getDate() + 30);
-            
+
             await supabase
               .from("billing_subscriptions")
               .update({
@@ -607,6 +607,13 @@ serve(async (req) => {
               .eq("id", sub.id);
 
             console.log(`[PayPal Webhook] ✓ Cycle advanced: ${newCycleStart.toISOString().split('T')[0]} → ${newCycleEnd.toISOString().split('T')[0]}`);
+
+            // ── Auto-reactivate if subscription was suspended ──────────
+            const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
+            const reactivation = await reactivateIfSuspended(supabase, sub.id, invoice.id, "paypal_webhook");
+            if (reactivation.reactivated) {
+              console.log(`[PayPal Webhook] ✓ Auto-reactivated subscription ${sub.id} (was: suspended)`);
+            }
           }
 
           // Trace audit
@@ -845,6 +852,17 @@ serve(async (req) => {
             console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
           } else {
             console.log(`[PayPal Webhook] ✓ Invoice updated via RPC:`, rpcResult);
+
+            // Auto-reactivate if subscription was suspended
+            if (rpcResult?.is_fully_paid && rpcResult?.subscription_id) {
+              const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
+              const reactivation = await reactivateIfSuspended(
+                supabase, rpcResult.subscription_id, v2Check.id, "paypal_capture"
+              );
+              if (reactivation.reactivated) {
+                console.log(`[PayPal Webhook] ✓ Auto-reactivated subscription ${rpcResult.subscription_id}`);
+              }
+            }
           }
         } else if (v2Check?.status === "paid") {
           console.log(`[PayPal Webhook] Invoice ${customId} already paid — skipping`);

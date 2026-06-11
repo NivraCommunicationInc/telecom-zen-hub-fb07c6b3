@@ -110,6 +110,22 @@ serve(async (req) => {
       });
     }
 
+    // Auto-reactivate any suspended subscriptions that are now fully paid
+    if (applyResult) {
+      const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
+      const results = Array.isArray(applyResult) ? applyResult : [applyResult];
+      for (const r of results) {
+        if (r?.is_fully_paid && r?.subscription_id) {
+          const reactivation = await reactivateIfSuspended(
+            supabase, r.subscription_id, r.invoice_id || captureId, "balance_pay",
+          );
+          if (reactivation.reactivated) {
+            console.log(`[balance-capture] ✓ Auto-reactivated subscription ${r.subscription_id}`);
+          }
+        }
+      }
+    }
+
     await supabase.from("activity_logs").insert({
       user_id: user.id,
       entity_type: "paypal_balance_payment",
