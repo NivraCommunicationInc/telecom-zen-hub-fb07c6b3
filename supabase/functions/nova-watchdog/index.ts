@@ -1,7 +1,7 @@
 // Redeployed: 2026-05-22-NOVA-FIX
 // NOVA Watchdog — proactive monitoring, runs every 30 minutes via cron.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { withNovaAudit } from "../_shared/novaAudit.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

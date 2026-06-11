@@ -4,7 +4,7 @@
  * - Updates agent_registry stats
  * - Queues emails via email_queue with BCC support@nivra-telecom.ca
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

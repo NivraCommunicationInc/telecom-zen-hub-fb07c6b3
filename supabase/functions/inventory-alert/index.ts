@@ -1,7 +1,7 @@
 // Daily inventory low-stock alert. Scans inventory_stock_levels view and queues
 // admin emails for items in 'critical' or 'out_of_stock' status. De-dupes by
 // last_alert_sent_at (max 1 alert per SKU per 24h).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

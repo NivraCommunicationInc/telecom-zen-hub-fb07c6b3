@@ -1,7 +1,7 @@
 // Redeployed: 2026-05-22-NOVA-FIX
 // NOVA Memory Update — extract insights from conversations and persist them.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
 const AGENT = "nova-memory-update";

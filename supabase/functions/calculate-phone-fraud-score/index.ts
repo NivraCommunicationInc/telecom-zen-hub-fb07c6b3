@@ -14,7 +14,7 @@
  *
  * SAFE TO CALL: read-only, no mutations. Returns { score, level, factors }.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

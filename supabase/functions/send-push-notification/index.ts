@@ -1,6 +1,6 @@
 // Send Web Push notifications to subscribed users via VAPID.
 // Body: { user_ids?: string[], roles?: string[], title, body, url?, tag?, data? }
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {

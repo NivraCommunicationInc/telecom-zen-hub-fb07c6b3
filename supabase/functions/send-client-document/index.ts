@@ -4,7 +4,7 @@
 // document delivery emails. NEVER use a custom navy/teal template here.
 // ============================================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
 import {
   emailDocument, header, statusBanner, contentWrapper, footer,

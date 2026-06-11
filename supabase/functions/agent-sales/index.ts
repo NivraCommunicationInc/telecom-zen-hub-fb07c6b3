@@ -2,7 +2,7 @@
  * agent-sales — Detects upsell/cross-sell opportunities and sends
  * AI-personalized offers via Gemini 2.5 Pro. Tracks conversions.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

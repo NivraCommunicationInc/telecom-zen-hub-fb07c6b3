@@ -2,7 +2,7 @@
  * interview-tts — Public TTS for the candidate interview page.
  * Gated by a valid interview_token (no Supabase auth). Returns MP3 binary.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

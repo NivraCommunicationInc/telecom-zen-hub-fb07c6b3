@@ -7,7 +7,7 @@
  * Accepts a flexible payload (Cloudflare, Mailgun, Resend Inbound, generic JSON):
  *   { from, from_name?, subject, text?, html?, message_id? }
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -10,7 +10,7 @@
  *   4. If response signals escalation: status=escalated + email admin
  *      Else: queue ai_reply email to client + status=ai_replied + save message
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -2,7 +2,7 @@
 // Produces: bilingual badge metadata, Apple Wallet pass.json structure,
 // Google Wallet generic-pass JSON, and an enqueue option for the
 // "employee_badge_ready" email.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -1,7 +1,7 @@
 // payroll-payments — A1 advanced payroll payment lifecycle engine
 // Actions: create | update | transition | bulk_transition | send_notification | get_timeline | resend_notification | bulk_send_notification
 // Generates PDF + email via existing process-payroll(mark_payment_sent_for_entry_id) flow.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

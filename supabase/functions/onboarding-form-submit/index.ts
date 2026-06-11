@@ -1,6 +1,6 @@
 // Public submission of employee onboarding form.
 // Anonymous endpoint guarded by the secret token in the request body.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
 const corsHeaders = {

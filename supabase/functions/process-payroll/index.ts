@@ -11,7 +11,7 @@
  * Caller: HR admin button (recommended) or external cron.
  */
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
 import { buildPaymentConfirmationPdf } from "../_shared/pdf/paymentConfirmationTemplate.ts";
 

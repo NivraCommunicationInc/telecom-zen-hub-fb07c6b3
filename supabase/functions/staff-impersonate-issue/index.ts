@@ -10,7 +10,7 @@
  * Returns: { action_link: string, target_email: string, portal: string, target_name: string | null }
  */
 // deno-lint-ignore-file no-explicit-any
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

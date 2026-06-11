@@ -3,7 +3,7 @@
 // row created in the last 3 days, sends up to 3 reminders (Violet Bold
 // "payment_reminder" template). After 3 reminders, cancels the intent
 // and marks the linked quote as cancelled.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",

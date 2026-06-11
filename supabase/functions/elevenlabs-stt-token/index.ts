@@ -2,7 +2,7 @@
  * elevenlabs-stt-token — generates a single-use realtime STT token for browser clients.
  * Auth: requires authenticated Core admin (verify_jwt = true).
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

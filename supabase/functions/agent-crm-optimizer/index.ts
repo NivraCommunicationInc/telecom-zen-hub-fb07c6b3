@@ -6,7 +6,7 @@
  * Phase 2 (cron 7h UTC, action=send_briefing): Read pre-scored data + send briefing.
  *   Fast (< 5s) — no scoring work.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

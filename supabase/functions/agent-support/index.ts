@@ -3,7 +3,7 @@
  * Processes new support tickets, classifies + responds via Gemini 2.5 Pro,
  * escalates complex cases to Core.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
