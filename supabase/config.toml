@@ -1,4 +1,4 @@
-project_id = "xtgngmtxggascbxnswvb"
+project_id = "lacxnbjvcyvhrttprkxr"
 
 [functions.auto-create-client-account]
 verify_jwt = false
