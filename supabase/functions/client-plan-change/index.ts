@@ -179,7 +179,7 @@ serve(async (req) => {
                 unit_price: prorationSubtotal,
                 quantity: 1,
                 line_total: prorationSubtotal,
-                line_type: "service",
+                line_type: "fee",
               });
 
               await admin.from("billing_invoices").update({
@@ -222,7 +222,7 @@ serve(async (req) => {
               }
             } else {
               // ── Case B: No current invoice — defer to next renewal invoice ─
-              // Store total WITH taxes; billing-generate-renewals does adjDelta += amount
+              // Store PRE-TAX amount; billing-generate-renewals calls computeTaxes() on it
               const { data: acct } = await admin
                 .from("accounts")
                 .select("id")

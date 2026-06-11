@@ -299,10 +299,10 @@ serve(async (req) => {
                 let adjDelta = 0;
                 const adjLines: any[] = [];
                 const planPrice = Number(sub.plan_price || 0);
-                // Accumulateurs pour les frais (fee) — nécessaires pour mettre à jour tps_amount/tvq_amount
-                let feeSubtotalDelta = 0;
-                let feeTpsDelta = 0;
-                let feeTvqDelta = 0;
+                // Accumulateurs nets (fees +, credits/discounts −) pour mettre à jour les champs facture
+                let netSubtotalDelta = 0;
+                let netTpsDelta = 0;
+                let netTvqDelta = 0;
 
                 const { data: prof } = await supabase
                   .from("profiles").select("email, full_name, first_name, last_name")
@@ -334,13 +334,21 @@ serve(async (req) => {
                     continue;
                   }
                   if (type === "first_month_free") {
-                    adjDelta -= planPrice;
+                    const { tps: fmTps, tvq: fmTvq, total: fmTotal } = computeTaxes(planPrice);
+                    adjDelta -= fmTotal;
+                    netSubtotalDelta -= planPrice;
+                    netTpsDelta -= fmTps;
+                    netTvqDelta -= fmTvq;
                     adjLines.push({ invoice_id: invoice.id, description: `1er mois offert — ${fmtMoney(planPrice)}/mois`, unit_price: -planPrice, quantity: 1, line_total: -planPrice, line_type: "discount" });
                     await supabase.from("account_adjustments").update({ months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
                     continue;
                   }
                   if (type === "one_time") {
-                    adjDelta -= amt;
+                    const { tps: otTps, tvq: otTvq, total: otTotal } = computeTaxes(amt);
+                    adjDelta -= otTotal;
+                    netSubtotalDelta -= amt;
+                    netTpsDelta -= otTps;
+                    netTvqDelta -= otTvq;
                     adjLines.push({ invoice_id: invoice.id, description: `Promotion unique — ${adj.description || fmtMoney(amt)}`, unit_price: -amt, quantity: 1, line_total: -amt, line_type: "discount" });
                     await supabase.from("account_adjustments").update({ months_remaining: 0, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: "completed" }).eq("id", adj.id);
                     continue;
@@ -350,9 +358,9 @@ serve(async (req) => {
                   if (type === "fee") {
                     const { tps: feeTps, tvq: feeTvq, total: feeTotal } = computeTaxes(amt);
                     adjDelta += feeTotal;
-                    feeSubtotalDelta += amt;
-                    feeTpsDelta += feeTps;
-                    feeTvqDelta += feeTvq;
+                    netSubtotalDelta += amt;
+                    netTpsDelta += feeTps;
+                    netTvqDelta += feeTvq;
                     const feeDesc = String(adj.description || "").trim() || "Frais supplémentaires";
                     adjLines.push({ invoice_id: invoice.id, description: feeDesc, unit_price: amt, quantity: 1, line_total: amt, line_type: "fee" });
                     const nextRemFee = Math.max(0, prevRemaining - 1);
@@ -362,7 +370,18 @@ serve(async (req) => {
 
                   const isCredit = type === "credit";
                   const signedTotal = isCredit ? -amt : amt;
-                  adjDelta += signedTotal;
+                  const { tps: adjTps, tvq: adjTvq, total: adjTaxTotal } = computeTaxes(amt);
+                  if (isCredit) {
+                    adjDelta -= adjTaxTotal;
+                    netSubtotalDelta -= amt;
+                    netTpsDelta -= adjTps;
+                    netTvqDelta -= adjTvq;
+                  } else {
+                    adjDelta += adjTaxTotal;
+                    netSubtotalDelta += amt;
+                    netTpsDelta += adjTps;
+                    netTvqDelta += adjTvq;
+                  }
 
                   const cleanDesc = String(adj.description || "").trim();
                   const prefixRabais = (suffix: string) =>
@@ -400,10 +419,10 @@ serve(async (req) => {
                   await supabase.from("billing_invoice_lines").insert(adjLines);
                   finalTotal = Math.max(0, baseTotal + adjDelta);
                   const invoiceFieldUpdate: Record<string, number> = { total: finalTotal, balance_due: finalTotal };
-                  if (feeSubtotalDelta > 0) {
-                    invoiceFieldUpdate.subtotal    = Number(invoice.subtotal)    + feeSubtotalDelta;
-                    invoiceFieldUpdate.tps_amount  = Number(invoice.tps_amount)  + feeTpsDelta;
-                    invoiceFieldUpdate.tvq_amount  = Number(invoice.tvq_amount)  + feeTvqDelta;
+                  if (netSubtotalDelta !== 0) {
+                    invoiceFieldUpdate.subtotal   = Math.max(0, Number(invoice.subtotal)   + netSubtotalDelta);
+                    invoiceFieldUpdate.tps_amount = Math.max(0, Number(invoice.tps_amount) + netTpsDelta);
+                    invoiceFieldUpdate.tvq_amount = Math.max(0, Number(invoice.tvq_amount) + netTvqDelta);
                   }
                   await supabase.from("billing_invoices").update(invoiceFieldUpdate).eq("id", invoice.id);
                   console.log(`[billing-generate-renewals] Applied ${adjLines.length} account_adjustments to ${invoiceNumber} (delta: ${adjDelta.toFixed(2)}, finalTotal: ${finalTotal.toFixed(2)})`);
