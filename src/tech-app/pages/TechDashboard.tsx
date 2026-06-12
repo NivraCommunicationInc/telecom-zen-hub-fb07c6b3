@@ -6,12 +6,13 @@ import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Play, Square, Clock, MapPin, Phone, ChevronRight,
-  Package, AlertTriangle, Loader2, CheckCircle2,
+  Package, AlertTriangle, Loader2, CheckCircle2, Radio, Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TechHeader from "../components/TechHeader";
 import { useTechAssignments } from "../lib/useTechAssignments";
+import { useAvailableAssignments } from "../lib/useAvailableAssignments";
 import { useOpenPunch, usePunchIn, usePunchOut } from "../lib/usePunch";
 import { Progress } from "@/components/ui/progress";
 
@@ -25,6 +26,7 @@ function formatDuration(minutes: number): string {
 export default function TechDashboard() {
   const navigate = useNavigate();
   const { data: assignments = [], isLoading } = useTechAssignments();
+  const { data: available = [] } = useAvailableAssignments();
   const { data: openPunch } = useOpenPunch();
   const punchIn = usePunchIn();
   const punchOut = usePunchOut();
@@ -135,6 +137,39 @@ export default function TechDashboard() {
               <Link
                 to="/tech/assignments"
                 className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white min-h-[40px] flex items-center"
+              >
+                Voir
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {/* Dispatch availability alert */}
+        {available.length > 0 && (
+          <section className={`rounded-2xl border p-4 ${
+            available.some((j) => j.dispatch_priority === "urgent")
+              ? "bg-red-600/10 border-red-600/40"
+              : "bg-orange-600/10 border-orange-600/40"
+          }`}>
+            <div className="flex items-start gap-3">
+              {available.some((j) => j.dispatch_priority === "urgent")
+                ? <Zap className="h-5 w-5 text-red-400 mt-0.5 shrink-0" />
+                : <Radio className="h-5 w-5 text-orange-400 mt-0.5 shrink-0 animate-pulse" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-white">
+                  {available.length} mission{available.length > 1 ? "s" : ""} disponible{available.length > 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {available.filter((j) => j.dispatch_priority === "urgent").length > 0
+                    ? `🚨 ${available.filter((j) => j.dispatch_priority === "urgent").length} URGENT${available.filter((j) => j.dispatch_priority === "urgent").length > 1 ? "ES" : ""} — action immédiate`
+                    : "Consultez la liste pour vous auto-attribuer"}
+                </p>
+              </div>
+              <Link
+                to="/tech/assignments"
+                className={`rounded-full px-4 py-2 text-sm font-semibold text-white min-h-[40px] flex items-center ${
+                  available.some((j) => j.dispatch_priority === "urgent") ? "bg-red-600" : "bg-orange-600"
+                }`}
               >
                 Voir
               </Link>
