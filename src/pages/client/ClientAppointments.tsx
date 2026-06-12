@@ -515,7 +515,16 @@ const ClientAppointments = () => {
                             </div>
                           </div>
                           {/* Live tech tracking — renders only when assignment exists */}
-                          {apt.order_id && <TechLiveTracker orderId={apt.order_id} />}
+                          {apt.order_id && (
+                            <TechLiveTracker
+                              orderId={apt.order_id}
+                              clientAddress={
+                                [apt.service_address, apt.service_city, apt.service_postal_code].filter(Boolean).join(", ")
+                                || profile?.service_address
+                                || null
+                              }
+                            />
+                          )}
                         </div>
                       );
                     })}
@@ -726,7 +735,14 @@ const ClientAppointments = () => {
                 {selectedAppointment?.order_id && (
                   <div className="pt-2 border-t border-border">
                     <p className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wider">Suivi du technicien</p>
-                    <TechLiveTracker orderId={selectedAppointment.order_id} />
+                    <TechLiveTracker
+                      orderId={selectedAppointment.order_id}
+                      clientAddress={
+                        [selectedAppointment.service_address, selectedAppointment.service_city, selectedAppointment.service_postal_code].filter(Boolean).join(", ")
+                        || profile?.service_address
+                        || null
+                      }
+                    />
                   </div>
                 )}
 

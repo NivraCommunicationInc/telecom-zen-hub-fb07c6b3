@@ -2,6 +2,13 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend";
 
+export interface LiveLocation {
+  lat: number;
+  lng: number;
+  accuracy?: number;
+  updated_at: string;
+}
+
 export interface TechAssignmentLive {
   id: string;
   status: string;
@@ -11,6 +18,9 @@ export interface TechAssignmentLive {
   scheduled_time_end: string;
   client_notified_en_route: boolean;
   technician_id: string | null;
+  live_location: LiveLocation | null;
+  nearby_notified_at: string | null;
+  order_id: string | null;
 }
 
 export function useTechnicianAssignment(orderId: string | null | undefined) {
@@ -24,7 +34,7 @@ export function useTechnicianAssignment(orderId: string | null | undefined) {
       if (!orderId) return null;
       const { data } = await portalClient
         .from("technician_assignments")
-        .select("id, status, eta_text, scheduled_date, scheduled_time_start, scheduled_time_end, client_notified_en_route, technician_id")
+        .select("id, order_id, status, eta_text, scheduled_date, scheduled_time_start, scheduled_time_end, client_notified_en_route, technician_id, live_location, nearby_notified_at")
         .eq("order_id", orderId)
         .not("status", "in", '("missed","cancelled","rescheduled")')
         .order("scheduled_date", { ascending: false })

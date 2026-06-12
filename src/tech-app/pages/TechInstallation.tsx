@@ -7,12 +7,12 @@
  *   unknown      → yellow (not in inventory at all)
  * On completion: matched inventory items are updated to status='assigned'.
  */
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2,
   PackageCheck, XCircle, X, MapPin, Phone, Clock, Wrench, Truck,
-  RotateCcw, PenTool, FileText, ShieldAlert, Shield, HelpCircle,
+  RotateCcw, PenTool, FileText, ShieldAlert, Shield, HelpCircle, Signal,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +93,8 @@ export default function TechInstallation() {
   const [showEtaDialog, setShowEtaDialog] = useState(false);
   const [etaInput, setEtaInput] = useState("");
   const [scanValidating, setScanValidating] = useState(false);
+  const [gpsActive, setGpsActive] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
 
   const totalSteps = steps.length;
   const progress = totalSteps ? Math.round(((stepIdx + 1) / totalSteps) * 100) : 0;
@@ -134,6 +136,34 @@ export default function TechInstallation() {
     () => assignment?.expected_equipment ?? [],
     [assignment?.expected_equipment],
   );
+
+  // ── GPS tracking (active only when status = en_route) ─────────────────────
+
+  const stopGps = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setGpsActive(false);
+  }, []);
+
+  const startGps = useCallback(() => {
+    if (!navigator.geolocation || !id) return;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        setGpsActive(true);
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        await supabase
+          .from("technician_assignments")
+          .update({ live_location: { lat, lng, accuracy, updated_at: new Date().toISOString() } } as any)
+          .eq("id", id);
+      },
+      () => setGpsActive(false),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+    );
+  }, [id]);
+
+  useEffect(() => () => stopGps(), [stopGps]);
 
   // ── Validation helper ──────────────────────────────────────────────────────
 
@@ -260,11 +290,14 @@ export default function TechInstallation() {
       });
       if (error) throw error;
       if (status === "in_progress" && !startedAt) setStartedAt(new Date().toISOString());
+      return status;
     },
-    onSuccess: () => {
+    onSuccess: (status) => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
       toast.success("Statut mis à jour");
+      if (status === "en_route") startGps();
+      else stopGps();
     },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
   });
@@ -569,6 +602,12 @@ export default function TechInstallation() {
             </div>
           )}
 
+          {gpsActive && (
+            <div className="flex items-center gap-2 rounded-full bg-emerald-900/40 border border-emerald-600/40 px-3 py-2 text-xs text-emerald-300">
+              <Signal className="h-3.5 w-3.5 animate-pulse" />
+              GPS actif — position transmise au client
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleEnRoute}
