@@ -163,13 +163,8 @@ export default function VoiceConversation({ client }: Props) {
         return;
       }
       stopAudio();
-      // elevenlabs-stt-token deploys with Pro upgrade (2026-06-14)
+      // elevenlabs-stt-token available after Pro upgrade (2026-06-14)
       throw new Error("Reconnaissance vocale disponible après mise à niveau Pro (14 juin)");
-      await scribe.connect({
-        token,
-        microphone: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      setRecording(true);
     } catch (e: any) {
       toast.error("Micro indisponible", { description: e?.message ?? "Erreur" });
       setRecording(false);

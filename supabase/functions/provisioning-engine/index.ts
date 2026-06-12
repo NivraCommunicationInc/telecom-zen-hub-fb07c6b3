@@ -108,9 +108,9 @@ async function manualAdapter(
     alert_type: "provisioning_manual_required",
     entity_type: "billing_subscription",
     entity_id: req.subscription_id,
-    severity: req.action === "terminate" ? "high" : "warning",
-    message: `[PROVISIONING MANUEL REQUIS] ${actionLabels[req.action]} — abonnement ${req.subscription_id}`,
+    severity: req.action === "terminate" ? "critical" : "warning",
     details: {
+      message: `[PROVISIONING MANUEL REQUIS] ${actionLabels[req.action]} — abonnement ${req.subscription_id}`,
       action: req.action,
       customer_id: req.customer_id,
       trigger: req.trigger,

@@ -302,14 +302,18 @@ Deno.serve(async (req) => {
 
     if (!employeeName) employeeName = "Employ\u00e9(e)";
 
-    const { data: payrollData } = await supabase.from("payroll_entries").select("gross_pay, commission_total, bonus_total, deductions_total, net_pay, hours_worked").eq("user_id", doc.user_id);
+    // payroll_records uses agent_id and different column names
+    const { data: payrollData } = await supabase
+      .from("payroll_records")
+      .select("commissions_amount, bonus_amount, total_amount")
+      .eq("agent_id", doc.user_id);
 
     const totals = (payrollData || []).reduce((acc, pe) => ({
-      earnings: acc.earnings + Number(pe.gross_pay || 0),
-      commissions: acc.commissions + Number(pe.commission_total || 0),
-      deductions: acc.deductions + Number(pe.deductions_total || 0),
-      net: acc.net + Number(pe.net_pay || 0),
-      hours: acc.hours + Number(pe.hours_worked || 0),
+      earnings: acc.earnings + Number(pe.total_amount || 0),
+      commissions: acc.commissions + Number(pe.commissions_amount || 0),
+      deductions: 0, // not tracked separately in payroll_records
+      net: acc.net + Number(pe.total_amount || 0),
+      hours: 0, // not tracked in payroll_records
     }), { earnings: 0, commissions: 0, deductions: 0, net: 0, hours: 0 });
 
     const generatedAt = new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });

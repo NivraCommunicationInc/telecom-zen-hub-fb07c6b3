@@ -62,8 +62,7 @@ serve(async (req) => {
           entity_type: "billing_subscription",
           entity_id: orphan.id,
           severity: "critical",
-          message: `Abonnement actif sans cycle_end_date — ne sera jamais facturé`,
-          details: { customer_id: orphan.customer_id, plan_name: orphan.plan_name, created_at: orphan.created_at },
+          details: { message: `Abonnement actif sans cycle_end_date — ne sera jamais facturé`, customer_id: orphan.customer_id, plan_name: orphan.plan_name, created_at: orphan.created_at },
         }).catch(() => {});
       }
       return new Response(
@@ -534,9 +533,8 @@ serve(async (req) => {
             alert_type: "account_adjustments_failed",
             entity_type: "billing_invoice",
             entity_id: invoice.id,
-            severity: "high",
-            message: `account_adjustments non appliqués sur ${invoiceNumber}: ${adjErrMsg}`,
-            details: { subscription_id: sub.id, customer_id: sub.customer_id, invoice_number: invoiceNumber, error: adjErrMsg },
+            severity: "warning",
+            details: { message: `account_adjustments non appliqués sur ${invoiceNumber}: ${adjErrMsg}`, subscription_id: sub.id, customer_id: sub.customer_id, invoice_number: invoiceNumber, error: adjErrMsg },
           });
         }
 
@@ -618,9 +616,8 @@ serve(async (req) => {
               alert_type: "paypal_charge_failed_on_renewal",
               entity_type: "billing_invoice",
               entity_id: invoice.id,
-              severity: "high",
-              message: `PayPal auto-charge échoué pour ${invoiceNumber}: ${reason}`,
-              details: { subscription_id: sub.id, customer_id: sub.customer_id, amount: finalTotal, reason },
+              severity: "warning",
+              details: { message: `PayPal auto-charge échoué pour ${invoiceNumber}: ${reason}`, subscription_id: sub.id, customer_id: sub.customer_id, amount: finalTotal, reason },
             }).catch(() => {});
           }
         }
