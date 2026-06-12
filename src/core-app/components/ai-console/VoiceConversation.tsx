@@ -163,10 +163,8 @@ export default function VoiceConversation({ client }: Props) {
         return;
       }
       stopAudio();
-      const tokenRes = await supabase.functions.invoke("elevenlabs-stt-token");
-      if (tokenRes.error) throw new Error(tokenRes.error.message);
-      const token = (tokenRes.data as any)?.token;
-      if (!token) throw new Error("Token STT manquant");
+      // elevenlabs-stt-token deploys with Pro upgrade (2026-06-14)
+      throw new Error("Reconnaissance vocale disponible après mise à niveau Pro (14 juin)");
       await scribe.connect({
         token,
         microphone: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },

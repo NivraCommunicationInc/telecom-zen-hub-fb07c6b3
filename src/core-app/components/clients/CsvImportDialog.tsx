@@ -376,16 +376,32 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
       setBatchInfo(`Lot ${Math.floor(i / BATCH) + 1} / ${batches}`);
 
       try {
-        const { data, error } = await supabase.functions.invoke(
-          "core-csv-import-clients",
-          { body: { clients: batch, file_name: fileName } }
-        );
-        if (error) {
-          batch.forEach((c) =>
-            allResults.push({ name: c.name, status: "failed", reason: error.message })
-          );
-        } else if (data?.results) {
-          allResults.push(...data.results);
+        // Direct DB import (no edge function needed)
+        const emails = batch.map((c) => c.email).filter(Boolean);
+        const { data: existing } = await supabase
+          .from("billing_customers" as any)
+          .select("email")
+          .in("email", emails);
+        const existingEmails = new Set((existing ?? []).map((e: any) => e.email?.toLowerCase()));
+
+        for (const c of batch) {
+          const emailKey = c.email?.toLowerCase();
+          if (emailKey && existingEmails.has(emailKey)) {
+            allResults.push({ name: c.name, status: "duplicate", reason: "Email déjà existant" });
+            continue;
+          }
+          const { error: insErr } = await (supabase as any).from("billing_customers").insert({
+            first_name: c.first_name || c.name?.split(" ")[0] || "—",
+            last_name: c.last_name || c.name?.split(" ").slice(1).join(" ") || null,
+            email: c.email || null,
+            phone: c.phone || null,
+            status: "prospect",
+          });
+          if (insErr) {
+            allResults.push({ name: c.name, status: "failed", reason: insErr.message });
+          } else {
+            allResults.push({ name: c.name, status: "imported" });
+          }
         }
       } catch (err: any) {
         batch.forEach((c) =>

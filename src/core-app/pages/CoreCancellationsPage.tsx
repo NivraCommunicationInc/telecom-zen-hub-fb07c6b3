@@ -159,10 +159,12 @@ export default function CoreCancellationsPage() {
             ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
             : { data: null };
           if (cp?.email) {
-            await supabase.functions.invoke("send-cancellation-notification", {
-              body: {
-                template: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
-                to_email: cp.email,
+            await (supabase as any).from("email_queue").insert({
+              template_key: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
+              to_email: cp.email,
+              entity_type: "cancellation_request",
+              entity_id: id,
+              variables: {
                 client_name: cp.full_name ?? "Client",
                 request_number: req.request_number ?? id.slice(0, 8),
                 service_type: req.service_type,
@@ -170,6 +172,7 @@ export default function CoreCancellationsPage() {
                 decline_reason: (fields.decline_reason as string) || "",
                 public_message: (fields.public_message as string) || "",
               },
+              priority: 1,
             });
             result._sideEffects.email = true;
           }
@@ -403,16 +406,19 @@ export default function CoreCancellationsPage() {
           ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
           : { data: null };
         if (clientProfile?.email) {
-          const { error: emailErr } = await supabase.functions.invoke("send-cancellation-notification", {
-            body: {
-              template: "cancellation_scheduled",
-              to_email: clientProfile.email,
+          const { error: emailErr } = await (supabase as any).from("email_queue").insert({
+            template_key: "cancellation_scheduled",
+            to_email: clientProfile.email,
+            entity_type: "cancellation_request",
+            entity_id: id,
+            variables: {
               client_name: clientProfile.full_name ?? "Client",
               request_number: req.request_number ?? id.slice(0, 8),
               service_type: req.service_type,
               effective_date: effective,
               public_message: fields.public_message ?? null,
             },
+            priority: 1,
           });
           if (emailErr) throw emailErr;
           result._sideEffects.email = true;

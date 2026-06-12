@@ -108,19 +108,55 @@ export default function HrCreateEmployeePage() {
         notes: form.notes.trim() || undefined,
       };
 
-      const { data, error } = await supabase.functions.invoke("hr-create-employee", {
-        body: payload,
+      // Generate employee number via RPC
+      const { data: empNum, error: numErr } = await supabase.rpc("generate_employee_number" as any);
+      if (numErr) throw numErr;
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data: empRecord, error: insertErr } = await (supabase as any)
+        .from("employee_records")
+        .insert({
+          employee_number: empNum,
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          work_email: form.work_email.trim().toLowerCase(),
+          phone: form.phone.trim() || null,
+          department: form.department || null,
+          job_title: form.job_title.trim() || null,
+          employment_type: form.employment_type,
+          hire_date: form.hire_date || null,
+          salary_type: form.salary_type,
+          hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
+          base_salary: form.base_salary ? parseFloat(form.base_salary) : null,
+          commission_enabled: form.commission_enabled,
+          payment_method: form.payment_method,
+          emergency_contact_name: form.emergency_contact_name.trim() || null,
+          emergency_contact_phone: form.emergency_contact_phone.trim() || null,
+          emergency_contact_relation: form.emergency_contact_relation.trim() || null,
+          notes: form.notes.trim() || null,
+          status: "invited",
+          created_by: user?.id ?? null,
+        })
+        .select("id, employee_number")
+        .single();
+      if (insertErr) throw insertErr;
+
+      // Queue invite email
+      await (supabase as any).from("email_queue").insert({
+        template_key: "employee_invite",
+        to_email: form.work_email.trim().toLowerCase(),
+        entity_type: "employee",
+        entity_id: empRecord.id,
+        variables: {
+          first_name: form.first_name.trim(),
+          employee_number: empNum,
+          invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empRecord.id}`,
+        },
+        priority: 1,
       });
 
-      // supabase.functions.invoke returns error for non-2xx, but we now always return 200
-      if (error) {
-        // Try to parse the error body for our custom message
-        const msg = typeof error === "object" && "message" in error ? error.message : String(error);
-        throw new Error(msg || "Erreur de création");
-      }
-      if (data?.error) throw new Error(data.error);
-      if (!data?.success) throw new Error("Réponse inattendue du serveur");
-      return data;
+      return { success: true, employee: empRecord };
     },
     onSuccess: (data) => {
       toast.success(`Employé ${data.employee.employee_number} créé avec succès`, {

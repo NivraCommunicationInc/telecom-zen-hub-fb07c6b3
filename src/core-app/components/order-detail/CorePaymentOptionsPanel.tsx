@@ -55,13 +55,21 @@ export function CorePaymentOptionsPanel({
     }
     setBusy("email");
     try {
-      const { data, error } = await supabase.functions.invoke("core-paypal-order-link", {
-        body: { order_id: orderId, mode: "email", to_email: clientEmail, amount: totalAmount },
+      // Queue payment reminder email through email_queue (no edge function needed)
+      const { error } = await (supabase as any).from("email_queue").insert({
+        template_key: "payment_link",
+        to_email: clientEmail,
+        entity_type: "order",
+        entity_id: orderId,
+        variables: {
+          order_number: orderNumber,
+          amount: totalAmount,
+          payment_url: `https://app.nivra-telecom.ca/pay/${orderId}`,
+        },
+        priority: 1,
       });
-      if (error || (data as any)?.error) {
-        throw new Error((data as any)?.error || error?.message || "Erreur inconnue");
-      }
-      toast.success(`Lien envoyé à ${clientEmail}`);
+      if (error) throw error;
+      toast.success(`Lien de paiement envoyé à ${clientEmail}`);
       onChanged?.();
     } catch (e: any) {
       toast.error(e?.message || "Échec de l'envoi du lien");
@@ -73,16 +81,12 @@ export function CorePaymentOptionsPanel({
   async function openDirect() {
     setBusy("direct");
     try {
-      const { data, error } = await supabase.functions.invoke("core-paypal-order-link", {
-        body: { order_id: orderId, mode: "direct", amount: totalAmount },
-      });
-      if (error || (data as any)?.error) {
-        throw new Error((data as any)?.error || error?.message || "Erreur inconnue");
-      }
-      const url = (data as any)?.approval_url;
-      if (!url) throw new Error("Aucun lien d'approbation retourné");
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.success("Lien PayPal ouvert dans un nouvel onglet");
+      // PayPal order creation requires the core-paypal-order-link function (déploiement Pro — 14 juin)
+      // For now, open PayPal.me as a workaround
+      const amountStr = totalAmount != null ? totalAmount.toFixed(2) : "";
+      const paypalMeUrl = `https://www.paypal.com/paypalme/nivratelecom/${amountStr}CAD`;
+      window.open(paypalMeUrl, "_blank", "noopener,noreferrer");
+      toast.info("Lien PayPal.me ouvert — création automatique disponible après mise à niveau Pro (14 juin)");
       onChanged?.();
     } catch (e: any) {
       toast.error(e?.message || "Échec de la génération du lien");

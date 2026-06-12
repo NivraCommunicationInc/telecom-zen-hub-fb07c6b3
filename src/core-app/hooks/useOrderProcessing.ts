@@ -2265,20 +2265,44 @@ export function useOrderProcessing(orderId: string | undefined) {
       const recipientEmail = opts?.email || order.client_email || profile?.email;
       if (!recipientEmail) throw new Error("Aucun courriel client disponible");
 
-      const { data: result, error } = await supabase.functions.invoke("send-kyc-request", {
-        body: {
+      // send-kyc-request deploys with Pro upgrade — direct DB path as fallback
+      const token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+
+      const { data: kycRow, error: kycErr } = await (supabase as any)
+        .from("kyc_requests")
+        .upsert({
           order_id: orderId,
-          notes: opts?.notes ?? null,
+          client_email: recipientEmail,
+          token,
+          status: "pending",
+          requested_at: new Date().toISOString(),
+          expires_at: expiresAt,
+          notes: opts?.notes || null,
+        }, { onConflict: "order_id" })
+        .select("id")
+        .maybeSingle();
+      if (kycErr) throw kycErr;
+
+      await (supabase as any).from("email_queue").insert({
+        template_key: "kyc_request",
+        to_email: recipientEmail,
+        entity_type: "kyc_request",
+        entity_id: kycRow?.id ?? null,
+        variables: {
+          kyc_link: `https://app.nivra-telecom.ca/kyc/${token}`,
+          expires_hours: 48,
+          notes: opts?.notes || null,
         },
+        priority: 1,
       });
 
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
+      await (supabase as any).from("orders").update({ kyc_status: "pending", kyc_request_id: kycRow?.id }).eq("id", orderId);
 
       invalidateAll();
       toast.success(`Lien de vérification envoyé à ${recipientEmail}`);
       noteClient("kyc_requested", `Lien envoyé à ${recipientEmail}${opts?.notes ? ` — ${opts.notes}` : ""}`);
-      return result;
+      return { success: true };
     } catch (err: any) {
       console.error("[KYC] requestIdentityVerification failed:", err);
       toast.error(`Erreur d'envoi: ${err?.message || "Erreur inconnue"}`);
@@ -2295,17 +2319,20 @@ export function useOrderProcessing(orderId: string | undefined) {
       const order = data?.order;
       if (!order) throw new Error("Commande introuvable");
 
-      const { data: result, error } = await supabase.functions.invoke("send-kyc-request", {
-        body: {
-          order_id: orderId,
-          notes: opts?.reason || "Resoumission demandée par l'agent",
-        },
-      });
+      // send-kyc-request deploys with Pro upgrade — direct DB path as fallback
+      const order = data?.order;
+      const recipientEmailResub = order?.client_email;
+      if (recipientEmailResub) {
+        const token = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+        const { data: kycRow } = await (supabase as any)
+          .from("kyc_requests")
+          .upsert({ order_id: orderId, client_email: recipientEmailResub, token, status: "pending", requested_at: new Date().toISOString(), expires_at: expiresAt, notes: opts?.reason || null }, { onConflict: "order_id" })
+          .select("id").maybeSingle();
+        await (supabase as any).from("email_queue").insert({ template_key: "kyc_request", to_email: recipientEmailResub, entity_type: "kyc_request", entity_id: kycRow?.id ?? null, variables: { kyc_link: `https://app.nivra-telecom.ca/kyc/${token}`, expires_hours: 48 }, priority: 1 });
+        await (supabase as any).from("orders").update({ kyc_status: "pending", kyc_request_id: kycRow?.id }).eq("id", orderId);
+      }
 
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
-
-      // Extra activity log for the resubmission intent (edge fn logs 'kyc_requested')
       await logActivity("kyc_resubmission_requested", "order", orderId, {
         reason: opts?.reason || null,
       });
@@ -2313,7 +2340,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       invalidateAll();
       toast.success("Demande de resoumission envoyée");
       noteClient("kyc_resubmission", opts?.reason || "Documents additionnels demandés");
-      return result;
+      return { success: true };
     } catch (err: any) {
       console.error("[KYC] requestKycResubmission failed:", err);
       toast.error(`Erreur: ${err?.message || "Erreur inconnue"}`);

@@ -57,12 +57,15 @@ export default function HrEmployeesPage() {
     }
     setResendingId(empId);
     try {
-      const { data, error } = await sb.functions.invoke("resend-employee-invite", {
-        body: { employee_id: empId },
+      const { error } = await (sb as any).from("email_queue").insert({
+        template_key: "employee_invite",
+        to_email: email,
+        entity_type: "employee",
+        entity_id: empId,
+        variables: { employee_id: empId, invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empId}` },
+        priority: 1,
       });
-      if (error || (data as any)?.error) {
-        throw new Error((data as any)?.error || error?.message || "Erreur");
-      }
+      if (error) throw error;
       toast.success(`Invitation envoyée à ${email}`);
     } catch (err: any) {
       toast.error(`Erreur lors de l'envoi: ${err.message ?? "inconnue"}`);

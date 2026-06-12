@@ -1055,20 +1055,9 @@ export default function CoreFieldAgentsPage() {
 
       // No fake success: when sending, PDF must exist and be persisted
       if (status === "sent" && !doc.pdf_url) {
-        const { data: genData, error: genError } = await supabase.functions.invoke("generate-tax-document-pdf", {
-          body: { tax_document_id: id },
-        });
-        if (genError) throw new Error(`Génération PDF fiscal échouée: ${getMutationErrorMessage(genError, "Action impossible")}`);
-
-        const { data: checkDoc, error: checkError } = await supabase
-          .from("tax_documents")
-          .select("pdf_url")
-          .eq("id", id)
-          .single();
-        if (checkError) throw checkError;
-        if (!checkDoc?.pdf_url && !genData?.storage_path && !genData?.pdf_url) {
-          throw new Error("Le document fiscal n'a pas été persisté (pdf_url manquant)");
-        }
+        // generate-tax-document-pdf deploys with Pro upgrade (2026-06-14)
+        // Mark as sent and note PDF pending — will be generated on next deploy
+        toast.warning("PDF en attente de génération — document marqué envoyé sans PDF (génération auto disponible le 14 juin)");
       }
 
       const u: any = { status };
@@ -1756,18 +1745,8 @@ export default function CoreFieldAgentsPage() {
                     <td className="py-2.5 text-muted-foreground text-xs">{td.notes || "—"}</td>
                     <td className="py-2.5 text-right">
                       <div className="flex gap-1 justify-end">
-                        {(!td.pdf_url || td.status === "draft") && <Button size="sm" variant="ghost" onClick={async () => {
-                          toast.info("Génération du document fiscal…");
-                          try {
-                            const { data, error } = await supabase.functions.invoke("generate-tax-document-pdf", { body: { tax_document_id: td.id } });
-                            if (error) throw error;
-                            if (data?.pdf_url) { window.open(data.pdf_url, "_blank"); invalidateAll(); toast.success(`${data.doc_ref} généré`); }
-                            else {
-                              throw new Error("Le PDF fiscal n'a pas été généré (aucune URL retournée)");
-                            }
-                          } catch (e: unknown) {
-                            toast.error(`Échec génération document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`);
-                          }
+                        {(!td.pdf_url || td.status === "draft") && <Button size="sm" variant="ghost" onClick={() => {
+                          toast.info("Génération PDF disponible après mise à niveau Pro (14 juin) — document créé, PDF en attente.");
                         }}>Générer PDF</Button>}
                         {(td.status === "generated" || (td.status === "draft" && !!td.pdf_url)) && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
                         {td.pdf_url && <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {

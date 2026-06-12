@@ -214,38 +214,56 @@ export default function CoreApplicationsPage() {
         "contractor": "contractor",
       };
 
-      const { data, error } = await supabase.functions.invoke("hr-create-employee", {
-        body: {
+      // Generate employee number, create record directly
+      const { data: empNum, error: numErr } = await supabase.rpc("generate_employee_number" as any);
+      if (numErr) throw numErr;
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data: empRecord, error: insertErr } = await (supabase as any)
+        .from("employee_records")
+        .insert({
+          employee_number: empNum,
           first_name: hireForm.first_name,
           last_name: hireForm.last_name,
           work_email: hireForm.work_email.trim().toLowerCase(),
-          phone: hireApp.phone || undefined,
-          job_title: hireForm.job_title || undefined,
-          department: hireForm.department || undefined,
-          hire_date: hireForm.hire_date,
+          phone: hireApp.phone || null,
+          job_title: hireForm.job_title || null,
+          department: hireForm.department || null,
+          hire_date: hireForm.hire_date || null,
           employment_type: empTypeMap[hireForm.employment_type] || "full_time",
           salary_type: hireForm.hourly_rate ? "hourly" : "salary",
-          hourly_rate: hireForm.hourly_rate ? Number(hireForm.hourly_rate) : undefined,
-          roles: [hireForm.role],
-        },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Échec de la création de l'employé");
+          hourly_rate: hireForm.hourly_rate ? Number(hireForm.hourly_rate) : null,
+          status: "invited",
+          created_by: user?.id ?? null,
+        })
+        .select("id, employee_number, work_email")
+        .single();
+      if (insertErr) throw insertErr;
 
-      // Link the application to the new employee record
-      const { data: { user } } = await supabase.auth.getUser();
+      // Queue invite email
+      await (supabase as any).from("email_queue").insert({
+        template_key: "employee_invite",
+        to_email: hireForm.work_email.trim().toLowerCase(),
+        entity_type: "employee",
+        entity_id: empRecord.id,
+        variables: { first_name: hireForm.first_name, employee_number: empNum },
+        priority: 1,
+      });
+
+      // Link application to new employee record
       await supabase
         .from("job_applications")
         .update({
           stage: "hired",
           status: "hired",
-          hired_employee_id: data.employee.id,
+          hired_employee_id: empRecord.id,
           stage_changed_at: new Date().toISOString(),
           stage_changed_by: user?.id ?? null,
         })
         .eq("id", hireApp.id);
 
-      return data.employee;
+      return { id: empRecord.id, employee_number: empRecord.employee_number, email: empRecord.work_email };
     },
     onSuccess: (emp: CreatedEmployee) => {
       toast.success("Candidat embauché", {

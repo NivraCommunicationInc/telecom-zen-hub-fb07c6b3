@@ -57,13 +57,47 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
   }, [order?.kyc_request_id, order?.kyc_status]);
 
   async function handleSendRequest() {
+    if (!order?.client_email) { toast.error("Aucun courriel client sur cette commande."); return; }
     setLoading("request");
     try {
-      const { data, error } = await supabase.functions.invoke("send-kyc-request", {
-        body: { order_id: order.id, notes: notes.trim() || undefined },
+      const token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+
+      // Create kyc_requests row + queue email — no edge function needed
+      const { data: kycRow, error: kycErr } = await supabase
+        .from("kyc_requests" as any)
+        .upsert({
+          order_id: order.id,
+          client_id: order.client_id ?? null,
+          client_email: order.client_email,
+          token,
+          status: "pending",
+          requested_at: new Date().toISOString(),
+          expires_at: expiresAt,
+          notes: notes.trim() || null,
+        }, { onConflict: "order_id" })
+        .select("id")
+        .maybeSingle();
+      if (kycErr) throw kycErr;
+
+      // Queue the email
+      await (supabase as any).from("email_queue").insert({
+        template_key: "kyc_request",
+        to_email: order.client_email,
+        entity_type: "kyc_request",
+        entity_id: kycRow?.id ?? null,
+        variables: {
+          order_number: order.order_number ?? order.id?.slice(0, 8),
+          kyc_link: `https://app.nivra-telecom.ca/kyc/${token}`,
+          expires_hours: 48,
+          notes: notes.trim() || null,
+        },
+        priority: 1,
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+
+      // Update order kyc_status
+      await (supabase as any).from("orders").update({ kyc_status: "pending", kyc_request_id: kycRow?.id }).eq("id", order.id);
+
       toast.success("Demande de vérification envoyée au client");
       setShowRequestModal(false);
       setNotes("");

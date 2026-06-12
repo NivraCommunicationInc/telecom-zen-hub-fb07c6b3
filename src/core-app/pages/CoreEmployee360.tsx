@@ -159,13 +159,20 @@ function Employee360Inner({
   });
 
   const handleResendInvite = async () => {
+    const email = employee.work_email ?? employee.personal_email;
+    if (!email) { toast.error("Aucun email pour cet employé"); return; }
     setResending(true);
     try {
-      const { error } = await supabase.functions.invoke("resend-employee-invite", {
-        body: { employee_id: empId },
+      const { error } = await (supabase as any).from("email_queue").insert({
+        template_key: "employee_invite",
+        to_email: email,
+        entity_type: "employee",
+        entity_id: empId,
+        variables: { employee_id: empId, invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empId}` },
+        priority: 1,
       });
       if (error) throw error;
-      toast.success(`Invitation renvoyée à ${employee.work_email ?? "l'employé"}`);
+      toast.success(`Invitation renvoyée à ${email}`);
       qc.invalidateQueries({ queryKey: ["employee-360-record", empId] });
     } catch (e: any) {
       toast.error("Erreur lors de l'envoi", { description: e.message });

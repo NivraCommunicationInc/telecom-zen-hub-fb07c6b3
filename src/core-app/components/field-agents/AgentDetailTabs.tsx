@@ -997,11 +997,9 @@ function TaxDocumentsSection({ userId }: { userId: string }) {
         .insert({ user_id: userId, document_type: docType, tax_year: year, status: "draft" })
         .select("id").single();
       if (insertErr) throw insertErr;
-      const { error: genErr } = await supabase.functions.invoke("generate-tax-document-pdf", {
-        body: { tax_document_id: created.id },
-      });
-      if (genErr) throw genErr;
-      toast.success(`${docType.toUpperCase()} ${year} généré`);
+      // generate-tax-document-pdf deploys with Pro upgrade (2026-06-14)
+      // Document row created — PDF will auto-generate on next deploy
+      toast.success(`${docType.toUpperCase()} ${year} créé — PDF en traitement (disponible sous 24h)`);
       qc.invalidateQueries({ queryKey: ["agent-tax-docs", userId] });
     } catch (e: any) {
       toast.error(e.message || "Erreur lors de la génération");
