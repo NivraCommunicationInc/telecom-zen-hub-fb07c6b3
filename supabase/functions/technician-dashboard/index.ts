@@ -61,10 +61,10 @@ Deno.serve(async (req) => {
     // --- Fetch work orders assigned to this technician ---
     const { data: workOrders, error: woError } = await admin
       .from("work_orders")
-      .select("id, status, priority, scheduled_start, notes, internal_notes, created_at, updated_at, client_name, client_phone, service_address, service_city, work_type")
+      .select("id, status, priority, scheduled_start, scheduled_end, notes, internal_notes, created_at, updated_at, client_name, client_phone, client_email, service_address, service_city, service_type, work_order_number")
       .eq("assigned_technician_id", technicianId)
       .order("priority", { ascending: false })
-      .order("scheduled_at", { ascending: true });
+      .order("scheduled_start", { ascending: true });
 
     if (woError) {
       console.error("[technician-dashboard] work_orders query error:", woError);
@@ -76,9 +76,9 @@ Deno.serve(async (req) => {
 
     const allOrders = workOrders ?? [];
 
-    // --- Today's appointments: scheduled_at within today ---
+    // --- Today's appointments: scheduled_start within today ---
     const todayAppointments = allOrders.filter((wo: any) => {
-      if (!wo.scheduled_at) return false;
+      if (!wo.scheduled_start) return false;
       const d = new Date(wo.scheduled_start);
       return d >= todayStart && d <= todayEnd;
     });

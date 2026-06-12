@@ -75,15 +75,15 @@ Deno.serve(async (req) => {
       const workOrderId = url.searchParams.get("id");
 
       const WO_SELECT = `
-        id, status, priority, work_type,
+        id, status, priority, service_type, work_order_number,
         scheduled_start, scheduled_end,
-        actual_start, actual_end,
-        notes, internal_notes, completion_notes,
+        started_at, completed_at,
+        notes, internal_notes,
         client_name, client_phone, client_email,
-        service_address, service_city, service_zip,
+        service_address, service_city, service_postal_code,
         assigned_technician_id,
         created_at, updated_at,
-        subscription_id, customer_id
+        equipment_details, checklist
       `;
 
       if (workOrderId) {
@@ -198,10 +198,10 @@ Deno.serve(async (req) => {
 
       // Auto-set timestamps on status transitions
       if (status === "in_progress" && existing.status === "pending") {
-        patch.actual_start = new Date().toISOString();
+        patch.started_at = new Date().toISOString();
       }
       if (status === "completed") {
-        patch.actual_end = new Date().toISOString();
+        patch.completed_at = new Date().toISOString();
       }
 
       const { data: updated, error: updateError } = await admin
