@@ -1,44 +1,71 @@
 /**
- * TechHeader — Fixed top header for the technician PWA.
- * Logo on left, page title centered, notification bell on right.
+ * TechHeader — Sticky top bar for all tech portal pages except TechDashboard.
+ * Left-aligned title (iOS pattern), subtitle support, back button, notification bell.
  */
 import { Bell, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
   title: string;
+  subtitle?: string;
   back?: boolean;
   alertCount?: number;
+  right?: React.ReactNode;
 }
 
-export default function TechHeader({ title, back, alertCount = 0 }: Props) {
+export default function TechHeader({ title, subtitle, back, alertCount = 0, right }: Props) {
   const navigate = useNavigate();
   return (
-    <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur border-b border-violet-900/40 pt-[env(safe-area-inset-top)]">
-      <div className="flex items-center gap-2 px-4 h-14">
+    <header
+      className="sticky top-0 z-40 pt-[env(safe-area-inset-top)]"
+      style={{
+        background: "rgba(10, 10, 18, 0.97)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <div className="flex items-center gap-3 px-4 h-[60px]">
         {back ? (
           <button
             onClick={() => navigate(-1)}
             aria-label="Retour"
-            className="-ml-2 h-11 w-11 flex items-center justify-center rounded-full text-slate-300 hover:bg-slate-800 active:bg-slate-700"
+            className="shrink-0 -ml-1 h-10 w-10 flex items-center justify-center rounded-full text-slate-300 hover:bg-white/5 active:bg-white/8 transition-colors"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.5} />
           </button>
         ) : (
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/30">
+          <div
+            className="shrink-0 h-8 w-8 rounded-[10px] flex items-center justify-center text-white font-black text-[13px] shadow-lg"
+            style={{ background: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)", boxShadow: "0 4px 12px rgba(124,58,237,0.35)" }}
+          >
             N
           </div>
         )}
-        <h1 className="flex-1 text-center text-base font-bold text-white truncate">{title}</h1>
-        <button
-          aria-label="Notifications"
-          className="relative h-11 w-11 flex items-center justify-center rounded-full text-slate-300 hover:bg-slate-800 active:bg-slate-700"
-        >
-          <Bell className="h-5 w-5" />
-          {alertCount > 0 && (
-            <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-slate-950" />
+
+        <div className="flex-1 min-w-0">
+          <h1 className="text-[17px] font-bold text-white leading-tight tracking-[-0.02em] truncate">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="text-[11px] text-slate-500 leading-tight mt-px">{subtitle}</p>
           )}
-        </button>
+        </div>
+
+        {right ?? (
+          <button
+            aria-label="Notifications"
+            className="relative shrink-0 h-10 w-10 flex items-center justify-center rounded-full text-slate-400 hover:bg-white/5 active:bg-white/8 transition-colors"
+          >
+            <Bell className="h-[18px] w-[18px]" />
+            {alertCount > 0 && (
+              <span
+                className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500"
+                style={{ boxShadow: "0 0 0 2px rgba(10,10,18,0.97)" }}
+              />
+            )}
+          </button>
+        )}
       </div>
     </header>
   );

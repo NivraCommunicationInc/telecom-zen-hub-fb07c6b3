@@ -1,7 +1,7 @@
 /**
- * TechBottomNav — Fixed bottom navigation for the technician PWA.
- * 4 large tabs, thumb-friendly, always visible. Mobile-first dark violet theme.
- * Missions tab shows a badge when dispatch jobs are available (orange for urgent).
+ * TechBottomNav — Fixed bottom bar for the technician PWA.
+ * Active tab: filled violet pill behind icon + thicker stroke.
+ * Missions tab shows a badge when dispatch jobs are available.
  */
 import { NavLink } from "react-router-dom";
 import { Home, ClipboardList, Wrench, User } from "lucide-react";
@@ -21,10 +21,15 @@ export default function TechBottomNav() {
 
   return (
     <nav
-      aria-label="Navigation principale"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur border-t border-violet-900/40 pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]"
+      style={{
+        background: "rgba(10,10,18,0.96)",
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+      }}
     >
-      <ul className="flex">
+      <ul className="flex px-2">
         {tabs.map(({ to, icon: Icon, label, end, ...rest }) => {
           const badge = (rest as any).badge as number | undefined;
           const urgent = (rest as any).urgent as boolean | undefined;
@@ -33,28 +38,32 @@ export default function TechBottomNav() {
               <NavLink
                 to={to}
                 end={end}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-1 py-2.5 min-h-[64px] text-[11px] font-semibold transition-colors relative ${
-                    isActive ? "text-violet-400" : "text-slate-500"
-                  }`
-                }
+                className="flex flex-col items-center justify-center min-h-[58px] py-2 gap-[3px]"
               >
                 {({ isActive }) => (
                   <>
-                    <span className="relative">
-                      <Icon className={`h-6 w-6 ${isActive ? "stroke-[2.5]" : ""}`} />
+                    <span className={`relative flex items-center justify-center h-9 w-14 rounded-[14px] transition-all duration-150 ${
+                      isActive ? "bg-violet-500/14" : "active:bg-white/5"
+                    }`}>
+                      <Icon
+                        className={`h-[22px] w-[22px] transition-colors duration-150 ${isActive ? "text-violet-400" : "text-slate-500"}`}
+                        strokeWidth={isActive ? 2.5 : 2}
+                      />
                       {badge != null && badge > 0 && (
-                        <span className={`absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-black flex items-center justify-center leading-none ${
-                          urgent ? "bg-red-500 text-white animate-pulse" : "bg-orange-500 text-black"
-                        }`}>
+                        <span
+                          className={`absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-[4px] rounded-full text-[9px] font-black flex items-center justify-center leading-none ${
+                            urgent ? "bg-red-500 text-white animate-pulse" : "bg-orange-500 text-black"
+                          }`}
+                        >
                           {badge > 9 ? "9+" : badge}
                         </span>
                       )}
                     </span>
-                    <span>{label}</span>
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-violet-500" />
-                    )}
+                    <span className={`text-[10px] font-semibold leading-none transition-colors duration-150 ${
+                      isActive ? "text-violet-400" : "text-slate-600"
+                    }`}>
+                      {label}
+                    </span>
                   </>
                 )}
               </NavLink>
