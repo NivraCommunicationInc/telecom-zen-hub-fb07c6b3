@@ -96,7 +96,11 @@ const HrAuditPage = lazy(() => import("@/core-app/pages/hr/HrAuditPage"));
 const HrCreateEmployeePage = lazy(() => import("@/core-app/pages/hr/HrCreateEmployeePage"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
+const CoreInterviewsPage = lazy(() => import("@/core-app/pages/CoreInterviewsPage"));
+const CoreCareerEmailTemplatesPage = lazy(() => import("@/core-app/pages/hr/CoreCareerEmailTemplatesPage"));
 const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
+const CoreCommissionWithdrawalsPage = lazy(() => import("@/core-app/pages/CoreCommissionWithdrawalsPage"));
+const CoreCommissionGridPage = lazy(() => import("@/core-app/pages/CoreCommissionGridPage"));
 
 // CRM Call Center (admin oversight: assign, monitor, KPIs)
 const CoreCrm = lazy(() => import("@/core-app/pages/CoreCrm"));
@@ -128,6 +132,51 @@ const CoreSupportMetricsPage = lazy(() => import("@/core-app/pages/CoreSupportMe
 const SupplierAccountsPage = lazy(() => import("@/core-app/pages/SupplierAccountsPage"));
 const SupplierAccountNewPage = lazy(() => import("@/core-app/pages/SupplierAccountNewPage"));
 const SupplierAccountDetailPage = lazy(() => import("@/core-app/pages/SupplierAccountDetailPage"));
+
+// NOVA Brain
+const NovaBrainPage = lazy(() => import("@/core-app/pages/NovaBrainPage"));
+
+// Network & Provisioning
+const CoreNetworkPage = lazy(() => import("@/core-app/pages/CoreNetworkPage"));
+const CoreProvisioningPage = lazy(() => import("@/core-app/pages/CoreProvisioningPage"));
+const CoreProvisioningJobsPage = lazy(() => import("@/core-app/pages/CoreProvisioningJobsPage"));
+const CoreDIDPage = lazy(() => import("@/core-app/pages/CoreDIDPage"));
+const CoreCoveragePage = lazy(() => import("@/core-app/pages/CoreCoveragePage"));
+
+// Sales & CRM extras
+const CoreRmaPage = lazy(() => import("@/core-app/pages/CoreRmaPage"));
+const CoreReviewsPage = lazy(() => import("@/core-app/pages/CoreReviewsPage"));
+const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
+const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
+const CoreAgentDiscounts = lazy(() => import("@/core-app/pages/CoreAgentDiscounts"));
+const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
+const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
+const CoreGrilleCanaux = lazy(() => import("@/core-app/pages/CoreGrilleCanaux"));
+const CoreRevenueAssurancePage = lazy(() => import("@/core-app/pages/CoreRevenueAssurancePage"));
+
+// Support extras
+const CoreComplaintsPage = lazy(() => import("@/core-app/pages/CoreComplaintsPage"));
+const CoreSupportAIPage = lazy(() => import("@/core-app/pages/CoreSupportAIPage"));
+
+// System / Admin extras
+const CoreRetentionPage = lazy(() => import("@/core-app/pages/CoreRetentionPage"));
+const CoreAgentMonitorPage = lazy(() => import("@/core-app/pages/CoreAgentMonitorPage"));
+const CoreAgentControlCenter = lazy(() => import("@/core-app/pages/CoreAgentControlCenter"));
+const CoreAnalyticsDashboardPage = lazy(() => import("@/core-app/pages/CoreAnalyticsDashboardPage"));
+const CoreSyncMonitorPage = lazy(() => import("@/core-app/pages/CoreSyncMonitorPage"));
+const CoreSEOPage = lazy(() => import("@/core-app/pages/CoreSEOPage"));
+const CoreMarketingAgentPage = lazy(() => import("@/core-app/pages/CoreMarketingAgentPage"));
+const CoreSocialMediaPage = lazy(() => import("@/core-app/pages/CoreSocialMediaPage"));
+const CoreEmailComposePage = lazy(() => import("@/core-app/pages/CoreEmailComposePage"));
+const CoreHubManagementPage = lazy(() => import("@/core-app/pages/CoreHubManagementPage"));
+
+// Marketing Hub
+const MarketingHubDashboard = lazy(() => import("@/core-app/pages/marketing/MarketingHubDashboard"));
+const MarketingConversationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingConversationsPage"));
+const MarketingAIConfigPage = lazy(() => import("@/core-app/pages/marketing/MarketingAIConfigPage"));
+const MarketingSMSCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSMSCampaignsPage"));
+const MarketingEmailCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingEmailCampaignsPage"));
+const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSettingsPage"));
 
 export const coreRoutes: RouteObject = {
   path: "/core",
@@ -221,6 +270,9 @@ export const coreRoutes: RouteObject = {
     { path: "hr/requests", element: <HrRequestsPage /> },
     { path: "hr/careers", element: <CoreCareersPage /> },
     { path: "hr/applications", element: <CoreApplicationsPage /> },
+    { path: "hr/interviews", element: <CoreInterviewsPage /> },
+    { path: "hr/email-templates", element: <CoreCareerEmailTemplatesPage /> },
+    { path: "hr/commission-withdrawals", element: <CoreCommissionWithdrawalsPage /> },
     { path: "hr/audit", element: <HrAuditPage /> },
     // Legacy redirects
     { path: "careers", element: <CoreCareersPage /> },
@@ -248,5 +300,51 @@ export const coreRoutes: RouteObject = {
     { path: "supplier-accounts", element: <SupplierAccountsPage /> },
     { path: "supplier-accounts/new", element: <SupplierAccountNewPage /> },
     { path: "supplier-accounts/:id", element: <SupplierAccountDetailPage /> },
+
+    // NOVA Brain
+    { path: "brain", element: <NovaBrainPage /> },
+
+    // Network & Provisioning
+    { path: "network", element: <CoreNetworkPage /> },
+    { path: "provisioning", element: <CoreProvisioningPage /> },
+    { path: "provisioning-jobs", element: <CoreProvisioningJobsPage /> },
+    { path: "did", element: <CoreDIDPage /> },
+    { path: "coverage", element: <CoreCoveragePage /> },
+
+    // Sales & CRM extras
+    { path: "rma", element: <CoreRmaPage /> },
+    { path: "reviews", element: <CoreReviewsPage /> },
+    { path: "quotes", element: <CoreQuotesPage /> },
+    { path: "quotes/:id", element: <CoreQuoteDetail /> },
+    { path: "agent-discounts", element: <CoreAgentDiscounts /> },
+    { path: "field-agents", element: <CoreFieldAgentsPage /> },
+    { path: "field-submissions", element: <CoreFieldSubmissionsPage /> },
+    { path: "grille-canaux", element: <CoreGrilleCanaux /> },
+    { path: "revenue-assurance", element: <CoreRevenueAssurancePage /> },
+    { path: "commissions/grille", element: <CoreCommissionGridPage /> },
+
+    // Support extras
+    { path: "complaints", element: <CoreComplaintsPage /> },
+    { path: "support-ai", element: <CoreSupportAIPage /> },
+
+    // System / Admin extras
+    { path: "retention", element: <CoreRetentionPage /> },
+    { path: "monitor", element: <CoreAgentMonitorPage /> },
+    { path: "agent-center", element: <CoreAgentControlCenter /> },
+    { path: "analytics-ai", element: <CoreAnalyticsDashboardPage /> },
+    { path: "sync-monitor", element: <CoreSyncMonitorPage /> },
+    { path: "seo", element: <CoreSEOPage /> },
+    { path: "marketing-agent", element: <CoreMarketingAgentPage /> },
+    { path: "social-media", element: <CoreSocialMediaPage /> },
+    { path: "email/compose", element: <CoreEmailComposePage /> },
+    { path: "nivra-secure-hub-2617-internal", element: <CoreHubManagementPage /> },
+
+    // Marketing Hub
+    { path: "marketing", element: <MarketingHubDashboard /> },
+    { path: "marketing/conversations", element: <MarketingConversationsPage /> },
+    { path: "marketing/ai-config", element: <MarketingAIConfigPage /> },
+    { path: "marketing/sms-campaigns", element: <MarketingSMSCampaignsPage /> },
+    { path: "marketing/email-campaigns", element: <MarketingEmailCampaignsPage /> },
+    { path: "marketing/settings", element: <MarketingSettingsPage /> },
   ],
 };
