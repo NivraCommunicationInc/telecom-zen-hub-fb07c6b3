@@ -70,24 +70,24 @@ async function raiseAlert(
   },
 ): Promise<boolean> {
   // Idempotency: skip if already open
-  const query = supabase
+  let query = supabase
     .from("billing_system_alerts")
     .select("id")
     .eq("alert_type", opts.alert_type)
     .eq("resolved", false);
 
-  if (opts.entity_id) query.eq("entity_id", opts.entity_id);
+  if (opts.entity_id) query = query.eq("entity_id", opts.entity_id);
 
   const { data: existing } = await query.maybeSingle();
   if (existing) return false; // Already open
 
+  // message stored inside details.message (no top-level message column)
   const { error } = await supabase.from("billing_system_alerts").insert({
     alert_type: opts.alert_type,
     entity_type: opts.entity_type,
     entity_id: opts.entity_id || null,
     severity: opts.severity,
-    message: opts.message,
-    details: opts.details || {},
+    details: { ...(opts.details || {}), message: opts.message },
     resolved: false,
   });
 

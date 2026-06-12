@@ -17,7 +17,7 @@ import {
   MonitorPlay, Lock, Wifi, FileX, MapPin,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap, Brain, Star, AlertCircle, BarChart3, Heart, Bot, RefreshCw, Cpu, Globe, Share2,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap, Smartphone, RotateCcw, Banknote, LayoutGrid, PhoneCall, GraduationCap, Brain, Star, AlertCircle, BarChart3, Heart, Bot, RefreshCw, Cpu, Globe, Share2, ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -183,6 +183,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Globe,
     items: [
       { icon: Activity, label: "Monitoring réseau", href: "/network" },
+      { icon: ShieldAlert, label: "NOC — Alertes BSS", href: "/noc" },
       { icon: Zap, label: "Jobs provisioning OSS", href: "/provisioning-jobs" },
       { icon: PhoneCall, label: "Inventaire DID", href: "/did" },
       { icon: Cpu, label: "Provisionnement carrier", href: "/provisioning" },

@@ -138,6 +138,7 @@ const NovaBrainPage = lazy(() => import("@/core-app/pages/NovaBrainPage"));
 
 // Network & Provisioning
 const CoreNetworkPage = lazy(() => import("@/core-app/pages/CoreNetworkPage"));
+const CoreNocPage = lazy(() => import("@/core-app/pages/CoreNocPage"));
 const CoreProvisioningPage = lazy(() => import("@/core-app/pages/CoreProvisioningPage"));
 const CoreProvisioningJobsPage = lazy(() => import("@/core-app/pages/CoreProvisioningJobsPage"));
 const CoreDIDPage = lazy(() => import("@/core-app/pages/CoreDIDPage"));
@@ -306,6 +307,7 @@ export const coreRoutes: RouteObject = {
 
     // Network & Provisioning
     { path: "network", element: <CoreNetworkPage /> },
+    { path: "noc", element: <CoreNocPage /> },
     { path: "provisioning", element: <CoreProvisioningPage /> },
     { path: "provisioning-jobs", element: <CoreProvisioningJobsPage /> },
     { path: "did", element: <CoreDIDPage /> },

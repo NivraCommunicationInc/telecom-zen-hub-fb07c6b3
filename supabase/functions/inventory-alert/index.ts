@@ -1,6 +1,9 @@
-// Daily inventory low-stock alert. Scans inventory_stock_levels view and queues
-// admin emails for items in 'critical' or 'out_of_stock' status. De-dupes by
-// last_alert_sent_at (max 1 alert per SKU per 24h).
+/**
+ * inventory-alert — Daily low-stock alert.
+ * Queries inventory_stock table directly (groups by sku), queues admin emails
+ * for items in critical or out_of_stock status (available < min_stock_threshold).
+ * De-dupes: max 1 alert per SKU per 24h (checked via last_alert_sent_at).
+ */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -19,48 +22,96 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: levels, error } = await supabase
-      .from("inventory_stock_levels")
-      .select("*")
-      .in("stock_status", ["critical", "out_of_stock"]);
-    if (error) throw error;
+    // Fetch all inventory_stock rows to aggregate by SKU in JS
+    // (avoids PostgREST view exposure issues with keyless views)
+    const { data: allStock, error: stockErr } = await supabase
+      .from("inventory_stock")
+      .select("id, sku, brand, model, item_type, status, min_stock_threshold, reorder_point, last_alert_sent_at, warehouse_location");
+
+    if (stockErr) throw stockErr;
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Aggregate by SKU
+    const bySkuMap: Record<string, {
+      sku: string; brand: string; model: string; item_type: string;
+      available: number; total: number; min_stock_threshold: number; reorder_point: number;
+      last_alert_sent_at: string | null; ids: string[];
+    }> = {};
+
+    for (const item of (allStock || []) as any[]) {
+      const key = item.sku || item.id;
+      if (!bySkuMap[key]) {
+        bySkuMap[key] = {
+          sku: item.sku,
+          brand: item.brand || "",
+          model: item.model || "",
+          item_type: item.item_type || "",
+          available: 0,
+          total: 0,
+          min_stock_threshold: item.min_stock_threshold ?? 5,
+          reorder_point: item.reorder_point ?? 3,
+          last_alert_sent_at: item.last_alert_sent_at,
+          ids: [],
+        };
+      }
+      const grp = bySkuMap[key];
+      grp.total++;
+      if (item.status === "available") grp.available++;
+      if (item.last_alert_sent_at && (!grp.last_alert_sent_at || item.last_alert_sent_at > grp.last_alert_sent_at)) {
+        grp.last_alert_sent_at = item.last_alert_sent_at;
+      }
+      grp.ids.push(item.id);
+    }
 
     let queued = 0;
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    for (const item of (levels || []) as any[]) {
-      if (item.last_alert_sent_at && item.last_alert_sent_at > cutoff) continue;
+    const skuGroups = Object.values(bySkuMap);
 
-      const eventKey = `inv_low_${item.sku}_${new Date().toISOString().slice(0, 10)}`;
+    for (const grp of skuGroups) {
+      // Skip if available count is above reorder_point
+      if (grp.available > grp.reorder_point) continue;
+
+      // De-dupe: skip if already alerted in last 24h
+      if (grp.last_alert_sent_at && grp.last_alert_sent_at > cutoff) continue;
+
+      const stock_status = grp.available === 0 ? "out_of_stock" : "critical";
+      const eventKey = `inv_low_${grp.sku}_${new Date().toISOString().slice(0, 10)}`;
+
       const { error: qErr } = await supabase.from("email_queue").insert({
         event_key: eventKey,
         to_email: ADMIN_EMAIL,
         template_key: "inventory_low_stock",
         template_vars: {
-          item_name: `${item.brand || ""} ${item.model || ""}`.trim() || item.sku,
-          sku: item.sku,
-          available_count: item.available_count,
-          min_stock_threshold: item.min_stock_threshold,
-          stock_status: item.stock_status,
+          item_name: `${grp.brand} ${grp.model}`.trim() || grp.sku,
+          sku: grp.sku,
+          available_count: grp.available,
+          total_count: grp.total,
+          min_stock_threshold: grp.min_stock_threshold,
+          reorder_point: grp.reorder_point,
+          stock_status,
           language: "fr",
         },
         status: "queued",
       });
+
       if (!qErr) {
         queued++;
+        // Update last_alert_sent_at on all rows for this SKU
         await supabase
           .from("inventory_stock")
           .update({ last_alert_sent_at: new Date().toISOString() })
-          .eq("sku", item.sku);
+          .in("id", grp.ids);
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, queued, scanned: levels?.length || 0 }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, queued, scanned: skuGroups.length }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: String(e) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
