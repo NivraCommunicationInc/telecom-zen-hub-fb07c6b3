@@ -42,6 +42,8 @@ import { AppointmentHistoryTimeline } from "@/components/appointments/Appointmen
 import { notifyAdmin, getAdminPortalLink } from "@/hooks/useAdminNotification";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import TechLiveTracker from "@/components/client/TechLiveTracker";
+import TechnicianStatusTimeline from "@/components/client/TechnicianStatusTimeline";
 
 // Available time slots for rescheduling
 const TIME_SLOTS = [
@@ -466,48 +468,54 @@ const ClientAppointments = () => {
                       return (
                         <div
                           key={apt.id}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-accent/50 rounded-lg border border-cyan-500/20 cursor-pointer hover:border-cyan-500/50 transition-colors"
-                          onClick={() => handleViewDetails(apt)}
+                          className="flex flex-col gap-0 p-4 bg-accent/50 rounded-lg border border-cyan-500/20 hover:border-cyan-500/50 transition-colors"
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex flex-col items-center justify-center">
-                              <span className="text-lg font-bold text-cyan-500">{format(aptDate, "d")}</span>
-                              <span className="text-xs text-cyan-400 uppercase">{format(aptDate, "MMM", { locale: fr })}</span>
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="outline" className="text-[10px] text-cyan-400 border-cyan-500/30">
-                                  {apt.appointment_number || `#${apt.id?.slice(0, 8).toUpperCase()}`}
-                                </Badge>
+                          <div
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
+                            onClick={() => handleViewDetails(apt)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex flex-col items-center justify-center shrink-0">
+                                <span className="text-lg font-bold text-cyan-500">{format(aptDate, "d")}</span>
+                                <span className="text-xs text-cyan-400 uppercase">{format(aptDate, "MMM", { locale: fr })}</span>
                               </div>
-                              <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {format(aptDate, "EEEE 'à' HH:mm", { locale: fr })}
-                              </p>
-                              {apt.technician && (
-                                <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
-                                  <Wrench className="w-3 h-3" />
-                                  Technicien: {apt.technician.full_name}
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="outline" className="text-[10px] text-cyan-400 border-cyan-500/30">
+                                    {apt.appointment_number || `#${apt.id?.slice(0, 8).toUpperCase()}`}
+                                  </Badge>
+                                </div>
+                                <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(aptDate, "EEEE 'à' HH:mm", { locale: fr })}
                                 </p>
-                              )}
-                              {apt.status === "scheduled" && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {hoursUntil >= 24 
-                                    ? `Modifiable (${hoursUntil}h avant)` 
-                                    : `Non modifiable (moins de 24h)`}
-                                </p>
-                              )}
+                                {apt.technician && (
+                                  <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                    <Wrench className="w-3 h-3" />
+                                    Technicien: {apt.technician.full_name}
+                                  </p>
+                                )}
+                                {apt.status === "scheduled" && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {hoursUntil >= 24
+                                      ? `Modifiable (${hoursUntil}h avant)`
+                                      : `Non modifiable (moins de 24h)`}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className={status.color}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {status.label}
+                              </Badge>
+                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDetails(apt); }}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge className={status.color}>
-                              <StatusIcon className="w-3 h-3 mr-1" />
-                              {status.label}
-                            </Badge>
-                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDetails(apt); }}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          {/* Live tech tracking — renders only when assignment exists */}
+                          {apt.order_id && <TechLiveTracker orderId={apt.order_id} />}
                         </div>
                       );
                     })}
@@ -714,6 +722,14 @@ const ClientAppointments = () => {
                   </div>
                 )}
                 
+                {/* Live tech tracking in detail dialog */}
+                {selectedAppointment?.order_id && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wider">Suivi du technicien</p>
+                    <TechLiveTracker orderId={selectedAppointment.order_id} />
+                  </div>
+                )}
+
                 {/* Management buttons with 24h restriction */}
                 {selectedAppointment.status === "scheduled" && (
                   <div className="pt-4 border-t border-border space-y-3">

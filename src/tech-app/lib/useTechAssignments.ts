@@ -5,6 +5,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface ExpectedEquipment {
+  id: string;
+  catalog_name: string;
+  category: string;
+  serial_number: string | null;
+  mac_address: string | null;
+  imei: string | null;
+  sku: string | null;
+  status: string;
+  account_id: string | null;
+  order_id: string | null;
+}
+
 export interface TechAssignment {
   id: string;
   order_id: string | null;
@@ -18,6 +31,7 @@ export interface TechAssignment {
   coaxial_notes: string | null;
   installation_steps: any[];
   equipment_scanned: any[];
+  installation_photos: any[];
   network_test_results: Record<string, any>;
   download_speed: number | null;
   upload_speed: number | null;
@@ -25,6 +39,8 @@ export interface TechAssignment {
   signal_strength: number | null;
   completed_at: string | null;
   missed_at: string | null;
+  client_notified_en_route: boolean;
+  eta_text?: string | null;
   // joined fields
   order_number?: string | null;
   client_name?: string | null;
@@ -43,6 +59,11 @@ export interface TechAssignment {
   appointment_title?: string | null;
   appointment_notes?: string | null;
   appointment_address?: string | null;
+  // Pre-assigned equipment from inventory (for validation)
+  expected_equipment?: ExpectedEquipment[];
+  // Account ID for equipment update after installation
+  account_id?: string | null;
+  user_id?: string | null;
 }
 
 function normalizeServiceType(serviceType: string | undefined | null): string {
@@ -65,7 +86,7 @@ function buildAddress(order: any, appointment?: any) {
     .join(", ") || null;
 }
 
-function mapAssignment(row: any, order: any, appointment?: any, items: any[] = []): TechAssignment {
+function mapAssignment(row: any, order: any, appointment?: any, items: any[] = [], expectedEquip: ExpectedEquipment[] = []): TechAssignment {
   return {
     ...row,
     order_number: order?.order_number ?? null,
@@ -87,6 +108,9 @@ function mapAssignment(row: any, order: any, appointment?: any, items: any[] = [
     appointment_title: appointment?.title ?? null,
     appointment_notes: appointment?.internal_notes ?? null,
     appointment_address: buildAddress(order, appointment),
+    expected_equipment: expectedEquip,
+    account_id: order?.account_id ?? null,
+    user_id: order?.user_id ?? null,
   } as TechAssignment;
 }
 
@@ -111,10 +135,10 @@ export function useTechAssignments() {
       const orderIds = Array.from(new Set(rows.map((r) => r.order_id).filter(Boolean))) as string[];
       if (orderIds.length === 0) return rows as TechAssignment[];
 
-      const [{ data: orders }, { data: appointments }, { data: orderItems }] = await Promise.all([
+      const [{ data: orders }, { data: appointments }, { data: orderItems }, { data: equipmentItems }] = await Promise.all([
         supabase
         .from("orders")
-        .select("id, order_number, service_type, category, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_postal_code, user_id, fulfillment_type, equipment_details, selected_channels")
+        .select("id, order_number, service_type, category, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_postal_code, user_id, account_id, fulfillment_type, equipment_details, selected_channels")
         .in("id", orderIds),
         supabase
           .from("appointments")
@@ -125,6 +149,10 @@ export function useTechAssignments() {
           .select("id, order_id, item_number, service_type, plan_code, plan_name, description, quantity, is_recurring, fulfillment_type, metadata")
           .in("order_id", orderIds)
           .order("item_number", { ascending: true }),
+        supabase
+          .from("equipment_inventory")
+          .select("id, catalog_name, category, serial_number, mac_address, imei, sku, status, account_id, order_id")
+          .in("order_id", orderIds),
       ]);
 
       const map = new Map((orders ?? []).map((o: any) => [o.id, o]));
@@ -135,7 +163,14 @@ export function useTechAssignments() {
         list.push(item);
         itemsByOrder.set(item.order_id, list);
       });
-      return rows.map((r) => mapAssignment(r, map.get(r.order_id), appointmentMap.get(r.order_id), itemsByOrder.get(r.order_id) ?? []));
+      const equipByOrder = new Map<string, ExpectedEquipment[]>();
+      (equipmentItems ?? []).forEach((item: any) => {
+        if (!item.order_id) return;
+        const list = equipByOrder.get(item.order_id) ?? [];
+        list.push(item as ExpectedEquipment);
+        equipByOrder.set(item.order_id, list);
+      });
+      return rows.map((r) => mapAssignment(r, map.get(r.order_id), appointmentMap.get(r.order_id), itemsByOrder.get(r.order_id) ?? [], equipByOrder.get(r.order_id) ?? []));
     },
   });
 }
@@ -156,10 +191,10 @@ export function useTechAssignment(id: string | undefined) {
       const r = data as any;
       if (!r?.order_id) return r as TechAssignment;
 
-      const [{ data: o }, { data: appointment }, { data: orderItems }] = await Promise.all([
+      const [{ data: o }, { data: appointment }, { data: orderItems }, { data: equipmentItems }] = await Promise.all([
         supabase
         .from("orders")
-        .select("id, order_number, service_type, category, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_postal_code, total_amount, fulfillment_type, equipment_details, selected_channels")
+        .select("id, order_number, service_type, category, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_postal_code, total_amount, user_id, account_id, fulfillment_type, equipment_details, selected_channels")
         .eq("id", r.order_id)
         .maybeSingle(),
         supabase
@@ -174,9 +209,13 @@ export function useTechAssignment(id: string | undefined) {
           .select("id, order_id, item_number, service_type, plan_code, plan_name, description, quantity, is_recurring, fulfillment_type, metadata")
           .eq("order_id", r.order_id)
           .order("item_number", { ascending: true }),
+        supabase
+          .from("equipment_inventory")
+          .select("id, catalog_name, category, serial_number, mac_address, imei, sku, status, account_id, order_id")
+          .eq("order_id", r.order_id),
       ]);
 
-      return mapAssignment(r, o, appointment, orderItems ?? []);
+      return mapAssignment(r, o, appointment, orderItems ?? [], (equipmentItems ?? []) as ExpectedEquipment[]);
     },
   });
 }
