@@ -1,12 +1,11 @@
 name: Deploy Supabase Edge Functions
 
 on:
-  workflow_dispatch:        # Manuel seulement — déclencher après upgrade Pro Supabase
-  # push sur main réactivé après upgrade Pro (2026-06-14)
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - 'supabase/functions/**'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
 
 jobs:
   deploy:
