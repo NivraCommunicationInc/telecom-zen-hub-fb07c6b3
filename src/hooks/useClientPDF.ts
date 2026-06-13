@@ -11,7 +11,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { portalClient } from "@/integrations/backend/portalClient";
 
-export type PDFDocType = "invoice" | "receipt" | "contract" | "summary";
+export type PDFDocType = "invoice" | "receipt" | "contract" | "summary" | "dossier" | "kyc-watermarked";
 
 interface PDFState {
   loading: boolean;
@@ -158,9 +158,34 @@ export function useClientPDF() {
     }
   }, []);
 
+  /**
+   * Download the merged client dossier (contrat + 3 factures + sommaire).
+   * No `id` required — the edge function resolves documents from the JWT.
+   */
+  const downloadDossier = useCallback(async () => {
+    setState({ loading: true, error: null });
+    try {
+      const token = await getPortalToken();
+      if (!token) throw new Error("Vous devez être connecté pour télécharger votre dossier.");
+
+      // For "dossier" type, id is unused by the server but required by the shape
+      const result = await downloadServerPDF("dossier", "dossier", token);
+      if (!result.success) throw new Error(result.error);
+
+      toast.success("Dossier client téléchargé");
+    } catch (e: any) {
+      const msg = e.message || "Erreur lors de la génération du dossier";
+      setState((s) => ({ ...s, error: msg }));
+      toast.error(msg);
+    } finally {
+      setState((s) => ({ ...s, loading: false }));
+    }
+  }, []);
+
   return {
     download,
     view,
+    downloadDossier,
     loading: state.loading,
     error: state.error,
   };

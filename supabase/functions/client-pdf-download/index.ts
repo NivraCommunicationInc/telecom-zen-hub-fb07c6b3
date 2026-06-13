@@ -11,6 +11,9 @@
  * Returns: binary PDF with Content-Type: application/pdf
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import jsPDFModule from "npm:jspdf@2.5.2";
+const jsPDF = (jsPDFModule as any).default || jsPDFModule;
+
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import {
   buildInvoicePdfAttachment,
@@ -18,12 +21,63 @@ import {
   buildContractPdfAttachment,
   buildSummaryPdfAttachment,
 } from "../_shared/pdfFromDb.ts";
+import { b64ToBytes, addWatermarkToPdf } from "../_shared/pdfMerge.ts";
 
 const SUPABASE_URL        = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY            = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-type DocType = "invoice" | "receipt" | "contract" | "summary";
+// ── type "dossier" is handled by the standalone client-dossier-pdf function ──
+// ── type "kyc-watermarked" wraps an id-documents image as a stamped PDF ──
+type DocType = "invoice" | "receipt" | "contract" | "summary" | "kyc-watermarked";
+
+// ── Generate a watermarked PDF wrapper around a KYC image ──────────────────
+async function buildKycWatermarkedPdf(
+  admin: ReturnType<typeof createClient>,
+  storagePath: string,
+  watermarkText: string,
+): Promise<Uint8Array | null> {
+  // Download image from id-documents bucket
+  const { data: fileData, error } = await admin.storage
+    .from("id-documents")
+    .download(storagePath);
+  if (error || !fileData) {
+    console.warn("[client-pdf-download] KYC image not found:", storagePath, error?.message);
+    return null;
+  }
+
+  const buf = await fileData.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+
+  // Build a jsPDF page with the image
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, H = 297;
+
+  // Determine image type from extension
+  const ext = storagePath.split(".").pop()?.toLowerCase() ?? "jpg";
+  const imgFormat = ext === "png" ? "PNG" : "JPEG";
+
+  // Convert Uint8Array to data URL
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + CHUNK)));
+  }
+  const dataUrl = `data:image/${ext === "png" ? "png" : "jpeg"};base64,${btoa(binary)}`;
+
+  // Embed image centered on page with margins
+  doc.addImage(dataUrl, imgFormat, 10, 20, W - 20, H - 50);
+
+  // Footer metadata
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Source: ${storagePath}`, 10, H - 8);
+
+  const pdfBytes = new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
+
+  // Apply watermark using pdf-lib
+  return addWatermarkToPdf(pdfBytes, watermarkText);
+}
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -63,7 +117,30 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!["invoice","receipt","contract","summary"].includes(type)) {
+  // "dossier" is served by client-dossier-pdf — forward with same auth
+  if (type === ("dossier" as DocType)) {
+    const dossierId = `${SUPABASE_URL}/functions/v1/client-dossier-pdf`;
+    const fwd = await fetch(dossierId, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    const fwdBody = await fwd.arrayBuffer();
+    return new Response(fwdBody, {
+      status: fwd.status,
+      headers: {
+        ...cors,
+        "Content-Type": fwd.headers.get("Content-Type") ?? "application/pdf",
+        "Content-Disposition": fwd.headers.get("Content-Disposition") ?? "",
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+
+  if (!["invoice","receipt","contract","summary","kyc-watermarked"].includes(type)) {
     return new Response(JSON.stringify({ error: "Type invalide" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
@@ -71,6 +148,59 @@ Deno.serve(async (req) => {
 
   /* ── 3. Verify ownership with service role ─────────────────────── */
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+  /* ── 3b. kyc-watermarked: verify the session belongs to this user ──── */
+  if (type === "kyc-watermarked") {
+    // id = identity_verification_sessions.id OR direct storage path
+    let storagePath: string | null = null;
+    let sessionUserId: string | null = null;
+
+    // Try to look up the session
+    const { data: session } = await admin
+      .from("identity_verification_sessions")
+      .select("user_id, document_paths")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (session) {
+      sessionUserId = (session as any).user_id ?? null;
+      const paths = (session as any).document_paths;
+      storagePath = Array.isArray(paths) && paths.length > 0 ? paths[0] : null;
+    }
+
+    if (!sessionUserId || sessionUserId !== user.id) {
+      return new Response(JSON.stringify({ error: "Accès refusé" }), {
+        status: 403, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!storagePath) {
+      return new Response(JSON.stringify({ error: "Document KYC introuvable" }), {
+        status: 404, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    const dateStamp = new Date().toLocaleDateString("fr-CA");
+    const watermarkText = `COPIE — Nivra Telecom — ${dateStamp}`;
+    const kycPdf = await buildKycWatermarkedPdf(admin, storagePath, watermarkText);
+
+    if (!kycPdf) {
+      return new Response(JSON.stringify({ error: "Impossible de générer le PDF KYC" }), {
+        status: 500, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(kycPdf.buffer, {
+      status: 200,
+      headers: {
+        ...cors,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="KYC_Watermarked_${id.slice(0, 8)}.pdf"`,
+        "Content-Length": kycPdf.length.toString(),
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
 
   let ownerUserId: string | null = null;
   let orderId: string | null = null;

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle, ScrollText, FileSpreadsheet } from "lucide-react";
+import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle, ScrollText, FileSpreadsheet, FolderOpen, Loader2 } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -268,9 +268,24 @@ const ClientInvoices = () => {
         {/* Page Header */}
         <div className="rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0A0A0F 0%,#1A0A2E 60%,#0D0D1F 100%)", border: `1px solid ${D.border}`, padding: "24px 28px" }}>
           <div className="absolute rounded-full pointer-events-none" style={{ width: 300, height: 300, top: -80, right: -60, background: "radial-gradient(circle, rgba(124,58,237,0.12), transparent)", filter: "blur(40px)" }} />
-          <div className="relative z-10">
-            <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: D.text }}>Mes factures</h1>
-            <p className="mt-1" style={{ color: D.textSec }}>Consultez, téléchargez et payez vos factures</p>
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: D.text }}>Mes factures</h1>
+              <p className="mt-1" style={{ color: D.textSec }}>Consultez, téléchargez et payez vos factures</p>
+            </div>
+            <Button
+              onClick={clientPDF.downloadDossier}
+              disabled={clientPDF.loading}
+              className="gap-2 shrink-0"
+              style={{ background: "#7C3AED", color: "#FFFFFF", border: "none" }}
+              title="Télécharger votre dossier complet (contrat + factures + confirmation d'activation)"
+            >
+              {clientPDF.loading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <FolderOpen className="w-4 h-4" />
+              }
+              Mon dossier complet
+            </Button>
           </div>
         </div>
 
