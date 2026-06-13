@@ -240,8 +240,8 @@ Deno.serve(async (req) => {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { data: claims, error: claimsErr } = await supabase.auth.getClaims(authHeader.slice(7));
-      if (claimsErr || !claims?.claims?.sub) {
+      const { data: { user: claimUser }, error: claimsErr } = await supabase.auth.getUser(authHeader.slice(7));
+      if (claimsErr || !claimUser?.id) {
         return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

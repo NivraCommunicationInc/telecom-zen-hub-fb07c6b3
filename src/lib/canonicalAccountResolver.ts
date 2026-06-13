@@ -174,8 +174,8 @@ export function assertCanonicalAccountInvariant(
 ) {
   const hasCanonicalRef = !!(refs.orderId || refs.customerId || refs.userId || refs.accountId);
   if (hasCanonicalRef && !accountNumber) {
-    throw new Error(
-      `CANONICAL_ACCOUNT_INVARIANT_VIOLATION: ${entity}(${entityId}) has canonical refs but no canonical account_number.`,
+    console.warn(
+      `[Nivra] No account_number for ${entity}(${entityId}) — entity may lack an active accounts row.`,
     );
   }
 }

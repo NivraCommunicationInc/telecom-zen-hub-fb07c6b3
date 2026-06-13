@@ -25,18 +25,19 @@ async function verifyAdmin(req: Request) {
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  const adminClient = createClient(supabaseUrl, supabaseAnonKey, {
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
   });
   const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsError } = await adminClient.auth.getClaims(token);
-  if (claimsError || !claimsData?.claims) return { error: "Unauthorized", status: 401 };
-  const adminUserId = claimsData.claims.sub;
+  const { data: { user }, error: claimsError } = await userClient.auth.getUser(token);
+  if (claimsError || !user) return { error: "Unauthorized", status: 401 };
+  const adminUserId = user.id;
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-  const { data: adminUser } = await serviceClient
-    .from("admin_users").select("id, is_active").eq("user_id", adminUserId).eq("is_active", true).maybeSingle();
-  if (!adminUser) return { error: "Admin access required", status: 403 };
+  const { data: roleRows } = await serviceClient
+    .from("user_roles").select("role").eq("user_id", adminUserId).eq("status", "active");
+  const isAdmin = (roleRows || []).some((r: any) => ["admin", "employee", "supervisor", "technician"].includes(r.role));
+  if (!isAdmin) return { error: "Admin access required", status: 403 };
 
   return { adminUserId, serviceClient };
 }

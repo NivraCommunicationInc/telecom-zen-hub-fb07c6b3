@@ -71,14 +71,14 @@ serve(async (req: Request): Promise<Response> => {
   });
 
   const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
-  if (claimsError || !claimsData?.claims?.sub) {
+  const { data: { user }, error: claimsError } = await anonClient.auth.getUser(token);
+  if (claimsError || !user?.id) {
     return new Response(
       JSON.stringify({ ok: false, request_id: requestId, error: "Invalid token" }),
       { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
-  const callerUserId = claimsData.claims.sub as string;
+  const callerUserId = user.id;
 
   try {
     const body: RequestBody = await req.json();

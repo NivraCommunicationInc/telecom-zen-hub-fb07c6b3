@@ -103,9 +103,9 @@ serve(async (req: Request): Promise<Response> => {
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(authHeader.slice(7));
-    if (claimsErr || !claims?.claims?.sub || claims.claims.sub !== admin_user_id) {
-      console.warn(`[${requestId}] JWT claim mismatch (claim sub=${claims?.claims?.sub}, requested=${admin_user_id})`);
+    const { data: { user: claimUser }, error: claimsErr } = await supabase.auth.getUser(authHeader.slice(7));
+    if (claimsErr || !claimUser?.id || claimUser.id !== admin_user_id) {
+      console.warn(`[${requestId}] JWT claim mismatch (claim sub=${claimUser?.id}, requested=${admin_user_id})`);
       return new Response(
         JSON.stringify({ ok: false, request_id: requestId, error: "Unauthorized" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }

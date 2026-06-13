@@ -75,14 +75,14 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
+    const { data: { user }, error: claimsError } = await authSupabase.auth.getUser(token);
+    if (claimsError || !user?.id) {
       return new Response(
         JSON.stringify({ success: false, error: "Session invalide", code: "INVALID_SESSION" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-    userId = claimsData.claims.sub as string;
+    userId = user.id;
 
     const body: CreateSubscriptionRequest = await req.json().catch(() => ({} as CreateSubscriptionRequest));
     const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
