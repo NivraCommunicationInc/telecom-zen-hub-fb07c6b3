@@ -2,12 +2,13 @@
  * HrProtectedRoute — Guards all /hr/* routes.
  * Enforces: hub session → authenticated → active role → can_access_rh → MFA verified.
  * All employees, technicians, field_sales, and admins can access the HR portal.
+ * Periodic hub session re-check every 5 min + activity tracking mirrors CoreProtectedRoute.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
-import { hasValidHubSession } from "@/lib/security/hubSession";
+import { hasValidHubSession, touchHubSession } from "@/lib/security/hubSession";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
@@ -16,11 +17,22 @@ import { isActiveStaffImpersonationForPortal } from "@/lib/staffAssistance";
 
 type State = "loading" | "authorized" | "unauthorized" | "mfa_enroll" | "mfa_verify";
 
+const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart"] as const;
+const ACTIVITY_THROTTLE_MS = 60_000;
+
 export default function HrProtectedRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const [state, setState] = useState<State>("loading");
   const [factorId, setFactorId] = useState<string | null>(null);
+  const lastActivityRef = useRef(Date.now());
+
+  const handleActivity = useCallback(() => {
+    const now = Date.now();
+    if (now - lastActivityRef.current < ACTIVITY_THROTTLE_MS) return;
+    lastActivityRef.current = now;
+    touchHubSession();
+  }, []);
 
   const requestedPath = `${location.pathname}${location.search}${location.hash}`;
   const recruitmentRedirectMap: Record<string, string> = {
@@ -33,6 +45,28 @@ export default function HrProtectedRoute() {
   const loginPortal = coreRecruitmentTarget ? "core" : "rh";
   const loginRedirect = coreRecruitmentTarget ?? requestedPath;
   const loginPath = `/nivra-secure-hub-2617-internal/login?portal=${loginPortal}&redirect=${encodeURIComponent(loginRedirect)}`;
+
+  // Periodic hub session re-check + activity tracking (post-authorization)
+  useEffect(() => {
+    if (state !== "authorized") return;
+
+    for (const evt of ACTIVITY_EVENTS) {
+      window.addEventListener(evt, handleActivity, { passive: true });
+    }
+
+    const interval = setInterval(() => {
+      if (!hasValidHubSession()) {
+        navigate(loginPath, { replace: true });
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      for (const evt of ACTIVITY_EVENTS) {
+        window.removeEventListener(evt, handleActivity);
+      }
+      clearInterval(interval);
+    };
+  }, [state, navigate, handleActivity, loginPath]);
 
   useEffect(() => {
     let mounted = true;
