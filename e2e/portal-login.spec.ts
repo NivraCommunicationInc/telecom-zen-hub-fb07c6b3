@@ -73,9 +73,9 @@ test.describe("Portail client — Connexion", () => {
     await page.goto("/portal");
     await page.waitForLoadState("networkidle");
 
-    await page.screenshot({ path: SS("login-05-redirect-auth") });
+    // Should end up on the auth page — waitForURL tolerates async React redirect in CI
+    await page.waitForURL(/\/portal\/auth/, { timeout: 15_000 });
 
-    // Should end up on the auth page (not the dashboard)
-    await expect(page).toHaveURL(/\/portal\/auth/);
+    await page.screenshot({ path: SS("login-05-redirect-auth") });
   });
 });

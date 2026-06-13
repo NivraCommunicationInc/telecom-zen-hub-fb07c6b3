@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -40,8 +40,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Ensure screenshots directory exists
+        run: mkdir -p e2e/screenshots
+
       - name: Run E2E portal regression suite
-        run: npx playwright test e2e/portal-login.spec.ts e2e/portal-change-plan.spec.ts e2e/portal-paypal-payment.spec.ts e2e/portal-invoice-pdf.spec.ts e2e/portal-idle-logout.spec.ts
+        run: npx playwright test --reporter=html e2e/portal-login.spec.ts e2e/portal-change-plan.spec.ts e2e/portal-paypal-payment.spec.ts e2e/portal-invoice-pdf.spec.ts e2e/portal-idle-logout.spec.ts
         env:
           CI: true
           PLAYWRIGHT_BASE_URL: http://localhost:8080
