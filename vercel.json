@@ -1,5 +1,6 @@
 {
   "buildCommand": "npm run build",
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- src/",
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
