@@ -91,6 +91,22 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, svcKey);
 
+  // ── Ensure "reports" bucket exists (idempotent) ────────────────────────────
+  await supabase.storage.createBucket("reports", {
+    public: false,
+    fileSizeLimit: 52_428_800,
+    allowedMimeTypes: [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/pdf",
+      "text/csv",
+    ],
+  }).then(({ error }) => {
+    // "Bucket already exists" is not a real error
+    if (error && !error.message.includes("already exists")) {
+      console.warn("Bucket creation warning:", error.message);
+    }
+  });
+
   // ── Determine report month ─────────────────────────────────────────────────
   const url = new URL(req.url);
   const monthParam = url.searchParams.get("month"); // optional YYYY-MM
