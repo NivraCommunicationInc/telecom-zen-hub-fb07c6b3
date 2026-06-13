@@ -54,7 +54,7 @@ async function checkEndpoint(ep: EndpointDef): Promise<{
       http_status: res.status,
       error_message: is_up ? null : `HTTP ${res.status}`,
     };
-  } catch (err: unknown) {
+  } catch (err) {
     return {
       endpoint_name: ep.name,
       endpoint_url: ep.url,

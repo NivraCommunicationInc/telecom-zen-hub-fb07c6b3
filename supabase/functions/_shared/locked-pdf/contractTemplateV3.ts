@@ -1,10 +1,10 @@
-/**
- * Nivra Contract Template V5.0 — Telecom-Grade Professional Standard
+﻿/**
+ * Nivra Contract Template V5.0 â€” Telecom-Grade Professional Standard
  * 
- * 4-page contract with integrated modalités:
+ * 4-page contract with integrated modalitÃ©s:
  * Page 1: Header + Client ID + Financial Summary
  * Page 2: Services & Equipment + Conditions 1-5
- * Page 3: Conditions 6-12 (Modalités intégrées)
+ * Page 3: Conditions 6-12 (ModalitÃ©s intÃ©grÃ©es)
  * Page 4: Signatures + Legal Notice
  */
 
@@ -77,7 +77,7 @@ export interface ContractDataV3 {
     unit_price: number;
   }>;
 
-  // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
+  // Field-sales attribution (ADD-ONLY â€” only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
   agent_number?: string;
@@ -100,13 +100,13 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "—";
+  if (!dateStr) return "â€”";
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "—";
+  return "â€”";
 };
 
 const NAVY = [30, 64, 120] as const;
@@ -194,7 +194,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     const totalPages = 4;
 
     // ===================================================================
-    // PAGE 1 — IDENTIFICATION & SOMMAIRE FINANCIER
+    // PAGE 1 â€” IDENTIFICATION & SOMMAIRE FINANCIER
     // ===================================================================
     drawHeader(doc, data.contract_number, "Identification");
 
@@ -220,29 +220,29 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     labelStyle(); doc.text("Nom complet", col1, y);
     labelStyle(); doc.text("No de compte", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_name || "—", col1, y);
+    valueStyle(); doc.text(data.client_name || "â€”", col1, y);
     valueStyle(); doc.text(data.account_number, col2, y); y += 6;
 
     labelStyle(); doc.text("Courriel", col1, y);
     labelStyle(); doc.text("No de commande", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_email || "—", col1, y);
+    valueStyle(); doc.text(data.client_email || "â€”", col1, y);
     valueStyle(); doc.text(data.order_number, col2, y); y += 6;
 
     labelStyle(); doc.text("Telephone", col1, y);
     labelStyle(); doc.text("Methode de paiement", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_phone || "—", col1, y);
-    valueStyle(); doc.text(data.payment_method === "card" ? "Carte de credit" : data.payment_method === "paypal" ? "PayPal" : data.payment_method || "—", col2, y); y += 6;
+    valueStyle(); doc.text(data.client_phone || "â€”", col1, y);
+    valueStyle(); doc.text(data.payment_method === "card" ? "Carte de credit" : data.payment_method === "paypal" ? "PayPal" : data.payment_method || "â€”", col2, y); y += 6;
 
     labelStyle(); doc.text("Adresse de facturation", col1, y);
     labelStyle(); doc.text("Adresse de service", col2, y); y += 4;
     valueStyle();
-    const billParts = doc.splitTextToSize(data.billing_address || "—", 85);
+    const billParts = doc.splitTextToSize(data.billing_address || "â€”", 85);
     doc.text(billParts, col1, y);
-    const svcParts = doc.splitTextToSize(data.service_address || "—", 85);
+    const svcParts = doc.splitTextToSize(data.service_address || "â€”", 85);
     doc.text(svcParts, col2, y);
     y += Math.max(billParts.length, svcParts.length) * 4 + 6;
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional)
     if (data.sale_source === "field_sales" && (data.agent_name || data.agent_number)) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
@@ -252,8 +252,8 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${data.agent_name || "—"}`, 17, y); y += 4;
-      doc.text(`Badge : ${data.agent_number || "—"}`, 17, y); y += 4;
+      doc.text(`Nom : ${data.agent_name || "â€”"}`, 17, y); y += 4;
+      doc.text(`Badge : ${data.agent_number || "â€”"}`, 17, y); y += 4;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
       doc.setTextColor(0, 0, 0);
     }
@@ -364,7 +364,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawFooter(doc, 1, totalPages);
 
     // ===================================================================
-    // PAGE 2 — CONDITIONS GENERALES (1-5)
+    // PAGE 2 â€” CONDITIONS GENERALES (1-5)
     // ===================================================================
     doc.addPage();
     drawHeader(doc, data.contract_number, "Conditions generales");
@@ -403,7 +403,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
     if (data.has_discount && Array.isArray(data.discount_lines) && data.discount_lines.length > 0) {
       for (const dl of data.discount_lines) {
-        y = bulletClause(doc, `${dl.description} — ${fmt(dl.unit_price)}/mois`, y);
+        y = bulletClause(doc, `${dl.description} â€” ${fmt(dl.unit_price)}/mois`, y);
       }
       y = bulletClause(doc, "Cette promotion s'applique uniquement aux elements et a la duree specifies dans l'offre.", y);
     } else if (data.discount_amount > 0) {
@@ -418,7 +418,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawFooter(doc, 2, totalPages);
 
     // ===================================================================
-    // PAGE 3 — MODALITES (6-12)
+    // PAGE 3 â€” MODALITES (6-12)
     // ===================================================================
     doc.addPage();
     drawHeader(doc, data.contract_number, "Modalites de service");
@@ -429,7 +429,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = bulletClause(doc, "Apres cinq (5) jours de retard (J+5), le service est suspendu. La facture demeure en souffrance et le client dispose d'un delai de reactivation de cinq (5) jours supplementaires.", y);
     y = bulletClause(doc, "Apres dix (10) jours de retard (J+10), la facture est annulee et aucune dette n'est portee au dossier. La reactivation requiert un nouveau cycle de paiement.", y);
     y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours apres suspension. Apres 90 jours, le numero peut devenir irrecuperable.", y);
-    y = bulletClause(doc, "Exception — Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
+    y = bulletClause(doc, "Exception â€” Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
     y += 3;
 
     y = sectionTitle(doc, 7, "RESILIATION", y);
@@ -473,7 +473,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawFooter(doc, 3, totalPages);
 
     // ===================================================================
-    // PAGE 4 — SIGNATURES & AVIS LEGAL
+    // PAGE 4 â€” SIGNATURES & AVIS LEGAL
     // ===================================================================
     doc.addPage();
     drawHeader(doc, data.contract_number, "Signatures");
@@ -532,7 +532,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
-    doc.text(data.client_name || "—", 15, y);
+    doc.text(data.client_name || "â€”", 15, y);
     doc.text(data.admin_signature_name || "Representant autorise", 110, y);
     y += 5;
 
@@ -580,7 +580,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       blob,
       filename: `Contrat_${data.contract_number}_Nivra.pdf`,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[ContractV5] Generation error:", error);
     return { success: false, error: error?.message || "Erreur de generation" };
   }

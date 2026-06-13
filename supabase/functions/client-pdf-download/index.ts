@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     type = body.type;
     id   = body.id;
     if (!type || !id) throw new Error("missing type or id");
-  } catch {
+  } catch (_e) {
     return new Response(JSON.stringify({ error: "Paramètres manquants: type et id requis" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });

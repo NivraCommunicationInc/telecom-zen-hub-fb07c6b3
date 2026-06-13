@@ -1,4 +1,4 @@
-// Client account admin actions — used by Core & OneView CS portals.
+﻿// Client account admin actions â€” used by Core & OneView CS portals.
 // All client-facing emails go through email_queue + Violet Bold corporate
 // template (customQueueTemplates). Never sends raw default Supabase emails.
 //
@@ -61,7 +61,7 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json(401, { error: "Non autorisé" });
+  if (!authHeader) return json(401, { error: "Non autorisÃ©" });
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
@@ -80,13 +80,13 @@ serve(async (req) => {
     .eq("user_id", user.id);
   const allowedRoles = new Set(["admin", "employee", "agent", "manager", "core_admin", "super_admin", "supervisor"]);
   const { isStaff } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Réservé au personnel autorisé" });
+  if (!isStaff) return json(403, { error: "RÃ©servÃ© au personnel autorisÃ©" });
   // Admin gate for sensitive actions (email change, etc.)
   const adminRoles = new Set(["admin", "core_admin", "super_admin"]);
   const isAdmin = (roles || []).some((r: any) => adminRoles.has(r.role));
 
   let body: Body;
-  try { body = await req.json(); } catch { return json(400, { error: "Body invalide" }); }
+  try { body = await req.json(); } catch (_e) { return json(400, { error: "Body invalide" }); }
   if (!body?.action) return json(400, { error: "Action requise" });
 
   // Resolve target user
@@ -111,7 +111,7 @@ serve(async (req) => {
     return json(400, { error: "Email client requis" });
   }
 
-  // First name lookup (best-effort) — used for personalised template
+  // First name lookup (best-effort) â€” used for personalised template
   let firstName = "";
   try {
     if (targetId) {
@@ -159,7 +159,7 @@ serve(async (req) => {
       template_vars: { first_name: firstName, ...vars },
       status: "queued",
     });
-    if (error) throw new Error(`Échec mise en file courriel: ${error.message}`);
+    if (error) throw new Error(`Ã‰chec mise en file courriel: ${error.message}`);
   };
 
   const genRecoveryLink = async (email: string) => {
@@ -169,7 +169,7 @@ serve(async (req) => {
       options: { redirectTo: `${origin}/portal/reset-password` },
     });
     if (error || !data?.properties?.action_link) {
-      throw new Error(error?.message || "Lien de réinitialisation indisponible");
+      throw new Error(error?.message || "Lien de rÃ©initialisation indisponible");
     }
     return data.properties.action_link as string;
   };
@@ -185,7 +185,7 @@ serve(async (req) => {
           portal_label: "votre espace client Nivra",
         });
         await audit("password_reset_sent", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Courriel de réinitialisation envoyé" });
+        return json(200, { success: true, message: "Courriel de rÃ©initialisation envoyÃ©" });
       }
 
       case "send_invite": {
@@ -204,7 +204,7 @@ serve(async (req) => {
           email: targetEmail,
         });
         await audit("invite_sent", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Invitation envoyée au client" });
+        return json(200, { success: true, message: "Invitation envoyÃ©e au client" });
       }
 
       case "force_confirm_email": {
@@ -212,7 +212,7 @@ serve(async (req) => {
         const { error } = await admin.auth.admin.updateUserById(targetId, { email_confirm: true });
         if (error) throw error;
         await audit("email_confirmed", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Courriel confirmé" });
+        return json(200, { success: true, message: "Courriel confirmÃ©" });
       }
 
       case "change_email": {
@@ -234,7 +234,7 @@ serve(async (req) => {
           return json(400, { error: "Motif obligatoire pour changement de courriel" });
         }
 
-        // Notify OLD address first — this is the protection against hijack.
+        // Notify OLD address first â€” this is the protection against hijack.
         // If a staff member is acting maliciously, the real owner gets warned.
         await queueEmail("client_email_changed_warning_old", oldEmail, {
           old_email: oldEmail,
@@ -258,7 +258,7 @@ serve(async (req) => {
           reason: String(body.reason).trim(),
           changed_by: user.id,
         }, true);
-        return json(200, { success: true, message: "Courriel mis à jour. L'ancienne adresse a été notifiée." });
+        return json(200, { success: true, message: "Courriel mis Ã  jour. L'ancienne adresse a Ã©tÃ© notifiÃ©e." });
       }
 
       case "force_logout": {
@@ -266,7 +266,7 @@ serve(async (req) => {
         const { error } = await admin.auth.admin.signOut(targetId);
         if (error) throw error;
         await audit("force_logout", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Sessions du client révoquées" });
+        return json(200, { success: true, message: "Sessions du client rÃ©voquÃ©es" });
       }
 
       case "set_temporary_password": {
@@ -275,7 +275,7 @@ serve(async (req) => {
         const { error } = await admin.auth.admin.updateUserById(targetId, { password: np });
         if (error) throw error;
         await audit("temp_password_set", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Mot de passe temporaire défini", temporary_password: np });
+        return json(200, { success: true, message: "Mot de passe temporaire dÃ©fini", temporary_password: np });
       }
 
       case "resend_welcome": {
@@ -283,13 +283,13 @@ serve(async (req) => {
           email: targetEmail,
         });
         await audit("welcome_resent", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Courriel de bienvenue renvoyé" });
+        return json(200, { success: true, message: "Courriel de bienvenue renvoyÃ©" });
       }
 
       default:
         return json(400, { error: "Action inconnue" });
     }
-  } catch (e: any) {
+  } catch (e) {
     console.error("[client-account-admin] error", e);
     await audit(body.action, { error: e?.message || String(e) }, false);
     return json(500, { error: e?.message || "Erreur inattendue" });

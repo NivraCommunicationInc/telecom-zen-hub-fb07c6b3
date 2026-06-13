@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       if (body.dry_run === true) {
         dryRun = true;
       }
-    } catch {
+    } catch (_e) {
       // No body or invalid JSON, use defaults
     }
 

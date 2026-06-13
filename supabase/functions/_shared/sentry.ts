@@ -53,7 +53,7 @@ function parseDsn(dsn: string): SentryDsnParts | null {
       host: u.host,
       projectId,
     };
-  } catch {
+  } catch (_e) {
     return null;
   }
 }
@@ -94,7 +94,7 @@ function serializeError(err: unknown): {
   }
   try {
     return { type: "Error", value: JSON.stringify(err) };
-  } catch {
+  } catch (_e) {
     return { type: "Error", value: String(err) };
   }
 }

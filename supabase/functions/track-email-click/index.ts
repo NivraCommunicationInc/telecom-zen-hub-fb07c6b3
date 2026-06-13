@@ -33,7 +33,7 @@ serve(async (req) => {
     if (target.protocol !== "https:" && target.protocol !== "http:") {
       throw new Error("invalid protocol");
     }
-  } catch {
+  } catch (_e) {
     return new Response("Invalid url", { status: 400, headers: corsHeaders });
   }
 
@@ -72,7 +72,7 @@ serve(async (req) => {
               p_field: "total_clicked",
               p_increment: 1,
             });
-          } catch { /* ignore */ }
+          } catch (_e) { /* ignore */ }
         }
       }
     }

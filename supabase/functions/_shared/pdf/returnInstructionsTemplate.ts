@@ -1,5 +1,5 @@
-/**
- * Return Instructions — Instructions de retour d'equipement.
+﻿/**
+ * Return Instructions â€” Instructions de retour d'equipement.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -19,7 +19,7 @@ export interface ReturnInstructionsData {
   return_postal: string;
   items: Array<{ description: string; serial_number?: string; }>;
   non_return_fee: number;         // ex: 60$ par borne, 50$ par terminal, 30$ SIM
-  return_method?: string;         // "Postes Canada — etiquette prepayee fournie"
+  return_method?: string;         // "Postes Canada â€” etiquette prepayee fournie"
   rma_number?: string;
 }
 
@@ -75,7 +75,7 @@ export function generateReturnInstructionsPDF(data: ReturnInstructionsData): PDF
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Instructions_Retour_${data.instruction_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

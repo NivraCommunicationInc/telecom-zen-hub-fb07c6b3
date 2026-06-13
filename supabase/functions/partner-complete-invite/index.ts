@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       influencer_id: influencer.id,
     });
 
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
     console.error("[partner-complete-invite] Unexpected error:", error);
     return jsonResponse({ ok: false, code: "SERVER_ERROR", message: errorMessage });

@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+﻿import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -105,14 +105,14 @@ Deno.serve(async (req) => {
       await admin.from("employee_notifications").insert({
         user_id: (data as any).agent_id,
         notification_type: "system",
-        title: "Commission approuvée",
-        message: `Une commission de ${(data as any).amount}$ a été approuvée.`,
+        title: "Commission approuvÃ©e",
+        message: `Une commission de ${(data as any).amount}$ a Ã©tÃ© approuvÃ©e.`,
         is_read: false,
       } as any);
     }
 
     return respond({ ok: true, data });
-  } catch (e: any) {
+  } catch (e) {
     return respond({ ok: false, error: e?.message || "Internal error" });
   }
 });

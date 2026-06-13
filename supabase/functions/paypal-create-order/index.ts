@@ -11,7 +11,7 @@ const corsHeaders = {
 function parseJsonSafe(raw: string): any | null {
   try {
     return JSON.parse(raw);
-  } catch {
+  } catch (_e) {
     return null;
   }
 }
@@ -330,7 +330,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[PayPal] Error:", error);
     reportEdgeError(error, { function: "paypal-create-order" }).catch(() => {});
 

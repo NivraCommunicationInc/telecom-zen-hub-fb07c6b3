@@ -276,7 +276,7 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[PayPalVerify] Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),

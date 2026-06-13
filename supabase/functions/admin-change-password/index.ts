@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
@@ -31,7 +31,7 @@ serve(async (req: Request) => {
     if (!authHeader) {
       console.error("[admin-change-password] No authorization header");
       return new Response(
-        JSON.stringify({ error: "Non autorisé" }),
+        JSON.stringify({ error: "Non autorisÃ©" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -67,7 +67,7 @@ serve(async (req: Request) => {
     if (roleError || !roleData) {
       console.error("[admin-change-password] Not admin:", roleError);
       return new Response(
-        JSON.stringify({ error: "Accès réservé aux administrateurs" }),
+        JSON.stringify({ error: "AccÃ¨s rÃ©servÃ© aux administrateurs" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -78,7 +78,7 @@ serve(async (req: Request) => {
     // Validate new password requirements
     if (!newPassword || newPassword.length < 12) {
       return new Response(
-        JSON.stringify({ error: "Le mot de passe doit contenir au moins 12 caractères" }),
+        JSON.stringify({ error: "Le mot de passe doit contenir au moins 12 caractÃ¨res" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -92,7 +92,7 @@ serve(async (req: Request) => {
 
     if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(newPassword)) {
       return new Response(
-        JSON.stringify({ error: "Le mot de passe doit contenir au moins un caractère spécial" }),
+        JSON.stringify({ error: "Le mot de passe doit contenir au moins un caractÃ¨re spÃ©cial" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -163,11 +163,11 @@ serve(async (req: Request) => {
     console.log("[admin-change-password] Password changed successfully for:", user.email);
 
     return new Response(
-      JSON.stringify({ success: true, message: "Mot de passe changé avec succès" }),
+      JSON.stringify({ success: true, message: "Mot de passe changÃ© avec succÃ¨s" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("[admin-change-password] Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "Erreur inattendue" }),

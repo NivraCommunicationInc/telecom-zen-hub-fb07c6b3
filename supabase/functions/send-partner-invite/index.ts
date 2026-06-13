@@ -387,7 +387,7 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ success: true, email_sent: true }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[send-partner-invite] Unexpected error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(

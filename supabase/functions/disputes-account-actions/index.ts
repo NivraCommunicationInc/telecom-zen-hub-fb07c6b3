@@ -132,7 +132,7 @@ serve(async (req) => {
         ip_address: ip,
         details: payload,
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const enqueueStatusEmail = async (
@@ -158,7 +158,7 @@ serve(async (req) => {
         status: "queued",
         priority: 0,
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const updateDispute = async (

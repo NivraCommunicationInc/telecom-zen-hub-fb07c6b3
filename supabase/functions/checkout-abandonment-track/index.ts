@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
   if (!RESEND_KEY) return json({ ok: false, error: "RESEND_API_KEY not configured" }, 500);
 
   let body: Body;
-  try { body = await req.json(); } catch { return json({ ok: false, error: "invalid_json" }, 400); }
+  try { body = await req.json(); } catch (_e) { return json({ ok: false, error: "invalid_json" }, 400); }
 
   // ── CANCEL ───────────────────────────────────────────────────────────────
   if (body.action === "cancel") {

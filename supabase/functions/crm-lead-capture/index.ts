@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
   let body: Body;
   try {
     body = await req.json();
-  } catch {
+  } catch (_e) {
     return json({ ok: false, error: "invalid_json" }, 400);
   }
 
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       identifier: ip,
       action_type: "crm-lead-capture",
     });
-  } catch {
+  } catch (_e) {
     // rate_limits table is best-effort; if it's missing, do not block lead capture.
   }
 
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
       status: "queued",
       priority: 0,
     });
-  } catch {/* non-blocking */}
+  } catch (_e) {/* non-blocking */}
 
   // Audit
   try {
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
         ip,
       },
     });
-  } catch {/* non-blocking */}
+  } catch (_e) {/* non-blocking */}
 
   return json({ ok: true, accepted: true, contact_id: contactId });
 });

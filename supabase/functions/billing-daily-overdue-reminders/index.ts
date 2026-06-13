@@ -146,7 +146,7 @@ serve(async (req) => {
       success: true, date: today, queued, skipped, total_unpaid: list.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : JSON.stringify(err);
     console.error("[reminders] error:", msg);
     return new Response(JSON.stringify({ error: msg }), {

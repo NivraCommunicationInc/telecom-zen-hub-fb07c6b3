@@ -262,7 +262,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[PayPal Charge] Error:", error);
     reportEdgeError(error, { function: "paypal-charge-subscription" }).catch(() => {});
     return new Response(

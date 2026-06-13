@@ -421,7 +421,7 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     // Robust error serialization. Previous version produced "[object Object]"
     // when a Supabase PostgrestError (`{ message, code, details, hint }`) was
     // thrown bare via `throw createCustomerError`, because its `.toString()`
@@ -456,7 +456,7 @@ serve(async (req) => {
         // Fall back to a structured string the operator can read in logs.
         try {
           msg = JSON.stringify(payload);
-        } catch {
+        } catch (_e) {
           msg = Object.entries(payload)
             .map(([k, v]) => `${k}=${String(v)}`)
             .join(" | ") || "Unhandled error";
@@ -478,7 +478,7 @@ serve(async (req) => {
         user_id: userId,
         serialized: errPayload,
       }).catch(() => {});
-    } catch {
+    } catch (_e) {
       /* sentry import failed — ignore */
     }
 

@@ -1,6 +1,6 @@
-/**
- * field-pricing-quote — Server-side pricing engine for field sales.
- * Computes totals, taxes, discounts — single source of truth.
+﻿/**
+ * field-pricing-quote â€” Server-side pricing engine for field sales.
+ * Computes totals, taxes, discounts â€” single source of truth.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       const recurringAmount = versionedPrice ? Number(versionedPrice.amount) : Number(product.price || 0);
       const oneTimeAmount = oneTimePrice ? Number(oneTimePrice.amount) : 0;
 
-      const isEquipment = product.category === "Équipement" || product.billing_type === "one_time";
+      const isEquipment = product.category === "Ã‰quipement" || product.billing_type === "one_time";
 
       if (isEquipment) {
         const total = (oneTimeAmount || recurringAmount) * item.quantity;
@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify(result), { headers });
 
-  } catch (err: any) {
+  } catch (err) {
     const status = err.status || 500;
     return new Response(JSON.stringify({ error: err.message || "Erreur serveur" }), { status, headers });
   }

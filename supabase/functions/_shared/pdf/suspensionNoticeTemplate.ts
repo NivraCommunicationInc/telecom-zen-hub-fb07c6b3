@@ -1,5 +1,5 @@
-/**
- * Suspension Notice — Avis de suspension du service.
+﻿/**
+ * Suspension Notice â€” Avis de suspension du service.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -69,7 +69,7 @@ export function generateSuspensionNoticePDF(data: SuspensionNoticeData): PDFGene
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Avis_Suspension_${data.notice_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

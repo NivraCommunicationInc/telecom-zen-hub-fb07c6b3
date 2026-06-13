@@ -122,7 +122,7 @@ serve(async (req) => {
         ip_address: ip,
         metadata: payload,
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const ivsEvent = async (session_id: string, event_type: string, details: Record<string, unknown> = {}) => {
@@ -136,7 +136,7 @@ serve(async (req) => {
         ip_address: ip,
         user_agent: ua,
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const enqueueEmail = async (template_key: string, vars: Record<string, unknown>) => {
@@ -149,7 +149,7 @@ serve(async (req) => {
         status: "queued",
         priority: 10,
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const verifyClientSession = async (session_id: string) => {

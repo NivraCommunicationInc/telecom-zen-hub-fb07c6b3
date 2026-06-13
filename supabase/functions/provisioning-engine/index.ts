@@ -181,7 +181,7 @@ async function radiusAdapter(
     }
 
     return { status: "success", message: `RADIUS ${radiusCommands[req.action]} applied` };
-  } catch (e: unknown) {
+  } catch (e) {
     return { status: "failed", message: `RADIUS adapter exception: ${e}` };
   }
 }
@@ -215,7 +215,7 @@ async function oltAdapter(
 
     if (!response.ok) return { status: "failed", message: `OLT API error ${response.status}` };
     return { status: "success", message: `OLT ONT ${req.ont_serial} ${endpoint}` };
-  } catch (e: unknown) {
+  } catch (e) {
     return { status: "failed", message: `OLT exception: ${e}` };
   }
 }
@@ -368,7 +368,7 @@ serve(async (req) => {
 
     const result = await executeProvisioning(supabase, body);
     return json(result.success || result.status === "queued_manual" ? 200 : 500, result);
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[provisioning-engine] Error:", msg);
     return json(500, { error: msg });

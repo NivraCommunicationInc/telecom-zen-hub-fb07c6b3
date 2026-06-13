@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
   let payload: ScoreRequest;
   try {
     payload = (await req.json()) as ScoreRequest;
-  } catch {
+  } catch (_e) {
     return json({ error: "Invalid JSON" }, 400);
   }
 

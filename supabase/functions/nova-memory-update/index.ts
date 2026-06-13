@@ -103,7 +103,7 @@ Règles:
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     let parsed: any;
-    try { parsed = JSON.parse(jsonMatch[0]); } catch {
+    try { parsed = JSON.parse(jsonMatch[0]); } catch (_e) {
       return new Response(JSON.stringify({ ok: true, insights: 0, parse_error: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

@@ -84,7 +84,7 @@ serve(async (req) => {
         search = body.search || null;
         limit = parseInt(body.limit) || 50;
         offset = parseInt(body.offset) || 0;
-      } catch {
+      } catch (_e) {
         // Ignore parse errors
       }
     } else {
@@ -147,7 +147,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("admin-web-form-list error:", message);
 

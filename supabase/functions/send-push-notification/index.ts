@@ -1,4 +1,4 @@
-// Send Web Push notifications to subscribed users via VAPID.
+﻿// Send Web Push notifications to subscribed users via VAPID.
 // Body: { user_ids?: string[], roles?: string[], title, body, url?, tag?, data? }
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
           payload
         );
         sent++;
-      } catch (err: any) {
+      } catch (err) {
         failed++;
         if (err?.statusCode === 404 || err?.statusCode === 410) removeIds.push(s.id);
       }
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ sent, failed, deactivated: removeIds.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("send-push error", e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

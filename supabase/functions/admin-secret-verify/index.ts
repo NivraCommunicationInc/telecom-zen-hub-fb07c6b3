@@ -321,7 +321,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`[${requestId}] Error:`, errorMessage);
     

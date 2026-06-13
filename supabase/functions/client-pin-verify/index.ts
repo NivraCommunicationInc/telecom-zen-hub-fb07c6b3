@@ -229,7 +229,7 @@ serve(async (req) => {
       JSON.stringify({ valid: true, request_id: requestId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`[client-pin-verify][${requestId}] Unexpected error:`, error);
     return new Response(

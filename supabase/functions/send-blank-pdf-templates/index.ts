@@ -304,7 +304,7 @@ serve(async (req: Request): Promise<Response> => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[send-blank-pdf-templates] Error:", error);
     const message = error instanceof Error ? error.message : String(error);
     return new Response(

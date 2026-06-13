@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { queueRenderedEmail } from "../_shared/templateRenderer.ts";
 
 const corsHeaders = {
@@ -19,8 +19,8 @@ interface CancellationEmailData {
 }
 
 const serviceTypeLabels: Record<string, string> = {
-  mobile: "Mobile", internet: "Internet", tv: "Télévision",
-  security: "Sécurité", streaming: "Streaming", bundle: "Forfait combiné",
+  mobile: "Mobile", internet: "Internet", tv: "TÃ©lÃ©vision",
+  security: "SÃ©curitÃ©", streaming: "Streaming", bundle: "Forfait combinÃ©",
 };
 
 serve(async (req) => {
@@ -56,7 +56,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true, queued: true, template: data.template }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(`[${requestId}] Error:`, error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

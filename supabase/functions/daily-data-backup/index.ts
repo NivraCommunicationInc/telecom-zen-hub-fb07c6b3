@@ -1,8 +1,8 @@
-/**
- * daily-data-backup — Export critical Nivra business data
+﻿/**
+ * daily-data-backup â€” Export critical Nivra business data
  *
  * Primary:  Supabase Storage bucket "backups" (YYYY-MM-DD/{table}.json)
- * Secondary: Cloudflare R2 (offsite, best-effort — errors don't fail the run)
+ * Secondary: Cloudflare R2 (offsite, best-effort â€” errors don't fail the run)
  *
  * Tables exported:
  *   orders, billing_customers, billing_subscriptions, billing_invoices,
@@ -94,7 +94,7 @@ const TABLES = [
   },
 ];
 
-// ── AWS S3 Signature V4 helpers (native Deno crypto, no npm dep) ─────────────
+// â”€â”€ AWS S3 Signature V4 helpers (native Deno crypto, no npm dep) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const te = new TextEncoder();
 
 async function sha256Hex(data: Uint8Array): Promise<string> {
@@ -163,7 +163,7 @@ async function uploadToR2(
     throw new Error(`R2 PUT ${res.status}: ${txt.slice(0, 300)}`);
   }
 }
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -216,15 +216,15 @@ Deno.serve(async (req) => {
           ? { rows: rows.length, bytes: bytes.length, error: uploadError.message }
           : { rows: rows.length, bytes: bytes.length };
 
-        // Secondary R2 upload (offsite) — best-effort, never fails the run
+        // Secondary R2 upload (offsite) â€” best-effort, never fails the run
         if (r2Enabled) {
           uploadToR2(path, bytes, r2Endpoint, r2AccessKey, r2SecretKey)
             .then(() => { results[table.name].r2 = "ok"; })
             .catch((e) => { results[table.name].r2 = `error: ${e.message}`; });
         }
 
-        console.log(`[backup] ${path} — ${rows.length} rows, ${bytes.length} bytes`);
-      } catch (tableErr: any) {
+        console.log(`[backup] ${path} â€” ${rows.length} rows, ${bytes.length} bytes`);
+      } catch (tableErr) {
         results[table.name] = { rows: 0, bytes: 0, error: tableErr?.message || String(tableErr) };
       }
     }
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ ok: true, date: dateStr, results, errors, r2_enabled: r2Enabled }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     reportEdgeError(error, { function: "daily-data-backup" }).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),

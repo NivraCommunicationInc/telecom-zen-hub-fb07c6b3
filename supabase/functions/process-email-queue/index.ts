@@ -47,7 +47,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
       .padEnd(Math.ceil(parts[1].length / 4) * 4, '=')
 
     return JSON.parse(atob(payload)) as Record<string, unknown>
-  } catch {
+  } catch (_e) {
     return null
   }
 }

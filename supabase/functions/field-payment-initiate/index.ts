@@ -1,5 +1,5 @@
-/**
- * field-payment-initiate — FIX 1
+﻿/**
+ * field-payment-initiate â€” FIX 1
  *
  * Creates a temporary `field_payment_intents` row + PayPal order WITHOUT
  * creating any Core order/invoice/commission. The PayPal capture webhook
@@ -87,11 +87,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
     }
     if (quote.agent_id !== agentId) {
-      return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
+      return new Response(JSON.stringify({ error: "AccÃ¨s refusÃ©" }), { status: 403, headers });
     }
     // Enforce amount matches the quote total (prevent under-charging fraud)
     if (Math.round(amount * 100) !== Math.round(Number(quote.total) * 100)) {
-      return new Response(JSON.stringify({ error: "Le montant ne correspond pas à la soumission" }), { status: 400, headers });
+      return new Response(JSON.stringify({ error: "Le montant ne correspond pas Ã  la soumission" }), { status: 400, headers });
     }
 
     // 1) Create the payment intent row first (so we own the UUID)
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       intent: "CAPTURE",
       purchase_units: [{
         amount: { currency_code: "CAD", value: amount.toFixed(2) },
-        description: body.description || "Nivra Telecom — Vente terrain",
+        description: body.description || "Nivra Telecom â€” Vente terrain",
         custom_id: `fpi:${intent.id}`,
       }],
       application_context: {
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       approval_url: approvalUrl,
       expires_at: intent.expires_at,
     }), { headers });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[field-payment-initiate] error", err);
     return new Response(
       JSON.stringify({ error: err?.message || String(err) }),

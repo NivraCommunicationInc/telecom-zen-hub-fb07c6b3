@@ -97,7 +97,7 @@ async function geminiAnalyze(metrics: Record<string, unknown>) {
     if (!res.ok) return null;
     const data = await res.json();
     return JSON.parse(data.choices?.[0]?.message?.content ?? "{}");
-  } catch {
+  } catch (_e) {
     return null;
   }
 }
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
   try {
     let body: { report_type?: ReportType } = {};
-    try { body = await req.json(); } catch { /* empty body ok */ }
+    try { body = await req.json(); } catch (_e) { /* empty body ok */ }
     const reportType: ReportType = body.report_type ?? "weekly";
     const period = periodFor(reportType);
 

@@ -67,7 +67,7 @@ const fmtDateTime = (iso: string) => {
     return new Intl.DateTimeFormat("fr-CA", {
       dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto",
     }).format(new Date(iso));
-  } catch { return iso; }
+  } catch (_e) { return iso; }
 };
 
 serve(async (req) => {

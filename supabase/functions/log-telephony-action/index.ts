@@ -14,7 +14,7 @@ function isAllowedOrigin(origin: string | null): boolean {
   try {
     const u = new URL(origin);
     return u.hostname.endsWith(".lovableproject.com");
-  } catch {
+  } catch (_e) {
     return false;
   }
 }
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     let body: Record<string, unknown>;
     try {
       body = await req.json();
-    } catch {
+    } catch (_e) {
       return jsonResponse(origin, 400, { ok: false, code: "BAD_JSON", error: "Invalid JSON body" });
     }
 

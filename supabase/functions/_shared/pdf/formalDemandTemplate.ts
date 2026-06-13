@@ -1,5 +1,5 @@
-/**
- * Formal Demand (Mise en demeure) — Document juridique formel avant transfert au recouvrement.
+﻿/**
+ * Formal Demand (Mise en demeure) â€” Document juridique formel avant transfert au recouvrement.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -112,7 +112,7 @@ export function generateFormalDemandPDF(data: FormalDemandData): PDFGenerationRe
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Mise_En_Demeure_${data.demand_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

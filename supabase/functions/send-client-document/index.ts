@@ -1,5 +1,5 @@
-// ============================================================================
-// SEND CLIENT DOCUMENT — NIVRA TELECOM
+﻿// ============================================================================
+// SEND CLIENT DOCUMENT â€” NIVRA TELECOM
 // Uses the official "Corporate Blue" email template (components.ts) for ALL
 // document delivery emails. NEVER use a custom navy/teal template here.
 // ============================================================================
@@ -39,37 +39,37 @@ const DOC_LABELS: Record<string, string> = {
   suspension_notice: "Avis de suspension de service",
   cancellation_confirmation: "Confirmation d'annulation",
   chargeback_notice: "Avis de chargeback",
-  final_refund_receipt: "Reçu de remboursement final",
+  final_refund_receipt: "ReÃ§u de remboursement final",
   delivery_slip: "Bon de livraison",
-  return_instructions: "Instructions de retour d'équipement",
+  return_instructions: "Instructions de retour d'Ã©quipement",
   installation_report: "Rapport d'installation",
   activation_confirmation: "Confirmation d'activation de service",
   contract_amendment: "Avenant au contrat de service",
   formal_demand: "Mise en demeure",
   collections_transfer: "Transfert au recouvrement",
-  complaint_acknowledgment: "Accusé de réception de plainte",
-  preauthorization_confirmation: "Confirmation de préautorisation",
+  complaint_acknowledgment: "AccusÃ© de rÃ©ception de plainte",
+  preauthorization_confirmation: "Confirmation de prÃ©autorisation",
 };
 
 // Per-doc-type banner config (icon + color tone)
 const DOC_BANNER: Record<string, { icon: string; type: "success" | "info" | "warning" | "error" }> = {
-  welcome_letter: { icon: "👋", type: "info" },
-  service_certificate: { icon: "📄", type: "info" },
-  activation_confirmation: { icon: "✅", type: "success" },
-  cancellation_confirmation: { icon: "✅", type: "success" },
-  preauthorization_confirmation: { icon: "🔒", type: "info" },
-  installation_report: { icon: "🛠️", type: "info" },
-  delivery_slip: { icon: "📦", type: "info" },
-  return_instructions: { icon: "📦", type: "warning" },
-  address_change: { icon: "📍", type: "info" },
-  payment_method_change: { icon: "💳", type: "info" },
-  contract_amendment: { icon: "📝", type: "info" },
-  complaint_acknowledgment: { icon: "📨", type: "info" },
-  final_refund_receipt: { icon: "💰", type: "success" },
-  suspension_notice: { icon: "⚠️", type: "warning" },
-  chargeback_notice: { icon: "⚠️", type: "warning" },
-  formal_demand: { icon: "⚠️", type: "error" },
-  collections_transfer: { icon: "⚠️", type: "error" },
+  welcome_letter: { icon: "ðŸ‘‹", type: "info" },
+  service_certificate: { icon: "ðŸ“„", type: "info" },
+  activation_confirmation: { icon: "âœ…", type: "success" },
+  cancellation_confirmation: { icon: "âœ…", type: "success" },
+  preauthorization_confirmation: { icon: "ðŸ”’", type: "info" },
+  installation_report: { icon: "ðŸ› ï¸", type: "info" },
+  delivery_slip: { icon: "ðŸ“¦", type: "info" },
+  return_instructions: { icon: "ðŸ“¦", type: "warning" },
+  address_change: { icon: "ðŸ“", type: "info" },
+  payment_method_change: { icon: "ðŸ’³", type: "info" },
+  contract_amendment: { icon: "ðŸ“", type: "info" },
+  complaint_acknowledgment: { icon: "ðŸ“¨", type: "info" },
+  final_refund_receipt: { icon: "ðŸ’°", type: "success" },
+  suspension_notice: { icon: "âš ï¸", type: "warning" },
+  chargeback_notice: { icon: "âš ï¸", type: "warning" },
+  formal_demand: { icon: "âš ï¸", type: "error" },
+  collections_transfer: { icon: "âš ï¸", type: "error" },
 };
 
 function buildEmailHtml(opts: {
@@ -79,12 +79,12 @@ function buildEmailHtml(opts: {
   docType: string;
 }): string {
   const { label, clientName, docNumber, docType } = opts;
-  const banner = DOC_BANNER[docType] || { icon: "📄", type: "info" as const };
+  const banner = DOC_BANNER[docType] || { icon: "ðŸ“„", type: "info" as const };
 
   const detailsRows = [
-    docNumber ? infoRow("Numéro de document", docNumber) : "",
+    docNumber ? infoRow("NumÃ©ro de document", docNumber) : "",
     infoRow("Type de document", label),
-    infoRow("Date d'émission", new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })),
+    infoRow("Date d'Ã©mission", new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })),
   ].join("");
 
   const content = `
@@ -96,20 +96,20 @@ function buildEmailHtml(opts: {
       </p>
       <p style="color:${colors.textSecondary};font-size:15px;line-height:1.6;margin:0 0 24px 0;">
         Veuillez trouver ci-joint votre document : <strong>${escapeHtml(label)}</strong>.
-        Ce document est également disponible en tout temps dans votre portail client.
+        Ce document est Ã©galement disponible en tout temps dans votre portail client.
       </p>
 
-      ${sectionHeader("Détails du document")}
+      ${sectionHeader("DÃ©tails du document")}
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;">
         ${detailsRows}
       </table>
 
       <div style="text-align:center;margin:32px 0;">
-        ${button("Accéder au portail client", "https://nivra-telecom.ca/portal/documents", "primary")}
+        ${button("AccÃ©der au portail client", "https://nivra-telecom.ca/portal/documents", "primary")}
       </div>
 
       <p style="color:${colors.textSecondary};font-size:14px;line-height:1.6;margin:24px 0 0 0;">
-        Si vous avez des questions concernant ce document, notre équipe est disponible par courriel.
+        Si vous avez des questions concernant ce document, notre Ã©quipe est disponible par courriel.
       </p>
 
       ${helpSection(SUPPORT_EMAIL)}
@@ -117,7 +117,7 @@ function buildEmailHtml(opts: {
     ${footer(SUPPORT_EMAIL)}
   `;
 
-  return emailDocument(label, `${label} – Nivra Telecom`, content);
+  return emailDocument(label, `${label} â€“ Nivra Telecom`, content);
 }
 
 serve(async (req: Request) => {
@@ -197,7 +197,7 @@ serve(async (req: Request) => {
       from: FROM_ADDRESS,
       to: [recipient],
       reply_to: REPLY_TO,
-      subject: `${label} – Nivra Telecom`,
+      subject: `${label} â€“ Nivra Telecom`,
       html: buildEmailHtml({ label, clientName, docNumber: docNum, docType: job.doc_type }),
       attachments: [{ filename, content: pdfBase64 }],
     });
@@ -226,7 +226,7 @@ serve(async (req: Request) => {
       JSON.stringify({ success: true, emailId: (emailResp as any)?.id, recipient }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[send-client-document] error:", err);
     return new Response(JSON.stringify({ success: false, error: err.message }), {
       status: 500,

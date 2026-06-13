@@ -1,5 +1,5 @@
-/**
- * field-commission-engine — Commission summary, list, detail, dispute, withdrawals.
+﻿/**
+ * field-commission-engine â€” Commission summary, list, detail, dispute, withdrawals.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      throw { status: 401, message: "Non authentifié" };
+      throw { status: 401, message: "Non authentifiÃ©" };
     }
 
     const supabase = createClient(
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Méthode non supportée" }), { status: 405, headers });
+      return new Response(JSON.stringify({ error: "MÃ©thode non supportÃ©e" }), { status: 405, headers });
     }
 
     const body = await req.json();
@@ -215,11 +215,11 @@ Deno.serve(async (req) => {
 
       const available = Math.max(0, approved - pendingWithdrawals);
       if (amount > available) {
-        return new Response(JSON.stringify({ error: "Montant supérieur au solde disponible" }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: "Montant supÃ©rieur au solde disponible" }), { status: 400, headers });
       }
 
       const notes = [
-        "Méthode: PayPal",
+        "MÃ©thode: PayPal",
         `Destination: ${destination}`,
         notesInput || null,
       ].filter(Boolean).join(" | ");
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
-  } catch (err: any) {
+  } catch (err) {
     const status = err.status || 500;
     return new Response(JSON.stringify({ error: err.message || "Erreur serveur" }), { status, headers });
   }
@@ -246,10 +246,10 @@ function getStatusExplanation(status: string): string {
   const messages: Record<string, string> = {
     pending: "En attente de validation.",
     pending_activation: "En attente d'activation du service client.",
-    validated: "Validée, en attente de versement.",
-    approved: "Approuvée, prête pour paiement.",
-    paid: "Versée.",
-    rejected: "Refusée.",
+    validated: "ValidÃ©e, en attente de versement.",
+    approved: "ApprouvÃ©e, prÃªte pour paiement.",
+    paid: "VersÃ©e.",
+    rejected: "RefusÃ©e.",
     disputed: "Contestation en cours.",
   };
   return messages[status] || "Statut en traitement.";
@@ -258,7 +258,7 @@ function getStatusExplanation(status: string): string {
 function getNextAction(status: string): string {
   const messages: Record<string, string> = {
     pending: "Un superviseur doit valider.",
-    pending_activation: "Le service client doit être activé.",
+    pending_activation: "Le service client doit Ãªtre activÃ©.",
     validated: "Sera incluse au prochain cycle.",
     approved: "En attente du prochain paiement.",
     paid: "Aucune action.",

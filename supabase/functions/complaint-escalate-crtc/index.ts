@@ -99,7 +99,7 @@ serve(async (req) => {
 
         escalated++;
         console.log(`[complaint-escalate-crtc] Escalated ${c.ticket_number} (${c.submitted_by_email})`);
-      } catch (err: unknown) {
+      } catch (err) {
         const msg = `${c.ticket_number}: ${err instanceof Error ? err.message : String(err)}`;
         errors.push(msg);
         console.error(`[complaint-escalate-crtc] ${msg}`);
@@ -121,7 +121,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
 
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[complaint-escalate-crtc] Fatal:", msg);
     return new Response(

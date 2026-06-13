@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { queueRenderedEmail } from "../_shared/templateRenderer.ts";
 
@@ -26,8 +26,8 @@ const handler = async (req: Request): Promise<Response> => {
       templateVars: {
         client_name: name || "Client",
         order_number: ticketNumber || "",
-        service_type: "Chaînes TV",
-        channels_list: channelNames || "Chaînes sélectionnées",
+        service_type: "ChaÃ®nes TV",
+        channels_list: channelNames || "ChaÃ®nes sÃ©lectionnÃ©es",
         channels_count: String(channels?.length || 0),
         total_amount: totalPrice || 0,
         notes: notes || "",
@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ success: true, queued: true, template: templateKey }), { 
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } 
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(`[${requestId}] Error:`, error);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 

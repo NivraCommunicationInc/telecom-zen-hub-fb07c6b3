@@ -1,11 +1,11 @@
-/**
- * kyc-public-upload — Anonymous endpoint to upload KYC ID documents.
+﻿/**
+ * kyc-public-upload â€” Anonymous endpoint to upload KYC ID documents.
  *
  * Phase 2 (3-step wizard): accepts THREE files via multipart/form-data
  *   - front   : recto of the ID document
  *   - back    : verso of the ID document
  *   - selfie  : selfie holding the document
- * Plus a `document_type` discriminator (passport, driver_license, …).
+ * Plus a `document_type` discriminator (passport, driver_license, â€¦).
  *
  * Behaviour:
  *   1. Validate the public token via RPC.
@@ -37,7 +37,7 @@ function jsonResp(body: unknown, status: number, corsHeaders: Record<string, str
 
 function validateFile(file: File | null, label: string): string | null {
   if (!file) return `Missing ${label}`;
-  if (!ALLOWED_TYPES.includes(file.type)) return `Type de fichier non autorisé (${label})`;
+  if (!ALLOWED_TYPES.includes(file.type)) return `Type de fichier non autorisÃ© (${label})`;
   if (file.size > MAX_SIZE) return `Fichier trop volumineux (${label}, max 10 Mo)`;
   return null;
 }
@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
     if (rpcErr) return jsonResp({ error: rpcErr.message }, 500, corsHeaders);
     const reqRow = rows?.[0];
     if (!reqRow) return jsonResp({ error: "Lien invalide" }, 404, corsHeaders);
-    if (new Date(reqRow.expires_at).getTime() < Date.now()) return jsonResp({ error: "Lien expiré" }, 410, corsHeaders);
-    if (reqRow.status !== "pending") return jsonResp({ error: "Demande déjà traitée", status: reqRow.status }, 409, corsHeaders);
+    if (new Date(reqRow.expires_at).getTime() < Date.now()) return jsonResp({ error: "Lien expirÃ©" }, 410, corsHeaders);
+    if (reqRow.status !== "pending") return jsonResp({ error: "Demande dÃ©jÃ  traitÃ©e", status: reqRow.status }, 409, corsHeaders);
 
     // Upload all files
     const uploadedPaths: string[] = [];
@@ -124,12 +124,12 @@ Deno.serve(async (req) => {
     });
     if (completeErr || !(completeRes as any)?.success) {
       await cleanup();
-      return jsonResp({ error: completeErr?.message || (completeRes as any)?.error || "Échec" }, 500, corsHeaders);
+      return jsonResp({ error: completeErr?.message || (completeRes as any)?.error || "Ã‰chec" }, 500, corsHeaders);
     }
 
     // Mirror onto identity_verification_sessions for the same order so the
     // agent-side KycStep shows all 3 photos. Best-effort: if no session row
-    // exists yet for this order, we skip silently — the admin can still
+    // exists yet for this order, we skip silently â€” the admin can still
     // open the document via the kyc_requests row.
     if (reqRow.order_id) {
       try {
@@ -163,11 +163,11 @@ Deno.serve(async (req) => {
     try {
       await enqueueEmail({
         to: "support@nivra-telecom.ca",
-        subject: `KYC complété — Commande #${reqRow.order_number || reqRow.order_id?.slice(0, 8)} en attente d'approbation`,
-        html: `<p>Une vérification d'identité vient d'être complétée par <strong>${reqRow.client_email}</strong>.</p>
+        subject: `KYC complÃ©tÃ© â€” Commande #${reqRow.order_number || reqRow.order_id?.slice(0, 8)} en attente d'approbation`,
+        html: `<p>Une vÃ©rification d'identitÃ© vient d'Ãªtre complÃ©tÃ©e par <strong>${reqRow.client_email}</strong>.</p>
 <p>Commande: <strong>#${reqRow.order_number || reqRow.order_id}</strong></p>
 <p>Type de document: <strong>${docType}</strong></p>
-<p>Le document est en attente de revue dans Nivra Core → Commandes.</p>`,
+<p>Le document est en attente de revue dans Nivra Core â†’ Commandes.</p>`,
         messageType: "kyc_completed_admin",
         entityType: "kyc_request",
         entityId: reqRow.id,
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     }
 
     return jsonResp({ success: true }, 200, corsHeaders);
-  } catch (err: any) {
+  } catch (err) {
     console.error("[kyc-public-upload] Error:", err);
     return jsonResp({ error: err?.message || "Unknown error" }, 500, corsHeaders);
   }

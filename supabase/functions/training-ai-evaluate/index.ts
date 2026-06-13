@@ -75,7 +75,7 @@ serve(async (req) => {
     const data = await resp.json();
     const raw = data?.choices?.[0]?.message?.content?.trim() || "{}";
     let parsed: any = {};
-    try { parsed = JSON.parse(raw); } catch { parsed = { score: 0, verdict: "fail", summary_fr: raw }; }
+    try { parsed = JSON.parse(raw); } catch (_e) { parsed = { score: 0, verdict: "fail", summary_fr: raw }; }
     return new Response(JSON.stringify(parsed),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {

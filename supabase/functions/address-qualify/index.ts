@@ -112,7 +112,7 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[address-qualify] error:", msg);
     return new Response(

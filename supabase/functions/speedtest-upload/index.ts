@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
         if (value) {
           received += value.byteLength;
           if (received > MAX_BODY_BYTES) {
-            try { await reader.cancel(); } catch { /* noop */ }
+            try { await reader.cancel(); } catch (_e) { /* noop */ }
             return new Response(
               JSON.stringify({ ok: false, error: "Payload too large" }),
               { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } },

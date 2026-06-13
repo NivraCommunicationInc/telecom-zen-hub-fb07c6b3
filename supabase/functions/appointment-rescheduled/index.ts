@@ -1,5 +1,5 @@
-/**
- * appointment-rescheduled — Notify the client when an appointment was
+﻿/**
+ * appointment-rescheduled â€” Notify the client when an appointment was
  * modified (date/time/technician/address) by an internal user.
  * The frontend has already updated the appointment row; this function
  * only sends the email and writes an activity log entry.
@@ -20,7 +20,7 @@ function fmtDateTime(iso: string): string {
       weekday: "long", year: "numeric", month: "long", day: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
-  } catch { return iso; }
+  } catch (_e) { return iso; }
 }
 
 function buildEmail(args: {
@@ -39,16 +39,16 @@ function buildEmail(args: {
   if (args.technicianName) rows.push(["Technicien", violetEsc(args.technicianName)]);
 
   return violetShell({
-    preheader: "Votre rendez-vous a été modifié.",
-    badge: "RENDEZ-VOUS MODIFIÉ",
-    heroTitle: "Votre rendez-vous a été reprogrammé",
-    heroSub: "Voici les nouveaux détails.",
+    preheader: "Votre rendez-vous a Ã©tÃ© modifiÃ©.",
+    badge: "RENDEZ-VOUS MODIFIÃ‰",
+    heroTitle: "Votre rendez-vous a Ã©tÃ© reprogrammÃ©",
+    heroSub: "Voici les nouveaux dÃ©tails.",
     greeting: `Bonjour ${violetEsc(args.firstName) || "client"},`,
     bodyHtml:
-      `Votre rendez-vous d'installation a été <strong>mis à jour</strong>. ` +
-      `Veuillez vérifier les nouveaux détails ci-dessous.` +
+      `Votre rendez-vous d'installation a Ã©tÃ© <strong>mis Ã  jour</strong>. ` +
+      `Veuillez vÃ©rifier les nouveaux dÃ©tails ci-dessous.` +
       (args.noteForClient ? `<br/><br/><em>${violetEsc(args.noteForClient)}</em>` : ""),
-    cardTitle: "Nouveaux détails",
+    cardTitle: "Nouveaux dÃ©tails",
     cardRows: rows,
     ctaPrimaryUrl: "https://nivra-telecom.ca/portal/appointments",
     ctaPrimaryLabel: "Voir mon rendez-vous",
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       try {
         await enqueueEmail({
           to: clientEmail,
-          subject: "Votre rendez-vous a été modifié — Nivra Telecom",
+          subject: "Votre rendez-vous a Ã©tÃ© modifiÃ© â€” Nivra Telecom",
           html: buildEmail({
             firstName,
             apptNumber: apt.appointment_number ?? apt.id.slice(0, 8),
@@ -156,13 +156,13 @@ Deno.serve(async (req) => {
       entity_type: "appointment",
       entity_id: apt.id,
       action: "appointment_rescheduled",
-      reason: body.changes ? JSON.stringify(body.changes) : "Rendez-vous modifié",
+      reason: body.changes ? JSON.stringify(body.changes) : "Rendez-vous modifiÃ©",
     });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[appointment-rescheduled] Error:", err);
     return new Response(JSON.stringify({ error: err?.message || "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

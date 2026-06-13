@@ -1,9 +1,9 @@
-/**
- * sign-contract-public — Public no-auth endpoint for click-to-sign contracts
+﻿/**
+ * sign-contract-public â€” Public no-auth endpoint for click-to-sign contracts
  *
  * Routes:
- *   GET  ?token=...           → fetch contract summary for signing page
- *   POST { token, name, ... } → record signature with IP + user-agent + consent
+ *   GET  ?token=...           â†’ fetch contract summary for signing page
+ *   POST { token, name, ... } â†’ record signature with IP + user-agent + consent
  *
  * Security:
  *   - verify_jwt = false (public)
@@ -111,7 +111,7 @@ serve(async (req: Request) => {
         return jsonResponse(payload, 400);
       }
 
-      // ── Best-effort post-signature notifications (do not block client) ──
+      // â”€â”€ Best-effort post-signature notifications (do not block client) â”€â”€
       try {
         // 0. Persist SHA-256 hash on the contract_signatures row (LCCJTI non-repudiation)
         await supabase.from("contract_signatures")
@@ -159,7 +159,7 @@ serve(async (req: Request) => {
           const clientEmail = order?.client_email || profile?.email || null;
           const clientName = profile?.full_name || signerName || "Client";
 
-          // Client confirmation — queued via canonical pipeline
+          // Client confirmation â€” queued via canonical pipeline
           if (clientEmail) {
             await supabase.from("email_queue").insert({
               event_key: `contract_signed_client_${payload.contract_id}`,
@@ -197,7 +197,7 @@ serve(async (req: Request) => {
             if (e) console.warn("[sign-contract-public] admin email enqueue failed:", e.message);
           });
         }
-      } catch (notifyErr: any) {
+      } catch (notifyErr) {
         console.warn("[sign-contract-public] notification error (non-blocking):", notifyErr?.message);
       }
 
@@ -205,7 +205,7 @@ serve(async (req: Request) => {
     }
 
     return jsonResponse({ success: false, error: "METHOD_NOT_ALLOWED" }, 405);
-  } catch (err: any) {
+  } catch (err) {
     console.error("[sign-contract-public] Unexpected error:", err);
     return jsonResponse({ success: false, error: "SERVER_ERROR" }, 500);
   }

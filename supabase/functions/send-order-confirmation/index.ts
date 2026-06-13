@@ -376,7 +376,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
       const days = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
       const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
       return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-    } catch { return dateStr; }
+    } catch (_e) { return dateStr; }
   };
 
   const installationAddress = installation

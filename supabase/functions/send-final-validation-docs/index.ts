@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { jsPDF } from "npm:jspdf@2.5.2";
 
 const corsHeaders = {
@@ -7,18 +7,18 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// REAL TRANSACTION DATA — Order #80876 / Invoice #8548553
+// REAL TRANSACTION DATA â€” Order #80876 / Invoice #8548553
 // ============================================================================
 const CO = {
   name: "Nivra Communications Inc.",
   neq: "2291249786",
   tps: "732287291 RT0001",
   tvq: "1229249786 TQ0001",
-  address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
+  address: "1799 Av. Pierre-PÃ©ladeau, Laval, QC H7T 2Y5",
   email: "Support@nivra-telecom.ca",
   website: "www.nivra-telecom.ca",
-  division: "Service à la clientèle — Division facturation",
-  tagline: "Fournisseur de services de télécommunications — Province de Québec",
+  division: "Service Ã  la clientÃ¨le â€” Division facturation",
+  tagline: "Fournisseur de services de tÃ©lÃ©communications â€” Province de QuÃ©bec",
 };
 
 const CLIENT = {
@@ -49,7 +49,7 @@ const LINES = [
   { desc: "Frais d'activation", amount: 25.00, type: "fee" },
   { desc: "Installation professionnelle", amount: 50.00, type: "fee" },
   { desc: "Rabais EQUIP26 (100% services)", amount: -185.00, type: "discount" },
-  { desc: "Ajustement taxable de réconciliation", amount: 20.00, type: "fee" },
+  { desc: "Ajustement taxable de rÃ©conciliation", amount: 20.00, type: "fee" },
 ];
 
 const SUBTOTAL = 215.99;
@@ -124,8 +124,8 @@ function fmtCAD(n: number): string {
 
 function typeLabel(t: string): string {
   switch (t) {
-    case "service": return "Récurrent";
-    case "equipment": return "Équipement";
+    case "service": return "RÃ©current";
+    case "equipment": return "Ã‰quipement";
     case "fee": return "Unique";
     case "discount": return "Rabais";
     default: return t;
@@ -159,15 +159,15 @@ function generateInvoicePDF(): string {
   doc.roundedRect(160, y - 6, 35, 8, 2, 2, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
-  doc.text("PAYÉE", 177.5, y - 1, { align: "center" });
+  doc.text("PAYÃ‰E", 177.5, y - 1, { align: "center" });
   y += 10;
 
   // Metadata
-  labelVal(doc, 15, y, "N° Facture", INVOICE_NUMBER);
-  labelVal(doc, 55, y, "N° Commande", ORDER_NUMBER);
-  labelVal(doc, 95, y, "N° Compte", ACCOUNT_NUMBER);
+  labelVal(doc, 15, y, "NÂ° Facture", INVOICE_NUMBER);
+  labelVal(doc, 55, y, "NÂ° Commande", ORDER_NUMBER);
+  labelVal(doc, 95, y, "NÂ° Compte", ACCOUNT_NUMBER);
   labelVal(doc, 140, y, "Date", ORDER_DATE);
-  labelVal(doc, 175, y, "Échéance", DUE_DATE);
+  labelVal(doc, 175, y, "Ã‰chÃ©ance", DUE_DATE);
   y += 14;
 
   // Client info
@@ -175,13 +175,13 @@ function generateInvoicePDF(): string {
   labelVal(doc, 95, y, "Courriel", CLIENT.email);
   y += 10;
   labelVal(doc, 15, y, "Adresse de facturation", CLIENT.billingAddress);
-  labelVal(doc, 95, y, "Téléphone", CLIENT.phone);
+  labelVal(doc, 95, y, "TÃ©lÃ©phone", CLIENT.phone);
   y += 10;
   labelVal(doc, 15, y, "Adresse de service", CLIENT.serviceAddress);
   y += 14;
 
   // Line items
-  y = sectionTitle(doc, y, "DÉTAIL DES SERVICES ET FRAIS");
+  y = sectionTitle(doc, y, "DÃ‰TAIL DES SERVICES ET FRAIS");
 
   // Table header
   doc.setFillColor(15, 23, 42);
@@ -251,14 +251,14 @@ function generateInvoicePDF(): string {
   y += 18;
 
   // Payment receipt
-  y = sectionTitle(doc, y, "REÇU DE PAIEMENT");
+  y = sectionTitle(doc, y, "REÃ‡U DE PAIEMENT");
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`Méthode: ${PAYMENT_METHOD}`, 18, y + 4);
+  doc.text(`MÃ©thode: ${PAYMENT_METHOD}`, 18, y + 4);
   doc.text(`Montant: ${fmtCAD(TOTAL)}`, 18, y + 10);
   doc.text(`Date: ${ORDER_DATE}`, 110, y + 4);
-  doc.text(`N° Paiement: ${PAYMENT_NUMBER}`, 110, y + 10);
+  doc.text(`NÂ° Paiement: ${PAYMENT_NUMBER}`, 110, y + 10);
 
   addFooter(doc);
   return doc.output("datauristring").split(",")[1];
@@ -277,9 +277,9 @@ function generateContractPDF(): string {
   doc.text("CONTRAT DE SERVICE", 15, y);
   y += 12;
 
-  labelVal(doc, 15, y, "N° Contrat", `CTR-${ORDER_NUMBER}`);
-  labelVal(doc, 65, y, "N° Commande", ORDER_NUMBER);
-  labelVal(doc, 115, y, "N° Compte", ACCOUNT_NUMBER);
+  labelVal(doc, 15, y, "NÂ° Contrat", `CTR-${ORDER_NUMBER}`);
+  labelVal(doc, 65, y, "NÂ° Commande", ORDER_NUMBER);
+  labelVal(doc, 115, y, "NÂ° Compte", ACCOUNT_NUMBER);
   labelVal(doc, 165, y, "Date", ORDER_DATE);
   y += 14;
 
@@ -357,16 +357,16 @@ function generateContractPDF(): string {
   y += 6;
 
   // Terms
-  y = sectionTitle(doc, y, "CONDITIONS GÉNÉRALES");
+  y = sectionTitle(doc, y, "CONDITIONS GÃ‰NÃ‰RALES");
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const terms = [
-    "• Services prépayés — Aucun engagement à durée déterminée.",
-    "• Le client peut résilier à tout moment en contactant le support.",
-    "• Les prix n'incluent pas les taxes applicables sauf mention contraire.",
-    "• Nivra se réserve le droit de modifier ses tarifs avec un préavis de 30 jours.",
-    "• Ce contrat est régi par les lois de la province de Québec.",
+    "â€¢ Services prÃ©payÃ©s â€” Aucun engagement Ã  durÃ©e dÃ©terminÃ©e.",
+    "â€¢ Le client peut rÃ©silier Ã  tout moment en contactant le support.",
+    "â€¢ Les prix n'incluent pas les taxes applicables sauf mention contraire.",
+    "â€¢ Nivra se rÃ©serve le droit de modifier ses tarifs avec un prÃ©avis de 30 jours.",
+    "â€¢ Ce contrat est rÃ©gi par les lois de la province de QuÃ©bec.",
   ];
   terms.forEach(t => {
     doc.text(t, 18, y + 2);
@@ -393,13 +393,13 @@ function generateOrderSummaryPDF(): string {
   doc.roundedRect(155, y - 6, 40, 8, 2, 2, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
-  doc.text("CONFIRMÉE", 175, y - 1, { align: "center" });
+  doc.text("CONFIRMÃ‰E", 175, y - 1, { align: "center" });
   y += 10;
 
   // Metadata
-  labelVal(doc, 15, y, "N° Commande", ORDER_NUMBER);
-  labelVal(doc, 65, y, "N° Facture", INVOICE_NUMBER);
-  labelVal(doc, 115, y, "N° Compte", ACCOUNT_NUMBER);
+  labelVal(doc, 15, y, "NÂ° Commande", ORDER_NUMBER);
+  labelVal(doc, 65, y, "NÂ° Facture", INVOICE_NUMBER);
+  labelVal(doc, 115, y, "NÂ° Compte", ACCOUNT_NUMBER);
   labelVal(doc, 165, y, "Date", ORDER_DATE);
   y += 14;
 
@@ -407,12 +407,12 @@ function generateOrderSummaryPDF(): string {
   labelVal(doc, 15, y, "Client", CLIENT.name);
   labelVal(doc, 95, y, "Courriel", CLIENT.email);
   y += 10;
-  labelVal(doc, 15, y, "Téléphone", CLIENT.phone);
+  labelVal(doc, 15, y, "TÃ©lÃ©phone", CLIENT.phone);
   labelVal(doc, 95, y, "Adresse de service", CLIENT.serviceAddress);
   y += 14;
 
   // Line items
-  y = sectionTitle(doc, y, "ARTICLES ET SERVICES COMMANDÉS");
+  y = sectionTitle(doc, y, "ARTICLES ET SERVICES COMMANDÃ‰S");
   doc.setFillColor(15, 23, 42);
   doc.rect(15, y, 180, 7, "F");
   doc.setTextColor(255, 255, 255);
@@ -482,10 +482,10 @@ function generateOrderSummaryPDF(): string {
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`Méthode: ${PAYMENT_METHOD}`, 18, y + 4);
+  doc.text(`MÃ©thode: ${PAYMENT_METHOD}`, 18, y + 4);
   doc.text(`Montant: ${fmtCAD(TOTAL)}`, 18, y + 10);
-  doc.text(`Statut: Confirmé`, 110, y + 4);
-  doc.text(`N° Paiement: ${PAYMENT_NUMBER}`, 110, y + 10);
+  doc.text(`Statut: ConfirmÃ©`, 110, y + 4);
+  doc.text(`NÂ° Paiement: ${PAYMENT_NUMBER}`, 110, y + 10);
 
   addFooter(doc);
   return doc.output("datauristring").split(",")[1];
@@ -499,10 +499,10 @@ function emailHtml(docType: string, clientName: string, orderNum: string): strin
   
   const typeLabel = docType === "invoice" ? "Facture" : docType === "contract" ? "Contrat de service" : "Sommaire de commande";
   const typeDesc = docType === "invoice" 
-    ? `Votre facture #${INVOICE_NUMBER} pour la commande #${orderNum} est jointe à ce courriel.`
+    ? `Votre facture #${INVOICE_NUMBER} pour la commande #${orderNum} est jointe Ã  ce courriel.`
     : docType === "contract" 
-    ? `Votre contrat de service pour la commande #${orderNum} est joint à ce courriel.`
-    : `Le sommaire de votre commande #${orderNum} est joint à ce courriel.`;
+    ? `Votre contrat de service pour la commande #${orderNum} est joint Ã  ce courriel.`
+    : `Le sommaire de votre commande #${orderNum} est joint Ã  ce courriel.`;
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -515,17 +515,17 @@ function emailHtml(docType: string, clientName: string, orderNum: string): strin
     <h1 style="margin:0;font-size:32px;font-weight:800;letter-spacing:-0.03em;">
       <span style="color:#fff;">Nivra</span>
     </h1>
-    <p style="margin:4px 0 0;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#22d3ee;">Télécommunications</p>
+    <p style="margin:4px 0 0;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#22d3ee;">TÃ©lÃ©communications</p>
   </td></tr>
   <tr><td style="padding:40px 40px 24px;">
     <h2 style="color:#0f172a;font-size:20px;margin:0 0 8px;">${typeLabel}</h2>
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">
       Bonjour ${clientName},<br><br>
       ${typeDesc}<br><br>
-      Vous pouvez consulter ce document en pièce jointe ou accéder à votre espace client pour tous vos documents.
+      Vous pouvez consulter ce document en piÃ¨ce jointe ou accÃ©der Ã  votre espace client pour tous vos documents.
     </p>
     <table cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:10px;padding:14px 32px;">
-      <a href="${portalUrl}" style="color:#fff;text-decoration:none;font-size:15px;font-weight:600;">Accéder à mon espace client</a>
+      <a href="${portalUrl}" style="color:#fff;text-decoration:none;font-size:15px;font-weight:600;">AccÃ©der Ã  mon espace client</a>
     </td></tr></table>
   </td></tr>
   <tr><td style="padding:0 40px 32px;">
@@ -603,13 +603,13 @@ serve(async (req: Request) => {
     // Send 3 separate emails
     const [r1, r2, r3] = await Promise.all([
       sendEmail(
-        `Facture #${INVOICE_NUMBER} — Commande #${ORDER_NUMBER} | Nivra Telecom`,
+        `Facture #${INVOICE_NUMBER} â€” Commande #${ORDER_NUMBER} | Nivra Telecom`,
         emailHtml("invoice", CLIENT.firstName, ORDER_NUMBER),
         `Facture_${INVOICE_NUMBER}_Nivra.pdf`,
         invoiceB64
       ),
       sendEmail(
-        `Contrat de service — Commande #${ORDER_NUMBER} | Nivra Telecom`,
+        `Contrat de service â€” Commande #${ORDER_NUMBER} | Nivra Telecom`,
         emailHtml("contract", CLIENT.firstName, ORDER_NUMBER),
         `Contrat_CTR-${ORDER_NUMBER}_Nivra.pdf`,
         contractB64
@@ -635,7 +635,7 @@ serve(async (req: Request) => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[final-validation] Error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,

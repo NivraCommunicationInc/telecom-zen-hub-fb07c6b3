@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Server error";
     console.error("[partner-account-diagnose] Unexpected error:", error);
     return new Response(

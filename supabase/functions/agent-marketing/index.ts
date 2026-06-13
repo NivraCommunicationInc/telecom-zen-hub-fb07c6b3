@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
 
   try {
     let body: any = {};
-    try { body = await req.json(); } catch { /* empty */ }
+    try { body = await req.json(); } catch (_e) { /* empty */ }
     const action = body.action ?? "auto";
 
     if (action === "create_ai_campaign") {

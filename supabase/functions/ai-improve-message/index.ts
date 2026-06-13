@@ -124,7 +124,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error(`[${requestId}] Error:`, error);
     return new Response(
       JSON.stringify({ 

@@ -48,7 +48,7 @@ export const formatDate = (dateStr: string): string => {
       month: 'long', 
       day: 'numeric' 
     });
-  } catch { return dateStr; }
+  } catch (_e) { return dateStr; }
 };
 
 // Helper to add new page with white background

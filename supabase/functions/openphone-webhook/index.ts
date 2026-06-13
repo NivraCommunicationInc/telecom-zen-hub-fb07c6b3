@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
 
     const rawBody = await req.text();
     let payload: any;
-    try { payload = JSON.parse(rawBody); } catch {
+    try { payload = JSON.parse(rawBody); } catch (_e) {
       return new Response(JSON.stringify({ error: "Invalid JSON" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -253,11 +253,6 @@ Deno.serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-        return new Response(
-          JSON.stringify({ ok: false, error: "OPENPHONE_API_KEY non configurée dans les secrets" }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
       try {
         const resp = await fetch("https://api.openphone.com/v1/phone-numbers", {
           method: "GET",
@@ -276,7 +271,7 @@ Deno.serve(async (req) => {
           JSON.stringify({ ok: true, message: `Connexion OK — ${count} numéro(s) accessible(s)` }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
-      } catch (e: any) {
+      } catch (e) {
         return new Response(
           JSON.stringify({ ok: false, error: e?.message || "Erreur réseau" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -464,7 +459,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Webhook error:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,

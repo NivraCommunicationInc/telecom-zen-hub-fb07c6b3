@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true, token }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[send-nps-survey] Error:", error);
     return new Response(
       JSON.stringify({

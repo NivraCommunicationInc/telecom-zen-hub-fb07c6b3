@@ -61,7 +61,7 @@ serve(async (req) => {
                 p_field: "total_opened",
                 p_increment: 1,
               });
-            } catch { /* ignore if RPC missing */ }
+            } catch (_e) { /* ignore if RPC missing */ }
           }
         }
       }

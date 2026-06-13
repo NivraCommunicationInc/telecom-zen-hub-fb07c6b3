@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
@@ -52,7 +52,7 @@ async function hmacSha256Hex(secret: string, body: string): Promise<string> {
 async function verifyCalendlySignature(req: Request, rawBody: string): Promise<boolean> {
   const secret = Deno.env.get("CALENDLY_WEBHOOK_SIGNING_KEY");
   if (!secret) {
-    console.error("[calendly-webhook] CALENDLY_WEBHOOK_SIGNING_KEY not configured — rejecting");
+    console.error("[calendly-webhook] CALENDLY_WEBHOOK_SIGNING_KEY not configured â€” rejecting");
     return false;
   }
   const header = req.headers.get("calendly-webhook-signature");
@@ -155,11 +155,11 @@ const handler = async (req: Request): Promise<Response> => {
             entityType: "appointment",
             entityId: appointment?.id,
             html: violetShell({
-              preheader: "Votre rendez-vous Nivra est confirmé.",
-              badge: "RENDEZ-VOUS CONFIRMÉ",
-              heroTitle: "Rendez-vous confirmé",
+              preheader: "Votre rendez-vous Nivra est confirmÃ©.",
+              badge: "RENDEZ-VOUS CONFIRMÃ‰",
+              heroTitle: "Rendez-vous confirmÃ©",
               greeting: `Bonjour ${invitee.name},`,
-              bodyHtml: "Votre rendez-vous a été confirmé. Voici les détails ci-dessous.",
+              bodyHtml: "Votre rendez-vous a Ã©tÃ© confirmÃ©. Voici les dÃ©tails ci-dessous.",
               cardTitle: "Rendez-vous",
               cardRows: [
                 ["Date et heure", new Date(scheduledEvent.start_time).toLocaleString('fr-CA', { dateStyle: 'full', timeStyle: 'short' })],
@@ -203,7 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in calendly-webhook:", error);
     const origin = req.headers.get('origin');
     return new Response(

@@ -70,7 +70,7 @@ async function runChecks(supabase: ReturnType<typeof createClient>): Promise<Fin
       .gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
     if ((failed ?? 0) > 10) findings.push({ check_type: "payments", status: "critical", title: `${failed} paiements échoués (24h)` });
     else if ((failed ?? 0) > 3) findings.push({ check_type: "payments", status: "warning", title: `${failed} paiements échoués (24h)` });
-  } catch { /* ignore */ }
+  } catch (_e) { /* ignore */ }
 
   // CHECK 4 — Notification outbox
   try {
@@ -79,7 +79,7 @@ async function runChecks(supabase: ReturnType<typeof createClient>): Promise<Fin
       .select("id", { count: "exact", head: true })
       .in("status", ["failed", "blocked"]);
     if ((blocked ?? 0) > 10) findings.push({ check_type: "api", status: "warning", title: `${blocked} notifications bloquées` });
-  } catch { /* ignore */ }
+  } catch (_e) { /* ignore */ }
 
   // CHECK 5 — Recent agent failures
   try {
@@ -89,7 +89,7 @@ async function runChecks(supabase: ReturnType<typeof createClient>): Promise<Fin
       .eq("result", "failure")
       .gte("created_at", new Date(Date.now() - 3600_000).toISOString());
     if ((fail ?? 0) > 10) findings.push({ check_type: "security", status: "warning", title: `${fail} échecs agent (1h)` });
-  } catch { /* ignore */ }
+  } catch (_e) { /* ignore */ }
 
   // CHECK 6 — Storage buckets accessible
   try {
@@ -114,7 +114,7 @@ async function runChecks(supabase: ReturnType<typeof createClient>): Promise<Fin
       if (ageMin > 120) findings.push({ check_type: "api", status: "warning", title: `Aucun email envoyé depuis ${Math.round(ageMin)}min` });
       else findings.push({ check_type: "api", status: "ok", title: "API email opérationnelle" });
     }
-  } catch { /* ignore */ }
+  } catch (_e) { /* ignore */ }
 
   // CHECK 8 — DLQ template breakdown
   try {
@@ -131,7 +131,7 @@ async function runChecks(supabase: ReturnType<typeof createClient>): Promise<Fin
       }
       findings.push({ check_type: "email_queue", status: dlqRows.length > 5 ? "critical" : "warning", title: "Analyse DLQ par template", details: breakdown });
     }
-  } catch { /* ignore */ }
+  } catch (_e) { /* ignore */ }
 
   return findings;
 }
@@ -155,7 +155,7 @@ Réponds STRICTEMENT en JSON: { "score": <0-100>, "summary": "<3 phrases max, pr
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content ?? "{}";
     return JSON.parse(content);
-  } catch {
+  } catch (_e) {
     return null;
   }
 }

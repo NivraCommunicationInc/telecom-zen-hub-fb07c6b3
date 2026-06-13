@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "../_shared/ResendProxy.ts";
 import { 
   generateInvoicePDF, 
@@ -22,7 +22,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─── Realistic sample data ───────────────────────────────────────────────────
+// â”€â”€â”€ Realistic sample data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SAMPLE_INVOICE: InvoiceData = {
   invoice_number: "INV-2603-TEST-001",
@@ -91,9 +91,9 @@ const SAMPLE_SUMMARY: SummaryData = {
   client_phone: "514-892-4567",
   client_address: "4521 Boulevard Saint-Laurent, App. 302, Montreal, QC H2T 1R2",
   services: [
-    { name: "Mobile 20GB — Appels/textos illimites", price: 45.00, is_recurring: true },
-    { name: "Internet 200 Mbps — Illimite", price: 55.00, is_recurring: true },
-    { name: "TV Essentiel 30 chaines — HD", price: 25.00, is_recurring: true },
+    { name: "Mobile 20GB â€” Appels/textos illimites", price: 45.00, is_recurring: true },
+    { name: "Internet 200 Mbps â€” Illimite", price: 55.00, is_recurring: true },
+    { name: "TV Essentiel 30 chaines â€” HD", price: 25.00, is_recurring: true },
     { name: "Carte SIM physique", price: 10.00, is_recurring: false },
     { name: "Frais d'activation mobile", price: 25.00, is_recurring: false },
     { name: "Frais de livraison", price: 5.00, is_recurring: false },
@@ -117,9 +117,9 @@ const SAMPLE_CONTRACT_SUMMARY: ContractSummaryData = {
   client_phone: "514-892-4567",
   client_address: "4521 Boulevard Saint-Laurent, App. 302, Montreal, QC H2T 1R2",
   services: [
-    { name: "Mobile 20GB — Appels/textos illimites Canada", monthly_price: 45.00 },
-    { name: "Internet 200 Mbps — Telechargement illimite", monthly_price: 55.00 },
-    { name: "TV Essentiel 30 chaines — HD inclus", monthly_price: 25.00 },
+    { name: "Mobile 20GB â€” Appels/textos illimites Canada", monthly_price: 45.00 },
+    { name: "Internet 200 Mbps â€” Telechargement illimite", monthly_price: 55.00 },
+    { name: "TV Essentiel 30 chaines â€” HD inclus", monthly_price: 25.00 },
   ],
   equipment: [
     { name: "Carte SIM physique", price: 10.00 },
@@ -137,7 +137,7 @@ const SAMPLE_CONTRACT_SUMMARY: ContractSummaryData = {
   terms_version: "Version 2026-02-05",
 };
 
-// ─── Email HTML ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Email HTML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildEmailHtml(templates: string[]): string {
   const templateList = templates.map((t) => `<li style="margin-bottom:8px;color:#334155;">${t}</li>`).join("");
@@ -194,7 +194,7 @@ function buildEmailHtml(templates: string[]): string {
   `;
 }
 
-// ─── Handler ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("[send-pdf-templates] Request received");
@@ -265,7 +265,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [to],
-      subject: `Nivra Telecom — ${attachments.length} documents PDF officiels`,
+      subject: `Nivra Telecom â€” ${attachments.length} documents PDF officiels`,
       replyTo: "support@nivra-telecom.ca",
       html: buildEmailHtml(templateNames),
       headers: {
@@ -288,7 +288,7 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("[send-pdf-templates] Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),

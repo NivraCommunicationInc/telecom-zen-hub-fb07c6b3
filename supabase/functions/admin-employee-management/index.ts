@@ -234,7 +234,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[admin-employee-management] Error:", error);
     const message = error instanceof Error ? error.message : "Erreur inattendue";
     const origin = req.headers.get('origin');

@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+﻿import { createClient } from "npm:@supabase/supabase-js@2.89.0";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
@@ -15,7 +15,7 @@ import { reportEdgeError } from "../_shared/sentry.ts";
  * - get_stats: Get synchronization statistics
  */
 
-// CORS — permissive for internal supabase.functions.invoke() calls.
+// CORS â€” permissive for internal supabase.functions.invoke() calls.
 // origin may be empty (server-to-server) or a Lovable preview/prod domain.
 const ALLOWED_ORIGINS = [
   'https://nivra-telecom.ca',
@@ -43,7 +43,7 @@ const buildCorsHeaders = (req: Request) => {
   };
 };
 
-// Generate order number from DB sequence — NO local generation
+// Generate order number from DB sequence â€” NO local generation
 async function generateOrderNumberFromDB(admin: any): Promise<string> {
   const { data, error } = await admin.rpc("generate_order_number");
   if (error || !data) throw new Error(`FATAL: generate_order_number RPC failed: ${error?.message}`);
@@ -71,7 +71,7 @@ function normalizeServiceTypeLabel(services: any[]): string {
 function mapLineItemType(raw?: any): string {
   const v = String(raw || "").toLowerCase();
   if (v.includes("internet") || v.includes("fibre")) return "internet";
-  if (v.includes("tv") || v.includes("tele") || v.includes("télé")) return "tv";
+  if (v.includes("tv") || v.includes("tele") || v.includes("tÃ©lÃ©")) return "tv";
   if (v.includes("mobile") || v.includes("cell")) return "mobile";
   if (v.includes("stream")) return "streaming";
   if (v.includes("secur")) return "security";
@@ -123,7 +123,7 @@ function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight — always return 204 with permissive headers.
+  // Handle CORS preflight â€” always return 204 with permissive headers.
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
   }
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Non autorisé' }),
+        JSON.stringify({ success: false, error: 'Non autorisÃ©' }),
         { status: 401, headers: buildCorsHeaders(req) }
       );
     }
@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
               return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined };
             }
 
-            console.warn(`[field-sales-sync] Sale ${sale.id} has order ${existingOrder.id} but no invoice yet — resuming billing pipeline`);
+            console.warn(`[field-sales-sync] Sale ${sale.id} has order ${existingOrder.id} but no invoice yet â€” resuming billing pipeline`);
             canonicalOrder = existingOrder;
           }
         }
@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
           ];
         }
 
-        // ═══ SERVER-SIDE VALIDATION — Block incomplete submissions ═══
+        // â•â•â• SERVER-SIDE VALIDATION â€” Block incomplete submissions â•â•â•
         // For card_manual sales (in-person card), email/phone/address may be missing.
         // Apply fallbacks before validation and before orders/account insertion.
         const isCardManual = sale.payment_method === "card_manual";
@@ -248,12 +248,12 @@ Deno.serve(async (req) => {
         const validationErrors: string[] = [];
         if (!sale.customer_name?.trim()) validationErrors.push("Nom du client manquant");
         if (!sale.customer_email?.trim()) validationErrors.push("Courriel du client manquant");
-        if (!sale.customer_phone?.trim()) validationErrors.push("Téléphone du client manquant");
+        if (!sale.customer_phone?.trim()) validationErrors.push("TÃ©lÃ©phone du client manquant");
         if (!sale.customer_address?.trim()) validationErrors.push("Adresse du client manquante");
-        if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sélectionné");
+        if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sÃ©lectionnÃ©");
         
         if (validationErrors.length > 0) {
-          const errorMsg = `Validation échouée: ${validationErrors.join(", ")}`;
+          const errorMsg = `Validation Ã©chouÃ©e: ${validationErrors.join(", ")}`;
           console.error(`[field-sales-sync] ${errorMsg}`);
           throw new Error(errorMsg);
         }
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
 
           if (createUserError || !createdUser?.user) {
             console.error("[field-sales-sync] createUser error:", createUserError);
-            throw new Error(createUserError?.message || "Impossible de créer le compte client");
+            throw new Error(createUserError?.message || "Impossible de crÃ©er le compte client");
           }
 
           clientUserId = createdUser.user.id;
@@ -404,11 +404,11 @@ Deno.serve(async (req) => {
         const deliveryFee = 0;
         const installationFee = 0;
 
-        // Taxes (Quebec) — canonical tax module
+        // Taxes (Quebec) â€” canonical tax module
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
         let { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
-        // ═══ AUTHORITATIVE TOTAL — sale.total_amount is the agent-displayed total ═══
+        // â•â•â• AUTHORITATIVE TOTAL â€” sale.total_amount is the agent-displayed total â•â•â•
         // The field portal computes the total client-side (including discounts the
         // agent applied at the door). We MUST honour that value so the PayPal link,
         // the invoice and the visible order all stay aligned to the cent.
@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
           subtotal = Math.max(0, newBase - activationFee - deliveryFee - installationFee);
         }
 
-        // ═══ RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) ═══
+        // â•â•â• RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) â•â•â•
         let accountId: string | null = null;
 
         // 1) Try to find existing account by client_id
@@ -504,7 +504,7 @@ Deno.serve(async (req) => {
         const agentProEmail = (repProfile as any)?.professional_email || repProfile?.email || "";
 
         if (!canonicalOrder) {
-          // Generate order number from DB sequence — Core is sole source of truth
+          // Generate order number from DB sequence â€” Core is sole source of truth
           const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
           const serviceTypeLabel = normalizeServiceTypeLabel(services);
 
@@ -517,7 +517,7 @@ Deno.serve(async (req) => {
               order_number: orderNumber,
               created_by: 'field_sales',
 
-              // ═══ AGENT IDENTITY — required for commissions + reporting ═══
+              // â•â•â• AGENT IDENTITY â€” required for commissions + reporting â•â•â•
               source: 'field_sales',
               created_by_agent_id: sale.salesperson_id,
               agent_name: agentName,
@@ -555,8 +555,8 @@ Deno.serve(async (req) => {
               selected_channels: sale.selected_channels || [],
               equipment_details: wrapLineItemsForOrder(lineItems),
 
-              notes: `Vente terrain — Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
-              internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
+              notes: `Vente terrain â€” Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTÃ©lÃ©phone: ${sale.customer_phone || 'â€”'}\nAdresse: ${sale.customer_address || 'â€”'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
+              internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || 'â€”'})\n${sale.internal_notes || ''}`.trim(),
             })
             .select('id, order_number, status')
             .single();
@@ -617,7 +617,7 @@ Deno.serve(async (req) => {
           console.log(`[field-sales-sync] Promoted order ${canonicalOrder.id} to billable status ${targetOrderStatus}`);
         }
 
-        // ═══ CANONICAL INVOICE + PAYMENT CREATION ═══
+        // â•â•â• CANONICAL INVOICE + PAYMENT CREATION â•â•â•
         // Field orders must enter the same billing pipeline as website orders
         let invoiceId: string | null = null;
         let paymentId: string | null = null;
@@ -702,7 +702,7 @@ Deno.serve(async (req) => {
               due_date: dueDate,
               paid_at: isConfirmedPayment ? now.toISOString() : null,
               environment: "production",
-              notes: `Commande terrain — Agent: ${agentName} (${agentNumber})`,
+              notes: `Commande terrain â€” Agent: ${agentName} (${agentNumber})`,
               billing_snapshot_client: {
                 first_name: customerFirstName || null,
                 last_name: customerLastName || null,
@@ -740,8 +740,8 @@ Deno.serve(async (req) => {
               }
             }
 
-            // RULE 1 — Premier mois gratuit automatique UNIQUEMENT pour les
-            // clients qui n'ont jamais reçu le rabais (vérifié via la fonction
+            // RULE 1 â€” Premier mois gratuit automatique UNIQUEMENT pour les
+            // clients qui n'ont jamais reÃ§u le rabais (vÃ©rifiÃ© via la fonction
             // canonique is_eligible_for_welcome_first_month).
             const discountData: any = (sale as any).discount_data;
             const agentDiscountIsFirstMonth =
@@ -765,7 +765,7 @@ Deno.serve(async (req) => {
                 .from("billing_invoice_lines")
                 .insert({
                   invoice_id: invoiceId,
-                  description: `1er mois offert ✓ (automatique) — ${monthlyTotal.toFixed(2)}$/mois`,
+                  description: `1er mois offert âœ“ (automatique) â€” ${monthlyTotal.toFixed(2)}$/mois`,
                   unit_price: -monthlyTotal,
                   quantity: 1,
                   line_total: -monthlyTotal,
@@ -776,13 +776,13 @@ Deno.serve(async (req) => {
               }
             }
 
-            // RULE 5 — Clean discount label (no "Rabais Rabais" duplication).
+            // RULE 5 â€” Clean discount label (no "Rabais Rabais" duplication).
             const getDiscountLabel = (raw: string): string => {
               const clean = String(raw || "Rabais").trim();
               return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
             };
 
-            // Discount line (if applied at the door — second/additional discount)
+            // Discount line (if applied at the door â€” second/additional discount)
             if (discountData) {
               const dType = String(discountData.type || "");
               const dAppliesTo = String(discountData.applies_to || "");
@@ -795,19 +795,19 @@ Deno.serve(async (req) => {
               let unitPrice = 0;
 
               if (dType === "remove_fee" && dAppliesTo === "installation") {
-                desc = "Installation gratuite ✓";
+                desc = "Installation gratuite âœ“";
                 unitPrice = 0;
               } else if (dType === "remove_fee" && dAppliesTo === "activation") {
-                desc = "Activation gratuite ✓";
+                desc = "Activation gratuite âœ“";
                 unitPrice = 0;
               } else if (dType === "first_month_free") {
-                desc = `1er mois offert — ${monthlyPrice.toFixed(2)}$/mois`;
+                desc = `1er mois offert â€” ${monthlyPrice.toFixed(2)}$/mois`;
                 unitPrice = -monthlyPrice;
               } else if (dType === "one_time" && dAmt > 0) {
                 desc = getDiscountLabel(dName);
                 unitPrice = -dAmt;
               } else if (dAmt > 0) {
-                // fixed_monthly / credit — permanent or time-limited
+                // fixed_monthly / credit â€” permanent or time-limited
                 desc = getDiscountLabel(dName);
                 unitPrice = -dAmt;
               }
@@ -899,10 +899,10 @@ Deno.serve(async (req) => {
                   user_id: clientUserId,
                   uploaded_by: clientUserId,
                   document_type: "service_contract",
-                  document_name: `Contrat de service — ${canonicalOrder.order_number || canonicalOrder.id.slice(0, 8)}`,
+                  document_name: `Contrat de service â€” ${canonicalOrder.order_number || canonicalOrder.id.slice(0, 8)}`,
                   document_url: "",
                 });
-              } catch (docErr: any) {
+              } catch (docErr) {
                 console.error("[field-sales-sync] client_documents mirror failed:", docErr?.message || docErr);
               }
 
@@ -925,14 +925,14 @@ Deno.serve(async (req) => {
                     customer_last_name: customerLastName,
                     agent_name: agentName,
                     agent_number: agentNumber,
-                    // Discount section — RULE 4: always include automatic
+                    // Discount section â€” RULE 4: always include automatic
                     // first-month-free (when there are recurring services) +
                     // the agent's optional additional discount.
                     discount_data: discountData || null,
                     discounts: [
                       ...(monthlyTotal > 0 && !agentDiscountIsFirstMonth
                         ? [{
-                            label: "1er mois offert ✓ (automatique)",
+                            label: "1er mois offert âœ“ (automatique)",
                             amount: -monthlyTotal,
                             type: "first_month_free",
                             automatic: true,
@@ -943,12 +943,12 @@ Deno.serve(async (req) => {
                   },
                   idempotency_key: `contract_generated:${canonicalOrder.id}`,
                 });
-              } catch (mailErr: any) {
+              } catch (mailErr) {
                 console.error("[field-sales-sync] contract_generated enqueue failed:", mailErr?.message || mailErr);
               }
             }
           }
-        } catch (billingErr: any) {
+        } catch (billingErr) {
           console.error("[field-sales-sync] Billing pipeline error:", billingErr);
           throw new Error(`Billing pipeline failed: ${billingErr?.message || String(billingErr)}`);
         }
@@ -968,10 +968,10 @@ Deno.serve(async (req) => {
           throw new Error("Billing invoice creation failed: invoice id missing");
         }
 
-        // ═══ ENSURE A RECURRING SUBSCRIPTION EXISTS ═══
+        // â•â•â• ENSURE A RECURRING SUBSCRIPTION EXISTS â•â•â•
         // Field orders must leave the sync with a real billing subscription.
         // If Core already activated the order, the subscription must be active
-        // with cycle dates now — never a blank/pending orphan.
+        // with cycle dates now â€” never a blank/pending orphan.
         try {
           if (monthlyTotal > 0) {
             const { data: existingSubRow } = await supabaseAdmin
@@ -1024,7 +1024,7 @@ Deno.serve(async (req) => {
               }
             }
           }
-        } catch (subErr: any) {
+        } catch (subErr) {
           console.error("[field-sales-sync] subscription creation error:", subErr?.message || subErr);
         }
 
@@ -1044,8 +1044,8 @@ Deno.serve(async (req) => {
           throw new Error(`Sync status update failed: ${updateError.message}`);
         }
 
-        // ═══ COMMISSION ENGINE — Base % + tier lookup ═══
-        // Commission is created with status 'pending_activation' — only unlocked when order reaches 'activated'
+        // â•â•â• COMMISSION ENGINE â€” Base % + tier lookup â•â•â•
+        // Commission is created with status 'pending_activation' â€” only unlocked when order reaches 'activated'
         try {
           // Look up active commission rules (tiered by sales count)
           const { data: commRules } = await supabaseAdmin
@@ -1105,7 +1105,7 @@ Deno.serve(async (req) => {
                 bonus_amount: bonusAmount > 0 ? bonusAmount : null,
                 bonus_type: bonusType,
                   status: "pending",
-                notes: `Auto: ${(commissionRate * 100).toFixed(0)}% × ${monthlyTotal.toFixed(2)}$ = ${baseCommission.toFixed(2)}$${bonusAmount > 0 ? ` + bonus ${bonusAmount.toFixed(2)}$` : ""} | Tier: ${salesCount} ventes`,
+                notes: `Auto: ${(commissionRate * 100).toFixed(0)}% Ã— ${monthlyTotal.toFixed(2)}$ = ${baseCommission.toFixed(2)}$${bonusAmount > 0 ? ` + bonus ${bonusAmount.toFixed(2)}$` : ""} | Tier: ${salesCount} ventes`,
                 created_at: new Date().toISOString(),
               }, {
                 onConflict: "field_order_id",
@@ -1113,7 +1113,7 @@ Deno.serve(async (req) => {
               });
 
             // Also write to field_commissions (the payroll-eligible table read by pay-commissions-friday).
-            // Status starts as "pending" — a supervisor must approve before payday.
+            // Status starts as "pending" â€” a supervisor must approve before payday.
             await supabaseAdmin
               .from("field_commissions")
               .upsert({
@@ -1132,7 +1132,7 @@ Deno.serve(async (req) => {
 
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
-        } catch (commErr: any) {
+        } catch (commErr) {
           console.error("[field-sales-sync] Commission engine error (non-blocking):", commErr);
         }
 
@@ -1142,7 +1142,7 @@ Deno.serve(async (req) => {
             body: { order_id: canonicalOrder.id },
           });
           console.log(`[field-sales-sync] send-order-confirmation invoked for ${canonicalOrder.id}`);
-        } catch (emailErr: any) {
+        } catch (emailErr) {
           console.error("[field-sales-sync] send-order-confirmation failed (non-blocking):", emailErr?.message || emailErr);
         }
 
@@ -1153,7 +1153,7 @@ Deno.serve(async (req) => {
             await supabaseAdmin.functions.invoke("send-auto-installation-email", {
               body: { order_id: canonicalOrder.id },
             });
-          } catch (emailErr: any) {
+          } catch (emailErr) {
             console.error("[field-sales-sync] auto-install email failed (non-blocking):", emailErr?.message || emailErr);
           }
         }
@@ -1168,7 +1168,7 @@ Deno.serve(async (req) => {
           payment_id: paymentId ?? undefined,
         };
 
-      } catch (error: any) {
+      } catch (error) {
         console.error(`[field-sales-sync] Error syncing sale ${sale.id}:`, error);
         const exactErrorMessage = error?.message || String(error);
         
@@ -1218,11 +1218,11 @@ Deno.serve(async (req) => {
           sync_status: 'pending',
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
-          internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement PayPal`,
+          internal_notes: `Field quote ${quote.id} matÃ©rialisÃ©e automatiquement aprÃ¨s paiement PayPal`,
         })
         .select('*')
         .single();
-      if (saleError || !sale) throw saleError ?? new Error('Création vente Field échouée');
+      if (saleError || !sale) throw saleError ?? new Error('CrÃ©ation vente Field Ã©chouÃ©e');
 
       const result = await syncSaleToOrders(sale);
       await supabaseAdmin.from('field_quotes').update({ status: 'converted', converted_order_id: result.orderId ?? null }).eq('id', quote.id);
@@ -1248,7 +1248,7 @@ Deno.serve(async (req) => {
       if (fetchError || !sale) {
         console.error('[field-sales-sync] Sale not found:', saleIdToSync, fetchError);
         return new Response(
-          JSON.stringify({ success: false, error: 'Vente non trouvée' }),
+          JSON.stringify({ success: false, error: 'Vente non trouvÃ©e' }),
           { status: 404, headers: buildCorsHeaders(req) }
         );
       }
@@ -1272,7 +1272,7 @@ Deno.serve(async (req) => {
       if (!internalCall && !isOwner && !adminRole) {
         console.error('[field-sales-sync] Unauthorized:', callerId);
         return new Response(
-          JSON.stringify({ success: false, error: 'Non autorisé' }),
+          JSON.stringify({ success: false, error: 'Non autorisÃ©' }),
           { status: 403, headers: buildCorsHeaders(req) }
         );
       }
@@ -1299,7 +1299,7 @@ Deno.serve(async (req) => {
 
       if (!adminRole) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Accès administrateur requis' }),
+          JSON.stringify({ success: false, error: 'AccÃ¨s administrateur requis' }),
           { status: 403, headers: buildCorsHeaders(req) }
         );
       }
@@ -1330,7 +1330,7 @@ Deno.serve(async (req) => {
         try {
           await syncSaleToOrders(sale);
           synced++;
-        } catch (error: any) {
+        } catch (error) {
           failed++;
           errors.push(`Sale ${sale.id}: ${error?.message || String(error)}`);
         }
@@ -1378,7 +1378,7 @@ Deno.serve(async (req) => {
       { status: 400, headers: buildCorsHeaders(req) }
     );
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[field-sales-sync] Error:', error);
     reportEdgeError(error, { function: 'field-sales-sync' }).catch(() => {});
     return new Response(

@@ -304,7 +304,7 @@ async function processExpirations(
           `[lifecycle] SUSPENDED subscription ${sub.id} (${sub.plan_name}), invoice ${inv.invoice_number} stays OVERDUE — reactivation until J+10`,
         );
       }
-    } catch (err: unknown) {
+    } catch (err) {
       const msg = `Expiration error for invoice ${inv.id}: ${err instanceof Error ? err.message : String(err)}`;
       stats.errors.push(msg);
       stats.errors_count++;
@@ -626,7 +626,7 @@ async function processOverdue(
       });
 
       console.log(`[lifecycle] Marked invoice ${inv.invoice_number} OVERDUE at J+${daysPastDue} — service stays active until J+5`);
-    } catch (err: unknown) {
+    } catch (err) {
       const msg = `Overdue transition error for ${inv.id}: ${err instanceof Error ? err.message : String(err)}`;
       stats.errors.push(msg);
       stats.errors_count++;
@@ -757,17 +757,17 @@ async function advanceReferralCycles(
                 console.log(`[lifecycle] Referral ${ref.id}: qualified email queued for ${referrerProfile.email}`);
               }
             }
-          } catch (emailErr: unknown) {
+          } catch (emailErr) {
             console.error(`[lifecycle] Referral ${ref.id}: email error:`, emailErr instanceof Error ? emailErr.message : emailErr);
           }
         }
-      } catch (refErr: unknown) {
+      } catch (refErr) {
         const msg = `Referral cycle error ${ref.id}: ${refErr instanceof Error ? refErr.message : String(refErr)}`;
         stats.errors.push(msg);
         stats.errors_count++;
       }
     }
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = `Referral cycle step error: ${err instanceof Error ? err.message : String(err)}`;
     stats.errors.push(msg);
     stats.errors_count++;
@@ -895,7 +895,7 @@ async function processChargebackFees(
       console.log(
         `[lifecycle] Chargeback interest +${interest}$ applied to ${openInvoice.invoice_number} (acct ${acct.account_number}, ${monthKey})`,
       );
-    } catch (err: unknown) {
+    } catch (err) {
       stats.errors.push(`Chargeback interest error: ${err instanceof Error ? err.message : String(err)}`);
       stats.errors_count++;
     }
@@ -1004,7 +1004,7 @@ async function processChargebackFees(
       console.log(
         `[lifecycle] Chargeback reactivation fee ${reactTotal}$ applied to ${targetInvoice.invoice_number} (acct ${acct.account_number})`,
       );
-    } catch (err: unknown) {
+    } catch (err) {
       stats.errors.push(`Chargeback reactivation error: ${err instanceof Error ? err.message : String(err)}`);
       stats.errors_count++;
     }
@@ -1031,7 +1031,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     if (body.mode === "backfill") mode = "backfill";
     if (body.mode === "manual") mode = "manual";
-  } catch {
+  } catch (_e) {
     // default mode
   }
 
@@ -1101,7 +1101,7 @@ serve(async (req) => {
       JSON.stringify({ success: true, run_id: runId, mode, summary, stats }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[lifecycle] Fatal error: ${msg}`);
 

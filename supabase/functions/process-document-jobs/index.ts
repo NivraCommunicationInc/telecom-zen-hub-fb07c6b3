@@ -1,5 +1,5 @@
-// ============================================================================
-// PROCESS DOCUMENT JOBS — NIVRA TELECOM (Server-side autonomous worker)
+﻿// ============================================================================
+// PROCESS DOCUMENT JOBS â€” NIVRA TELECOM (Server-side autonomous worker)
 // ============================================================================
 // Strategy D (validated 2026-04-21): 100% server-side automation.
 // Triggered every 60s by pg_cron. Claims pending jobs, generates PDFs with
@@ -59,12 +59,12 @@ async function processOne(admin: any, job: JobRow): Promise<{ ok: boolean; error
     });
     if (markErr) throw new Error(`mark_generated failed: ${markErr.message}`);
 
-    // 4. Trigger email dispatch (fire-and-forget — has its own retry)
+    // 4. Trigger email dispatch (fire-and-forget â€” has its own retry)
     admin.functions.invoke("send-client-document", { body: { job_id: job.id } })
       .catch((e: any) => console.warn(`[process-document-jobs] send invoke failed for ${job.id}:`, e?.message));
 
     return { ok: true };
-  } catch (err: any) {
+  } catch (err) {
     const errMsg = String(err?.message || err).slice(0, 500);
     console.error(`[process-document-jobs] job ${job.id} (${job.doc_type}) failed:`, errMsg);
     await admin.rpc("mark_document_job_failed", { p_job_id: job.id, p_error: errMsg })
@@ -107,14 +107,14 @@ serve(async (req: Request) => {
 
     const durationMs = Date.now() - startedAt;
     console.log(
-      `[process-document-jobs] done in ${durationMs}ms — processed=${processed} ok=${succeeded} failed=${failed}`,
+      `[process-document-jobs] done in ${durationMs}ms â€” processed=${processed} ok=${succeeded} failed=${failed}`,
     );
 
     return new Response(
       JSON.stringify({ success: true, processed, succeeded, failed, durationMs, results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[process-document-jobs] fatal:", err);
     return new Response(
       JSON.stringify({ success: false, error: err?.message || String(err), processed, succeeded, failed }),

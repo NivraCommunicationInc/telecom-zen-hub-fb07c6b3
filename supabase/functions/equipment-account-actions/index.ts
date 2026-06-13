@@ -74,7 +74,7 @@ async function resolveCustomerIds(admin: any, clientUserId: string): Promise<str
 const fmtMoney = (n: number) => {
   try {
     return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
-  } catch {
+  } catch (_e) {
     return `${n.toFixed(2)} $`;
   }
 };

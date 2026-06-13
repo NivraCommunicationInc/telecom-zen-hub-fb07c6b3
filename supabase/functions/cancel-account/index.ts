@@ -85,7 +85,7 @@ async function resolveCaller(authHeader: string | null): Promise<{
       : (roles ?? []).find((r: any) => ["admin", "supervisor", "employee"].includes(r.role))?.role ?? "client";
 
     return { userId: user.id, email: user.email ?? null, role };
-  } catch {
+  } catch (_e) {
     return { userId: null, email: null, role: null };
   }
 }
@@ -543,7 +543,7 @@ serve(async (req) => {
             completed_at: new Date().toISOString(),
           })
           .eq("id", runId);
-      } catch {
+      } catch (_e) {
         // give up — Sentry already has the failure
       }
     }

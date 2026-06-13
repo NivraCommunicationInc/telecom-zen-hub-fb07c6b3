@@ -1,21 +1,21 @@
-/**
- * Nivra Order Summary Template V4.0 — LOCKED PRODUCTION (2026-03-20)
+﻿/**
+ * Nivra Order Summary Template V4.0 â€” LOCKED PRODUCTION (2026-03-20)
  * 
  * Approved canonical layout:
- * ┌─────────────────────────────────────────────┐
- * │ BLUE HEADER: NIVRA TELECOM   No XXXXX      │
- * │ SOMMAIRE DE COMMANDE                        │
- * ├─────────────────────────────────────────────┤
- * │ Client info + Adresse de service             │
- * │ "Votre selection"                            │
- * │ Services mensuels recurrents (light blue)    │
- * │ Frais uniques (light blue)                   │
- * │ Promotion appliquee (light green)            │
- * │ Sous-total / TPS / TVQ / TOTAL               │
- * │ PROCHAINES ETAPES (blue box)                 │
- * ├─────────────────────────────────────────────┤
- * │ Footer                                       │
- * └─────────────────────────────────────────────┘
+ * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ * â”‚ BLUE HEADER: NIVRA TELECOM   No XXXXX      â”‚
+ * â”‚ SOMMAIRE DE COMMANDE                        â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Client info + Adresse de service             â”‚
+ * â”‚ "Votre selection"                            â”‚
+ * â”‚ Services mensuels recurrents (light blue)    â”‚
+ * â”‚ Frais uniques (light blue)                   â”‚
+ * â”‚ Promotion appliquee (light green)            â”‚
+ * â”‚ Sous-total / TPS / TVQ / TOTAL               â”‚
+ * â”‚ PROCHAINES ETAPES (blue box)                 â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Footer                                       â”‚
+ * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  */
 
 import jsPDFModule from "npm:jspdf@2.5.2";
@@ -92,7 +92,7 @@ export interface OrderSummaryV3Data {
   install_date?: string;
   technician_name?: string;
 
-  // Field-sales attribution (ADD-ONLY — only rendered when sale_source === 'field_sales')
+  // Field-sales attribution (ADD-ONLY â€” only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
   agent_number?: string;
@@ -106,13 +106,13 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "—";
+  if (!dateStr) return "â€”";
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "—";
+  return "â€”";
 };
 
 // ============================================================================
@@ -154,7 +154,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     y += 6;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(d.client_name || "—", 15, y);
+    doc.text(d.client_name || "â€”", 15, y);
     // Parse service address
     const addrParts = (d.service_address || "").split(",").map((s: string) => s.trim());
     doc.text(addrParts[0] || "", 110, y);
@@ -167,7 +167,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.text(`Compte: ${d.account_number}  |  Commande: ${d.order_number}`, 15, y);
     y += 10;
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional)
     if (d.sale_source === "field_sales" && (d.agent_name || d.agent_number)) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
@@ -177,8 +177,8 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${d.agent_name || "—"}`, 17, y); y += 5;
-      doc.text(`Badge : ${d.agent_number || "—"}`, 17, y); y += 5;
+      doc.text(`Nom : ${d.agent_name || "â€”"}`, 17, y); y += 5;
+      doc.text(`Badge : ${d.agent_number || "â€”"}`, 17, y); y += 5;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 7;
       doc.setTextColor(0, 0, 0);
     }
@@ -288,13 +288,13 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
 
     y += 3;
 
-    // TOTALS — use CANONICAL values from compute_invoice_breakdown (zero local math)
+    // TOTALS â€” use CANONICAL values from compute_invoice_breakdown (zero local math)
     const tx = 120;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     const canonicalSubtotal = (d.subtotal_monthly || 0) + (d.subtotal_onetime || 0);
     doc.text("Sous-total", tx, y); doc.text(fmt(canonicalSubtotal), 185, y, { align: "right" }); y += 6;
-    // Discount already shown in "Promotion appliquee" card above — show net subtotal in totals
+    // Discount already shown in "Promotion appliquee" card above â€” show net subtotal in totals
     if (d.discount_amount > 0) {
       const netSubtotal = canonicalSubtotal - d.discount_amount;
       doc.text("Sous-total apres rabais", tx, y); doc.text(fmt(netSubtotal), 185, y, { align: "right" }); y += 6;
@@ -342,7 +342,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
       blob,
       filename: `Sommaire_${d.order_number}_Nivra.pdf`,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[OrderSummaryV4] Generation error:", error);
     return { success: false, error: error?.message || "Erreur de generation" };
   }

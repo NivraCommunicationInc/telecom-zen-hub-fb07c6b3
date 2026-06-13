@@ -61,7 +61,7 @@ serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     dryRun = body?.dry_run === true;
-  } catch {
+  } catch (_e) {
     /* default: live */
   }
 
@@ -197,7 +197,7 @@ serve(async (req) => {
         stats.anonymized_clients.push({ client_id: acct.client_id, account_number: acct.account_number });
 
         console.log(`[data-retention] ✓ Anonymized client ${acct.client_id} (account ${acct.account_number}, ${documentsDeleted} docs deleted)`);
-      } catch (err: unknown) {
+      } catch (err) {
         stats.errors++;
         const msg = err instanceof Error ? err.message : String(err);
         stats.error_messages.push(`account ${acct.id}: ${msg}`);
@@ -248,7 +248,7 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[data-retention] FATAL:`, msg);
     return new Response(

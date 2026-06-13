@@ -226,7 +226,7 @@ serve(async (req: Request): Promise<Response> => {
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`[${requestId}] Error:`, errorMessage);
     

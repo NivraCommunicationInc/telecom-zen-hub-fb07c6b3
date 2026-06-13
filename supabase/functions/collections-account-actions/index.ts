@@ -57,7 +57,7 @@ const fmtDate = (d: string) => {
   try {
     return new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeZone: "America/Toronto" })
       .format(new Date(d + (d.length === 10 ? "T12:00:00" : "")));
-  } catch { return d; }
+  } catch (_e) { return d; }
 };
 
 serve(async (req) => {
@@ -125,7 +125,7 @@ serve(async (req) => {
         ip_address: ip,
         details: { invoice_id, invoice_number: inv.invoice_number, ...payload },
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const enqueueEmail = async (template_key: string, vars: Record<string, unknown>) => {
@@ -145,7 +145,7 @@ serve(async (req) => {
         status: "queued",
         priority: 0,
       });
-    } catch { /* swallow */ }
+    } catch (_e) { /* swallow */ }
   };
 
   const insertAction = async (

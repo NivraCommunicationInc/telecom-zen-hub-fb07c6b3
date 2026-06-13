@@ -215,7 +215,7 @@ serve(async (req: Request) => {
 
         results.push({ id: trigger.id, status: "sent", email: trigger.client_email });
 
-      } catch (triggerError: unknown) {
+      } catch (triggerError) {
         const errorMessage = triggerError instanceof Error ? triggerError.message : "Unknown error";
         
         await supabase
@@ -239,7 +239,7 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error processing triggers:", errorMessage);
     

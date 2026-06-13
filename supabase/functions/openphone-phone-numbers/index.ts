@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("openphone-phone-numbers error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(

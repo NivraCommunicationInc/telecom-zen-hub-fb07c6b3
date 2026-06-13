@@ -1,5 +1,5 @@
-/**
- * field-serviceability — Address check, duplicate detection, customer search.
+﻿/**
+ * field-serviceability â€” Address check, duplicate detection, customer search.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "check";
 
-    // ── Customer search (GET) ──
+    // â”€â”€ Customer search (GET) â”€â”€
     if (req.method === "GET" && action === "customer-search") {
       const rawQuery = sanitizeString(url.searchParams.get("q") || "", 120);
       const q = rawQuery.trim();
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
       if (rolesError) throw rolesError;
       if (!allowedRoles?.length) {
-        return new Response(JSON.stringify({ error: "Accès non autorisé" }), { status: 403, headers });
+        return new Response(JSON.stringify({ error: "AccÃ¨s non autorisÃ©" }), { status: 403, headers });
       }
 
       const profileFilters = [
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
-    // ── Serviceability check ──
+    // â”€â”€ Serviceability check â”€â”€
     if (action === "check") {
       const postalCode = sanitizeString(body.postal_code || "", 10).replace(/\s+/g, "").toUpperCase();
       const address = sanitizeString(body.address || "", 500);
@@ -305,7 +305,7 @@ Deno.serve(async (req) => {
       }), { headers });
     }
 
-    // ── Duplicate detection ──
+    // â”€â”€ Duplicate detection â”€â”€
     if (action === "duplicate-check") {
       const phone = sanitizeString(body.phone || "", 20).replace(/\D/g, "");
       const email = (body.email || "").trim().toLowerCase();
@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
-  } catch (err: any) {
+  } catch (err) {
     const status = err.status || 500;
     return new Response(JSON.stringify({ error: err.message || "Erreur serveur" }), { status, headers });
   }

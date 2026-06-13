@@ -62,7 +62,7 @@ function stringifyDetailValue(value: unknown): string {
   }
   try {
     return JSON.stringify(value);
-  } catch {
+  } catch (_e) {
     return String(value);
   }
 }

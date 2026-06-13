@@ -60,7 +60,7 @@ async function getActor(supabase: any, authHeader: string | null) {
       name: prof?.full_name || prof?.email || u.user.email || "Utilisateur",
       role: role?.role || "user",
     };
-  } catch { return { id: null, name: "system", role: "system" }; }
+  } catch (_e) { return { id: null, name: "system", role: "system" }; }
 }
 
 // Inline transition logic — used directly and by bulk_transition (no HTTP recursion,
@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   let body: any;
-  try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+  try { body = await req.json(); } catch (_e) { return json({ error: "Invalid JSON" }, 400); }
 
   const action = String(body.action || "").trim();
   const actor = await getActor(supabase, _authHeader);

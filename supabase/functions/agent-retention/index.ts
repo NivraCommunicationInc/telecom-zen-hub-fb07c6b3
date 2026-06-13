@@ -64,7 +64,7 @@ async function geminiOffer(client: any) {
     if (!res.ok) return null;
     const data = await res.json();
     return JSON.parse(data.choices?.[0]?.message?.content ?? "{}");
-  } catch { return null; }
+  } catch (_e) { return null; }
 }
 
 async function logAudit(supabase: any, action: string, result: string, details: unknown, ms: number, err?: string) {
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   try {
     let body: any = {};
-    try { body = await req.json(); } catch { /* empty */ }
+    try { body = await req.json(); } catch (_e) { /* empty */ }
     if (body.action === "winback") {
       const r = await runWinback(supabase);
       await logAudit(supabase, "winback", "success", r, Date.now() - startedAt);

@@ -289,7 +289,7 @@ async function geminiAnalyze(summary: Record<string, unknown>) {
     if (!res.ok) return null;
     const data = await res.json();
     return JSON.parse(data.choices?.[0]?.message?.content ?? "{}");
-  } catch {
+  } catch (_e) {
     return null;
   }
 }

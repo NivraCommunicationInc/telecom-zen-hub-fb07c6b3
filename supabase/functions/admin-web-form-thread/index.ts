@@ -81,7 +81,7 @@ serve(async (req) => {
       try {
         bodyData = await req.json();
         threadId = (bodyData.thread_id as string) || null;
-      } catch {
+      } catch (_e) {
         // Ignore parse errors
       }
     }
@@ -190,7 +190,7 @@ serve(async (req) => {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("admin-web-form-thread error:", message);
 

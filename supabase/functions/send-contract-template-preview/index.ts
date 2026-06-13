@@ -884,7 +884,7 @@ serve(async (req) => {
       if (body?.email) {
         recipientEmail = body.email;
       }
-    } catch {
+    } catch (_e) {
       // Use default email
     }
     

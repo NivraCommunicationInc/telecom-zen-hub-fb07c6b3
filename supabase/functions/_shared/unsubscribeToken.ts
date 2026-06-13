@@ -52,7 +52,7 @@ export async function verifyUnsubscribeToken(token: string): Promise<string | nu
     for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ provided[i];
     if (diff !== 0) return null;
     return email;
-  } catch {
+  } catch (_e) {
     return null;
   }
 }

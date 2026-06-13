@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
           .eq("id", notif.id);
 
         results.push({ id: notif.id, status: "sent" });
-      } catch (sendErr: unknown) {
+      } catch (sendErr) {
         const msg = sendErr instanceof Error ? sendErr.message : "Unknown error";
         const newRetry = (notif.retry_count || 0) + 1;
         await supabase
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ processed: results.length, results }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[process-notification-outbox] Error:", msg);
     return new Response(JSON.stringify({ error: msg }), {

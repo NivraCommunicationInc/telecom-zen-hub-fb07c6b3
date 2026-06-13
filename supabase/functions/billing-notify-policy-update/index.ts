@@ -36,7 +36,7 @@ serve(async (req) => {
 
     // Parse body
     let bodyJson: any = {};
-    try { bodyJson = await req.json(); } catch { /* empty body ok */ }
+    try { bodyJson = await req.json(); } catch (_e) { /* empty body ok */ }
 
     // Status-check mode: body with { check_status: true }
     if (bodyJson?.check_status === true) {
@@ -165,7 +165,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[billing-notify-policy-update] Error:", error);
     await reportEdgeError(error, { function: "billing-notify-policy-update" }).catch(() => {});
     const errMsg = error instanceof Error

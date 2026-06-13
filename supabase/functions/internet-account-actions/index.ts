@@ -102,7 +102,7 @@ const MODEM_LABELS: Record<string, { label: string; critical: boolean }> = {
 const fmtMoney = (n: number, currency = "CAD") => {
   try {
     return new Intl.NumberFormat("fr-CA", { style: "currency", currency }).format(n);
-  } catch {
+  } catch (_e) {
     return `${n.toFixed(2)} $`;
   }
 };

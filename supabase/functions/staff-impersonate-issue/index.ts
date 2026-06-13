@@ -1,10 +1,10 @@
-/**
+﻿/**
  * staff-impersonate-issue
  * Validates a one-time staff impersonation token (created via RPC
  * `start_staff_impersonation`) and returns a Supabase magic-link
  * action_link that, when opened, signs the browser in as the target
  * staff member. The admin's existing session in the same browser will
- * be replaced — this is the documented trade-off for true impersonation.
+ * be replaced â€” this is the documented trade-off for true impersonation.
  *
  * Body: { token: string }
  * Returns: { action_link: string, target_email: string, portal: string, target_name: string | null }
@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     if (vErr) throw vErr;
     const v = Array.isArray(vRows) ? vRows[0] : vRows;
     if (!v?.is_valid) {
-      return new Response(JSON.stringify({ error: "Token expiré ou invalide" }), {
+      return new Response(JSON.stringify({ error: "Token expirÃ© ou invalide" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -60,16 +60,16 @@ Deno.serve(async (req) => {
       targetName = (prof as any)?.full_name
         || [(prof as any)?.first_name, (prof as any)?.last_name].filter(Boolean).join(" ")
         || null;
-    } catch { /* noop */ }
+    } catch (_e) { /* noop */ }
 
-    // 4) Generate magic link → action_link signs the browser in as target user
+    // 4) Generate magic link â†’ action_link signs the browser in as target user
     const portalPath = ({
       field: "/field", rh: "/rh", technician: "/staff/technician",
       employee: "/employee", core: "/core",
     } as Record<string, string>)[v.portal] ?? "/hub";
 
     // Resolve the APP origin (NOT the Supabase functions host) for the redirect.
-    // Priority: explicit body.origin → Origin header → Referer → fallback.
+    // Priority: explicit body.origin â†’ Origin header â†’ Referer â†’ fallback.
     const ALLOWED_APP_ORIGINS = [
       "https://nivra-telecom.ca",
       "https://www.nivra-telecom.ca",
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     const headerOrigin = req.headers.get("origin");
     const refererOrigin = (() => {
       const r = req.headers.get("referer");
-      try { return r ? new URL(r).origin : null; } catch { return null; }
+      try { return r ? new URL(r).origin : null; } catch (_e) { return null; }
     })();
     const candidateOrigin = bodyOrigin || headerOrigin || refererOrigin;
     const appOrigin = (candidateOrigin && ALLOWED_APP_ORIGINS.includes(candidateOrigin))
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       options: { redirectTo },
     });
     if (linkErr || !linkData?.properties?.action_link) {
-      return new Response(JSON.stringify({ error: "Impossible de générer le lien" }), {
+      return new Response(JSON.stringify({ error: "Impossible de gÃ©nÃ©rer le lien" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       portal: v.portal,
       session_id: v.session_id,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[staff-impersonate-issue]", err);
     return new Response(JSON.stringify({ error: err?.message || "Erreur interne" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

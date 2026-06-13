@@ -1,5 +1,5 @@
-/**
- * Final Refund Receipt — Recu de remboursement final (apres annulation/cloture).
+﻿/**
+ * Final Refund Receipt â€” Recu de remboursement final (apres annulation/cloture).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -69,7 +69,7 @@ export function generateFinalRefundReceiptPDF(data: FinalRefundReceiptData): PDF
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Remboursement_Final_${data.receipt_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

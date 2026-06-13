@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+﻿import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Service role client - bypasses RLS for automated backfill
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
 
         console.log(`[ContractsBackfill] Created contract ${contractNumber} for order ${order.id}`);
 
-      } catch (orderError: any) {
+      } catch (orderError) {
         result.errors.push(`Order ${order.id}: ${orderError.message}`);
         result.details.push({
           orderId: order.id,
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("[ContractsBackfill] Error:", error);
     return new Response(JSON.stringify({
       success: false,

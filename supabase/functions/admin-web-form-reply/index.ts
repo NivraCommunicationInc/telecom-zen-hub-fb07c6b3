@@ -229,7 +229,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("admin-web-form-reply error:", message);
 

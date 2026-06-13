@@ -34,7 +34,7 @@ const fmtDateFR = (s: string): string => {
   try {
     const d = new Date(s);
     return d.toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });
-  } catch { return s; }
+  } catch (_e) { return s; }
 };
 
 interface LetterData {

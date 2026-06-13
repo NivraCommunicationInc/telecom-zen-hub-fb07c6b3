@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
@@ -96,7 +96,7 @@ function isRecurringEligible(order: any): boolean {
   }
   const st = (order.service_type || "").toLowerCase();
   if (st.includes("internet") || st.includes("mobile") || st.includes("tv") ||
-      st.includes("streaming") || st.includes("sécurité") || st.includes("security")) {
+      st.includes("streaming") || st.includes("sÃ©curitÃ©") || st.includes("security")) {
     return true;
   }
   return false;
@@ -116,13 +116,13 @@ serve(async (req) => {
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
     const body: CapturePayPalOrderRequest = await req.json();
-    console.log("[PayPal Capture] ▶ Capturing order:", body.paypal_order_id, "invoice_id:", body.invoice_id);
+    console.log("[PayPal Capture] â–¶ Capturing order:", body.paypal_order_id, "invoice_id:", body.invoice_id);
 
     if (!body.paypal_order_id) throw new Error("Missing paypal_order_id");
 
     const accessToken = await getPayPalAccessToken();
 
-    // ── Step 1: Capture the PayPal order ────────────────────────────
+    // â”€â”€ Step 1: Capture the PayPal order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const captureResponse = await fetch(
       `https://api-m.paypal.com/v2/checkout/orders/${body.paypal_order_id}/capture`,
       {
@@ -136,13 +136,13 @@ serve(async (req) => {
 
     if (!captureResponse.ok) {
       const error = await captureResponse.text();
-      console.error("[PayPal Capture] ✗ Capture API error:", error);
+      console.error("[PayPal Capture] âœ— Capture API error:", error);
       throw new Error(`PayPal capture failed: ${error}`);
     }
 
     const captureData = await captureResponse.json();
 
-    // ── Step 2: Extract & validate capture data ──────────────────
+    // â”€â”€ Step 2: Extract & validate capture data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const capture = captureData.purchase_units?.[0]?.payments?.captures?.[0];
     const captureId = capture?.id;
     const amountValue = capture?.amount?.value;
@@ -162,7 +162,7 @@ serve(async (req) => {
       payer_email: normalizeEmail(captureData.payer?.email_address),
       payer_name: `${captureData.payer?.name?.given_name || ""} ${captureData.payer?.name?.surname || ""}`.trim(),
     };
-    console.log("[PayPal Capture] ★ CAPTURE PROOF:", JSON.stringify(captureProof));
+    console.log("[PayPal Capture] â˜… CAPTURE PROOF:", JSON.stringify(captureProof));
 
     if (paypalOrderStatus !== "COMPLETED") {
       throw new Error(`Payment not completed: ${paypalOrderStatus}`);
@@ -193,12 +193,12 @@ serve(async (req) => {
       linkedCustomerId = await ensureBillingCustomer(supabase, payerEmail, payerFirstName, payerLastName, payerPhone);
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // FIELD-SALES BRIDGE — if this capture corresponds to a Field
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // FIELD-SALES BRIDGE â€” if this capture corresponds to a Field
     // payment intent, materialize the field_sales_orders row, call
     // field-sales-sync to create the canonical orders/invoice rows,
     // mark the intent paid, and queue a commission. Then return early.
-    // ════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     {
       const { data: fieldIntent } = await supabase
         .from("field_payment_intents")
@@ -207,11 +207,11 @@ serve(async (req) => {
         .maybeSingle();
 
       if (fieldIntent) {
-        console.log("[PayPal Capture] ▶ Field-sale bridge: intent=", fieldIntent.id);
+        console.log("[PayPal Capture] â–¶ Field-sale bridge: intent=", fieldIntent.id);
 
-        // Idempotency — already processed
+        // Idempotency â€” already processed
         if (fieldIntent.status === "completed" && fieldIntent.converted_field_order_id) {
-          console.log("[PayPal Capture] ✓ Field intent already completed, skipping");
+          console.log("[PayPal Capture] âœ“ Field intent already completed, skipping");
           return new Response(JSON.stringify({
             success: true, capture_id: captureId, amount, currency: currencyCode,
             status: "COMPLETED", already_processed: true, field_intent_id: fieldIntent.id,
@@ -251,7 +251,7 @@ serve(async (req) => {
               sync_status: "pending",
               source_quote_id: quote.id,
               source_field_payment_intent_id: fieldIntent.id,
-              internal_notes: `Agent: ${quote.agent_name || "—"} · Field PayPal capture · intent=${fieldIntent.id}`,
+              internal_notes: `Agent: ${quote.agent_name || "â€”"} Â· Field PayPal capture Â· intent=${fieldIntent.id}`,
             })
             .select("id")
             .single();
@@ -286,7 +286,7 @@ serve(async (req) => {
             })
             .eq("id", fieldIntent.id);
 
-          // Queue commission (best-effort — uses existing commission rules if defined)
+          // Queue commission (best-effort â€” uses existing commission rules if defined)
           try {
             await supabase.from("field_commissions").insert({
               agent_id: fieldIntent.agent_id,
@@ -294,9 +294,9 @@ serve(async (req) => {
               amount: 0, // calculated by trigger / commission engine
               status: "pending",
               commission_type: "field_sale",
-              description: `Vente terrain — ${customerName}`,
+              description: `Vente terrain â€” ${customerName}`,
               earned_at: new Date().toISOString(),
-              notes: `intent=${fieldIntent.id} · sale=${fso.id}`,
+              notes: `intent=${fieldIntent.id} Â· sale=${fso.id}`,
             });
           } catch (commErr) {
             console.warn("[PayPal Capture] commission insert failed (non-fatal):", commErr);
@@ -317,7 +317,7 @@ serve(async (req) => {
             },
           });
 
-          console.log("[PayPal Capture] ★ Field bridge complete — sale:", fso.id, "order:", newOrderId);
+          console.log("[PayPal Capture] â˜… Field bridge complete â€” sale:", fso.id, "order:", newOrderId);
 
           return new Response(JSON.stringify({
             success: true,
@@ -329,8 +329,8 @@ serve(async (req) => {
             invoice_id: newInvoiceId,
             payer_email: payerEmail,
           }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        } catch (bridgeErr: any) {
-          console.error("[PayPal Capture] ✗ Field bridge error:", bridgeErr);
+        } catch (bridgeErr) {
+          console.error("[PayPal Capture] âœ— Field bridge error:", bridgeErr);
           await supabase.from("billing_system_alerts").insert({
             alert_type: "field_paypal_bridge_error",
             entity_type: "field_payment_intent",
@@ -354,7 +354,7 @@ serve(async (req) => {
     // Resolve invoice_id: request body > PayPal custom_id
     const invoiceId = body.invoice_id || customId;
 
-    // ── Step 3: Apply payment via transactional DB function ──────
+    // â”€â”€ Step 3: Apply payment via transactional DB function â”€â”€â”€â”€â”€â”€
     let paymentResult: any = null;
     let invoiceUpdated = false;
     let updatedInvoice: any = null;
@@ -368,7 +368,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (v2Invoice) {
-        // ★ USE THE TRANSACTIONAL DB FUNCTION ★
+        // â˜… USE THE TRANSACTIONAL DB FUNCTION â˜…
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
           "apply_payment_to_invoice",
           {
@@ -386,7 +386,7 @@ serve(async (req) => {
         );
 
         if (rpcError) {
-          console.error("[PayPal Capture] ✗ apply_payment_to_invoice error:", rpcError);
+          console.error("[PayPal Capture] âœ— apply_payment_to_invoice error:", rpcError);
           throw new Error(`Failed to apply payment: ${rpcError.message}`);
         }
 
@@ -394,7 +394,7 @@ serve(async (req) => {
         invoiceUpdated = paymentResult?.success === true;
 
         if (invoiceUpdated) {
-          console.log("[PayPal Capture] ✓ Payment applied via DB function:", paymentResult);
+          console.log("[PayPal Capture] âœ“ Payment applied via DB function:", paymentResult);
 
           updatedInvoice = {
             id: v2Invoice.id,
@@ -468,18 +468,18 @@ serve(async (req) => {
               attempts: 0,
               max_attempts: 5,
             });
-            console.log("[PayPal Capture] ✓ Confirmation email queued to:", customerEmail, pdfAttachment ? "(with PDF)" : "(no PDF)");
+            console.log("[PayPal Capture] âœ“ Confirmation email queued to:", customerEmail, pdfAttachment ? "(with PDF)" : "(no PDF)");
           }
 
-          // ══════════════════════════════════════════════════════════════
+          // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           // PHASE 2b: RECURRING SUBSCRIPTION SETUP AFTER CAPTURE
-          // ══════════════════════════════════════════════════════════════
+          // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           // Only trigger after:
           //   1. Successful PayPal capture (COMPLETED)
           //   2. Payment applied to invoice (invoiceUpdated = true)
           //   3. Order is recurring-eligible
           //   4. No existing PayPal subscription for this order
-          // ══════════════════════════════════════════════════════════════
+          // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           if (v2Invoice.order_id && paymentResult.is_fully_paid) {
             await attemptRecurringSetup(
               supabase,
@@ -493,7 +493,7 @@ serve(async (req) => {
           }
         }
       } else {
-        console.error("[PayPal Capture] ✗ ORPHAN CAPTURE — invoice_id not found in billing_invoices:", invoiceId);
+        console.error("[PayPal Capture] âœ— ORPHAN CAPTURE â€” invoice_id not found in billing_invoices:", invoiceId);
         // HARDENING: alert immediately so support can manually recover
         await supabase.from("billing_system_alerts").insert({
           alert_type: "paypal_capture_orphan_no_invoice",
@@ -511,16 +511,16 @@ serve(async (req) => {
             recovery_hint: "Money was captured by PayPal but no DB invoice exists. Manually create order/invoice/payment using payer info above.",
           },
         });
-        // Notify business immediately (use custom_html template — exists in registry)
-        const alertSubject = `🚨 PayPal capture orpheline — ${captureId}`;
+        // Notify business immediately (use custom_html template â€” exists in registry)
+        const alertSubject = `ðŸš¨ PayPal capture orpheline â€” ${captureId}`;
         const alertBody = `
           <h2>Capture PayPal sans facture</h2>
           <p><strong>Capture ID:</strong> ${captureId}</p>
           <p><strong>Montant:</strong> ${amount} ${currencyCode}</p>
           <p><strong>Payeur:</strong> ${payerFirstName} ${payerLastName} &lt;${payerEmail}&gt;</p>
-          <p><strong>Téléphone:</strong> ${payerPhone || "n/a"}</p>
+          <p><strong>TÃ©lÃ©phone:</strong> ${payerPhone || "n/a"}</p>
           <p><strong>Tentative invoice_id:</strong> ${invoiceId}</p>
-          <p>L'argent a été capturé par PayPal mais aucune facture n'a été trouvée. Récupération manuelle requise immédiatement.</p>
+          <p>L'argent a Ã©tÃ© capturÃ© par PayPal mais aucune facture n'a Ã©tÃ© trouvÃ©e. RÃ©cupÃ©ration manuelle requise immÃ©diatement.</p>
         `;
         await supabase.from("email_queue").insert([
           {
@@ -537,7 +537,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Update orders table if order_id provided ─────────────────
+    // â”€â”€ Update orders table if order_id provided â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (body.order_id) {
       await supabase
         .from("orders")
@@ -549,7 +549,7 @@ serve(async (req) => {
         .eq("id", body.order_id);
     }
 
-    // ── Activity log ─────────────────────────────────────────────
+    // â”€â”€ Activity log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_capture",
@@ -563,7 +563,7 @@ serve(async (req) => {
       },
     });
 
-    console.log("[PayPal Capture] ★ COMPLETE — capture_id:", captureId, "invoice_updated:", invoiceUpdated);
+    console.log("[PayPal Capture] â˜… COMPLETE â€” capture_id:", captureId, "invoice_updated:", invoiceUpdated);
 
     return new Response(
       JSON.stringify({
@@ -583,8 +583,8 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
-    console.error("[PayPal Capture] ✗ Error:", error);
+  } catch (error) {
+    console.error("[PayPal Capture] âœ— Error:", error);
     reportEdgeError(error, { function: "paypal-capture-order" }).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
@@ -594,7 +594,7 @@ serve(async (req) => {
 });
 
 // ============================================================================
-// RECURRING SUBSCRIPTION SETUP — called only after successful capture
+// RECURRING SUBSCRIPTION SETUP â€” called only after successful capture
 // ============================================================================
 
 async function attemptRecurringSetup(
@@ -609,7 +609,7 @@ async function attemptRecurringSetup(
   const log = (msg: string) => console.log(`[PayPal Capture][RecurringSetup] ${msg}`);
 
   try {
-    // ═══ STEP 1: Load order ═══
+    // â•â•â• STEP 1: Load order â•â•â•
     const { data: order } = await supabase
       .from("orders")
       .select("id, order_number, account_id, service_type, pricing_snapshot")
@@ -617,19 +617,19 @@ async function attemptRecurringSetup(
       .single();
 
     if (!order) {
-      log(`Order ${orderId} not found — skipping recurring setup`);
+      log(`Order ${orderId} not found â€” skipping recurring setup`);
       await setRecurringStatus(supabase, subscriptionId, "skipped");
       return;
     }
 
-    // ═══ STEP 2: Check recurring eligibility ═══
+    // â•â•â• STEP 2: Check recurring eligibility â•â•â•
     if (!isRecurringEligible(order)) {
-      log(`Order ${order.order_number} is not recurring-eligible — marking skipped`);
+      log(`Order ${order.order_number} is not recurring-eligible â€” marking skipped`);
       await setRecurringStatus(supabase, subscriptionId, "skipped");
       return;
     }
 
-    // ═══ STEP 3: Anti-duplication — check existing PayPal subscription ═══
+    // â•â•â• STEP 3: Anti-duplication â€” check existing PayPal subscription â•â•â•
     const { data: existingSub } = await supabase
       .from("billing_subscriptions")
       .select("id, paypal_subscription_id, recurring_setup_status")
@@ -638,11 +638,11 @@ async function attemptRecurringSetup(
       .maybeSingle();
 
     if (existingSub?.paypal_subscription_id) {
-      log(`PayPal subscription already exists for order ${orderId}: ${existingSub.paypal_subscription_id} — anti-duplication`);
+      log(`PayPal subscription already exists for order ${orderId}: ${existingSub.paypal_subscription_id} â€” anti-duplication`);
       return;
     }
 
-    // ═══ STEP 4: Resolve recurring monthly total from billing_subscription_services ═══
+    // â•â•â• STEP 4: Resolve recurring monthly total from billing_subscription_services â•â•â•
     // Find the subscription for this order
     let nivraSubId = subscriptionId;
     if (!nivraSubId) {
@@ -684,7 +684,7 @@ async function attemptRecurringSetup(
     }
 
     if (recurringTotal <= 0 || !planCode) {
-      log(`Cannot resolve recurring amount or plan_code for order ${order.order_number} — marking failed`);
+      log(`Cannot resolve recurring amount or plan_code for order ${order.order_number} â€” marking failed`);
       await setRecurringStatus(supabase, nivraSubId, "failed");
       await supabase.from("billing_system_alerts").insert({
         alert_type: "recurring_setup_failed",
@@ -700,20 +700,20 @@ async function attemptRecurringSetup(
       return;
     }
 
-    // ═══ STEP 5: Resolve customer info ═══
+    // â•â•â• STEP 5: Resolve customer info â•â•â•
     const customerEmail = customer?.email || "";
     const customerFirstName = customer?.first_name || "";
     const customerLastName = customer?.last_name || "";
     const customerPhone = customer?.phone || payerPhone || "";
 
     if (!customerEmail) {
-      log(`No customer email for order ${order.order_number} — marking failed`);
+      log(`No customer email for order ${order.order_number} â€” marking failed`);
       await setRecurringStatus(supabase, nivraSubId, "failed");
       return;
     }
 
-    // ═══ STEP 6: Call the canonical PayPal subscription factory ═══
-    log(`✓ Creating PayPal subscription: order=${order.order_number}, plan=${planCode}, amount=${recurringTotal}/mo`);
+    // â•â•â• STEP 6: Call the canonical PayPal subscription factory â•â•â•
+    log(`âœ“ Creating PayPal subscription: order=${order.order_number}, plan=${planCode}, amount=${recurringTotal}/mo`);
 
     const result = await createNivraPayPalSubscription({
       supabase,
@@ -732,7 +732,7 @@ async function attemptRecurringSetup(
       nivra_subscription_id: nivraSubId || undefined,
     });
 
-    log(`✓ PayPal subscription created: ${result.paypal_subscription_id} | plan reused: ${result.plan_reused} | status: ${result.recurring_setup_status}`);
+    log(`âœ“ PayPal subscription created: ${result.paypal_subscription_id} | plan reused: ${result.plan_reused} | status: ${result.recurring_setup_status}`);
     log(`  Approval URL: ${result.approval_url}`);
 
     // Queue email with approval link for customer
@@ -752,8 +752,8 @@ async function attemptRecurringSetup(
       max_attempts: 5,
     });
 
-  } catch (err: any) {
-    log(`✗ Recurring setup FAILED: ${err.message}`);
+  } catch (err) {
+    log(`âœ— Recurring setup FAILED: ${err.message}`);
     // Factory already creates system alert on failure, just log here
     console.error("[PayPal Capture][RecurringSetup] Error:", err);
   }

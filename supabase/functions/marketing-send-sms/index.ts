@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
     let pnJson: any = null;
     try {
       pnJson = JSON.parse(pnText);
-    } catch { /* keep raw */ }
+    } catch (_e) { /* keep raw */ }
     console.log(
       `[marketing-send-sms-${reqId}] phone-numbers status=${pnRes.status} body=${
         pnText.slice(0, 500)
@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
     let sendJson: any = null;
     try {
       sendJson = JSON.parse(sendText);
-    } catch { /* keep raw */ }
+    } catch (_e) { /* keep raw */ }
     console.log(
       `[marketing-send-sms-${reqId}] OpenPhone send status=${sendRes.status} body=${
         sendText.slice(0, 1000)
@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
         let retryJson: any = null;
         try {
           retryJson = JSON.parse(retryText);
-        } catch { /* keep raw */ }
+        } catch (_e) { /* keep raw */ }
         console.log(
           `[marketing-send-sms-${reqId}] retry status=${retryRes.status} body=${
             retryText.slice(0, 1000)

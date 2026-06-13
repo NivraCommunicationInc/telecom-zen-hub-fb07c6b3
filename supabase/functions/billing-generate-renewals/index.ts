@@ -205,7 +205,7 @@ serve(async (req) => {
               }
             }
           }
-        } catch (downgradeErr: unknown) {
+        } catch (downgradeErr) {
           console.error(`[billing-generate-renewals] downgrade error for subscription ${sub.id}:`, downgradeErr);
           // Non-fatal — proceed with existing plan price
         }
@@ -525,7 +525,7 @@ serve(async (req) => {
               }
             }
           }
-        } catch (adjErr: unknown) {
+        } catch (adjErr) {
           const adjErrMsg = adjErr instanceof Error ? adjErr.message : String(adjErr);
           console.error(`[billing-generate-renewals] account_adjustments error for ${invoiceNumber}:`, adjErrMsg);
           await reportEdgeError(adjErr, { function: "billing-generate-renewals", invoice_id: invoice.id, subscription_id: sub.id, invoice_number: invoiceNumber }).catch(() => {});
@@ -669,7 +669,7 @@ serve(async (req) => {
         results.processed++;
         console.log(`[billing-generate-renewals] Created renewal invoice ${invoiceNumber} for subscription ${sub.id} (due ${dueDate}, ${daysRemaining}d remaining)`);
         
-      } catch (err: unknown) {
+      } catch (err) {
         const errorMsg = `Failed to process subscription ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
         console.error(`[billing-generate-renewals] ${errorMsg}`);
         results.errors.push(errorMsg);
@@ -706,7 +706,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
     
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[billing-generate-renewals] Error:", error);
     await reportEdgeError(error, { function: "billing-generate-renewals" }).catch(() => {});
     return new Response(

@@ -74,7 +74,7 @@ async function verifySvixSignature(req: Request, rawBody: string): Promise<boole
   const tsMs = Number(ts) * 1000;
   if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) return false;
   let keyBytes: Uint8Array;
-  try { keyBytes = base64UrlToBytes(secret); } catch { return false; }
+  try { keyBytes = base64UrlToBytes(secret); } catch (_e) { return false; }
   const expected = await hmacSha256B64(keyBytes, `${id}.${ts}.${rawBody}`);
   return sigHeader.split(" ").some((part) => {
     const [version, value] = part.split(",");

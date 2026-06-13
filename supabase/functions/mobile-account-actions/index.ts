@@ -83,7 +83,7 @@ const SIM_ACTION_LABELS: Record<string, { label: string; critical: boolean }> = 
 const fmtMoney = (n: number, currency = "CAD") => {
   try {
     return new Intl.NumberFormat("fr-CA", { style: "currency", currency }).format(n);
-  } catch {
+  } catch (_e) {
     return `${n.toFixed(2)} $`;
   }
 };
@@ -116,7 +116,7 @@ serve(async (req) => {
   let body: Body;
   try {
     body = await req.json();
-  } catch {
+  } catch (_e) {
     return json(400, { error: "Corps JSON invalide" });
   }
 

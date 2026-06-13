@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   let body: { session_id?: string; limit?: number };
   try {
     body = await req.json();
-  } catch {
+  } catch (_e) {
     return new Response(JSON.stringify({ error: "invalid_json" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

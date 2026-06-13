@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[client-password-reset-send] Unexpected error:", error);
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

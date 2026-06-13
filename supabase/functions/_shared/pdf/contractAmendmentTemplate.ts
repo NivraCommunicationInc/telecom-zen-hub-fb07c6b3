@@ -1,5 +1,5 @@
-/**
- * Contract Amendment — Avenant au contrat de service.
+﻿/**
+ * Contract Amendment â€” Avenant au contrat de service.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -101,7 +101,7 @@ export function generateContractAmendmentPDF(data: ContractAmendmentData): PDFGe
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Avenant_Contrat_${data.amendment_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

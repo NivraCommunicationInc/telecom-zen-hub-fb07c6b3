@@ -25,7 +25,7 @@ async function measureLoad(url: string): Promise<{ ms: number; ok: boolean }> {
     // drain body
     await res.text();
     return { ms, ok: res.ok };
-  } catch {
+  } catch (_e) {
     return { ms: Date.now() - start, ok: false };
   }
 }
@@ -39,7 +39,7 @@ async function checkIndexed(url: string): Promise<boolean> {
     const html = await res.text();
     // crude heuristic — Google returns "no results" when not indexed
     return !/did not match any documents|n'a pas trouv/.test(html);
-  } catch {
+  } catch (_e) {
     return false;
   }
 }
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       const sm = await fetch("https://nivra-telecom.ca/sitemap.xml");
       const txt = await sm.text();
       sitemapUrls = (txt.match(/<loc>/g) ?? []).length;
-    } catch { /* noop */ }
+    } catch (_e) { /* noop */ }
 
     // STEP 3 — page speed
     const loads: Array<{ url: string; ms: number; ok: boolean }> = [];

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Edge Function: send-template-pdf-preview
  * Generates sample PDFs for the 3 billing templates and sends them by email
  * 
@@ -40,23 +40,23 @@ const PDF_COLORS = {
 const NIVRA_HEADER = {
   name: "NIVRA COMMUNICATIONS INC.",
   division: "Billing Division",
-  province: "Québec",
-  address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
+  province: "QuÃ©bec",
+  address: "1799 Av. Pierre-PÃ©ladeau, Laval, QC H7T 2Y5",
   email: "Support@nivra-telecom.ca",
 };
 
-const LEGAL_FOOTER = `AVIS LÉGAL — SERVICE PRÉPAYÉ SANS CONTRAT
+const LEGAL_FOOTER = `AVIS LÃ‰GAL â€” SERVICE PRÃ‰PAYÃ‰ SANS CONTRAT
 
-Ce document constitue une facture pour des services de télécommunications prépayés fournis par Nivra Communications Inc. 
-Aucun engagement contractuel minimum n'est requis. Le service est renouvelé mensuellement sur paiement préalable.
+Ce document constitue une facture pour des services de tÃ©lÃ©communications prÃ©payÃ©s fournis par Nivra Communications Inc. 
+Aucun engagement contractuel minimum n'est requis. Le service est renouvelÃ© mensuellement sur paiement prÃ©alable.
 
-• Les montants affichés sont en dollars canadiens (CAD) et incluent les taxes applicables (TPS 5%, TVQ 9.975%).
-• Le paiement doit être reçu avant la date d'échéance pour maintenir le service actif.
-• En cas de non-paiement à l'échéance, le service sera suspendu sans préavis additionnel.
-• Des frais de retard de 5% peuvent s'appliquer aux montants impayés après 48 heures.
-• Pour toute question, contactez Support@nivra-telecom.ca
+â€¢ Les montants affichÃ©s sont en dollars canadiens (CAD) et incluent les taxes applicables (TPS 5%, TVQ 9.975%).
+â€¢ Le paiement doit Ãªtre reÃ§u avant la date d'Ã©chÃ©ance pour maintenir le service actif.
+â€¢ En cas de non-paiement Ã  l'Ã©chÃ©ance, le service sera suspendu sans prÃ©avis additionnel.
+â€¢ Des frais de retard de 5% peuvent s'appliquer aux montants impayÃ©s aprÃ¨s 48 heures.
+â€¢ Pour toute question, contactez Support@nivra-telecom.ca
 
-Nivra Communications Inc. — NEQ 2291249786 — Province de Québec, Canada`;
+Nivra Communications Inc. â€” NEQ 2291249786 â€” Province de QuÃ©bec, Canada`;
 
 // ============================================================================
 // SAMPLE DATA
@@ -82,11 +82,11 @@ const SAMPLE_MONTHLY = {
   client_name: "Jean-Pierre Tremblay",
   client_email: "jptremblay@example.com",
   client_phone: "514-555-1234",
-  client_address: "1234 Rue Principale, Montréal, QC H2X 1Y4",
+  client_address: "1234 Rue Principale, MontrÃ©al, QC H2X 1Y4",
   invoice_lines: [
     {
       service_type: "Internet",
-      service_description: "Fibre 500 Mbps Illimité",
+      service_description: "Fibre 500 Mbps IllimitÃ©",
       service_period: `${today} - ${cycleEnd}`,
       service_price: 79.99,
       service_promo: "-5$",
@@ -94,7 +94,7 @@ const SAMPLE_MONTHLY = {
     },
     {
       service_type: "TV",
-      service_description: "Forfait Essentiel 60+ chaînes",
+      service_description: "Forfait Essentiel 60+ chaÃ®nes",
       service_period: `${today} - ${cycleEnd}`,
       service_price: 39.99,
       service_promo: "-5$",
@@ -148,15 +148,15 @@ const SAMPLE_ORDER = {
   order_number: "CMD-2026-0789",
   order_date: today,
   account_number: "ACC-2026-0002",
-  client_name: "André Gagnon",
+  client_name: "AndrÃ© Gagnon",
   client_email: "agagnon@example.com",
   client_phone: "450-555-4321",
-  service_address: "9012 Rue du Commerce, Québec, QC G1V 3X5",
-  billing_address: "9012 Rue du Commerce, Québec, QC G1V 3X5",
+  service_address: "9012 Rue du Commerce, QuÃ©bec, QC G1V 3X5",
+  billing_address: "9012 Rue du Commerce, QuÃ©bec, QC G1V 3X5",
   services: [
     {
       service_type: "Internet",
-      service_description: "Fibre 1 Gbps Illimité",
+      service_description: "Fibre 1 Gbps IllimitÃ©",
       service_period: "/mois",
       service_price: 99.99,
       service_total: 99.99,
@@ -272,7 +272,7 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...PDF_COLORS.navy);
-  doc.text("FACTURÉ À", margin + 6, y + 6);
+  doc.text("FACTURÃ‰ Ã€", margin + 6, y + 6);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
@@ -286,7 +286,7 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...PDF_COLORS.navy);
-  doc.text("NUMÉRO DE COMPTE", margin + 110, y + 6);
+  doc.text("NUMÃ‰RO DE COMPTE", margin + 110, y + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...PDF_COLORS.dark);
@@ -299,7 +299,7 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
   doc.setFontSize(8);
   doc.setTextColor(...PDF_COLORS.gray);
   doc.text("Date de facture:", margin, y);
-  doc.text("Période de service:", margin, y + 6);
+  doc.text("PÃ©riode de service:", margin, y + 6);
   
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...PDF_COLORS.dark);
@@ -351,10 +351,10 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...PDF_COLORS.dark);
-    doc.text(`🌐 ${line.service_type}`, margin + 2, y + 4);
+    doc.text(`ðŸŒ ${line.service_type}`, margin + 2, y + 4);
     doc.text(line.service_description, margin + 52, y + 4);
     doc.text(formatCurrency(line.service_price), margin + 130, y + 4);
-    doc.text(line.service_promo || "—", margin + 150, y + 4);
+    doc.text(line.service_promo || "â€”", margin + 150, y + 4);
     doc.text(formatCurrency(line.service_total), margin + 170, y + 4, { align: "right" });
     y += 7;
   });
@@ -366,7 +366,7 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...PDF_COLORS.success);
-    doc.text(`Rabais appliqué: -${formatCurrency(data.total_discounts)}`, margin + 5, y);
+    doc.text(`Rabais appliquÃ©: -${formatCurrency(data.total_discounts)}`, margin + 5, y);
     y += 10;
   }
   
@@ -387,7 +387,7 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
   }
   
   doc.setFont("helvetica", "bold");
-  doc.text("Sous-total après rabais:", totalsX, y);
+  doc.text("Sous-total aprÃ¨s rabais:", totalsX, y);
   doc.text(formatCurrency(data.subtotal_after_discounts), totalsX + 118, y, { align: "right" });
   y += 7;
   
@@ -406,7 +406,7 @@ function generateInvoiceMonthlyPDF(data: typeof SAMPLE_MONTHLY): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...PDF_COLORS.white);
-  doc.text("TOTAL À PAYER:", totalsX, y + 6);
+  doc.text("TOTAL Ã€ PAYER:", totalsX, y + 6);
   doc.text(formatCurrency(data.total_due), totalsX + 118, y + 6, { align: "right" });
   
   // Footer
@@ -482,7 +482,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...PDF_COLORS.navy);
-  doc.text("FACTURÉ À", margin + 6, y + 6);
+  doc.text("FACTURÃ‰ Ã€", margin + 6, y + 6);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
@@ -495,7 +495,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...PDF_COLORS.navy);
-  doc.text("NUMÉRO DE COMPTE", margin + 110, y + 6);
+  doc.text("NUMÃ‰RO DE COMPTE", margin + 110, y + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...PDF_COLORS.dark);
@@ -506,7 +506,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(...PDF_COLORS.gray);
-    doc.text("Commande liée:", margin + 110, y + 20);
+    doc.text("Commande liÃ©e:", margin + 110, y + 20);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...PDF_COLORS.dark);
     doc.text(`#${data.order_number}`, margin + 140, y + 20);
@@ -520,7 +520,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(...PDF_COLORS.white);
-  doc.text("PAYÉE", pageWidth - margin - 12.5, y - 6.7, { align: "center" });
+  doc.text("PAYÃ‰E", pageWidth - margin - 12.5, y - 6.7, { align: "center" });
   
   // Items section
   doc.setFillColor(...PDF_COLORS.veryLightGray);
@@ -530,7 +530,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...PDF_COLORS.navy);
-  doc.text("ÉQUIPEMENTS ET FRAIS", margin + 6, y + 5.5);
+  doc.text("Ã‰QUIPEMENTS ET FRAIS", margin + 6, y + 5.5);
   
   y += 12;
   
@@ -542,10 +542,10 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setTextColor(...PDF_COLORS.white);
   doc.text("Article", margin + 2, y + 5);
   doc.text("Description", margin + 50, y + 5);
-  doc.text("Qté", margin + 100, y + 5);
+  doc.text("QtÃ©", margin + 100, y + 5);
   doc.text("Prix unit.", margin + 120, y + 5);
   doc.text("Total", margin + 150, y + 5);
-  doc.text("N° Série", margin + 170, y + 5);
+  doc.text("NÂ° SÃ©rie", margin + 170, y + 5);
   
   y += 9;
   
@@ -563,7 +563,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
     doc.text(String(item.qty), margin + 100, y + 4);
     doc.text(formatCurrency(item.unit_price), margin + 120, y + 4);
     doc.text(formatCurrency(item.line_total), margin + 150, y + 4);
-    doc.text(item.serial_number || "—", margin + 170, y + 4);
+    doc.text(item.serial_number || "â€”", margin + 170, y + 4);
     y += 7;
   });
   
@@ -593,7 +593,7 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...PDF_COLORS.white);
-  doc.text("TOTAL À PAYER:", totalsX, y + 6);
+  doc.text("TOTAL Ã€ PAYER:", totalsX, y + 6);
   doc.text(formatCurrency(data.total_due), totalsX + 118, y + 6, { align: "right" });
   
   y += 20;
@@ -604,12 +604,12 @@ function generateInvoiceOneTimePDF(data: typeof SAMPLE_ONETIME): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...PDF_COLORS.success);
-  doc.text("✓ FACTURE PAYÉE", margin + 5, y + 7);
+  doc.text("âœ“ FACTURE PAYÃ‰E", margin + 5, y + 7);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...PDF_COLORS.gray);
-  doc.text(`Paiement reçu le ${formatDate(data.paid_at || today)}`, margin + 5, y + 12);
-  doc.text(`Référence: ${data.payment_reference}`, margin + 80, y + 12);
+  doc.text(`Paiement reÃ§u le ${formatDate(data.paid_at || today)}`, margin + 5, y + 12);
+  doc.text(`RÃ©fÃ©rence: ${data.payment_reference}`, margin + 80, y + 12);
   
   // Footer
   const footerY = doc.internal.pageSize.getHeight() - 35;
@@ -667,7 +667,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...PDF_COLORS.white);
-  doc.text("RÉSUMÉ DE COMMANDE", pageWidth - margin, 15, { align: "right" });
+  doc.text("RÃ‰SUMÃ‰ DE COMMANDE", pageWidth - margin, 15, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.text(`#${data.order_number}`, pageWidth - margin, 22, { align: "right" });
@@ -682,11 +682,11 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...PDF_COLORS.success);
-  doc.text("✓ COMMANDE CONFIRMÉE", margin + 8, y + 8);
+  doc.text("âœ“ COMMANDE CONFIRMÃ‰E", margin + 8, y + 8);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...PDF_COLORS.gray);
-  doc.text(`Paiement reçu le ${formatDate(data.paid_at || today)}`, margin + 80, y + 8);
+  doc.text(`Paiement reÃ§u le ${formatDate(data.paid_at || today)}`, margin + 80, y + 8);
   
   y += 18;
   
@@ -722,21 +722,21 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...PDF_COLORS.navy);
-  doc.text("DÉTAILS DE COMMANDE", rightX, y + 6);
+  doc.text("DÃ‰TAILS DE COMMANDE", rightX, y + 6);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...PDF_COLORS.gray);
-  doc.text("Numéro de compte:", rightX, y + 12);
+  doc.text("NumÃ©ro de compte:", rightX, y + 12);
   doc.text("Date de commande:", rightX, y + 17);
-  doc.text("Méthode de paiement:", rightX, y + 22);
-  doc.text("Référence:", rightX, y + 27);
+  doc.text("MÃ©thode de paiement:", rightX, y + 22);
+  doc.text("RÃ©fÃ©rence:", rightX, y + 27);
   
   doc.setTextColor(...PDF_COLORS.dark);
   doc.text(data.account_number, rightX + 35, y + 12);
   doc.text(formatDate(data.order_date), rightX + 35, y + 17);
-  doc.text(data.payment_method?.toUpperCase() || "—", rightX + 35, y + 22);
-  doc.text(data.payment_reference || "—", rightX + 35, y + 27);
+  doc.text(data.payment_method?.toUpperCase() || "â€”", rightX + 35, y + 22);
+  doc.text(data.payment_reference || "â€”", rightX + 35, y + 27);
   
   // Promo code
   if (data.promo_code) {
@@ -758,7 +758,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...PDF_COLORS.navy);
-    doc.text("SERVICES SOUSCRITS (RÉCURRENTS)", margin + 6, y + 5.5);
+    doc.text("SERVICES SOUSCRITS (RÃ‰CURRENTS)", margin + 6, y + 5.5);
     
     y += 12;
     
@@ -770,7 +770,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
     doc.setTextColor(...PDF_COLORS.white);
     doc.text("Service", margin + 2, y + 5);
     doc.text("Description", margin + 45, y + 5);
-    doc.text("Période", margin + 120, y + 5);
+    doc.text("PÃ©riode", margin + 120, y + 5);
     doc.text("Mensuel", margin + 165, y + 5, { align: "right" });
     
     y += 9;
@@ -783,7 +783,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...PDF_COLORS.dark);
-      doc.text(`🌐 ${service.service_type}`, margin + 2, y + 4);
+      doc.text(`ðŸŒ ${service.service_type}`, margin + 2, y + 4);
       doc.text(service.service_description, margin + 45, y + 4);
       doc.text(service.service_period, margin + 120, y + 4);
       doc.text(formatCurrency(service.service_total), margin + 165, y + 4, { align: "right" });
@@ -802,7 +802,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...PDF_COLORS.navy);
-    doc.text("ÉQUIPEMENTS ET FRAIS PONCTUELS", margin + 6, y + 5.5);
+    doc.text("Ã‰QUIPEMENTS ET FRAIS PONCTUELS", margin + 6, y + 5.5);
     
     y += 12;
     
@@ -813,7 +813,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
     doc.setTextColor(...PDF_COLORS.white);
     doc.text("Article", margin + 2, y + 5);
     doc.text("Description", margin + 50, y + 5);
-    doc.text("Qté", margin + 110, y + 5);
+    doc.text("QtÃ©", margin + 110, y + 5);
     doc.text("Prix unit.", margin + 130, y + 5);
     doc.text("Total", margin + 165, y + 5, { align: "right" });
     
@@ -838,7 +838,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
         doc.setFont("helvetica", "italic");
         doc.setFontSize(7);
         doc.setTextColor(...PDF_COLORS.gray);
-        doc.text(`   N° Série: ${item.serial_number}`, margin + 5, y + 3);
+        doc.text(`   NÂ° SÃ©rie: ${item.serial_number}`, margin + 5, y + 3);
         y += 5;
       }
     });
@@ -862,13 +862,13 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
   }
   
   if (data.subtotal_equipment > 0) {
-    doc.text("Équipements/Frais:", totalsX, y);
+    doc.text("Ã‰quipements/Frais:", totalsX, y);
     doc.text(formatCurrency(data.subtotal_equipment), totalsX + 118, y, { align: "right" });
     y += 7;
   }
   
   if (data.total_discounts > 0) {
-    doc.text("Rabais appliqués:", totalsX, y);
+    doc.text("Rabais appliquÃ©s:", totalsX, y);
     doc.text(`-${formatCurrency(data.total_discounts)}`, totalsX + 118, y, { align: "right" });
     y += 7;
   }
@@ -907,7 +907,7 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...PDF_COLORS.navy);
-    doc.text("PROCHAINES ÉTAPES", margin + 6, y + 5.5);
+    doc.text("PROCHAINES Ã‰TAPES", margin + 6, y + 5.5);
     
     y += 12;
     
@@ -916,12 +916,12 @@ function generateOrderSummaryPDF(data: typeof SAMPLE_ORDER): Uint8Array {
     doc.setTextColor(...PDF_COLORS.dark);
     
     if (data.estimated_activation) {
-      doc.text(`• Activation prévue: ${formatDate(data.estimated_activation)}`, margin + 5, y);
+      doc.text(`â€¢ Activation prÃ©vue: ${formatDate(data.estimated_activation)}`, margin + 5, y);
       y += 6;
     }
     
     if (data.first_billing_date) {
-      doc.text(`• Première facture mensuelle: ${formatDate(data.first_billing_date)}`, margin + 5, y);
+      doc.text(`â€¢ PremiÃ¨re facture mensuelle: ${formatDate(data.first_billing_date)}`, margin + 5, y);
       y += 6;
     }
     
@@ -981,7 +981,7 @@ const handler = async (req: Request): Promise<Response> => {
       from: "Nivra Billing <noreply@nivra-telecom.ca>",
       to: [to],
       reply_to: "support@nivra-telecom.ca",
-      subject: "📄 Aperçu des 3 Templates PDF Facturation V2",
+      subject: "ðŸ“„ AperÃ§u des 3 Templates PDF Facturation V2",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #0F172A; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -990,38 +990,38 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <div style="background: #f8f9fa; padding: 25px; border-radius: 0 0 8px 8px;">
-            <h2 style="color: #0F172A; margin-top: 0;">Aperçu des Templates PDF</h2>
+            <h2 style="color: #0F172A; margin-top: 0;">AperÃ§u des Templates PDF</h2>
             
             <p style="color: #333;">Veuillez trouver ci-joints les 3 templates PDF de facturation :</p>
             
             <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #14B8A6;">
-              <h3 style="margin: 0 0 10px 0; color: #0F172A;">📄 1. Facture Mensuelle</h3>
+              <h3 style="margin: 0 0 10px 0; color: #0F172A;">ðŸ“„ 1. Facture Mensuelle</h3>
               <p style="margin: 0; color: #666; font-size: 14px;">
-                Pour les services récurrents (Internet, TV, Mobile).<br>
-                Affiche la période de service, les rabais, et les taxes TPS/TVQ.
+                Pour les services rÃ©currents (Internet, TV, Mobile).<br>
+                Affiche la pÃ©riode de service, les rabais, et les taxes TPS/TVQ.
               </p>
             </div>
             
             <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22C55E;">
-              <h3 style="margin: 0 0 10px 0; color: #0F172A;">🧾 2. Facture One-Time</h3>
+              <h3 style="margin: 0 0 10px 0; color: #0F172A;">ðŸ§¾ 2. Facture One-Time</h3>
               <p style="margin: 0; color: #666; font-size: 14px;">
-                Pour les équipements et frais ponctuels.<br>
-                Inclut les numéros de série et quantités.
+                Pour les Ã©quipements et frais ponctuels.<br>
+                Inclut les numÃ©ros de sÃ©rie et quantitÃ©s.
               </p>
             </div>
             
             <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #F59E0B;">
-              <h3 style="margin: 0 0 10px 0; color: #0F172A;">📦 3. Résumé de Commande</h3>
+              <h3 style="margin: 0 0 10px 0; color: #0F172A;">ðŸ“¦ 3. RÃ©sumÃ© de Commande</h3>
               <p style="margin: 0; color: #666; font-size: 14px;">
-                Confirmation envoyée après paiement.<br>
-                Combine services et équipements avec dates d'activation.
+                Confirmation envoyÃ©e aprÃ¨s paiement.<br>
+                Combine services et Ã©quipements avec dates d'activation.
               </p>
             </div>
             
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
             
             <p style="color: #666; font-size: 12px; margin: 0;">
-              Ces templates sont générés automatiquement par le système Billing V2.<br>
+              Ces templates sont gÃ©nÃ©rÃ©s automatiquement par le systÃ¨me Billing V2.<br>
               Pour toute question, contactez support@nivra-telecom.ca
             </p>
           </div>
@@ -1048,7 +1048,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `3 PDFs envoyés à ${to}`,
+        message: `3 PDFs envoyÃ©s Ã  ${to}`,
         templates: ["Invoice Monthly", "Invoice One-Time", "Order Summary"],
       }),
       {
@@ -1056,7 +1056,7 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("[send-template-pdf-preview] Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),

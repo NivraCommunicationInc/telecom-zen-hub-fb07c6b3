@@ -1,5 +1,5 @@
-/**
- * field-catalog — Commercial catalog API for the Field Portal.
+﻿/**
+ * field-catalog â€” Commercial catalog API for the Field Portal.
  * Returns services, prices, equipment rules, and promotions from the single source of truth.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
         .from("services")
         .select("*")
         .eq("is_active", true)
-        .eq("category", "Équipement")
+        .eq("category", "Ã‰quipement")
         .order("display_order", { ascending: true });
       if (error) throw error;
 
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
             : row.config_type === "number"
               ? Number(row.config_value)
               : row.config_value;
-        } catch {
+        } catch (_e) {
           config[row.config_key] = row.config_value;
         }
       }
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
 
-  } catch (err: any) {
+  } catch (err) {
     const status = err.status || 500;
     return new Response(JSON.stringify({ error: err.message || "Erreur serveur" }), { status, headers });
   }

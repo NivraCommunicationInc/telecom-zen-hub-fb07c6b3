@@ -1,4 +1,4 @@
-/**
+﻿/**
  * admin-regenerate-pdfs
  *
  * Regenerates ALL existing auto-documents PDFs using stored event_payload.
@@ -24,10 +24,10 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
   const cors = getCorsHeaders(req.headers.get("origin"));
 
-  /* ── 1. Verify admin JWT ─────────────────────────────────────────── */
+  /* â”€â”€ 1. Verify admin JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) {
-    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+    return new Response(JSON.stringify({ error: "Non authentifiÃ©" }), {
       status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -51,12 +51,12 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), {
+    return new Response(JSON.stringify({ error: "AccÃ¨s rÃ©servÃ© aux administrateurs" }), {
       status: 403, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
-  /* ── 2. Load all completed jobs with stored PDF ───────────────────── */
+  /* â”€â”€ 2. Load all completed jobs with stored PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const { data: jobs, error: jobsErr } = await admin
     .from("pending_document_jobs")
     .select("id, client_id, doc_type, event_payload, idempotency_key, storage_path, client_auto_document_id")
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     error?: string;
   }> = [];
 
-  /* ── 3. Regenerate each PDF ──────────────────────────────────────── */
+  /* â”€â”€ 3. Regenerate each PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   for (const job of allJobs) {
     const entry: (typeof log)[number] = {
       job_id: job.id,
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       }
 
       succeeded++;
-    } catch (err: any) {
+    } catch (err) {
       entry.status = "failed";
       entry.error = String(err?.message || err).slice(0, 400);
       failed++;
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
     log.push(entry);
   }
 
-  /* ── 4. Persist run log to pdf_regeneration_runs ─────────────────── */
+  /* â”€â”€ 4. Persist run log to pdf_regeneration_runs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const completedAt = new Date().toISOString();
   await admin
     .from("pdf_regeneration_runs")
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
   };
 
   console.log(
-    `[admin-regenerate-pdfs] done — total=${allJobs.length} ok=${succeeded} failed=${failed}`,
+    `[admin-regenerate-pdfs] done â€” total=${allJobs.length} ok=${succeeded} failed=${failed}`,
   );
 
   return new Response(JSON.stringify(summary, null, 2), {

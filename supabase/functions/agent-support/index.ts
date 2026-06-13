@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   try {
     let body: any = {};
-    try { body = await req.json(); } catch { /* */ }
+    try { body = await req.json(); } catch (_e) { /* */ }
 
     // Inbound email webhook ingestion
     if (body.action === "ingest_email" && body.email) {

@@ -140,7 +140,7 @@ serve(async (req) => {
       JSON.stringify({ success: true, status: `${body.action}ed` }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[PayPalSyncState] Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),

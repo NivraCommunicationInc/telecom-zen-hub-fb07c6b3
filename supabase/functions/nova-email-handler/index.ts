@@ -76,7 +76,7 @@ Retourne UNIQUEMENT un JSON:
           const m = txt.match(/\{[\s\S]*\}/);
           if (m) aiResp = JSON.parse(m[0]);
         }
-      } catch { /* fall through */ }
+      } catch (_e) { /* fall through */ }
 
       processed++;
       const confidence = Number(aiResp?.confidence ?? 0);

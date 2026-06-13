@@ -150,7 +150,7 @@ function parseCustomId(customId: string | undefined): Record<string, string> {
   if (!customId) return {};
   try {
     return JSON.parse(customId);
-  } catch {
+  } catch (_e) {
     return { raw: customId };
   }
 }
@@ -1029,7 +1029,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[PayPal Webhook] Error:", error);
     // Fire-and-forget — never block the webhook response.
     reportEdgeError(error, {

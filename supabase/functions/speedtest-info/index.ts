@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       city = d.city || "—";
       region = d.regionName || "—";
     }
-  } catch { /* ipinfo unavailable, keep defaults */ }
+  } catch (_e) { /* ipinfo unavailable, keep defaults */ }
 
   return new Response(JSON.stringify({ ip, isp, city, region, country }), {
     headers: { ...cors, "Content-Type": "application/json" },

@@ -144,7 +144,7 @@ export async function reactivateIfSuspended(
       subscriptionId,
       message: "reactivated",
     };
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[reactivation] Unexpected error for subscription ${subscriptionId}:`, msg);
     return { ...base, message: `error: ${msg}` };

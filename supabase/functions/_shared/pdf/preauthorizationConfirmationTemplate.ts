@@ -1,5 +1,5 @@
-/**
- * Preauthorization Confirmation — Confirmation de pre-autorisation de paiement.
+﻿/**
+ * Preauthorization Confirmation â€” Confirmation de pre-autorisation de paiement.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -72,7 +72,7 @@ export function generatePreauthorizationConfirmationPDF(data: PreauthorizationCo
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Preautorisation_${data.confirmation_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

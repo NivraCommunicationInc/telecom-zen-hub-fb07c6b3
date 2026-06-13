@@ -1,5 +1,5 @@
-/**
- * Complaint Acknowledgment — Accuse de reception d'une plainte client (CCTS-compliant).
+﻿/**
+ * Complaint Acknowledgment â€” Accuse de reception d'une plainte client (CCTS-compliant).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -23,7 +23,7 @@ export interface ComplaintAcknowledgmentData {
 export function generateComplaintAcknowledgmentPDF(data: ComplaintAcknowledgmentData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "ACCUSE DE RECEPTION — PLAINTE", data.acknowledgment_number);
+    drawHeader(doc, "ACCUSE DE RECEPTION â€” PLAINTE", data.acknowledgment_number);
 
     let y = 50;
     y = drawClientBlock(doc, y, {
@@ -66,7 +66,7 @@ export function generateComplaintAcknowledgmentPDF(data: ComplaintAcknowledgment
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Accuse_Plainte_${data.acknowledgment_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

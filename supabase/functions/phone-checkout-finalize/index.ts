@@ -1,4 +1,4 @@
-/**
+﻿/**
  * phone-checkout-finalize
  *
  * Called from the frontend after PayPal capture succeeds.
@@ -79,7 +79,7 @@ serve(async (req) => {
       return jsonError(`Order update failed: ${updateErr.message}`, 500);
     }
 
-    // 3) Reserve the phone (best effort — don't block on failure)
+    // 3) Reserve the phone (best effort â€” don't block on failure)
     try {
       await supabase
         .from("phone_inventory")
@@ -131,7 +131,7 @@ serve(async (req) => {
       JSON.stringify({ success: true, order_id: order.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[phone-checkout-finalize] fatal", err);
     return jsonError(err?.message ?? "Internal error", 500);
   }

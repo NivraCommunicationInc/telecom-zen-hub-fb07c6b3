@@ -1,5 +1,5 @@
-/**
- * Collections Transfer Notice — Avis de transfert au recouvrement externe.
+﻿/**
+ * Collections Transfer Notice â€” Avis de transfert au recouvrement externe.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -76,7 +76,7 @@ export function generateCollectionsTransferPDF(data: CollectionsTransferData): P
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Transfert_Recouvrement_${data.notice_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

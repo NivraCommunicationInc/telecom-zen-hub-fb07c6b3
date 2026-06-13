@@ -116,7 +116,7 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[check-coverage] error:", msg);
     return new Response(

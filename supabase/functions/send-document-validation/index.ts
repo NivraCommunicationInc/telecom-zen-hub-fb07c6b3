@@ -596,7 +596,7 @@ function generateReceipt(): Uint8Array {
     doc.text("PAYE", pw / 2, 160, { align: "center", angle: -25 });
     const gStateN = new (doc as any).GState({ opacity: 1 });
     (doc as any).setGState(gStateN);
-  } catch { /* GState may not be available */ }
+  } catch (_e) { /* GState may not be available */ }
 
   // ── Receipt number banner ──
   doc.setFillColor(...SUCCESS);

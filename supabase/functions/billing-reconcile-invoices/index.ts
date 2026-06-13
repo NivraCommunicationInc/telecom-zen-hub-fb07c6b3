@@ -55,7 +55,7 @@ serve(async (req) => {
       JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[billing-reconcile] Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),

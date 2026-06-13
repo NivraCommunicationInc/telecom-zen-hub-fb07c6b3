@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { queueRenderedEmail } from "../_shared/templateRenderer.ts";
 
@@ -47,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ success: true, queued: true, hasPdf: !!attachments }), { 
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } 
     });
-  } catch (error: any) {
+  } catch (error) {
     const errorId = `ERR-${Date.now().toString(36).toUpperCase()}`;
     console.error(`[${errorId}] Error:`, error);
     return new Response(JSON.stringify({ error: error?.message || "Erreur inconnue", errorId }), { 

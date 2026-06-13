@@ -299,7 +299,7 @@ async function checkProvisioningFailures(supabase: SupabaseClient): Promise<Chec
         : `${n} échecs provisioning dans les 24 dernières heures`,
       alerts_raised: raised,
     };
-  } catch {
+  } catch (_e) {
     return { check: "provisioning_failures", status: "skipped", count: 0, message: "provisioning_log not available", alerts_raised: 0 };
   }
 }
@@ -525,7 +525,7 @@ serve(async (req) => {
     console.log(`[noc-monitor] Done — ok:${summary.ok} warn:${summary.warning} critical:${summary.critical} alerts:${summary.total_alerts_raised}`);
 
     return respond(200, { checks: checkResults, summary });
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[noc-monitor] Fatal error:", msg);
     return respond(500, { error: msg });

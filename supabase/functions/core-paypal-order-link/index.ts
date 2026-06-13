@@ -1,5 +1,5 @@
-/**
- * core-paypal-order-link — Generates a PayPal one-time payment link for an
+﻿/**
+ * core-paypal-order-link â€” Generates a PayPal one-time payment link for an
  * existing Core `orders` row. Optionally emails the link to the client.
  *
  * Body:
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       .eq("user_id", callerId);
     const hasRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     if (!hasRole) {
-      return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
+      return new Response(JSON.stringify({ error: "AccÃ¨s refusÃ©" }), { status: 403, headers });
     }
 
     const body = await req.json();
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       intent: "CAPTURE",
       purchase_units: [{
         amount: { currency_code: "CAD", value: amount.toFixed(2) },
-        description: `Nivra Telecom — Commande ${order.order_number || order.id.slice(0, 8)}`,
+        description: `Nivra Telecom â€” Commande ${order.order_number || order.id.slice(0, 8)}`,
         custom_id: `co:${order.id}`,
       }],
       application_context: {
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     );
     const approvalUrl = approvalLink?.href || null;
     if (!approvalUrl) {
-      return new Response(JSON.stringify({ error: "PayPal n'a pas renvoyé de lien d'approbation" }), { status: 500, headers });
+      return new Response(JSON.stringify({ error: "PayPal n'a pas renvoyÃ© de lien d'approbation" }), { status: 500, headers });
     }
 
     // Stamp order
@@ -163,9 +163,9 @@ Deno.serve(async (req) => {
       const fullName = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || "client";
       const html = `
         <div style="font-family:Arial,sans-serif;color:#111;max-width:600px;margin:0 auto;padding:24px;">
-          <h2 style="color:#0066CC;margin:0 0 16px;">Lien de paiement — Nivra Telecom</h2>
+          <h2 style="color:#0066CC;margin:0 0 16px;">Lien de paiement â€” Nivra Telecom</h2>
           <p>Bonjour ${fullName},</p>
-          <p>Voici le lien sécurisé pour régler votre commande
+          <p>Voici le lien sÃ©curisÃ© pour rÃ©gler votre commande
             <strong>${order.order_number || order.id.slice(0, 8)}</strong>
             d'un montant de <strong>${amount.toFixed(2)} $ CAD</strong>.</p>
           <p style="margin:24px 0;">
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       `;
       await sendNivraEmail({
         to: toEmail,
-        subject: `Lien de paiement — Commande ${order.order_number || order.id.slice(0, 8)}`,
+        subject: `Lien de paiement â€” Commande ${order.order_number || order.id.slice(0, 8)}`,
         html,
         eventKey: `core_paylink_${order.id}_${ppData.id}`,
         templateKey: "payment_link_request",
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
       approval_url: approvalUrl,
       expires_in_hours: 48,
     }), { headers });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[core-paypal-order-link] error", err);
     return new Response(
       JSON.stringify({ error: err?.message || String(err) }),

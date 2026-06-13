@@ -245,7 +245,7 @@ serve(async (req) => {
         
         console.log(`[billing-migrate-clients] Migrated: ${customerData.email}`);
         
-      } catch (err: unknown) {
+      } catch (err) {
         const errorMsg = `Failed to migrate user ${userId}: ${err instanceof Error ? err.message : String(err)}`;
         console.error(`[billing-migrate-clients] ${errorMsg}`);
         results.errors.push(errorMsg);
@@ -260,7 +260,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
     
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[billing-migrate-clients] Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),

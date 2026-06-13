@@ -1,23 +1,23 @@
-/**
- * Nivra Invoice Template V4.0 — LOCKED PRODUCTION (2026-03-20)
+﻿/**
+ * Nivra Invoice Template V4.0 â€” LOCKED PRODUCTION (2026-03-20)
  * 
  * Approved canonical layout:
- * ┌─────────────────────────────────────────────┐
- * │ BLUE HEADER: NIVRA TELECOM   No XXXXXXX    │
- * │ FACTURE                                     │
- * ├─────────────────────────────────────────────┤
- * │ Client info          Adresse de service     │
- * │ Compte / Commande                           │
- * │ Date facturation     Date echeance          │
- * │ Periode                                     │
- * ├─────────────────────────────────────────────┤
- * │ Description | Type | Montant (table)        │
- * ├─────────────────────────────────────────────┤
- * │ Sous-total / TPS / TVQ / TOTAL              │
- * │ Montant paye / Solde / STATUT               │
- * ├─────────────────────────────────────────────┤
- * │ Footer: Nivra Telecom Inc. | TPS | TVQ      │
- * └─────────────────────────────────────────────┘
+ * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ * â”‚ BLUE HEADER: NIVRA TELECOM   No XXXXXXX    â”‚
+ * â”‚ FACTURE                                     â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Client info          Adresse de service     â”‚
+ * â”‚ Compte / Commande                           â”‚
+ * â”‚ Date facturation     Date echeance          â”‚
+ * â”‚ Periode                                     â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Description | Type | Montant (table)        â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Sous-total / TPS / TVQ / TOTAL              â”‚
+ * â”‚ Montant paye / Solde / STATUT               â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Footer: Nivra Telecom Inc. | TPS | TVQ      â”‚
+ * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  */
 
 import jsPDFModule from "npm:jspdf@2.5.2";
@@ -34,14 +34,14 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "—";
+  if (!dateStr) return "â€”";
   if (dateStr.includes("DATE_") || dateStr.includes("PERIODE")) return dateStr;
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "—";
+  return "â€”";
 };
 
 const fmtStatus = (status: string): string => {
@@ -55,7 +55,7 @@ const fmtStatus = (status: string): string => {
 const typeLabel = (cat: string): string => {
   const key = (cat || "").toLowerCase();
   if (["internet", "mobile", "tv", "security", "service", "recurring"].includes(key)) return "Service";
-  if (["equipment", "phone"].includes(key)) return "Équipement";
+  if (["equipment", "phone"].includes(key)) return "Ã‰quipement";
   if (["fee", "fees", "frais"].includes(key)) return "Frais";
   if (["adjustment", "ajustement", "proration", "prorata"].includes(key)) return "Ajustement";
   if (["discount", "rabais", "credit", "promo"].includes(key)) return "Rabais";
@@ -64,7 +64,7 @@ const typeLabel = (cat: string): string => {
 };
 
 // ============================================================================
-// CANONICAL HEADER — Nivra Green/Blue header with document number
+// CANONICAL HEADER â€” Nivra Green/Blue header with document number
 // ============================================================================
 
 function drawCanonicalHeader(doc: jsPDF, title: string, docNumber: string, color: [number, number, number]) {
@@ -117,7 +117,7 @@ function drawClientBlock(doc: jsPDF, data: {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(data.name || "—", 15, y);
+  doc.text(data.name || "â€”", 15, y);
   if (data.address) doc.text(data.address, 110, y);
   y += 5;
   if (data.email) doc.text(data.email, 15, y);
@@ -136,7 +136,7 @@ function drawClientBlock(doc: jsPDF, data: {
 }
 
 // ============================================================================
-// MAIN GENERATOR — Canonical Invoice PDF
+// MAIN GENERATOR â€” Canonical Invoice PDF
 // ============================================================================
 
 export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
@@ -146,12 +146,12 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    // Header — Blue
+    // Header â€” Blue
     drawCanonicalHeader(doc, "FACTURE", data.invoice_number, [30, 64, 120]);
 
     // Client block
     let y = drawClientBlock(doc, {
-      name: data.customer?.full_name || "—",
+      name: data.customer?.full_name || "â€”",
       email: data.customer?.email || "",
       phone: data.customer.phone,
       address: data.customer.address_line1,
@@ -173,7 +173,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     }
     y += 4;
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY — conditional, additive optional fields on InvoiceDataV2)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional, additive optional fields on InvoiceDataV2)
     const fsData = data as any;
     if (fsData.sale_source === "field_sales" && (fsData.agent_name || fsData.agent_number)) {
       doc.setFont("helvetica", "bold");
@@ -184,8 +184,8 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${fsData.agent_name || "—"}`, 17, y); y += 5;
-      doc.text(`Badge : ${fsData.agent_number || "—"}`, 17, y); y += 5;
+      doc.text(`Nom : ${fsData.agent_name || "â€”"}`, 17, y); y += 5;
+      doc.text(`Badge : ${fsData.agent_number || "â€”"}`, 17, y); y += 5;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
       doc.setTextColor(0, 0, 0);
     }
@@ -284,7 +284,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       blob,
       filename: `Facture_${data.invoice_number}_Nivra.pdf`,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[InvoiceV4] Generation error:", error);
     return { success: false, error: error?.message || "Erreur de generation" };
   }

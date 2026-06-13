@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -185,7 +185,7 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
     const unit = toMoney(eq.unit_price);
     lines.push({
       invoice_id: invoiceId,
-      description: eq.name || "Équipement",
+      description: eq.name || "Ã‰quipement",
       unit_price: unit,
       quantity: qty,
       line_total: toMoney(unit * qty),
@@ -406,7 +406,7 @@ serve(async (req) => {
         : admin.rpc("generate_payment_number"),
     ]);
 
-    // INVARIANT: All identifiers must come from DB sequences or Core response — NO local fallbacks
+    // INVARIANT: All identifiers must come from DB sequences or Core response â€” NO local fallbacks
     if (!response.order_number && !orderNumRes.data) throw new Error("FATAL: order_number generation failed");
     if (!response.invoice_number && !invoiceNumRes.data) throw new Error("FATAL: invoice_number generation failed");
     if (!response.payment_number && !paymentNumRes.data) throw new Error("FATAL: payment_number generation failed");
@@ -460,19 +460,19 @@ serve(async (req) => {
           full_name: `${payload.customer.first_name || ""} ${payload.customer.last_name || ""}`.trim() || null,
           phone: payload.customer.phone || null,
           preferred_language: payload.client_language === "fr" ? "fr" : "en",
-          // ★ FIX #1/#10: Always persist DOB on initial profile creation
+          // â˜… FIX #1/#10: Always persist DOB on initial profile creation
           date_of_birth: payload.customer.date_of_birth || null,
           dob_locked: payload.customer.date_of_birth ? true : false,
         });
       } else {
-        // ★ FIX #1/#10: Backfill DOB on existing profile if missing — without this,
+        // â˜… FIX #1/#10: Backfill DOB on existing profile if missing â€” without this,
         // 94% of orders ended up with NULL client_dob and contracts had blank DOB.
         const updatePatch: Record<string, unknown> = {};
         if (payload.client_language === "fr" || payload.client_language === "en") {
           updatePatch.preferred_language = payload.client_language;
         }
         if (payload.customer.date_of_birth) {
-          // Only set if profile is missing it — never overwrite a locked DOB
+          // Only set if profile is missing it â€” never overwrite a locked DOB
           const { data: existingDob } = await admin
             .from("profiles")
             .select("date_of_birth")
@@ -512,14 +512,14 @@ serve(async (req) => {
         .maybeSingle();
 
       results.referral_code = finalProfile?.referral_code || null;
-    } catch (err: any) {
+    } catch (err) {
       errors.push(`profile: ${err?.message || String(err)}`);
     }
 
     // 1) Billing customer
-    // ★ FIX #5: strengthened lookup. Previously a non-23505 error on insert (or a race
+    // â˜… FIX #5: strengthened lookup. Previously a non-23505 error on insert (or a race
     // where the row exists under a different user_id but matching email) cascaded into
-    // customerId=null → invoice never created. We now check by email as a second pass.
+    // customerId=null â†’ invoice never created. We now check by email as a second pass.
     let customerId: string | null = null;
     try {
       const { data: existingCustomer } = await admin
@@ -545,7 +545,7 @@ serve(async (req) => {
           .single();
 
         if (customerInsertError && customerInsertError.code === "23505") {
-          // Duplicate — refetch by user_id OR email
+          // Duplicate â€” refetch by user_id OR email
           const { data: refetched } = await admin
             .from("billing_customers")
             .select("id")
@@ -562,7 +562,7 @@ serve(async (req) => {
             customerId = byEmail?.id || null;
           }
         } else if (customerInsertError) {
-          // Non-duplicate error — try email lookup before giving up
+          // Non-duplicate error â€” try email lookup before giving up
           if (payload.customer.email) {
             const { data: byEmail } = await admin
               .from("billing_customers")
@@ -579,7 +579,7 @@ serve(async (req) => {
 
       if (!customerId) throw new Error("No billing_customer resolved");
       results.billing_customer_id = customerId;
-    } catch (err: any) {
+    } catch (err) {
       errors.push(`billing_customer: ${err?.message || String(err)}`);
     }
 
@@ -667,7 +667,7 @@ serve(async (req) => {
       if (!accountId) throw new Error("No active account resolved");
       results.account_id = accountId;
       results.account_number = accountNumber;
-    } catch (err: any) {
+    } catch (err) {
       errors.push(`account: ${err?.message || String(err)}`);
     }
 
@@ -676,7 +676,7 @@ serve(async (req) => {
     // Use pricing_snapshot.grand_total as the single source of truth (server-computed)
     const canonicalGrandTotal = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
 
-    // ★ Promo propagation: extract from pricing_snapshot.promo_applied (canonical source)
+    // â˜… Promo propagation: extract from pricing_snapshot.promo_applied (canonical source)
     const snapshotPromoCode = (payload.pricing_snapshot as any)?.promo_applied?.code || payload.promo?.code || null;
     const snapshotPromoDiscount = toMoney(
       payload.pricing_snapshot?.promo_discount ?? payload.promo?.discount_value ?? 0
@@ -690,11 +690,11 @@ serve(async (req) => {
             order_number: response.order_number,
             user_id: payload.customer.user_id,
             account_id: accountId,
-            status: "submitted", // INVARIANT: checkout NEVER auto-confirms/completes orders — operational processing only
+            status: "submitted", // INVARIANT: checkout NEVER auto-confirms/completes orders â€” operational processing only
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
             service_type: derivedServiceType,
             fulfillment_type: isStreamingOnly ? "digital" : null,
-            delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : null,
+            delivery_method: isStreamingOnly ? "Livraison numÃ©rique par courriel" : null,
             order_type: "new",
             total_amount: canonicalGrandTotal,
             environment: "live",
@@ -723,10 +723,10 @@ serve(async (req) => {
                 : billingMethod === "card"
                   ? (payload.payment?.reference || null)
                   : null,
-            // ★ FIX GAP 1: Promo fields propagated from pricing_snapshot
+            // â˜… FIX GAP 1: Promo fields propagated from pricing_snapshot
             promo_code: snapshotPromoCode,
             promo_discount_amount: snapshotPromoDiscount,
-            // ★ FIX GAP 2 (post Vincent Jutras incident): persist client identity
+            // â˜… FIX GAP 2 (post Vincent Jutras incident): persist client identity
             // and equipment line details on the order itself so it never depends
             // on linked tables for downstream documents and admin views.
             client_first_name: payload.customer.first_name || null,
@@ -755,12 +755,12 @@ serve(async (req) => {
 
         if (orderError) throw orderError;
         results.order = true;
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`order: ${err?.message || String(err)}`);
       }
     }
 
-    // 3b) Contract shell — guarantees Core/client document panels see a contract immediately.
+    // 3b) Contract shell â€” guarantees Core/client document panels see a contract immediately.
     if (accountId && response.order_id) {
       try {
         const { data: existingContract } = await admin
@@ -785,7 +785,7 @@ serve(async (req) => {
         } else {
           results.contract = "existing";
         }
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`contract: ${err?.message || String(err)}`);
       }
     }
@@ -794,7 +794,7 @@ serve(async (req) => {
     if (customerId) {
       try {
         // CANONICAL TAX RULE: invoice.subtotal = taxable_base (post-discount amount on which taxes are computed)
-        // This ensures: taxes = subtotal × rate, with zero ambiguity.
+        // This ensures: taxes = subtotal Ã— rate, with zero ambiguity.
         const subtotal = toMoney(
           response.pricing?.taxable_base ?? response.pricing?.subtotal ??
           payload.pricing_snapshot?.taxable_base ?? payload.pricing_snapshot?.subtotal
@@ -842,12 +842,12 @@ serve(async (req) => {
 
         if (invoiceError) throw invoiceError;
         results.invoice = true;
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`invoice: ${err?.message || String(err)}`);
       }
     }
 
-    // 5) Invoice lines (CRITICAL — blocking gate)
+    // 5) Invoice lines (CRITICAL â€” blocking gate)
     try {
       const { count } = await admin
         .from("billing_invoice_lines")
@@ -858,15 +858,15 @@ serve(async (req) => {
         const invoiceLines = buildInvoiceLines(payload, response.invoice_id);
 
         if (invoiceLines.length === 0) {
-          console.error("[checkout-canonical-sync] ❌ CRITICAL: Zero invoice lines generated from payload");
-          errors.push("invoice_lines_critical: zero lines generated — data integrity violation");
+          console.error("[checkout-canonical-sync] âŒ CRITICAL: Zero invoice lines generated from payload");
+          errors.push("invoice_lines_critical: zero lines generated â€” data integrity violation");
         } else {
           const { error: linesError } = await admin
             .from("billing_invoice_lines")
             .insert(invoiceLines);
 
           if (linesError) {
-            console.error("[checkout-canonical-sync] ❌ CRITICAL: Invoice lines insert failed:", linesError);
+            console.error("[checkout-canonical-sync] âŒ CRITICAL: Invoice lines insert failed:", linesError);
             errors.push(`invoice_lines_critical: ${linesError.message}`);
           } else {
             results.invoice_lines_created = invoiceLines.length;
@@ -885,15 +885,15 @@ serve(async (req) => {
               net_line_sum: netLineSum,
               expected_taxable_base: expectedSubtotal,
               delta: lineDelta,
-              match: lineDelta < 0.01 ? "✅" : "⚠️ MISMATCH",
+              match: lineDelta < 0.01 ? "âœ…" : "âš ï¸ MISMATCH",
               lines_count: invoiceLines.length,
             });
 
-            // ★ FIX #2: Tightened threshold from 0.02 → 0.01 to catch all subtotal
-            // discrepancies. The actual line totals are the source of truth — taxes
+            // â˜… FIX #2: Tightened threshold from 0.02 â†’ 0.01 to catch all subtotal
+            // discrepancies. The actual line totals are the source of truth â€” taxes
             // must be computed against them, not against pricing_snapshot.taxable_base.
             if (lineDelta >= 0.01) {
-              console.warn(`[checkout-canonical-sync] ⚠️ Correcting invoice subtotal from ${expectedSubtotal} to ${netLineSum} to match line totals`);
+              console.warn(`[checkout-canonical-sync] âš ï¸ Correcting invoice subtotal from ${expectedSubtotal} to ${netLineSum} to match line totals`);
               const correctedTps = toMoney(netLineSum * 0.05);
               const correctedTvq = toMoney(netLineSum * 0.09975);
               const correctedTotal = toMoney(netLineSum + correctedTps + correctedTvq);
@@ -910,21 +910,21 @@ serve(async (req) => {
                 await admin.from("orders").update({
                   total_amount: correctedTotal,
                 }).eq("id", response.order_id);
-                console.log(`[checkout-canonical-sync] ✅ Order total_amount corrected to ${correctedTotal}`);
+                console.log(`[checkout-canonical-sync] âœ… Order total_amount corrected to ${correctedTotal}`);
               }
-              console.log(`[checkout-canonical-sync] ✅ Invoice corrected: subtotal=${netLineSum}, tps=${correctedTps}, tvq=${correctedTvq}, total=${correctedTotal}`);
+              console.log(`[checkout-canonical-sync] âœ… Invoice corrected: subtotal=${netLineSum}, tps=${correctedTps}, tvq=${correctedTvq}, total=${correctedTotal}`);
             }
           }
         }
       } else {
         results.invoice_lines_existing = count;
       }
-    } catch (err: any) {
-      console.error("[checkout-canonical-sync] ❌ CRITICAL: Invoice lines exception:", err);
+    } catch (err) {
+      console.error("[checkout-canonical-sync] âŒ CRITICAL: Invoice lines exception:", err);
       errors.push(`invoice_lines_critical: ${err?.message || String(err)}`);
     }
 
-    // ★ FIX #3 — Equipment line details fallback.
+    // â˜… FIX #3 â€” Equipment line details fallback.
     // If the client did not send equipment[] (or sent it empty), reconstruct
     // equipment_line_details on the order from billing_invoice_lines so contracts,
     // emails, and admin views always have the data.
@@ -951,12 +951,12 @@ serve(async (req) => {
             .or("equipment_line_details.is.null,equipment_line_details.eq.[]");
           results.equipment_reconstructed = reconstructed.length;
         }
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`equipment_fallback: ${err?.message || String(err)}`);
       }
     }
 
-    // ★ FIX #4 (code-side) — Promo code backstop.
+    // â˜… FIX #4 (code-side) â€” Promo code backstop.
     // Ensures promo_code + promo_discount_amount are persisted even if the order row
     // was created via the fallback path (Nivra Core unavailable).
     if (snapshotPromoCode && response.order_id) {
@@ -969,12 +969,12 @@ serve(async (req) => {
           })
           .eq("id", response.order_id)
           .is("promo_code", null);
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`promo_backstop: ${err?.message || String(err)}`);
       }
     }
 
-    // ★ FIX #7 — Populate order_items from invoice lines.
+    // â˜… FIX #7 â€” Populate order_items from invoice lines.
     // Maps service / equipment / fee invoice lines into the structured order_items
     // table so downstream views (admin, fulfillment, work engine) have per-item data.
     if (accountId) {
@@ -998,10 +998,10 @@ serve(async (req) => {
               if (lineType === "discount") return "fee";
               const d = (desc || "").toLowerCase();
               if (d.includes("internet") || d.includes("fibre") || d.includes("fiber")) return "internet";
-              if (d.includes("télé") || d.includes("tv") || d.includes("chaîne") || d.includes("channel")) return "tv";
+              if (d.includes("tÃ©lÃ©") || d.includes("tv") || d.includes("chaÃ®ne") || d.includes("channel")) return "tv";
               if (d.includes("mobile") || d.includes("cellulaire")) return "mobile";
               if (d.includes("netflix") || d.includes("disney") || d.includes("spotify") || d.includes("streaming")) return "streaming";
-              if (d.includes("sécurité") || d.includes("alarme") || d.includes("security")) return "security";
+              if (d.includes("sÃ©curitÃ©") || d.includes("alarme") || d.includes("security")) return "security";
               return "addon";
             };
 
@@ -1035,7 +1035,7 @@ serve(async (req) => {
         } else {
           results.order_items_existing = existingItemsCount;
         }
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`order_items: ${err?.message || String(err)}`);
       }
     }
@@ -1085,7 +1085,7 @@ serve(async (req) => {
 
         if (paymentError) throw paymentError;
         results.payment = true;
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`payment: ${err?.message || String(err)}`);
       }
     }
@@ -1095,7 +1095,7 @@ serve(async (req) => {
       try {
         const firstService = (payload.services || [])[0];
         const cycleDate = toDateOnly(nowIso);
-        // ★ FIX GAP 3: Compute proper cycle_end_date (1 month) and next_renewal_at
+        // â˜… FIX GAP 3: Compute proper cycle_end_date (1 month) and next_renewal_at
         const cycleStartDate = new Date(cycleDate + "T00:00:00Z");
         const cycleEndDate = new Date(cycleStartDate);
         cycleEndDate.setUTCMonth(cycleEndDate.getUTCMonth() + 1);
@@ -1141,7 +1141,7 @@ serve(async (req) => {
 
         if (subError) throw subError;
 
-        // ★ FIX GAP 2: Populate billing_subscription_services with recurring line items
+        // â˜… FIX GAP 2: Populate billing_subscription_services with recurring line items
         const { count: existingServiceCount } = await admin
           .from("billing_subscription_services")
           .select("id", { count: "exact", head: true })
@@ -1150,10 +1150,10 @@ serve(async (req) => {
         if (!existingServiceCount || existingServiceCount === 0) {
           const serviceItems: Array<Record<string, unknown>> = [];
           for (const svc of payload.services || []) {
-            // ★ FIX: Resolve unit_price from multiple possible fields, never allow 0
+            // â˜… FIX: Resolve unit_price from multiple possible fields, never allow 0
             const resolvedPrice = toMoney(svc.plan_price ?? svc.price ?? svc.monthly_price ?? 0);
             if (resolvedPrice <= 0) {
-              console.warn(`[checkout-canonical-sync] ⚠️ Service "${svc.name}" has unit_price=0 — attempting catalog lookup`);
+              console.warn(`[checkout-canonical-sync] âš ï¸ Service "${svc.name}" has unit_price=0 â€” attempting catalog lookup`);
             }
             serviceItems.push({
               subscription_id: subscriptionId,
@@ -1187,7 +1187,7 @@ serve(async (req) => {
               errors.push(`subscription_services: ${svcError.message}`);
             } else {
               results.subscription_services_created = serviceItems.length;
-              console.log(`[checkout-canonical-sync] ✅ ${serviceItems.length} subscription service items created`);
+              console.log(`[checkout-canonical-sync] âœ… ${serviceItems.length} subscription service items created`);
             }
           }
         } else {
@@ -1199,10 +1199,10 @@ serve(async (req) => {
           subscription_id: subscriptionId,
         }).eq("id", response.invoice_id);
 
-        console.log(`[checkout-canonical-sync] Subscription ${subscriptionId} created as 'pending' — cycle ${cycleDate} to ${cycleEndStr}, renewal ${nextRenewalStr}`);
+        console.log(`[checkout-canonical-sync] Subscription ${subscriptionId} created as 'pending' â€” cycle ${cycleDate} to ${cycleEndStr}, renewal ${nextRenewalStr}`);
 
         results.subscription = true;
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`subscription: ${err?.message || String(err)}`);
       }
     }
@@ -1310,12 +1310,12 @@ serve(async (req) => {
           }
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("[checkout-canonical-sync] referral insert failed and why:", err);
       errors.push(`client_referral: ${err?.message || String(err)}`);
     }
 
-    // 9) Post-order client communications — single canonical sequence for every portal.
+    // 9) Post-order client communications â€” single canonical sequence for every portal.
     // Order confirmation always goes first; account setup is only for first active account;
     // auto-install instructions follow only for self-install orders. Each function is idempotent.
     try {
@@ -1323,7 +1323,7 @@ serve(async (req) => {
         order_id: response.order_id,
       });
       results.order_confirmation_email = true;
-    } catch (err: any) {
+    } catch (err) {
       errors.push(`order_confirmation_email: ${err?.message || String(err)}`);
     }
 
@@ -1334,7 +1334,7 @@ serve(async (req) => {
           redirect_origin: "https://nivra-telecom.ca",
         });
         results.client_account_setup_email = true;
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`client_account_setup_email: ${err?.message || String(err)}`);
       }
     }
@@ -1345,7 +1345,7 @@ serve(async (req) => {
           order_id: response.order_id,
         });
         results.auto_installation_email = true;
-      } catch (err: any) {
+      } catch (err) {
         errors.push(`auto_installation_email: ${err?.message || String(err)}`);
       }
     }
@@ -1355,7 +1355,7 @@ serve(async (req) => {
       status: ok ? 200 : 207,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[checkout-canonical-sync] Fatal error:", error);
     return new Response(
       JSON.stringify({ ok: false, errors: [error instanceof Error ? error.message : String(error)] }),

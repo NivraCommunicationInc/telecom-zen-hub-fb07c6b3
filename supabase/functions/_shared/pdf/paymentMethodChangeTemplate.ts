@@ -1,5 +1,5 @@
-/**
- * Payment Method Change — Confirmation de changement de mode de paiement.
+﻿/**
+ * Payment Method Change â€” Confirmation de changement de mode de paiement.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -12,7 +12,7 @@ export interface PaymentMethodChangeData {
   client_email: string;
   account_number: string;
   old_method: string;             // "Carte de credit ****1234"
-  new_method: string;             // "PayPal — exemple@email.com"
+  new_method: string;             // "PayPal â€” exemple@email.com"
   effective_date: string;
   autopay_enabled: boolean;
   next_billing_date?: string;
@@ -56,7 +56,7 @@ export function generatePaymentMethodChangePDF(data: PaymentMethodChangeData): P
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Changement_Paiement_${data.notice_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

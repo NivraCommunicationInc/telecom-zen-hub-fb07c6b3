@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
       let body: any;
       try {
         body = await req.json();
-      } catch {
+      } catch (_e) {
         return new Response(
           JSON.stringify({ error: "Corps JSON invalide" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "Méthode non supportée" }),
       { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (e: unknown) {
+  } catch (e) {
     console.error("[technician-work-orders] error:", e);
     return new Response(
       JSON.stringify({ error: String(e) }),

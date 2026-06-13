@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "../_shared/ResendProxy.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 
@@ -19,11 +19,11 @@ interface SendInvoiceRequest {
 
 function buildEmailHtml(): string {
   return violetShell({
-    preheader: "Votre document PDF Nivra est prêt.",
+    preheader: "Votre document PDF Nivra est prÃªt.",
     badge: "DOCUMENT JOINT",
     heroTitle: "Votre document est joint",
-    heroSub: "Vous trouverez le PDF en pièce jointe à ce courriel.",
-    bodyHtml: "Bonjour, veuillez trouver en pièce jointe votre document au format PDF.",
+    heroSub: "Vous trouverez le PDF en piÃ¨ce jointe Ã  ce courriel.",
+    bodyHtml: "Bonjour, veuillez trouver en piÃ¨ce jointe votre document au format PDF.",
   });
 }
 
@@ -31,13 +31,13 @@ function buildEmailText(): string {
   return [
     "Bonjour,",
     "",
-    "Veuillez trouver en pièce jointe votre document au format PDF.",
+    "Veuillez trouver en piÃ¨ce jointe votre document au format PDF.",
     "",
-    "Besoin d’aide? Répondez à ce courriel ou écrivez à support@nivra-telecom.ca.",
+    "Besoin dâ€™aide? RÃ©pondez Ã  ce courriel ou Ã©crivez Ã  support@nivra-telecom.ca.",
     "",
     "Merci,",
-    "L’équipe Nivra Telecom",
-    "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
+    "Lâ€™Ã©quipe Nivra Telecom",
+    "1799 Av. Pierre-PÃ©ladeau, Laval, QC H7T 2Y5",
     "nivra-telecom.ca",
   ].join("\n");
 }
@@ -63,7 +63,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Basic sanity check to avoid sending corrupted/empty attachments
     const cleanedBase64 = String(pdfBase64).trim();
     if (cleanedBase64.length < 1000) {
-      console.error("[send-invoice-preview] PDF base64 too small — likely corrupted");
+      console.error("[send-invoice-preview] PDF base64 too small â€” likely corrupted");
       return new Response(
         JSON.stringify({ error: "PDF invalide ou corrompu (base64 trop court)." }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [to],
-      subject: subject || "Nivra Telecom — Document PDF",
+      subject: subject || "Nivra Telecom â€” Document PDF",
       replyTo: "support@nivra-telecom.ca",
       html: buildEmailHtml(),
       text: buildEmailText(),
@@ -94,7 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ success: true, messageId: emailResponse.id }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("[send-invoice-preview] Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),

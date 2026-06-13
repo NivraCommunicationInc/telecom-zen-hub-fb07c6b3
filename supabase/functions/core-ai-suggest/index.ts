@@ -127,7 +127,7 @@ serve(async (req) => {
     const json = await aiRes.json();
     const content = json?.choices?.[0]?.message?.content ?? "{}";
     let parsed: any;
-    try { parsed = JSON.parse(content); } catch { parsed = { summary: content, actions: [] }; }
+    try { parsed = JSON.parse(content); } catch (_e) { parsed = { summary: content, actions: [] }; }
 
     const safeActions = Array.isArray(parsed.actions)
       ? parsed.actions

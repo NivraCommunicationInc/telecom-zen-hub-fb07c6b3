@@ -106,7 +106,7 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({
       success: true, message_id: sendResp.data?.id, activation_request_id: ar.id,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (error: unknown) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[send-activation-success-email] Error:", msg);
     return new Response(JSON.stringify({ success: false, error: msg }), {

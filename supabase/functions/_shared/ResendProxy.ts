@@ -1,5 +1,5 @@
-/**
- * ResendProxy — Drop-in replacement for the Resend SDK.
+﻿/**
+ * ResendProxy â€” Drop-in replacement for the Resend SDK.
  * Enqueues emails to pgmq via enqueue_email RPC for delivery
  * by the process-email-queue worker (Lovable Email API).
  *
@@ -16,7 +16,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// ── Types ──────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface EmailSendParams {
   from: string;
@@ -63,14 +63,14 @@ export interface EnqueueResult {
   alreadyQueued?: boolean;
 }
 
-// ── Constants ──────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SENDER_DOMAIN = "notify.nivra-telecom.ca";
 const FROM_DOMAIN = "nivra-telecom.ca";
 const SUPPORT_EMAIL = "support@nivra-telecom.ca";
 // Anti-spam: canonical sender used for ALL client-facing emails.
 // Internal admin alerts may opt-out by passing fromEmail starting with "Nivra Admin"
-// or "Nivra Activations" — those are kept as-is for inbox filtering.
+// or "Nivra Activations" â€” those are kept as-is for inbox filtering.
 const CANONICAL_FROM = `Nivra Telecom <${SUPPORT_EMAIL}>`;
 const DEFAULT_FROM = CANONICAL_FROM;
 const PGMQ_QUEUE = "transactional_emails";
@@ -119,10 +119,10 @@ function sanitizeSubject(raw: string): string {
   // Collapse double spaces left by emoji removal
   s = s.replace(/\s{2,}/g, " ").trim();
 
-  // ALL CAPS detection — if >=60% of letters are uppercase, sentence-case it
-  const letters = s.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  // ALL CAPS detection â€” if >=60% of letters are uppercase, sentence-case it
+  const letters = s.replace(/[^A-Za-zÃ€-Ã¿]/g, "");
   if (letters.length >= 6) {
-    const upper = letters.replace(/[^A-ZÀ-Þ]/g, "").length;
+    const upper = letters.replace(/[^A-ZÃ€-Ãž]/g, "").length;
     if (upper / letters.length >= 0.6) {
       s = s.toLowerCase();
       s = s.charAt(0).toUpperCase() + s.slice(1);
@@ -139,7 +139,7 @@ function sanitizeSubject(raw: string): string {
   return s || "Notification Nivra Telecom";
 }
 
-// ── Helpers ────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getSupabaseClient(): any {
   const url = Deno.env.get("SUPABASE_URL");
@@ -216,7 +216,7 @@ async function isEmailSuppressed(
   return !!data;
 }
 
-// ── Core enqueue ───────────────────────────────────────────────────
+// â”€â”€ Core enqueue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueResult> {
   try {
@@ -336,17 +336,17 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
 
     console.log(`[enqueueEmail] Queued to pgmq: id=${messageId} to=${params.to} template=${params.templateKey || "custom_html"}`);
     return { success: true, id: messageId };
-  } catch (err: any) {
+  } catch (err) {
     console.error("[enqueueEmail] Exception:", err);
     return { success: false, error: err.message || "Unknown error" };
   }
 }
 
-// ── Resend-compatible class (drop-in replacement) ──────────────────
+// â”€â”€ Resend-compatible class (drop-in replacement) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export class Resend {
   constructor(_apiKey: string | undefined) {
-    // API key ignored — all sends are routed through pgmq.
+    // API key ignored â€” all sends are routed through pgmq.
     // The process-email-queue worker uses LOVABLE_API_KEY from env.
   }
 

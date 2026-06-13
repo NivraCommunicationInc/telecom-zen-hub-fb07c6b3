@@ -534,7 +534,7 @@ serve(async (req: Request) => {
     let body: RequestBody;
     try {
       body = await req.json();
-    } catch (e: unknown) {
+    } catch (e) {
       const err = e as Error;
       return json(400, {
         ok: false,
@@ -579,7 +579,7 @@ serve(async (req: Request) => {
           try {
             new URL(rawAppBaseUrl);
             appBaseUrl = rawAppBaseUrl.replace(/\/+$/, "");
-          } catch {
+          } catch (_e) {
             console.error(`[admin-manage-staff] APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
           }
         }
@@ -1445,7 +1445,7 @@ serve(async (req: Request) => {
               status: "queued",
             } as any);
 
-          } catch (e: unknown) {
+          } catch (e) {
             const err = e as Error;
             await logAction(
               "staff_invitation_send_failed",
@@ -2030,7 +2030,7 @@ serve(async (req: Request) => {
             success: true,
             message: "Email de réinitialisation envoyé",
           });
-        } catch (e: unknown) {
+        } catch (e) {
           const err = e as Error;
           await logAction(
             "staff_password_reset_failed",
@@ -3535,7 +3535,7 @@ serve(async (req: Request) => {
             success: true,
             message: "Email de réinitialisation du mot de passe envoyé",
           });
-        } catch (e: unknown) {
+        } catch (e) {
           const err = e as Error;
           console.error(`[admin-manage-staff] ${stepBase} error:`, err);
           return json(500, {
@@ -4098,7 +4098,7 @@ serve(async (req: Request) => {
           error: { code: "BAD_REQUEST", message: "Action non reconnue", step: "action" } satisfies ApiError,
         });
     }
-  } catch (e: unknown) {
+  } catch (e) {
     const err = e as Error;
     console.error("[admin-manage-staff] Top-level error request_id=", requestId, err);
     return json(500, {

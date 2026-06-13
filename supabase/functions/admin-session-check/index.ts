@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -56,7 +56,7 @@ const requestId = `session-check-${Date.now()}-${crypto.randomUUID().slice(0, 8)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Bind session check to the authenticated caller — admin_user_id must match the JWT
+    // Bind session check to the authenticated caller â€” admin_user_id must match the JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -113,7 +113,7 @@ const requestId = `session-check-${Date.now()}-${crypto.randomUUID().slice(0, 8)
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
-  } catch (error: any) {
+  } catch (error) {
     console.error(`[${requestId}] Error:`, error);
     
     return new Response(

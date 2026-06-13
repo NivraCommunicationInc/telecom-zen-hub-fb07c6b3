@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Server-side Auto Document Dispatcher (Deno).
  * Mirror of src/lib/pdf/autoDocumentDispatcher.ts.
  * Returns Uint8Array bytes from the PDF blob produced by jsPDF.
@@ -60,7 +60,7 @@ const nowIso = () => new Date().toISOString();
 // Lazily-initialized admin client used only to enrich payloads when the
 // trigger payload is incomplete (e.g. missing monthly amount, activation date,
 // service address). Strict fail-soft: if enrichment fails we fall back to the
-// raw payload — generation never throws because of enrichment.
+// raw payload â€” generation never throws because of enrichment.
 let _admin: any = null;
 function getAdmin() {
   if (_admin) return _admin;
@@ -73,7 +73,7 @@ function getAdmin() {
 
 /**
  * Pull authoritative client/account/subscription data from the database when
- * the trigger payload is missing key fields. Best-effort — never throws.
+ * the trigger payload is missing key fields. Best-effort â€” never throws.
  */
 async function enrichFromDb(
   docType: AutoDocType,
@@ -104,7 +104,7 @@ async function enrichFromDb(
       if (cust) {
         out.client_email = out.client_email || cust.email;
         out.client_phone = out.client_phone || cust.phone;
-        // billing_customers names can be null — profiles is the source of truth
+        // billing_customers names can be null â€” profiles is the source of truth
         if (cust.user_id) {
           const { data: prof } = await admin.from("profiles").select("first_name, last_name").eq("user_id", cust.user_id).maybeSingle();
           out.first_name = out.first_name || prof?.first_name || cust.first_name;
@@ -207,12 +207,12 @@ async function enrichFromDb(
           out.next_billing_date = out.next_billing_date || sub.next_renewal_at;
           out.account_status = out.account_status || sub.status;
           if (!out.first_billing_cycle && sub.cycle_start_date && sub.cycle_end_date) {
-            out.first_billing_cycle = `${sub.cycle_start_date} — ${sub.cycle_end_date}`;
+            out.first_billing_cycle = `${sub.cycle_start_date} â€” ${sub.cycle_end_date}`;
           }
         }
       }
     }
-  } catch (e: any) {
+  } catch (e) {
     console.warn("[dispatcher] enrichFromDb soft-fail:", e?.message);
   }
   return out;
@@ -261,9 +261,9 @@ function normalizePayload(
     client_city: p.client_city || addr.city || "",
     client_province: p.client_province || addr.province || "QC",
     client_postal: p.client_postal || addr.postal_code || "",
-    account_number: p.account_number || "—",
+    account_number: p.account_number || "â€”",
     issue_date: p.issue_date || nowIso(),
-    // Service fields — always have a value
+    // Service fields â€” always have a value
     service_name: p.service_name || p.plan_name || "Service Nivra Telecom",
     monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? p.plan_price ?? 0),
     activation_date: p.activation_date || p.active_since || p.created_at || nowIso(),
@@ -288,36 +288,36 @@ function normalizePayload(
       if (!changes.length) {
         if (p.change_type === "service_added" || p.service_name) {
           changes = [{
-            field: "Service ajouté",
-            old_value: "—",
+            field: "Service ajoutÃ©",
+            old_value: "â€”",
             new_value: String(p.service_name || p.service_code || "Nouveau service"),
           }];
           if (p.unit_price !== undefined && p.unit_price !== null) {
             changes.push({
               field: "Tarif mensuel",
-              old_value: "—",
+              old_value: "â€”",
               new_value: `${Number(p.unit_price).toFixed(2)} $`,
             });
           }
         } else if (p.change_type === "service_removed") {
           changes = [{
-            field: "Service retiré",
+            field: "Service retirÃ©",
             old_value: String(p.service_name || p.service_code || "Service"),
-            new_value: "—",
+            new_value: "â€”",
           }];
         } else {
           changes = [{
             field: "Modification",
-            old_value: "—",
-            new_value: String(p.change_type || "Mise à jour du contrat"),
+            old_value: "â€”",
+            new_value: String(p.change_type || "Mise Ã  jour du contrat"),
           }];
         }
       }
       // Sanitize each row
       changes = changes.map((c) => ({
-        field: String(c?.field ?? "—"),
-        old_value: String(c?.old_value ?? "—"),
-        new_value: String(c?.new_value ?? "—"),
+        field: String(c?.field ?? "â€”"),
+        old_value: String(c?.old_value ?? "â€”"),
+        new_value: String(c?.new_value ?? "â€”"),
       }));
       return {
         ...base,
@@ -336,7 +336,7 @@ function normalizePayload(
       return {
         ...base,
         notice_number: p.notice_number || `ADR-${Date.now()}`,
-        old_address: p.old_address || "—",
+        old_address: p.old_address || "â€”",
         new_address: p.new_address || `${addr.street}, ${addr.city} ${addr.province} ${addr.postal_code}`,
         effective_date: p.effective_date || nowIso(),
       };
@@ -345,7 +345,7 @@ function normalizePayload(
       return {
         ...base,
         notice_number: p.notice_number || `PAY-${Date.now()}`,
-        old_method: p.old_method || "—",
+        old_method: p.old_method || "â€”",
         new_method: p.new_method || "Nouveau moyen de paiement",
         effective_date: p.effective_date || nowIso(),
       };
@@ -356,7 +356,7 @@ function normalizePayload(
         ...base,
         certificate_number: p.certificate_number || `CRT-${Date.now()}`,
         service_name: p.service_name || p.plan_name || "Service Nivra",
-        service_address: p.service_address && typeof p.service_address === "string" ? p.service_address : (addr2.street || base.client_address || "—"),
+        service_address: p.service_address && typeof p.service_address === "string" ? p.service_address : (addr2.street || base.client_address || "â€”"),
         service_city: p.service_city || addr2.city || base.client_city || "",
         service_province: p.service_province || addr2.province || base.client_province || "QC",
         service_postal: p.service_postal || addr2.postal_code || base.client_postal || "",
@@ -374,7 +374,7 @@ function normalizePayload(
         notice_number: p.notice_number || `SUS-${Date.now()}`,
         service_name: p.service_name || p.plan_name || "Service Nivra",
         suspension_date: p.suspension_date || nowIso(),
-        reason: p.reason || "Solde impayé",
+        reason: p.reason || "Solde impayÃ©",
         amount_due: Number(p.amount_due ?? 0),
         invoice_numbers: Array.isArray(p.invoice_numbers) ? p.invoice_numbers : undefined,
         reactivation_fee: p.reactivation_fee ? Number(p.reactivation_fee) : undefined,
@@ -388,7 +388,7 @@ function normalizePayload(
         service_name: p.service_name || p.plan_name || "Service Nivra",
         cancellation_date: p.cancellation_date || nowIso(),
         effective_date: p.effective_date || p.cancellation_date || nowIso(),
-        reason: p.reason || "—",
+        reason: p.reason || "â€”",
         final_balance: Number(p.final_balance ?? p.amount_due ?? 0),
         equipment_to_return: Array.isArray(p.equipment_to_return) ? p.equipment_to_return : undefined,
         refund_pending: p.refund_pending ? Number(p.refund_pending) : undefined,
@@ -400,7 +400,7 @@ function normalizePayload(
         ...base,
         notice_number: p.notice_number || `CHB-${Date.now()}`,
         chargeback_date: p.chargeback_date || p.chargeback_opened_at || nowIso(),
-        invoice_number: p.invoice_number || "—",
+        invoice_number: p.invoice_number || "â€”",
         invoice_date: p.invoice_date || p.created_at || base.issue_date,
         invoice_amount: Number(p.invoice_amount ?? p.amount ?? 0),
         chargeback_amount: Number(p.chargeback_amount ?? p.amount ?? 0),
@@ -428,11 +428,11 @@ function normalizePayload(
       return {
         ...base,
         slip_number: p.slip_number || `BL-${Date.now()}`,
-        order_number: p.order_number || "—",
-        carrier: p.carrier || "—",
-        tracking_number: p.tracking_number || "—",
+        order_number: p.order_number || "â€”",
+        carrier: p.carrier || "â€”",
+        tracking_number: p.tracking_number || "â€”",
         estimated_delivery: p.estimated_delivery || undefined,
-        delivery_address: p.delivery_address || base.client_address || "—",
+        delivery_address: p.delivery_address || base.client_address || "â€”",
         delivery_city: p.delivery_city || base.client_city || "",
         delivery_province: p.delivery_province || base.client_province || "QC",
         delivery_postal: p.delivery_postal || base.client_postal || "",
@@ -455,13 +455,13 @@ function normalizePayload(
       return {
         ...base,
         instruction_number: p.instruction_number || `RET-${Date.now()}`,
-        order_number: p.order_number || "—",
+        order_number: p.order_number || "â€”",
         items: Array.isArray(p.items) ? p.items.map((it: any) => ({
           description: it.description || it.name || String(it),
           serial_number: it.serial_number || it.imei || undefined,
         })) : [],
         return_deadline: p.return_deadline || p.due_date || nowIso(),
-        return_address: p.return_address || "1799 Av. Pierre-Péladeau",
+        return_address: p.return_address || "1799 Av. Pierre-PÃ©ladeau",
         return_city: p.return_city || "Laval",
         return_province: p.return_province || "QC",
         return_postal: p.return_postal || "H7T 2Y5",
@@ -475,9 +475,9 @@ function normalizePayload(
         ...base,
         report_number: p.report_number || `INS-${Date.now()}`,
         appointment_date: p.appointment_date || p.installation_date || p.scheduled_at || nowIso(),
-        technician_name: p.technician_name || "—",
+        technician_name: p.technician_name || "â€”",
         technician_id: p.technician_id || undefined,
-        service_address: p.service_address || base.client_address || "—",
+        service_address: p.service_address || base.client_address || "â€”",
         service_city: p.service_city || base.client_city || "",
         service_province: p.service_province || base.client_province || "QC",
         service_postal: p.service_postal || base.client_postal || "",
@@ -520,7 +520,7 @@ function normalizePayload(
         demand_date: p.demand_date || nowIso(),
         total_due: Number(p.total_due ?? p.amount_due ?? 0),
         invoices: Array.isArray(p.invoices) ? p.invoices.map((inv: any) => ({
-          invoice_number: String(inv.invoice_number || "—"),
+          invoice_number: String(inv.invoice_number || "â€”"),
           invoice_date: String(inv.invoice_date || inv.date || ""),
           amount: Number(inv.amount ?? 0),
           days_overdue: Number(inv.days_overdue ?? 0),

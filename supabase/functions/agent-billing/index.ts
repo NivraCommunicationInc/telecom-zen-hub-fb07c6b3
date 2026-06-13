@@ -33,7 +33,7 @@ async function geminiDecide(input: Record<string, unknown>): Promise<"suspend" |
     const data = await res.json();
     const json = JSON.parse(data.choices?.[0]?.message?.content ?? "{}");
     return json.decision === "suspend" ? "suspend" : "grace_period";
-  } catch {
+  } catch (_e) {
     return "grace_period";
   }
 }
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   try {
     let body: any = {};
-    try { body = await req.json(); } catch { /* empty */ }
+    try { body = await req.json(); } catch (_e) { /* empty */ }
 
     if (body.action === "reconcile") {
       const r = await reconcile(supabase);

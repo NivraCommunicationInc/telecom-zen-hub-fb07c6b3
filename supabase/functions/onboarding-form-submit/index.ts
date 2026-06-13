@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const token = String(form.get("token") || "");
     const payloadRaw = String(form.get("payload") || "{}");
     let payload: any;
-    try { payload = JSON.parse(payloadRaw); } catch { payload = {}; }
+    try { payload = JSON.parse(payloadRaw); } catch (_e) { payload = {}; }
 
     if (!token) {
       return new Response(JSON.stringify({ error: "missing_token" }), {

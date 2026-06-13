@@ -143,7 +143,7 @@ export async function logSecurityEvent(
       details: event.details || {},
       created_at: new Date().toISOString(),
     });
-  } catch {
+  } catch (_e) {
     // Silent — audit logging must never crash the main flow
   }
 }

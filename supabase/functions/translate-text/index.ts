@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       if (Array.isArray(parsed?.translations) && parsed.translations.length === texts.length) {
         translations = parsed.translations.map((t: unknown) => String(t ?? ""));
       }
-    } catch { /* fall back to source */ }
+    } catch (_e) { /* fall back to source */ }
 
     return new Response(JSON.stringify({ translations }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

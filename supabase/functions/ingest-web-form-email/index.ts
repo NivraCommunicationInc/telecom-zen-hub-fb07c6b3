@@ -95,7 +95,7 @@ serve(async (req) => {
       const text = await req.text();
       try {
         emailData = JSON.parse(text);
-      } catch {
+      } catch (_e) {
         console.error("Could not parse email payload:", text.substring(0, 500));
         return new Response(JSON.stringify({ error: "Invalid payload format" }), {
           status: 400,
@@ -259,7 +259,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("ingest-web-form-email error:", message);
 

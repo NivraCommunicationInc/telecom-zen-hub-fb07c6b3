@@ -234,7 +234,7 @@ serve(async (req: Request) => {
       success: sendResp.success, already_queued: sendResp.alreadyQueued || false, message_id: sendResp.id, order_id: order.id, attachments: guideFiles, has_tv: hasTv,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  } catch (error: unknown) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[send-auto-installation-email] Error:", msg);
     return new Response(JSON.stringify({ success: false, error: msg }), {

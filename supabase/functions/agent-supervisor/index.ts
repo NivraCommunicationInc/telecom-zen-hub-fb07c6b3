@@ -75,7 +75,7 @@ async function callGemini(prompt: string): Promise<string | null> {
     if (!resp.ok) return null;
     const data = await resp.json();
     return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
+  } catch (_e) {
     return null;
   }
 }
@@ -91,7 +91,7 @@ async function restartAgent(functionName: string): Promise<boolean> {
       body: JSON.stringify({ triggered_by: "supervisor" }),
     });
     return r.ok;
-  } catch {
+  } catch (_e) {
     return false;
   }
 }

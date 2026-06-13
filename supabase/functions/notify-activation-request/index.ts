@@ -1,4 +1,4 @@
-/**
+﻿/**
  * notify-activation-request
  * Sends an email alert to support@nivra-telecom.ca AND support@nivra-telecom.ca
  * when a new activation request is submitted by a client.
@@ -55,7 +55,7 @@ serve(async (req) => {
       );
     }
 
-    // Already notified — idempotency
+    // Already notified â€” idempotency
     if (ar.business_notified) {
       console.log(`[${requestId}] already notified for ${body.activation_request_id}`);
       return new Response(
@@ -72,11 +72,11 @@ serve(async (req) => {
       .maybeSingle();
 
     const clientName = client?.full_name || "Client inconnu";
-    const clientEmail = client?.email || "—";
-    const clientNumber = client?.client_number || "—";
+    const clientEmail = client?.email || "â€”";
+    const clientNumber = client?.client_number || "â€”";
     const adminLink = `${ADMIN_BASE_URL}/core/activations`;
 
-    const subject = `🔔 Nouvelle demande d'activation — ${clientName}`;
+    const subject = `ðŸ”” Nouvelle demande d'activation â€” ${clientName}`;
 
     const html = `
 <!DOCTYPE html>
@@ -87,27 +87,27 @@ serve(async (req) => {
     <tr><td align="center" style="padding:40px 20px;">
       <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;">
         <tr><td style="background:linear-gradient(135deg,#0066CC,#0052a3);padding:24px;text-align:center;border-radius:12px 12px 0 0;">
-          <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">🔔 Nouvelle demande d'activation</h1>
+          <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">ðŸ”” Nouvelle demande d'activation</h1>
         </td></tr>
         <tr><td style="background:#fff;padding:30px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
-          <p style="margin:0 0 20px;color:#374151;font-size:15px;">Une nouvelle demande d'activation WiFi vient d'être soumise.</p>
+          <p style="margin:0 0 20px;color:#374151;font-size:15px;">Une nouvelle demande d'activation WiFi vient d'Ãªtre soumise.</p>
           <table role="presentation" style="width:100%;background:#f9fafb;border-radius:8px;margin-bottom:20px;">
             <tr><td style="padding:16px;">
               <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Client:</strong> ${clientName}</p>
               <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Compte:</strong> #${clientNumber}</p>
               <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Courriel:</strong> ${clientEmail}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Téléphone contact:</strong> ${ar.contact_phone}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Réseau WiFi demandé:</strong> <code>${ar.wifi_network_name}</code></p>
-              <p style="margin:0;font-size:13px;color:#6b7280;"><strong>Soumis à:</strong> ${new Date(ar.submitted_at).toLocaleString("fr-CA", { timeZone: "America/Toronto" })}</p>
+              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>TÃ©lÃ©phone contact:</strong> ${ar.contact_phone}</p>
+              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>RÃ©seau WiFi demandÃ©:</strong> <code>${ar.wifi_network_name}</code></p>
+              <p style="margin:0;font-size:13px;color:#6b7280;"><strong>Soumis Ã :</strong> ${new Date(ar.submitted_at).toLocaleString("fr-CA", { timeZone: "America/Toronto" })}</p>
             </td></tr>
           </table>
           ${ar.client_notes ? `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:12px;border-radius:0 8px 8px 0;margin-bottom:20px;"><p style="margin:0;font-size:13px;color:#92400e;"><strong>Notes du client:</strong> ${ar.client_notes}</p></div>` : ""}
           <table role="presentation" style="width:100%;"><tr><td align="center">
-            <a href="${adminLink}" style="display:inline-block;background:#0066CC;color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Traiter la demande →</a>
+            <a href="${adminLink}" style="display:inline-block;background:#0066CC;color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Traiter la demande â†’</a>
           </td></tr></table>
         </td></tr>
         <tr><td style="background:#1f2937;padding:20px;text-align:center;border-radius:0 0 12px 12px;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">Notification automatique — Nivra Télécom Admin</p>
+          <p style="margin:0;color:#9ca3af;font-size:12px;">Notification automatique â€” Nivra TÃ©lÃ©com Admin</p>
         </td></tr>
       </table>
     </td></tr>
@@ -132,7 +132,7 @@ serve(async (req) => {
         }
       }
     } else {
-      console.warn(`[${requestId}] RESEND_API_KEY not set — skipping email`);
+      console.warn(`[${requestId}] RESEND_API_KEY not set â€” skipping email`);
     }
 
     // Mark as notified
@@ -145,7 +145,7 @@ serve(async (req) => {
       JSON.stringify({ success: true, emails_sent: emailsSent }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error(`[${requestId}] error:`, err);
     return new Response(
       JSON.stringify({ error: err?.message || String(err) }),

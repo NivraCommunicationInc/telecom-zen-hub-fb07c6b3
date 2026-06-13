@@ -1,4 +1,4 @@
-/**
+﻿/**
  * core-process-card-payment
  *
  * Admin-only endpoint that processes a `card_manual` field-sale payment.
@@ -12,7 +12,7 @@
  *       - Mark `field_payment_intents.status = 'paid'`
  *       - Run the existing field order/invoice materialization path
  *         (`field-order-engine` finalize) to create order + invoice + commission.
- *       - DELETE the `card_payment_intents` row (security — plaintext key removed).
+ *       - DELETE the `card_payment_intents` row (security â€” plaintext key removed).
  *       - Return success with the resulting order_id.
  *  6. If rejected, leave the intent in place so the admin can retry within 48 h.
  */
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     // Verify admin role
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: adminId, _role: "admin" });
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Réservé aux administrateurs" }), { status: 403, headers });
+      return new Response(JSON.stringify({ error: "RÃ©servÃ© aux administrateurs" }), { status: 403, headers });
     }
 
     const body = await req.json();
@@ -130,10 +130,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Intention de paiement introuvable" }), { status: 404, headers });
     }
     if (cpi.status === "processed") {
-      return new Response(JSON.stringify({ error: "Déjà traitée" }), { status: 409, headers });
+      return new Response(JSON.stringify({ error: "DÃ©jÃ  traitÃ©e" }), { status: 409, headers });
     }
     if (new Date(cpi.expires_at).getTime() < Date.now()) {
-      return new Response(JSON.stringify({ error: "Données expirées (48 h dépassées)" }), { status: 410, headers });
+      return new Response(JSON.stringify({ error: "DonnÃ©es expirÃ©es (48 h dÃ©passÃ©es)" }), { status: 410, headers });
     }
 
     // Decrypt card number
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       cardNumber = await decryptCard(cpi.encrypted_card_number, cpi.encryption_iv, cpi.encryption_auth_tag);
     } catch (e) {
       console.error("[core-process-card-payment] decrypt failed", e);
-      return new Response(JSON.stringify({ error: "Déchiffrement impossible" }), { status: 500, headers });
+      return new Response(JSON.stringify({ error: "DÃ©chiffrement impossible" }), { status: 500, headers });
     }
 
     // Mark as processing (best effort)
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
       const reason =
         ppJson?.details?.[0]?.description ||
         ppJson?.message ||
-        "Paiement refusé par PayPal";
+        "Paiement refusÃ© par PayPal";
       console.error("[core-process-card-payment] PayPal rejected", ppJson);
       await admin.from("card_payment_intents")
         .update({ status: "pending_processing" })
@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: reason, paypal: ppJson }), { status: 402, headers });
     }
 
-    // Mark field_payment_intent as paid → invoke field-order-engine to materialize
+    // Mark field_payment_intent as paid â†’ invoke field-order-engine to materialize
     if (cpi.field_payment_intent_id) {
       await admin.from("field_payment_intents")
         .update({ status: "paid", paid_at: new Date().toISOString(), paypal_order_id: paypalOrderId })
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
       await admin.from("card_payment_intents")
         .update({ status: "pending_processing" })
         .eq("id", cardIntentId);
-      throw new Error((finRes.error as any)?.message || (finRes.data as any)?.error || "Paiement capturé, mais création de commande Core échouée");
+      throw new Error((finRes.error as any)?.message || (finRes.data as any)?.error || "Paiement capturÃ©, mais crÃ©ation de commande Core Ã©chouÃ©e");
     }
     resultOrderId = (finRes.data as any).order_id;
 
@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
       capture_status: captureStatus || status,
       order_id: resultOrderId,
     }), { headers });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[core-process-card-payment] error", err);
     return new Response(
       JSON.stringify({ error: err?.message || String(err) }),

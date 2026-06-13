@@ -238,7 +238,7 @@ function parseMRZ(text: string): ExtractedFields | null {
       issuing_country,
       mrz_raw: `${line1}\n${line2}`,
     };
-  } catch {
+  } catch (_e) {
     return null;
   }
 }

@@ -1,5 +1,5 @@
-/**
- * Activation Confirmation — Confirmation d'activation de service (mobile/internet/tv).
+﻿/**
+ * Activation Confirmation â€” Confirmation d'activation de service (mobile/internet/tv).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -15,13 +15,13 @@ export interface ActivationConfirmationData {
   service_name: string;
   service_type: "mobile" | "internet" | "tv" | "other";
   activation_date: string;
-  // Optional — depends on type
+  // Optional â€” depends on type
   phone_number?: string;
   sim_iccid?: string;
   internet_speed?: string;
   static_ip?: string;
   monthly_amount: number;
-  first_billing_cycle?: string;   // ex: "21 nov 2026 — 20 dec 2026"
+  first_billing_cycle?: string;   // ex: "21 nov 2026 â€” 20 dec 2026"
   notes?: string;
 }
 
@@ -70,7 +70,7 @@ export function generateActivationConfirmationPDF(data: ActivationConfirmationDa
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Confirmation_Activation_${data.confirmation_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

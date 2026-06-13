@@ -1,7 +1,7 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+﻿import { createClient } from "npm:@supabase/supabase-js@2";
 
 /**
- * nivra-core-sync — Webhook endpoint called by Nivra Core Worker
+ * nivra-core-sync â€” Webhook endpoint called by Nivra Core Worker
  * after creating order/invoice/payment/subscription.
  * 
  * Writes canonical records to local Supabase tables for portal visibility.
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ── Auth: verify webhook secret ──
+    // â”€â”€ Auth: verify webhook secret â”€â”€
     const webhookSecret = Deno.env.get("NIVRA_WEBHOOK_SECRET");
     const providedSecret = req.headers.get("x-webhook-secret");
 
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     const results: Record<string, any> = {};
     const errors: string[] = [];
 
-    // ── 1. Upsert billing_customer ──
+    // â”€â”€ 1. Upsert billing_customer â”€â”€
     try {
       const { data: existingCustomer } = await admin
         .from("billing_customers")
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
       }
       results.customer_id = customerId;
 
-      // ── 2. Resolve or create account — BLOCKING ──
+      // â”€â”€ 2. Resolve or create account â€” BLOCKING â”€â”€
       let accountId: string | null = null;
       {
         const { data: acct } = await admin
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
             .select("id")
             .single();
           if (acctErr) {
-            // Handle race condition: unique index violation → re-fetch
+            // Handle race condition: unique index violation â†’ re-fetch
             if (acctErr.code === '23505') {
               console.warn("[nivra-core-sync] Account exists (race), re-fetching");
               const { data: reFetched } = await admin
@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
             }
           } else {
             accountId = newAcct.id;
-            console.log("[nivra-core-sync] ✓ Account created:", payload.account.account_number);
+            console.log("[nivra-core-sync] âœ“ Account created:", payload.account.account_number);
           }
         }
         
@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
           const errMsg = `FATAL: No account_id resolved for user ${payload.customer.user_id}. Order sync blocked.`;
           console.error("[nivra-core-sync]", errMsg);
           errors.push(errMsg);
-          // Return early — order trigger will reject NULL account_id anyway
+          // Return early â€” order trigger will reject NULL account_id anyway
           return new Response(
             JSON.stringify({ ok: false, results, errors }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── 3. Upsert order ──
+      // â”€â”€ 3. Upsert order â”€â”€
       const { error: orderErr } = await admin.from("orders").upsert(
         {
           id: payload.order.id,
@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
         results.order = "synced";
       }
 
-      // ── 3. Upsert billing_invoice ──
+      // â”€â”€ 3. Upsert billing_invoice â”€â”€
       const { error: invoiceErr } = await admin.from("billing_invoices").upsert(
         {
           id: payload.invoice.id,
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
         results.invoice = "synced";
       }
 
-      // ── 4. Upsert billing_payment ──
+      // â”€â”€ 4. Upsert billing_payment â”€â”€
       const { error: paymentErr } = await admin.from("billing_payments").upsert(
         {
           id: payload.payment.id,
@@ -326,7 +326,7 @@ Deno.serve(async (req) => {
         results.payment = "synced";
       }
 
-      // ── 5. Upsert billing_subscription — DETERMINISTIC ──
+      // â”€â”€ 5. Upsert billing_subscription â€” DETERMINISTIC â”€â”€
       // Always ensure a subscription exists for the order.
       // If payload.subscription is provided, use it. Otherwise, derive from order data.
       {
@@ -339,7 +339,7 @@ Deno.serve(async (req) => {
 
         if (existingSub) {
           results.subscription = "already_exists";
-          console.log("[nivra-core-sync] ✓ Subscription already exists for order:", payload.order.order_number);
+          console.log("[nivra-core-sync] âœ“ Subscription already exists for order:", payload.order.order_number);
         } else if (payload.subscription) {
           const { error: subErr } = await admin.from("billing_subscriptions").upsert(
             {
@@ -365,7 +365,7 @@ Deno.serve(async (req) => {
             results.subscription = "synced";
           }
         } else {
-          // No subscription in payload — create a pending one from order data
+          // No subscription in payload â€” create a pending one from order data
           // The DB trigger trg_ensure_subscription_on_invoice_paid is the final safety net,
           // but we create proactively to avoid relying on trigger chain.
           const subId = crypto.randomUUID();
@@ -392,12 +392,12 @@ Deno.serve(async (req) => {
             errors.push(`subscription_fallback: ${subErr.message}`);
           } else {
             results.subscription = "created_from_order";
-            console.log("[nivra-core-sync] ✓ Subscription auto-created for order:", payload.order.order_number);
+            console.log("[nivra-core-sync] âœ“ Subscription auto-created for order:", payload.order.order_number);
           }
         }
       }
 
-      // ── 6. Log to transaction_events for audit trail ──
+      // â”€â”€ 6. Log to transaction_events for audit trail â”€â”€
       await admin.from("transaction_events").insert({
         user_id: payload.customer.user_id,
         event_type: payload.event === "checkout_completed" ? "order_created" : payload.event,
@@ -419,7 +419,7 @@ Deno.serve(async (req) => {
         console.warn("[nivra-core-sync] Transaction event log failed (non-blocking):", err);
       });
 
-    } catch (innerErr: any) {
+    } catch (innerErr) {
       console.error("[nivra-core-sync] Processing error:", innerErr);
       errors.push(`processing: ${innerErr.message}`);
     }
@@ -437,7 +437,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[nivra-core-sync] Fatal error:", err);
     return new Response(JSON.stringify({ error: "Internal error", details: err.message }), {
       status: 500,

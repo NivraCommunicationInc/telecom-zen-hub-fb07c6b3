@@ -270,7 +270,7 @@ serve(async (req) => {
         status: "new",
         consent_given: true,
       });
-    } catch {
+    } catch (_e) {
       // Ignore if table doesn't exist or insert fails
     }
 
@@ -285,7 +285,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue";
     console.error("submit-web-form error:", message);
 

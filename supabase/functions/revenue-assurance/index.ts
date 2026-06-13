@@ -582,7 +582,7 @@ serve(async (req) => {
     console.log(`[revenue-assurance] Done — findings:${report.summary.total_findings} risk:${report.summary.total_revenue_at_risk.toFixed(2)}$ alerts:${report.summary.total_alerts_raised}`);
 
     return respond(200, report);
-  } catch (err: unknown) {
+  } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[revenue-assurance] Fatal:", msg);
     return respond(500, { error: msg });

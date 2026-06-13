@@ -1,4 +1,4 @@
-/**
+﻿/**
  * admin-test-pdf-email
  *
  * Finds the last order in the DB, generates all 4 PDFs (invoice, receipt,
@@ -40,7 +40,7 @@ async function sendWithPdf(opts: {
     heroTitle: opts.heroTitle,
     heroSub: opts.heroSub,
     cardRows: opts.cardRows,
-    helpHtml: 'Des questions? Répondez à ce courriel ou écrivez à <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>.',
+    helpHtml: 'Des questions? RÃ©pondez Ã  ce courriel ou Ã©crivez Ã  <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>.',
   });
 
   return resend.emails.send({
@@ -62,10 +62,10 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
   const cors = getCorsHeaders(req.headers.get("origin"));
 
-  /* ── Auth ── */
+  /* â”€â”€ Auth â”€â”€ */
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) {
-    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+    return new Response(JSON.stringify({ error: "Non authentifiÃ©" }), {
       status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const to: string = body.to || "support@nivra-telecom.ca";
 
-  /* ── Find last order ── */
+  /* â”€â”€ Find last order â”€â”€ */
   let orderId: string = body.orderId;
   if (!orderId) {
     const { data: lastOrder } = await admin
@@ -99,14 +99,14 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (!lastOrder) {
-      return new Response(JSON.stringify({ error: "Aucune commande trouvée" }), {
+      return new Response(JSON.stringify({ error: "Aucune commande trouvÃ©e" }), {
         status: 404, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
     orderId = lastOrder.id;
   }
 
-  /* ── Find last invoice for that order ── */
+  /* â”€â”€ Find last invoice for that order â”€â”€ */
   const { data: lastInvoice } = await admin
     .from("billing_invoices")
     .select("id, invoice_number, status")
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
   const invoiceId: string | null = lastInvoice?.id ?? null;
 
-  /* ── Get order info for labels ── */
+  /* â”€â”€ Get order info for labels â”€â”€ */
   const { data: orderInfo } = await admin
     .from("orders")
     .select("order_number, created_at")
@@ -128,47 +128,47 @@ Deno.serve(async (req) => {
 
   const results: Array<{ type: string; status: "ok" | "skipped" | "error"; detail?: string }> = [];
 
-  /* ── 1. Facture ── */
+  /* â”€â”€ 1. Facture â”€â”€ */
   if (invoiceId) {
     try {
       const att = await buildInvoicePdfAttachment(invoiceId, "Facture");
       if (att) {
         await sendWithPdf({
           to,
-          subject: `Nivra Telecom — Facture #${invoiceNum}`,
+          subject: `Nivra Telecom â€” Facture #${invoiceNum}`,
           badge: "FACTURE",
           heroTitle: `Facture #${invoiceNum}`,
-          heroSub: "Votre facture est disponible en pièce jointe.",
+          heroSub: "Votre facture est disponible en piÃ¨ce jointe.",
           cardRows: [
             ["Commande", orderNum],
             ["Facture", invoiceNum],
-            ["Statut", (lastInvoice as any)?.status ?? "—"],
+            ["Statut", (lastInvoice as any)?.status ?? "â€”"],
           ],
           filename: att.filename,
           pdfBase64: att.content,
         });
         results.push({ type: "facture", status: "ok" });
       } else {
-        results.push({ type: "facture", status: "error", detail: "PDF null — données manquantes" });
+        results.push({ type: "facture", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
       }
-    } catch (e: any) {
+    } catch (e) {
       results.push({ type: "facture", status: "error", detail: e.message });
     }
   } else {
     results.push({ type: "facture", status: "skipped", detail: "Aucune facture pour cette commande" });
   }
 
-  /* ── 2. Reçu ── */
+  /* â”€â”€ 2. ReÃ§u â”€â”€ */
   if (invoiceId) {
     try {
       const att = await buildReceiptPdfAttachment(invoiceId, "Recu");
       if (att) {
         await sendWithPdf({
           to,
-          subject: `Nivra Telecom — Reçu de paiement #${invoiceNum}`,
-          badge: "REÇU DE PAIEMENT",
-          heroTitle: "Reçu de paiement",
-          heroSub: "Votre reçu de paiement est disponible en pièce jointe.",
+          subject: `Nivra Telecom â€” ReÃ§u de paiement #${invoiceNum}`,
+          badge: "REÃ‡U DE PAIEMENT",
+          heroTitle: "ReÃ§u de paiement",
+          heroSub: "Votre reÃ§u de paiement est disponible en piÃ¨ce jointe.",
           cardRows: [
             ["Commande", orderNum],
             ["Facture", invoiceNum],
@@ -178,61 +178,61 @@ Deno.serve(async (req) => {
         });
         results.push({ type: "recu", status: "ok" });
       } else {
-        results.push({ type: "recu", status: "error", detail: "PDF null — données manquantes" });
+        results.push({ type: "recu", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
       }
-    } catch (e: any) {
+    } catch (e) {
       results.push({ type: "recu", status: "error", detail: e.message });
     }
   } else {
     results.push({ type: "recu", status: "skipped", detail: "Aucune facture pour cette commande" });
   }
 
-  /* ── 3. Contrat ── */
+  /* â”€â”€ 3. Contrat â”€â”€ */
   try {
     const att = await buildContractPdfAttachment(orderId, { filenamePrefix: "Contrat" });
     if (att) {
       await sendWithPdf({
         to,
-        subject: `Nivra Telecom — Contrat de service #${orderNum}`,
+        subject: `Nivra Telecom â€” Contrat de service #${orderNum}`,
         badge: "CONTRAT DE SERVICE",
         heroTitle: "Votre contrat de service",
-        heroSub: "Votre contrat est disponible en pièce jointe.",
+        heroSub: "Votre contrat est disponible en piÃ¨ce jointe.",
         cardRows: [["Commande", orderNum]],
         filename: att.filename,
         pdfBase64: att.content,
       });
       results.push({ type: "contrat", status: "ok" });
     } else {
-      results.push({ type: "contrat", status: "error", detail: "PDF null — données manquantes" });
+      results.push({ type: "contrat", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
     }
-  } catch (e: any) {
+  } catch (e) {
     results.push({ type: "contrat", status: "error", detail: e.message });
   }
 
-  /* ── 4. Sommaire de commande ── */
+  /* â”€â”€ 4. Sommaire de commande â”€â”€ */
   try {
     const att = await buildSummaryPdfAttachment(orderId, "Sommaire");
     if (att) {
       await sendWithPdf({
         to,
-        subject: `Nivra Telecom — Sommaire de commande #${orderNum}`,
+        subject: `Nivra Telecom â€” Sommaire de commande #${orderNum}`,
         badge: "SOMMAIRE DE COMMANDE",
         heroTitle: `Commande #${orderNum}`,
-        heroSub: "Votre sommaire de commande est disponible en pièce jointe.",
+        heroSub: "Votre sommaire de commande est disponible en piÃ¨ce jointe.",
         cardRows: [["Commande", orderNum]],
         filename: att.filename,
         pdfBase64: att.content,
       });
       results.push({ type: "sommaire", status: "ok" });
     } else {
-      results.push({ type: "sommaire", status: "error", detail: "PDF null — données manquantes" });
+      results.push({ type: "sommaire", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
     }
-  } catch (e: any) {
+  } catch (e) {
     results.push({ type: "sommaire", status: "error", detail: e.message });
   }
 
   const ok = results.filter(r => r.status === "ok").length;
-  console.log(`[admin-test-pdf-email] done — sent=${ok}/${results.length} → ${to}`);
+  console.log(`[admin-test-pdf-email] done â€” sent=${ok}/${results.length} â†’ ${to}`);
 
   return new Response(JSON.stringify({
     to,

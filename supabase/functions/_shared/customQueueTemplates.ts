@@ -123,7 +123,7 @@ export function fmtDate(d: unknown): string {
       month: "long",
       day: "numeric",
     });
-  } catch {
+  } catch (_e) {
     return s;
   }
 }

@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
       activated: password && activate_immediately,
       message,
     });
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[admin-create-partner] Unexpected error:", error);
     return jsonResponse({

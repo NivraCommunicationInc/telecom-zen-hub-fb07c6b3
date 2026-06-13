@@ -295,7 +295,7 @@ Deno.serve(async (req) => {
         })
         .eq("id", row.id);
       results.push({ id: row.id, status: "sent" });
-    } catch (err: unknown) {
+    } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`[email-queue-drain] row ${row.id} error:`, errorMsg);
       await reportEdgeError(err, { function: "email-queue-drain", queue_row_id: row.id, template_key: row.template_key }).catch(() => {});

@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
       message: "Inscription réussie! Vous pouvez maintenant accéder à votre tableau de bord.",
     });
 
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
     console.error("[partner-self-signup] Unexpected error:", error);
     return jsonResponse({ 

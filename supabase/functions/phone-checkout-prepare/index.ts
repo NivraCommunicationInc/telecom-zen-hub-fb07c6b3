@@ -1,4 +1,4 @@
-/**
+﻿/**
  * phone-checkout-prepare
  *
  * Server-side preparation of a phone order BEFORE PayPal opens.
@@ -179,7 +179,7 @@ serve(async (req) => {
         .single();
       if (acctErr) {
         console.error("[phone-checkout-prepare] account insert", acctErr);
-        // Continue without account — order still works
+        // Continue without account â€” order still works
       } else {
         accountId = newAccount?.id ?? null;
       }
@@ -243,7 +243,7 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[phone-checkout-prepare] fatal", err);
     return jsonError(err?.message ?? "Internal error", 500);
   }

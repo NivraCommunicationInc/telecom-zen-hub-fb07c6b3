@@ -1,4 +1,4 @@
-/**
+﻿/**
  * send-pdf-audit-all
  * ------------------
  * One-shot audit function: fetches the most recent order, generates every
@@ -18,7 +18,7 @@ import {
 } from "../_shared/pdfFromDb.ts";
 import { dispatchAutoDocument, type AutoDocType } from "../_shared/pdf/dispatcher.ts";
 
-/** Convert Uint8Array → base64 string */
+/** Convert Uint8Array â†’ base64 string */
 function uint8ToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -33,7 +33,7 @@ const CORS = {
 const BUSINESS_EMAIL = "support@nivra-telecom.ca";
 const FROM_EMAIL = "Nivra Telecom <support@nivra-telecom.ca>";
 
-// ── Resend direct (bypass pgmq for this one-shot audit) ─────────────────────
+// â”€â”€ Resend direct (bypass pgmq for this one-shot audit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendViaResend(
   resendKey: string,
   subject: string,
@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // ── 1. Fetch last order ─────────────────────────────────────────────────
+    // â”€â”€ 1. Fetch last order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const { data: order, error: orderErr } = await sb
       .from("orders")
       .select("*, profiles(*), accounts(*)")
@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── 2. Fetch related records ────────────────────────────────────────────
+    // â”€â”€ 2. Fetch related records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const [profileRes, accountRes, invoiceRes, contractRes] = await Promise.all([
       sb.from("profiles").select("*").eq("user_id", order.user_id).maybeSingle(),
       sb.from("accounts").select("*").eq("client_id", order.user_id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
 
     console.log(`[AuditAll] Order: ${orderNumber} | Client: ${clientName} | Invoice: ${invoiceNumber}`);
 
-    // ── 3. Generate locked PDFs (4) ─────────────────────────────────────────
+    // â”€â”€ 3. Generate locked PDFs (4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const attachments: Array<{ filename: string; content: string; contentType: string }> = [];
     const results: Record<string, string> = {};
 
@@ -144,7 +144,7 @@ Deno.serve(async (req: Request) => {
           attachments.push({ filename: `01_Facture_${invoiceNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["invoice"] = "OK";
         } else results["invoice"] = "empty";
-      } catch (e: any) { results["invoice"] = `ERR: ${e.message}`; }
+      } catch (e) { results["invoice"] = `ERR: ${e.message}`; }
     } else results["invoice"] = "no invoice";
 
     // Receipt
@@ -155,7 +155,7 @@ Deno.serve(async (req: Request) => {
           attachments.push({ filename: `02_Recu_${invoiceNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["receipt"] = "OK";
         } else results["receipt"] = "empty";
-      } catch (e: any) { results["receipt"] = `ERR: ${e.message}`; }
+      } catch (e) { results["receipt"] = `ERR: ${e.message}`; }
     } else results["receipt"] = "no invoice";
 
     // Contract
@@ -166,7 +166,7 @@ Deno.serve(async (req: Request) => {
           attachments.push({ filename: `03_Contrat_${contractNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["contract"] = "OK";
         } else results["contract"] = "empty";
-      } catch (e: any) { results["contract"] = `ERR: ${e.message}`; }
+      } catch (e) { results["contract"] = `ERR: ${e.message}`; }
     }
 
     // Order Summary
@@ -177,10 +177,10 @@ Deno.serve(async (req: Request) => {
           attachments.push({ filename: `04_Sommaire_${orderNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["summary"] = "OK";
         } else results["summary"] = "empty";
-      } catch (e: any) { results["summary"] = `ERR: ${e.message}`; }
+      } catch (e) { results["summary"] = `ERR: ${e.message}`; }
     }
 
-    // ── 4. Generate auto-document PDFs (17) ─────────────────────────────────
+    // â”€â”€ 4. Generate auto-document PDFs (17) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const autoDocTypes: Array<[string, string, Record<string, any>]> = [
       ["welcome_letter", "05_Lettre_Bienvenue", {
         letter_number: `LTR-${orderNumber}`,
@@ -204,7 +204,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         service_name: planName, plan_name: planName,
-        suspension_date: nowIso, reason: "Solde impayé — test d'audit",
+        suspension_date: nowIso, reason: "Solde impayÃ© â€” test d'audit",
         amount_due: invoiceAmount,
         invoice_numbers: [invoiceNumber],
         reactivation_fee: 15,
@@ -217,7 +217,7 @@ Deno.serve(async (req: Request) => {
         account_number: accountNumber,
         service_name: planName, plan_name: planName,
         cancellation_date: nowIso, effective_date: nowIso,
-        reason: "Annulation à la demande du client — test d'audit",
+        reason: "Annulation Ã  la demande du client â€” test d'audit",
         final_balance: 0,
         issue_date: nowIso,
       }],
@@ -240,7 +240,7 @@ Deno.serve(async (req: Request) => {
         refund_amount: invoiceAmount, processed_date: nowIso,
         refund_method: "Virement Interac",
         related_invoice: invoiceNumber,
-        reason: "Remboursement suite à annulation — test d'audit",
+        reason: "Remboursement suite Ã  annulation â€” test d'audit",
         account_closed: false,
         issue_date: nowIso,
       }],
@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
         order_number: orderNumber,
         items: [{ description: "Routeur Nivra", serial_number: "SN-12345678" }],
         return_deadline: nowIso,
-        return_address: "1799 Av. Pierre-Péladeau",
+        return_address: "1799 Av. Pierre-PÃ©ladeau",
         return_city: "Laval", return_province: "QC", return_postal: "H7T 2Y5",
         non_return_fee: 60,
         issue_date: nowIso,
@@ -285,7 +285,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         contract_number: contractNumber, effective_date: nowIso,
-        amendment_summary: "Modification du forfait — test d'audit",
+        amendment_summary: "Modification du forfait â€” test d'audit",
         issue_date: nowIso,
       }],
       ["formal_demand", "15_Mise_en_Demeure", {
@@ -314,7 +314,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         complaint_received_date: nowIso,
-        complaint_summary: "Demande de vérification — test d'audit",
+        complaint_summary: "Demande de vÃ©rification â€” test d'audit",
         case_number: `PLT-${orderNumber}`, expected_resolution_date: nowIso,
         issue_date: nowIso,
       }],
@@ -323,8 +323,8 @@ Deno.serve(async (req: Request) => {
         client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
-        authorized_amount: invoiceAmount, payment_method: order.payment_method || "Carte de crédit",
-        capture_deadline: nowIso, purpose: "Pré-autorisation de paiement — test d'audit",
+        authorized_amount: invoiceAmount, payment_method: order.payment_method || "Carte de crÃ©dit",
+        capture_deadline: nowIso, purpose: "PrÃ©-autorisation de paiement â€” test d'audit",
         issue_date: nowIso,
       }],
       ["payment_method_change", "19_Changement_Paiement", {
@@ -340,7 +340,7 @@ Deno.serve(async (req: Request) => {
         notice_number: `ADR-${orderNumber}`,
         client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
         account_number: accountNumber,
-        old_address: "123 Ancienne Rue", old_city: "Montréal", old_province: "QC", old_postal: "H2X 1Y3",
+        old_address: "123 Ancienne Rue", old_city: "MontrÃ©al", old_province: "QC", old_postal: "H2X 1Y3",
         new_address: clientAddress, new_city: clientCity, new_province: clientProvince, new_postal: clientPostal,
         effective_date: nowIso, service_continuity: "no_interruption",
         issue_date: nowIso,
@@ -368,13 +368,13 @@ Deno.serve(async (req: Request) => {
         } else {
           results[docType] = "empty";
         }
-      } catch (e: any) {
+      } catch (e) {
         results[docType] = `ERR: ${e.message?.slice(0, 80)}`;
         console.error(`[AuditAll] ${docType} failed:`, e.message);
       }
     }
 
-    // ── 5. Send ONE email with all PDFs ─────────────────────────────────────
+    // â”€â”€ 5. Send ONE email with all PDFs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const okCount = Object.values(results).filter((r) => r === "OK").length;
     const errList = Object.entries(results)
       .filter(([, v]) => v !== "OK")
@@ -382,18 +382,18 @@ Deno.serve(async (req: Request) => {
       .join("");
 
     const html = `
-<h2>Audit PDF — Tous les gabarits</h2>
+<h2>Audit PDF â€” Tous les gabarits</h2>
 <p><b>Commande:</b> ${orderNumber} &nbsp;|&nbsp; <b>Client:</b> ${clientName} &nbsp;|&nbsp; <b>Courriel:</b> ${clientEmail}</p>
 <p><b>Facture:</b> ${invoiceNumber} &nbsp;|&nbsp; <b>Contrat:</b> ${contractNumber}</p>
-<p><b>${attachments.length} PDF${attachments.length > 1 ? "s" : ""} générés sur ${autoDocTypes.length + 4} gabarits.</b></p>
-${errList ? `<h3>Erreurs (${Object.values(results).filter((r) => r !== "OK").length})</h3><ul>${errList}</ul>` : "<p>✅ Tous les gabarits générés sans erreur.</p>"}
+<p><b>${attachments.length} PDF${attachments.length > 1 ? "s" : ""} gÃ©nÃ©rÃ©s sur ${autoDocTypes.length + 4} gabarits.</b></p>
+${errList ? `<h3>Erreurs (${Object.values(results).filter((r) => r !== "OK").length})</h3><ul>${errList}</ul>` : "<p>âœ… Tous les gabarits gÃ©nÃ©rÃ©s sans erreur.</p>"}
 <hr/>
-<p style="font-size:11px;color:#888;">Généré par send-pdf-audit-all — ${new Date().toLocaleString("fr-CA")}</p>
+<p style="font-size:11px;color:#888;">GÃ©nÃ©rÃ© par send-pdf-audit-all â€” ${new Date().toLocaleString("fr-CA")}</p>
     `.trim();
 
     const emailResult = await sendViaResend(
       resendKey,
-      `Audit PDF Nivra — ${okCount} gabarits — Commande ${orderNumber}`,
+      `Audit PDF Nivra â€” ${okCount} gabarits â€” Commande ${orderNumber}`,
       html,
       attachments,
     );
@@ -410,7 +410,7 @@ ${errList ? `<h3>Erreurs (${Object.values(results).filter((r) => r !== "OK").len
       }),
       { headers: { ...CORS, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("[AuditAll] Fatal:", err);
     return new Response(
       JSON.stringify({ error: err.message }),

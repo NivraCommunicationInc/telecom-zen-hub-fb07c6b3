@@ -234,7 +234,7 @@ serve(async (req) => {
       JSON.stringify({ ok: false, request_id, status: 400, message: "Invalid action. Use 'suggest' or 'retrieve'" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error(`[mapbox-autocomplete] request_id=${request_id} error=${message}`);
 

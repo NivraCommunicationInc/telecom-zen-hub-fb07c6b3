@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
@@ -61,7 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ success: true, event_key: eventKey, template: templateKey, method: "pgmq" }), { 
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } 
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(`[${requestId}] Error:`, error);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 

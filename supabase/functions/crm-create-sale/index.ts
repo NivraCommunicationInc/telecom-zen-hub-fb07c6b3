@@ -1,5 +1,5 @@
-/**
- * crm-create-sale — Creates an order from a CRM call sale.
+﻿/**
+ * crm-create-sale â€” Creates an order from a CRM call sale.
  *
  * Flow:
  *  1. Validates auth (agent must be field_sales OR employee role).
@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
       "kyc_agent",
       "supervisor",
     ].includes(r.role));
-    if (!allowed) return json({ error: "Forbidden — role required" }, 403);
+    if (!allowed) return json({ error: "Forbidden â€” role required" }, 403);
 
     const payload = await req.json() as CrmSalePayload;
     if (!payload?.contact_id || !payload?.client?.email || !payload?.plan?.service_id) {
@@ -267,10 +267,10 @@ Deno.serve(async (req) => {
     monthlyDiscountAmount = Number(monthlyDiscountAmount.toFixed(2));
     firstMonthCredit = Number(firstMonthCredit.toFixed(2));
 
-    // ── Welcome offer (premier mois gratuit, 100% du forfait) ─────────────
+    // â”€â”€ Welcome offer (premier mois gratuit, 100% du forfait) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Auto-applied for any client who has never received it before, regardless
     // of sales channel (CRM / Field / POS / Guest checkout). Equipment and
-    // one-time fees are NEVER discounted — only the recurring forfait.
+    // one-time fees are NEVER discounted â€” only the recurring forfait.
     let welcomeFirstMonth = 0;
     let welcomeApplied = false;
     const agentDiscountIsFirstMonth = discountRow?.type === "first_month_free";
@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
 
     const totalFirstMonthCredit = Number((firstMonthCredit + welcomeFirstMonth).toFixed(2));
     const monthlyAfterDiscount = Number(Math.max(0, monthly - monthlyDiscountAmount).toFixed(2));
-    // First invoice = forfait (après rabais agent) − crédit premier mois + équipement
+    // First invoice = forfait (aprÃ¨s rabais agent) âˆ’ crÃ©dit premier mois + Ã©quipement
     const firstMonthBillable = Number(Math.max(0, monthlyAfterDiscount - totalFirstMonthCredit).toFixed(2));
     const subtotal = Number((firstMonthBillable + equipTotal).toFixed(2));
     const tps = Number((subtotal * 0.05).toFixed(2));
@@ -525,7 +525,7 @@ Deno.serve(async (req) => {
           const invoiceLines: Array<Record<string, unknown>> = [
             {
               invoice_id: invoiceId,
-              description: `${payload.plan.name} – 30 jours`,
+              description: `${payload.plan.name} â€“ 30 jours`,
               unit_price: monthlyAfterDiscount,
               quantity: 1,
               line_total: monthlyAfterDiscount,
@@ -544,7 +544,7 @@ Deno.serve(async (req) => {
           if (welcomeFirstMonth > 0) {
             invoiceLines.push({
               invoice_id: invoiceId,
-              description: `1er mois offert ✓ (automatique) — ${monthly.toFixed(2)}$/mois`,
+              description: `1er mois offert âœ“ (automatique) â€” ${monthly.toFixed(2)}$/mois`,
               unit_price: -welcomeFirstMonth,
               quantity: 1,
               line_total: -welcomeFirstMonth,
@@ -617,20 +617,20 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     }).eq("id", payload.contact_id);
 
-    // Step 6: log call (sold outcome) — best effort
+    // Step 6: log call (sold outcome) â€” best effort
     try {
       await admin.from("crm_call_logs").insert({
         contact_id: payload.contact_id,
         agent_id: user.id,
         outcome: "sold",
-        notes: `Vente complétée — commande ${orderNumber}`,
+        notes: `Vente complÃ©tÃ©e â€” commande ${orderNumber}`,
       });
     } catch (_) { /* ignore */ }
 
     // Commission estimate (30% forfait + 5% equipment)
     const commissionEstimate = Number((monthlyAfterDiscount * 0.30 + equipTotal * 0.05).toFixed(2));
 
-    // Step 7: create PayPal order (best-effort — non-blocking)
+    // Step 7: create PayPal order (best-effort â€” non-blocking)
     let paypalApproveUrl: string | null = null;
     let paypalOrderId: string | null = null;
     try {
@@ -689,7 +689,7 @@ Deno.serve(async (req) => {
       paypal_order_id: paypalOrderId,
     });
 
-  } catch (e: any) {
+  } catch (e) {
     console.error("[crm-create-sale] error", e);
     return json({ error: e?.message ?? "unknown" }, 500);
   }

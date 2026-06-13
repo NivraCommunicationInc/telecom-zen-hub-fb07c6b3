@@ -1,4 +1,4 @@
-/**
+﻿/**
  * One-shot test: send a REAL payment_confirmed email through the canonical
  * Violet Bold template path (`queueRenderedEmail`) WITH the invoice PDF
  * attached. Recipient: support@nivra-telecom.ca.
@@ -27,7 +27,7 @@ serve(async (req) => {
   const steps = result.steps as unknown[];
 
   try {
-    // STEP 1 — find most recent paid invoice
+    // STEP 1 â€” find most recent paid invoice
     const { data: inv, error: invErr } = await supabase
       .from("billing_invoices")
       .select("id, invoice_number, order_id, total, paid_at, customer_id")
@@ -38,12 +38,12 @@ serve(async (req) => {
     if (invErr || !inv) throw new Error(`No paid invoice: ${invErr?.message}`);
     steps.push({ step: 1, found_invoice: inv.invoice_number, id: inv.id });
 
-    // STEP 2 — build PDF
+    // STEP 2 â€” build PDF
     const pdf = await buildReceiptPdfAttachment(inv.id, "recu-paiement");
     steps.push({ step: 2, pdf_generated: !!pdf, pdf_size: pdf?.content.length });
     if (!pdf) throw new Error("PDF generation failed");
 
-    // STEP 3 — fetch client name
+    // STEP 3 â€” fetch client name
     const { data: cust } = await supabase
       .from("billing_customers")
       .select("first_name, last_name, email")
@@ -51,7 +51,7 @@ serve(async (req) => {
       .single();
     const clientName = cust ? `${cust.first_name} ${cust.last_name}`.trim() : "Client";
 
-    // STEP 4 — send through canonical Violet Bold template
+    // STEP 4 â€” send through canonical Violet Bold template
     const eventKey = `test_payment_confirmed_pdf_${inv.id}_${Date.now()}`;
     const sendRes = await queueRenderedEmail({
       eventKey,
@@ -60,7 +60,7 @@ serve(async (req) => {
       templateVars: {
         client_name: clientName,
         invoice_number: inv.invoice_number,
-        order_number: inv.order_id?.slice(0, 8) || "—",
+        order_number: inv.order_id?.slice(0, 8) || "â€”",
         amount_paid_today: inv.total,
         payment_method: "PayPal",
         payment_date: inv.paid_at,
@@ -73,7 +73,7 @@ serve(async (req) => {
     result.success = sendRes.success;
     result.invoice_used = inv.invoice_number;
     result.recipient = "support@nivra-telecom.ca";
-  } catch (e: any) {
+  } catch (e) {
     result.success = false;
     result.error = e.message;
   }

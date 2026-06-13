@@ -1,4 +1,4 @@
-/**
+﻿/**
  * send-appointment-notification
  * Queues email notifications for appointment events via pgmq
  */
@@ -110,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
       success: result.success, queued: true, template: templateKey,
     }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error(`[${requestId}] Error:`, error);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 

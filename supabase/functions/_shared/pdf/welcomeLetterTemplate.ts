@@ -1,5 +1,5 @@
-/**
- * Welcome Letter — Lettre de bienvenue (envoyée après activation du service).
+﻿/**
+ * Welcome Letter â€” Lettre de bienvenue (envoyÃ©e aprÃ¨s activation du service).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -25,7 +25,7 @@ export interface WelcomeLetterData {
 
 export function generateWelcomeLetterPDF(data: WelcomeLetterData): PDFGenerationResult {
   try {
-    if (!data.client_name) data = { ...data, client_name: "—" };
+    if (!data.client_name) data = { ...data, client_name: "â€”" };
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
     drawHeader(doc, "LETTRE DE BIENVENUE", data.letter_number);
@@ -90,7 +90,7 @@ export function generateWelcomeLetterPDF(data: WelcomeLetterData): PDFGeneration
 
     drawFooter(doc);
     return { success: true, blob: doc.output("blob"), filename: `Lettre_Bienvenue_${data.letter_number}_Nivra.pdf` };
-  } catch (e: any) {
+  } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

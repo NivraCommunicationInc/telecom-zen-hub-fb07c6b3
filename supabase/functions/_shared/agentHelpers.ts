@@ -244,7 +244,7 @@ export async function callGeminiJSON(prompt: string, model = "google/gemini-2.5-
   const content = data.choices?.[0]?.message?.content ?? "{}";
   try {
     return JSON.parse(content);
-  } catch {
+  } catch (_e) {
     // attempt to extract JSON from text
     const m = content.match(/\{[\s\S]*\}/);
     return m ? JSON.parse(m[0]) : {};
