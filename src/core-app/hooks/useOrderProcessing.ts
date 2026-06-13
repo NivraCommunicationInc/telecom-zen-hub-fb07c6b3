@@ -2320,7 +2320,6 @@ export function useOrderProcessing(orderId: string | undefined) {
       if (!order) throw new Error("Commande introuvable");
 
       // send-kyc-request deploys with Pro upgrade — direct DB path as fallback
-      const order = data?.order;
       const recipientEmailResub = order?.client_email;
       if (recipientEmailResub) {
         const token = crypto.randomUUID();
