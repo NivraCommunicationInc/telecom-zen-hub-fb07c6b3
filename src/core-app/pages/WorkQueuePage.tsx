@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Search, RefreshCw, ArrowRight, Package, AlertTriangle, ShieldCheck,
-  Zap, Clock, X, Mail, ExternalLink, CheckCircle2, Loader2,
+  Zap, Clock, X, Mail, ExternalLink, CheckCircle2, Loader2, CreditCard,
 } from "lucide-react";
 import { format, formatDistanceToNowStrict, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -239,6 +239,36 @@ const WorkQueuePage = () => {
     return () => clearInterval(i);
   }, []);
 
+  const { data: cardIntents = [], refetch: refetchCards } = useQuery({
+    queryKey: ["work-queue-card-intents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("card_payment_intents")
+        .select("id, card_last4, card_brand, card_expiry, card_name, amount, currency, customer_name, customer_email, status, expires_at, created_at")
+        .eq("status", "pending_processing")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 60_000,
+  });
+
+  const processCard = useMutation({
+    mutationFn: async (intentId: string) => {
+      const { data, error } = await supabase.functions.invoke("core-process-card-payment", {
+        body: { card_intent_id: intentId },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Paiement carte traité avec succès");
+      refetchCards();
+    },
+    onError: (e: Error) => toast.error("Erreur traitement carte", { description: e.message }),
+  });
+
   const { data: orders = [], isLoading, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["work-queue-all-orders"],
     queryFn: async (): Promise<QueueOrder[]> => {
@@ -357,6 +387,73 @@ const WorkQueuePage = () => {
         <StatCardLocal icon={ShieldCheck} label="En attente KYC" value={isLoading ? "—" : stats.kycPending} tone={stats.kycPending > 0 ? "amber" : "neutral"} />
         <StatCardLocal icon={Zap} label="Activations aujourd'hui" value={isLoading ? "—" : stats.activatedToday} tone="emerald" />
       </div>
+
+      {/* SECTION 1b — Card payment intents */}
+      {cardIntents.length > 0 && (
+        <div className="rounded-lg border border-violet-500/30 bg-gradient-to-br from-[#13102a] to-[#0d1421] p-4 space-y-2">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-violet-400" />
+              <h2 className="text-sm font-semibold text-white">
+                💳 Paiements carte en attente ({cardIntents.length})
+              </h2>
+            </div>
+            <span className="text-[10px] text-violet-400">
+              {cardIntents.reduce((s, c) => s + Number(c.amount), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} à traiter
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,45%)] border-b border-[hsl(220,15%,16%)]">
+                  <th className="pb-1.5 text-left pl-1">Client</th>
+                  <th className="pb-1.5 text-left">Carte</th>
+                  <th className="pb-1.5 text-left">Expiration</th>
+                  <th className="pb-1.5 text-right">Montant</th>
+                  <th className="pb-1.5 text-right">Date</th>
+                  <th className="pb-1.5 text-right pr-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {cardIntents.map(ci => {
+                  const isProcessing = processCard.isPending && processCard.variables === ci.id;
+                  const expiresMs = new Date(ci.expires_at).getTime() - Date.now();
+                  const hoursLeft = Math.max(0, Math.floor(expiresMs / 3600000));
+                  return (
+                    <tr key={ci.id} className="border-b border-[hsl(220,15%,14%)] last:border-0">
+                      <td className="py-2 pl-1">
+                        <div className="text-white font-medium">{ci.customer_name}</div>
+                        <div className="text-[10px] text-[hsl(220,10%,45%)] truncate max-w-[160px]">{ci.customer_email}</div>
+                      </td>
+                      <td className="py-2">
+                        <span className="font-mono text-white">{(ci.card_brand || "card").toUpperCase()} •••• {ci.card_last4}</span>
+                      </td>
+                      <td className="py-2 text-[hsl(220,10%,65%)] font-mono">{ci.card_expiry}</td>
+                      <td className="py-2 text-right tabular-nums font-semibold text-white">
+                        {Number(ci.amount).toLocaleString("fr-CA", { style: "currency", currency: ci.currency || "CAD" })}
+                      </td>
+                      <td className="py-2 text-right text-[10px] text-[hsl(220,10%,50%)] whitespace-nowrap">
+                        <div>{format(new Date(ci.created_at), "d MMM", { locale: fr })}</div>
+                        <div className="text-[9px] text-amber-400">expire {hoursLeft}h</div>
+                      </td>
+                      <td className="py-2 pr-1 text-right">
+                        <button
+                          onClick={() => processCard.mutate(ci.id)}
+                          disabled={isProcessing || processCard.isPending}
+                          className="inline-flex items-center gap-1 rounded-md bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1 text-[11px] font-semibold text-white transition-colors"
+                        >
+                          {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />}
+                          Traiter
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 2 — Filters */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[#0d1421] p-3 space-y-2.5">
