@@ -142,11 +142,14 @@ supabase secrets set RADIUS_API_KEY=votre-cle --project-ref lacxnbjvcyvhrttprkxr
 
 ---
 
-## 7. PITR — À activer immédiatement
+## 7. PITR — Seuil d'activation
+
+> ⏳ **RAPPEL : Activer PITR Supabase (7 jours = ~$100/mois) quand Nivra atteint 50 clients actifs.**
+> Actuellement trop cher pour 13 clients. Réévaluer à chaque palier de 10 clients.
 
 ```
 Supabase Dashboard → https://supabase.com/dashboard/project/lacxnbjvcyvhrttprkxr
 → Settings → Backups → Enable Point-in-Time Recovery
 ```
 
-Coût estimé : inclus dans le plan Pro (ou ~$100/mois add-on selon configuration).
+**En attendant :** snapshots journaliers (7 jours) + WAL archiving actifs — RPO = 24h max.
