@@ -1,12 +1,40 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Megaphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { clearHubSession, hasValidHubSession, touchHubSession } from "@/lib/security/hubSession";
 
+const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart"] as const;
+const ACTIVITY_THROTTLE_MS = 60_000;
+
 export default function MarketingProtectedRoute() {
   const [state, setState] = useState<"loading" | "authorized" | "unauthorized" | "no_hub">("loading");
   const location = useLocation();
+  const lastActivityRef = useRef(Date.now());
+
+  const handleActivity = useCallback(() => {
+    const now = Date.now();
+    if (now - lastActivityRef.current < ACTIVITY_THROTTLE_MS) return;
+    lastActivityRef.current = now;
+    touchHubSession();
+  }, []);
+
+  useEffect(() => {
+    if (state !== "authorized") return;
+    for (const evt of ACTIVITY_EVENTS) {
+      window.addEventListener(evt, handleActivity, { passive: true });
+    }
+    const interval = setInterval(() => {
+      if (!hasValidHubSession()) {
+        clearHubSession();
+        setState("no_hub");
+      }
+    }, 5 * 60 * 1000);
+    return () => {
+      for (const evt of ACTIVITY_EVENTS) window.removeEventListener(evt, handleActivity);
+      clearInterval(interval);
+    };
+  }, [state, handleActivity]);
 
   useEffect(() => {
     let mounted = true;
