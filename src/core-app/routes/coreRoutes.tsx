@@ -154,6 +154,7 @@ const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsP
 const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
 const CoreGrilleCanaux = lazy(() => import("@/core-app/pages/CoreGrilleCanaux"));
 const CoreRevenueAssurancePage = lazy(() => import("@/core-app/pages/CoreRevenueAssurancePage"));
+const CoreActivationQueuePage = lazy(() => import("@/core-app/pages/CoreActivationQueuePage"));
 
 // Support extras
 const CoreComplaintsPage = lazy(() => import("@/core-app/pages/CoreComplaintsPage"));
@@ -323,6 +324,7 @@ export const coreRoutes: RouteObject = {
     { path: "field-submissions", element: <CoreFieldSubmissionsPage /> },
     { path: "grille-canaux", element: <CoreGrilleCanaux /> },
     { path: "revenue-assurance", element: <CoreRevenueAssurancePage /> },
+    { path: "activation-queue", element: <CoreActivationQueuePage /> },
     { path: "commissions/grille", element: <CoreCommissionGridPage /> },
 
     // Support extras
