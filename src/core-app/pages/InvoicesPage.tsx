@@ -15,7 +15,7 @@ import { InvoiceFinancialSummary } from "@/core-app/components/invoices/InvoiceF
 import { RefreshCw, FileText } from "lucide-react";
 
 const InvoicesPage = () => {
-  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("live");
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("all");
   const { data: invoices = [], isLoading, refetch } = useAdminInvoices(envFilter);
 
   // Filters

@@ -15,7 +15,7 @@ import { SubscriptionSummary } from "@/core-app/components/subscriptions/Subscri
 import { RefreshCw, Repeat } from "lucide-react";
 
 const SubscriptionsPage = () => {
-  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("live");
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("all");
   const { data: subs = [], isLoading, refetch } = useAdminSubscriptions(envFilter);
 
   // Filters

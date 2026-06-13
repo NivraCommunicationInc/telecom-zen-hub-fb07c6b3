@@ -89,7 +89,7 @@ const OrdersPage = () => {
     await setOrderStatus(orderId, "cancelled", { cancellation_reason: reason.trim() });
   }
 
-  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("live");
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("all");
   const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");

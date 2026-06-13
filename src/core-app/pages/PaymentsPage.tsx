@@ -16,7 +16,7 @@ import { InteracVerificationPanel } from "@/core-app/components/payments/Interac
 import { RefreshCw, CreditCard, LayoutGrid, List } from "lucide-react";
 
 const PaymentsPage = () => {
-  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("live");
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("all");
   const { data: payments = [], isLoading, refetch } = useAdminPayments(envFilter);
 
   // Filters

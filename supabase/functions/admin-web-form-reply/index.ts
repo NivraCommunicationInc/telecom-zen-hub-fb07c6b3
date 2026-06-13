@@ -49,12 +49,14 @@ serve(async (req) => {
     }
 
     // Check if user is admin or staff
-    const { data: adminUser } = await supabase
-      .from("admin_users")
-      .select("id, is_active")
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
       .eq("user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
+      .eq("status", "active");
+    const isStaff = (roleRows || []).some((r: any) =>
+      ["admin", "employee", "supervisor", "support"].includes(r.role)
+    );
 
     const { data: employee } = await supabase
       .from("employees")
@@ -63,7 +65,7 @@ serve(async (req) => {
       .eq("is_active", true)
       .maybeSingle();
 
-    if (!adminUser && !employee) {
+    if (!isStaff && !employee) {
       return new Response(JSON.stringify({ error: "Access denied" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

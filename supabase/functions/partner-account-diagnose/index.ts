@@ -76,14 +76,21 @@ Deno.serve(async (req) => {
     }
 
     // Check if caller is admin
-    const { data: adminCheck } = await supabaseClient
-      .from("admin_users")
-      .select("id")
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { data: roleRows } = await serviceClient
+      .from("user_roles")
+      .select("role")
       .eq("user_id", caller.id)
-      .eq("is_active", true)
-      .maybeSingle();
+      .eq("status", "active");
+    const isAdmin = (roleRows || []).some((r: any) =>
+      ["admin", "supervisor", "employee"].includes(r.role)
+    );
 
-    if (!adminCheck) {
+    if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: "Admin access required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

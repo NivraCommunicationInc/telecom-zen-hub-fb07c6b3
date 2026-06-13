@@ -239,19 +239,20 @@ serve(async (req) => {
     let recipients = setting?.email_recipients || [];
     
     if (recipients.length === 0) {
-      // Fallback: get all active admin emails
-      const { data: admins } = await supabase
-        .from("admin_users")
+      // Fallback: get all active admin emails from user_roles
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
         .select("user_id")
-        .eq("is_active", true);
-      
-      if (admins && admins.length > 0) {
+        .eq("role", "admin")
+        .eq("status", "active");
+
+      if (adminRoles && adminRoles.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
           .select("email")
-          .in("user_id", admins.map(a => a.user_id));
-        
-        recipients = profiles?.map(p => p.email).filter(Boolean) || [];
+          .in("id", adminRoles.map((a: any) => a.user_id));
+
+        recipients = profiles?.map((p: any) => p.email).filter(Boolean) || [];
       }
     }
 

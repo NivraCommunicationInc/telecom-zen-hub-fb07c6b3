@@ -186,12 +186,14 @@ serve(async (req: Request): Promise<Response> => {
         return fail("Invalid token", 401);
       }
 
-      const { data: adminUser } = await db
-        .from("admin_users")
-        .select("id, is_active")
+      const { data: roleRows } = await db
+        .from("user_roles")
+        .select("role")
         .eq("user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
+        .eq("status", "active");
+      const isStaff = (roleRows || []).some((r: any) =>
+        ["admin", "employee", "supervisor", "support"].includes(r.role)
+      );
 
       const { data: employee } = await db
         .from("employees")
@@ -200,7 +202,7 @@ serve(async (req: Request): Promise<Response> => {
         .eq("is_active", true)
         .maybeSingle();
 
-      if (!adminUser && !employee) {
+      if (!isStaff && !employee) {
         return fail("Access denied", 403);
       }
     }

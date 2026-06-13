@@ -38,14 +38,14 @@ Deno.serve(async (req) => {
       const { data: { user } } = await db.auth.getUser(token);
       
       if (user) {
-        const { data: adminUser } = await db
-          .from("admin_users")
-          .select("id, is_active")
+        const { data: roleRows } = await db
+          .from("user_roles")
+          .select("role")
           .eq("user_id", user.id)
-          .eq("is_active", true)
-          .maybeSingle();
-        
-        isAdminRequest = !!adminUser;
+          .eq("status", "active");
+        isAdminRequest = (roleRows || []).some((r: any) =>
+          ["admin", "supervisor", "employee"].includes(r.role)
+        );
         console.log("[ContractsBackfill] Admin request from:", user.email);
       }
     }
