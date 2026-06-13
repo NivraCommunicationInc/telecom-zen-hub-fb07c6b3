@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // 2. Orders
     const { data: orders, error: ordErr } = await supabase
       .from("orders")
-      .select("order_number, status, payment_status, service_type, order_type, created_at, environment, user_id, account_id")
+      .select("order_number, status, payment_status, service_type, order_type, created_at, user_id, account_id")
       .order("created_at", { ascending: false })
       .limit(5000);
     if (ordErr) throw new Error(`Orders query failed: ${ordErr.message}`);
@@ -111,7 +111,6 @@ Deno.serve(async (req) => {
       "Service Type": o.service_type ?? "",
       "Order Type": o.order_type ?? "",
       "Created": o.created_at ?? "",
-      "Environment": o.environment ?? "",
     }));
 
     // 3. Subscriptions
@@ -187,7 +186,7 @@ Deno.serve(async (req) => {
     // 5. Payments
     const { data: payments, error: payErr } = await supabase
       .from("billing_payments")
-      .select("payment_number, invoice_id, customer_id, method, status, amount, reference, provider, provider_payment_id, received_at, created_at, environment")
+      .select("id, invoice_id, customer_id, method, status, amount, reference, provider, provider_payment_id, received_at, created_at")
       .order("created_at", { ascending: false })
       .limit(5000);
     if (payErr) throw new Error(`Payments query failed: ${payErr.message}`);
@@ -195,7 +194,7 @@ Deno.serve(async (req) => {
     const paymentsRows = (payments || []).map((p: any) => {
       const c = custMap.get(p.customer_id);
       return {
-        "Payment #": p.payment_number ?? "",
+        "Payment ID": p.id ?? "",
         "Customer": c ? `${c.first_name} ${c.last_name}`.trim() : "",
         "Method": p.method ?? "",
         "Status": p.status ?? "",
@@ -204,7 +203,6 @@ Deno.serve(async (req) => {
         "Provider": p.provider ?? "",
         "Provider ID": p.provider_payment_id ?? "",
         "Received At": p.received_at ?? "",
-        "Environment": p.environment ?? "",
         "Created": p.created_at ?? "",
       };
     });

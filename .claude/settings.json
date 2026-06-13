@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(supabase --version)",
+      "Bash(supabase projects list)"
+    ]
+  }
+}

@@ -6,6 +6,12 @@ verify_jwt = false
 [functions.nova-watchdog]
 verify_jwt = false
 
+[functions.noc-monitor]
+verify_jwt = false
+
+[functions.revenue-assurance]
+verify_jwt = false
+
 [functions.agent-supervisor]
 verify_jwt = false
 
