@@ -19,6 +19,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Fixed EST offset (UTC-5). DST is handled dynamically in getTorontoOffsetHours()
+// but the cutoff/period helpers use this for the inverse conversion back to UTC.
+const EST_OFFSET_HOURS = 5;
+
 // Dynamically compute the Toronto UTC offset (handles EST/EDT DST transitions).
 function getTorontoOffsetHours(d: Date): number {
   const utcStr = d.toLocaleString("en-US", { timeZone: "UTC" });
@@ -276,6 +280,19 @@ Deno.serve(async (req) => {
       total_amount: totalAmount,
       count: agg.ids.length,
     });
+  }
+
+  // If this is the last Friday of the month, pre-trigger the commission report
+  // for the current month so it's ready before the pg_cron fires on the 1st.
+  if (lastFridayBonus) {
+    const monthISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const svcUrl   = Deno.env.get("SUPABASE_URL")!;
+    const svcKey2  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    fetch(`${svcUrl}/functions/v1/commission-monthly-report?month=${monthISO}`, {
+      method:  "POST",
+      headers: { Authorization: `Bearer ${svcKey2}`, "Content-Type": "application/json" },
+      body:    "{}",
+    }).catch((e) => console.warn("commission-monthly-report trigger failed:", e?.message));
   }
 
   return new Response(
