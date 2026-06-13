@@ -148,8 +148,7 @@ supabase secrets set RADIUS_API_KEY=votre-cle --project-ref lacxnbjvcyvhrttprkxr
 > Actuellement trop cher pour 13 clients. Réévaluer à chaque palier de 10 clients.
 
 ```
-Supabase Dashboard → https://supabase.com/dashboard/project/lacxnbjvcyvhrttprkxr
-→ Settings → Backups → Enable Point-in-Time Recovery
+Dashboard → Settings → Backups → Enable Point-in-Time Recovery
 ```
 
 **En attendant :** snapshots journaliers (7 jours) + WAL archiving actifs — RPO = 24h max.
