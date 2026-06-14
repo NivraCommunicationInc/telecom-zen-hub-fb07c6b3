@@ -36,6 +36,26 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+const MARKETING_SENDER_PATTERNS = ["noreply@", "no-reply@", "newsletter@", "changelog@", "notifications@"];
+const MARKETING_SUBJECT_KEYWORDS = ["unsubscribe", "newsletter", "changelog", "what's new", "nouveautés"];
+
+function isMarketingEmail(
+  from_email: string,
+  subject: string,
+  body: string,
+  emailHeaders: Record<string, string>,
+): boolean {
+  const lcHeaders = Object.fromEntries(Object.entries(emailHeaders).map(([k, v]) => [k.toLowerCase(), v]));
+  if (lcHeaders["list-unsubscribe"]) return true;
+  const lcFrom = from_email.toLowerCase();
+  if (MARKETING_SENDER_PATTERNS.some((p) => lcFrom.includes(p))) return true;
+  const lcSubject = subject.toLowerCase();
+  if (MARKETING_SUBJECT_KEYWORDS.some((k) => lcSubject.includes(k))) return true;
+  const lcBody = body.toLowerCase();
+  if (lcBody.includes("unsubscribe") && lcBody.includes("newsletter")) return true;
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -77,6 +97,23 @@ Deno.serve(async (req) => {
   if (!from_email || !body) {
     return new Response(JSON.stringify({ error: "Missing from or body" }), {
       status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Extract email headers from payload (various providers may include them)
+  const emailHeaders: Record<string, string> = {};
+  if (payload.headers && typeof payload.headers === "object" && !Array.isArray(payload.headers)) {
+    Object.assign(emailHeaders, payload.headers);
+  }
+  // Also check top-level list-unsubscribe field some providers include
+  if (payload["list-unsubscribe"] || payload["List-Unsubscribe"]) {
+    emailHeaders["list-unsubscribe"] = String(payload["list-unsubscribe"] ?? payload["List-Unsubscribe"]);
+  }
+  if (isMarketingEmail(from_email, subject, body, emailHeaders)) {
+    console.log("[support-email-inbound] Ignoring marketing email from", from_email, "subject:", subject);
+    return new Response(JSON.stringify({ ok: true, skipped: true, reason: "marketing" }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -123,7 +160,7 @@ Deno.serve(async (req) => {
       .from("support_tickets")
       .update({
         status: "open",
-        ai_scheduled_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        ai_scheduled_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", ticket_id);
@@ -141,7 +178,7 @@ Deno.serve(async (req) => {
         source: "email",
         category: "general",
         priority: "normal",
-        ai_scheduled_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        ai_scheduled_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
         owner_user_id: profile?.user_id ?? null,
         user_id: profile?.user_id ?? null,
       })
@@ -173,10 +210,7 @@ Deno.serve(async (req) => {
     is_admin: false,
   });
 
-  // 4) Schedule AI responder (fire-and-forget; the function itself respects ai_scheduled_at)
-  supabase.functions
-    .invoke("support-ai-responder", { body: { ticket_id, delay_minutes: 10 } })
-    .catch((e) => console.error("[support-email-inbound] schedule AI failed", e));
+  // 4) AI responder is triggered by pg_cron every 2 min — no invocation needed here
 
   return new Response(
     JSON.stringify({ ok: true, ticket_id, ticket_number }),
