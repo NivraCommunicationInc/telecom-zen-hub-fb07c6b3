@@ -1144,10 +1144,30 @@ const GuestCheckout = () => {
       <Header />
 
       <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
-        <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-2">Commander</h1>
-        <p className="text-muted-foreground mb-8">Aucun compte requis — commandez en quelques minutes</p>
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-1.5">
+            <h1 className="text-3xl lg:text-4xl font-bold text-foreground">Commander</h1>
+            {step < 6 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0" style={{ background: 'linear-gradient(135deg, #059669, #10B981)', color: '#fff' }}>
+                <Gift className="w-3 h-3" /> 1er mois GRATUIT
+              </span>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">Aucun compte requis — commandez en quelques minutes</p>
+        </div>
 
         <CheckoutProgress currentStep={step} steps={CHECKOUT_STEPS} isFrench onStepClick={(s) => s < step && step < 6 && setStep(s)} />
+
+        {/* Gradient progress indicator bar */}
+        <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: 'rgba(255,255,255,0.07)' }}>
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{
+              width: `${step >= 6 ? 100 : Math.round(((step - 1) / (CHECKOUT_STEPS.length - 1)) * 100)}%`,
+              background: 'linear-gradient(90deg, #7C3AED 0%, #06B6D4 100%)',
+            }}
+          />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* ── LEFT COLUMN ── */}
@@ -1156,11 +1176,13 @@ const GuestCheckout = () => {
             {/* ═══ STEP 1: FORFAIT ═══ */}
             {step === 1 && (
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5 text-primary" />
-                      Choisissez votre forfait
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+                        <ShoppingCart className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-lg font-bold text-foreground">Choisissez votre forfait</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1184,11 +1206,12 @@ const GuestCheckout = () => {
                                     <button
                                       key={service.id}
                                       onClick={() => toggleService(service)}
-                                      className={`text-left p-4 rounded-xl border-2 transition-all ${
+                                      className={`text-left p-4 rounded-xl border-2 transition-all cursor-pointer ${
                                         selected
-                                          ? "border-primary bg-primary/5 shadow-sm"
-                                          : "border-border hover:border-primary/30 hover:shadow-sm"
+                                          ? "border-primary bg-primary/5"
+                                          : "border-border hover:border-primary/40 hover:bg-primary/5"
                                       }`}
+                                      style={selected ? { boxShadow: '0 0 0 2px rgba(124,58,237,0.25), 0 4px 16px rgba(124,58,237,0.15)' } : {}}
                                     >
                                       <div className="flex items-start justify-between">
                                         <div className="flex-1 min-w-0">
@@ -1218,9 +1241,10 @@ const GuestCheckout = () => {
                 </Card>
 
                 <Button
-                  className="w-full h-12 text-base font-bold"
+                  className="w-full h-14 text-base font-bold rounded-xl"
                   disabled={selectedServices.length === 0}
                   onClick={() => setStep(isStreamingOnlyOrder ? 3 : 2)}
+                  style={{ background: selectedServices.length > 0 ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : undefined, boxShadow: selectedServices.length > 0 ? '0 4px 20px rgba(124,58,237,0.35)' : undefined }}
                 >
                   Continuer <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
@@ -1230,16 +1254,18 @@ const GuestCheckout = () => {
             {/* ═══ STEP 2: ADRESSE ═══ */}
             {step === 2 && (
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-primary" />
-                      Adresse de service
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #0E7490, #06B6D4)' }}>
+                        <MapPin className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-lg font-bold text-foreground">Adresse de service</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 pt-5">
                     <div>
-                      <Label>Adresse</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Adresse</Label>
                       <AddressAutocomplete
                         placeholder="Commencez à taper votre adresse..."
                         value={addressStreet}
@@ -1254,44 +1280,52 @@ const GuestCheckout = () => {
                       />
                     </div>
                     <div>
-                      <Label>Appartement (optionnel)</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Appartement (optionnel)</Label>
                       <Input
                         placeholder="Apt 4B"
                         value={addressApartment}
                         onChange={e => setAddressApartment(e.target.value)}
+                        className="h-12"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>Ville</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Ville</Label>
                         <Input
                           placeholder="Montréal"
                           value={addressCity}
                           onChange={e => setAddressCity(e.target.value)}
+                          className="h-12"
                         />
                       </div>
                       <div>
-                        <Label>Code postal</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Code postal</Label>
                         <Input
                           placeholder="H1A 1A1"
                           value={addressPostalCode}
                           onChange={e => setAddressPostalCode(formatPostalCode(e.target.value))}
                           maxLength={7}
+                          className="h-12"
                         />
                       </div>
                     </div>
                     <div>
-                      <Label>Province</Label>
-                      <Input value="Québec" disabled className="bg-muted" />
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Province</Label>
+                      <Input value="Québec" disabled className="bg-muted h-12" />
                     </div>
                   </CardContent>
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(1)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
-                  <Button className="flex-1" disabled={!isAddressValid} onClick={() => setStep(3)}>
+                  <Button
+                    className="flex-1 h-12 font-bold rounded-xl"
+                    disabled={!isAddressValid}
+                    onClick={() => setStep(3)}
+                    style={{ background: isAddressValid ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : undefined }}
+                  >
                     Continuer <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
@@ -1301,63 +1335,77 @@ const GuestCheckout = () => {
             {/* ═══ STEP 3: INFORMATIONS CLIENT ═══ */}
             {step === 3 && (
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="w-5 h-5 text-primary" />
-                      Vos informations
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)' }}>
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-lg font-bold text-foreground">Vos informations</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 pt-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>Prénom *</Label>
-                        <Input placeholder="Jean" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Prénom *</Label>
+                        <Input placeholder="Jean" value={firstName} onChange={e => setFirstName(e.target.value)} className="h-12" />
                       </div>
                       <div>
-                        <Label>Nom *</Label>
-                        <Input placeholder="Tremblay" value={lastName} onChange={e => setLastName(e.target.value)} />
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Nom *</Label>
+                        <Input placeholder="Tremblay" value={lastName} onChange={e => setLastName(e.target.value)} className="h-12" />
                       </div>
                     </div>
                     <div>
-                      <Label>Courriel *</Label>
-                      <Input type="email" placeholder="jean@exemple.com" value={email} onChange={e => setEmail(e.target.value)} />
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Courriel *</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input type="email" placeholder="jean@exemple.com" value={email} onChange={e => setEmail(e.target.value)} className="h-12 pl-10" />
+                      </div>
                     </div>
                     <div>
-                      <Label>Téléphone *</Label>
-                      <Input
-                        type="tel"
-                        placeholder="514-555-1234"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                      />
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Téléphone *</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          type="tel"
+                          placeholder="514-555-1234"
+                          value={phone}
+                          onChange={e => setPhone(e.target.value)}
+                          className="h-12 pl-10"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <Label>Date de naissance *</Label>
-                      <Input
-                        type="date"
-                        value={dateOfBirth}
-                        onChange={e => setDateOfBirth(e.target.value)}
-                        max={new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE_TELECOM)).toISOString().split("T")[0]}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Requis par la réglementation CRTC pour les services de télécommunications. Vous devez avoir {MIN_AGE_TELECOM} ans ou plus.
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Date de naissance *</Label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          type="date"
+                          value={dateOfBirth}
+                          onChange={e => setDateOfBirth(e.target.value)}
+                          max={new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE_TELECOM)).toISOString().split("T")[0]}
+                          className="h-12 pl-10"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Requis par la réglementation CRTC. Vous devez avoir {MIN_AGE_TELECOM} ans ou plus.
                       </p>
                     </div>
                   </CardContent>
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(isStreamingOnlyOrder ? 1 : 2)}>
+                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(isStreamingOnlyOrder ? 1 : 2)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
-                    className="flex-1"
+                    className="flex-1 h-12 font-bold rounded-xl"
                     disabled={!isClientInfoValid}
                     onClick={async () => {
                       await tryAutoApplyFirstMonthFree();
                       setStep(4);
                     }}
+                    style={{ background: isClientInfoValid ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : undefined }}
                   >
                     Continuer <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -1383,11 +1431,13 @@ const GuestCheckout = () => {
 
                 {/* Equipment constraints */}
                 {(hasInternetService || hasTVService) && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Package className="w-5 h-5 text-primary" />
-                        Équipement
+                  <Card className="overflow-hidden border-white/10">
+                    <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                      <CardTitle className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}>
+                          <Package className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-base font-bold text-foreground">Équipement</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1442,11 +1492,13 @@ const GuestCheckout = () => {
 
                 {/* SIM type selector — shown whenever a Mobile plan is in the cart */}
                 {hasMobileService && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Smartphone className="w-5 h-5 text-primary" />
-                        Quel type de SIM votre appareil utilise-t-il ?
+                  <Card className="overflow-hidden border-white/10">
+                    <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                      <CardTitle className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #0E7490, #06B6D4)' }}>
+                          <Smartphone className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-base font-bold text-foreground">Type de SIM</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -1510,11 +1562,13 @@ const GuestCheckout = () => {
 
                 {/* ── Port-in : conservation du numéro ── */}
                 {hasMobileService && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Phone className="w-5 h-5 text-primary" />
-                        Voulez-vous conserver votre numéro actuel ?
+                  <Card className="overflow-hidden border-white/10">
+                    <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                      <CardTitle className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)' }}>
+                          <Phone className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-base font-bold text-foreground">Conserver votre numéro ?</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1665,11 +1719,13 @@ const GuestCheckout = () => {
                 />
 
                 {/* Promo / Referral */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Gift className="w-5 h-5 text-primary" />
-                      Promotions
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.06))' }}>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
+                        <Gift className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-base font-bold text-foreground">Promotions</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -1716,11 +1772,11 @@ const GuestCheckout = () => {
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(3)}>
+                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(3)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
-                    className="flex-1"
+                    className="flex-1 h-12 font-bold rounded-xl"
                     disabled={
                       (requiresInstallation && (!selectedDate || !selectedTime)) ||
                       !!validateShipping(shippingData) ||
@@ -1733,6 +1789,7 @@ const GuestCheckout = () => {
                       if (actErr) { toast.error(actErr); return; }
                       setStep(5);
                     }}
+                    style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', boxShadow: '0 4px 20px rgba(124,58,237,0.3)' }}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -1743,11 +1800,18 @@ const GuestCheckout = () => {
             {/* ═══ STEP 5: PAIEMENT ═══ */}
             {step === 5 && (
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-primary" />
-                      Paiement
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #0E7490)' }}>
+                        <CreditCard className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-lg font-bold text-foreground">Paiement sécurisé</span>
+                        <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium mt-0.5">
+                          <Lock className="w-3 h-3" /> Chiffrement SSL 256-bit
+                        </span>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -1892,20 +1956,21 @@ const GuestCheckout = () => {
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(4)}>
+                  <Button variant="outline" className="flex-1 h-14 rounded-xl" onClick={() => setStep(4)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
-                    className="flex-1 h-12 text-base font-bold"
+                    className="flex-1 h-14 text-base font-bold rounded-xl"
                     disabled={!isPaymentDone || !isLegalComplete || isSubmitting}
                     onClick={handleSubmit}
+                    style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: 'linear-gradient(135deg, #059669, #10B981)', boxShadow: '0 4px 24px rgba(16,185,129,0.35)' }}
                   >
                     {isSubmitting ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Traitement...</>
+                      <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Traitement en cours...</>
                     ) : enableAutoBilling ? (
-                      <>Activer le paiement automatique <ArrowRight className="w-5 h-5 ml-2" /></>
+                      <><CheckCircle2 className="w-5 h-5 mr-2" /> Activer le paiement automatique</>
                     ) : (
-                      <>Confirmer la commande <Check className="w-5 h-5 ml-2" /></>
+                      <><CheckCircle2 className="w-5 h-5 mr-2" /> Confirmer la commande</>
                     )}
                   </Button>
                 </div>
@@ -1934,124 +1999,164 @@ const GuestCheckout = () => {
           {/* ── RIGHT COLUMN: ORDER SUMMARY (sticky) ── */}
           {step < 6 && (
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
-              <div className="sticky top-6">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <ShoppingCart className="w-4 h-4 text-primary" />
-                      Résumé de commande
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {selectedServices.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Aucun forfait sélectionné</p>
+              <div className="sticky top-6 space-y-4">
+
+                {/* Order Summary Panel */}
+                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.3)', boxShadow: '0 8px 40px rgba(124,58,237,0.15)' }}>
+
+                  {/* Gradient header */}
+                  <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #3B0764 0%, #0E7490 100%)' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShoppingCart className="w-4 h-4 text-white/80" />
+                      <span className="font-bold text-white text-sm tracking-wide uppercase">Votre commande</span>
+                    </div>
+                    {selectedServices.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {selectedServices.map(s => {
+                          const Icon = categoryIcons[s.category] || Package;
+                          return (
+                            <div key={s.id} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Icon className="w-3.5 h-3.5 text-white/60" />
+                                <span className="text-sm font-semibold text-white">{s.name}</span>
+                              </div>
+                              <span className="text-sm font-bold text-white">{fmt(s.price)}<span className="text-white/60 text-xs font-normal">/mois</span></span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     ) : (
-                      <>
-                        {/* Services */}
-                        {selectedServices.map(s => (
-                          <div key={s.id} className="flex justify-between text-sm">
-                            <span className="text-foreground">{s.name}</span>
-                            <span className="font-medium">{fmt(s.price)}/mois</span>
-                          </div>
-                        ))}
-
-                        <Separator />
-
-                        {/* Monthly */}
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Mensuel (taxes incl.)</span>
-                          <span className="font-semibold text-foreground">{fmt(monthlyTotalWithTax)}</span>
-                        </div>
-
-                        <Separator />
-
-                        {/* One-time fees */}
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Frais aujourd'hui</p>
-                          {activationFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Activation</span>
-                              <span>{fmt(activationFee)}</span>
-                            </div>
-                          )}
-                          {routerFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Routeur</span>
-                              <span>{fmt(routerFee)}</span>
-                            </div>
-                          )}
-                          {terminalFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Terminal TV ×{tvTerminalQty}</span>
-                              <span>{fmt(terminalFee)}</span>
-                            </div>
-                          )}
-                          {simFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Carte SIM</span>
-                              <span>{fmt(simFee)}</span>
-                            </div>
-                          )}
-                          {deliveryFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Livraison</span>
-                              <span>{fmt(deliveryFee)}</span>
-                            </div>
-                          )}
-                          {installationFee > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Installation</span>
-                              <span>{fmt(installationFee)}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Discount */}
-                        {normalizedPricing && toNonNegativeMoney(normalizedPricing.discount_total_combined) > 0 && (
-                          <div className="flex justify-between text-xs text-emerald-600">
-                            <span>Rabais</span>
-                            <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
-                          </div>
-                        )}
-
-                        {/* Pre-authorized auto-billing discount (recurring monthly) */}
-                        {enableAutoBilling && (
-                          <div className="flex justify-between text-xs text-emerald-600">
-                            <span>Rabais pré-autorisé (mensuel)</span>
-                            <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
-                          </div>
-                        )}
-
-                        {/* Taxes */}
-                        {normalizedPricing && (
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>TPS (5%)</span>
-                              <span>{fmt(normalizedPricing.tps_amount)}</span>
-                            </div>
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>TVQ (9,975%)</span>
-                              <span>{fmt(normalizedPricing.tvq_amount)}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        <Separator />
-
-                        {/* Total */}
-                        <div className="flex justify-between items-baseline">
-                          <span className="font-bold text-foreground">Total aujourd'hui</span>
-                          {isServerPricingLoading ? (
-                            <Skeleton className="h-6 w-20" />
-                          ) : (
-                            <span className="text-xl font-black text-foreground">{fmt(todayTotal)}</span>
-                          )}
-                        </div>
-                      </>
+                      <p className="text-sm text-white/50">Aucun forfait sélectionné</p>
                     )}
-                  </CardContent>
-                </Card>
-                <div className="mt-4"><SecurityTrustBox isFrench /></div>
+
+                    {/* 1er mois GRATUIT badge */}
+                    {selectedServices.length > 0 && !isStreamingOnlyOrder && (
+                      <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold" style={{ background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.5)', color: '#6EE7B7' }}>
+                        <Gift className="w-3 h-3" />
+                        1er mois 100% GRATUIT
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pricing breakdown */}
+                  {selectedServices.length > 0 && (
+                    <div className="px-5 py-4 space-y-3" style={{ background: 'rgba(6,4,15,0.75)' }}>
+
+                      {/* Monthly recurring */}
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Mensuel (taxes incl.)</span>
+                        <span className="font-bold text-foreground text-sm">{fmt(monthlyTotalWithTax)}</span>
+                      </div>
+
+                      <div className="h-px bg-white/8" />
+
+                      {/* One-time fees */}
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Frais une fois</p>
+                        {activationFee > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Activation</span>
+                            <span className="text-foreground">{fmt(activationFee)}</span>
+                          </div>
+                        )}
+                        {routerFee > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Routeur WiFi 6</span>
+                            <span className="text-foreground">{fmt(routerFee)}</span>
+                          </div>
+                        )}
+                        {terminalFee > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Terminal TV ×{tvTerminalQty}</span>
+                            <span className="text-foreground">{fmt(terminalFee)}</span>
+                          </div>
+                        )}
+                        {simFee > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Carte SIM</span>
+                            <span className="text-foreground">{fmt(simFee)}</span>
+                          </div>
+                        )}
+                        {deliveryFee > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Livraison</span>
+                            <span className="text-foreground">{fmt(deliveryFee)}</span>
+                          </div>
+                        )}
+                        {installationFee > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Installation</span>
+                            <span className="text-foreground">{fmt(installationFee)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Discounts */}
+                      {normalizedPricing && toNonNegativeMoney(normalizedPricing.discount_total_combined) > 0 && (
+                        <div className="flex justify-between text-xs font-semibold text-emerald-400">
+                          <span className="flex items-center gap-1"><Star className="w-3 h-3" /> Rabais</span>
+                          <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
+                        </div>
+                      )}
+                      {enableAutoBilling && (
+                        <div className="flex justify-between text-xs text-emerald-400">
+                          <span>Rabais pré-autorisé (mensuel)</span>
+                          <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
+                        </div>
+                      )}
+
+                      {/* Taxes */}
+                      {normalizedPricing && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-muted-foreground/70">
+                            <span>TPS (5%)</span>
+                            <span>{fmt(normalizedPricing.tps_amount)}</span>
+                          </div>
+                          <div className="flex justify-between text-[11px] text-muted-foreground/70">
+                            <span>TVQ (9,975%)</span>
+                            <span>{fmt(normalizedPricing.tvq_amount)}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="h-px bg-white/8" />
+
+                      {/* Grand total */}
+                      <div className="flex items-baseline justify-between pt-1">
+                        <span className="text-sm font-bold text-foreground">Total aujourd'hui</span>
+                        {isServerPricingLoading ? (
+                          <Skeleton className="h-7 w-24" />
+                        ) : (
+                          <span className="text-2xl font-black" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            {fmt(todayTotal)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Trust badges */}
+                <div className="rounded-xl p-4 space-y-2.5" style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                  <div className="flex items-center gap-2.5 text-xs text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="font-medium">Premier mois 100% gratuit pour les nouveaux clients</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-emerald-400">
+                    <Shield className="w-4 h-4 shrink-0" />
+                    <span className="font-medium">Garantie satisfait ou remboursé 30 jours</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <span>Paiement sécurisé SSL 256-bit · Sans contrat</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Star className="w-4 h-4 shrink-0" />
+                    <span>Entreprise québécoise 🇨🇦</span>
+                  </div>
+                </div>
+
+                <div className="mt-2"><SecurityTrustBox isFrench /></div>
               </div>
             </div>
           )}
@@ -2059,13 +2164,25 @@ const GuestCheckout = () => {
 
         {/* ═══ MOBILE FIXED BOTTOM BAR ═══ */}
         {step < 6 && selectedServices.length > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-lg px-4 py-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-muted-foreground">Total aujourd'hui</span>
-              <span className="font-bold text-foreground">{fmt(todayTotal)}</span>
+          <div
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 py-3"
+            style={{
+              paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+              background: 'rgba(6,4,15,0.92)',
+              backdropFilter: 'blur(12px)',
+              borderTop: '1px solid rgba(124,58,237,0.25)',
+              boxShadow: '0 -4px 24px rgba(124,58,237,0.1)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-muted-foreground">Total aujourd'hui</span>
+              <span className="font-black text-lg" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {fmt(todayTotal)}
+              </span>
             </div>
-            <div className="text-[10px] text-muted-foreground text-center">
-              Étape {step} / 5 • {fmt(monthlyTotalWithTax)}/mois après
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground/60">Étape {step} / 5</span>
+              <span className="text-[10px] text-emerald-400 font-medium">{fmt(monthlyTotalWithTax)}/mois après</span>
             </div>
           </div>
         )}

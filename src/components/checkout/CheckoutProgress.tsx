@@ -49,28 +49,38 @@ export const CheckoutProgress = ({
                   onClick={() => isClickable && onStepClick?.(step.id)}
                   disabled={!isClickable}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all border-2",
+                    "w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all border-2",
                     isCompleted && "bg-emerald-500 border-emerald-500 text-white",
-                    isCurrent && "bg-violet-600 border-violet-500 text-white",
+                    isCurrent && "border-violet-500 text-white",
                     !isCompleted && !isCurrent && "bg-white/[0.06] border-white/20 text-white/40",
                     isClickable && "cursor-pointer hover:scale-105"
                   )}
+                  style={isCurrent ? {
+                    background: 'linear-gradient(135deg, #7C3AED, #5B21B6)',
+                    boxShadow: '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(124,58,237,0.4)',
+                  } : undefined}
                 >
                   {isCompleted ? <Check className="w-4 h-4" /> : step.id}
                 </button>
                 <span className={cn(
-                  "mt-1.5 text-xs font-medium",
-                  (isCompleted || isCurrent) ? "text-white" : "text-white/35"
+                  "mt-1.5 text-xs font-semibold",
+                  isCompleted && "text-emerald-400",
+                  isCurrent && "text-violet-300",
+                  !isCompleted && !isCurrent && "text-white/35"
                 )}>
                   {isFrench ? step.labelFr : step.labelEn}
                 </span>
               </div>
               
               {index < steps.length - 1 && (
-                <div className={cn(
-                  "h-0.5 flex-1 mx-1 -mt-5",
-                  currentStep > step.id ? "bg-emerald-500" : "bg-white/10"
-                )} />
+                <div
+                  className="h-0.5 flex-1 mx-1 -mt-5 rounded-full transition-all duration-500"
+                  style={{
+                    background: currentStep > step.id
+                      ? 'linear-gradient(90deg, #10B981, #059669)'
+                      : 'rgba(255,255,255,0.08)',
+                  }}
+                />
               )}
             </div>
           );
