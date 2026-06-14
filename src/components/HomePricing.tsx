@@ -153,8 +153,11 @@ const HomePricing = () => {
           </p>
         </div>
 
-        {/* Plan grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch max-w-[1080px] mx-auto mb-10">
+        {/* Plan grid — horizontal scroll on mobile, 3-col grid on desktop */}
+        <div
+          className="flex overflow-x-auto snap-x snap-mandatory pb-4 gap-4 -mx-5 px-5 mb-10 md:grid md:grid-cols-3 md:gap-5 lg:gap-6 md:items-stretch md:max-w-[1080px] md:mx-auto md:overflow-visible md:pb-0 md:px-0"
+          style={{ scrollbarWidth: "none" } as React.CSSProperties}
+        >
           {plans.map((plan) => {
             const isRec = plan.recommended;
             const isTV = plan.planType === "tv_combo";
@@ -166,7 +169,7 @@ const HomePricing = () => {
               <Link
                 key={plan.id}
                 to={`/commander?plan=${plan.id}`}
-                className="group relative flex flex-col transition-all duration-300 hover:-translate-y-1.5"
+                className="group relative flex flex-col transition-all duration-300 hover:-translate-y-1.5 shrink-0 w-[300px] snap-start md:w-auto"
                 style={{
                   background: isRec
                     ? 'linear-gradient(180deg, rgba(124,58,237,0.22) 0%, rgba(10,10,15,1) 100%)'

@@ -1,13 +1,12 @@
 /**
  * LaunchOfferPopup — Homepage promo popup for new visitors only.
- * - Shows after 3s on homepage
+ * - Shows after 12s on homepage
  * - Hidden for logged-in clients (presence of Supabase session)
  * - Dismissed for 7 days via localStorage
- * - Click "Commander" auto-applies BIENVENUE2026 via URL param
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { X } from "lucide-react";
+import { X, Shield, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -64,81 +63,136 @@ const LaunchOfferPopup = () => {
 
   if (!open) return null;
 
-  const t = isFr
-    ? {
-        eyebrow: "🎁 OFFRE DE LANCEMENT",
-        line1: "Premier mois 100% GRATUIT",
-        line2: "+ Essai 30 jours satisfait ou remboursé",
-        details: "Voir les détails",
-        order: "Commander maintenant",
-        close: "Fermer",
-      }
-    : {
-        eyebrow: "🎁 LAUNCH OFFER",
-        line1: "First month 100% FREE",
-        line2: "+ 30-day money-back guarantee",
-        details: "See details",
-        order: "Order now",
-        close: "Close",
-      };
-
   return (
-    <div
-      role="dialog"
-      aria-labelledby="launch-offer-title"
-      className="fixed z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300"
-      style={{
-        bottom: "16px",
-        right: "16px",
-        left: "16px",
-        maxWidth: "380px",
-        marginLeft: "auto",
-      }}
-    >
+    <>
+      {/* Backdrop */}
       <div
-        className="relative w-full rounded-2xl shadow-2xl text-white"
-        style={{ background: "#7C3AED", padding: "20px 22px 18px" }}
+        aria-hidden="true"
+        onClick={dismiss}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,5,0.75)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+          zIndex: 59,
+        }}
+      />
+
+      {/* Modal */}
+      <div
+        role="dialog"
+        aria-labelledby="launch-offer-title"
+        className="fixed z-[60] animate-in fade-in zoom-in-95 duration-300"
+        style={{
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "min(440px, calc(100vw - 32px))",
+        }}
       >
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label={t.close}
-          className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/15"
-          style={{ color: "#FFFFFF" }}
+        <div
+          className="relative text-white overflow-hidden"
+          style={{
+            background: "linear-gradient(145deg, #0C0A1E 0%, #110D28 100%)",
+            border: "1px solid rgba(124,58,237,0.4)",
+            borderRadius: 20,
+            boxShadow: "0 0 80px rgba(124,58,237,0.25), 0 24px 60px rgba(0,0,0,0.8)",
+          }}
         >
-          <X className="w-4 h-4" />
-        </button>
+          {/* Top accent line */}
+          <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #7C3AED, #06B6D4, #7C3AED, transparent)", pointerEvents: "none" }} />
+          {/* Ambient glow */}
+          <div aria-hidden style={{ position: "absolute", top: -60, left: "50%", transform: "translateX(-50%)", width: 320, height: 160, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-        <p className="font-bold uppercase mb-1.5" style={{ fontSize: 11, letterSpacing: 1.5, opacity: 0.9 }}>
-          {t.eyebrow}
-        </p>
-        <h2 id="launch-offer-title" className="font-extrabold leading-tight mb-1" style={{ fontSize: 20 }}>
-          {t.line1}
-        </h2>
-        <p className="mb-4" style={{ fontSize: 13, opacity: 0.95 }}>
-          {t.line2}
-        </p>
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={dismiss}
+            aria-label={isFr ? "Fermer" : "Close"}
+            style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.07)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "rgba(255,255,255,0.5)",
+              zIndex: 1,
+              transition: "background 0.18s, color 0.18s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.14)"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.5)"; }}
+          >
+            <X className="w-4 h-4" />
+          </button>
 
-        <div className="flex items-center gap-2">
-          <Link
-            to="/commander?promo=BIENVENUE2026"
-            onClick={dismiss}
-            className="flex-1 flex items-center justify-center px-4 font-bold transition-all"
-            style={{ height: 40, borderRadius: 50, background: "#FFFFFF", color: "#7C3AED", fontSize: 13 }}
-          >
-            {t.order} →
-          </Link>
-          <Link
-            to={isFr ? "/garantie" : "/guarantee"}
-            onClick={dismiss}
-            className="flex items-center justify-center px-3 font-semibold transition-all"
-            style={{ height: 40, borderRadius: 50, color: "#FFFFFF", fontSize: 12, opacity: 0.9 }}
-          >
-            {t.details}
-          </Link>
+          {/* Content */}
+          <div style={{ padding: "36px 32px 28px", position: "relative", zIndex: 1 }}>
+            {/* Eyebrow badge */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(124,58,237,0.18)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 999, padding: "4px 12px", marginBottom: 18 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#A78BFA", display: "block" }} />
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#A78BFA", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                {isFr ? "Offre de bienvenue" : "Welcome offer"}
+              </span>
+            </div>
+
+            {/* Main title */}
+            <h2 id="launch-offer-title" style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: "clamp(20px, 5vw, 26px)", letterSpacing: "-0.8px", lineHeight: 1.15, color: "#fff", marginBottom: 16 }}>
+              {isFr ? "Abonnez-vous dès aujourd'hui" : "Subscribe today"}
+            </h2>
+
+            {/* Offer highlight */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: "clamp(17px, 4vw, 21px)", color: "#A78BFA", marginBottom: 10, letterSpacing: "-0.3px" }}>
+                {isFr ? "Recevez le premier mois GRATUIT" : "Get your first month FREE"}
+              </div>
+              <p style={{ color: "rgba(255,255,255,0.62)", fontSize: 13.5, lineHeight: 1.65 }}>
+                {isFr
+                  ? <>Vous payez seulement l'équipement :<br /><span style={{ color: "#fff", fontWeight: 600 }}>Borne WiFi 60$</span> <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span> <span style={{ color: "#fff", fontWeight: 600 }}>Terminal TV 50$</span></>
+                  : <>You only pay for the equipment :<br /><span style={{ color: "#fff", fontWeight: 600 }}>WiFi Router $60</span> <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span> <span style={{ color: "#fff", fontWeight: 600 }}>TV Terminal $50</span></>
+                }
+              </p>
+            </div>
+
+            {/* Guarantee strip */}
+            <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 24, display: "flex", alignItems: "center", gap: 9 }}>
+              <Shield className="w-4 h-4 shrink-0" style={{ color: "#10B981" }} />
+              <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
+                {isFr ? "Remboursable si annulation dans les 30 jours" : "Refundable if cancelled within 30 days"}
+              </span>
+            </div>
+
+            {/* CTA */}
+            <Link
+              to="/commander"
+              onClick={dismiss}
+              className="flex items-center justify-center gap-2 w-full font-bold text-white"
+              style={{
+                height: 52,
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)",
+                boxShadow: "0 0 0 1px rgba(124,58,237,0.5), 0 8px 28px rgba(124,58,237,0.4)",
+                fontSize: 15,
+                fontFamily: "'Space Grotesk', sans-serif",
+                textDecoration: "none",
+                transition: "box-shadow 0.18s, transform 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.7), 0 10px 36px rgba(124,58,237,0.6)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,58,237,0.5), 0 8px 28px rgba(124,58,237,0.4)"; e.currentTarget.style.transform = "none"; }}
+            >
+              {isFr ? "Je m'abonne maintenant" : "Subscribe now"} <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

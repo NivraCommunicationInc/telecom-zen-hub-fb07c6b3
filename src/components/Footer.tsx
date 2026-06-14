@@ -102,8 +102,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
       {/* Pre-footer stats strip */}
       <div style={{ borderBottom:"1px solid rgba(255,255,255,0.05)", background:"rgba(0,0,0,0.3)" }}>
-        <div style={{ maxWidth:1280, margin:"0 auto", padding:"24px 24px" }}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"16px 16px" }} className="sm:!p-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {footerStats.map(({ val, unit, label, icon:Icon, color }) => (
               <div key={label} className="flex items-center gap-3">
                 <div style={{ width:36, height:36, borderRadius:10, background:`${color}14`, border:`1px solid ${color}30`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -121,13 +121,13 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
       </div>
 
-      <div style={{ maxWidth:1280, margin:"0 auto", padding:"52px 24px 28px" }}>
+      <div style={{ maxWidth:1280, margin:"0 auto", padding:"32px 16px 24px" }} className="sm:!pt-[52px] sm:!px-6 sm:!pb-7">
 
         {/* Main grid */}
         <div className="footer-grid" style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr 1fr 1fr", gap:"40px 48px" }}>
 
           {/* Col 1 — Brand */}
-          <div>
+          <div className="footer-brand-col">
             <div style={{ marginBottom:16 }}>
               <div style={{ fontFamily:"'Space Grotesk', sans-serif", fontWeight:800, fontSize:28, letterSpacing:"-1.5px", lineHeight:1, color:"#fff" }}>NIVRA</div>
               <div style={{ fontFamily:"'JetBrains Mono', monospace", color:"#A78BFA", fontSize:10, fontWeight:700, letterSpacing:"4px", textTransform:"uppercase", marginTop:2 }}>TELECOM</div>
@@ -190,7 +190,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           </div>
 
           {/* Col 2 — Services */}
-          <div>
+          <div className="footer-services-col">
             <h3 style={{ color:"rgba(255,255,255,0.6)", fontSize:10, fontWeight:700, letterSpacing:"2px", textTransform:"uppercase", marginBottom:16, fontFamily:"'JetBrains Mono', monospace" }}>
               {isFr ? "Nos services" : "Our Services"}
             </h3>
@@ -198,7 +198,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           </div>
 
           {/* Col 3 — Support */}
-          <div>
+          <div className="footer-support-col">
             <h3 style={{ color:"rgba(255,255,255,0.6)", fontSize:10, fontWeight:700, letterSpacing:"2px", textTransform:"uppercase", marginBottom:16, fontFamily:"'JetBrains Mono', monospace" }}>
               {isFr ? "Aide & Support" : "Help & Support"}
             </h3>
@@ -206,7 +206,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           </div>
 
           {/* Col 4 — Company + CTA */}
-          <div>
+          <div className="footer-company-col">
             <h3 style={{ color:"rgba(255,255,255,0.6)", fontSize:10, fontWeight:700, letterSpacing:"2px", textTransform:"uppercase", marginBottom:16, fontFamily:"'JetBrains Mono', monospace" }}>
               {isFr ? "Entreprise" : "Company"}
             </h3>
@@ -260,8 +260,12 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
         }
         @media (max-width: 640px) {
-          .footer-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
-          .footer-bottom-row { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; }
+          .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 20px 16px !important; }
+          .footer-brand-col { grid-column: 1 / -1 !important; }
+          .footer-company-col { grid-column: 1 / -1 !important; }
+          .footer-bottom-row { flex-direction: column !important; align-items: flex-start !important; gap: 14px !important; }
+          .footer-bottom-row > div:first-child { flex-direction: column !important; gap: 4px !important; }
+          .footer-bottom-row > div:last-child { display: flex !important; flex-wrap: wrap !important; gap: 6px 10px !important; }
         }
       `}</style>
     </footer>

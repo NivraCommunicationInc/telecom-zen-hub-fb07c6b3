@@ -118,8 +118,8 @@ const HomeStatusBanner = () => {
   const Icon = config.icon;
 
   return (
-    <div className={cn("w-full py-3 px-4", config.bgClass)}>
-      <div className="container mx-auto flex items-center justify-between gap-4">
+    <div className={cn("w-full py-3", config.bgClass)} style={{ width: "100%", boxSizing: "border-box" }}>
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-10 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-1.5 rounded-full bg-white/20 backdrop-blur-sm">
             <Icon className="w-4 h-4 text-white" />
