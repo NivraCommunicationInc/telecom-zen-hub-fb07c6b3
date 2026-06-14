@@ -15,7 +15,7 @@ test.describe("Invoice Contact Information", () => {
   
   test("homepage header and footer display correct phone number", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     
     // Check header phone
     const headerPhone = page.locator('[data-testid="header-phone"]');
@@ -47,7 +47,7 @@ test.describe("Invoice Contact Information", () => {
 
   test("contact page displays correct contact info without forbidden numbers", async ({ page }) => {
     await page.goto("/contact");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     
     // Page should contain correct phone
     const pageContent = await page.content();
@@ -60,7 +60,7 @@ test.describe("Invoice Contact Information", () => {
 
   test("aide page displays correct contact info without forbidden numbers", async ({ page }) => {
     await page.goto("/aide");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     
     // Page should contain correct phone
     const pageContent = await page.content();
@@ -73,7 +73,7 @@ test.describe("Invoice Contact Information", () => {
 
   test("politique-remboursement page displays correct contact without forbidden numbers", async ({ page }) => {
     await page.goto("/page/politique-remboursement");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     
     // Allow time for dynamic page load
     await page.waitForTimeout(1000);
@@ -90,7 +90,7 @@ test.describe("Invoice Contact Information", () => {
     
     for (const route of publicRoutes) {
       await page.goto(route);
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("domcontentloaded");
       
       const pageContent = await page.content();
       expect(pageContent, `Route ${route} should not contain 1-800`).not.toContain("1-800");

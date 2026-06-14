@@ -15,7 +15,7 @@ test.describe("Portail client — Connexion", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/auth");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("login-01-chargee"), fullPage: true });
 
@@ -33,7 +33,7 @@ test.describe("Portail client — Connexion", () => {
     page,
   }) => {
     await page.goto("/portal/auth");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Verify the form accepts the E2E test email
     await page.fill("#login-email", E2E_EMAIL);
@@ -51,7 +51,7 @@ test.describe("Portail client — Connexion", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/auth");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.fill("#login-email", E2E_EMAIL);
     await page.screenshot({ path: SS("login-03a-email-saisi") });
@@ -74,7 +74,7 @@ test.describe("Portail client — Connexion", () => {
   }) => {
     // Fresh page, no session in storage
     await page.goto("/portal");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Should end up on the auth page — waitForURL tolerates async React redirect in CI
     await page.waitForURL(/\/portal\/auth/, { timeout: 15_000 });

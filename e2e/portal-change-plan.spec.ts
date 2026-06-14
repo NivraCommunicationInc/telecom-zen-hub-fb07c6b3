@@ -23,7 +23,7 @@ test.describe("Portail client — Changement de forfait", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/change-plan");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("plan-01-chargee"), fullPage: true });
 
@@ -35,7 +35,7 @@ test.describe("Portail client — Changement de forfait", () => {
 
   test("2.2 Au moins un forfait disponible est affiché", async ({ page }) => {
     await page.goto("/portal/change-plan");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Wait for plan cards to render (Loader2 disappears + plans appear)
     await page.waitForSelector("h2 ~ div button", { timeout: 20_000 });
@@ -57,7 +57,7 @@ test.describe("Portail client — Changement de forfait", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/change-plan");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Wait for plan buttons
     await page.waitForSelector("button", { timeout: 20_000 });

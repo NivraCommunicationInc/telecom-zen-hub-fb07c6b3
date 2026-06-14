@@ -20,7 +20,7 @@ test.describe("Public status page", () => {
     page.on("pageerror", (err) => consoleErrors.push(err.message));
 
     await page.goto("/status");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // The H1 must render — Lovable's UI shows "État des systèmes" (FR) or
     // "System Status" (EN) depending on the user's language preference.
@@ -46,7 +46,7 @@ test.describe("Public status page", () => {
 
   test("alias /statut also resolves", async ({ page }) => {
     await page.goto("/statut");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     await expect(
       page.getByRole("heading", {
         name: /État des systèmes|System Status/i,
@@ -57,7 +57,7 @@ test.describe("Public status page", () => {
 
   test("services section renders at least one status badge", async ({ page }) => {
     await page.goto("/status");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // At least one of the service status labels must appear on the page.
     // Lovable's UI uses these exact labels per status:
@@ -74,7 +74,7 @@ test.describe("Public status page", () => {
 
   test("incidents section renders (history or positive empty state)", async ({ page }) => {
     await page.goto("/status");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Either resolved incidents list OR "no incidents in the last 30 days"
     // The page must show one of the two — never blank.
@@ -92,7 +92,7 @@ test.describe("Public status page", () => {
 
   test("refresh button works without breaking the page", async ({ page }) => {
     await page.goto("/status");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const refreshBtn = page.getByRole("button", { name: /Actualiser|Refresh/i });
     await refreshBtn.click();

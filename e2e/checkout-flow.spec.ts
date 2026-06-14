@@ -17,7 +17,7 @@ test.describe("Guest checkout — pre-payment gates", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/commander");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // The "Commander" page must render. Heading or visible main content.
     const mainContent = page.locator("main, [role='main'], #main-content");
@@ -34,7 +34,7 @@ test.describe("Guest checkout — pre-payment gates", () => {
     // automate without seeded fixtures. Instead, we verify the copy exists
     // anywhere on the checkout flow by scanning the page after navigation.
     await page.goto("/commander");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Accept either the FR or EN phrasing for forward-compatibility.
     // Looking specifically for the LPC keyword — "Loi sur la protection du
@@ -68,7 +68,7 @@ test.describe("Guest checkout — pre-payment gates", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/commander");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // The page body must have meaningful content.
     const bodyText = (await page.textContent("body")) ?? "";

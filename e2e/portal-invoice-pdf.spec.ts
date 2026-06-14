@@ -23,7 +23,7 @@ test.describe("Portail client — Téléchargement facture PDF", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("pdf-01-invoices-chargee"), fullPage: true });
 
@@ -40,7 +40,7 @@ test.describe("Portail client — Téléchargement facture PDF", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Wait for invoice list to render (skeleton disappears)
     await page.waitForTimeout(3_000);
@@ -77,7 +77,7 @@ test.describe("Portail client — Téléchargement facture PDF", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(3_000);
 
     const downloadBtn = page.locator('[title="Télécharger facture"]').first();
@@ -122,7 +122,7 @@ test.describe("Portail client — Téléchargement facture PDF", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const csvBtn = page.getByRole("button", { name: /exporter csv/i });
     await expect(csvBtn).toBeVisible({ timeout: 15_000 });

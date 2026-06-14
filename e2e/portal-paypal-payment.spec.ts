@@ -22,7 +22,7 @@ test.describe("Portail client — Paiement PayPal", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("paypal-01-invoices-chargee"), fullPage: true });
 
@@ -38,7 +38,7 @@ test.describe("Portail client — Paiement PayPal", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Look for a "Payer" button (pending invoice)
     const payerBtn = page.getByRole("button", { name: /^payer$/i }).first();
@@ -80,7 +80,7 @@ test.describe("Portail client — Paiement PayPal", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const payerBtn = page.getByRole("button", { name: /^payer$/i }).first();
     if ((await payerBtn.count()) === 0) {

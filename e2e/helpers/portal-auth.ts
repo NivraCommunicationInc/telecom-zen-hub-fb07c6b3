@@ -40,5 +40,5 @@ export async function loginToPortal(page: Page): Promise<void> {
   }
 
   await page.waitForURL(/\/portal($|\?|#|\/)/, { timeout: 25_000 });
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 }

@@ -40,7 +40,7 @@ test.describe("Portail client — Déconnexion automatique (session expirée)", 
 
     // Navigate to a protected route — ClientProtectedRoute should redirect
     await page.goto("/portal");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("idle-02-apres-suppression-flag") });
 
@@ -67,7 +67,7 @@ test.describe("Portail client — Déconnexion automatique (session expirée)", 
     });
 
     await page.goto("/portal/change-plan");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("idle-03-trusted-until-expire") });
 
@@ -84,7 +84,7 @@ test.describe("Portail client — Déconnexion automatique (session expirée)", 
 
     // Fresh page, no session at all
     await page.goto("/portal/invoices");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     await page.screenshot({ path: SS("idle-04-acces-direct-sans-session") });
 
@@ -110,7 +110,7 @@ test.describe("Portail client — Déconnexion automatique (session expirée)", 
     });
 
     await page.goto("/portal");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Should be on auth page
     await expect(page).toHaveURL(/\/portal\/auth/, { timeout: 10_000 });
