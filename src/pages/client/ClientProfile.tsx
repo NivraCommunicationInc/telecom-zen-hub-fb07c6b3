@@ -37,6 +37,7 @@ import ClientSessionInfo from "@/components/client/ClientSessionInfo";
 import ClientBillingAddressSection from "@/components/client/ClientBillingAddressSection";
 import ClientDataExport from "@/components/client/ClientDataExport";
 import ClientPinConfirmDialog from "@/components/client/ClientPinConfirmDialog";
+import { sanitizePortalAuthError } from "@/lib/errorUtils";
 // Phase 3 components - New features
 import ClientMFASetup from "@/components/client/ClientMFASetup";
 import ClientEmailChange from "@/components/client/ClientEmailChange";
@@ -129,7 +130,7 @@ const ClientProfile = () => {
       setNewLocation({ label: "", service_address: "", service_city: "", service_postal_code: "" });
     },
     onError: (error: any) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur", description: sanitizePortalAuthError(error), variant: "destructive" });
     },
   });
 
@@ -265,10 +266,10 @@ const ClientProfile = () => {
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erreur lors du changement de mot de passe", 
-        description: error.message,
-        variant: "destructive" 
+      toast({
+        title: "Erreur lors du changement de mot de passe",
+        description: sanitizePortalAuthError(error),
+        variant: "destructive"
       });
     },
   });

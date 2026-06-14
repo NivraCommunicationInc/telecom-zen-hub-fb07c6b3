@@ -124,9 +124,125 @@ export function createSafeErrorResponse(
 ): { message: string; errorId: string } {
   const errorId = logErrorWithId(error, context);
   const message = getAutoSafeErrorMessage(error);
-  
+
   return {
     message: IS_PROD ? `${message} (Réf: ${errorId})` : message,
     errorId,
   };
+}
+
+// ── CLIENT PORTAL AUTH ERROR SANITIZER ──────────────────────────────────────
+// Maps known Supabase/GoTrue technical error strings to bilingual user-friendly
+// messages. Shown directly in UI — never expose raw DB or schema errors.
+
+type BilingualMsg = { fr: string; en: string };
+
+const AUTH_ERROR_MAP: { pattern: RegExp; msg: BilingualMsg }[] = [
+  {
+    pattern: /database error querying schema|database error|querying schema/i,
+    msg: {
+      fr: "Service temporairement indisponible. Veuillez réessayer dans 30 secondes.",
+      en: "Service temporarily unavailable. Please try again in 30 seconds.",
+    },
+  },
+  {
+    pattern: /email rate limit exceeded|for security purposes.*wait|rate.?limit/i,
+    msg: {
+      fr: "Trop de tentatives par courriel. Veuillez attendre quelques minutes.",
+      en: "Email rate limit exceeded. Please wait a few minutes.",
+    },
+  },
+  {
+    pattern: /email link is invalid or has expired|link is invalid|token has expired|invalid.*token|token.*invalid/i,
+    msg: {
+      fr: "Le lien a expiré ou est invalide. Veuillez en demander un nouveau.",
+      en: "The link has expired or is invalid. Please request a new one.",
+    },
+  },
+  {
+    pattern: /new password should be different/i,
+    msg: {
+      fr: "Le nouveau mot de passe doit être différent de l'ancien.",
+      en: "New password must be different from the current one.",
+    },
+  },
+  {
+    pattern: /password should be at least|password.*too short/i,
+    msg: {
+      fr: "Le mot de passe est trop court (minimum 6 caractères).",
+      en: "Password is too short (minimum 6 characters).",
+    },
+  },
+  {
+    pattern: /user already registered|email already in use/i,
+    msg: {
+      fr: "Cette adresse courriel est déjà associée à un compte.",
+      en: "This email address is already associated with an account.",
+    },
+  },
+  {
+    pattern: /invalid login credentials/i,
+    msg: {
+      fr: "Identifiants invalides. Vérifiez votre courriel et mot de passe.",
+      en: "Invalid credentials. Please check your email and password.",
+    },
+  },
+  {
+    pattern: /user not found/i,
+    msg: {
+      fr: "Compte introuvable.",
+      en: "Account not found.",
+    },
+  },
+  {
+    pattern: /pgrst|postgrest|pg_|42[0-9]{3}/i,
+    msg: {
+      fr: "Une erreur technique est survenue. Veuillez réessayer.",
+      en: "A technical error occurred. Please try again.",
+    },
+  },
+];
+
+function getPortalLang(): "fr" | "en" {
+  try {
+    return localStorage.getItem("nivra-language") === "en" ? "en" : "fr";
+  } catch {
+    return "fr";
+  }
+}
+
+/**
+ * Converts a raw Supabase/GoTrue error into a bilingual user-friendly message
+ * safe for display in the client portal. Never exposes internal DB/schema details.
+ */
+export function sanitizePortalAuthError(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : (error as any)?.message
+        ? String((error as any).message)
+        : String(error ?? "");
+
+  const lang = getPortalLang();
+
+  for (const { pattern, msg } of AUTH_ERROR_MAP) {
+    if (pattern.test(raw)) {
+      return lang === "en" ? msg.en : msg.fr;
+    }
+  }
+
+  // Fallback for unrecognised technical errors (all-caps codes, PGRST codes, etc.)
+  const looksLikeTechnical =
+    /^[A-Z_0-9]+$/.test(raw.trim()) ||
+    raw.toLowerCase().includes("supabase") ||
+    raw.toLowerCase().includes("postgres") ||
+    raw.toLowerCase().includes("constraint");
+
+  if (looksLikeTechnical) {
+    return lang === "en"
+      ? "A technical error occurred. Please try again."
+      : "Une erreur technique est survenue. Veuillez réessayer.";
+  }
+
+  return raw || (lang === "en" ? "An error occurred. Please try again." : "Une erreur est survenue. Veuillez réessayer.");
 }

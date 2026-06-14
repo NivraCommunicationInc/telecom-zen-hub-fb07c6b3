@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import HoneypotField, { isHoneypotTriggered } from "@/components/shared/HoneypotField";
 import CloudflareTurnstile from "@/components/shared/CloudflareTurnstile";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { sanitizePortalAuthError } from "@/lib/errorUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,12 +177,10 @@ const ClientAuth = () => {
     if (error) {
       setIsLoading(false);
       console.error("[ClientAuth] Login failed:", { message: error.message, name: error.name });
-      toast({ 
-        title: "Erreur de connexion", 
-        description: error.message === "Invalid login credentials" 
-          ? "Identifiants invalides. Vérifiez votre courriel et mot de passe."
-          : error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Erreur de connexion",
+        description: sanitizePortalAuthError(error),
+        variant: "destructive"
       });
       return;
     }
@@ -372,11 +371,7 @@ const ClientAuth = () => {
     });
     setIsLoading(false);
     if (error) {
-      if (error.message.includes("already registered")) {
-        toast({ title: "Cet email est déjà utilisé", variant: "destructive" });
-      } else {
-        toast({ title: "Erreur lors de l'inscription", description: error.message, variant: "destructive" });
-      }
+      toast({ title: "Erreur lors de l'inscription", description: sanitizePortalAuthError(error), variant: "destructive" });
     } else {
       toast({ title: "Compte créé avec succès", description: "Vous pouvez maintenant vous connecter" });
       navigate("/portal");
@@ -393,7 +388,7 @@ const ClientAuth = () => {
     const { error } = await resetPassword(forgotPasswordEmail);
     setIsLoading(false);
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur", description: sanitizePortalAuthError(error), variant: "destructive" });
     } else {
       setResetEmailSent(true);
     }
@@ -417,7 +412,7 @@ const ClientAuth = () => {
     const { error } = await updatePassword(newPassword);
     setIsLoading(false);
     if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur", description: sanitizePortalAuthError(error), variant: "destructive" });
     } else {
       toast({ title: "Mot de passe mis à jour", description: "Vous pouvez maintenant vous connecter avec votre nouveau mot de passe" });
       setIsResetMode(false);
