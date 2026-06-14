@@ -3,9 +3,13 @@ import { Page } from "@playwright/test";
 export const E2E_EMAIL =
   process.env.VITE_E2E_TEST_EMAIL || "test@nivra-telecom.ca";
 export const E2E_PASSWORD = process.env.VITE_E2E_TEST_PASSWORD || "";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "";
 
-/** Returns true if credentials are available for auth-required tests. */
-export const hasCredentials = () => Boolean(E2E_PASSWORD);
+/** Returns true if real credentials AND a real Supabase URL are available. */
+export const hasCredentials = () =>
+  Boolean(E2E_PASSWORD) &&
+  Boolean(SUPABASE_URL) &&
+  !SUPABASE_URL.includes("placeholder");
 
 /**
  * Log into the client portal via the login UI.
@@ -14,7 +18,8 @@ export const hasCredentials = () => Boolean(E2E_PASSWORD);
  */
 export async function loginToPortal(page: Page): Promise<void> {
   await page.goto("/portal/auth");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForSelector("#login-email", { timeout: 15_000 });
 
   await page.fill("#login-email", E2E_EMAIL);
   await page.fill("#login-password", E2E_PASSWORD);
