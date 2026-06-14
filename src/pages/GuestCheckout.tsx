@@ -1156,22 +1156,73 @@ const GuestCheckout = () => {
           <p className="text-muted-foreground text-sm">Aucun compte requis — commandez en quelques minutes</p>
         </div>
 
-        <CheckoutProgress currentStep={step} steps={CHECKOUT_STEPS} isFrench onStepClick={(s) => s < step && step < 6 && setStep(s)} />
-
-        {/* Gradient progress indicator bar */}
-        <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: 'rgba(255,255,255,0.07)' }}>
-          <div
-            className="h-full rounded-full transition-all duration-700 ease-out"
-            style={{
-              width: `${step >= 6 ? 100 : Math.round(((step - 1) / (CHECKOUT_STEPS.length - 1)) * 100)}%`,
-              background: 'linear-gradient(90deg, #7C3AED 0%, #06B6D4 100%)',
-            }}
-          />
+        {/* Mobile only: horizontal stepper + gradient bar */}
+        <div className="lg:hidden">
+          <CheckoutProgress currentStep={step} steps={CHECKOUT_STEPS} isFrench onStepClick={(s) => s < step && step < 6 && setStep(s)} />
+          <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: `${step >= 6 ? 100 : Math.round(((step - 1) / (CHECKOUT_STEPS.length - 1)) * 100)}%`,
+                background: 'linear-gradient(90deg, #7C3AED 0%, #06B6D4 100%)',
+              }}
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-          {/* ── LEFT COLUMN ── */}
-          <div className="lg:col-span-7 xl:col-span-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+          {/* ── VERTICAL STEPPER — desktop left column ── */}
+          {step < 6 && (
+            <div className="hidden lg:block lg:col-span-2">
+              <div className="sticky top-6 pt-1">
+                {CHECKOUT_STEPS.filter(s => s.id <= 5).map((s, index) => {
+                  const isCompleted = step > s.id;
+                  const isCurrent = step === s.id;
+                  return (
+                    <div key={s.id} className="flex items-start">
+                      <div className="flex flex-col items-center mr-3 shrink-0">
+                        <button
+                          onClick={() => isCompleted && setStep(s.id)}
+                          disabled={!isCompleted}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${isCompleted ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
+                          style={
+                            isCompleted
+                              ? { background: '#10B981', borderColor: '#10B981', color: '#fff' }
+                              : isCurrent
+                                ? { background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', borderColor: '#7C3AED', color: '#fff', boxShadow: '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(124,58,237,0.4)' }
+                                : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.28)' }
+                          }
+                        >
+                          {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.id}
+                        </button>
+                        {index < 4 && (
+                          <div
+                            className="w-0.5 rounded-full my-1 transition-all duration-500"
+                            style={{
+                              height: '2.5rem',
+                              background: isCompleted ? 'linear-gradient(180deg, #10B981, #059669)' : 'rgba(255,255,255,0.07)',
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div className="pt-0.5 pb-9">
+                        <p className={`text-sm font-semibold leading-tight transition-colors ${isCompleted ? 'text-emerald-400' : isCurrent ? 'text-white' : 'text-white/28'}`}>
+                          {s.labelFr}
+                        </p>
+                        {isCurrent && (
+                          <p className="text-[10px] text-violet-400/70 mt-0.5 font-medium">En cours</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── CENTER COLUMN — form ── */}
+          <div className={step < 6 ? "lg:col-span-6" : "lg:col-span-12"}>
 
             {/* ═══ STEP 1: FORFAIT ═══ */}
             {step === 1 && (
@@ -1357,36 +1408,27 @@ const GuestCheckout = () => {
                     </div>
                     <div>
                       <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Courriel *</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        <Input type="email" placeholder="jean@exemple.com" value={email} onChange={e => setEmail(e.target.value)} className="h-12 pl-10" />
-                      </div>
+                      <Input type="email" placeholder="jean@exemple.com" value={email} onChange={e => setEmail(e.target.value)} className="h-12" />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Téléphone *</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          type="tel"
-                          placeholder="514-555-1234"
-                          value={phone}
-                          onChange={e => setPhone(e.target.value)}
-                          className="h-12 pl-10"
-                        />
-                      </div>
+                      <Input
+                        type="tel"
+                        placeholder="514-555-1234"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        className="h-12"
+                      />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Date de naissance *</Label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          type="date"
-                          value={dateOfBirth}
-                          onChange={e => setDateOfBirth(e.target.value)}
-                          max={new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE_TELECOM)).toISOString().split("T")[0]}
-                          className="h-12 pl-10"
-                        />
-                      </div>
+                      <Input
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={e => setDateOfBirth(e.target.value)}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE_TELECOM)).toISOString().split("T")[0]}
+                        className="h-12"
+                      />
                       <p className="text-xs text-muted-foreground mt-1.5">
                         Requis par la réglementation CRTC. Vous devez avoir {MIN_AGE_TELECOM} ans ou plus.
                       </p>
@@ -1998,7 +2040,7 @@ const GuestCheckout = () => {
 
           {/* ── RIGHT COLUMN: ORDER SUMMARY (sticky) ── */}
           {step < 6 && (
-            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+            <div className="hidden lg:block lg:col-span-4">
               <div className="sticky top-6 space-y-4">
 
                 {/* Order Summary Panel */}
