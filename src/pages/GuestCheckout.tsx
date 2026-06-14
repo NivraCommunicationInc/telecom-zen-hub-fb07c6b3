@@ -1222,7 +1222,7 @@ const GuestCheckout = () => {
           )}
 
           {/* ── CENTER COLUMN — form ── */}
-          <div className={step < 6 ? "lg:col-span-6" : "lg:col-span-12"}>
+          <div className={step < 6 ? "lg:col-span-6 pb-28 lg:pb-0" : "lg:col-span-12"}>
 
             {/* ═══ STEP 1: FORFAIT ═══ */}
             {step === 1 && (

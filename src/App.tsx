@@ -23,6 +23,7 @@ const INTERNAL_ROUTE_PREFIXES = [
   "/admin",
   "/technician",
   "/influencer",
+  "/commander",
 ];
 
 const ChatWidgetGate = () => {
