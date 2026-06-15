@@ -140,6 +140,7 @@ const SeoAlternativeBell = lazy(() => import("@/pages/seo/AlternativeBell"));
 const SeoInternetMontrealNord = lazy(() => import("@/pages/seo/InternetMontrealNord"));
 const SeoInternetPrepaye = lazy(() => import("@/pages/seo/InternetPrepaye"));
 const CoreFinancePage = lazy(() => import("@/core-app/pages/CoreFinancePage"));
+const CoreMRRDashboardPage = lazy(() => import("@/core-app/pages/CoreMRRDashboardPage"));
 const CoreSOPsPage = lazy(() => import("@/core-app/pages/CoreSOPsPage"));
 const CoreSupportMetricsPage = lazy(() => import("@/core-app/pages/CoreSupportMetricsPage"));
 // Operations
@@ -496,6 +497,7 @@ const PaymentCancelled = lazy(() => import("@/pages/client/PaymentCancelled"));
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 const ClientReferrals = lazy(() => import("@/pages/client/ClientReferrals"));
+const ClientUsageHistory = lazy(() => import("@/pages/client/ClientUsageHistory"));
 const CreerMotDePasse = lazy(() => import("@/pages/portal/CreerMotDePasse"));
 
 // Staff portal pages (lazy-loaded)
@@ -808,6 +810,7 @@ const AppRoutes = () => {
       <Route path="/portal/identity-verification" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientIdentityVerification /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/service-addresses" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientServiceAddresses /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/referrals" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientReferrals /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/usage" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientUsageHistory /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/autopay-log" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientAutoPayLog /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/autopay-status" element={<MaintenanceGuard><ClientAuthProvider><ClientAutoPayStatus /></ClientAuthProvider></MaintenanceGuard>} />
       
@@ -969,6 +972,7 @@ const AppRoutes = () => {
           <Route path="agents" element={<Suspense fallback={null}><CoreAgentControlCenter /></Suspense>} />
           <Route path="seo" element={<Suspense fallback={null}><CoreSEOPage /></Suspense>} />
           <Route path="finance" element={<Suspense fallback={null}><CoreFinancePage /></Suspense>} />
+          <Route path="mrr-dashboard" element={<Suspense fallback={null}><CoreMRRDashboardPage /></Suspense>} />
           <Route path="sops" element={<Suspense fallback={null}><CoreSOPsPage /></Suspense>} />
           <Route path="support-metrics" element={<Suspense fallback={null}><CoreSupportMetricsPage /></Suspense>} />
           {/* Operations */}

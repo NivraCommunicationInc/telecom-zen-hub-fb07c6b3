@@ -39,7 +39,10 @@ import {
   ShieldCheck,
   Eye,
   Download,
+  Lock,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useClientPDF } from "@/hooks/useClientPDF";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
@@ -151,6 +154,62 @@ const ClientBillingHub = () => {
   };
 
   const [payingBalance, setPayingBalance] = useState(false);
+
+  // Card payment form state
+  const [cardForm, setCardForm] = useState({
+    card_number: "",
+    card_expiry: "",
+    cvv: "",
+    card_name: "",
+  });
+  const [cardPaymentLoading, setCardPaymentLoading] = useState(false);
+
+  const formatCardNumber = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(.{4})/g, "$1 ").trim();
+  };
+
+  const formatExpiry = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 4);
+    if (digits.length >= 3) return digits.slice(0, 2) + "/" + digits.slice(2);
+    return digits;
+  };
+
+  const handleCardPayment = async () => {
+    if (!user?.id) return;
+    if (!cardForm.card_name.trim()) { toast.error("Entrez le nom sur la carte"); return; }
+    const rawCard = cardForm.card_number.replace(/\s/g, "");
+    if (rawCard.length < 13) { toast.error("Numéro de carte invalide"); return; }
+    if (!/^\d{2}\/\d{2}$/.test(cardForm.card_expiry)) { toast.error("Date d'expiration invalide (MM/AA)"); return; }
+    if (!/^\d{3,4}$/.test(cardForm.cvv)) { toast.error("CVV invalide"); return; }
+    if (balance <= 0) { toast.error("Aucun solde à payer"); return; }
+
+    setCardPaymentLoading(true);
+    try {
+      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
+        "portal-card-payment",
+        {
+          body: {
+            card_number: rawCard,
+            card_expiry: cardForm.card_expiry,
+            cvv: cardForm.cvv,
+            card_name: cardForm.card_name,
+            amount: displayBalance,
+          },
+        }
+      );
+      if (invokeErr || result?.error) {
+        throw new Error(result?.error || invokeErr?.message || "Erreur de paiement");
+      }
+      toast.success(`Paiement de ${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} accepté!`);
+      setCardForm({ card_number: "", card_expiry: "", cvv: "", card_name: "" });
+      handlePaymentSuccess();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors du paiement par carte");
+    } finally {
+      setCardPaymentLoading(false);
+    }
+  };
 
   const handlePrimaryPayNow = async () => {
     // Pay the FULL ACCOUNT BALANCE via PayPal (not a single invoice)
@@ -264,7 +323,7 @@ const ClientBillingHub = () => {
 
         {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto gap-1 bg-muted/50 p-1">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full h-auto gap-1 bg-muted/50 p-1">
             <TabsTrigger value="pay-invoice" className="gap-2 text-xs sm:text-sm py-2.5">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Payer une facture</span>
@@ -287,6 +346,11 @@ const ClientBillingHub = () => {
             <TabsTrigger value="history" className="gap-2 text-xs sm:text-sm py-2.5">
               <Receipt className="w-4 h-4" />
               Historique
+            </TabsTrigger>
+            <TabsTrigger value="card-payment" className="gap-2 text-xs sm:text-sm py-2.5">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Payer par carte</span>
+              <span className="sm:hidden">Carte</span>
             </TabsTrigger>
           </TabsList>
 
@@ -489,6 +553,96 @@ const ClientBillingHub = () => {
           {/* ─── PAYMENT HISTORY TAB ─── */}
           <TabsContent value="history" className="mt-6">
             {user?.id && <PaymentHistoryV2 userId={user.id} />}
+          </TabsContent>
+
+          {/* ─── CARD PAYMENT TAB ─── */}
+          <TabsContent value="card-payment" className="mt-6">
+            <Card className="max-w-md mx-auto">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-primary" />
+                  Paiement sécurisé par carte
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {balance <= 0 ? (
+                  <div className="text-center py-6">
+                    <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-muted-foreground">Aucun solde à payer.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                      Solde à payer: <strong>{displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="card_name">Nom sur la carte</Label>
+                      <Input
+                        id="card_name"
+                        placeholder="Jean Tremblay"
+                        value={cardForm.card_name}
+                        onChange={e => setCardForm(f => ({ ...f, card_name: e.target.value }))}
+                        autoComplete="cc-name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="card_number">Numéro de carte</Label>
+                      <Input
+                        id="card_number"
+                        placeholder="XXXX XXXX XXXX XXXX"
+                        value={cardForm.card_number}
+                        onChange={e => setCardForm(f => ({ ...f, card_number: formatCardNumber(e.target.value) }))}
+                        maxLength={19}
+                        inputMode="numeric"
+                        autoComplete="cc-number"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="card_expiry">Expiration (MM/AA)</Label>
+                        <Input
+                          id="card_expiry"
+                          placeholder="MM/AA"
+                          value={cardForm.card_expiry}
+                          onChange={e => setCardForm(f => ({ ...f, card_expiry: formatExpiry(e.target.value) }))}
+                          maxLength={5}
+                          inputMode="numeric"
+                          autoComplete="cc-exp"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cvv">CVV</Label>
+                        <Input
+                          id="cvv"
+                          placeholder="123"
+                          value={cardForm.cvv}
+                          onChange={e => setCardForm(f => ({ ...f, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                          maxLength={4}
+                          inputMode="numeric"
+                          autoComplete="cc-csc"
+                          type="password"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-primary hover:bg-primary/90"
+                      onClick={writeGuard(handleCardPayment)}
+                      disabled={writeGuard.isReadOnly || cardPaymentLoading}
+                      title={writeGuard.disabledReason}
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      {cardPaymentLoading
+                        ? "Traitement en cours…"
+                        : `Payer ${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} par carte`}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Paiement chiffré SSL — traité via PayPal
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

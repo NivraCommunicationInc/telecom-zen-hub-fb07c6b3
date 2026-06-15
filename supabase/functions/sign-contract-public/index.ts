@@ -85,9 +85,29 @@ serve(async (req: Request) => {
         return jsonResponse({ success: false, error: "CONSENT_REQUIRED" }, 400);
       }
 
-      // Compute SHA-256 hash of contract content for non-repudiation (LCCJTI)
-      const contractContent = JSON.stringify({ contract_id: token, signer_ip: clientIp, timestamp: new Date().toISOString() });
-      const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(contractContent));
+      // Compute SHA-256 hash of contract CONTENT for non-repudiation (LCCJTI)
+      // Fetch the full contract data (clauses, pricing, services) to hash the actual content,
+      // not just signature metadata. This satisfies LCCJTI non-repudiation requirements.
+      let contractContentForHash: string;
+      try {
+        const { data: contractData } = await supabase.rpc(
+          "get_contract_for_signing" as any,
+          { p_token: token },
+        );
+        // contractData contains full contract details: clauses, plan, price, services, parties
+        // Hash on the complete contract data to ensure the hash covers what was agreed to
+        contractContentForHash = JSON.stringify({
+          contract_data: contractData,
+          token_reference: token.slice(0, 8) + "…", // include partial token as binding reference
+          signer_ip: clientIp,
+          signed_at: new Date().toISOString(),
+        });
+      } catch (_fetchErr) {
+        // Fallback: hash on token + IP + timestamp (better than nothing, but log it)
+        console.warn("[sign-contract-public] Could not fetch contract data for hash — using metadata fallback");
+        contractContentForHash = JSON.stringify({ contract_id: token, signer_ip: clientIp, timestamp: new Date().toISOString() });
+      }
+      const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(contractContentForHash));
       const pdfSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 
       const { data: result, error } = await supabase.rpc(

@@ -306,13 +306,31 @@ const TOOLS = [
         },
         importance: { type: "integer", minimum: 1, maximum: 10 },
       },
-      required: ["title", "content", "memory_type"],
+      required: [“title”, “content”, “memory_type”],
+    },
+  },
+
+  // ─── HUMAN HANDOFF ─────────────────────────────────────────────────────────
+  {
+    name: “transfer_to_human_agent”,
+    description:
+      “Transfer this conversation to a human support agent when you cannot resolve the issue after 3 attempts “ +
+      “or when the customer explicitly requests a human. Creates a support ticket with full conversation context “ +
+      “and sends an email alert to the support team.”,
+    input_schema: {
+      type: “object”,
+      properties: {
+        reason: { type: “string”, description: “Why transferring to human” },
+        urgency: { type: “string”, enum: [“low”, “medium”, “high”, “critical”], description: “Urgency level” },
+        summary: { type: “string”, description: “Summary of conversation so far including what was attempted” },
+      },
+      required: [“reason”, “summary”],
     },
   },
 
   // â”€â”€â”€ FRONTEND COMMANDS â€” pilot the UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   {
-    name: "ui_navigate",
+    name: “ui_navigate”,
     description:
       "Tell the frontend to navigate to a Nivra admin page. Use when the user says 'open client X' or " +
       "'go to the cancellation page'. The frontend listens to this tool result and changes route.",
@@ -671,8 +689,56 @@ async function executeTool(
         return { ok: true, result: { queue_id: data?.id, to: profile.email } };
       }
 
+      // ─── HUMAN HANDOFF ────────────────────────────────────────────────────
+      case “transfer_to_human_agent”: {
+        const reason = input.reason as string;
+        const urgency = (input.urgency as string) ?? “medium”;
+        const summary = input.summary as string;
+
+        // Create support ticket
+        const { data: ticket, error: ticketErr } = await supabase
+          .from(“support_tickets”)
+          .insert({
+            subject: `[NOVA Handoff] ${reason}`,
+            body: `Résumé NOVA:\n${summary}\n\nRaison du transfert: ${reason}\nUrgence: ${urgency}`,
+            priority: urgency === “critical” ? “urgent” : urgency === “high” ? “high” : urgency === “medium” ? “normal” : “low”,
+            category: “nova_handoff”,
+            status: “open”,
+            created_by_name: “NOVA Digital Brain”,
+          })
+          .select(“id, ticket_number”)
+          .maybeSingle();
+
+        if (ticketErr) {
+          console.error(“[nova-brain] transfer_to_human_agent ticket creation failed:”, ticketErr);
+        }
+
+        // Send email alert to support team
+        await supabase.from(“email_queue”).insert({
+          event_key: `nova_handoff_${Date.now()}`,
+          to_email: “support@nivra-telecom.ca”,
+          template_key: “generic_internal_note”,
+          subject: `[NOVA Handoff] ${urgency.toUpperCase()} — ${reason}`,
+          template_vars: {
+            body_text: `NOVA a transféré une conversation vers un agent humain.\n\nTicket: ${ticket?.ticket_number ?? “—“}\nUrgence: ${urgency}\nRaison: ${reason}\n\nRésumé:\n${summary}`,
+            sender: “NOVA Digital Brain”,
+          },
+          status: “queued”,
+        }).then(() => undefined, () => undefined);
+
+        return {
+          ok: true,
+          result: {
+            transferred: true,
+            ticket_id: ticket?.id,
+            ticket_number: ticket?.ticket_number,
+            message: “Je vous transfère maintenant vers un agent. Un membre de notre équipe vous contactera sous peu.”,
+          },
+        };
+      }
+
       // â”€â”€â”€ FRONTEND COMMANDS â€” the UI listens for these in the response â”€â”€
-      case "ui_navigate": {
+      case “ui_navigate”: {
         return {
           ok: true,
           result: {
@@ -781,7 +847,9 @@ te demande l'état d'un client, NE devine PAS â€” appelle get_account_state
 RÃˆGLES STRICTES:
 - Jamais de chiffres inventés. Si tu ne sais pas, dis-le et appelle un outil.
 - Pour envoyer un email Ã  un CLIENT (pas l'équipe interne), refuse et demande approbation humaine.
-- Pour suspendre / annuler un compte, refuse de le faire toi-même â€” c'est une action admin.`;
+- Pour suspendre / annuler un compte, refuse de le faire toi-même â€” c'est une action admin.
+- Après 3 tentatives infructueuses de résoudre un problème client, utilise PROACTIVEMENT l'outil transfer_to_human_agent.
+- Si un client demande explicitement à parler à un humain, utilise IMMÉDIATEMENT transfer_to_human_agent sans hésiter.`;
 
     const contextSection = `\n\nDONNÉES NIVRA EN TEMPS RÉEL:\n${JSON.stringify(contextData || {}, null, 2)}`;
     const memorySection = memoryText ? `\n\nMÉMOIRE LONG-TERME:\n${memoryText}` : "";

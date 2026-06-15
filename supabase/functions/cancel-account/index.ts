@@ -343,6 +343,24 @@ serve(async (req) => {
           .select("id");
         const count = commUpdated?.length ?? 0;
         recordStep(`commissions_flagged_${sub.id}`, true, { count });
+
+        // Also clawback field_commissions (terrain agents) tied to this subscription
+        try {
+          const { data: fieldUpdated } = await supabase
+            .from("field_commissions")
+            .update({
+              status: "clawback_pending",
+              notes: `Auto-clawback — cancel-account run ${runId}`,
+            })
+            .eq("subscription_id", sub.id)
+            .in("status", ["pending", "approved"])
+            .select("id");
+          recordStep(`field_commissions_flagged_${sub.id}`, true, { count: fieldUpdated?.length ?? 0 });
+        } catch (e) {
+          recordStep(`field_commissions_flagged_${sub.id}`, false, {
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       } catch (e) {
         recordStep(`commissions_flagged_${sub.id}`, false, {
           error: e instanceof Error ? e.message : String(e),
