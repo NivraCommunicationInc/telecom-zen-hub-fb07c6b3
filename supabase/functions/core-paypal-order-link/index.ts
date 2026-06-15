@@ -19,7 +19,6 @@
  *   - When mode==="email", enqueues a transactional email via sendNivraEmail
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { sendNivraEmail } from "../_shared/emailUtils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,6 +159,7 @@ Deno.serve(async (req) => {
 
     // Email
     if (mode === "email" && toEmail) {
+      const { sendNivraEmail } = await import("../_shared/emailUtils.ts");
       const fullName = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || "client";
       const html = `
         <div style="font-family:Arial,sans-serif;color:#111;max-width:600px;margin:0 auto;padding:24px;">

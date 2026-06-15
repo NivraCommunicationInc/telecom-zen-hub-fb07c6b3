@@ -1,16 +1,9 @@
 ﻿// ============================================================================
-// SEND CLIENT DOCUMENT â€” NIVRA TELECOM
+// SEND CLIENT DOCUMENT â€" NIVRA TELECOM
 // Uses the official "Corporate Blue" email template (components.ts) for ALL
 // document delivery emails. NEVER use a custom navy/teal template here.
 // ============================================================================
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "../_shared/ResendProxy.ts";
-import {
-  emailDocument, header, statusBanner, contentWrapper, footer,
-  sectionHeader, helpSection, infoRow, button,
-  colors, escapeHtml,
-} from "../_shared/emailTemplates/components.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,7 +11,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -51,26 +43,11 @@ const DOC_LABELS: Record<string, string> = {
   preauthorization_confirmation: "Confirmation de prÃ©autorisation",
 };
 
-// Per-doc-type banner config (icon + color tone)
-const DOC_BANNER: Record<string, { icon: string; type: "success" | "info" | "warning" | "error" }> = {
-  welcome_letter: { icon: "ðŸ‘‹", type: "info" },
-  service_certificate: { icon: "ðŸ“„", type: "info" },
-  activation_confirmation: { icon: "âœ…", type: "success" },
-  cancellation_confirmation: { icon: "âœ…", type: "success" },
-  preauthorization_confirmation: { icon: "ðŸ”’", type: "info" },
-  installation_report: { icon: "ðŸ› ï¸", type: "info" },
-  delivery_slip: { icon: "ðŸ“¦", type: "info" },
-  return_instructions: { icon: "ðŸ“¦", type: "warning" },
-  address_change: { icon: "ðŸ“", type: "info" },
-  payment_method_change: { icon: "ðŸ’³", type: "info" },
-  contract_amendment: { icon: "ðŸ“", type: "info" },
-  complaint_acknowledgment: { icon: "ðŸ“¨", type: "info" },
-  final_refund_receipt: { icon: "ðŸ’°", type: "success" },
-  suspension_notice: { icon: "âš ï¸", type: "warning" },
-  chargeback_notice: { icon: "âš ï¸", type: "warning" },
-  formal_demand: { icon: "âš ï¸", type: "error" },
-  collections_transfer: { icon: "âš ï¸", type: "error" },
-};
+
+
+function escapeHtml(s: string): string {
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+}
 
 function buildEmailHtml(opts: {
   label: string;
@@ -78,49 +55,43 @@ function buildEmailHtml(opts: {
   docNumber: string | null;
   docType: string;
 }): string {
-  const { label, clientName, docNumber, docType } = opts;
-  const banner = DOC_BANNER[docType] || { icon: "ðŸ“„", type: "info" as const };
-
-  const detailsRows = [
-    docNumber ? infoRow("NumÃ©ro de document", docNumber) : "",
-    infoRow("Type de document", label),
-    infoRow("Date d'Ã©mission", new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })),
-  ].join("");
-
-  const content = `
-    ${header()}
-    ${statusBanner(banner.type, banner.icon, label, "Document officiel Nivra Telecom")}
-    ${contentWrapper(`
-      <p style="color:${colors.textPrimary};font-size:16px;line-height:1.6;margin:0 0 16px 0;">
-        Bonjour <strong>${escapeHtml(clientName)}</strong>,
-      </p>
-      <p style="color:${colors.textSecondary};font-size:15px;line-height:1.6;margin:0 0 24px 0;">
-        Veuillez trouver ci-joint votre document : <strong>${escapeHtml(label)}</strong>.
-        Ce document est Ã©galement disponible en tout temps dans votre portail client.
-      </p>
-
-      ${sectionHeader("DÃ©tails du document")}
-      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;">
-        ${detailsRows}
-      </table>
-
-      <div style="text-align:center;margin:32px 0;">
-        ${button("AccÃ©der au portail client", "https://nivra-telecom.ca/portal/documents", "primary")}
-      </div>
-
-      <p style="color:${colors.textSecondary};font-size:14px;line-height:1.6;margin:24px 0 0 0;">
-        Si vous avez des questions concernant ce document, notre Ã©quipe est disponible par courriel.
-      </p>
-
-      ${helpSection(SUPPORT_EMAIL)}
-    `)}
-    ${footer(SUPPORT_EMAIL)}
-  `;
-
-  return emailDocument(label, `${label} â€“ Nivra Telecom`, content);
+  const { label, clientName, docNumber } = opts;
+  const dateStr = new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });
+  const docRow = docNumber
+    ? `<tr><td style="padding:10px 16px;color:#666;border-bottom:1px solid #e0e7ef;font-size:14px;width:50%;">Numéro de document</td><td style="padding:10px 16px;color:#1a1a2e;font-weight:600;font-size:14px;border-bottom:1px solid #e0e7ef;">${escapeHtml(docNumber)}</td></tr>`
+    : "";
+  return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${escapeHtml(label)}</title></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
+<table cellpadding="0" cellspacing="0" style="width:100%;background:#f4f6f9;padding:32px 16px;"><tr><td align="center">
+<table cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+<tr><td style="background:#0066CC;padding:24px 32px;">
+  <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">Nivra Telecom</p>
+  <p style="color:#cce0ff;font-size:14px;margin:4px 0 0 0;">Document officiel</p>
+</td></tr>
+<tr><td style="padding:32px;">
+  <p style="font-size:16px;color:#1a1a2e;margin:0 0 16px 0;">Bonjour <strong>${escapeHtml(clientName)}</strong>,</p>
+  <p style="font-size:15px;color:#444;margin:0 0 24px 0;">Veuillez trouver ci-joint votre document : <strong>${escapeHtml(label)}</strong>.<br>Ce document est également disponible en tout temps dans votre portail client.</p>
+  <table cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e0e7ef;border-radius:6px;margin-bottom:24px;">
+    ${docRow}
+    <tr><td style="padding:10px 16px;color:#666;border-bottom:1px solid #e0e7ef;font-size:14px;width:50%;">Type de document</td><td style="padding:10px 16px;color:#1a1a2e;font-weight:600;font-size:14px;border-bottom:1px solid #e0e7ef;">${escapeHtml(label)}</td></tr>
+    <tr><td style="padding:10px 16px;color:#666;font-size:14px;">Date d'émission</td><td style="padding:10px 16px;color:#1a1a2e;font-weight:600;font-size:14px;">${dateStr}</td></tr>
+  </table>
+  <div style="text-align:center;margin:32px 0;">
+    <a href="https://nivra-telecom.ca/portal/documents" style="background:#0066CC;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;">Accéder au portail client</a>
+  </div>
+  <p style="font-size:14px;color:#666;margin:24px 0 0 0;">Des questions ? Contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a></p>
+</td></tr>
+<tr><td style="background:#f4f6f9;padding:16px 32px;text-align:center;">
+  <p style="font-size:12px;color:#999;margin:0;">© ${new Date().getFullYear()} Nivra Telecom — Tous droits réservés</p>
+  <p style="font-size:12px;color:#999;margin:4px 0 0 0;"><a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a></p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   if (req.method !== "POST") {
@@ -193,14 +164,20 @@ serve(async (req: Request) => {
     const filename = job.storage_path.split("/").pop() || `${job.doc_type}.pdf`;
 
     // 4. Send email using the OFFICIAL corporate blue template
-    const emailResp = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: [recipient],
-      reply_to: REPLY_TO,
-      subject: `${label} â€“ Nivra Telecom`,
-      html: buildEmailHtml({ label, clientName, docNumber: docNum, docType: job.doc_type }),
-      attachments: [{ filename, content: pdfBase64 }],
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
+    const emailRespRaw = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: [recipient],
+        reply_to: REPLY_TO,
+        subject: `${label} – Nivra Telecom`,
+        html: buildEmailHtml({ label, clientName, docNumber: docNum, docType: job.doc_type }),
+        attachments: [{ filename, content: pdfBase64 }],
+      }),
     });
+    const emailResp = emailRespRaw.ok ? await emailRespRaw.json() : {};
 
     // 5. Mark job + client_auto_documents as sent
     await admin
@@ -214,7 +191,7 @@ serve(async (req: Request) => {
         .update({
           email_sent: true,
           email_sent_at: new Date().toISOString(),
-          email_message_id: (emailResp as any)?.id || null,
+          email_message_id: emailResp?.id || null,
           recipient_email: recipient,
         })
         .eq("id", job.client_auto_document_id);
@@ -223,7 +200,7 @@ serve(async (req: Request) => {
     console.log(`[send-client-document] sent job=${job_id} to=${recipient} doc=${job.doc_type}`);
 
     return new Response(
-      JSON.stringify({ success: true, emailId: (emailResp as any)?.id, recipient }),
+      JSON.stringify({ success: true, emailId: emailResp?.id, recipient }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

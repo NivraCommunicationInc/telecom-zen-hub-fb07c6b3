@@ -1,7 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "../_shared/ResendProxy.ts";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // Allowed origins whitelist (secure, not "*")
 const ALLOWED_ORIGINS = [
@@ -106,54 +103,45 @@ function maskEmail(email: string): string {
   return `${maskedLocal}@${domain}`;
 }
 
-// Retry with exponential backoff
 async function sendEmailWithRetry(
-  resend: InstanceType<typeof Resend>,
+  apiKey: string,
   emailConfig: { from: string; to: string[]; subject: string; html: string; text?: string; reply_to?: string },
-  maxRetries = 3
-): Promise<{ success: boolean; error?: string; statusCode?: number; name?: string }> {
-  const delays = [500, 2000, 5000]; // 0.5s, 2s, 5s
-  
+  maxRetries = 3,
+): Promise<{ success: boolean; error?: string; statusCode?: number }> {
+  const delays = [500, 2000, 5000];
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const { error } = await resend.emails.send(emailConfig);
-      if (!error) {
-        return { success: true };
-      }
-
-      const statusCode = (error as any)?.statusCode as number | undefined;
-      const name = (error as any)?.name as string | undefined;
-      console.error(`[client-pin-send] Email attempt ${attempt + 1} failed:`, error);
-      
-      // Don't retry on certain errors
-      if (
-        statusCode === 403 ||
-        name === "validation_error" ||
-        error.message?.includes("validation") ||
-        error.message?.includes("invalid")
-      ) {
-        return { success: false, error: error.message, statusCode, name };
-      }
-      
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-      }
+      const body: Record<string, unknown> = {
+        from: emailConfig.from,
+        to: emailConfig.to,
+        subject: emailConfig.subject,
+        html: emailConfig.html,
+      };
+      if (emailConfig.text) body.text = emailConfig.text;
+      if (emailConfig.reply_to) body.reply_to = emailConfig.reply_to;
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) return { success: true };
+      const statusCode = r.status;
+      const errText = await r.text();
+      console.error(`[client-pin-send] attempt ${attempt + 1} failed: ${statusCode} ${errText.slice(0, 200)}`);
+      if (statusCode === 403 || statusCode === 422) return { success: false, error: errText, statusCode };
+      if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, delays[attempt]));
     } catch (err) {
-      console.error(`[client-pin-send] Email attempt ${attempt + 1} exception:`, err);
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-      }
+      console.error(`[client-pin-send] attempt ${attempt + 1} exception:`, err);
+      if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, delays[attempt]));
     }
   }
-  
   return { success: false, error: "Failed to send email after multiple attempts" };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
@@ -162,13 +150,6 @@ serve(async (req) => {
   console.log(`[client-pin-send][${requestId}] Request received`);
 
   try {
-    // Rate limit: 3 PIN sends per 15 min per IP
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const rateCheck = await checkRateLimit({ key: `pin_send:${clientIp}`, ...RATE_LIMITS.OTP_SEND });
-    if (!rateCheck.allowed) {
-      return rateLimitResponse(rateCheck, corsHeaders, "fr");
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -186,7 +167,6 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const resend = new Resend(resendApiKey);
 
     let body;
     try {
@@ -286,7 +266,7 @@ serve(async (req) => {
     const fromEmail = buildPrimaryFromEmail();
     console.log(`[client-pin-send][${requestId}] Sending email from: ${fromEmail}`);
 
-    const emailResult = await sendEmailWithRetry(resend, {
+    const emailResult = await sendEmailWithRetry(resendApiKey, {
       from: fromEmail,
       to: [email],
       subject: "Votre code de vérification Nivra",
@@ -382,12 +362,13 @@ serve(async (req) => {
     // If sender domain isn't verified, Resend rejects with 403.
     // Retry once with a guaranteed sender domain.
     if (!emailResult.success && emailResult.statusCode === 403) {
-      console.warn(
-        `[client-pin-send][${requestId}] Primary sender rejected (403), retrying with resend.dev sender`,
-      );
+      console.warn(`[client-pin-send][${requestId}] Primary sender rejected (403), retrying with resend.dev sender`);
       try {
-        const { error: retryError } = await resend.emails.send({
-          from: "Nivra Telecom <onboarding@resend.dev>",
+        const retryR = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
+          body: JSON.stringify({
+            from: "Nivra Telecom <onboarding@resend.dev>",
           to: [email],
           subject: "Votre code de vérification Nivra",
           reply_to: getSupportEmail(),
@@ -460,19 +441,15 @@ serve(async (req) => {
         </body>
         </html>
       `,
+          }),
         });
-
-        if (!retryError) {
-          console.log(`[client-pin-send][${requestId}] SUCCESS - email sent via fallback sender to ${maskedEmail}`);
-          return new Response(
-            JSON.stringify({ sent: true, request_id: requestId }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+        if (retryR.ok) {
+          console.log(`[client-pin-send][${requestId}] SUCCESS - fallback sender`);
+          return new Response(JSON.stringify({ sent: true, request_id: requestId }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-
-        console.error(`[client-pin-send][${requestId}] Fallback send failed:`, retryError);
+        console.error(`[client-pin-send][${requestId}] Fallback send failed: ${retryR.status}`);
       } catch (retryErr) {
-        console.error(`[client-pin-send][${requestId}] Fallback send exception:`, retryErr);
+        console.error(`[client-pin-send][${requestId}] Fallback exception:`, retryErr);
       }
     }
 
