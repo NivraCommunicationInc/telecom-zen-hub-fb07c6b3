@@ -1,85 +1,177 @@
-name: Daily Database Backup → GitHub Artifacts
+name: Backup complet Nivra (toutes les 3 jours)
 
 on:
   schedule:
-    - cron: '30 2 * * *'   # 02:30 UTC daily
-  workflow_dispatch:
+    - cron: '0 4 */3 * *'   # 04h00 UTC tous les 3 jours
+  workflow_dispatch:          # Déclenchable manuellement depuis GitHub
 
 env:
-  SUPABASE_URL: https://lacxnbjvcyvhrttprkxr.supabase.co
+  SUPABASE_URL: https://xtgngmtxggascbxnswvb.supabase.co
 
 jobs:
   backup:
-    name: Export Supabase → GitHub Artifact
+    name: Backup complet → GitHub Artifact
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
-      - name: Set date variable
+      - name: Date du backup
         id: vars
-        run: echo "DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+        run: echo "DATE=$(date -u +%Y-%m-%d_%H-%M)" >> "$GITHUB_OUTPUT"
 
-      - name: Export tables via REST API
+      - name: Récupérer la liste de TOUTES les tables
         env:
           SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          mkdir -p /tmp/backup
-          TABLES=(
-            orders
-            billing_customers
-            billing_subscriptions
-            billing_invoices
-            billing_payments
-            field_payment_intents
-            profiles
-            user_roles
-            field_quotes
-            site_settings
-            admin_notification_settings
-            billing_system_alerts
-            email_queue
-            account_adjustments
-            products
-          )
+          mkdir -p /tmp/backup/tables
+          mkdir -p /tmp/backup/storage
+
+          # Récupère toutes les tables publiques via l'API OpenAPI
+          TABLES=$(curl -sf \
+            "${{ env.SUPABASE_URL }}/rest/v1/?select=" \
+            -H "Authorization: Bearer $SVCKEY" \
+            -H "apikey: $SVCKEY" \
+            | python3 -c "
+          import sys, json
+          spec = json.load(sys.stdin)
+          paths = spec.get('paths', {})
+          tables = [p.lstrip('/') for p in paths if not p.startswith('/rpc/')]
+          print(' '.join(tables))
+          " 2>/dev/null || echo "")
+
+          if [ -z "$TABLES" ]; then
+            echo "ERREUR: impossible de récupérer la liste des tables"
+            exit 1
+          fi
+
+          echo "Tables trouvées: $(echo $TABLES | wc -w)"
+          echo "$TABLES" > /tmp/table_list.txt
+
+      - name: Exporter toutes les tables
+        env:
+          SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
           FAILED=0
-          for TABLE in "${TABLES[@]}"; do
+          TOTAL=0
+          TABLES=$(cat /tmp/table_list.txt)
+
+          for TABLE in $TABLES; do
+            TOTAL=$((TOTAL+1))
             HTTP=$(curl -s -w "%{http_code}" \
-              "${{ env.SUPABASE_URL }}/rest/v1/$TABLE?select=*&limit=100000" \
+              "${{ env.SUPABASE_URL }}/rest/v1/${TABLE}?select=*&limit=1000000&order=created_at.asc" \
               -H "Authorization: Bearer $SVCKEY" \
               -H "apikey: $SVCKEY" \
-              -o "/tmp/backup/${TABLE}.json")
+              -H "Accept: text/csv" \
+              -o "/tmp/backup/tables/${TABLE}.csv")
+
             if [[ "$HTTP" == "200" ]]; then
-              ROWS=$(cat "/tmp/backup/${TABLE}.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else 1)" 2>/dev/null || echo "?")
-              echo "✓ $TABLE → $ROWS rows"
+              ROWS=$(wc -l < "/tmp/backup/tables/${TABLE}.csv")
+              echo "✓ ${TABLE} → $((ROWS-1)) rows"
             else
-              echo "✗ $TABLE → HTTP $HTTP (skipped)"
-              echo "[]" > "/tmp/backup/${TABLE}.json"
+              echo "✗ ${TABLE} → HTTP $HTTP (ignoré)"
+              rm -f "/tmp/backup/tables/${TABLE}.csv"
               FAILED=$((FAILED+1))
             fi
           done
-          echo "Done — $FAILED table(s) skipped"
 
-      - name: Export Auth users
+          echo ""
+          echo "=== Résultat: $((TOTAL-FAILED))/$TOTAL tables exportées ==="
+          if [ $FAILED -gt 0 ]; then
+            echo "⚠ $FAILED tables échouées (normal si vides ou permissions)"
+          fi
+
+      - name: Exporter les utilisateurs Auth
         env:
           SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          HTTP=$(curl -sf -w "%{http_code}" \
-            "${{ env.SUPABASE_URL }}/auth/v1/admin/users?per_page=1000" \
+          PAGE=1
+          ALL_USERS="[]"
+          while true; do
+            RESPONSE=$(curl -sf \
+              "${{ env.SUPABASE_URL }}/auth/v1/admin/users?page=${PAGE}&per_page=1000" \
+              -H "Authorization: Bearer $SVCKEY" \
+              -H "apikey: $SVCKEY")
+            COUNT=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('users',[])))" 2>/dev/null || echo "0")
+            if [ "$COUNT" == "0" ]; then break; fi
+            ALL_USERS=$(echo "$ALL_USERS $RESPONSE" | python3 -c "
+          import sys, json
+          parts = sys.stdin.read().split(None, 1)
+          existing = json.loads(parts[0])
+          new_batch = json.loads(parts[1]).get('users', [])
+          existing.extend(new_batch)
+          print(json.dumps(existing))
+          " 2>/dev/null || echo "[]")
+            PAGE=$((PAGE+1))
+          done
+          echo "$ALL_USERS" > /tmp/backup/auth_users.json
+          TOTAL=$(echo "$ALL_USERS" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "?")
+          echo "✓ auth_users → $TOTAL utilisateurs"
+
+      - name: Exporter les fichiers Storage
+        env:
+          SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Liste tous les buckets
+          BUCKETS=$(curl -sf \
+            "${{ env.SUPABASE_URL }}/storage/v1/bucket" \
             -H "Authorization: Bearer $SVCKEY" \
             -H "apikey: $SVCKEY" \
-            -o "/tmp/backup/auth_users.json")
-          echo "auth_users → HTTP $HTTP"
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(' '.join([b['name'] for b in d]))" 2>/dev/null || echo "")
 
-      - name: Bundle archive
+          if [ -z "$BUCKETS" ]; then
+            echo "Aucun bucket trouvé (ou accès refusé)"
+          else
+            for BUCKET in $BUCKETS; do
+              mkdir -p "/tmp/backup/storage/$BUCKET"
+              FILES=$(curl -sf \
+                "${{ env.SUPABASE_URL }}/storage/v1/object/list/$BUCKET" \
+                -H "Authorization: Bearer $SVCKEY" \
+                -H "apikey: $SVCKEY" \
+                -H "Content-Type: application/json" \
+                -d '{"limit":10000,"offset":0}' \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); print('\n'.join([f['name'] for f in d if f.get('name')]))" 2>/dev/null || echo "")
+
+              COUNT=0
+              for FILE in $FILES; do
+                curl -sf \
+                  "${{ env.SUPABASE_URL }}/storage/v1/object/$BUCKET/$FILE" \
+                  -H "Authorization: Bearer $SVCKEY" \
+                  -H "apikey: $SVCKEY" \
+                  -o "/tmp/backup/storage/$BUCKET/$FILE" && COUNT=$((COUNT+1))
+              done
+              echo "✓ bucket/$BUCKET → $COUNT fichiers"
+            done
+          fi
+
+      - name: Créer l'archive finale
         run: |
           DATE="${{ steps.vars.outputs.DATE }}"
-          tar -czf /tmp/nivra-backup-${DATE}.tar.gz -C /tmp/backup .
-          echo "Size: $(du -sh /tmp/nivra-backup-${DATE}.tar.gz | cut -f1)"
-          echo "Tables: $(ls /tmp/backup | wc -l) files"
+          cd /tmp
 
-      - name: Upload artifact
+          # Résumé
+          TABLE_COUNT=$(ls /tmp/backup/tables/*.csv 2>/dev/null | wc -l)
+          AUTH_COUNT=$(python3 -c "import json; d=json.load(open('/tmp/backup/auth_users.json')); print(len(d))" 2>/dev/null || echo "0")
+          STORAGE_COUNT=$(find /tmp/backup/storage -type f 2>/dev/null | wc -l)
+
+          echo "--- RÉSUMÉ BACKUP ${DATE} ---"
+          echo "Tables CSV:     $TABLE_COUNT"
+          echo "Auth users:     $AUTH_COUNT"
+          echo "Fichiers Storage: $STORAGE_COUNT"
+
+          cat > /tmp/backup/RESUME.txt << EOF
+          Backup Nivra Telecom
+          Date: ${DATE}
+          Projet: xtgngmtxggascbxnswvb (Lovable)
+          Tables: $TABLE_COUNT
+          Auth users: $AUTH_COUNT
+          Fichiers Storage: $STORAGE_COUNT
+          EOF
+
+          tar -czf nivra-backup-${DATE}.tar.gz -C /tmp/backup .
+          SIZE=$(du -sh nivra-backup-${DATE}.tar.gz | cut -f1)
+          echo "Archive: ${SIZE}"
+
+      - name: Upload GitHub Artifact (90 jours de rétention)
         uses: actions/upload-artifact@v4
         with:
           name: nivra-backup-${{ steps.vars.outputs.DATE }}
@@ -87,15 +179,8 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
-      - name: Alert on failure
+      - name: Notification échec
         if: failure()
-        env:
-          SVCKEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          curl -f -X POST \
-            "${{ env.SUPABASE_URL }}/rest/v1/billing_system_alerts" \
-            -H "Authorization: Bearer $SVCKEY" \
-            -H "apikey: $SVCKEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"alert_type\":\"backup_failed\",\"entity_type\":\"github_actions\",\"severity\":\"critical\",\"details\":{\"date\":\"${{ steps.vars.outputs.DATE }}\",\"run_id\":\"${{ github.run_id }}\"},\"resolved\":false}" \
-            || true
+          echo "::error::Backup échoué le ${{ steps.vars.outputs.DATE }}"
+          echo "Vérifie GitHub Actions → onglet Actions pour les détails"
