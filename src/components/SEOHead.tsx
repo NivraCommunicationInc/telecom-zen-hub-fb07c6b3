@@ -82,7 +82,7 @@ export const SEO_DATA = {
       "Internet haute vitesse, télévision IPTV, téléphonie mobile prépayée et sécurité résidentielle. Services sans contrat disponibles partout au Québec.",
   },
   internet: {
-    title: "Internet haute vitesse au Québec | Nivra Telecom — Dès 45$/mois",
+    title: "Internet haute vitesse au Québec | Nivra Telecom",
     description:
       "Internet 100 Mbps, 500 Mbps et Giga jusqu'à 1 010 Mbps. Données illimitées. Sans contrat. Dès 45$/mois.",
   },
