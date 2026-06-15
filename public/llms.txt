@@ -1,0 +1,43 @@
+# Nivra Telecom
+
+> Fournisseur québécois de télécommunications prépayées : Internet, TV et mobile sans contrat, avec activation rapide et support en français.
+
+Nivra Telecom propose des forfaits Internet haute vitesse, télévision IPTV et mobile 4G prépayés au Québec. Aucun engagement, prix transparents, équipement requis facturé séparément. Service partout au Québec (Montréal, Laval, Québec, Rive-Sud, etc.).
+
+## Pages
+
+- [Accueil](/): Aperçu des services Internet, TV et mobile prépayés.
+- [Forfaits](/forfaits): Tous les forfaits Internet, TV et mobile.
+- [Internet](/internet): Internet haute vitesse 100 Mbps à 1 Gbps, sans contrat.
+- [TV](/tv): Forfaits télévision IPTV avec Internet.
+- [Mobile](/mobile): Forfaits mobile 4G illimités Canada.
+- [Téléphones](/telephones): Catalogue de téléphones mobiles.
+- [Streaming](/streaming): Ajouts streaming (Netflix, Disney+, etc.).
+- [Couverture](/couverture): Vérification de disponibilité par adresse.
+- [Couverture mobile](/mobile-coverage): Carte de couverture mobile 4G.
+- [Test de vitesse](/test-vitesse): Outil de mesure de vitesse Internet.
+- [Comparatif](/compare): Nivra vs Bell et Vidéotron.
+- [À propos](/a-propos): Mission et valeurs de Nivra Telecom.
+- [Contact](/contact): Support client par courriel et tickets.
+- [FAQ](/faq): Questions fréquentes.
+- [Aide](/aide): Centre d'aide et guides.
+- [Carrières](/careers): Postes ouverts chez Nivra.
+
+## SEO local
+
+- [Internet sans contrat Montréal](/internet-sans-contrat-montreal)
+- [Alternative à Bell et Vidéotron au Québec](/alternative-bell-videotron-quebec)
+- [Internet Montréal-Nord](/internet-montreal-nord)
+- [Internet prépayé Québec](/internet-prepaye-quebec)
+
+## Optional
+
+- [Politique de confidentialité](/politique-de-confidentialite)
+- [Conditions de service](/conditions-de-service)
+- [Modalités de paiement](/modalites-paiement)
+- [Garantie équipement](/equipement-garantie)
+- [Frais possibles](/frais-possibles)
+- [Politique de remboursement](/refund-policy)
+- [Loi 25 — confidentialité](/confidentialite-loi25)
+- [Support et plaintes](/support-et-plaintes)
+- [Installation et rendez-vous](/installation-rendezvous)
