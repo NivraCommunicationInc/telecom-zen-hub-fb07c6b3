@@ -62,7 +62,7 @@ export const SEOHead = ({
 // SEO data for each page
 export const SEO_DATA = {
   home: {
-    title: "Nivra Telecom | Internet & TV prépayé au Québec — Sans contrat",
+    title: "Nivra Telecom | Internet & TV prépayé au Québec",
     description:
       "Internet haute vitesse dès 45$/mois, TV et Mobile 4G sans contrat au Québec. Montréal, Laval, Québec, Rive-Sud et plus.",
   },
