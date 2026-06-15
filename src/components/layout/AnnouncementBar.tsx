@@ -92,8 +92,9 @@ const AnnouncementBar = () => {
       role="banner"
       aria-label="Annonce promotionnelle"
     >
-      <div className="relative flex items-center h-10 px-2 sm:px-4">
-        <div className="flex-1 overflow-hidden mr-2 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-180px)]">
+      <div className="relative flex items-center h-10">
+        {/* Scrolling text — edge to edge, no left padding */}
+        <div className="flex-1 overflow-hidden">
           <div
             className={`flex items-center gap-8 whitespace-nowrap ${
               prefersReducedMotion ? "" : "animate-marquee hover:pause-animation"
@@ -101,7 +102,7 @@ const AnnouncementBar = () => {
             aria-hidden="true"
           >
             {[0, 1].map((i) => (
-              <div key={i} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium">
+              <div key={i} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium pl-4">
                 <span>Nouveau client? Obtenez 50% de rabais sur votre première facture</span>
                 <span className="text-white/40 mx-2 sm:mx-4">•</span>
                 <span>Offre exclusive — Aucun contrat requis</span>
@@ -111,7 +112,8 @@ const AnnouncementBar = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Buttons — fixed right, avec fond pour masquer le texte qui passe dessous */}
+        <div className="flex items-center gap-1.5 shrink-0 pr-2 pl-3 h-full" style={{ background: 'linear-gradient(to right, transparent, #9333ea 24px, #9333ea)' }}>
           <Button
             variant="ghost"
             size="sm"
@@ -125,7 +127,7 @@ const AnnouncementBar = () => {
 
           <button
             onClick={handleDismiss}
-            className="ml-1 p-1.5 rounded-md hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+            className="p-1.5 rounded-md hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
             aria-label="Fermer l'annonce"
             type="button"
           >

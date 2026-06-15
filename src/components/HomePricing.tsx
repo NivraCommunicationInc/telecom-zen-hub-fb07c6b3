@@ -153,10 +153,19 @@ const HomePricing = () => {
           </p>
         </div>
 
+        {/* Swipe hint — mobile only */}
+        <div className="flex items-center justify-center gap-2 mb-4 md:hidden" style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+            <path d="M1 6h14M9 1l6 5-6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span>{isFr ? 'Glisser pour voir tous les forfaits' : 'Swipe to see all plans'}</span>
+        </div>
+
         {/* Plan grid — horizontal scroll on mobile, 3-col grid on desktop */}
         <div
-          className="flex overflow-x-auto snap-x snap-mandatory pb-4 gap-4 -mx-5 px-5 mb-10 md:grid md:grid-cols-3 md:gap-5 lg:gap-6 md:items-stretch md:max-w-[1080px] md:mx-auto md:overflow-visible md:pb-0 md:px-0"
-          style={{ scrollbarWidth: "none" } as React.CSSProperties}
+          id="plans-scroll"
+          className="flex overflow-x-auto snap-x snap-mandatory pb-4 gap-4 -mx-5 px-5 mb-6 md:grid md:grid-cols-3 md:gap-5 lg:gap-6 md:items-stretch md:max-w-[1080px] md:mx-auto md:overflow-visible md:pb-0 md:px-0"
+          style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
           {plans.map((plan) => {
             const isRec = plan.recommended;
@@ -169,7 +178,7 @@ const HomePricing = () => {
               <Link
                 key={plan.id}
                 to={`/commander?plan=${plan.id}`}
-                className="group relative flex flex-col transition-all duration-300 hover:-translate-y-1.5 shrink-0 w-[300px] snap-start md:w-auto"
+                className="group relative flex flex-col transition-all duration-300 hover:-translate-y-1.5 shrink-0 w-[82vw] max-w-[340px] snap-start md:w-auto md:max-w-none"
                 style={{
                   background: isRec
                     ? 'linear-gradient(180deg, rgba(124,58,237,0.22) 0%, rgba(10,10,15,1) 100%)'
@@ -354,6 +363,22 @@ const HomePricing = () => {
               </Link>
             );
           })}
+        </div>
+
+        {/* Dots indicateurs — mobile only */}
+        <div className="flex items-center justify-center gap-2 mb-8 md:hidden">
+          {plans.map((_, i) => (
+            <button
+              key={i}
+              aria-label={`Forfait ${i + 1}`}
+              onClick={() => {
+                const el = document.getElementById('plans-scroll');
+                if (el) el.scrollTo({ left: i * el.offsetWidth * 0.86, behavior: 'smooth' });
+              }}
+              className="rounded-full transition-all"
+              style={{ width: 8, height: 8, background: i === 1 ? '#7C3AED' : 'rgba(255,255,255,0.25)', cursor: 'pointer', border: 'none', padding: 0 }}
+            />
+          ))}
         </div>
 
         {/* Trust line */}
