@@ -417,8 +417,7 @@ const Hero = () => {
 
       {/* Stats ticker */}
       <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", background:"rgba(0,0,0,0.5)", backdropFilter:"blur(12px)", overflow:"hidden", position:"relative" }}>
-        <div aria-hidden style={{ position:"absolute", left:0, top:0, bottom:0, width:120, zIndex:2, background:"linear-gradient(90deg, rgba(2,2,9,1) 0%, transparent 100%)", pointerEvents:"none" }} />
-        <div aria-hidden style={{ position:"absolute", right:0, top:0, bottom:0, width:120, zIndex:2, background:"linear-gradient(90deg, transparent 0%, rgba(2,2,9,1) 100%)", pointerEvents:"none" }} />
+        <div aria-hidden style={{ position:"absolute", right:0, top:0, bottom:0, width:80, zIndex:2, background:"linear-gradient(90deg, transparent 0%, rgba(2,2,9,1) 100%)", pointerEvents:"none" }} />
         <div style={{ display:"flex", animation:"ticker 30s linear infinite", width:"max-content" }}>
           {[...Array(2)].map((_, rep) => (
             <div key={rep} className="flex items-center" style={{ gap:0 }}>

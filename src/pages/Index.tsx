@@ -246,11 +246,20 @@ const Index = () => {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-stretch">
+            {/* Swipe hint — mobile only */}
+            <p className="flex items-center justify-center gap-2 mb-3 sm:hidden" style={{ color:"rgba(255,255,255,0.3)", fontSize:12 }}>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1 6h14M9 1l6 5-6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {isFr ? "Glisser pour voir tous les forfaits" : "Swipe to see all plans"}
+            </p>
+
+            <div
+              className="flex overflow-x-auto snap-x snap-mandatory gap-4 -mx-4 px-4 pb-4 sm:grid sm:grid-cols-3 sm:gap-5 sm:items-stretch sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible"
+              style={{ scrollbarWidth:"none", WebkitOverflowScrolling:"touch" } as React.CSSProperties}
+            >
               {displayPlans.map((plan, i) => {
                 const badgeHex = BADGE_COLORS[plan.badgeColor || ""] || "#7C3AED";
                 return (
-                  <motion.div key={plan.id} custom={i} initial="hidden" whileInView="visible" viewport={{ once:true }} variants={fadeUp} className="flex">
+                  <motion.div key={plan.id} custom={i} initial="hidden" whileInView="visible" viewport={{ once:true }} variants={fadeUp} className="flex shrink-0 w-[82vw] max-w-[320px] snap-start sm:w-auto sm:max-w-none">
                     <div
                       className="relative flex flex-col w-full rounded-2xl overflow-hidden plan-card-shine"
                       style={{
